@@ -340,7 +340,7 @@
         <span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="set_current_user"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.set_current_user">[docs]</a><span class="k">def</span> <span class="nf">set_current_user</span><span class="p">(</span><span class="n">user</span><span class="p">:</span> <span class="s1">&#39;psef.models.User&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<div class="viewcode-block" id="set_current_user"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.set_current_user">[docs]</a><span class="k">def</span> <span class="nf">set_current_user</span><span class="p">(</span><span class="n">user</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="s1">&#39;psef.models.User&#39;</span><span class="p">,</span> <span class="n">LocalProxy</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Set the current user for this request.</span>
 
 <span class="sd">    You probably never should use this method, it is only useful after logging</span>
@@ -353,7 +353,7 @@
     <span class="c1"># making sure we always assign an actual User object.</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">LocalProxy</span><span class="p">):</span>
         <span class="c1"># pylint: disable=protected-access</span>
-        <span class="n">user</span> <span class="o">=</span> <span class="n">psef</span><span class="o">.</span><span class="n">current_user</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">_get_current_object</span><span class="p">()</span>
     <span class="c1"># This sets the current user for flask jwt. See</span>
     <span class="c1"># https://github.com/vimalloc/flask-jwt-extended/issues/206 to make this</span>
     <span class="c1"># easier.</span>
@@ -557,6 +557,8 @@
         <span class="k">if</span> <span class="nb">any</span><span class="p">(</span>
             <span class="n">assig</span><span class="o">.</span><span class="n">id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">member</span><span class="o">.</span><span class="n">assignment_results</span> <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">members</span>
         <span class="p">):</span>
+            <span class="k">assert</span> <span class="n">assig</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
             <span class="n">lms</span> <span class="o">=</span> <span class="n">assig</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span><span class="o">.</span><span class="n">lms_name</span>
             <span class="k">if</span> <span class="n">author</span><span class="o">.</span><span class="n">group</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>

@@ -216,6 +216,7 @@
 <span class="kn">import</span> <span class="nn">subprocess</span>
 <span class="kn">import</span> <span class="nn">urllib.parse</span>
 <span class="kn">import</span> <span class="nn">multiprocessing</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">itemgetter</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
 
 <span class="kn">import</span> <span class="nn">flask</span>
@@ -225,6 +226,7 @@
 <span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">g</span><span class="p">,</span> <span class="n">request</span>
 <span class="kn">from</span> <span class="nn">mypy_extensions</span> <span class="kn">import</span> <span class="n">Arg</span>
 <span class="kn">from</span> <span class="nn">typing_extensions</span> <span class="kn">import</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Protocol</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy.dialects</span> <span class="kn">import</span> <span class="n">postgresql</span>
 <span class="kn">from</span> <span class="nn">werkzeug.datastructures</span> <span class="kn">import</span> <span class="n">FileStorage</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.sql.expression</span> <span class="kn">import</span> <span class="n">or_</span>
 
@@ -677,11 +679,37 @@
     <span class="k">return</span> <span class="p">[</span><span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">res</span><span class="p">]</span></div>
 
 
+<span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
+<span class="k">def</span> <span class="nf">_filter_or_404</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">Y</span><span class="p">],</span>
+    <span class="n">get_all</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">True</span><span class="p">],</span>
+    <span class="n">criteria</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">,</span>
+    <span class="n">also_error</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">Y</span><span class="p">]],</span> <span class="nb">bool</span><span class="p">]],</span>
+    <span class="n">with_for_update</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">LockType</span><span class="p">],</span>
+    <span class="n">options</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">with_for_update_of</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="s1">&#39;Base&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Y</span><span class="p">]:</span>
+    <span class="o">...</span>
+
+
+<span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
+<span class="k">def</span> <span class="nf">_filter_or_404</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">Y</span><span class="p">],</span>
+    <span class="n">get_all</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">False</span><span class="p">],</span>
+    <span class="n">criteria</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">,</span>
+    <span class="n">also_error</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="n">Y</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]],</span>
+    <span class="n">with_for_update</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">LockType</span><span class="p">],</span>
+    <span class="n">options</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">with_for_update_of</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="s1">&#39;Base&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Y</span><span class="p">:</span>
+    <span class="o">...</span>
+
+
 <span class="k">def</span> <span class="nf">_filter_or_404</span><span class="p">(</span>
     <span class="n">model</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">Y</span><span class="p">],</span>
     <span class="n">get_all</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
     <span class="n">criteria</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">,</span>
-    <span class="n">also_error</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="n">Y</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]],</span>
+    <span class="n">also_error</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]],</span>
     <span class="n">with_for_update</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">LockType</span><span class="p">],</span>
     <span class="n">options</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">with_for_update_of</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="s1">&#39;Base&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -709,11 +737,18 @@
     <span class="n">obj</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="k">if</span> <span class="n">get_all</span> <span class="k">else</span> <span class="n">query</span><span class="o">.</span><span class="n">one_or_none</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">obj</span> <span class="ow">or</span> <span class="p">(</span><span class="n">also_error</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">also_error</span><span class="p">(</span><span class="n">obj</span><span class="p">)):</span>
-        <span class="n">crit_str</span> <span class="o">=</span> <span class="s1">&#39; AND &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">crit</span><span class="p">)</span> <span class="k">for</span> <span class="n">crit</span> <span class="ow">in</span> <span class="n">criteria</span><span class="p">)</span>
+        <span class="n">crit_str</span> <span class="o">=</span> <span class="s1">&#39; AND &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="nb">str</span><span class="p">(</span>
+                <span class="n">crit</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+                    <span class="n">dialect</span><span class="o">=</span><span class="n">postgresql</span><span class="o">.</span><span class="n">dialect</span><span class="p">(),</span>
+                    <span class="n">compile_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;literal_binds&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+                <span class="p">)</span>
+            <span class="p">)</span> <span class="k">for</span> <span class="n">crit</span> <span class="ow">in</span> <span class="n">criteria</span>
+        <span class="p">)</span>
         <span class="k">raise</span> <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APIException</span><span class="p">(</span>
             <span class="sa">f</span><span class="s1">&#39;The requested {model.__name__.lower()} was not found&#39;</span><span class="p">,</span>
             <span class="sa">f</span><span class="s1">&#39;There is no &quot;</span><span class="si">{model.__name__}</span><span class="s1">&quot; when filtering with </span><span class="si">{crit_str}</span><span class="s1">&#39;</span><span class="p">,</span>
-            <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APICodes</span><span class="o">.</span><span class="n">OBJECT_ID_NOT_FOUND</span><span class="p">,</span> <span class="mi">404</span>
+            <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APICodes</span><span class="o">.</span><span class="n">OBJECT_NOT_FOUND</span><span class="p">,</span> <span class="mi">404</span>
         <span class="p">)</span>
     <span class="k">return</span> <span class="n">obj</span>
 

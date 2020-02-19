@@ -376,8 +376,6 @@
     <span class="c1"># not be exited (new_pid == status == 0), or should exit normally</span>
     <span class="c1"># (os.WIFEXITED), or it exited through a signal (os.WIFSIGNALED).</span>
     <span class="k">assert</span> <span class="kc">False</span>
-    <span class="c1"># Pylint issue https://github.com/PyCQA/pylint/issues/2908</span>
-    <span class="k">return</span> <span class="kc">None</span>  <span class="c1"># pragma: no cover</span>
 
 
 <span class="k">def</span> <span class="nf">_wait_for_attach</span><span class="p">(</span>

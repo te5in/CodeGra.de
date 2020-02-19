@@ -874,13 +874,13 @@ permission, this is done in the same way as
 
 <dl class="function">
 <dt id="psef.auth.set_current_user">
-<code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">set_current_user</code><span class="sig-paren">(</span><em class="sig-param">user: psef.models.user.User</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#set_current_user"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.set_current_user" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">set_current_user</code><span class="sig-paren">(</span><em class="sig-param">user: Union[psef.models.User, werkzeug.local.LocalProxy]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#set_current_user"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.set_current_user" title="Permalink to this definition">¶</a></dt>
 <dd><p>Set the current user for this request.</p>
 <p>You probably never should use this method, it is only useful after logging
 in a user.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>user</strong> (<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>) – The user that should become the current user.</p>
+<dd class="field-odd"><p><strong>user</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>, <a class="reference external" href="https://werkzeug.palletsprojects.com/en/1.0.x/local/#werkzeug.local.LocalProxy" title="(in Werkzeug v1.0.x)"><code class="xref py py-class docutils literal notranslate"><span class="pre">LocalProxy</span></code></a>]) – The user that should become the current user.</p>
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code></p>
@@ -1859,11 +1859,11 @@ placed in.</p></li>
 
 <dl class="function">
 <dt id="psef.files.fix_duplicate_filenames">
-<code class="sig-prename descclassname">psef.files.</code><code class="sig-name descname">fix_duplicate_filenames</code><span class="sig-paren">(</span><em class="sig-param">files: Sequence[psef.files.FileLike]</em><span class="sig-paren">)</span> &#x2192; List[Dict[str, str]]<a class="reference internal" href="../_modules/psef/files.html#fix_duplicate_filenames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.files.fix_duplicate_filenames" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">psef.files.</code><code class="sig-name descname">fix_duplicate_filenames</code><span class="sig-paren">(</span><em class="sig-param">files: Union[Sequence[psef.files.FileLike], Sequence[models.FileMixin[T]]]</em><span class="sig-paren">)</span> &#x2192; List[Dict[str, str]]<a class="reference internal" href="../_modules/psef/files.html#fix_duplicate_filenames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.files.fix_duplicate_filenames" title="Permalink to this definition">¶</a></dt>
 <dd><p>Fix duplicate files in a list of files.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>files</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="#psef.files.FileLike" title="psef.files.FileLike"><code class="xref py py-class docutils literal notranslate"><span class="pre">FileLike</span></code></a>]) – The files to check for.</p>
+<dd class="field-odd"><p><strong>files</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="#psef.files.FileLike" title="psef.files.FileLike"><code class="xref py py-class docutils literal notranslate"><span class="pre">FileLike</span></code></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="#psef.models.file.FileMixin" title="psef.models.file.FileMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">FileMixin</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code>]]]) – The files to check for.</p>
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</p>
@@ -1879,7 +1879,7 @@ mutated in-place.</p>
 
 <dl class="function">
 <dt id="psef.files.get_file_contents">
-<code class="sig-prename descclassname">psef.files.</code><code class="sig-name descname">get_file_contents</code><span class="sig-paren">(</span><em class="sig-param">code: psef.models.file.FileMixin</em><span class="sig-paren">)</span> &#x2192; bytes<a class="reference internal" href="../_modules/psef/files.html#get_file_contents"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.files.get_file_contents" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">psef.files.</code><code class="sig-name descname">get_file_contents</code><span class="sig-paren">(</span><em class="sig-param">code: psef.models.file.FileMixin[~T][T]</em><span class="sig-paren">)</span> &#x2192; bytes<a class="reference internal" href="../_modules/psef/files.html#get_file_contents"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.files.get_file_contents" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the contents of the given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.File</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -6914,7 +6914,7 @@ current time.</p>
 
 <dl class="method">
 <dt id="psef.models.assignment.Assignment.validate_group_set">
-<code class="sig-name descname">validate_group_set</code><span class="sig-paren">(</span><em class="sig-param">self, _: str, group_set: Optional[group_models.GroupSet]</em><span class="sig-paren">)</span> &#x2192; Optional[psef.models.group.GroupSet]<a class="reference internal" href="../_modules/psef/models/assignment.html#Assignment.validate_group_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.assignment.Assignment.validate_group_set" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">validate_group_set</code><span class="sig-paren">(</span><em class="sig-param">self, _: str, group_set: Optional[psef.models.GroupSet]</em><span class="sig-paren">)</span> &#x2192; Optional[psef.models.group.GroupSet]<a class="reference internal" href="../_modules/psef/models/assignment.html#Assignment.validate_group_set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.assignment.Assignment.validate_group_set" title="Permalink to this definition">¶</a></dt>
 <dd><p>Make sure the course id of the group set is the same as the course
 id of the assignment.</p>
 <dl class="field-list simple">
@@ -7301,12 +7301,12 @@ request the saved file is also deleted.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="psef.models.file.AutoTestFixture.is_directory">
-<em class="property">property </em><code class="sig-name descname">is_directory</code><a class="headerlink" href="#psef.models.file.AutoTestFixture.is_directory" title="Permalink to this definition">¶</a></dt>
-<dd><p>Is this file a directory.</p>
+<dt id="psef.models.file.AutoTestFixture.get_id">
+<code class="sig-name descname">get_id</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span> &#x2192; int<a class="reference internal" href="../_modules/psef/models/file.html#AutoTestFixture.get_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.file.AutoTestFixture.get_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the id of this file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -7319,8 +7319,19 @@ request the saved file is also deleted.</p>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">sqlalchemy.ext.declarative.api.Model</span></code>, <a class="reference internal" href="#psef.models.file.NestedFileMixin" title="psef.models.file.NestedFileMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.models.file.NestedFileMixin</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">cg_sqlalchemy_helpers.mixins.TimestampMixin</span></code></p>
 <p>This class represents an output file from an AutoTest run.</p>
 <p>The output files are connected to both a
-<code class="xref py py-class docutils literal notranslate"><span class="pre">auto_test_models.AutoTestResult</span></code> and a
-<code class="xref py py-class docutils literal notranslate"><span class="pre">auto_test_models.AutoTestSuite</span></code>.</p>
+<code class="xref py py-class docutils literal notranslate"><span class="pre">psef.models.AutoTestResult</span></code> and a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">psef.models.AutoTestSuite</span></code>.</p>
+<dl class="method">
+<dt id="psef.models.file.AutoTestOutputFile.get_id">
+<code class="sig-name descname">get_id</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span> &#x2192; T<a class="reference internal" href="../_modules/psef/models/file.html#AutoTestOutputFile.get_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.file.AutoTestOutputFile.get_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the id of this file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="method">
 <dt id="psef.models.file.AutoTestOutputFile.list_contents">
 <code class="sig-name descname">list_contents</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span> &#x2192; psef.files.FileTree[uuid.UUID][uuid.UUID]<a class="reference internal" href="../_modules/psef/models/file.html#AutoTestOutputFile.list_contents"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.file.AutoTestOutputFile.list_contents" title="Permalink to this definition">¶</a></dt>
@@ -7368,6 +7379,17 @@ will be <cite>student</cite>.</p>
 </dd>
 <dt class="field-odd">Returns</dt>
 <dd class="field-odd"><p>The object determined as described above.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.file.File.get_id">
+<code class="sig-name descname">get_id</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span> &#x2192; int<a class="reference internal" href="../_modules/psef/models/file.html#File.get_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.file.File.get_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the id of this file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -7482,23 +7504,12 @@ collisions.</p></li>
 </dd></dl>
 
 <dl class="method">
-<dt id="psef.models.file.FileMixin.id">
-<em class="property">property </em><code class="sig-name descname">id</code><a class="headerlink" href="#psef.models.file.FileMixin.id" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get the id in the database of this file.</p>
+<dt id="psef.models.file.FileMixin.get_id">
+<em class="property">abstract </em><code class="sig-name descname">get_id</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span> &#x2192; T<a class="reference internal" href="../_modules/psef/models/file.html#FileMixin.get_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.file.FileMixin.get_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the id of this file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="psef.models.file.FileMixin.is_directory">
-<em class="property">property </em><code class="sig-name descname">is_directory</code><a class="headerlink" href="#psef.models.file.FileMixin.is_directory" title="Permalink to this definition">¶</a></dt>
-<dd><p>Is this file a directory.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -7557,22 +7568,9 @@ representation of a directory.</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="psef.models.file.NestedFileMixin.parent">
-<em class="property">property </em><code class="sig-name descname">parent</code><a class="headerlink" href="#psef.models.file.NestedFileMixin.parent" title="Permalink to this definition">¶</a></dt>
-<dd><p>The parent of this file.</p>
-<p>If <code class="docutils literal notranslate"><span class="pre">None</span></code> this file has no parent, i.e. it is a toplevel
-directory/file.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference internal" href="#psef.models.file.NestedFileMixin" title="psef.models.file.NestedFileMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">NestedFileMixin</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code>]]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="psef.models.file.NestedFileMixin.parent_id">
-<em class="property">property </em><code class="sig-name descname">parent_id</code><a class="headerlink" href="#psef.models.file.NestedFileMixin.parent_id" title="Permalink to this definition">¶</a></dt>
-<dd><p>The id of the parent.</p>
+<dt id="psef.models.file.NestedFileMixin.get_id">
+<em class="property">abstract </em><code class="sig-name descname">get_id</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span> &#x2192; T<a class="reference internal" href="../_modules/psef/models/file.html#NestedFileMixin.get_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.file.NestedFileMixin.get_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the id of this file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code></p>
@@ -7662,7 +7660,7 @@ generated.</p></li>
 <dd><p>Get the lti state of all members in the group.</p>
 <p>Check if it is possible to passback the grade for all members in this
 group. This is done by checking if there is a row for each user,
-assignment combination in the <cite>.assignment_models.AssignmentResult</cite>
+assignment combination in the <cite>.psef.models.AssignmentResult</cite>
 table.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -8069,17 +8067,12 @@ this permission is global for the entire site.</p></li>
 </dl>
 </dd></dl>
 
-<dl class="attribute">
-<dt id="psef.models.permission.Permission.value">
-<code class="sig-name descname">value</code><a class="headerlink" href="#psef.models.permission.Permission.value" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get the permission value of the database permission.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>The permission of this database permission.</p>
-</dd>
-</dl>
 </dd></dl>
 
+<dl class="class">
+<dt id="psef.models.permission.PermissionComp">
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.permission.</code><code class="sig-name descname">PermissionComp</code><span class="sig-paren">(</span><em class="sig-param">self, _Comparator__name: cg_sqlalchemy_helpers.types.DbColumn[~T][T]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/models/permission.html#PermissionComp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.permission.PermissionComp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">cg_sqlalchemy_helpers.types.Comparator</span></code></p>
 </dd></dl>
 
 </div>
@@ -8264,7 +8257,7 @@ permission.</p>
 <dd><p>The id of this role.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a></p>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ColumnProxy</span></code>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -8275,7 +8268,7 @@ permission.</p>
 <dd><p>The name of this role.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></p>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ColumnProxy</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -8553,7 +8546,7 @@ a normal rubric row.</p></li>
 
 <dl class="method">
 <dt id="psef.models.rubric.RubricRowBase.make_work_rubric_item_for_auto_test">
-<code class="sig-name descname">make_work_rubric_item_for_auto_test</code><span class="sig-paren">(</span><em class="sig-param">self, work: psef.models.work.Work, percentage: float, grade_calculator: Callable[[Sequence[rubric_models.RubricItem], float], rubric_models.RubricItem]</em><span class="sig-paren">)</span> &#x2192; psef.models.rubric.WorkRubricItem<a class="reference internal" href="../_modules/psef/models/rubric.html#RubricRowBase.make_work_rubric_item_for_auto_test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricRowBase.make_work_rubric_item_for_auto_test" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">make_work_rubric_item_for_auto_test</code><span class="sig-paren">(</span><em class="sig-param">self, work: psef.models.work.Work, percentage: float, grade_calculator: Callable[[Sequence[psef.models.RubricItem], float], psef.models.RubricItem]</em><span class="sig-paren">)</span> &#x2192; psef.models.rubric.WorkRubricItem<a class="reference internal" href="../_modules/psef/models/rubric.html#RubricRowBase.make_work_rubric_item_for_auto_test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.rubric.RubricRowBase.make_work_rubric_item_for_auto_test" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a <a class="reference internal" href="#psef.models.rubric.WorkRubricItem" title="psef.models.rubric.WorkRubricItem"><code class="xref py py-class docutils literal notranslate"><span class="pre">WorkRubricItem</span></code></a> for an AutoTest.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -8772,6 +8765,14 @@ with ‘Virtual - ‘ and a random username.</p>
 <dd><p>Get all global permissions (<a class="reference internal" href="#psef.models.permission.Permission" title="psef.models.permission.Permission"><code class="xref py py-class docutils literal notranslate"><span class="pre">Permission</span></code></a>) of this user or
 all course permissions of the user in a specific
 <a class="reference internal" href="#psef.models.course.Course" title="psef.models.course.Course"><code class="xref py py-class docutils literal notranslate"><span class="pre">course.Course</span></code></a>.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">user_without_role</span> <span class="o">=</span> <span class="n">User</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">perms</span> <span class="o">=</span> <span class="n">user_without_role</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">assert</span> <span class="nb">set</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">GlobalPermission</span><span class="p">))</span> <span class="o">==</span> <span class="nb">set</span><span class="p">(</span><span class="n">perms</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">assert</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">perms</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cperms</span> <span class="o">=</span> <span class="n">user_without_role</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">(</span><span class="n">course_id</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">assert</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">perms</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+</pre></div>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>course_id</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference internal" href="#psef.models.course.Course" title="psef.models.course.Course"><code class="xref py py-class docutils literal notranslate"><span class="pre">Course</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>, <code class="docutils literal notranslate"><span class="pre">None</span></code>]) – The course or course id</p>
@@ -8869,6 +8870,17 @@ reset the password of a user.</p>
 <dd><p>Check whether this user has the specified global or course
 <a class="reference internal" href="#psef.models.permission.Permission" title="psef.models.permission.Permission"><code class="xref py py-class docutils literal notranslate"><span class="pre">Permission</span></code></a>.</p>
 <p>To check a course permission the course_id has to be set.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">user_without_role</span> <span class="o">=</span> <span class="n">User</span><span class="p">(</span><span class="n">active</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">user_without_role</span><span class="o">.</span><span class="n">has_permission</span><span class="p">(</span>
+<span class="gp">... </span> <span class="n">GlobalPermission</span><span class="o">.</span><span class="n">can_edit_own_password</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="go">False</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">user_without_role</span><span class="o">.</span><span class="n">has_permission</span><span class="p">(</span>
+<span class="gp">... </span> <span class="n">CoursePermission</span><span class="o">.</span><span class="n">can_submit_own_work</span><span class="p">,</span> <span class="n">course_id</span><span class="o">=</span><span class="mi">1</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="go">False</span>
+</pre></div>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -8887,12 +8899,6 @@ reset the password of a user.</p>
 permission with this name exists.</p>
 </dd>
 </dl>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="psef.models.user.User.id">
-<code class="sig-name descname">id</code><a class="headerlink" href="#psef.models.user.User.id" title="Permalink to this definition">¶</a></dt>
-<dd><p>The id of the user</p>
 </dd></dl>
 
 <dl class="method">
@@ -8967,12 +8973,6 @@ database.</p>
 given token.</p>
 </dd>
 </dl>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="psef.models.user.User.username">
-<code class="sig-name descname">username</code><a class="headerlink" href="#psef.models.user.User.username" title="Permalink to this definition">¶</a></dt>
-<dd><p>The username of the user</p>
 </dd></dl>
 
 </dd></dl>
@@ -9116,7 +9116,7 @@ most of work.</p>
 
 <dl class="method">
 <dt id="psef.models.work.Work.get_file_children_mapping">
-<code class="sig-name descname">get_file_children_mapping</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">exclude: psef.models.file.FileOwner</em><span class="sig-paren">)</span> &#x2192; Mapping[int, Sequence[psef.models.file.File]]<a class="reference internal" href="../_modules/psef/models/work.html#Work.get_file_children_mapping"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.work.Work.get_file_children_mapping" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">get_file_children_mapping</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">exclude: psef.models.file.FileOwner</em><span class="sig-paren">)</span> &#x2192; Mapping[Optional[int], Sequence[psef.models.file.File]]<a class="reference internal" href="../_modules/psef/models/work.html#Work.get_file_children_mapping"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.work.Work.get_file_children_mapping" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get a mapping that maps a file id to all its children.</p>
 <p>This implementation does a single query to the database and runs in
 O(n*log(n)), so it will be quite a bit quicker than using the
@@ -9128,7 +9128,7 @@ all files.</p>
 <dd class="field-odd"><p><strong>exclude</strong> (<a class="reference internal" href="#psef.models.file.FileOwner" title="psef.models.file.FileOwner"><code class="xref py py-class docutils literal notranslate"><span class="pre">FileOwner</span></code></a>) – The file owners to exclude</p>
 </dd>
 <dt class="field-even">Return type</dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="#psef.models.file.File" title="psef.models.file.File"><code class="xref py py-class docutils literal notranslate"><span class="pre">File</span></code></a>]]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="#psef.models.file.File" title="psef.models.file.File"><code class="xref py py-class docutils literal notranslate"><span class="pre">File</span></code></a>]]</p>
 </dd>
 <dt class="field-odd">Returns</dt>
 <dd class="field-odd"><p>A mapping from file id to list of all its children for this
@@ -9497,7 +9497,7 @@ commit is necessary in that case.</p>
 
 <dl class="method">
 <dt id="psef.models.auto_test.AutoTest.copy">
-<code class="sig-name descname">copy</code><span class="sig-paren">(</span><em class="sig-param">self, rubric_mapping: Mapping[rubric_models.RubricRowBase, rubric_models.RubricRowBase]</em><span class="sig-paren">)</span> &#x2192; psef.models.auto_test.AutoTest<a class="reference internal" href="../_modules/psef/models/auto_test.html#AutoTest.copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test.AutoTest.copy" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">copy</code><span class="sig-paren">(</span><em class="sig-param">self, rubric_mapping: Mapping[psef.models.RubricRow, psef.models.RubricRow]</em><span class="sig-paren">)</span> &#x2192; psef.models.auto_test.AutoTest<a class="reference internal" href="../_modules/psef/models/auto_test.html#AutoTest.copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test.AutoTest.copy" title="Permalink to this definition">¶</a></dt>
 <dd><p>Copy this AutoTest configuration.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -9675,50 +9675,6 @@ points possible in the given suites.</p>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>A query that gets all results by the given user. Notice that
 these results are for all <a class="reference internal" href="#psef.models.auto_test.AutoTestRun" title="psef.models.auto_test.AutoTestRun"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTestRun</span></code></a> s.</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="psef.models.auto_test.AutoTestResult.is_finished">
-<em class="property">property </em><code class="sig-name descname">is_finished</code><a class="headerlink" href="#psef.models.auto_test.AutoTestResult.is_finished" title="Permalink to this definition">¶</a></dt>
-<dd><p>Has this state passed?</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="psef.models.auto_test.AutoTestResult.state">
-<em class="property">property </em><code class="sig-name descname">state</code><a class="headerlink" href="#psef.models.auto_test.AutoTestResult.state" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get the state of this result</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">called</span> <span class="o">=</span> <span class="kc">False</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">fun</span><span class="p">(</span><span class="n">_</span><span class="p">):</span>
-<span class="gp">... </span> <span class="k">global</span> <span class="n">called</span>
-<span class="gp">... </span> <span class="n">called</span> <span class="o">=</span> <span class="kc">True</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">psef</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">adjust_amount_runners</span> <span class="o">=</span> <span class="n">fun</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span> <span class="o">=</span> <span class="n">AutoTestResult</span><span class="p">(</span><span class="n">run</span><span class="o">=</span><span class="n">AutoTestRun</span><span class="p">())</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">not_set</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">started_at</span> <span class="o">=</span> <span class="n">not_set</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">auto_test_step_models</span><span class="o">.</span><span class="n">AutoTestStepResultState</span><span class="o">.</span><span class="n">running</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">started_at</span><span class="p">,</span> <span class="n">DatetimeWithTimezone</span><span class="p">)</span>
-<span class="go">True</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">called</span>
-<span class="go">True</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="mi">6</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">started_at</span> <span class="ow">is</span> <span class="kc">None</span>
-<span class="go">True</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">started_at</span> <span class="o">=</span> <span class="n">not_set</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="mi">6</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">started_at</span> <span class="ow">is</span> <span class="n">not_set</span>
-<span class="go">True</span>
-</pre></div>
-</div>
-<dl class="field-list simple">
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p><a class="reference internal" href="#psef.models.auto_test_step.AutoTestStepResultState" title="psef.models.auto_test_step.AutoTestStepResultState"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTestStepResultState</span></code></a></p>
 </dd>
 </dl>
 </dd></dl>

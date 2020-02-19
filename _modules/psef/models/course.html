@@ -219,11 +219,7 @@
 <span class="kn">from</span> <span class="nn">.assignment</span> <span class="kn">import</span> <span class="n">Assignment</span>
 <span class="kn">from</span> <span class="nn">.link_tables</span> <span class="kn">import</span> <span class="n">user_course</span>
 <span class="kn">from</span> <span class="nn">..permissions</span> <span class="kn">import</span> <span class="n">CoursePermission</span>
-
-<span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-    <span class="c1"># pylint: disable=unused-import,cyclic-import</span>
-    <span class="kn">from</span> <span class="nn">.lti_provider</span> <span class="kn">import</span> <span class="n">LTIProvider</span>
-    <span class="kn">from</span> <span class="nn">.group</span> <span class="kn">import</span> <span class="n">GroupSet</span>
+<span class="kn">from</span> <span class="nn">.lti_provider</span> <span class="kn">import</span> <span class="n">LTIProvider</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">structlog</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
 
@@ -238,7 +234,7 @@
 <span class="sd">    :ivar ~.CourseRegistrationLink.expiration_date: The date after which this</span>
 <span class="sd">        link is no longer valid.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">course_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">course_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;course_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Course.id&#39;</span><span class="p">),</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
     <span class="n">course_role_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
@@ -247,20 +243,20 @@
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Course_Role.id&#39;</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
-    <span class="n">expiration_date</span><span class="p">:</span> <span class="n">DatetimeWithTimezone</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">expiration_date</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;expiration_date&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">course</span><span class="p">:</span> <span class="s1">&#39;Course&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;Course&#39;</span><span class="p">,</span>
+    <span class="n">course</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Course</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">course_id</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;registration_links&#39;</span><span class="p">,</span>
         <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">course_role</span><span class="p">:</span> <span class="n">CourseRole</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;CourseRole&#39;</span><span class="p">,</span> <span class="n">foreign_keys</span><span class="o">=</span><span class="n">course_role_id</span><span class="p">,</span> <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span>
+    <span class="n">course_role</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">CourseRole</span><span class="p">,</span> <span class="n">foreign_keys</span><span class="o">=</span><span class="n">course_role_id</span><span class="p">,</span> <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
@@ -278,21 +274,21 @@
     <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
         <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">_MyQuery</span><span class="p">[</span><span class="s1">&#39;CourseSnippet&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;CourseSnippet&#39;</span>
-    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">value</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">course_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">course_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;course_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Course.id&#39;</span><span class="p">),</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
-    <span class="n">created_at</span><span class="p">:</span> <span class="n">DatetimeWithTimezone</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">created_at</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;created_at&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
         <span class="n">default</span><span class="o">=</span><span class="n">DatetimeWithTimezone</span><span class="o">.</span><span class="n">utcnow</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">course</span><span class="p">:</span> <span class="s1">&#39;Course&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;Course&#39;</span><span class="p">,</span>
+    <span class="n">course</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Course</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">course_id</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;snippets&#39;</span><span class="p">,</span>
         <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -322,54 +318,58 @@
     <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
         <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">_MyQuery</span><span class="p">[</span><span class="s1">&#39;Course&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s2">&quot;Course&quot;</span>
-    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
 
-    <span class="n">created_at</span><span class="p">:</span> <span class="n">DatetimeWithTimezone</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="n">DatetimeWithTimezone</span><span class="o">.</span><span class="n">utcnow</span>
+    <span class="n">created_at</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">default</span><span class="o">=</span><span class="n">DatetimeWithTimezone</span><span class="o">.</span><span class="n">utcnow</span><span class="p">,</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="c1"># All stuff for LTI</span>
-    <span class="n">lti_course_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">lti_course_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="n">lti_provider_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">lti_provider_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="n">db</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="n">UUID_LENGTH</span><span class="p">),</span> <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;LTIProvider.id&#39;</span><span class="p">)</span>
     <span class="p">)</span>
-    <span class="n">lti_provider</span><span class="p">:</span> <span class="s1">&#39;LTIProvider&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span><span class="s2">&quot;LTIProvider&quot;</span><span class="p">)</span>
-
-    <span class="n">virtual</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="s1">&#39;virtual&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
+    <span class="n">lti_provider</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">LTIProvider</span><span class="p">,</span> <span class="n">foreign_keys</span><span class="o">=</span><span class="n">lti_provider_id</span>
     <span class="p">)</span>
 
-    <span class="n">group_sets</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">MutableSequence</span><span class="p">[</span><span class="s1">&#39;GroupSet&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s2">&quot;GroupSet&quot;</span><span class="p">,</span>
+    <span class="n">virtual</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;virtual&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">group_sets</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">GroupSet</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;course&quot;</span><span class="p">,</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete&#39;</span><span class="p">,</span>
         <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">order_by</span><span class="o">=</span><span class="s1">&#39;GroupSet.created_at&#39;</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">GroupSet</span><span class="o">.</span><span class="n">created_at</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">snippets</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">MutableSequence</span><span class="p">[</span><span class="s1">&#39;CourseSnippet&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;CourseSnippet&#39;</span><span class="p">,</span>
+    <span class="n">snippets</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">CourseSnippet</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;course&#39;</span><span class="p">,</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete&#39;</span><span class="p">,</span>
         <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;select&#39;</span><span class="p">,</span>
-        <span class="n">order_by</span><span class="o">=</span><span class="s1">&#39;CourseSnippet.created_at&#39;</span><span class="p">,</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">CourseSnippet</span><span class="o">.</span><span class="n">created_at</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">registration_links</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">MutableSequence</span><span class="p">[</span>
-        <span class="s1">&#39;CourseRegistrationLink&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-            <span class="s1">&#39;CourseRegistrationLink&#39;</span><span class="p">,</span>
-            <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;course&#39;</span><span class="p">,</span>
-            <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete&#39;</span><span class="p">,</span>
-            <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">order_by</span><span class="o">=</span><span class="s1">&#39;CourseRegistrationLink.created_at&#39;</span><span class="p">,</span>
-        <span class="p">)</span>
+    <span class="n">registration_links</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">CourseRegistrationLink</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;course&#39;</span><span class="p">,</span>
+        <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete&#39;</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">CourseRegistrationLink</span><span class="o">.</span><span class="n">created_at</span><span class="p">,</span>
+    <span class="p">)</span>
 
     <span class="n">assignments</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s2">&quot;Assignment&quot;</span><span class="p">,</span> <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;course&quot;</span><span class="p">,</span> <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete&#39;</span>
-    <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[Assignment]</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Assignment</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;course&quot;</span><span class="p">,</span>
+        <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete&#39;</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
 
 <div class="viewcode-block" id="Course.create_and_add"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.course.Course.create_and_add">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">create_and_add</span><span class="p">(</span>

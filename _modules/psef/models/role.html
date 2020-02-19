@@ -208,14 +208,14 @@
 <span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">current_app</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.orm.collections</span> <span class="kn">import</span> <span class="n">attribute_mapped_collection</span>
 
-<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">db</span><span class="p">,</span> <span class="n">_MyQuery</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">ColumnProxy</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">db</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">course</span> <span class="k">as</span> <span class="n">course_models</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">_MyQuery</span>
 <span class="kn">from</span> <span class="nn">.permission</span> <span class="kn">import</span> <span class="n">Permission</span>
 <span class="kn">from</span> <span class="nn">.link_tables</span> <span class="kn">import</span> <span class="n">roles_permissions</span><span class="p">,</span> <span class="n">course_permissions</span>
 <span class="kn">from</span> <span class="nn">..permissions</span> <span class="kn">import</span> <span class="n">BasePermission</span><span class="p">,</span> <span class="n">CoursePermission</span><span class="p">,</span> <span class="n">GlobalPermission</span>
-
-<span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-    <span class="c1"># pylint: disable=unused-import</span>
-    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">course</span> <span class="k">as</span> <span class="n">course_models</span>
 
 <span class="n">_T</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;_T&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">BasePermission</span><span class="p">)</span>  <span class="c1"># pylint: disable=invalid-name</span>
 
@@ -235,7 +235,7 @@
 
     <span class="nd">@property</span>
     <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-    <span class="k">def</span> <span class="nf">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ColumnProxy</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;The id of this role.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
@@ -243,13 +243,13 @@
     <span class="c1"># Unfortunately mypy doesn&#39;t really support abstract properties at this</span>
     <span class="c1"># time.</span>
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ColumnProxy</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;The name of this role.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="nd">@name</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_name</span><span class="p">:</span> <span class="n">ColumnProxy</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;The name of this role.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
@@ -368,8 +368,8 @@
     <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
         <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">_MyQuery</span><span class="p">[</span><span class="s1">&#39;Role&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;Role&#39;</span>
-    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">_permissions</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">MutableMapping</span><span class="p">[</span>
         <span class="n">GlobalPermission</span><span class="p">,</span> <span class="n">Permission</span><span class="p">[</span><span class="n">GlobalPermission</span><span class="p">]]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
             <span class="s1">&#39;Permission&#39;</span><span class="p">,</span>
@@ -396,8 +396,8 @@
         <span class="n">query</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>  <span class="c1"># type: t.ClassVar[_MyQuery[&#39;CourseRole&#39;]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;Course_Role&#39;</span>
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
-    <span class="n">course_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">course_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;Course_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Course.id&#39;</span><span class="p">),</span>
@@ -410,11 +410,14 @@
             <span class="n">secondary</span><span class="o">=</span><span class="n">course_permissions</span>
         <span class="p">)</span>
 
-    <span class="n">course</span><span class="p">:</span> <span class="s1">&#39;course_models.Course&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;Course&#39;</span><span class="p">,</span> <span class="n">foreign_keys</span><span class="o">=</span><span class="n">course_id</span><span class="p">,</span> <span class="n">backref</span><span class="o">=</span><span class="s2">&quot;roles&quot;</span><span class="p">,</span> <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span>
+    <span class="n">course</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">course_models</span><span class="o">.</span><span class="n">Course</span><span class="p">,</span>
+        <span class="n">foreign_keys</span><span class="o">=</span><span class="n">course_id</span><span class="p">,</span>
+        <span class="n">backref</span><span class="o">=</span><span class="s2">&quot;roles&quot;</span><span class="p">,</span>
+        <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">hidden</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">hidden</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;hidden&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>

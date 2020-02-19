@@ -208,22 +208,22 @@
 <span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">select</span>
 <span class="kn">from</span> <span class="nn">mypy_extensions</span> <span class="kn">import</span> <span class="n">TypedDict</span>
 
+<span class="kn">import</span> <span class="nn">psef</span>
 <span class="kn">import</span> <span class="nn">cg_json</span>
 <span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers</span> <span class="kn">import</span> <span class="n">hybrid_property</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">ColumnProxy</span>
 
-<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">db</span><span class="p">,</span> <span class="n">_MyQuery</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">db</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">work</span> <span class="k">as</span> <span class="n">work_models</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">_MyQuery</span>
 <span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">helpers</span>
 <span class="kn">from</span> <span class="nn">..registry</span> <span class="kn">import</span> <span class="n">rubric_row_types</span>
 <span class="kn">from</span> <span class="nn">..exceptions</span> <span class="kn">import</span> <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIException</span>
 
 <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-    <span class="c1"># pylint: disable=unused-import, invalid-name</span>
-    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">assignment</span> <span class="k">as</span> <span class="n">assignment_models</span>
-    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">work</span> <span class="k">as</span> <span class="n">work_models</span>
+    <span class="c1"># pylint: disable=unused-import</span>
     <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">auto_test</span> <span class="k">as</span> <span class="n">auto_test_models</span>
-    <span class="n">hybrid_property</span> <span class="o">=</span> <span class="nb">property</span>
-<span class="k">else</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">sqlalchemy.ext.hybrid</span> <span class="kn">import</span> <span class="n">hybrid_property</span>
 
 <span class="n">T</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="s1">&#39;RubricRowBase&#39;</span><span class="p">])</span>
 <span class="n">_ALL_RUBRIC_ROW_TYPES</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="s1">&#39;normal&#39;</span><span class="p">,</span> <span class="s1">&#39;continuous&#39;</span><span class="p">])</span>
@@ -232,6 +232,7 @@
 <span class="k">def</span> <span class="nf">_register</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="n">T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
     <span class="n">name</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__mapper_args__</span><span class="p">[</span><span class="s1">&#39;polymorphic_identity&#39;</span><span class="p">]</span>
 
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
     <span class="k">assert</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">_ALL_RUBRIC_ROW_TYPES</span>
     <span class="k">assert</span> <span class="n">rubric_row_types</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span>
     <span class="n">rubric_row_types</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">name</span><span class="p">)(</span><span class="bp">cls</span><span class="p">)</span>
@@ -285,7 +286,7 @@
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">multiplier</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">multiplier</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;multiplier&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -293,9 +294,9 @@
         <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;1.0&#39;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">work</span><span class="p">:</span> <span class="s1">&#39;work_models.Work&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span><span class="s1">&#39;Work&#39;</span><span class="p">,</span> <span class="n">foreign_keys</span><span class="o">=</span><span class="n">work_id</span><span class="p">)</span>
-    <span class="n">rubric_item</span><span class="p">:</span> <span class="s1">&#39;RubricItem&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;RubricItem&#39;</span><span class="p">,</span>
+    <span class="n">work</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="p">,</span> <span class="n">foreign_keys</span><span class="o">=</span><span class="n">work_id</span><span class="p">)</span>
+    <span class="n">rubric_item</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">RubricItem</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">rubricitem_id</span><span class="p">,</span>
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;selectin&#39;</span><span class="p">,</span>
     <span class="p">)</span>
@@ -303,7 +304,6 @@
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Check if this rubric item is equal to another one.</span>
 
-<span class="sd">        &gt;&gt;&gt; import psef</span>
 <span class="sd">        &gt;&gt;&gt; w1 = psef.models.Work(id=1)</span>
 <span class="sd">        &gt;&gt;&gt; w2 = psef.models.Work(id=2)</span>
 <span class="sd">        &gt;&gt;&gt; r1 = RubricItem(id=1)</span>
@@ -394,17 +394,21 @@
 
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;RubricItem&#39;</span>
 
-    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">rubricrow_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="s1">&#39;Rubricrow_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
-        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;RubricRow.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">)</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">rubricrow_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;Rubricrow_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;RubricRow.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">header</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
-    <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
-    <span class="n">points</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;points&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">)</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;points&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
     <span class="c1"># This variable is generated from the backref from RubricRowBase</span>
-    <span class="n">rubricrow</span><span class="p">:</span> <span class="s1">&#39;RubricRowBase&#39;</span>
+    <span class="n">rubricrow</span><span class="p">:</span> <span class="n">ColumnProxy</span><span class="p">[</span><span class="s1">&#39;RubricRowBase&#39;</span><span class="p">]</span>
 
 <div class="viewcode-block" id="RubricItem.JSONBaseSerialization"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricItem.JSONBaseSerialization">[docs]</a>    <span class="k">class</span> <span class="nc">JSONBaseSerialization</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;The base serialization of a rubric item.</span>
@@ -465,32 +469,33 @@
     <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
         <span class="n">query</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>  <span class="c1"># type: t.ClassVar[_MyQuery[&#39;RubricRowBase&#39;]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;RubricRow&#39;</span>
-    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">assignment_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">assignment_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;Assignment_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Assignment.id&#39;</span><span class="p">)</span>
     <span class="p">)</span>
-    <span class="n">header</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
-    <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;header&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
     <span class="n">created_at</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;created_at&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
         <span class="n">default</span><span class="o">=</span><span class="n">DatetimeWithTimezone</span><span class="o">.</span><span class="n">utcnow</span>
     <span class="p">)</span>
     <span class="n">items</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s2">&quot;RubricItem&quot;</span><span class="p">,</span>
-        <span class="n">backref</span><span class="o">=</span><span class="s2">&quot;rubricrow&quot;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">RubricItem</span><span class="p">,</span>
+        <span class="n">backref</span><span class="o">=</span><span class="n">db</span><span class="o">.</span><span class="n">backref</span><span class="p">(</span><span class="s2">&quot;rubricrow&quot;</span><span class="p">),</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;delete-orphan, delete, save-update&#39;</span><span class="p">,</span>
-        <span class="n">order_by</span><span class="o">=</span><span class="s1">&#39;asc(RubricItem.points)&#39;</span><span class="p">,</span>
-    <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[RubricItem]</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="n">RubricItem</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">asc</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
 
-    <span class="n">assignment</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;assignment_models.Assignment&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;Assignment&#39;</span><span class="p">,</span>
+    <span class="n">assignment</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Assignment</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">assignment_id</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;rubric_rows&#39;</span><span class="p">,</span>
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;select&#39;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">rubric_row_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">rubric_row_type</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;rubric_row_type&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="o">*</span><span class="n">_ALL_RUBRIC_ROW_TYPES</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;rubricrowtype&#39;</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>

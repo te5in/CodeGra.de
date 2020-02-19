@@ -222,17 +222,20 @@
 
 <span class="kn">import</span> <span class="nn">psef</span>
 <span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
-<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">MyQuery</span><span class="p">,</span> <span class="n">MyNonOrderableQuery</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">_T_BASE</span><span class="p">,</span> <span class="n">MyQuery</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">ColumnProxy</span><span class="p">,</span> <span class="n">MyNonOrderableQuery</span>
+<span class="p">)</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">UUID_LENGTH</span><span class="p">,</span> <span class="n">Base</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">db</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">user</span> <span class="k">as</span> <span class="n">user_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">work</span> <span class="k">as</span> <span class="n">work_models</span>
-<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">group</span> <span class="k">as</span> <span class="n">group_models</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">course</span> <span class="k">as</span> <span class="n">course_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">linter</span> <span class="k">as</span> <span class="n">linter_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">rubric</span> <span class="k">as</span> <span class="n">rubric_models</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">auto_test</span> <span class="k">as</span> <span class="n">auto_test_models</span>
 <span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span><span class="p">,</span> <span class="n">ignore</span><span class="p">,</span> <span class="n">helpers</span>
 <span class="kn">from</span> <span class="nn">.role</span> <span class="kn">import</span> <span class="n">CourseRole</span>
-<span class="kn">from</span> <span class="nn">.permission</span> <span class="kn">import</span> <span class="n">Permission</span>
+<span class="kn">from</span> <span class="nn">.permission</span> <span class="kn">import</span> <span class="n">Permission</span><span class="p">,</span> <span class="n">PermissionComp</span>
 <span class="kn">from</span> <span class="nn">..exceptions</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIException</span><span class="p">,</span> <span class="n">PermissionException</span><span class="p">,</span> <span class="n">InvalidAssignmentState</span>
 <span class="p">)</span>
@@ -241,13 +244,10 @@
 
 <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
     <span class="c1"># pylint: disable=unused-import</span>
-    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">course</span> <span class="k">as</span> <span class="n">course_models</span>
-    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">auto_test</span> <span class="k">as</span> <span class="n">auto_test_models</span>
     <span class="n">cached_property</span> <span class="o">=</span> <span class="nb">property</span>  <span class="c1"># pylint: disable=invalid-name</span>
 <span class="k">else</span><span class="p">:</span>
     <span class="c1"># pylint: disable=unused-import</span>
     <span class="kn">from</span> <span class="nn">werkzeug.utils</span> <span class="kn">import</span> <span class="n">cached_property</span>
-    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">auto_test</span> <span class="k">as</span> <span class="n">auto_test_models</span>
 
 <span class="n">T</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
 <span class="n">Y</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;Y&#39;</span><span class="p">)</span>
@@ -293,13 +293,18 @@
     <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
         <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AssignmentAssignedGrader&#39;</span><span class="p">]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AssignmentAssignedGrader&#39;</span>
-    <span class="n">weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;weight&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="s1">&#39;User_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;User.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">)</span>
+    <span class="n">weight</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;weight&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">user_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;User_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;User.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">assignment_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="s1">&#39;Assignment_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
-        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Assignment.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">)</span>
+    <span class="n">assignment_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;Assignment_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Assignment.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="n">__table_args__</span> <span class="o">=</span> <span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">PrimaryKeyConstraint</span><span class="p">(</span><span class="n">assignment_id</span><span class="p">,</span> <span class="n">user_id</span><span class="p">),</span> <span class="p">)</span></div>
@@ -320,12 +325,17 @@
         <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AssignmentGraderDone&#39;</span><span class="p">]]</span>
         <span class="n">query</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AssignmentGraderDone&#39;</span>
-    <span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="s1">&#39;User_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;User.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">)</span>
+    <span class="n">user_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;User_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;User.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">assignment_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="s1">&#39;Assignment_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
-        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Assignment.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">)</span>
+    <span class="n">assignment_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;Assignment_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Assignment.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="n">__table_args__</span> <span class="o">=</span> <span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">PrimaryKeyConstraint</span><span class="p">(</span><span class="n">assignment_id</span><span class="p">,</span> <span class="n">user_id</span><span class="p">),</span> <span class="p">)</span></div>
@@ -362,17 +372,18 @@
         <span class="n">query</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>  <span class="c1"># type: t.ClassVar[MyQuery[&#39;AssignmentLinter&#39;]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AssignmentLinter&#39;</span>  <span class="c1"># type: str</span>
     <span class="c1"># This has to be a String object as the id has to be a non guessable uuid.</span>
-    <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="n">UUID_LENGTH</span><span class="p">),</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">tests</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s2">&quot;LinterInstance&quot;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">linter_models</span><span class="o">.</span><span class="n">LinterInstance</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;tester&quot;</span><span class="p">,</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete&#39;</span><span class="p">,</span>
-        <span class="n">order_by</span><span class="o">=</span><span class="s1">&#39;LinterInstance.work_id&#39;</span>
-    <span class="p">)</span>  <span class="c1"># type: t.Sequence[linter_models.LinterInstance]</span>
-    <span class="n">config</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">linter_models</span><span class="o">.</span><span class="n">LinterInstance</span><span class="o">.</span><span class="n">work_id</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;config&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -381,13 +392,14 @@
         <span class="s1">&#39;Assignment_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Assignment.id&#39;</span><span class="p">),</span>
-    <span class="p">)</span>  <span class="c1"># type: int</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
 
     <span class="n">assignment</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;Assignment&#39;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Assignment</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">assignment_id</span><span class="p">,</span>
         <span class="n">backref</span><span class="o">=</span><span class="n">db</span><span class="o">.</span><span class="n">backref</span><span class="p">(</span><span class="s1">&#39;linters&#39;</span><span class="p">,</span> <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
-    <span class="p">)</span>  <span class="c1"># type: &#39;Assignment&#39;</span>
+    <span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">linters_crashed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
@@ -502,11 +514,11 @@
     <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
         <span class="n">query</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>  <span class="c1"># type: t.ClassVar[MyQuery[&#39;AssignmentResult&#39;]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AssignmentResult&#39;</span>
-    <span class="n">sourcedid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;sourcedid&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
-    <span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">sourcedid</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;sourcedid&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
+    <span class="n">user_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;User_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;User.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">)</span>
     <span class="p">)</span>
-    <span class="n">assignment_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">assignment_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;Assignment_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Assignment.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">)</span>
     <span class="p">)</span>
@@ -540,57 +552,53 @@
     <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
         <span class="n">query</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>  <span class="c1"># type:  t.ClassVar[MyQuery[&#39;Assignment&#39;]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s2">&quot;Assignment&quot;</span>
-    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
-    <span class="n">_cgignore</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;cgignore&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
-    <span class="n">_cgignore_version</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="s1">&#39;cgignore_version&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span>
-    <span class="p">)</span>
-    <span class="n">state</span><span class="p">:</span> <span class="n">_AssignmentStateEnum</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">_cgignore</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;cgignore&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
+    <span class="n">_cgignore_version</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;cgignore_version&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;state&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="n">_AssignmentStateEnum</span><span class="p">),</span>
         <span class="n">default</span><span class="o">=</span><span class="n">_AssignmentStateEnum</span><span class="o">.</span><span class="n">hidden</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
-    <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
-    <span class="n">course_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+    <span class="n">course_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;Course_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Course.id&#39;</span><span class="p">),</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
-    <span class="n">created_at</span><span class="p">:</span> <span class="n">DatetimeWithTimezone</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="n">DatetimeWithTimezone</span><span class="o">.</span><span class="n">utcnow</span>
+    <span class="n">created_at</span><span class="p">:</span> <span class="n">ColumnProxy</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">default</span><span class="o">=</span><span class="n">DatetimeWithTimezone</span><span class="o">.</span><span class="n">utcnow</span><span class="p">,</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
-    <span class="n">deadline</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="s1">&#39;deadline&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="p">)</span>
+    <span class="n">deadline</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;deadline&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
 
-    <span class="n">_mail_task_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">_mail_task_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;mail_task_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">reminder_email_time</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">reminder_email_time</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;reminder_email_time&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">done_email</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">done_email</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;done_email&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">done_type</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">AssignmentDoneType</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">done_type</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;done_type&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="n">AssignmentDoneType</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">_max_grade</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="s1">&#39;max_grade&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span>
-    <span class="p">)</span>
-    <span class="n">lti_points_possible</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">_max_grade</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;max_grade&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="n">lti_points_possible</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;lti_points_possible&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -598,8 +606,8 @@
     <span class="p">)</span>
 
     <span class="c1"># All stuff for LTI</span>
-    <span class="n">lti_assignment_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">lti_outcome_service_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
+    <span class="n">lti_assignment_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">lti_outcome_service_url</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
 
     <span class="n">assigned_graders</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">MutableMapping</span><span class="p">[</span>
         <span class="nb">int</span><span class="p">,</span> <span class="n">AssignmentAssignedGrader</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
@@ -608,31 +616,32 @@
             <span class="n">collection_class</span><span class="o">=</span><span class="n">attribute_mapped_collection</span><span class="p">(</span><span class="s1">&#39;user_id&#39;</span><span class="p">),</span>
             <span class="n">backref</span><span class="o">=</span><span class="n">db</span><span class="o">.</span><span class="n">backref</span><span class="p">(</span><span class="s1">&#39;assignment&#39;</span><span class="p">,</span> <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;select&#39;</span><span class="p">)</span>
         <span class="p">)</span>
-    <span class="n">division_parent_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">division_parent_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;division_parent_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Assignment.id&#39;</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">division_parent</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;Assignment&#39;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Assignment</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;division_children&#39;</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">division_parent_id</span><span class="p">,</span>
         <span class="n">remote_side</span><span class="o">=</span><span class="p">[</span><span class="nb">id</span><span class="p">],</span>
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;select&#39;</span><span class="p">,</span>
-    <span class="p">)</span>  <span class="c1"># type: t.Optional[Assignment]</span>
+    <span class="p">)</span>
     <span class="n">division_children</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s2">&quot;Assignment&quot;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Assignment</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;division_parent&quot;</span><span class="p">,</span>
         <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;select&#39;</span><span class="p">,</span>
-    <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[Assignment]</span>
+    <span class="p">)</span>
 
     <span class="n">finished_graders</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;AssignmentGraderDone&#39;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">AssignmentGraderDone</span><span class="p">,</span>
         <span class="n">backref</span><span class="o">=</span><span class="n">db</span><span class="o">.</span><span class="n">backref</span><span class="p">(</span><span class="s1">&#39;assignment&#39;</span><span class="p">),</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;delete-orphan, delete&#39;</span><span class="p">,</span>
-    <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[&#39;AssignmentGraderDone&#39;]</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
 
     <span class="n">assignment_results</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">MutableMapping</span><span class="p">[</span>
         <span class="nb">int</span><span class="p">,</span> <span class="n">AssignmentResult</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
@@ -641,27 +650,28 @@
             <span class="n">backref</span><span class="o">=</span><span class="n">db</span><span class="o">.</span><span class="n">backref</span><span class="p">(</span><span class="s1">&#39;assignment&#39;</span><span class="p">,</span> <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;select&#39;</span><span class="p">)</span>
         <span class="p">)</span>
 
-    <span class="n">course</span><span class="p">:</span> <span class="s1">&#39;course_models.Course&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;Course&#39;</span><span class="p">,</span>
+    <span class="n">course</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">course_models</span><span class="o">.</span><span class="n">Course</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">course_id</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;assignments&#39;</span><span class="p">,</span>
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;joined&#39;</span><span class="p">,</span>
         <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">fixed_max_rubric_points</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">fixed_max_rubric_points</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;fixed_max_rubric_points&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">rubric_rows</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;RubricRowBase&#39;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricRowBase</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;assignment&#39;</span><span class="p">,</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;delete-orphan, delete, save-update&#39;</span><span class="p">,</span>
-        <span class="n">order_by</span><span class="o">=</span><span class="s2">&quot;RubricRowBase.created_at&quot;</span>
-    <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[&#39;rubric_models.RubricRowBase&#39;]</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricRowBase</span><span class="o">.</span><span class="n">created_at</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
 
-    <span class="n">group_set_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">group_set_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;group_set_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;GroupSet.id&#39;</span><span class="p">),</span>
@@ -669,38 +679,40 @@
     <span class="p">)</span>
 
     <span class="n">group_set</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;GroupSet&#39;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">GroupSet</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;assignments&#39;</span><span class="p">,</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">,</span>
-    <span class="p">)</span>  <span class="c1"># type: t.Optional[&#39;group_models.GroupSet&#39;]</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
 
     <span class="c1"># This variable is available through a backref</span>
-    <span class="n">linters</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="s1">&#39;AssignmentLinter&#39;</span><span class="p">]</span>
+    <span class="n">linters</span><span class="p">:</span> <span class="n">ColumnProxy</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="s1">&#39;AssignmentLinter&#39;</span><span class="p">]]</span>
 
     <span class="c1"># This variable is available through a backref</span>
     <span class="n">submissions</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="s1">&#39;work_models.Work&#39;</span><span class="p">]</span>
 
-    <span class="n">auto_test_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">auto_test_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;auto_test_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;AutoTest.id&#39;</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">auto_test</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;auto_test_models.AutoTest&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;AutoTest&#39;</span><span class="p">,</span>
+    <span class="n">auto_test</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">auto_test_models</span><span class="o">.</span><span class="n">AutoTest</span><span class="p">,</span>
+        <span class="n">foreign_keys</span><span class="o">=</span><span class="n">auto_test_id</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;assignment&quot;</span><span class="p">,</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">files_upload_enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">files_upload_enabled</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;files_upload_enabled&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;true&#39;</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">webhook_upload_enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">webhook_upload_enabled</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;webhook_upload_enabled&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -708,7 +720,7 @@
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">deleted</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">deleted</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;deleted&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -716,7 +728,7 @@
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">_cool_off_period</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">_cool_off_period</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;cool_off_period&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Interval</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
 
@@ -728,7 +740,7 @@
         <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;1&#39;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">max_submissions</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">max_submissions</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;max_amount_of_submissions&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
 
@@ -759,8 +771,8 @@
 
 <div class="viewcode-block" id="Assignment.validate_group_set"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.validate_group_set">[docs]</a>    <span class="nd">@validates</span><span class="p">(</span><span class="s1">&#39;group_set&#39;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">validate_group_set</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">_</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">group_set</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;group_models.GroupSet&#39;</span><span class="p">]</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;group_models.GroupSet&#39;</span><span class="p">]:</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">_</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">group_set</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.models.GroupSet&#39;</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.models.GroupSet&#39;</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Make sure the course id of the group set is the same as the course</span>
 <span class="sd">        id of the assignment.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -823,10 +835,7 @@
     <span class="sd">&quot;&quot;&quot;The minimum grade for a submission in this assignment.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">_submit_grades</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">subs</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">get_from_latest_submissions</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
-        <span class="p">)</span>
+        <span class="n">subs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_from_latest_submissions</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">subs</span><span class="p">),</span> <span class="mi">10</span><span class="p">):</span>
             <span class="n">psef</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">passback_grades</span><span class="p">(</span>
                 <span class="p">[</span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">subs</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span> <span class="o">+</span> <span class="mi">10</span><span class="p">]],</span>
@@ -929,7 +938,7 @@
 
         <span class="n">graders</span> <span class="o">=</span> <span class="n">AssignmentGraderDone</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
             <span class="n">AssignmentGraderDone</span><span class="o">.</span><span class="n">assignment_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="n">AssignmentGraderDone</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span><span class="n">user_ids</span><span class="p">),</span>
+            <span class="n">AssignmentGraderDone</span><span class="o">.</span><span class="n">user_id</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span><span class="n">user_ids</span><span class="p">),</span>
         <span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">ignore_errors</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">graders</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">user_ids</span><span class="p">):</span>
@@ -959,8 +968,7 @@
             <span class="n">and_</span><span class="p">(</span>
                 <span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">rubric_models</span><span class="o">.</span><span class="n">WorkRubricItem</span><span class="o">.</span><span class="n">rubricitem_id</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span>
                 <span class="c1"># We access _grade here directly as we need it to do this query</span>
-                <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
-                       <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">_grade</span><span class="p">)</span><span class="o">.</span><span class="n">is_</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
+                <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">_grade</span><span class="o">.</span><span class="n">is_</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
             <span class="p">)</span>
         <span class="p">)</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
 
@@ -1306,20 +1314,17 @@
 
         <span class="n">user_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="p">]</span>
         <span class="n">order_bys</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">object</span><span class="p">],</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">created_at</span><span class="p">)</span><span class="o">.</span><span class="n">desc</span><span class="p">(),</span>
+            <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">desc</span><span class="p">(),</span>
             <span class="c1"># Sort by id too so that when the date is exactly the same we can</span>
             <span class="c1"># still have well defined behavior (i.e. always get the same</span>
             <span class="c1"># submissions for a user.)</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">object</span><span class="p">],</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">desc</span><span class="p">()</span>
+            <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">desc</span><span class="p">()</span>
         <span class="p">]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_set_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">group_user_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
-                <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">group_models</span><span class="o">.</span><span class="n">Group</span><span class="o">.</span><span class="n">virtual_user_id</span><span class="p">)</span>
+                <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Group</span><span class="o">.</span><span class="n">virtual_user_id</span>
             <span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">group_set_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">group_set_id</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-                <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span>
-                    <span class="n">DbColumn</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="s1">&#39;user_models.User&#39;</span><span class="p">]],</span>
-                    <span class="n">group_models</span><span class="o">.</span><span class="n">Group</span><span class="o">.</span><span class="n">members</span><span class="p">,</span>
-                <span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+                <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Group</span><span class="o">.</span><span class="n">members</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
             <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">group_user_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">user_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group_user_id</span><span class="p">)</span>
@@ -1329,21 +1334,27 @@
                 <span class="c1"># bit later. This is the same behavior as</span>
                 <span class="c1"># `get_from_latest_submission`.</span>
                 <span class="n">order_bys</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span>
-                    <span class="mi">0</span><span class="p">,</span>
-                    <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span>
-                        <span class="n">DbColumn</span><span class="p">[</span><span class="nb">object</span><span class="p">],</span>
-                        <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span> <span class="o">==</span> <span class="n">group_user_id</span><span class="p">,</span>
-                    <span class="p">)</span><span class="o">.</span><span class="n">desc</span><span class="p">(),</span>
+                    <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span> <span class="o">==</span> <span class="n">group_user_id</span><span class="p">)</span><span class="o">.</span><span class="n">desc</span><span class="p">()</span>
                 <span class="p">)</span>
 
         <span class="k">return</span> <span class="n">base_query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span><span class="n">user_ids</span><span class="p">),</span>
+            <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span><span class="n">user_ids</span><span class="p">),</span>
         <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="o">*</span><span class="n">order_bys</span><span class="p">)</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span></div>
 
     <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
     <span class="k">def</span> <span class="nf">get_from_latest_submissions</span><span class="p">(</span>  <span class="c1"># pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">__to_query</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span>
+        <span class="n">__to_query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">_T_BASE</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">include_deleted</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">include_old_user_submissions</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MyQuery</span><span class="p">[</span><span class="n">_T_BASE</span><span class="p">]:</span>
+        <span class="o">...</span>
+
+    <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
+    <span class="k">def</span> <span class="nf">get_from_latest_submissions</span><span class="p">(</span>  <span class="c1"># pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">__to_query</span><span class="p">:</span> <span class="n">DbColumn</span><span class="p">[</span><span class="n">T</span><span class="p">],</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">include_deleted</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">include_old_user_submissions</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -1353,8 +1364,8 @@
     <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
     <span class="k">def</span> <span class="nf">get_from_latest_submissions</span><span class="p">(</span>  <span class="c1"># pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">__first</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span>
-        <span class="n">__second</span><span class="p">:</span> <span class="n">Y</span><span class="p">,</span>
+        <span class="n">__first</span><span class="p">:</span> <span class="n">DbColumn</span><span class="p">[</span><span class="n">T</span><span class="p">],</span>
+        <span class="n">__second</span><span class="p">:</span> <span class="n">DbColumn</span><span class="p">[</span><span class="n">Y</span><span class="p">],</span>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">include_deleted</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">include_old_user_submissions</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -1388,29 +1399,27 @@
         <span class="c1"># different way or do other distincts. But I have no idea how slow this</span>
         <span class="c1"># subquery makes the query, as postgres could optimize it out.</span>
         <span class="n">sql</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="p">),</span>
+            <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
         <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
             <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">assignment_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
         <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span>
             <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span><span class="p">,</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">object</span><span class="p">],</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">created_at</span><span class="p">)</span><span class="o">.</span><span class="n">desc</span><span class="p">(),</span>
+            <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">desc</span><span class="p">(),</span>
             <span class="c1"># Sort by id too so that when the date is exactly the same we can</span>
             <span class="c1"># still have well defined behavior (i.e. always get the same</span>
             <span class="c1"># submissions for a user.)</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">object</span><span class="p">],</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">desc</span><span class="p">()</span>
+            <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">desc</span><span class="p">()</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">include_deleted</span><span class="p">:</span>
             <span class="n">sql</span> <span class="o">=</span> <span class="n">sql</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">_deleted</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
         <span class="n">sub</span> <span class="o">=</span> <span class="n">sql</span><span class="o">.</span><span class="n">distinct</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">subquery</span><span class="p">(</span><span class="s1">&#39;ids&#39;</span><span class="p">)</span>
 
-        <span class="n">res</span> <span class="o">=</span> <span class="n">base_query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span><span class="n">sub</span><span class="p">),</span>
-        <span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_set</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">include_old_user_submissions</span><span class="p">:</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">base_query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span><span class="n">sub</span><span class="p">),</span> <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_set_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">include_old_user_submissions</span><span class="p">:</span>
             <span class="n">sub_query</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
                 <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">assignment_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
-                <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span> <span class="o">==</span> <span class="n">group_models</span><span class="o">.</span><span class="n">Group</span><span class="o">.</span><span class="n">virtual_user_id</span><span class="p">,</span>
+                <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span> <span class="o">==</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Group</span><span class="o">.</span><span class="n">virtual_user_id</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">include_deleted</span><span class="p">:</span>
                 <span class="c1"># We don&#39;t need the intelligent `deleted` attribute here from</span>
@@ -1420,13 +1429,13 @@
                 <span class="c1"># pylint: disable=protected-access</span>
                 <span class="n">sub_query</span> <span class="o">=</span> <span class="n">sub_query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="o">~</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">_deleted</span><span class="p">)</span>
             <span class="n">groups_with_submission</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
-                <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">group_models</span><span class="o">.</span><span class="n">Group</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+                <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Group</span><span class="o">.</span><span class="n">id</span>
             <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-                <span class="n">group_models</span><span class="o">.</span><span class="n">Group</span><span class="o">.</span><span class="n">group_set_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_set_id</span><span class="p">,</span>
+                <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Group</span><span class="o">.</span><span class="n">group_set_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_set_id</span><span class="p">,</span>
                 <span class="n">sub_query</span><span class="o">.</span><span class="n">exists</span><span class="p">(),</span>
             <span class="p">)</span>
             <span class="n">res</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-                <span class="o">~</span><span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span>
+                <span class="o">~</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span>
                     <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">users_groups</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
                         <span class="n">users_groups</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">group_id</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span><span class="n">groups_with_submission</span><span class="p">)</span>
                     <span class="p">)</span>
@@ -1448,13 +1457,10 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># get_from_latest_submissions uses SQLAlchemy magic that MyPy cannot</span>
         <span class="c1"># encode.</span>
-        <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span>
-            <span class="n">MyQuery</span><span class="p">[</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="p">],</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">get_from_latest_submissions</span><span class="p">(</span>
-                <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="p">,</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="p">),</span>
-                <span class="n">include_deleted</span><span class="o">=</span><span class="n">include_deleted</span><span class="p">,</span>
-                <span class="n">include_old_user_submissions</span><span class="o">=</span><span class="n">include_old_user_submissions</span><span class="p">,</span>
-            <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_from_latest_submissions</span><span class="p">(</span>
+            <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="p">,</span>
+            <span class="n">include_deleted</span><span class="o">=</span><span class="n">include_deleted</span><span class="p">,</span>
+            <span class="n">include_old_user_submissions</span><span class="o">=</span><span class="n">include_old_user_submissions</span><span class="p">,</span>
         <span class="p">)</span></div>
 
 <div class="viewcode-block" id="Assignment.get_divided_amount_missing"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.get_divided_amount_missing">[docs]</a>    <span class="k">def</span> <span class="nf">get_divided_amount_missing</span><span class="p">(</span>
@@ -1791,13 +1797,14 @@
 <span class="sd">        :returns: A query with items selected as described above.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">done_graders</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">),</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">),</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span>
-                <span class="n">DbColumn</span><span class="p">[</span><span class="nb">bool</span><span class="p">],</span>
-                <span class="o">~</span><span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">AssignmentGraderDone</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">is_</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+            <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">),</span>
+            <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">),</span>
+            <span class="c1"># This now can be NULL as we do an outerjoin on assignments graders</span>
+            <span class="c1"># done. It is `None` for every grader that is not yet done.</span>
+            <span class="o">~</span><span class="n">AssignmentGraderDone</span><span class="o">.</span><span class="n">user_id</span><span class="o">.</span><span class="n">is_</span><span class="p">(</span>
+                <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
             <span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;done&quot;</span><span class="p">),</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">user_course</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">course_id</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;course_id&quot;</span><span class="p">),</span>
+            <span class="n">user_course</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">course_id</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;course_id&quot;</span><span class="p">),</span>
         <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
             <span class="n">AssignmentGraderDone</span><span class="p">,</span>
             <span class="n">and_</span><span class="p">(</span>
@@ -1818,13 +1825,18 @@
             <span class="n">course_permissions</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">permission_id</span> <span class="o">==</span> <span class="n">Permission</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
         <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
             <span class="n">CourseRole</span><span class="o">.</span><span class="n">course_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_id</span><span class="p">,</span>
-            <span class="n">Permission</span><span class="p">[</span><span class="n">CPerm</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="n">CPerm</span><span class="o">.</span><span class="n">can_grade_work</span><span class="p">,</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span>
+                <span class="n">PermissionComp</span><span class="p">[</span><span class="n">CPerm</span><span class="p">],</span>
+                <span class="n">Permission</span><span class="p">[</span><span class="n">CPerm</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>  <span class="c1"># type: ignore[misc]</span>
+            <span class="p">)</span> <span class="o">==</span> <span class="n">CPerm</span><span class="o">.</span><span class="n">can_grade_work</span><span class="p">,</span>
         <span class="p">)</span><span class="o">.</span><span class="n">subquery</span><span class="p">(</span><span class="s1">&#39;graders&#39;</span><span class="p">)</span>
 
         <span class="n">res</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">done_graders</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">done_graders</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">id</span><span class="p">),</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="n">done_graders</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">done</span><span class="p">),</span>
+            <span class="c1"># We cast here so that we get an accurately types query, as</span>
+            <span class="c1"># `RawTable.c.{something}` is currently always typed as `Any`.</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">done_graders</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">done_graders</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">id</span><span class="p">),</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">bool</span><span class="p">],</span> <span class="n">done_graders</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">done</span><span class="p">),</span>
         <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">graders</span><span class="p">,</span> <span class="n">done_graders</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">course_id</span> <span class="o">==</span> <span class="n">graders</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">course_role_id</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">sort</span><span class="p">:</span>
@@ -1843,7 +1855,7 @@
             <span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">assignment_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">deleted</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
                 <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="p">,</span>
                 <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">group_models</span><span class="o">.</span><span class="n">Group</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Group</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
         <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span> <span class="ow">or</span> <span class="kc">False</span></div>
 
 <div class="viewcode-block" id="Assignment.get_author_handing_in"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.get_author_handing_in">[docs]</a>    <span class="k">def</span> <span class="nf">get_author_handing_in</span><span class="p">(</span>

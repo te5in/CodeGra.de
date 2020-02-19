@@ -328,9 +328,9 @@
         <span class="n">resulting_app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
 
     <span class="k">if</span> <span class="p">(</span>
-        <span class="ow">not</span> <span class="n">skip_secret_key_check</span> <span class="ow">and</span> <span class="p">(</span>
-            <span class="n">resulting_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SECRET_KEY&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span>
-            <span class="n">resulting_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;LTI_SECRET_KEY&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="ow">not</span> <span class="n">skip_secret_key_check</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span>
+            <span class="n">resulting_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SECRET_KEY&#39;</span><span class="p">]</span> <span class="ow">and</span>
+            <span class="n">resulting_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;LTI_SECRET_KEY&#39;</span><span class="p">]</span>
         <span class="p">)</span>
     <span class="p">):</span>  <span class="c1"># pragma: no cover</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The option to generate keys has been removed&#39;</span><span class="p">)</span>

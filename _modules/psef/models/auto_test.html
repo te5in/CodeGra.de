@@ -211,12 +211,12 @@
 <span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">orm</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">func</span> <span class="k">as</span> <span class="n">sql_func</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">distinct</span>
-<span class="kn">from</span> <span class="nn">sqlalchemy_utils</span> <span class="kn">import</span> <span class="n">UUIDType</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.sql.expression</span> <span class="kn">import</span> <span class="n">or_</span><span class="p">,</span> <span class="n">and_</span><span class="p">,</span> <span class="n">case</span><span class="p">,</span> <span class="n">nullsfirst</span>
 
 <span class="kn">import</span> <span class="nn">psef</span>
 <span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
 <span class="kn">from</span> <span class="nn">cg_flask_helpers</span> <span class="kn">import</span> <span class="n">callback_after_this_request</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers</span> <span class="kn">import</span> <span class="n">UUIDType</span><span class="p">,</span> <span class="n">deferred</span><span class="p">,</span> <span class="n">hybrid_property</span>
 <span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.mixins</span> <span class="kn">import</span> <span class="n">IdMixin</span><span class="p">,</span> <span class="n">UUIDMixin</span><span class="p">,</span> <span class="n">TimestampMixin</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">MyQuery</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">db</span>
@@ -231,19 +231,10 @@
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">..permissions</span> <span class="kn">import</span> <span class="n">CoursePermission</span> <span class="k">as</span> <span class="n">CPerm</span>
 
-<span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-    <span class="c1"># pylint: disable=unused-import</span>
-    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">rubric</span> <span class="k">as</span> <span class="n">rubric_models</span>
-    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">file</span> <span class="k">as</span> <span class="n">file_models</span>
-    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">assignment</span> <span class="k">as</span> <span class="n">assignment_models</span>
-    <span class="n">hybrid_property</span> <span class="o">=</span> <span class="nb">property</span>  <span class="c1"># pylint: disable=invalid-name</span>
-<span class="k">else</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">sqlalchemy.ext.hybrid</span> <span class="kn">import</span> <span class="n">hybrid_property</span>
-
 <span class="n">logger</span> <span class="o">=</span> <span class="n">structlog</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
 
-<span class="n">GradeCalculator</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="s1">&#39;rubric_models.RubricItem&#39;</span><span class="p">],</span> <span class="nb">float</span><span class="p">],</span>
-                             <span class="s1">&#39;rubric_models.RubricItem&#39;</span><span class="p">]</span>
+<span class="n">GradeCalculator</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="s1">&#39;psef.models.RubricItem&#39;</span><span class="p">],</span> <span class="nb">float</span><span class="p">],</span>
+                             <span class="s1">&#39;psef.models.RubricItem&#39;</span><span class="p">]</span>
 
 
 <div class="viewcode-block" id="AutoTestSuite"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test.AutoTestSuite">[docs]</a><span class="k">class</span> <span class="nc">AutoTestSuite</span><span class="p">(</span><span class="n">Base</span><span class="p">,</span> <span class="n">TimestampMixin</span><span class="p">,</span> <span class="n">IdMixin</span><span class="p">):</span>
@@ -252,16 +243,16 @@
     <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
         <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AutoTestSuite&#39;</span><span class="p">]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AutoTestSuite&#39;</span>
-    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="n">rubric_row_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">rubric_row_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;rubric_row_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;RubricRow.id&#39;</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
-    <span class="n">rubric_row</span><span class="p">:</span> <span class="s1">&#39;rubric_models.RubricRowBase&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;RubricRowBase&#39;</span><span class="p">,</span>
+    <span class="n">rubric_row</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">RubricRow</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">rubric_row_id</span><span class="p">,</span>
         <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
@@ -274,15 +265,15 @@
         <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;FALSE&#39;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">auto_test_set_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">auto_test_set_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;auto_test_set_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;AutoTestSet.id&#39;</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
 
-    <span class="n">auto_test_set</span><span class="p">:</span> <span class="s1">&#39;AutoTestSet&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;AutoTestSet&#39;</span><span class="p">,</span>
+    <span class="n">auto_test_set</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTestSet</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">auto_test_set_id</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;suites&#39;</span><span class="p">,</span>
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;joined&#39;</span><span class="p">,</span>
@@ -290,13 +281,14 @@
     <span class="p">)</span>
 
     <span class="n">steps</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s2">&quot;AutoTestStepBase&quot;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">auto_test_step_models</span><span class="o">.</span><span class="n">AutoTestStepBase</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;suite&quot;</span><span class="p">,</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete,delete-orphan&#39;</span><span class="p">,</span>
-        <span class="n">order_by</span><span class="o">=</span><span class="s1">&#39;AutoTestStepBase.order&#39;</span>
-    <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[auto_test_step_models.AutoTestStepBase]</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">auto_test_step_models</span><span class="o">.</span><span class="n">AutoTestStepBase</span><span class="o">.</span><span class="n">order</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
 
-    <span class="n">command_time_limit</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">command_time_limit</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;command_time_limit&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span>
     <span class="p">)</span>
 
@@ -388,19 +380,17 @@
         <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AutoTestSet&#39;</span><span class="p">]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AutoTestSet&#39;</span>
 
-    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">stop_points</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="s1">&#39;stop_points&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span>
-    <span class="p">)</span>
-    <span class="n">auto_test_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">stop_points</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;stop_points&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">auto_test_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;auto_test_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;AutoTest.id&#39;</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
 
-    <span class="n">auto_test</span><span class="p">:</span> <span class="s1">&#39;AutoTest&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;AutoTest&#39;</span><span class="p">,</span>
+    <span class="n">auto_test</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTest</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">auto_test_id</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;sets&#39;</span><span class="p">,</span>
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;joined&#39;</span><span class="p">,</span>
@@ -408,11 +398,12 @@
     <span class="p">)</span>
 
     <span class="n">suites</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s2">&quot;AutoTestSuite&quot;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTestSuite</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;auto_test_set&quot;</span><span class="p">,</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete,delete-orphan&#39;</span><span class="p">,</span>
-        <span class="n">order_by</span><span class="o">=</span><span class="s1">&#39;AutoTestSuite.created_at&#39;</span>
-    <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[AutoTestSuite]</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTestSuite</span><span class="o">.</span><span class="n">created_at</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
 
 <div class="viewcode-block" id="AutoTestSet.get_instructions"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test.AutoTestSet.get_instructions">[docs]</a>    <span class="k">def</span> <span class="nf">get_instructions</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">run</span><span class="p">:</span> <span class="s1">&#39;AutoTestRun&#39;</span>
@@ -448,35 +439,35 @@
     <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
         <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AutoTestResult&#39;</span><span class="p">]]</span>
 
-    <span class="n">auto_test_run_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">auto_test_run_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;auto_test_run_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;AutoTestRun.id&#39;</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
 
-    <span class="n">run</span><span class="p">:</span> <span class="s1">&#39;AutoTestRun&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;AutoTestRun&#39;</span><span class="p">,</span>
+    <span class="n">run</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTestRun</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">auto_test_run_id</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;results&#39;</span><span class="p">,</span>
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;select&#39;</span><span class="p">,</span>
         <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">auto_test_runner_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">uuid</span><span class="o">.</span><span class="n">UUID</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">auto_test_runner_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;auto_test_runner_id&#39;</span><span class="p">,</span>
         <span class="n">UUIDType</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;AutoTestRunner.id&#39;</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">runner</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;AutoTestRunner&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;AutoTestRunner&#39;</span><span class="p">,</span>
+    <span class="n">runner</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTestRunner</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">auto_test_runner_id</span><span class="p">,</span>
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;selectin&#39;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">setup_stdout</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">orm</span><span class="o">.</span><span class="n">deferred</span><span class="p">(</span>
+    <span class="n">setup_stdout</span> <span class="o">=</span> <span class="n">deferred</span><span class="p">(</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
             <span class="s1">&#39;setup_stdout&#39;</span><span class="p">,</span>
             <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span>
@@ -484,11 +475,11 @@
         <span class="p">)</span>
     <span class="p">)</span>
 
-    <span class="n">started_at</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">started_at</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;started_at&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
 
-    <span class="n">setup_stderr</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">orm</span><span class="o">.</span><span class="n">deferred</span><span class="p">(</span>
+    <span class="n">setup_stderr</span> <span class="o">=</span> <span class="n">deferred</span><span class="p">(</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
             <span class="s1">&#39;setup_stderr&#39;</span><span class="p">,</span>
             <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span>
@@ -497,12 +488,13 @@
     <span class="p">)</span>
 
     <span class="n">step_results</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;AutoTestStepResult&#39;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">auto_test_step_models</span><span class="o">.</span><span class="n">AutoTestStepResult</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;result&#39;</span><span class="p">,</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete,delete-orphan&#39;</span><span class="p">,</span>
-        <span class="n">order_by</span><span class="o">=</span><span class="s1">&#39;AutoTestStepResult.created_at&#39;</span><span class="p">,</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">auto_test_step_models</span><span class="o">.</span><span class="n">AutoTestStepResult</span><span class="o">.</span><span class="n">created_at</span><span class="p">,</span>
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;selectin&#39;</span><span class="p">,</span>
-    <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[auto_test_step_models.AutoTestStepResult]</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
 
     <span class="n">_state</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;state&#39;</span><span class="p">,</span>
@@ -511,22 +503,22 @@
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">work_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">work_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;work_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Work.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">work</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;Work&#39;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">work_id</span><span class="p">,</span>
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;selectin&#39;</span><span class="p">,</span>
-    <span class="p">)</span>  <span class="c1"># type: work_models.Work</span>
+    <span class="p">)</span>
 
-    <span class="n">final_result</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;final_result&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">final_result</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;final_result&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
     <span class="c1"># This variable is generated from the backref from all files</span>
-    <span class="n">files</span><span class="p">:</span> <span class="n">MyQuery</span><span class="p">[</span><span class="s2">&quot;file_models.AutoTestOutputFile&quot;</span><span class="p">]</span>
+    <span class="n">files</span><span class="p">:</span> <span class="n">MyQuery</span><span class="p">[</span><span class="s2">&quot;psef.models.AutoTestOutputFile&quot;</span><span class="p">]</span>
 
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">AutoTestResult</span><span class="p">):</span>
@@ -536,10 +528,10 @@
     <span class="k">def</span> <span class="fm">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
         <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
 
-    <span class="nd">@hybrid_property</span>
-    <span class="k">def</span> <span class="nf">state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">auto_test_step_models</span><span class="o">.</span><span class="n">AutoTestStepResultState</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_get_state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">auto_test_step_models</span><span class="o">.</span><span class="n">AutoTestStepResultState</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Get the state of this result</span>
 
+<span class="sd">        &gt;&gt;&gt; from datetime import datetime, timezone</span>
 <span class="sd">        &gt;&gt;&gt; called = False</span>
 <span class="sd">        &gt;&gt;&gt; def fun(_):</span>
 <span class="sd">        ...  global called</span>
@@ -549,7 +541,9 @@
 <span class="sd">        &gt;&gt;&gt; not_set = object()</span>
 <span class="sd">        &gt;&gt;&gt; r.started_at = not_set</span>
 <span class="sd">        &gt;&gt;&gt; r.state = auto_test_step_models.AutoTestStepResultState.running</span>
-<span class="sd">        &gt;&gt;&gt; isinstance(r.started_at, DatetimeWithTimezone)</span>
+<span class="sd">        &gt;&gt;&gt; isinstance(r.started_at, datetime)</span>
+<span class="sd">        True</span>
+<span class="sd">        &gt;&gt;&gt; r.started_at.tzinfo == timezone.utc</span>
 <span class="sd">        True</span>
 <span class="sd">        &gt;&gt;&gt; called</span>
 <span class="sd">        True</span>
@@ -563,8 +557,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span>
 
-    <span class="nd">@state</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">state</span><span class="p">(</span>
+    <span class="k">def</span> <span class="nf">_set_state</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">new_state</span><span class="p">:</span> <span class="n">auto_test_step_models</span><span class="o">.</span><span class="n">AutoTestStepResultState</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">new_state</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="p">:</span>
@@ -582,6 +575,8 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">update_rubric</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">started_at</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">state</span> <span class="o">=</span> <span class="n">hybrid_property</span><span class="p">(</span><span class="n">fget</span><span class="o">=</span><span class="n">_get_state</span><span class="p">,</span> <span class="n">fset</span><span class="o">=</span><span class="n">_set_state</span><span class="p">)</span>
 
     <span class="nd">@hybrid_property</span>
     <span class="k">def</span> <span class="nf">is_finished</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -768,17 +763,18 @@
 
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AutoTestRunner&#39;</span>
 
-    <span class="n">_ipaddr</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;ipaddr&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">_ipaddr</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;ipaddr&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-    <span class="n">last_heartbeat</span><span class="p">:</span> <span class="n">DatetimeWithTimezone</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">last_heartbeat</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;last_heartbeat&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
-        <span class="n">default</span><span class="o">=</span><span class="n">DatetimeWithTimezone</span><span class="o">.</span><span class="n">utcnow</span>
+        <span class="n">default</span><span class="o">=</span><span class="n">DatetimeWithTimezone</span><span class="o">.</span><span class="n">utcnow</span><span class="p">,</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">_job_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;job_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
+    <span class="n">_job_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;job_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
 
-    <span class="n">run_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">run_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;run_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;AutoTestRun.id&#39;</span><span class="p">),</span>
@@ -786,8 +782,8 @@
         <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">run</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;AutoTestRun&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;AutoTestRun&#39;</span><span class="p">,</span>
+    <span class="n">run</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTestRun</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">run_id</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;runners&#39;</span><span class="p">,</span>
     <span class="p">)</span>
@@ -854,14 +850,14 @@
     <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
         <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AutoTestRun&#39;</span><span class="p">]]</span>
 
-    <span class="n">auto_test_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">auto_test_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;auto_test_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;AutoTest.id&#39;</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
 
-    <span class="n">setup_stdout</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">orm</span><span class="o">.</span><span class="n">deferred</span><span class="p">(</span>
+    <span class="n">setup_stdout</span> <span class="o">=</span> <span class="n">deferred</span><span class="p">(</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
             <span class="s1">&#39;setup_stdout&#39;</span><span class="p">,</span>
             <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span>
@@ -869,7 +865,7 @@
         <span class="p">)</span>
     <span class="p">)</span>
 
-    <span class="n">setup_stderr</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">orm</span><span class="o">.</span><span class="n">deferred</span><span class="p">(</span>
+    <span class="n">setup_stderr</span> <span class="o">=</span> <span class="n">deferred</span><span class="p">(</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
             <span class="s1">&#39;setup_stderr&#39;</span><span class="p">,</span>
             <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span>
@@ -877,12 +873,14 @@
         <span class="p">)</span>
     <span class="p">)</span>
 
-    <span class="n">runners</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="s1">&#39;AutoTestRunner&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;AutoTestRunner&#39;</span><span class="p">,</span> <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;run&#39;</span>
+    <span class="n">runners</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTestRunner</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;run&#39;</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">auto_test</span><span class="p">:</span> <span class="s1">&#39;AutoTest&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;AutoTest&#39;</span><span class="p">,</span>
+    <span class="n">auto_test</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTest</span><span class="p">,</span>
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">auto_test_id</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;_runs&#39;</span><span class="p">,</span>
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;joined&#39;</span><span class="p">,</span>
@@ -890,27 +888,28 @@
     <span class="p">)</span>
 
     <span class="n">results</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;AutoTestResult&#39;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTestResult</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;run&#39;</span><span class="p">,</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete&#39;</span><span class="p">,</span>
-        <span class="n">order_by</span><span class="o">=</span><span class="s1">&#39;AutoTestResult.created_at&#39;</span>
-    <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[AutoTestResult]</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTestResult</span><span class="o">.</span><span class="n">created_at</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
 
-    <span class="n">started_date</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">started_date</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;started_date&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">None</span>
     <span class="p">)</span>
 
-    <span class="n">kill_date</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">kill_date</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;kill_date&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span>
     <span class="p">)</span>
 
     <span class="n">_job_number</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;job_number&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    <span class="n">_job_id</span><span class="p">:</span> <span class="n">uuid</span><span class="o">.</span><span class="n">UUID</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;job_id&#39;</span><span class="p">,</span> <span class="n">UUIDType</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">)</span>
+    <span class="n">_job_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;job_id&#39;</span><span class="p">,</span> <span class="n">UUIDType</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-    <span class="n">runners_requested</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">runners_requested</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;runners_requested&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
@@ -918,7 +917,7 @@
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">batch_run_done</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">batch_run_done</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;batch_run_done&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -1269,8 +1268,8 @@
 
 <span class="nd">@auto_test_grade_calculators</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s1">&#39;full&#39;</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">_full_grade_calculator</span><span class="p">(</span>
-    <span class="n">items</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="s1">&#39;rubric_models.RubricItem&#39;</span><span class="p">],</span> <span class="n">percentage</span><span class="p">:</span> <span class="nb">float</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;rubric_models.RubricItem&#39;</span><span class="p">:</span>
+    <span class="n">items</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="s1">&#39;psef.models.RubricItem&#39;</span><span class="p">],</span> <span class="n">percentage</span><span class="p">:</span> <span class="nb">float</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;psef.models.RubricItem&#39;</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Calculate a grade based on the ``full`` policy.</span>
 
 <span class="sd">    &gt;&gt;&gt; _full_grade_calculator([0,1,2,3], 0.25)</span>
@@ -1293,8 +1292,8 @@
 
 <span class="nd">@auto_test_grade_calculators</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s1">&#39;partial&#39;</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">_partial_grade_calculator</span><span class="p">(</span>
-    <span class="n">items</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="s1">&#39;rubric_models.RubricItem&#39;</span><span class="p">],</span> <span class="n">percentage</span><span class="p">:</span> <span class="nb">float</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;rubric_models.RubricItem&#39;</span><span class="p">:</span>
+    <span class="n">items</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="s1">&#39;psef.models.RubricItem&#39;</span><span class="p">],</span> <span class="n">percentage</span><span class="p">:</span> <span class="nb">float</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;psef.models.RubricItem&#39;</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Calculate a grade based on the ``partial`` policy.</span>
 
 <span class="sd">    &gt;&gt;&gt; _partial_grade_calculator([0,1,2,3], 1)</span>
@@ -1326,27 +1325,29 @@
         <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AutoTest&#39;</span><span class="p">]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AutoTest&#39;</span>
 
-    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="n">assignment</span><span class="p">:</span> <span class="s1">&#39;assignment_models.Assignment&#39;</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;Assignment&#39;</span><span class="p">,</span>
+    <span class="n">assignment</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Assignment</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;auto_test&#39;</span><span class="p">,</span>
         <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">uselist</span><span class="o">=</span><span class="kc">False</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">sets</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s2">&quot;AutoTestSet&quot;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTestSet</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;auto_test&quot;</span><span class="p">,</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete,delete-orphan&#39;</span><span class="p">,</span>
-        <span class="n">order_by</span><span class="o">=</span><span class="s1">&#39;AutoTestSet.created_at&#39;</span>
-    <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[AutoTestSet]</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTestSet</span><span class="o">.</span><span class="n">created_at</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
 
     <span class="n">_runs</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s2">&quot;AutoTestRun&quot;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTestRun</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;auto_test&quot;</span><span class="p">,</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete,delete-orphan&#39;</span><span class="p">,</span>
-        <span class="n">order_by</span><span class="o">=</span><span class="s1">&#39;AutoTestRun.created_at&#39;</span>
-    <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[AutoTestRun]</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">AutoTestRun</span><span class="o">.</span><span class="n">created_at</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">AutoTestRun</span><span class="p">]:</span>
@@ -1360,23 +1361,24 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_runs</span>
 
     <span class="n">fixtures</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;AutoTestFixture&#39;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">AutoTestFixture</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;auto_test&quot;</span><span class="p">,</span>
         <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete&#39;</span><span class="p">,</span>
-        <span class="n">order_by</span><span class="o">=</span><span class="s2">&quot;AutoTestFixture.name&quot;</span>
-    <span class="p">)</span>  <span class="c1"># type: t.MutableSequence[file_models.AutoTestFixture]</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">AutoTestFixture</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
 
-    <span class="n">setup_script</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">setup_script</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;setup_script&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span>
     <span class="p">)</span>
-    <span class="n">run_setup_script</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">run_setup_script</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;run_setup_script&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span>
     <span class="p">)</span>
-    <span class="n">finalize_script</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">finalize_script</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;finalize_script&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span>
     <span class="p">)</span>
 
-    <span class="n">_grade_calculation</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">_grade_calculation</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;grade_calculation&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span>
             <span class="o">*</span><span class="n">auto_test_grade_calculators</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;grade_calculation_enum&#39;</span>
@@ -1385,7 +1387,7 @@
         <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">results_always_visible</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">results_always_visible</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;results_always_visible&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -1610,8 +1612,7 @@
 <div class="viewcode-block" id="AutoTest.copy"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test.AutoTest.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">rubric_mapping</span><span class="p">:</span> <span class="p">(</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="s1">&#39;rubric_models.RubricRowBase&#39;</span><span class="p">,</span>
-                      <span class="s1">&#39;rubric_models.RubricRowBase&#39;</span><span class="p">]</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="s1">&#39;psef.models.RubricRow&#39;</span><span class="p">,</span> <span class="s1">&#39;psef.models.RubricRow&#39;</span><span class="p">]</span>
         <span class="p">),</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;AutoTest&#39;</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Copy this AutoTest configuration.</span>

@@ -313,8 +313,9 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
 
-<div class="viewcode-block" id="fix_duplicate_filenames"><a class="viewcode-back" href="../../psef_api/psef.html#psef.files.fix_duplicate_filenames">[docs]</a><span class="k">def</span> <span class="nf">fix_duplicate_filenames</span><span class="p">(</span><span class="n">files</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">FileLike</span><span class="p">]</span>
-                            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+<div class="viewcode-block" id="fix_duplicate_filenames"><a class="viewcode-back" href="../../psef_api/psef.html#psef.files.fix_duplicate_filenames">[docs]</a><span class="k">def</span> <span class="nf">fix_duplicate_filenames</span><span class="p">(</span>
+    <span class="n">files</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">FileLike</span><span class="p">],</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="s1">&#39;models.FileMixin[T]&#39;</span><span class="p">]]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
     <span class="sd">&quot;&quot;&quot;Fix duplicate files in a list of files.</span>
 
 <span class="sd">    :param files: The files to check for.</span>
@@ -496,11 +497,11 @@
         <span class="s1">&#39;is_directory&#39;</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">is_directory</span><span class="p">,</span>
         <span class="s1">&#39;modification_date&#39;</span><span class="p">:</span> <span class="nb">round</span><span class="p">(</span><span class="n">mod_date</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()),</span>
         <span class="s1">&#39;size&#39;</span><span class="p">:</span> <span class="n">size</span><span class="p">,</span>
-        <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">id</span><span class="p">),</span>
+        <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">get_id</span><span class="p">()),</span>
     <span class="p">}</span></div>
 
 
-<div class="viewcode-block" id="get_file_contents"><a class="viewcode-back" href="../../psef_api/psef.html#psef.files.get_file_contents">[docs]</a><span class="k">def</span> <span class="nf">get_file_contents</span><span class="p">(</span><span class="n">code</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">FileMixin</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<div class="viewcode-block" id="get_file_contents"><a class="viewcode-back" href="../../psef_api/psef.html#psef.files.get_file_contents">[docs]</a><span class="k">def</span> <span class="nf">get_file_contents</span><span class="p">(</span><span class="n">code</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">FileMixin</span><span class="p">[</span><span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Get the contents of the given :class:`.models.File`.</span>
 
 <span class="sd">    :param code: The file object to read.</span>
@@ -509,7 +510,7 @@
     <span class="k">if</span> <span class="n">code</span><span class="o">.</span><span class="n">is_directory</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
             <span class="s1">&#39;Cannot display this file as it is a directory.&#39;</span><span class="p">,</span>
-            <span class="sa">f</span><span class="s1">&#39;The selected file with id </span><span class="si">{code.id}</span><span class="s1"> is a directory.&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The selected file with id {code.get_id()} is a directory.&#39;</span><span class="p">,</span>
             <span class="n">APICodes</span><span class="o">.</span><span class="n">OBJECT_WRONG_TYPE</span><span class="p">,</span> <span class="mi">400</span>
         <span class="p">)</span>
 
@@ -523,7 +524,7 @@
         <span class="p">)</span>
         <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
             <span class="sa">f</span><span class="s1">&#39;This file is a symlink to `{os.readlink(filename)}`.&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;The file </span><span class="si">{}</span><span class="s1"> is a symlink&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">code</span><span class="o">.</span><span class="n">id</span><span class="p">),</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The file {code.get_id()} is a symlink&#39;</span><span class="p">,</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span>
             <span class="mi">410</span>
         <span class="p">)</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">codefile</span><span class="p">:</span>
@@ -637,7 +638,7 @@
     <span class="n">code</span> <span class="o">=</span> <span class="n">helpers</span><span class="o">.</span><span class="n">filter_single_or_404</span><span class="p">(</span>
         <span class="n">models</span><span class="o">.</span><span class="n">File</span><span class="p">,</span>
         <span class="n">models</span><span class="o">.</span><span class="n">File</span><span class="o">.</span><span class="n">work_id</span> <span class="o">==</span> <span class="n">work</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
-        <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">models</span><span class="o">.</span><span class="n">File</span><span class="o">.</span><span class="n">parent_id</span><span class="p">)</span><span class="o">.</span><span class="n">is_</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span>
+        <span class="n">models</span><span class="o">.</span><span class="n">File</span><span class="o">.</span><span class="n">parent_id</span><span class="o">.</span><span class="n">is_</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span>
         <span class="n">models</span><span class="o">.</span><span class="n">File</span><span class="o">.</span><span class="n">fileowner</span> <span class="o">!=</span> <span class="n">exclude</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">cache</span> <span class="o">=</span> <span class="n">work</span><span class="o">.</span><span class="n">get_file_children_mapping</span><span class="p">(</span><span class="n">exclude</span><span class="p">)</span>
@@ -647,7 +648,7 @@
 <span class="k">def</span> <span class="nf">_restore_directory_structure</span><span class="p">(</span>
     <span class="n">code</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">FileMixin</span><span class="p">[</span><span class="n">T</span><span class="p">],</span>
     <span class="n">parent</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-    <span class="n">cache</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="n">T</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">models</span><span class="o">.</span><span class="n">FileMixin</span><span class="p">[</span><span class="n">T</span><span class="p">]]],</span>
+    <span class="n">cache</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">T</span><span class="p">],</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">models</span><span class="o">.</span><span class="n">FileMixin</span><span class="p">[</span><span class="n">T</span><span class="p">]]],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FileTree</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
     <span class="sd">&quot;&quot;&quot;Worker function for :py:func:`.restore_directory_structure`</span>
 
@@ -659,14 +660,15 @@
     <span class="n">out</span> <span class="o">=</span> <span class="n">safe_join</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">code</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">code</span><span class="o">.</span><span class="n">is_directory</span><span class="p">:</span>
         <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+
         <span class="n">subtree</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">FileTree</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">_restore_directory_structure</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">cache</span><span class="p">[</span><span class="n">code</span><span class="o">.</span><span class="n">id</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">cache</span><span class="p">[</span><span class="n">code</span><span class="o">.</span><span class="n">get_id</span><span class="p">()]</span>
         <span class="p">]</span>
-        <span class="k">return</span> <span class="n">FileTree</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">code</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">code</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">entries</span><span class="o">=</span><span class="n">subtree</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">FileTree</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">code</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">code</span><span class="o">.</span><span class="n">get_id</span><span class="p">(),</span> <span class="n">entries</span><span class="o">=</span><span class="n">subtree</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>  <span class="c1"># this is a file</span>
         <span class="n">shutil</span><span class="o">.</span><span class="n">copyfile</span><span class="p">(</span><span class="n">code</span><span class="o">.</span><span class="n">get_diskname</span><span class="p">(),</span> <span class="n">out</span><span class="p">,</span> <span class="n">follow_symlinks</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">FileTree</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">code</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">code</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">entries</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">FileTree</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">code</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">code</span><span class="o">.</span><span class="n">get_id</span><span class="p">(),</span> <span class="n">entries</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="rename_directory_structure"><a class="viewcode-back" href="../../psef_api/psef.html#psef.files.rename_directory_structure">[docs]</a><span class="k">def</span> <span class="nf">rename_directory_structure</span><span class="p">(</span>

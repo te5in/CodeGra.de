@@ -213,6 +213,7 @@
 <span class="kn">from</span> <span class="nn">sqlalchemy.orm.collections</span> <span class="kn">import</span> <span class="n">attribute_mapped_collection</span>
 
 <span class="kn">import</span> <span class="nn">psef</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers</span> <span class="kn">import</span> <span class="n">hybrid_property</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">UUID_LENGTH</span><span class="p">,</span> <span class="n">Base</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">db</span><span class="p">,</span> <span class="n">course</span><span class="p">,</span> <span class="n">_MyQuery</span>
 <span class="kn">from</span> <span class="nn">.role</span> <span class="kn">import</span> <span class="n">Role</span><span class="p">,</span> <span class="n">CourseRole</span>
@@ -224,11 +225,7 @@
 
 <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="s1">&#39;SPHINX&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>  <span class="c1"># pragma: no cover</span>
     <span class="c1"># pylint: disable=unused-import,invalid-name</span>
-    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">group</span> <span class="k">as</span> <span class="n">group_models</span>
     <span class="kn">from</span> <span class="nn">.assignment</span> <span class="kn">import</span> <span class="n">AssignmentResult</span><span class="p">,</span> <span class="n">AssignmentAssignedGrader</span>
-    <span class="n">hybrid_property</span> <span class="o">=</span> <span class="nb">property</span>
-<span class="k">else</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">sqlalchemy.ext.hybrid</span> <span class="kn">import</span> <span class="n">hybrid_property</span>  <span class="c1"># type: ignore</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">structlog</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
 
@@ -267,24 +264,24 @@
 
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s2">&quot;User&quot;</span>
 
-    <span class="n">_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="nd">@hybrid_property</span>
-    <span class="k">def</span> <span class="nf">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_get_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;The id of the user</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_id</span>
 
-    <span class="nd">@id</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_set_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">assert</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_id&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_id</span> <span class="ow">is</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_id</span> <span class="o">=</span> <span class="n">n_id</span>
 
-    <span class="c1"># All stuff for LTI</span>
-    <span class="n">lti_user_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="n">hybrid_property</span><span class="p">(</span><span class="n">_get_id</span><span class="p">,</span> <span class="n">_set_id</span><span class="p">)</span>
 
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
-    <span class="n">active</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;active&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># All stuff for LTI</span>
+    <span class="n">lti_user_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">active</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;active&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">virtual</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;virtual&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
@@ -296,14 +293,14 @@
         <span class="n">index</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
 
-    <span class="n">role_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;Role_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Role.id&#39;</span><span class="p">))</span>
+    <span class="n">role_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;Role_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Role.id&#39;</span><span class="p">))</span>
     <span class="n">courses</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">MutableMapping</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">CourseRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
         <span class="s1">&#39;CourseRole&#39;</span><span class="p">,</span>
         <span class="n">collection_class</span><span class="o">=</span><span class="n">attribute_mapped_collection</span><span class="p">(</span><span class="s1">&#39;course_id&#39;</span><span class="p">),</span>
         <span class="n">secondary</span><span class="o">=</span><span class="n">user_course</span><span class="p">,</span>
         <span class="n">backref</span><span class="o">=</span><span class="n">db</span><span class="o">.</span><span class="n">backref</span><span class="p">(</span><span class="s1">&#39;users&#39;</span><span class="p">,</span> <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;dynamic&#39;</span><span class="p">)</span>
     <span class="p">)</span>
-    <span class="n">_username</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">_username</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;username&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span>
         <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -311,18 +308,18 @@
         <span class="n">index</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="nd">@hybrid_property</span>
-    <span class="k">def</span> <span class="nf">username</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_get_username</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;The username of the user</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_username</span>
 
-    <span class="nd">@username</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">username</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_set_username</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">assert</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_username&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_username</span> <span class="ow">is</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_username</span> <span class="o">=</span> <span class="n">username</span>
 
-    <span class="n">reset_token</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">username</span> <span class="o">=</span> <span class="n">hybrid_property</span><span class="p">(</span><span class="n">_get_username</span><span class="p">,</span> <span class="n">_set_username</span><span class="p">)</span>
+
+    <span class="n">reset_token</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;reset_token&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="n">UUID_LENGTH</span><span class="p">),</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
     <span class="n">reset_email_on_lti</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
@@ -333,13 +330,13 @@
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">email</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;email&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">password</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">email</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;email&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">password</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;password&#39;</span><span class="p">,</span>
         <span class="n">PasswordType</span><span class="p">(</span><span class="n">schemes</span><span class="o">=</span><span class="p">[</span>
             <span class="s1">&#39;pbkdf2_sha512&#39;</span><span class="p">,</span>
         <span class="p">],</span> <span class="n">deprecated</span><span class="o">=</span><span class="p">[]),</span>
-        <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="n">assignments_assigned</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">MutableMapping</span><span class="p">[</span>
@@ -357,13 +354,13 @@
         <span class="p">)</span>
 
     <span class="n">group</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="s1">&#39;Group&#39;</span><span class="p">,</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Group</span><span class="p">,</span>
         <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;virtual_user&#39;</span><span class="p">,</span>
         <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;selectin&#39;</span><span class="p">,</span>
         <span class="n">uselist</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-    <span class="p">)</span>  <span class="c1"># type: t.Optional[group_models.Group]</span>
+    <span class="p">)</span>
 
-    <span class="n">role</span><span class="p">:</span> <span class="n">Role</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span><span class="s1">&#39;Role&#39;</span><span class="p">,</span> <span class="n">foreign_keys</span><span class="o">=</span><span class="n">role_id</span><span class="p">,</span> <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;select&#39;</span><span class="p">)</span>
+    <span class="n">role</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">Role</span><span class="p">,</span> <span class="n">foreign_keys</span><span class="o">=</span><span class="n">role_id</span><span class="p">,</span> <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;select&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">User</span><span class="p">):</span>
@@ -440,6 +437,16 @@
 
 <span class="sd">        To check a course permission the course_id has to be set.</span>
 
+<span class="sd">        &gt;&gt;&gt; user_without_role = User(active=True)</span>
+<span class="sd">        &gt;&gt;&gt; user_without_role.has_permission(</span>
+<span class="sd">        ...  GlobalPermission.can_edit_own_password</span>
+<span class="sd">        ... )</span>
+<span class="sd">        False</span>
+<span class="sd">        &gt;&gt;&gt; user_without_role.has_permission(</span>
+<span class="sd">        ...  CoursePermission.can_submit_own_work, course_id=1</span>
+<span class="sd">        ... )</span>
+<span class="sd">        False</span>
+
 <span class="sd">        :param permission: The permission or permission name</span>
 <span class="sd">        :param course_id: The course or course id</span>
 <span class="sd">        :returns: Whether the role has the permission or not</span>
@@ -452,6 +459,8 @@
 
         <span class="k">if</span> <span class="n">course_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">permission</span><span class="p">,</span> <span class="n">GlobalPermission</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">role</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">has_permission</span><span class="p">(</span><span class="n">permission</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">permission</span><span class="p">,</span> <span class="n">CoursePermission</span><span class="p">)</span>
@@ -639,9 +648,9 @@
         <span class="n">res</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
             <span class="n">course_roles</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">course_id</span>
         <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">crp</span><span class="p">,</span> <span class="n">course_roles</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">course_id</span> <span class="o">==</span> <span class="n">crp</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">course_role_id</span><span class="p">)</span>
-        <span class="n">link</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">exists</span><span class="p">())</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
+        <span class="n">link</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">exists</span><span class="p">())</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
 
-        <span class="k">return</span> <span class="p">(</span><span class="ow">not</span> <span class="n">link</span><span class="p">)</span> <span class="k">if</span> <span class="n">permission</span><span class="o">.</span><span class="n">default_value</span> <span class="k">else</span> <span class="n">link</span></div>
+        <span class="k">return</span> <span class="n">link</span> <span class="o">^</span> <span class="n">permission</span><span class="o">.</span><span class="n">default_value</span></div>
 
     <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
     <span class="k">def</span> <span class="nf">get_all_permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="n">GlobalPermission</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]:</span>  <span class="c1"># pylint: disable=function-redefined,missing-docstring,no-self-use</span>
@@ -662,8 +671,14 @@
 <span class="sd">        all course permissions of the user in a specific</span>
 <span class="sd">        :class:`.course.Course`.</span>
 
-<span class="sd">        :param course_id: The course or course id</span>
+<span class="sd">        &gt;&gt;&gt; user_without_role = User()</span>
+<span class="sd">        &gt;&gt;&gt; perms = user_without_role.get_all_permissions()</span>
+<span class="sd">        &gt;&gt;&gt; assert set(list(GlobalPermission)) == set(perms.keys())</span>
+<span class="sd">        &gt;&gt;&gt; assert not any(perms.values())</span>
+<span class="sd">        &gt;&gt;&gt; cperms = user_without_role.get_all_permissions(course_id=1)</span>
+<span class="sd">        &gt;&gt;&gt; assert not any(perms.values())</span>
 
+<span class="sd">        :param course_id: The course or course id</span>
 <span class="sd">        :returns: A name boolean mapping where the name is the name of the</span>
 <span class="sd">                  permission and the value indicates if this user has this</span>
 <span class="sd">                  permission.</span>
@@ -674,12 +689,15 @@
             <span class="n">course_id</span> <span class="o">=</span> <span class="n">course_id</span><span class="o">.</span><span class="n">id</span>
 
         <span class="k">if</span> <span class="n">course_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">()</span>
-        <span class="k">elif</span> <span class="n">course_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">courses</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">courses</span><span class="p">[</span><span class="n">course_id</span><span class="p">]</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">()</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">role</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span><span class="n">perm</span><span class="p">:</span> <span class="kc">False</span> <span class="k">for</span> <span class="n">perm</span> <span class="ow">in</span> <span class="n">GlobalPermission</span><span class="p">}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">role</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">perms</span> <span class="o">=</span> <span class="n">Permission</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">(</span><span class="n">CoursePermission</span><span class="p">)</span>
-            <span class="k">return</span> <span class="p">{</span><span class="n">perm</span><span class="o">.</span><span class="n">value</span><span class="p">:</span> <span class="kc">False</span> <span class="k">for</span> <span class="n">perm</span> <span class="ow">in</span> <span class="n">perms</span><span class="p">}</span></div>
+            <span class="k">if</span> <span class="n">course_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">courses</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">courses</span><span class="p">[</span><span class="n">course_id</span><span class="p">]</span><span class="o">.</span><span class="n">get_all_permissions</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span><span class="n">perm</span><span class="p">:</span> <span class="kc">False</span> <span class="k">for</span> <span class="n">perm</span> <span class="ow">in</span> <span class="n">CoursePermission</span><span class="p">}</span></div>
 
 <div class="viewcode-block" id="User.get_reset_token"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.user.User.get_reset_token">[docs]</a>    <span class="k">def</span> <span class="nf">get_reset_token</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Get a token which a user can use to reset his password.</span>
