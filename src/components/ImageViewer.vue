@@ -163,20 +163,17 @@ export default {
     padding: 0;
 
     .img {
-        display: block;
+        display: inline-block;
         max-width: 100%;
         max-height: 100%;
-        flex: 1 1 auto;
-        object-fit: contain;
     }
 }
 </style>
 
 <style lang="less">
 .image-viewer.floating-feedback-button .content-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    display: block;
     min-height: 10rem;
+    text-align: center;
 }
 </style>
