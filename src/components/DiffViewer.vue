@@ -3,12 +3,13 @@
 <div class="diff-viewer" v-if="diffOnly">
     <div v-for="(part, i) in changedParts"
          :key="`part-${i}-line-${part[0]}`">
-        <hr v-if="i !== 0">
+        <hr v-if="i !== 0"
+            class="m-0">
         <ol :class="{ 'show-whitespace': showWhitespace }"
             class="diff-part rounded"
             :start="part[0] + 1"
             :style="{
-                paddingLeft: `${3 + Math.log10(part[1]) * 2/3}em`,
+                paddingLeft: `${3 + Math.log10(lines.length) * 2/3}em`,
                 fontSize: `${fontSize}px`,
             }">
             <li v-for="line in range(part[0], part[1])"
@@ -21,7 +22,7 @@
 </div>
 <div class="diff-viewer" v-else>
     <ol :class="{ 'show-whitespace': showWhitespace }"
-        class="scroller rounded"
+        class="diff-part only scroller rounded"
         :style="{
             paddingLeft: `${3 + Math.log10(lines.length) * 2/3}em`,
             fontSize: `${fontSize}px`,
@@ -248,13 +249,16 @@ export default {
 }
 
 ol {
-    min-height: 5em;
     overflow-x: visible;
     background: @linum-bg;
     margin: 0;
     padding: 0;
     font-family: monospace;
     font-size: small;
+
+    .diff-part only & {
+        min-height: 5em;
+    }
 
     #app.dark & {
         background: @color-primary-darkest;
