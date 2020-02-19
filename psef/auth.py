@@ -78,7 +78,7 @@ def _load_user(user_id: int) -> t.Optional['psef.models.User']:
 
 
 @t.overload
-def user_active(user: None) -> Literal[True]:
+def user_active(user: None) -> Literal[False]:
     ...
 
 

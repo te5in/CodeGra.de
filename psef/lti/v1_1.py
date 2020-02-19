@@ -1587,6 +1587,7 @@ class OutcomeResponse:
     ... os.path.join(
     ...   os.path.dirname(__file__),
     ...   '..',
+    ...   '..',
     ...   'test_data',
     ...   'example_strings',
     ...   name,
