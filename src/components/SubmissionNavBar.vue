@@ -423,6 +423,10 @@ export default {
         .button-content {
             flex: 1 1 auto;
         }
+
+        .fa-icon {
+            transform: none;
+        }
     }
     .dropdown-menu {
         width: 100%;

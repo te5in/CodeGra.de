@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template functional>
 <span v-if="props.submission.isLate()"
-      class="late-submission-icon active">
+      class="late-submission-icon active pl-1">
     <component
         :is="injections.components.Icon"
         name="clock-o"
@@ -67,12 +67,8 @@ export default {
 
 <style lang="less" scoped>
 .late-submission-icon.active {
-    .late-icon {
-        margin-bottom: -0.125em;
-        text-decoration: bold;
-        &.with-popover {
+    .late-icon.with-popover {
             cursor: help;
-        }
     }
 }
 </style>

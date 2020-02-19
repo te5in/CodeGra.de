@@ -477,9 +477,15 @@ export default {
     }
 }
 
-.submission-list .search-wrapper {
-    #app.dark & .input-group-append .input-group-text {
-        background-color: @color-primary-darkest !important;
+.submission-list {
+    .search-wrapper {
+        #app.dark & .input-group-append .input-group-text {
+            background-color: @color-primary-darkest !important;
+        }
+    }
+
+    .late-submission-icon .fa-icon {
+        transform: translateY(-2px);
     }
 }
 </style>
