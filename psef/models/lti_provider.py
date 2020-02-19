@@ -19,6 +19,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 import psef
 import cg_celery
 from cg_dt_utils import DatetimeWithTimezone
+from cg_sqlalchemy_helpers import hybrid_property
 from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 
 from . import UUID_LENGTH, Base, MyQuery, DbColumn, db
@@ -51,9 +52,6 @@ _PASSBACK_CELERY_OPTS: Final = {
 if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import, invalid-name
     from .work import Work
-    hybrid_property = property
-else:
-    from sqlalchemy.ext.hybrid import hybrid_property
 
 _ALL_LTI_PROVIDERS = sorted(['lti1.1', 'lti1.3'])
 lti_provider_handlers.set_possible_options(_ALL_LTI_PROVIDERS)
@@ -69,20 +67,20 @@ class LTIProviderBase(Base):
     __tablename__ = 'LTIProvider'
     _SIGNALS_SETUP = False
 
-    id: str = db.Column(
+    id = db.Column(
         'id',
         db.String(UUID_LENGTH),
         primary_key=True,
         default=lambda: str(uuid.uuid4())
     )
-    key: str = db.Column('key', db.Unicode, unique=True, nullable=True)
+    key = db.Column('key', db.Unicode, unique=True, nullable=False)
 
     # This is only really available for LTI1.3, however we need to define it
     # here to be able to create a unique constraint.
     if not t.TYPE_CHECKING:
-        client_id: t.Optional[str] = db.Column('client_id', db.Unicode)
+        client_id = db.Column('client_id', db.Unicode)
 
-    _lti_provider_version: str = db.Column(
+    _lti_provider_version = db.Column(
         'lti_provider_version',
         db.Enum(*_ALL_LTI_PROVIDERS, name='ltiproviderversion'),
         nullable=False,
@@ -453,14 +451,14 @@ class LTI1p3Provider(LTIProviderBase):
                 .set_tool_private_key(provider._private_key)
 
     if t.TYPE_CHECKING:
-        client_id: t.Optional[str] = db.Column('client_id', db.Unicode)
+        client_id = db.Column('client_id', db.Unicode)
 
-    _lms_name: t.Optional[str] = db.Column('lms_name', db.Unicode)
-    _auth_login_url: t.Optional[str] = db.Column('auth_login_url', db.Unicode)
-    _auth_token_url: t.Optional[str] = db.Column('auth_token_url', db.Unicode)
-    _key_set_url: t.Optional[str] = db.Column('key_set_url', db.Unicode)
+    _lms_name = db.Column('lms_name', db.Unicode)
+    _auth_login_url = db.Column('auth_login_url', db.Unicode)
+    _auth_token_url = db.Column('auth_token_url', db.Unicode)
+    _key_set_url = db.Column('key_set_url', db.Unicode)
 
-    _crypto_key: t.Optional[bytes] = db.Column('crypto_key', db.LargeBinary)
+    _crypto_key = db.Column('crypto_key', db.LargeBinary)
 
     @property
     def lms_name(self) -> str:
@@ -629,9 +627,7 @@ class LTI1p3Provider(LTIProviderBase):
 
         for user, _ in assig.course.get_all_users_in_course(
             include_test_students=False
-        ).filter(
-            t.cast(DbColumn[int], user_models.User.id).notin_(found_user_ids)
-        ):
+        ).filter(user_models.User.id.notin_(found_user_ids)):
             self._passback_grade(user=user, assignment=assig, timestamp=now)
 
         db.session.commit()
@@ -705,8 +701,7 @@ class LTI1p3Provider(LTIProviderBase):
                 t.cast(DbColumn[str], UserLTIProvider.lti_user_id),
             ).filter(
                 UserLTIProvider.lti_provider == self,
-                t.cast(DbColumn['user_models.User'],
-                       UserLTIProvider.user).in_(authors),
+                UserLTIProvider.user.in_(authors),
             ).all()
         )
 
@@ -789,8 +784,6 @@ lti_provider_handlers.freeze()
 
 class UserLTIProvider(Base, TimestampMixin):
     __tablename__ = 'user_lti-provider'
-    # if t.TYPE_CHECKING:
-    #     query: MyQuery['']
 
     user_id = db.Column(
         'user_id', db.Integer, db.ForeignKey('User.id'), nullable=False
@@ -812,14 +805,14 @@ class UserLTIProvider(Base, TimestampMixin):
         db.UniqueConstraint(lti_provider_id, lti_user_id),
     )
 
-    lti_provider: LTIProviderBase = db.relationship(
-        LTIProviderBase,  # type: ignore[misc]
+    lti_provider = db.relationship(
+        LTIProviderBase,
         lazy='joined',
         foreign_keys=lti_provider_id,
     )
 
-    user: 'user_models.User' = db.relationship(
-        'User',
+    user = db.relationship(
+        lambda: user_models.User,
         lazy='joined',
         foreign_keys=user_id,
     )
@@ -949,27 +942,27 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
         nullable=False,
     )
 
-    lti_course_id: str = db.Column(
+    lti_course_id = db.Column(
         'lti_course_id',
         db.Unicode,
         nullable=False,
     )
 
     # For LTI1.1: the deployment_id is always the same as `lti_course_id`.
-    deployment_id: str = db.Column(
+    deployment_id = db.Column(
         'deployment_id',
         db.Unicode,
         nullable=False,
     )
 
-    lti_provider: LTIProviderBase = db.relationship(
-        LTIProviderBase,  # type: ignore[misc]
+    lti_provider = db.relationship(
+        LTIProviderBase,
         lazy='joined',
         foreign_keys=lti_provider_id,
     )
 
-    course: 'course_models.Course' = db.relationship(
-        'Course',
+    course = db.relationship(
+        lambda: course_models.Course,
         lazy='joined',
         foreign_keys=course_id,
     )

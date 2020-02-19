@@ -1008,7 +1008,7 @@ def create_or_edit_registration_link(
     else:
         link = helpers.filter_single_or_404(
             models.CourseRegistrationLink,
-            models.CourseRegistrationLink.id == link_id,
+            models.CourseRegistrationLink.id == uuid.UUID(link_id),
             also_error=lambda l: l.course_id != course.id
         )
 

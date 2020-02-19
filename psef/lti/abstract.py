@@ -11,7 +11,6 @@ from ..exceptions import APICodes, APIException
 logger = structlog.get_logger()
 
 
-
 class LTILaunchData(TypedDict):
     assignment: t.Optional['models.Assignment']
     custom_lms_name: str

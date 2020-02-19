@@ -50,6 +50,7 @@ from ..permissions import CoursePermission as CPerm
 if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import
     from pylti1p3.assignments_grades import _AssignmentsGradersData
+    from . import group as group_models
     cached_property = property  # pylint: disable=invalid-name
 else:
     # pylint: disable=unused-import
@@ -797,7 +798,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         return self.lti_assignment_id is not None
 
     @hybrid_expression
-    def _get_is_lti_expr(cls: 'Assignment') -> bool:
+    def _get_is_lti_expr(cls: t.Type['Assignment']) -> DbColumn[bool]:
         # pylint: disable=no-self-argument
         return cls.lti_assignment_id.isnot(None)
 
@@ -1149,7 +1150,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         group_user_id = None
         if group_of_user is not None:
-             group_user_id = group_of_user.virtual_user_id
+            group_user_id = group_of_user.virtual_user_id
         elif self.group_set_id is not None:
             group_user_id = db.session.query(
                 psef.models.Group.virtual_user_id

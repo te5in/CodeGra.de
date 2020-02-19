@@ -139,7 +139,6 @@ def get_lti_config() -> werkzeug.wrappers.Response:
         )
 
 
-
 class _LTIDeepLinkResult(TypedDict):
     id: str
     assignment_name: str
@@ -161,7 +160,7 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
 
     blob = helpers.filter_single_or_404(
         models.BlobStorage,
-        models.BlobStorage.id == blob_id,
+        models.BlobStorage.id == uuid.UUID(blob_id),
         with_for_update=True,
         also_error=also_error,
     )
@@ -229,7 +228,7 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
                 type='deep_link',
             )
         elif launch_message.is_resource_launch():
-            result = launch_message.do_second_step_of_lti_launch() #
+            result = launch_message.do_second_step_of_lti_launch()  #
         else:
             assert 0
     else:

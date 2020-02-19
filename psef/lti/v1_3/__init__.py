@@ -3,6 +3,7 @@ import sys
 import json
 import typing as t
 
+import flask
 import werkzeug
 import structlog
 from pylti1p3.deployment import Deployment
@@ -11,7 +12,6 @@ from pylti1p3.tool_config import ToolConfAbstract
 from pylti1p3.registration import Registration
 from pylti1p3.message_launch import MessageLaunch
 
-import flask
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
 

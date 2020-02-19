@@ -17,16 +17,14 @@ class AbstractRole(abc.ABC, t.Generic[T]):
         self.codegrade_role_name = codegrade_role_name
 
     @classmethod
-    def parse(cls: t.Type[T_ROLE],
-              role_str: str) -> t.Optional[T_ROLE]:
+    def parse(cls: t.Type[T_ROLE], role_str: str) -> t.Optional[T_ROLE]:
         for key, values in cls._LOOKUP.items():
             if role_str in values:
                 return cls(name=role_str, codegrade_role_name=key)
         return None
 
     @classmethod
-    def parse_roles(cls: t.Type[T_ROLE],
-                    roles: t.List[str]) -> t.List[T_ROLE]:
+    def parse_roles(cls: t.Type[T_ROLE], roles: t.List[str]) -> t.List[T_ROLE]:
         return [role for role in map(cls.parse, roles) if role is not None]
 
     @classmethod

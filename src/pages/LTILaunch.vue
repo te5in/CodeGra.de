@@ -61,7 +61,6 @@ export default {
         this.secondStep(true);
     },
 
-
     computed: {
         ...mapGetters('pref', ['darkMode']),
     },
@@ -80,34 +79,33 @@ export default {
                     jwt_token: this.$route.query.jwt,
                     blob_id: this.$route.query.blob_id,
                 })
-                .then(
-                    async response => {
-                        const { data } = response;
+                .then(async response => {
+                    const { data } = response;
 
-                        this.$ltiProvider = ltiProviders[data.data.custom_lms_name];
-                        if (data.data.access_token) {
-                            await this.logout();
-                            disablePersistance();
-                            await this.updateAccessToken(data.data.access_token);
-                        } else {
-                            this.clearPlagiarismCases();
-                        }
+                    this.$ltiProvider = ltiProviders[data.data.custom_lms_name];
+                    if (data.data.access_token) {
+                        await this.logout();
+                        disablePersistance();
+                        await this.updateAccessToken(data.data.access_token);
+                    } else {
+                        this.clearPlagiarismCases();
+                    }
 
-                        this.$utils.WarningHeader.fromResponse(response).messages.forEach(
-                            warning => {
-                                this.$toasted.info(warning.text, getToastOptions());
-                            },
-                        );
+                    this.$utils.WarningHeader.fromResponse(response).messages.forEach(warning => {
+                        this.$toasted.info(warning.text, getToastOptions());
+                    });
 
-                        this.$ltiProvider = ltiProviders[data.data.custom_lms_name];
+                    this.$ltiProvider = ltiProviders[data.data.custom_lms_name];
 
-                        switch (data.version) {
-                            case 'v1_1': return this.handleLTI1p1(data.data);
-                            case 'v1_3': return this.handleLTI1p3(data.data);
-                            default: throw new Error(`Unknown LTI version (${data.version}) encountered.`);
-                        }
-                    },
-                )
+                    switch (data.version) {
+                        case 'v1_1':
+                            return this.handleLTI1p1(data.data);
+                        case 'v1_3':
+                            return this.handleLTI1p3(data.data);
+                        default:
+                            throw new Error(`Unknown LTI version (${data.version}) encountered.`);
+                    }
+                })
                 .catch(err => {
                     if (err.response) {
                         if (first && err.response.status === 401) {
@@ -123,9 +121,12 @@ export default {
 
         handleLTI1p3(data) {
             switch (data.type) {
-                case 'deep_link': return this.handleDeepLink(data);
-                case 'normal_result': return this.handleLTI1p1(data);
-                default: throw new Error(`Unknown LTI1.3 type: ${data.type}`);
+                case 'deep_link':
+                    return this.handleDeepLink(data);
+                case 'normal_result':
+                    return this.handleLTI1p1(data);
+                default:
+                    throw new Error(`Unknown LTI1.3 type: ${data.type}`);
             }
         },
 
@@ -153,16 +154,11 @@ export default {
                 this.$toasted.info(
                     `Your email was updated to "${
                         data.updated_email
-                    }" which is the email registered with your ${
-                        data.custom_lms_name
-                    }.`,
+                    }" which is the email registered with your ${data.custom_lms_name}.`,
                     getToastOptions(),
                 );
             }
-            if (
-                this.$route.query.redirect &&
-                    this.$route.query.redirect.startsWith('/')
-            ) {
+            if (this.$route.query.redirect && this.$route.query.redirect.startsWith('/')) {
                 this.$router.replace(this.$route.query.redirect);
             } else {
                 this.$router.replace({

@@ -45,6 +45,7 @@ class WorkRubricItem(helpers.NotEqualMixin, Base):
     """The association table between a :class:`.work_models.Work` and a
     :class:`.RubricItem`.
     """
+
     def __init__(
         self,
         *,

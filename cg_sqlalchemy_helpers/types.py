@@ -198,7 +198,7 @@ class MyDb:  # pragma: no cover
 
     def ForeignKey(
         self,
-        _name: str,
+        _name: t.Union[str, 'DbColumn[T]'],
         *,
         ondelete: (t.Union[None, Literal['SET NULL'], Literal['CASCADE']]
                    ) = None,
@@ -443,6 +443,11 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
     It has no implementation and instantiating an instance raises an error.
     '''
 
+    def compile(
+        self, *, dialect: object = None, compile_kwargs: t.Dict[str, object]
+    ) -> object:
+        ...
+
     def __init__(self) -> None:
         raise ValueError
 
@@ -458,7 +463,7 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
     def notin_(
         self, val: t.Union[t.Iterable[T], 'DbColumn[T]',
                            'MyNonOrderableQuery[T]', 'RawTable']
-    ) -> 'DbColumn[T]':
+    ) -> 'DbColumn[bool]':
         ...
 
     def isnot(self, val: t.Optional[T]) -> 'DbColumn[bool]':
@@ -675,7 +680,7 @@ if t.TYPE_CHECKING:
         fget: t.Callable[[Z], T],
         *,
         expr: t.Callable[[t.Type[Z]], DbColumn[T]],
-    ) -> _ImmutableColumnProxy[T, Y]:
+    ) -> ImmutableColumnProxy[T]:
         ...
 
     @t.overload

@@ -233,7 +233,6 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
     """
     __tablename__ = 'AutoTestResult'
 
-
     auto_test_run_id = db.Column(
         'auto_test_run_id',
         db.Integer,
@@ -640,7 +639,6 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     """
     __tablename__ = 'AutoTestRun'
 
-
     auto_test_id = db.Column(
         'auto_test_id',
         db.Integer,
@@ -771,7 +769,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         if all_deleted and not any_results_left:
             # We don't need to kill each individual runner, as the end of job
             # will kill all associated runners.
-            job_id = self .get_job_id()
+            job_id = self.get_job_id()
             callback_after_this_request(
                 lambda: psef.tasks.notify_broker_end_of_job(job_id)
             )

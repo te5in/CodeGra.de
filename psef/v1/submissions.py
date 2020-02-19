@@ -948,7 +948,7 @@ def get_dir_contents(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
 
-    file_id: str = request.args.get('file_id', '')
+    file_id = request.args.get('file_id', None, type=int)
     path: str = request.args.get('path', '')
 
     exclude_owner = models.File.get_exclude_owner(
@@ -958,7 +958,7 @@ def get_dir_contents(
 
     auth.ensure_can_view_files(work, exclude_owner == FileOwner.student)
 
-    if file_id:
+    if file_id is not None:
         file = helpers.filter_single_or_404(
             models.File,
             models.File.id == file_id,

@@ -312,9 +312,8 @@ class Course(NotEqualMixin, Base):
             assigs, key=lambda item: item.deadline or DatetimeWithTimezone.max
         )
 
-    def get_all_users_in_course(
-        self, *, include_test_students: bool
-    ) -> MyQuery['t.Tuple[User, CourseRole]']:
+    def get_all_users_in_course(self, *, include_test_students: bool
+                                ) -> MyQuery['t.Tuple[User, CourseRole]']:
         """Get a query that returns all users in the current course and their
             role.
 

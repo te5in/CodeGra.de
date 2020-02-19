@@ -37,12 +37,6 @@ from ..permissions import CoursePermission
 
 logger = structlog.get_logger()
 
-if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=unused-import, invalid-name
-    hybrid_property = property
-else:
-    from sqlalchemy.ext.hybrid import hybrid_property
-
 
 class GradeOrigin(enum.Enum):
     """What is the origin of this grade history entry.

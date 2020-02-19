@@ -2,6 +2,7 @@ import typing as t
 from datetime import timedelta
 from dataclasses import dataclass
 
+import flask
 import pylti1p3
 import structlog
 import werkzeug.wrappers
@@ -10,7 +11,6 @@ from pylti1p3.request import Request
 from pylti1p3.session import SessionService
 from pylti1p3.redirect import Redirect
 
-import flask
 from cg_dt_utils import DatetimeWithTimezone
 
 logger = structlog.get_logger()
@@ -134,9 +134,6 @@ class FlaskRedirect(Redirect[werkzeug.wrappers.Response]):
     def _process_response(
         self, response: werkzeug.wrappers.Response
     ) -> werkzeug.wrappers.Response:
-        if self._cookie_service is None:
-            logger.warning('Cookie service is None!')
-            return response
         return self._cookie_service.update_response(response)
 
     def do_redirect(self) -> werkzeug.wrappers.Response:
