@@ -84,7 +84,7 @@ context('Plagiarsm', () => {
         setSimilarity(0);
         runPlagiarism().click();
 
-        cy.get('.overview-table tr.table-info')
+        cy.get('.overview-table tbody tr:not(.table-warning)')
             .should('not.have.class', 'b-table-empty-row');
     });
 
@@ -94,7 +94,7 @@ context('Plagiarsm', () => {
         setSuffixes('.py');
         runPlagiarism().click();
 
-        cy.get('.overview-table tr.table-info')
+        cy.get('.overview-table tbody tr:not(.table-warning)')
             .should('not.have.class', 'b-table-empty-row');
     });
 
@@ -106,14 +106,17 @@ context('Plagiarsm', () => {
 
         // There should be matches of 100% because both assignments
         // have the exact same code.
-        cy.get('.overview-table tr.table-info')
+        cy.get('.overview-table tbody tr:not(.table-warning)')
             .should('not.have.class', 'b-table-empty-row')
             .and('be.visible')
             .contains('tr', '*')
             .contains('tr', '100.00')
             .first()
             .click();
-        cy.get('.plagiarism-detail .card-header .link-disabled').should('be.visible');
+        cy.get('.plagiarism-detail')
+            .should('be.visible')
+            .find('.card-header :not(a).text-muted')
+            .should('be.visible');
     });
 
     it('should run with the old submissions option', () => {
@@ -124,14 +127,17 @@ context('Plagiarsm', () => {
 
         // There should be matches of 100% because both assignments
         // have the exact same code.
-        cy.get('.overview-table tr.table-info')
+        cy.get('.overview-table tbody tr:not(.table-warning)')
             .should('not.have.class', 'b-table-empty-row')
             .and('be.visible')
             .contains('tr', '*')
             .contains('100.00')
             .first()
             .click();
-        cy.get('.plagiarism-detail .card-header .link-disabled').should('be.visible');
+        cy.get('.plagiarism-detail')
+            .should('be.visible')
+            .find('.card-header :not(a).text-muted')
+            .should('be.visible');
     });
 
     it('should run with the base code option', () => {
@@ -140,7 +146,7 @@ context('Plagiarsm', () => {
         setBaseCode('test_blackboard/bb-devin.zip', 'application/zip');
         runPlagiarism().click();
 
-        cy.get('.overview-table tr.table-info')
+        cy.get('.overview-table tbody tr:not(.table-warning)')
             .should('not.have.class', 'b-table-empty-row')
             .and('be.visible')
             .and('not.contain', 'Devin Hillenius');
@@ -166,7 +172,7 @@ context('Plagiarsm', () => {
         setSimilarity(12);
         runPlagiarism().click();
 
-        cy.get('.overview-table tr.table-info:first').click();
+        cy.get('.overview-table tbody tr:not(.table-warning):first').click();
 
         cy.get('.local-header .back-button').click();
         cy.get('.overview-table');
