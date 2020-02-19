@@ -95,7 +95,7 @@ export default {
     height: 100%;
     display: inline-block;
 
-    .description-popover.float-right & {
+    .card-header .description-popover.float-right & {
         padding-right: 0;
     }
 }
