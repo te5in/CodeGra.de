@@ -446,7 +446,10 @@ def get_extra_results_to_process(
     )
     runner = _verify_and_get_runner(run, password)
 
-    results = run.get_results_to_run().all()
+    # Limit the results to the oldest few when requested. This should be the
+    # oldest as otherwise we might not send old results that the runner doesn't
+    # have yet.
+    results = helpers.maybe_apply_sql_slice(run.get_results_to_run()).all()
 
     if is_last_call and not results:
         run.stop_runners([runner])
