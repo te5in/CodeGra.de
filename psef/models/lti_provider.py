@@ -25,20 +25,27 @@ class LTIProvider(Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['LTIProvider']] = Base.query
     __tablename__ = 'LTIProvider'
-    id: str = db.Column('id', db.String(UUID_LENGTH), primary_key=True)
-    key: str = db.Column('key', db.Unicode, unique=True)
+    id = db.Column('id', db.String(UUID_LENGTH), primary_key=True)
+    key = db.Column('key', db.Unicode, unique=True, nullable=False)
 
     def delete_grade_for_submission(self, sub: 'Work') -> None:
         """Delete the grade for the given submission.
         """
+        if sub.assignment.lti_outcome_service_url is None:  # pragma: no cover
+            return
+
         for user in sub.get_all_authors():
+            sourcedid = sub.assignment.assignment_results[user.id].sourcedid
+            if sourcedid is None:  # pragma: no cover
+                continue
+
             self.lti_class.passback_grade(
                 key=self.key,
                 secret=self.secret,
                 grade=None,
                 initial=False,
                 service_url=sub.assignment.lti_outcome_service_url,
-                sourcedid=sub.assignment.assignment_results[user.id].sourcedid,
+                sourcedid=sourcedid,
                 lti_points_possible=sub.assignment.lti_points_possible,
                 submission=sub,
                 host=current_app.config['EXTERNAL_URL'],
@@ -53,14 +60,21 @@ class LTIProvider(Base):
             actually do a passback when this is set to ``True``.
         :returns: Nothing.
         """
+        if sub.assignment.lti_outcome_service_url is None:  # pragma: no cover
+            return
+
         for user in sub.get_all_authors():
+            sourcedid = sub.assignment.assignment_results[user.id].sourcedid
+            if sourcedid is None:  # pragma: no cover
+                continue
+
             self.lti_class.passback_grade(
                 key=self.key,
                 secret=self.secret,
                 grade=sub.grade,
                 initial=initial,
                 service_url=sub.assignment.lti_outcome_service_url,
-                sourcedid=sub.assignment.assignment_results[user.id].sourcedid,
+                sourcedid=sourcedid,
                 lti_points_possible=sub.assignment.lti_points_possible,
                 submission=sub,
                 host=current_app.config['EXTERNAL_URL'],

@@ -131,9 +131,9 @@ def create_app(  # pylint: disable=too-many-statements
         resulting_app.config.update(config)  # type: ignore
 
     if (
-        not skip_secret_key_check and (
-            resulting_app.config['SECRET_KEY'] is None or
-            resulting_app.config['LTI_SECRET_KEY'] is None
+        not skip_secret_key_check and not (
+            resulting_app.config['SECRET_KEY'] and
+            resulting_app.config['LTI_SECRET_KEY']
         )
     ):  # pragma: no cover
         raise ValueError('The option to generate keys has been removed')
