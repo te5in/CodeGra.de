@@ -204,7 +204,7 @@ context('Submission page', () => {
     }
 
     function scrollToBottom() {
-        cy.get('.file-viewer .floating-feedback-button .content')
+        cy.get('.file-viewer .floating-feedback-button .content-wrapper')
             .scrollTo('bottom');
     }
 

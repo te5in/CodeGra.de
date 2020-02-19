@@ -431,14 +431,14 @@ context('Submission uploader', () => {
 
         function openWebhookModal() {
             getGitLink().click();
-            return cy.get('#git-instructions-modal').should('exist');
+            return cy.get('#git-instructions-modal').should('be.visible');
         }
 
         function closeWebhookModal() {
             cy.get('@modal')
                 .find('button.close')
                 .click();
-            cy.get('@modal')
+            cy.get('#git-instructions-modal')
                 .should('not.be.visible');
         }
 

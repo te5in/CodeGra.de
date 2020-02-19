@@ -41,6 +41,7 @@ context('FileViewer', () => {
     function openFile(filename) {
         cy.get('.file-tree').contains('li', filename).click();
         cy.url().should('match', /\/files\/\d+/);
+        cy.get('.file-viewer .loader').should('not.exist');
     }
 
     function addComment(selector, comment = 'comment') {
@@ -95,8 +96,8 @@ context('FileViewer', () => {
 
             openFile('Graaf vinden');
             addComment('.inner-code-viewer .line');
-            addComment('.inner-result-cell + .feedback-button');
-            addComment('.inner-markdown-viewer + .feedback-button');
+            addComment('.result-cell .feedback-button');
+            addComment('.markdown-wrapper .feedback-button');
             hideCommentsCheck();
 
             openFile('venn1.png');

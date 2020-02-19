@@ -337,7 +337,7 @@ context('Submissions page', () => {
                 getStudent('Student2').click();
                 cy.url()
                     .should('match', /submissions\/\d+/)
-                    .and('match', /[?&]q=Student2/);
+                    .and('match', /[?&]search=Student2/);
             });
 
             it('should be used in the navbar on the submission page', () => {
@@ -455,9 +455,11 @@ context('Submissions page', () => {
                     return cy.createSubmission(
                         assignments.withSubs.id,
                         'test_submissions/hello.py',
-                        { author: 'student4' });
+                        { author: 'student4' },
+                    );
                 }).then(() => {
                     cy.get('.local-header .submit-button[name="refresh-button"]').click();
+                    cy.get('.local-header .submit-button[name="refresh-button"]').should('not.be.disabled');
                     cy.get('tbody tr:last-child').contains('Student4');
                     // Show be the same after a reload
                     cy.reload();
