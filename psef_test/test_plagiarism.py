@@ -14,6 +14,7 @@ import pytest
 from sqlalchemy import func
 
 import psef
+import psef.models as models
 from helpers import create_marker
 
 http_err = create_marker(pytest.mark.http_err)
@@ -783,7 +784,7 @@ def test_jplag_old_submissions(
         assert not any(
             f.name.endswith('.tar.gz')
             for sub in virtual_courses[0].assignments[0].submissions
-            for f in sub.files
+            for f in models.File.query.filter_by(work=sub)
         )
         amount_subs = assignment.get_from_latest_submissions(
             func.count(psef.models.Work.id)

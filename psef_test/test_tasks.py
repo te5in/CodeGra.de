@@ -303,6 +303,7 @@ def test_delete_submission(
         sourcedid='wow', user_id=user_id
     )
     assignment.course.lti_provider = m.LTIProvider(key='my_lti')
+    assignment.lti_outcome_service_url = 'http://aaa'
     session.commit()
 
     with describe('deleting newest submission'):

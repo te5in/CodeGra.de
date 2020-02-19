@@ -12,12 +12,12 @@ import structlog
 from sqlalchemy import orm
 from sqlalchemy import func as sql_func
 from sqlalchemy import distinct
-from sqlalchemy_utils import UUIDType
 from sqlalchemy.sql.expression import or_, and_, case, nullsfirst
 
 import psef
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
+from cg_sqlalchemy_helpers import UUIDType, deferred, hybrid_property
 from cg_sqlalchemy_helpers.mixins import IdMixin, UUIDMixin, TimestampMixin
 
 from . import Base, MyQuery, DbColumn, db
@@ -32,19 +32,10 @@ from ..exceptions import (
 )
 from ..permissions import CoursePermission as CPerm
 
-if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=unused-import
-    from . import rubric as rubric_models
-    from . import file as file_models
-    from . import assignment as assignment_models
-    hybrid_property = property  # pylint: disable=invalid-name
-else:
-    from sqlalchemy.ext.hybrid import hybrid_property
-
 logger = structlog.get_logger()
 
-GradeCalculator = t.Callable[[t.Sequence['rubric_models.RubricItem'], float],
-                             'rubric_models.RubricItem']
+GradeCalculator = t.Callable[[t.Sequence['psef.models.RubricItem'], float],
+                             'psef.models.RubricItem']
 
 
 class AutoTestSuite(Base, TimestampMixin, IdMixin):
@@ -53,16 +44,16 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[MyQuery['AutoTestSuite']]
     __tablename__ = 'AutoTestSuite'
-    id: int = db.Column('id', db.Integer, primary_key=True)
+    id = db.Column('id', db.Integer, primary_key=True)
 
-    rubric_row_id: int = db.Column(
+    rubric_row_id = db.Column(
         'rubric_row_id',
         db.Integer,
         db.ForeignKey('RubricRow.id'),
         nullable=False
     )
-    rubric_row: 'rubric_models.RubricRowBase' = db.relationship(
-        'RubricRowBase',
+    rubric_row = db.relationship(
+        lambda: psef.models.RubricRow,
         foreign_keys=rubric_row_id,
         innerjoin=True,
     )
@@ -75,15 +66,15 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
         server_default='FALSE',
     )
 
-    auto_test_set_id: int = db.Column(
+    auto_test_set_id = db.Column(
         'auto_test_set_id',
         db.Integer,
         db.ForeignKey('AutoTestSet.id'),
         nullable=False
     )
 
-    auto_test_set: 'AutoTestSet' = db.relationship(
-        'AutoTestSet',
+    auto_test_set = db.relationship(
+        lambda: AutoTestSet,
         foreign_keys=auto_test_set_id,
         back_populates='suites',
         lazy='joined',
@@ -91,13 +82,14 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
     )
 
     steps = db.relationship(
-        "AutoTestStepBase",
+        lambda: auto_test_step_models.AutoTestStepBase,
         back_populates="suite",
         cascade='all,delete,delete-orphan',
-        order_by='AutoTestStepBase.order'
-    )  # type: t.MutableSequence[auto_test_step_models.AutoTestStepBase]
+        order_by=lambda: auto_test_step_models.AutoTestStepBase.order,
+        uselist=True,
+    )
 
-    command_time_limit: t.Optional[float] = db.Column(
+    command_time_limit = db.Column(
         'command_time_limit', db.Float, nullable=True, default=None
     )
 
@@ -189,19 +181,17 @@ class AutoTestSet(Base, TimestampMixin, IdMixin):
         query: t.ClassVar[MyQuery['AutoTestSet']]
     __tablename__ = 'AutoTestSet'
 
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    stop_points: float = db.Column(
-        'stop_points', db.Float, nullable=False, default=0
-    )
-    auto_test_id: int = db.Column(
+    id = db.Column('id', db.Integer, primary_key=True)
+    stop_points = db.Column('stop_points', db.Float, nullable=False, default=0)
+    auto_test_id = db.Column(
         'auto_test_id',
         db.Integer,
         db.ForeignKey('AutoTest.id'),
         nullable=False
     )
 
-    auto_test: 'AutoTest' = db.relationship(
-        'AutoTest',
+    auto_test = db.relationship(
+        lambda: AutoTest,
         foreign_keys=auto_test_id,
         back_populates='sets',
         lazy='joined',
@@ -209,11 +199,12 @@ class AutoTestSet(Base, TimestampMixin, IdMixin):
     )
 
     suites = db.relationship(
-        "AutoTestSuite",
+        lambda: AutoTestSuite,
         back_populates="auto_test_set",
         cascade='all,delete,delete-orphan',
-        order_by='AutoTestSuite.created_at'
-    )  # type: t.MutableSequence[AutoTestSuite]
+        order_by=lambda: AutoTestSuite.created_at,
+        uselist=True,
+    )
 
     def get_instructions(
         self, run: 'AutoTestRun'
@@ -249,35 +240,35 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[MyQuery['AutoTestResult']]
 
-    auto_test_run_id: int = db.Column(
+    auto_test_run_id = db.Column(
         'auto_test_run_id',
         db.Integer,
         db.ForeignKey('AutoTestRun.id'),
         nullable=False
     )
 
-    run: 'AutoTestRun' = db.relationship(
-        'AutoTestRun',
+    run = db.relationship(
+        lambda: AutoTestRun,
         foreign_keys=auto_test_run_id,
         back_populates='results',
         lazy='select',
         innerjoin=True,
     )
 
-    auto_test_runner_id: t.Optional[uuid.UUID] = db.Column(
+    auto_test_runner_id = db.Column(
         'auto_test_runner_id',
         UUIDType,
         db.ForeignKey('AutoTestRunner.id'),
         nullable=True,
     )
 
-    runner: t.Optional['AutoTestRunner'] = db.relationship(
-        'AutoTestRunner',
+    runner = db.relationship(
+        lambda: AutoTestRunner,
         foreign_keys=auto_test_runner_id,
         lazy='selectin',
     )
 
-    setup_stdout: t.Optional[str] = orm.deferred(
+    setup_stdout = deferred(
         db.Column(
             'setup_stdout',
             db.Unicode,
@@ -285,11 +276,11 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         )
     )
 
-    started_at: t.Optional[DatetimeWithTimezone] = db.Column(
+    started_at = db.Column(
         'started_at', db.TIMESTAMP(timezone=True), default=None, nullable=True
     )
 
-    setup_stderr: t.Optional[str] = orm.deferred(
+    setup_stderr = deferred(
         db.Column(
             'setup_stderr',
             db.Unicode,
@@ -298,12 +289,13 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
     )
 
     step_results = db.relationship(
-        'AutoTestStepResult',
+        lambda: auto_test_step_models.AutoTestStepResult,
         back_populates='result',
         cascade='all,delete,delete-orphan',
-        order_by='AutoTestStepResult.created_at',
+        order_by=lambda: auto_test_step_models.AutoTestStepResult.created_at,
         lazy='selectin',
-    )  # type: t.MutableSequence[auto_test_step_models.AutoTestStepResult]
+        uselist=True,
+    )
 
     _state = db.Column(
         'state',
@@ -312,22 +304,22 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         nullable=False,
     )
 
-    work_id: int = db.Column(
+    work_id = db.Column(
         'work_id',
         db.Integer,
         db.ForeignKey('Work.id', ondelete='CASCADE'),
         nullable=False,
     )
     work = db.relationship(
-        'Work',
+        lambda: work_models.Work,
         foreign_keys=work_id,
         lazy='selectin',
-    )  # type: work_models.Work
+    )
 
-    final_result: bool = db.Column('final_result', db.Boolean, nullable=False)
+    final_result = db.Column('final_result', db.Boolean, nullable=False)
 
     # This variable is generated from the backref from all files
-    files: MyQuery["file_models.AutoTestOutputFile"]
+    files: MyQuery["psef.models.AutoTestOutputFile"]
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, AutoTestResult):
@@ -337,10 +329,10 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
     def __hash__(self) -> int:
         return hash(self.id)
 
-    @hybrid_property
-    def state(self) -> auto_test_step_models.AutoTestStepResultState:
+    def _get_state(self) -> auto_test_step_models.AutoTestStepResultState:
         """Get the state of this result
 
+        >>> from datetime import datetime, timezone
         >>> called = False
         >>> def fun(_):
         ...  global called
@@ -350,7 +342,9 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         >>> not_set = object()
         >>> r.started_at = not_set
         >>> r.state = auto_test_step_models.AutoTestStepResultState.running
-        >>> isinstance(r.started_at, DatetimeWithTimezone)
+        >>> isinstance(r.started_at, datetime)
+        True
+        >>> r.started_at.tzinfo == timezone.utc
         True
         >>> called
         True
@@ -364,8 +358,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         """
         return self._state
 
-    @state.setter
-    def state(
+    def _set_state(
         self, new_state: auto_test_step_models.AutoTestStepResultState
     ) -> None:
         if new_state == self._state:
@@ -383,6 +376,8 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
                 self.update_rubric()
         else:
             self.started_at = None
+
+    state = hybrid_property(fget=_get_state, fset=_set_state)
 
     @hybrid_property
     def is_finished(self) -> bool:
@@ -569,17 +564,18 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin, NotEqualMixin):
 
     __tablename__ = 'AutoTestRunner'
 
-    _ipaddr: str = db.Column('ipaddr', db.Unicode, nullable=False)
+    _ipaddr = db.Column('ipaddr', db.Unicode, nullable=False)
 
-    last_heartbeat: DatetimeWithTimezone = db.Column(
+    last_heartbeat = db.Column(
         'last_heartbeat',
         db.TIMESTAMP(timezone=True),
-        default=DatetimeWithTimezone.utcnow
+        default=DatetimeWithTimezone.utcnow,
+        nullable=False,
     )
 
-    _job_id: t.Optional[str] = db.Column('job_id', db.Unicode)
+    _job_id = db.Column('job_id', db.Unicode)
 
-    run_id: t.Optional[int] = db.Column(
+    run_id = db.Column(
         'run_id',
         db.Integer,
         db.ForeignKey('AutoTestRun.id'),
@@ -587,8 +583,8 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin, NotEqualMixin):
         default=None,
     )
 
-    run: t.Optional['AutoTestRun'] = db.relationship(
-        'AutoTestRun',
+    run = db.relationship(
+        lambda: AutoTestRun,
         foreign_keys=run_id,
         back_populates='runners',
     )
@@ -655,14 +651,14 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[MyQuery['AutoTestRun']]
 
-    auto_test_id: int = db.Column(
+    auto_test_id = db.Column(
         'auto_test_id',
         db.Integer,
         db.ForeignKey('AutoTest.id'),
         nullable=False
     )
 
-    setup_stdout: t.Optional[str] = orm.deferred(
+    setup_stdout = deferred(
         db.Column(
             'setup_stdout',
             db.Unicode,
@@ -670,7 +666,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         )
     )
 
-    setup_stderr: t.Optional[str] = orm.deferred(
+    setup_stderr = deferred(
         db.Column(
             'setup_stderr',
             db.Unicode,
@@ -678,12 +674,14 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         )
     )
 
-    runners: t.List['AutoTestRunner'] = db.relationship(
-        'AutoTestRunner', back_populates='run'
+    runners = db.relationship(
+        lambda: AutoTestRunner,
+        back_populates='run',
+        uselist=True,
     )
 
-    auto_test: 'AutoTest' = db.relationship(
-        'AutoTest',
+    auto_test = db.relationship(
+        lambda: AutoTest,
         foreign_keys=auto_test_id,
         back_populates='_runs',
         lazy='joined',
@@ -691,27 +689,28 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     )
 
     results = db.relationship(
-        'AutoTestResult',
+        lambda: AutoTestResult,
         back_populates='run',
         cascade='all,delete',
-        order_by='AutoTestResult.created_at'
-    )  # type: t.MutableSequence[AutoTestResult]
+        order_by=lambda: AutoTestResult.created_at,
+        uselist=True,
+    )
 
-    started_date: t.Optional[DatetimeWithTimezone] = db.Column(
+    started_date = db.Column(
         'started_date',
         db.TIMESTAMP(timezone=True),
         nullable=True,
         default=None
     )
 
-    kill_date: t.Optional[DatetimeWithTimezone] = db.Column(
+    kill_date = db.Column(
         'kill_date', db.TIMESTAMP(timezone=True), nullable=True, default=None
     )
 
     _job_number = db.Column('job_number', db.Integer, default=0)
-    _job_id: uuid.UUID = db.Column('job_id', UUIDType, default=uuid.uuid4)
+    _job_id = db.Column('job_id', UUIDType, default=uuid.uuid4, nullable=False)
 
-    runners_requested: int = db.Column(
+    runners_requested = db.Column(
         'runners_requested',
         db.Integer,
         default=0,
@@ -719,7 +718,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         nullable=False,
     )
 
-    batch_run_done: bool = db.Column(
+    batch_run_done = db.Column(
         'batch_run_done',
         db.Boolean,
         nullable=False,
@@ -1070,8 +1069,8 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
 
 @auto_test_grade_calculators.register('full')
 def _full_grade_calculator(
-    items: t.Sequence['rubric_models.RubricItem'], percentage: float
-) -> 'rubric_models.RubricItem':
+    items: t.Sequence['psef.models.RubricItem'], percentage: float
+) -> 'psef.models.RubricItem':
     """Calculate a grade based on the ``full`` policy.
 
     >>> _full_grade_calculator([0,1,2,3], 0.25)
@@ -1094,8 +1093,8 @@ def _full_grade_calculator(
 
 @auto_test_grade_calculators.register('partial')
 def _partial_grade_calculator(
-    items: t.Sequence['rubric_models.RubricItem'], percentage: float
-) -> 'rubric_models.RubricItem':
+    items: t.Sequence['psef.models.RubricItem'], percentage: float
+) -> 'psef.models.RubricItem':
     """Calculate a grade based on the ``partial`` policy.
 
     >>> _partial_grade_calculator([0,1,2,3], 1)
@@ -1127,27 +1126,29 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         query: t.ClassVar[MyQuery['AutoTest']]
     __tablename__ = 'AutoTest'
 
-    id: int = db.Column('id', db.Integer, primary_key=True)
+    id = db.Column('id', db.Integer, primary_key=True)
 
-    assignment: 'assignment_models.Assignment' = db.relationship(
-        'Assignment',
+    assignment = db.relationship(
+        lambda: psef.models.Assignment,
         back_populates='auto_test',
         innerjoin=True,
-        uselist=False
+        uselist=False,
     )
     sets = db.relationship(
-        "AutoTestSet",
+        lambda: AutoTestSet,
         back_populates="auto_test",
         cascade='all,delete,delete-orphan',
-        order_by='AutoTestSet.created_at'
-    )  # type: t.MutableSequence[AutoTestSet]
+        order_by=lambda: AutoTestSet.created_at,
+        uselist=True,
+    )
 
     _runs = db.relationship(
-        "AutoTestRun",
+        lambda: AutoTestRun,
         back_populates="auto_test",
         cascade='all,delete,delete-orphan',
-        order_by='AutoTestRun.created_at'
-    )  # type: t.MutableSequence[AutoTestRun]
+        order_by=lambda: AutoTestRun.created_at,
+        uselist=True,
+    )
 
     @property
     def run(self) -> t.Optional[AutoTestRun]:
@@ -1161,23 +1162,24 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         return self._runs
 
     fixtures = db.relationship(
-        'AutoTestFixture',
+        lambda: psef.models.AutoTestFixture,
         back_populates="auto_test",
         cascade='all,delete',
-        order_by="AutoTestFixture.name"
-    )  # type: t.MutableSequence[file_models.AutoTestFixture]
+        order_by=lambda: psef.models.AutoTestFixture.name,
+        uselist=True,
+    )
 
-    setup_script: str = db.Column(
+    setup_script = db.Column(
         'setup_script', db.Unicode, nullable=False, default=''
     )
-    run_setup_script: str = db.Column(
+    run_setup_script = db.Column(
         'run_setup_script', db.Unicode, nullable=False, default=''
     )
-    finalize_script: str = db.Column(
+    finalize_script = db.Column(
         'finalize_script', db.Unicode, nullable=False, default=''
     )
 
-    _grade_calculation: t.Optional[str] = db.Column(
+    _grade_calculation = db.Column(
         'grade_calculation',
         db.Enum(
             *auto_test_grade_calculators.keys(), name='grade_calculation_enum'
@@ -1186,7 +1188,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         default=None,
     )
 
-    results_always_visible: bool = db.Column(
+    results_always_visible = db.Column(
         'results_always_visible',
         db.Boolean,
         nullable=True,
@@ -1411,8 +1413,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     def copy(
         self,
         rubric_mapping: (
-            t.Mapping['rubric_models.RubricRowBase',
-                      'rubric_models.RubricRowBase']
+            t.Mapping['psef.models.RubricRow', 'psef.models.RubricRow']
         ),
     ) -> 'AutoTest':
         """Copy this AutoTest configuration.

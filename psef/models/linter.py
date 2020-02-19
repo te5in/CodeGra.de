@@ -9,12 +9,15 @@ import typing as t
 
 from sqlalchemy import orm
 
-from . import UUID_LENGTH, Base, db, _MyQuery
+import psef
+
+from . import UUID_LENGTH, Base, db
+from . import file as file_models
+from . import _MyQuery
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     # pylint: disable=unused-import
     from . import assignment
-    from .file import File
     from . import work as work_models
 
 
@@ -40,25 +43,31 @@ class LinterComment(Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['LinterComment']] = Base.query
     __tablename__ = "LinterComment"  # type: str
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    file_id: int = db.Column(
+    id = db.Column('id', db.Integer, primary_key=True)
+    file_id = db.Column(
         'File_id',
         db.Integer,
         db.ForeignKey('File.id', ondelete='CASCADE'),
-        index=True
+        index=True,
+        nullable=False,
     )
     linter_id = db.Column(
-        'linter_id', db.Unicode, db.ForeignKey('LinterInstance.id')
+        'linter_id',
+        db.Unicode,
+        db.ForeignKey('LinterInstance.id'),
+        nullable=False
     )
 
-    line: int = db.Column('line', db.Integer)
-    linter_code: str = db.Column('linter_code', db.Unicode)
-    comment: str = db.Column('comment', db.Unicode)
+    line = db.Column('line', db.Integer, nullable=False)
+    linter_code = db.Column('linter_code', db.Unicode, nullable=False)
+    comment = db.Column('comment', db.Unicode)
 
     linter = db.relationship(
-        "LinterInstance", back_populates="comments"
-    )  # type: 'LinterInstance'
-    file: 'File' = db.relationship('File', foreign_keys=file_id)
+        lambda: LinterInstance,
+        back_populates="comments",
+        foreign_keys=linter_id
+    )
+    file = db.relationship(lambda: file_models.File, foreign_keys=file_id)
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
@@ -77,20 +86,26 @@ class LinterInstance(Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query = Base.query  # type: t.ClassVar[_MyQuery['LinterInstance']]
     __tablename__ = 'LinterInstance'
-    id: str = db.Column(
+    id = db.Column(
         'id', db.String(UUID_LENGTH), nullable=False, primary_key=True
     )
-    state: LinterState = db.Column(
+    state = db.Column(
         'state',
         db.Enum(LinterState),
         default=LinterState.running,
         nullable=False
     )
-    work_id: int = db.Column(
-        'Work_id', db.Integer, db.ForeignKey('Work.id', ondelete='CASCADE')
+    work_id = db.Column(
+        'Work_id',
+        db.Integer,
+        db.ForeignKey('Work.id', ondelete='CASCADE'),
+        nullable=False,
     )
-    tester_id: str = db.Column(
-        'tester_id', db.Unicode, db.ForeignKey('AssignmentLinter.id')
+    tester_id = db.Column(
+        'tester_id',
+        db.Unicode,
+        db.ForeignKey('AssignmentLinter.id'),
+        nullable=False,
     )
     stdout: t.Optional[str] = orm.deferred(
         db.Column('stdout', db.Unicode, nullable=True)
@@ -98,17 +113,17 @@ class LinterInstance(Base):
     stderr: t.Optional[str] = orm.deferred(
         db.Column('stderr', db.Unicode, nullable=True)
     )
-    _error_summary: t.Optional[str] = db.Column(
-        'error_summary', db.Unicode, nullable=True
-    )
+    _error_summary = db.Column('error_summary', db.Unicode, nullable=True)
 
-    tester: 'assignment.AssignmentLinter' = db.relationship(
-        "AssignmentLinter", back_populates="tests"
+    tester = db.relationship(
+        lambda: psef.models.AssignmentLinter,
+        back_populates="tests",
+        foreign_keys=tester_id,
     )
-    work: 'work_models.Work' = db.relationship('Work', foreign_keys=work_id)
+    work = db.relationship(lambda: psef.models.Work, foreign_keys=work_id)
 
-    comments: LinterComment = db.relationship(
-        "LinterComment", back_populates="linter", cascade='all,delete'
+    comments = db.relationship(
+        lambda: LinterComment, back_populates="linter", cascade='all,delete'
     )
 
     @property

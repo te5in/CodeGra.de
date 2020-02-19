@@ -312,6 +312,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     lms_name: t.Optional[str]
 
     if assig.is_lti:
+        assert assig.course.lti_provider is not None
         lti_class = assig.course.lti_provider.lti_class
         lms_name = assig.course.lti_provider.lms_name
     else:
@@ -720,7 +721,13 @@ def add_assignment_rubric(assignment_id: int
             rows = t.cast(t.List[JSONType], content['rows'])
             new_rubric_rows = [process_rubric_row(r) for r in rows]
             new_row_ids = set(
-                row.id for row in new_rubric_rows if row.id is not None
+                row.id for row in new_rubric_rows  # d
+                # primary keys can be `None`, but only while they are not yet
+                # added to the database. It is not possible to explain this to
+                # mypy, so it thinks that all primary keys can never be
+                # `None`. So it will complain that it thinks that this
+                # condition is always `True`.
+                if row.id is not None  # type: ignore[misc]
             )
 
             if any(
@@ -1042,8 +1049,7 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
                 ), APICodes.INVALID_PARAM, 400
             )
         users = helpers.filter_all_or_404(
-            models.User,
-            models.User.id.in_(graders.keys())  # type: ignore
+            models.User, models.User.id.in_(graders.keys())
         )
     else:
         models.Work.query.filter_by(assignment_id=assignment.id).update(
@@ -1459,7 +1465,9 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
             )
             found_users[user.username] = user
             missing_users.append(user)
+
     db.session.add_all(missing_users)
+    db.session.flush()
 
     for submission_info, submission_tree in submissions:
         user = found_users[submission_info.student_id]
@@ -1472,7 +1480,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
         )
         subs.append(work)
 
-        if user.id is not None and user.id in sub_lookup:
+        if user.id in sub_lookup:
             work.assigned_to = sub_lookup[user.id].assigned_to
 
         if work.assigned_to is None:
@@ -1596,14 +1604,14 @@ def start_linting(assignment_id: int) -> JSONResponse[models.AssignmentLinter]:
     )
     auth.ensure_permission(CPerm.can_use_linter, assig.course_id)
 
-    ensure_keys_in_dict(content, [('cfg', str), ('name', str)])
-    cfg = t.cast(str, content['cfg'])
-    name = t.cast(str, content['name'])
+    with get_from_map_transaction(content) as [get, _]:
+        cfg = get('cfg', str)
+        name = get('name', str)
 
     if db.session.query(
         models.LinterInstance.query.filter(
             models.AssignmentLinter.assignment_id == assignment_id,
-            models.AssignmentLinter.name == content['name']
+            models.AssignmentLinter.name == name,
         ).exists()
     ).scalar():
         raise APIException(
