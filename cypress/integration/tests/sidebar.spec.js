@@ -98,17 +98,17 @@ context('Sidebar', () => {
             openProfile();
 
             cy.get('#app:not(.dark)').should('exist');
-            cy.get('.pref-manager .toggle-container.colors').should('exist');
-            cy.get('.pref-manager .toggle-container.colors[checked=checked]').should('not.exist');
+            cy.get('.settings-content .toggle-container.colors').should('exist');
+            cy.get('.settings-content .toggle-container.colors[checked=checked]').should('not.exist');
 
-            cy.get('.pref-manager .toggle-container .label-on').click();
+            cy.get('.settings-content .toggle-container .label-on').click();
             cy.get('#app.dark').should('exist');
 
             cy.reload();
             cy.get('#app.dark').should('exist');
             openProfile();
-            cy.get('.pref-manager .toggle-container.colors[checked=checked]').should('exist');
-            cy.get('.pref-manager .toggle-container .toggle').click();
+            cy.get('.settings-content .toggle-container.colors[checked=checked]').should('exist');
+            cy.get('.settings-content .toggle-container .toggle').click();
             cy.get('#app.dark').should('not.exist');
         });
     });

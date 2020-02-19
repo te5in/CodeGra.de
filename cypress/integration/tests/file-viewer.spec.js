@@ -57,12 +57,12 @@ context('FileViewer', () => {
     context('Inline feedback preference', () => {
         function openSettings() {
             cy.get('.local-header .settings-toggle').click();
-            return cy.get('.settings-table').should('be.visible');
+            return cy.get('.settings-content').should('be.visible');
         }
 
         function closeSettings() {
             cy.get('.local-header .settings-toggle').click();
-            return cy.get('.settings-table').should('not.be.visible');
+            return cy.get('.settings-content').should('not.be.visible');
         }
 
         function getOptionTR(name) {
