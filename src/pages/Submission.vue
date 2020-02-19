@@ -20,25 +20,15 @@
             :assignment="assignment"/>
 
         <b-button-group class="submission-header-buttons">
-            <b-button id="codeviewer-settings-toggle"
-                      v-b-popover.hover.top="'Settings'">
-                <icon name="cog"/>
-
-                <b-popover target="codeviewer-settings-toggle"
-                           triggers="click"
-                           class="settings-popover"
-                           container="submission-page"
-                           placement="bottom"
-                           @show="beforeShowPopover">
-                    <preference-manager style="width: 24rem;"
-                                        :file-id="prefFileId"
-                                        :show-context-amount="selectedCat === 'feedback-overview' || selectedCat === 'teacher-diff'"
-                                        :show-language="selectedCat === 'code'"
-                                        @whitespace="whitespaceChanged"
-                                        @language="languageChanged"
-                                        @inline-feedback="inlineFeedbackChanged"/>
-                </b-popover>
-            </b-button>
+            <preference-manager in-popover
+                                container="#submission-page"
+                                :file-id="prefFileId"
+                                :show-context-amount="selectedCat === 'feedback-overview' || selectedCat === 'teacher-diff'"
+                                :show-language="selectedCat === 'code'"
+                                @whitespace="whitespaceChanged"
+                                @language="languageChanged"
+                                @inline-feedback="inlineFeedbackChanged"
+                                @show="beforeShowPopover" />
 
             <b-button v-if="editable"
                       id="codeviewer-general-feedback"
