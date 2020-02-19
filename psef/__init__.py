@@ -220,4 +220,7 @@ def create_app(  # pylint: disable=too-many-statements
             )
             raise
 
+    import cg_timers
+    cg_timers.init_app(resulting_app)
+
     return resulting_app
