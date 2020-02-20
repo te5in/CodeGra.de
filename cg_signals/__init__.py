@@ -69,24 +69,28 @@ class Dispatcher(t.Generic[T]):
         celery: Celery,
         pre_check: t.Callable[[T], bool] = lambda _: True,
         task_args: t.Mapping[str, t.Any] = None,
+        prevent_recursion: bool = False,
     ) -> t.Callable[[t.Callable[[Z], Y]], t.Callable[[Z], Y]]:
         module = self.__class__.__module__
 
         def __inner(callback: t.Callable[[Z], Y]) -> t.Callable[[Z], Y]:
             assert celery is not None
             self._check_function_not_registered(self._get_fullname(callback))
-
-            @celery.task(
-                name=(
-                    f'{module}.{self.__name}'
-                    f'.{self._get_fullname(callback)}.celery_task'
-                ),
-                **(task_args or {})
+            task_name = (
+                f'{module}.{self.__name}'
+                '.{self._get_fullname(callback)}.celery_task'
             )
+
+            @celery.task(name=task_name, **(task_args or {}))
             def __celery_task(arg: Z) -> Y:
                 return callback(arg)
 
             def __registered(arg: T) -> None:
+                if (
+                    prevent_recursion and celery.current_task and
+                    celery.current_task.name == task_name
+                ):
+                    return
                 if pre_check(arg):
                     __celery_task.delay(converter(arg))
 

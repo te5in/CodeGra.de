@@ -3,7 +3,6 @@ import sys
 import json
 import typing as t
 
-import flask
 import werkzeug
 import structlog
 from pylti1p3.deployment import Deployment
@@ -12,6 +11,7 @@ from pylti1p3.tool_config import ToolConfAbstract
 from pylti1p3.registration import Registration
 from pylti1p3.message_launch import MessageLaunch
 
+import flask
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
 
@@ -172,82 +172,12 @@ class FlaskMessageLaunch(
 
         return assignment
 
-    @staticmethod
-    def add_user_to_course(
-        user: models.User, course: models.Course, roles_claim: t.List[str]
-    ) -> t.Optional[str]:
-        roles = ContextRole[str].parse_roles(roles_claim)
-        logger.info(
-            'Finding role for user',
-            roles_claim=roles_claim,
-            parsed_context_roles=roles,
-        )
-        if roles:
-            user.enroll_in_course(
-                course_role=db.session.query(models.CourseRole).filter(
-                    models.CourseRole.name == roles[0].codegrade_role_name,
-                    models.CourseRole.course == course,
-                    ~models.CourseRole.hidden,
-                ).one()
-            )
-            return None
-
-        unmapped_roles = ContextRole[None].get_umapped_roles(roles_claim)
-        if unmapped_roles:
-            logger.info(
-                'No mapped LTI roles found, searching for unmapped roles',
-                unmapped_roles=unmapped_roles,
-            )
-
-            base = 'Unmapped LTI Role ({})'
-            for unmapped_role in unmapped_roles:
-                role = db.session.query(models.CourseRole).filter(
-                    models.CourseRole.name == base.format(unmapped_role.name),
-                    models.CourseRole.course == course,
-                    ~models.CourseRole.hidden,
-                ).one_or_none()
-                if role:
-                    user.enroll_in_course(course_role=role)
-                    return None
-
-            new_role_name = base.format(unmapped_roles[0].name)
-        else:
-            base = 'New LTI Role'
-            for idx in range(sys.maxsize):
-                if not db.session.query(
-                    db.session.query(models.CourseRole).filter(
-                        models.CourseRole.name == base.format(idx=idx),
-                        models.CourseRole.course == course,
-                    ).exists()
-                ).scalar():
-                    break
-                base = 'New LTI Role ({idx})'
-            new_role_name = base.format(idx=idx)
-
-        logger.info('Creating new role', new_role_name=new_role_name)
-        role = models.CourseRole(
-            course=course,
-            name=new_role_name,
-            hidden=False,
-        )
-        db.session.add(role)
-        db.session.flush()
-
-        user.enroll_in_course(course_role=role)
-        return role.name
-
     def set_user_course_role(self, user: models.User,
                              course: models.Course) -> t.Optional[str]:
-        if user.is_enrolled(course):
-            return None
-
-        callback_after_this_request(
-            lambda: tasks.update_members_in_lti_course(course.id)
-        )
-        return self.add_user_to_course(
+        assert course.course_lti_provider
+        return course.course_lti_provider.maybe_add_user_to_course(
             user,
-            course,
-            roles_claim=self.get_launch_data()[claims.ROLES],
+            self.get_launch_data()[claims.ROLES],
         )
 
     def _get_request_param(self, key: str) -> object:
@@ -318,8 +248,9 @@ class FlaskMessageLaunch(
         return user, token, updated_email
 
     def get_course(self) -> models.Course:
+        launch_data = self.get_launch_data()
         deployment_id = self._get_deployment_id()
-        context_claim = self.get_launch_data()[claims.CONTEXT]
+        context_claim = launch_data[claims.CONTEXT]
         course_lti_provider = db.session.query(
             models.CourseLTIProvider
         ).filter(
@@ -339,7 +270,9 @@ class FlaskMessageLaunch(
             models.db.session.flush()
         else:
             course = course_lti_provider.course
-            course.name = context_claim['title']
+
+        course.name = context_claim['title']
+        course_lti_provider.names_roles_claim = launch_data[claims.NAMESROLES]
 
         return course
 

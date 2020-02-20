@@ -44,7 +44,7 @@ class UserToCourseData:
     __slots__ = ('user', 'course')
 
     user: 'models.User'
-    course: 'models.Course'
+    course_role: 'models.CourseRole'
 
 
 WORK_CREATED = Dispatcher['models.Work']('WORK_CREATED')

@@ -17,6 +17,7 @@ import psef
 from cg_sqlalchemy_helpers import hybrid_property
 
 from . import UUID_LENGTH, Base, DbColumn, db, course, _MyQuery
+from .. import signals
 from .role import Role, CourseRole
 from ..helpers import NotEqualMixin, validate
 from .permission import Permission
@@ -186,6 +187,9 @@ class User(NotEqualMixin, Base):
         return not self.virtual and c in self.courses
 
     def enroll_in_course(self, *, course_role: CourseRole) -> None:
+        signals.USER_ADDED_TO_COURSE.send(
+            signals.UserToCourseData(user=self, course_role=course_role)
+        )
         self.courses[course_role.course_id] = course_role
 
     def contains_user(self, possible_member: 'User') -> bool:

@@ -47,6 +47,10 @@ if t.TYPE_CHECKING:  # pragma: no cover
             self.conf: t.MutableMapping[t.Any, t.Any] = {}
             self.control: t.Any
 
+        @property
+        def current_task(self) -> CeleryTask[t.Callable[[object], object]]:
+            pass
+
         @t.overload
         def task(self, _callback: T) -> CeleryTask[T]:
             ...

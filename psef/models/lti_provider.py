@@ -3,14 +3,17 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import abc
+import sys
 import uuid
 import typing as t
 
 import structlog
 import flask_jwt_extended as flask_jwt
 import pylti1p3.exception
+import pylti1p3.names_roles
 import pylti1p3.registration
-from flask import current_app
+import pylti1p3.service_connector
+from sqlalchemy.types import JSON
 from typing_extensions import Final, Literal
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -20,14 +23,15 @@ import psef
 import cg_celery
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import hybrid_property
+from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy
 from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 
-from . import UUID_LENGTH, Base, MyQuery, DbColumn, db
+from . import UUID_LENGTH, Base, db
 from . import user as user_models
 from . import work as work_models
 from . import course as course_models
 from . import assignment as assignment_models
-from .. import auth, signals
+from .. import auth, signals, current_app
 from ..signals import WORK_CREATED
 from ..registry import lti_provider_handlers
 
@@ -52,6 +56,7 @@ _PASSBACK_CELERY_OPTS: Final = {
 if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import, invalid-name
     from .work import Work
+    from pylti1p3.names_roles import _NamesAndRolesData, _Member
 
 _ALL_LTI_PROVIDERS = sorted(['lti1.1', 'lti1.3'])
 lti_provider_handlers.set_possible_options(_ALL_LTI_PROVIDERS)
@@ -518,6 +523,13 @@ class LTI1p3Provider(LTIProviderBase):
     def get_registration(self) -> 'LTI1p3Provider.Registration':
         return LTI1p3Provider.Registration(self)
 
+    def get_service_connector(
+        self
+    ) -> pylti1p3.service_connector.ServiceConnector:
+        return pylti1p3.service_connector.ServiceConnector(
+            self.get_registration()
+        )
+
     def supports_max_points(self) -> bool:
         return True
 
@@ -685,8 +697,10 @@ class LTI1p3Provider(LTIProviderBase):
             # should use 'Completed'.
             grade.set_activity_progress('Submitted')
 
-        line_item = assignment.get_lti_lineitem()
-        grades_service = assignment.get_lti_assignments_grades_service()
+        service_connector = self.get_service_connector()
+        grades_service = assignment.get_lti_assignments_grades_service(
+            service_connector
+        )
 
         if sub is None:
             # This is assured by the mypy overloads
@@ -719,7 +733,9 @@ class LTI1p3Provider(LTIProviderBase):
 
             grade.set_user_id(lti_user_id)
             try:
-                grades_service.put_grade(grade, line_item=line_item)
+                # We pass `None` as line_item to use the default line item for
+                # this activity.
+                grades_service.put_grade(grade, line_item=None)
             except pylti1p3.exception.LtiException:
                 logger.info('Passing back grade failed', exc_info=True)
             else:
@@ -731,6 +747,47 @@ class LTI1p3Provider(LTIProviderBase):
         ):
             return self._update_history_sub(sub)
         return None
+
+    @classmethod
+    def _retrieve_users_in_course(cls, course_id: int) -> None:
+        course = course_models.Course.query.get(course_id)
+        self = cls._get_self_from_course(course)
+
+        if course is None or self is None:
+            return
+        course_lti_provider = course.course_lti_provider
+        assert course_lti_provider is not None
+
+        service_connector = self.get_service_connector()
+
+        for member in course_lti_provider.get_members(service_connector):
+            status = member.get('status', 'Active')
+
+            # This is NOT a typo, the claim is really called 'message' and it
+            # contains an array of messages.
+            messages = member.get('message', [])
+            if not messages:
+                continue
+
+            custom_claim = messages[0][psef.lti.v1_3.claims.CUSTOM]
+            assert isinstance(custom_claim, dict)
+            assert status in {
+                'Active', 'Inactive'
+            }, 'We currently do not support the "Deleted" state'
+
+            user, _ = UserLTIProvider.get_or_create_user(
+                lti_user_id=member['user_id'],
+                lti_provider=self,
+                wanted_username=custom_claim['cg_username'],
+                email=member['email'],
+                full_name=member['name'],
+            )
+            course_lti_provider.maybe_add_user_to_course(
+                user,
+                member['roles'],
+            )
+
+        db.session.commit()
 
     def supports_deadline(self) -> bool:
         return False
@@ -768,9 +825,10 @@ class LTI1p3Provider(LTIProviderBase):
 
         signals.USER_ADDED_TO_COURSE.connect_celery(
             celery=celery,
-            converter=lambda uc: (uc.user.id, uc.course.id),
-            pre_check=lambda uc: uc.course.is_lti,
+            converter=lambda uc: (uc.user.id, uc.course_role.course_id),
+            pre_check=lambda uc: uc.course_role.course.is_lti,
             task_args=_PASSBACK_CELERY_OPTS,
+            prevent_recursion=True,
         )
 
 
@@ -955,6 +1013,17 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
         nullable=False,
     )
 
+    last_names_roles_poll = db.Column(
+        'last_names_roles_poll', db.TIMESTAMP(timezone=True), nullable=True
+    )
+
+    names_roles_claim: ColumnProxy[t.Optional['_NamesAndRolesData']
+                                   ] = db.Column(
+                                       'names_roles_claim',
+                                       JSON,
+                                       nullable=True
+                                   )
+
     lti_provider = db.relationship(
         LTIProviderBase,
         lazy='joined',
@@ -990,6 +1059,26 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
             deployment_id=deployment_id,
         )
 
+    def can_poll_names_again(self) -> bool:
+        if self.last_names_roles_poll is None:
+            return True
+        return (
+            self.last_names_roles_poll - DatetimeWithTimezone.utcnow()
+        ).total_seconds() > current_app.config['LTI1.3_MIN_POLL_INTERVAL']
+
+    def get_members(
+        self, service_connector: pylti1p3.service_connector.ServiceConnector
+    ) -> t.Sequence['_Member']:
+        if not self.can_poll_names_again():
+            return []
+
+        assert isinstance(self.names_roles_claim, dict)
+        res = pylti1p3.names_roles.NamesRolesProvisioningService(
+            service_connector, self.names_roles_claim
+        ).get_members()
+        self.last_names_roles_poll = DatetimeWithTimezone.utcnow()
+        return res
+
     @classmethod
     def create_and_add(
         cls,
@@ -1007,3 +1096,65 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
         )
         db.session.add(course_lti_provider)
         return course_lti_provider
+
+    def maybe_add_user_to_course(
+        self, user: 'user_models.User', roles_claim: t.List[str]
+    ) -> t.Optional[str]:
+        if user.is_enrolled(self.course):
+            return None
+
+        roles = psef.lti.v1_3.ContextRole[str].parse_roles(roles_claim)
+        logger.info(
+            'Finding role for user',
+            roles_claim=roles_claim,
+            parsed_context_roles=roles,
+        )
+        if roles:
+            user.enroll_in_course(
+                course_role=psef.models.CourseRole.get_by_name(
+                    self.course,
+                    roles[0].codegrade_role_name,
+                ).one()
+            )
+            return None
+
+        unmapped_roles = psef.lti.v1_3.ContextRole[None].get_umapped_roles(
+            roles_claim
+        )
+        if unmapped_roles:
+            logger.info(
+                'No mapped LTI roles found, searching for unmapped roles',
+                unmapped_roles=unmapped_roles,
+            )
+
+            base = 'Unmapped LTI Role ({})'
+            for unmapped_role in unmapped_roles:
+                role = psef.models.CourseRole.get_by_name(
+                    self.course, base.format(unmapped_role.name)
+                ).one_or_none()
+                if role:
+                    user.enroll_in_course(course_role=role)
+                    return None
+
+            new_role_name = base.format(unmapped_roles[0].name)
+        else:
+            base = 'New LTI Role'
+            for idx in range(sys.maxsize):
+                if not db.session.query(
+                    psef.models.CourseRole.get_by_name(
+                        self.course, base.format(idx=idx), include_hidden=True
+                    ).exists()
+                ).scalar():
+                    break
+                base = 'New LTI Role ({idx})'
+            new_role_name = base.format(idx=idx)
+
+        logger.info('Creating new role', new_role_name=new_role_name)
+        role = psef.models.CourseRole(
+            course=self.course, name=new_role_name, hidden=False
+        )
+        db.session.add(role)
+        db.session.flush()
+
+        user.enroll_in_course(course_role=role)
+        return role.name

@@ -11,9 +11,8 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 
 from cg_sqlalchemy_helpers.types import ColumnProxy
 
-from . import Base, db
+from . import Base, MyQuery, db
 from . import course as course_models
-from . import _MyQuery
 from .permission import Permission
 from .link_tables import roles_permissions, course_permissions
 from ..permissions import BasePermission, CoursePermission, GlobalPermission
@@ -316,4 +315,25 @@ class CourseRole(AbstractRole[CoursePermission], Base):
                     r_perms[perm.value] = perm
 
             res[name] = r_perms
+        return res
+
+    @classmethod
+    def get_by_name(
+        cls,
+        course: 'course_models.Course',
+        name: str,
+        *,
+        include_hidden: bool = False,
+    ) -> MyQuery['CourseRole']:
+        """Get a course role within the given course with the course.
+
+        :param course: The course to get the role in.
+        :param name: The name of the role.
+        """
+        res = cls.query.filter(
+            cls.name == name,
+            cls.course == course,
+        )
+        if not include_hidden:
+            res = res.filter(~cls.hidden)
         return res

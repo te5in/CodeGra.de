@@ -16,13 +16,14 @@ from collections import Counter, defaultdict
 
 import structlog
 import sqlalchemy
-import pylti1p3.lineitem
-import pylti1p3.assignments_grades
 from sqlalchemy.orm import validates
 from mypy_extensions import DefaultArg
 from sqlalchemy.types import JSON
+from pylti1p3.lineitem import LineItem
 from sqlalchemy.sql.expression import and_, func
+from pylti1p3.service_connector import ServiceConnector
 from sqlalchemy.orm.collections import attribute_mapped_collection
+from pylti1p3.assignments_grades import AssignmentsGradesService
 
 import psef
 from cg_dt_utils import DatetimeWithTimezone
@@ -419,12 +420,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     )
 
     def get_lti_assignments_grades_service(
-        self
-    ) -> 'pylti1p3.assignments_grades.AssignmentsGradesService':
-        ...
+        self, connector: ServiceConnector
+    ) -> AssignmentsGradesService:
+        assert self.is_lti
+        assert isinstance(self.lti_grade_service_data, dict)
 
-    def get_lti_lineitem(self) -> 'pylti1p3.lineitem.LineItem':
-        ...
+        return AssignmentsGradesService(connector, self.lti_grade_service_data)
+
 
     assigned_graders: t.MutableMapping[
         int, AssignmentAssignedGrader] = db.relationship(
