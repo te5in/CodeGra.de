@@ -318,24 +318,21 @@ def do_oidc_login() -> werkzeug.wrappers.Response:
 def handle_lti_advantage_launch() -> werkzeug.wrappers.Response:
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
-    import pprint
     message_launch = lti_v1_3.FlaskMessageLaunch.from_request(flask.request)
 
     try:
         message_launch.validate()
-    except exceptions.APIException as exc:
+    except (exceptions.APIException, pylti1p3.exception.LtiException) as exc:
+        logger.info('Incorrect LTI launch encountered', exc_info=True)
         return _make_blob_and_redirect(
             {
                 'type': 'exception',
-                'exception_message': exc.message,
-            },
-            version=LTIVersion.v1_3,
-        )
-    except pylti1p3.exception.LtiException as exc:
-        return _make_blob_and_redirect(
-            {
-                'type': 'exception',
-                'exception_message': exc.args[0],
+                'exception_message':
+                    (
+                        exc.message
+                        if isinstance(exc, exceptions.APIException) else
+                        exc.args[0]
+                    ),
             },
             version=LTIVersion.v1_3,
         )

@@ -7,3 +7,4 @@ RESOURCE: Final = 'https://purl.imsglobal.org/spec/lti/claim/resource_link'
 NAMESROLES: Final = (
     'https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice'
 )
+GRADES: Final = 'https://purl.imsglobal.org/spec/lti-ags/claim/endpoint'

@@ -23,6 +23,7 @@ from .flask import (
 from .roles import SystemRole, ContextRole
 from ...models import db
 from ..abstract import AbstractLTIConnector
+from ..exceptions import APICodes, APIException
 
 logger = structlog.get_logger()
 
@@ -120,8 +121,9 @@ class FlaskMessageLaunch(
     ) -> models.Assignment:
         launch_data = self.get_launch_data()
         resource_claim = launch_data[claims.RESOURCE]
-        resource_id = resource_claim['id']
         custom_claim = launch_data[claims.CUSTOM]
+
+        resource_id = resource_claim['id']
 
         assignment = models.Assignment.query.filter(
             models.Assignment.lti_assignment_id == resource_id,
@@ -145,6 +147,11 @@ class FlaskMessageLaunch(
             assignment.deadline = DatetimeWithTimezone.parse_isoformat(
                 deadline,
             )
+
+        # This claim is not required by the LTI spec, so we simply don't
+        # override the assignment name if it is not given or if it is empty.
+        if resource_claim.get('title'):
+            assignment.name = resource_claim['title']
 
         available_at = custom_claim['cg_available_at']
         logger.info(
@@ -213,7 +220,86 @@ class FlaskMessageLaunch(
         return self
 
     def validate_has_needed_data(self) -> 'FlaskMessageLaunch':
-        # TODO: Check that all needed data is present
+        """Check that all data required by CodeGrade is present.
+        """
+        launch_data = self.get_launch_data()
+
+        def check(
+            mapping: t.Optional[t.Mapping[str, object]], *keys: str
+        ) -> bool:
+            return bool(mapping and all(mapping.get(key) for key in keys))
+
+        def get_exc(
+            msg: str, claim: t.Union[None, t.Mapping, t.Sequence[str]]
+        ) -> APIException:
+            return APIException(
+                msg, f'The claim "{claim}" was not found or is missing data',
+                APICodes.MISSING_REQUIRED_PARAM, 400
+            )
+
+        if not check(launch_data, 'email', 'name'):
+            raise get_exc(
+                (
+                    'We are missing required data about the user doing this'
+                    ' LTI launch, please check the privacy levels of the tool:'
+                    ' CodeGrade requires the email and the name of the user.'
+                ), launch_data
+            )
+
+        context = launch_data.get(claims.CONTEXT)
+        if not check(context, 'id', 'title'):
+            raise get_exc('The LTI launch did not contain a context', context)
+
+        custom = launch_data[claims.CUSTOM]
+        if not check(custom, 'cg_username', 'cg_deadline', 'cg_available_at'):
+            raise get_exc(
+                (
+                    'The LTI launch is missing required custom claims, the'
+                    ' setup was probably done incorrectly'
+                ),
+                custom,
+            )
+
+        if not self.has_nrps():
+            raise get_exc(
+                (
+                    'It looks like the NamesRoles Provisioning service is not'
+                    ' enabled for this LTI deployment, please check your'
+                    ' configuration'
+                ),
+                launch_data.get(claims.NAMESROLES),
+            )
+
+        ags = launch_data.get(claims.GRADES, {})
+        if not check(ags, 'scope'):
+            raise get_exc(
+                (
+                    'It looks like the Assignments and Grades service is not'
+                    ' enabled for this LTI deployment, please check your'
+                    ' configuration'
+                ),
+                launch_data.get(claims.GRADES),
+            )
+
+        scopes = ags.get('scope', [])
+        needed_scopes = [
+            'https://purl.imsglobal.org/spec/lti-ags/scope/score',
+            'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
+        ]
+        if any((needed_scope not in scopes) for needed_scope in needed_scopes):
+            raise get_exc(
+                (
+                    'We do not have the required permissions for passing back'
+                    ' grades and updating deadlines in the LMS, please check'
+                    ' your configuration'
+                ),
+                scopes,
+            )
+
+        # We don't need to check the roles claim, as that is required by spec
+        # to always exist. The same for the resource claim, it is also
+        # required.
+
         return self
 
     def validate(self) -> 'FlaskMessageLaunch':
