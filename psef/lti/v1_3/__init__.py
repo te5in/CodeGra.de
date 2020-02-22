@@ -23,7 +23,7 @@ from .flask import (
 from .roles import SystemRole, ContextRole
 from ...models import db
 from ..abstract import AbstractLTIConnector
-from ..exceptions import APICodes, APIException
+from ...exceptions import APICodes, APIException
 
 logger = structlog.get_logger()
 
