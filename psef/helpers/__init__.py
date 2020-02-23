@@ -1046,18 +1046,49 @@ def extended_requested() -> bool:
 
 
 @contextlib.contextmanager
-def defer(function: t.Callable[[], object]) -> t.Generator[None, None, None]:
+def defer(*functions: t.Callable[[], object]) -> t.Generator[None, None, None]:
     """Defer a function call to the end of the context manager.
 
-    :param: The function to call.
-    :returns: A context manager that can be used to execute the given function
+    >>> logger.info = lambda _, **__: None
+    >>> with defer(lambda: print(2), lambda: print(1)):
+    ...  print(3)
+    3
+    2
+    1
+    >>> with defer(lambda: print(1)), defer(lambda: print(2)):
+    ...  print(3)
+    3
+    2
+    1
+
+    >>> i = 0
+    >>> def inc():
+    ...  global i
+    ...  i += 1
+    >>> with defer(inc, lambda: 1 / 0, inc, inc, inc):
+    ...  print(3)
+    Traceback (most recent call last):
+    ...
+    ZeroDivisionError:
+    >>> i
+    4
+
+    :param functions: The functions to call, they will be called in order, so
+        the first function first, and the last. This means that
+        ``with defer(f1, f2)`` is equivalent to ``with defer(f2), defer(f1)``.
+    :returns: A context manager that can be used to execute the given functions
         at the end of the block.
     """
-    try:
+    if not functions:
         yield
-    finally:
-        logger.info('Calling defer', defer_function=function)
-        function()
+    else:
+        *rest, function = functions
+        try:
+            with defer(*rest):
+                yield
+        finally:
+            logger.info('Calling defer', defer_function=function)
+            function()
 
 
 class StoppableThread(abc.ABC):
@@ -1122,8 +1153,7 @@ class RepeatedTimer(StoppableThread):
 
         self.__cleanup = cleanup
         self.__setup = setup
-        self.__background: t.Union[None, threading.Thread, multiprocessing.
-                                   Process]
+        self.__background: t.Optional[multiprocessing.Process] = None
 
     def cancel(self) -> None:
         if not self.__finish.is_set():
@@ -1137,24 +1167,15 @@ class RepeatedTimer(StoppableThread):
         self.__started.clear()
 
         def fun() -> None:
-            self.__started.set()
-            logger.info(
-                'Started repeating timer', function=self.__function_name
-            )
-            self.__setup()
-            try:
-                while True:
+            with defer(self.__function, self.__cleanup, self.__finished.set):
+                self.__started.set()
+                logger.info(
+                    'Started repeating timer', function=self.__function_name
+                )
+                self.__setup()
+                while not self.__finish.is_set():
                     self.__function()
-                    if self.__finish.wait(self.__interval):
-                        break
-            finally:
-                try:
-                    self.__function()
-                finally:
-                    try:
-                        self.__cleanup()
-                    finally:
-                        self.__finished.set()
+                    self.__finish.wait(self.__interval)
 
         back = multiprocessing.Process(target=fun)
         back.start()
