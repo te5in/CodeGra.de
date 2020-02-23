@@ -515,28 +515,3 @@ def upload_output_files(
     db.session.commit()
 
     return make_empty_response()
-
-
-@api.route(
-    '/auto_tests/<int:auto_test_id>/runs/<int:run_id>', methods=['DELETE']
-)
-def do_runner_harakiri(auto_test_id: int, run_id: int) -> EmptyResponse:
-    """Kill the runner doing this request.
-
-    This method is mainly here as a fail safe. If a runner thinks it is done it
-    should use this endpoint to indicate that it will stop running. This way we
-    can prevent bugs where the runner isn't running anymore bug the back-end
-    thinks that it still is.
-    """
-    password = _verify_global_header_password()
-
-    run = filter_single_or_404(
-        models.AutoTestRun,
-        models.AutoTestRun.id == run_id,
-        also_error=lambda run: run.auto_test_id != auto_test_id,
-        with_for_update=True,
-    )
-    runner = _verify_and_get_runner(run, password)
-    run.stop_runners([runner])
-    db.session.commit()
-    return make_empty_response()
