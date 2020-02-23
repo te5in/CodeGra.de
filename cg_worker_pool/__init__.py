@@ -186,6 +186,8 @@ class _PrioQueue:
         """
         with self.mutex:
             if self._retried[work] >= self._max_retry_amount:
+                self._non_finished_work.remove(work)
+                self._retried[work] = 0
                 return
             self._retried[work] += 1
 

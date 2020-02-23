@@ -2169,9 +2169,9 @@ class AutoTestRunner:
                         patch_res.raise_for_status()
                     except requests.HTTPError as e:
                         if self._is_old_submission_error(e):
-                            retry_work(work)
-                        else:
                             opts.mark_work_as_finished(work)
+                        else:
+                            retry_work(work)
                         continue
 
                     if patch_res.json()['taken']:
