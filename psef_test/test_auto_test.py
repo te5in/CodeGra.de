@@ -41,7 +41,7 @@ def monkeypatch_for_run(
     monkeypatch, lxc_stub, stub_function_class, fail_wget_attach
 ):
     old_run_command = psef.auto_test.StartedContainer._run_command
-    psef.auto_test._STOP_CONTAINERS.clear()
+    psef.auto_test._STOP_RUNNING.clear()
 
     monkeypatch.setattr(
         psef.auto_test, '_SYSTEMD_WAIT_CMD',

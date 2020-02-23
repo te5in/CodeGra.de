@@ -53,7 +53,7 @@ logger = structlog.get_logger()
 OutputCallback = t.Callable[[bytes], None]
 URL = t.NewType('URL', str)
 
-_STOP_CONTAINERS = Event()
+_STOP_RUNNING = Event()
 _LXC_START_STOP_LOCK = multiprocessing.Lock()
 
 T = t.TypeVar('T')
@@ -476,19 +476,19 @@ class CommandTimeoutException(Exception):
 def _maybe_quit_running() -> None:
     """Throw appropriate exception if container should stop running.
 
-    >>> _STOP_CONTAINERS.clear()
+    >>> _STOP_RUNNING.clear()
     >>> _maybe_quit_running() is None
     True
-    >>> _STOP_CONTAINERS.set()
+    >>> _STOP_RUNNING.set()
     >>> _maybe_quit_running()
     Traceback (most recent call last):
     ...
     StopContainerException
-    >>> _STOP_CONTAINERS.clear()
+    >>> _STOP_RUNNING.clear()
     >>> _maybe_quit_running() is None
     True
     """
-    if _STOP_CONTAINERS.is_set():
+    if _STOP_RUNNING.is_set():
         raise StopContainerException
 
 
@@ -788,7 +788,7 @@ def start_polling(config: 'psef.FlaskConfig') -> None:
     def get_broker_session() -> helpers.BrokerSession:
         return helpers.BrokerSession('', '', broker_url, runner_pass)
 
-    _STOP_CONTAINERS.clear()
+    _STOP_RUNNING.clear()
 
     with _get_base_container(config).started_container() as cont:
         if config['AUTO_TEST_TEMPLATE_CONTAINER'] is None:
@@ -2190,11 +2190,12 @@ class AutoTestRunner:
 
     def _started_heartbeat(self) -> 'RepeatedTimer':
         def push_heartbeat() -> None:
-            self.req.post(
-                f'{self.base_url}/runs/{self.instructions["run_id"]}/'
-                'heartbeats/',
-                timeout=_REQUEST_TIMEOUT,
-            ).raise_for_status()
+            if not _STOP_RUNNING.is_set():
+                self.req.post(
+                    f'{self.base_url}/runs/{self.instructions["run_id"]}/'
+                    'heartbeats/',
+                    timeout=_REQUEST_TIMEOUT,
+                ).raise_for_status()
 
         interval = self.instructions['heartbeat_interval']
         logger.info('Starting heartbeat interval', interval=interval)
@@ -2215,6 +2216,7 @@ class AutoTestRunner:
                     self._run_test(cont)
                 time_taken = get_time_taken()
             finally:
+                _STOP_RUNNING.set()
                 self.req.patch(
                     run_result_url,
                     json={
@@ -2299,9 +2301,9 @@ class AutoTestRunner:
             try:
                 pool.start(self._work_producer)
             except:
-                _STOP_CONTAINERS.set()
                 logger.error('AutoTest crashed', exc_info=True)
                 raise
             else:
                 logger.info('Done with containers, cleaning up')
-                _STOP_CONTAINERS.set()
+            finally:
+                _STOP_RUNNING.set()
