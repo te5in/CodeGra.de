@@ -2305,3 +2305,7 @@ class AutoTestRunner:
             else:
                 logger.info('Done with containers, cleaning up')
                 _STOP_CONTAINERS.set()
+            finally:
+                self.req.delete(
+                    f'{self.base_url}/runs/{self.instructions["run_id"]}'
+                )

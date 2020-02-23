@@ -831,6 +831,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         """
         if self.deadline is None:
             return False
+
         return self.deadline < helpers.get_request_start_time()
 
     @cached_property

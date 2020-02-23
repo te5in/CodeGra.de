@@ -11,6 +11,7 @@ import shutil
 import getpass
 import tempfile
 import threading
+import multiprocessing
 from datetime import timedelta
 from textwrap import dedent
 
@@ -2203,3 +2204,59 @@ def test_continuous_rubric(
             200,
             result=rubric_result
         )
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+def test_runner_harakiri(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session,
+    stub_function_class, assert_similar, monkeypatch_for_run
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+
+        with logged_in(teacher):
+            test = helpers.create_auto_test(
+                test_client,
+                assig_id,
+                amount_sets=2,
+                amount_suites=2,
+                amount_fixtures=1,
+                stop_points=[0.5, None],
+                grade_calculation='partial',
+            )
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+        with logged_in(teacher):
+            helpers.create_submission(test_client, assig_id, for_user=student)
+
+        runners_in_start = multiprocessing.Queue(1000)
+
+        def start_pool(*_, **__):
+            with app.app_context():
+                runners_in_start.put(len(t.run.runners))
+
+        monkeypatch.setattr(cg_worker_pool.WorkerPool, 'start', start_pool)
+
+    with describe('start_auto_test'):
+        t = LocalProxy(lambda: m.AutoTest.query.get(test['id']))
+        with logged_in(teacher):
+            test_client.req(
+                'post',
+                f'{url}/runs/',
+                200,
+                data={'continuous_feedback_run': False},
+            )
+            session.commit()
+        assert t.run is not None
+
+        monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, )
+        )
+        thread.start()
+        thread.join()
+
+        assert not t.run.runners
+        assert runners_in_start.get()
