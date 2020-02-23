@@ -2206,10 +2206,23 @@ class AutoTestRunner:
         :param cont: The base container used for all students.
         :returns: Nothing.
         """
+        run_result_url = f'{self.base_url}/runs/{self.instructions["run_id"]}'
         time_taken: t.Optional[float] = None
 
         with self._started_heartbeat():
-            self._run_test(cont)
+            try:
+                with timed_code('run_complete_auto_test') as get_time_taken:
+                    self._run_test(cont)
+                time_taken = get_time_taken()
+            finally:
+                self.req.patch(
+                    run_result_url,
+                    json={
+                        'state': 'stopped',
+                        'time_taken': time_taken,
+                    },
+                    timeout=_REQUEST_TIMEOUT,
+                )
 
     def _maybe_run_setup(
         self,
@@ -2292,8 +2305,3 @@ class AutoTestRunner:
             else:
                 logger.info('Done with containers, cleaning up')
                 _STOP_CONTAINERS.set()
-            finally:
-                self.req.patch(
-                    f'{self.base_url}/runs/{self.instructions["run_id"]}',
-                    json={'state': 'stopped'},
-                )
