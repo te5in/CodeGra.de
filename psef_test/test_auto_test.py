@@ -16,6 +16,7 @@ from datetime import timedelta
 from textwrap import dedent
 
 import lxc
+import flask
 import pytest
 import requests
 import pytest_cov
@@ -2260,3 +2261,90 @@ def test_runner_harakiri(
 
         assert not t.run.runners
         assert runners_in_start.get()
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+def test_running_old_submission(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session,
+    stub_function_class, assert_similar, monkeypatch_for_run
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+
+        uploaded_once = False
+        # We need to disable debug to register this `before_request` method as
+        # we already processed requests at this point.
+        old_debug = app.debug
+        app.debug = False
+
+        @app.before_request
+        def update_result():
+            nonlocal uploaded_once
+            result = m.AutoTestResult.query.get(
+                flask.request.view_args.get('result_id', -1)
+            )
+            if result and result.work.id == sub1['id'] and not uploaded_once:
+                # Make sure we only upload a new submission once
+                uploaded_once = True
+                with app.app_context(), logged_in(teacher):
+                    helpers.create_submission(
+                        test_client, assig_id, for_user=student
+                    )
+
+        app.debug = old_debug
+
+        with logged_in(teacher):
+            test = helpers.create_auto_test(
+                test_client,
+                assig_id,
+                amount_sets=2,
+                amount_suites=2,
+                amount_fixtures=1,
+                stop_points=[0.5, None],
+                grade_calculation='partial',
+            )
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+        with logged_in(teacher):
+            sub1 = helpers.create_submission(
+                test_client, assig_id, for_user=student
+            )
+
+    with describe('start_auto_test'):
+        t = LocalProxy(lambda: m.AutoTest.query.get(test['id']))
+        with logged_in(teacher):
+            test_client.req(
+                'post',
+                f'{url}/runs/',
+                200,
+                data={'continuous_feedback_run': False},
+            )
+            session.commit()
+
+        monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, )
+        )
+        thread.start()
+        thread.join()
+
+        assert session.query(
+            m.AutoTestResult
+        ).filter_by(work_id=sub1['id']).one().state.name == 'skipped'
+
+        with logged_in(teacher):
+            res = test_client.req(
+                'get',
+                f'{url}/runs/{t.run.id}/users/{student.id}/results/',
+                200,
+                result=[
+                    {'__allow_extra__': True, 'work_id': sub1['id']},
+                    {'__allow_extra__': True, 'work_id': int},
+                ]
+            )
+
+        assert session.query(
+            m.AutoTestResult
+        ).filter_by(work_id=res[-1]['work_id']).one().state.name == 'passed'
