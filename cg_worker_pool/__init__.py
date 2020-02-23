@@ -30,7 +30,7 @@ class GetWorkFunction(Protocol):
     """Protocol to get some work to run.
     """
 
-    def __call__(self) -> t.Optional[Work]:
+    def __call__(self, *, block: bool = True) -> t.Optional[Work]:
         ...
 
 
@@ -42,7 +42,15 @@ class RetryWorkFunction(Protocol):
         ...
 
 
-@dataclasses.dataclass
+class MarkWorkAsFinishedFunction(Protocol):
+    """Protocol to mark work as finished.
+    """
+
+    def __call__(self, work: Work) -> None:
+        ...
+
+
+@dataclasses.dataclass(frozen=True)
 class CallbackArguments:
     """The argument given to the `cg_worker` callback.
 
@@ -51,6 +59,7 @@ class CallbackArguments:
     """
     get_work: GetWorkFunction
     retry_work: RetryWorkFunction
+    mark_work_as_finished: MarkWorkAsFinishedFunction
 
 
 class KillWorkerException(Exception):
@@ -91,7 +100,7 @@ class _PrioQueue:
         self.newest: t.Dict[int, int] = {}
         self.mutex = mp.Lock()
 
-        self.all_results: t.Set[int] = set()
+        self._non_finished_work: t.Set[Work] = set()
 
         self._version = 0
         self._amount_waiting = 0
@@ -141,11 +150,13 @@ class _PrioQueue:
 
         with self.mutex:
             for work in works:
-                if work.result_id in self.all_results:
+                if work in self._non_finished_work:
+                    logger.info('Ignoring existing work', work=work)
                     continue
+                logger.info('Adding new work', work=work)
 
                 added_amount += 1
-                self.all_results.add(work.result_id)
+                self._non_finished_work.add(work)
                 self.queue.append(work)
                 self.newest[work.student_id] = work.result_id
 
@@ -178,7 +189,7 @@ class _PrioQueue:
                 return
             self._retried[work] += 1
 
-            assert work.result_id in self.all_results
+            assert work in self._non_finished_work
 
             self.queue.append(work)
             # Do not update newest here. We want to retry this work, but we
@@ -186,15 +197,16 @@ class _PrioQueue:
             self._inc_version()
             self._new_work.notify(1)
 
-    def get(self) -> t.Optional[Work]:
+    def get(self, *, block: bool = True) -> t.Optional[Work]:
         """Try to get more work.
 
         :returns: More work, or ``None`` if the queue is closed while getting
             more work.
 
 
-        .. warning:: This function blocks if there is no more work.
+        :param block: Should this function block if there is no more work.
         """
+        logger.info('Getting new work')
         with self.mutex:
             while not self._closed:
                 work = self._peek()
@@ -206,14 +218,30 @@ class _PrioQueue:
                     # later.
                     self._inc_version()
 
+                    logger.info('Got new work', work=work)
                     return work
+                elif not block:
+                    break
 
                 self._amount_waiting += 1
                 self._work_needed.release()
                 self._new_work.wait()
                 self._amount_waiting -= 1
 
+        logger.info('Got new work', work=None)
         return None
+
+    def mark_as_finished(self, work: Work) -> None:
+        """Mark given work as finished.
+
+        This will forget about the given work completely, this means that if we
+        encounter this work again (i.e. if the producer produces it again) we
+        will try to process it.
+        """
+        with self.mutex:
+            logger.info('Marking work as finished', work=work)
+            self._non_finished_work.remove(work)
+            self._retried[work] = 0
 
 
 class _Manager(managers.SyncManager):
@@ -267,6 +295,7 @@ class WorkerPool:
         callback = CallbackArguments(
             get_work=self._work_queue.get,
             retry_work=self._work_queue.retry,
+            mark_work_as_finished=self._work_queue.mark_as_finished,
         )
         while not self._stop.is_set():
             try:

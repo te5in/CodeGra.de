@@ -2168,16 +2168,19 @@ class AutoTestRunner:
                     try:
                         patch_res.raise_for_status()
                     except requests.HTTPError as e:
-                        if not self._is_old_submission_error(e):
+                        if self._is_old_submission_error(e):
                             retry_work(work)
+                        else:
+                            opts.mark_work_as_finished(work)
                         continue
 
-                    if (
-                        patch_res.status_code != 200 or
-                        not patch_res.json().get('taken', False)
-                    ):
+                    if patch_res.json()['taken']:
+                        opts.mark_work_as_finished(work)
+                    else:
                         with cg_logger.bound_to_logger(result_id=result_id):
-                            if not self._run_student(cont, cpu, result_id):
+                            if self._run_student(cont, cpu, result_id):
+                                opts.mark_work_as_finished(work)
+                            else:
                                 # Student didn't finish correctly. So put back
                                 # in the queue. The retry function contains the
                                 # functionality for only retrying a fixed
