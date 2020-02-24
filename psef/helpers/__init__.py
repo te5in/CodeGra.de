@@ -1049,30 +1049,6 @@ def extended_requested() -> bool:
 def defer(*functions: t.Callable[[], object]) -> t.Generator[None, None, None]:
     """Defer a function call to the end of the context manager.
 
-    >>> logger.info = lambda _, **__: None
-    >>> with defer(lambda: print(2), lambda: print(1)):
-    ...  print(3)
-    3
-    2
-    1
-    >>> with defer(lambda: print(1)), defer(lambda: print(2)):
-    ...  print(3)
-    3
-    2
-    1
-
-    >>> i = 0
-    >>> def inc():
-    ...  global i
-    ...  i += 1
-    >>> with defer(inc, lambda: 1 / 0, inc, inc, inc):
-    ...  print(3)
-    Traceback (most recent call last):
-    ...
-    ZeroDivisionError:
-    >>> i
-    4
-
     :param functions: The functions to call, they will be called in order, so
         the first function first, and the last. This means that
         ``with defer(f1, f2)`` is equivalent to ``with defer(f2), defer(f1)``.
