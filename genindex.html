@@ -24,11 +24,11 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script type="text/javascript" src="_static/jquery.js"></script>
-        <script type="text/javascript" src="_static/underscore.js"></script>
-        <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
-        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -511,16 +511,18 @@
         <li><a href="psef_api/psef.html#psef.helpers.StoppableThread.cancel">(psef.helpers.StoppableThread method)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.lti.CanvasLTI">CanvasLTI (class in psef.lti)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.cgignore">cgignore() (psef.models.assignment.Assignment property)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.ignore.EmptySubmissionFilter.CGIGNORE_VERSION">CGIGNORE_VERSION (psef.ignore.EmptySubmissionFilter attribute)</a>
 
       <ul>
         <li><a href="psef_api/psef.html#psef.ignore.IgnoreFilterManager.CGIGNORE_VERSION">(psef.ignore.IgnoreFilterManager attribute)</a>
+</li>
+        <li><a href="psef_api/psef.html#psef.ignore.SubmissionFilter.CGIGNORE_VERSION">(psef.ignore.SubmissionFilter attribute)</a>
 </li>
         <li><a href="psef_api/psef.html#psef.ignore.SubmissionValidator.CGIGNORE_VERSION">(psef.ignore.SubmissionValidator attribute)</a>
 </li>
@@ -552,6 +554,8 @@
       <li><a href="psef_api/psef.html#psef.helpers.Comparable">Comparable (class in psef.helpers)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APIWarnings.CONDITION_ALREADY_MET">CONDITION_ALREADY_MET (psef.exceptions.APIWarnings attribute)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.PsefFlask.config">config (psef.PsefFlask attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.connect_division">connect_division() (psef.models.assignment.Assignment method)</a>
 </li>
@@ -663,6 +667,18 @@
 </li>
       <li><a href="psef_api/psef.html#psef.models.auto_test_step.AutoTestStepBase.data">data() (psef.models.auto_test_step.AutoTestStepBase property)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.lti.LTIInitalReplaceResultOperation.data_type">data_type (psef.lti.LTIInitalReplaceResultOperation attribute)</a>
+
+      <ul>
+        <li><a href="psef_api/psef.html#psef.lti.LTIReplaceResultBaseOperation.data_type">(psef.lti.LTIReplaceResultBaseOperation attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="psef_api/psef.html#psef.lti.LTIInitalReplaceResultOperation.data_value">data_value (psef.lti.LTIInitalReplaceResultOperation attribute)</a>
+
+      <ul>
+        <li><a href="psef_api/psef.html#psef.lti.LTIReplaceResultBaseOperation.data_value">(psef.lti.LTIReplaceResultBaseOperation attribute)</a>
+</li>
+      </ul></li>
       <li><a href="psef_api/psef.html#psef.permissions.database_permissions_sanity_check">database_permissions_sanity_check() (in module psef.permissions)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.deadline_expired">deadline_expired() (psef.models.assignment.Assignment property)</a>
@@ -699,11 +715,15 @@
 </li>
       <li><a href="psef_api/psef.html#psef.models.file.AutoTestFixture.delete_fixture">delete_fixture() (psef.models.file.AutoTestFixture method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.models.file.FileMixin.delete_from_disk">delete_from_disk() (psef.models.file.FileMixin method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.models.lti_provider.LTIProvider.delete_grade_for_submission">delete_grade_for_submission() (psef.models.lti_provider.LTIProvider method)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.ignore.FileDeletion.deleted_file">deleted_file (psef.ignore.FileDeletion attribute)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.ignore.FileDeletion.deletion_type">deletion_type (psef.ignore.FileDeletion attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.ignore.DeletionType">DeletionType (class in psef.ignore)</a>
 </li>
@@ -715,6 +735,8 @@
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APIWarnings.DEPRECATED">DEPRECATED (psef.exceptions.APIWarnings attribute)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.plagiarism.Option.description">description (psef.plagiarism.Option attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.auto_test.StartedContainer.destroy_snapshots">destroy_snapshots() (psef.auto_test.StartedContainer method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.ignore.FileRule.FileType.directory">directory (psef.ignore.FileRule.FileType attribute)</a>
@@ -723,6 +745,12 @@
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APICodes.DISABLED_FEATURE">DISABLED_FEATURE (psef.exceptions.APICodes attribute)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.extract_tree.ExtractFileTreeFile.disk_name">disk_name (psef.extract_tree.ExtractFileTreeFile attribute)</a>
+
+      <ul>
+        <li><a href="psef_api/psef.html#psef.extract_tree.ExtractFileTreeSpecialFile.disk_name">(psef.extract_tree.ExtractFileTreeSpecialFile attribute)</a>
+</li>
+      </ul></li>
       <li><a href="psef_api/psef.html#psef.helpers.Dividable">Dividable (class in psef.helpers)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.work.Work.divide_new_work">divide_new_work() (psef.models.work.Work method)</a>
@@ -799,10 +827,10 @@
       </ul></li>
       <li><a href="psef_api/psef.html#psef.lti.LTI.ensure_lti_user">ensure_lti_user() (psef.lti.LTI method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTest.ensure_no_runs">ensure_no_runs() (psef.models.auto_test.AutoTest method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.helpers.ensure_on_test_server">ensure_on_test_server() (in module psef.helpers)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.auth.ensure_permission">ensure_permission() (in module psef.auth)</a>
@@ -843,6 +871,8 @@
       </ul></li>
       <li><a href="psef_api/psef.html#psef.helpers.extended_requested">extended_requested() (in module psef.helpers)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.lti.LTIProperty.external">external (psef.lti.LTIProperty attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.files.extract">extract() (in module psef.files)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.files.extract_to_temp">extract_to_temp() (in module psef.files)</a>
@@ -879,6 +909,8 @@
         <li><a href="psef_api/psef.html#psef.ignore.SubmissionValidator.file_allowed">(psef.ignore.SubmissionValidator method)</a>
 </li>
       </ul></li>
+      <li><a href="psef_api/psef.html#psef.ignore.FileRule.file_type">file_type (psef.ignore.FileRule attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.ignore.FileDeletion">FileDeletion (class in psef.ignore)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.blackboard.FileInfo">FileInfo (class in psef.blackboard)</a>
@@ -886,6 +918,8 @@
       <li><a href="psef_api/psef.html#psef.files.FileLike">FileLike (class in psef.files)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.file.FileMixin">FileMixin (class in psef.models.file)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.ignore.FileRule.filename">filename (psef.ignore.FileRule attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.file.FileOwner">FileOwner (class in psef.models.file)</a>
 </li>
@@ -895,10 +929,10 @@
 </li>
       <li><a href="psef_api/psef.html#psef.ignore.FileRule.FileType">FileRule.FileType (class in psef.ignore)</a>
 </li>
-      <li><a href="psef_api/psef.html#psef.ignore.FileRule.RuleType">FileRule.RuleType (class in psef.ignore)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="psef_api/psef.html#psef.ignore.FileRule.RuleType">FileRule.RuleType (class in psef.ignore)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.files.FileTree">FileTree (class in psef.files)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.helpers.filter_all_or_404">filter_all_or_404() (in module psef.helpers)</a>
@@ -1169,6 +1203,12 @@
       </ul></li>
       <li><a href="psef_api/psef.html#psef.permissions.GlobalPermission">GlobalPermission (class in psef.permissions)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.lti.LTINormalReplaceResultOperation.grade">grade (psef.lti.LTINormalReplaceResultOperation attribute)</a>
+
+      <ul>
+        <li><a href="psef_api/psef.html#psef.lti.LTIRawReplaceResultOperation.grade">(psef.lti.LTIRawReplaceResultOperation attribute)</a>
+</li>
+      </ul></li>
       <li><a href="psef_api/psef.html#psef.models.work.Work.grade">grade() (psef.models.work.Work property)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTest.grade_calculator">grade_calculator() (psef.models.auto_test.AutoTest property)</a>
@@ -1283,16 +1323,18 @@
       </ul></li>
       <li><a href="psef_api/psef.html#psef.exceptions.APICodes.INSUFFICIENT_GROUP_SIZE">INSUFFICIENT_GROUP_SIZE (psef.exceptions.APICodes attribute)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.lti.LTIProperty.internal">internal (psef.lti.LTIProperty attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.exceptions.APIWarnings.INTERNAL_API">INTERNAL_API (psef.exceptions.APIWarnings attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APICodes.INVALID_ARCHIVE">INVALID_ARCHIVE (psef.exceptions.APICodes attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APICodes.INVALID_CREDENTIALS">INVALID_CREDENTIALS (psef.exceptions.APICodes attribute)</a>
 </li>
-      <li><a href="psef_api/psef.html#psef.exceptions.APICodes.INVALID_FILE_IN_ARCHIVE">INVALID_FILE_IN_ARCHIVE (psef.exceptions.APICodes attribute)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="psef_api/psef.html#psef.exceptions.APICodes.INVALID_FILE_IN_ARCHIVE">INVALID_FILE_IN_ARCHIVE (psef.exceptions.APICodes attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.exceptions.APIWarnings.INVALID_FILENAME">INVALID_FILENAME (psef.exceptions.APIWarnings attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APICodes.INVALID_OAUTH_REQUEST">INVALID_OAUTH_REQUEST (psef.exceptions.APICodes attribute)</a>
@@ -1477,6 +1519,8 @@
 </li>
       <li><a href="psef_api/psef.html#psef.permissions.CoursePermission.manage_rubrics">manage_rubrics (psef.permissions.CoursePermission attribute)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.plagiarism.Option.mandatory">mandatory (psef.plagiarism.Option attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.ignore.Pattern.match">match() (psef.ignore.Pattern method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.ignore.FileRule.matches">matches() (psef.ignore.FileRule method)</a>
@@ -1493,10 +1537,10 @@
       </ul></li>
       <li><a href="psef_api/psef.html#psef.PsefFlask.max_file_size">max_file_size() (psef.PsefFlask property)</a>
 </li>
-      <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.max_grade">max_grade() (psef.models.assignment.Assignment property)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.max_grade">max_grade() (psef.models.assignment.Assignment property)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.PsefFlask.max_large_file_size">max_large_file_size() (psef.PsefFlask property)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.max_rubric_points">max_rubric_points() (psef.models.assignment.Assignment property)</a>
@@ -1527,8 +1571,14 @@
 <h2 id="N">N</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="psef_api/psef.html#psef.files.FileTree.name">name (psef.files.FileTree attribute)</a>
+      <li><a href="psef_api/psef.html#psef.extract_tree.ExtractFileTreeBase.name">name (psef.extract_tree.ExtractFileTreeBase attribute)</a>
+
+      <ul>
+        <li><a href="psef_api/psef.html#psef.files.FileTree.name">(psef.files.FileTree attribute)</a>
 </li>
+        <li><a href="psef_api/psef.html#psef.plagiarism.Option.name">(psef.plagiarism.Option attribute)</a>
+</li>
+      </ul></li>
       <li><a href="psef_api/psef.html#psef.auto_test.AutoTestContainer.name">name() (psef.auto_test.AutoTestContainer property)</a>
 
       <ul>
@@ -1537,10 +1587,10 @@
         <li><a href="psef_api/psef.html#psef.models.role.AbstractRole.name">(psef.models.role.AbstractRole property)</a>
 </li>
       </ul></li>
-      <li><a href="psef_api/psef.html#psef.models.file.NestedFileMixin">NestedFileMixin (class in psef.models.file)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="psef_api/psef.html#psef.models.file.NestedFileMixin">NestedFileMixin (class in psef.models.file)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTestRun.new_results_should_be_final">new_results_should_be_final() (psef.models.auto_test.AutoTestRun property)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APICodes.NO_FILES_SUBMITTED">NO_FILES_SUBMITTED (psef.exceptions.APICodes attribute)</a>
@@ -1601,6 +1651,8 @@
 <h2 id="P">P</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="psef_api/psef.html#psef.extract_tree.ExtractFileTreeBase.parent">parent (psef.extract_tree.ExtractFileTreeBase attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.ignore.EmptySubmissionFilter.parse">parse() (psef.ignore.EmptySubmissionFilter class method)</a>
 
       <ul>
@@ -1677,16 +1729,18 @@
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APIWarnings.POSSIBLE_LTI_SETUP_ERROR">POSSIBLE_LTI_SETUP_ERROR (psef.exceptions.APIWarnings attribute)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.plagiarism.Option.possible_options">possible_options (psef.plagiarism.Option attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.lti.OutcomeRequest.post_outcome_request">post_outcome_request() (psef.lti.OutcomeRequest method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.files.process_blackboard_zip">process_blackboard_zip() (in module psef.files)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.files.process_files">process_files() (in module psef.files)</a>
 </li>
-      <li><a href="psef_api/psef.html#psef.plagiarism.process_output_csv">process_output_csv() (in module psef.plagiarism)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="psef_api/psef.html#psef.plagiarism.process_output_csv">process_output_csv() (in module psef.plagiarism)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.ignore.SubmissionFilter.process_submission">process_submission() (psef.ignore.SubmissionFilter method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.plagiarism.PlagiarismRun.provider_name">provider_name() (psef.models.plagiarism.PlagiarismRun property)</a>
@@ -1787,6 +1841,8 @@
 </li>
       <li><a href="psef_api/psef.html#psef.helpers.readable_join">readable_join() (in module psef.helpers)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.ignore.FileDeletion.reason">reason (psef.ignore.FileDeletion attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.models.user.User.register_new_user">register_new_user() (psef.models.user.User class method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.ignore.Options.OptionName.remove_leading_directories">remove_leading_directories (psef.ignore.Options.OptionName attribute)</a>
@@ -1858,6 +1914,8 @@
       <li><a href="psef_api/psef.html#psef.models.rubric.RubricLockReason">RubricLockReason (class in psef.models.rubric)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.rubric.RubricRowBase">RubricRowBase (class in psef.models.rubric)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.ignore.FileRule.rule_type">rule_type (psef.ignore.FileRule attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.linters.Checkstyle.run">run() (psef.linters.Checkstyle method)</a>
 
@@ -1959,6 +2017,12 @@
 </li>
       <li><a href="psef_api/psef.html#psef.plagiarism.OptionTypes.singleselect">singleselect (psef.plagiarism.OptionTypes attribute)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.extract_tree.ExtractFileTreeFile.size">size (psef.extract_tree.ExtractFileTreeFile attribute)</a>
+
+      <ul>
+        <li><a href="psef_api/psef.html#psef.extract_tree.ExtractFileTreeSpecialFile.size">(psef.extract_tree.ExtractFileTreeSpecialFile attribute)</a>
+</li>
+      </ul></li>
       <li><a href="psef_api/psef.html#psef.models.group.GroupSet.smallest_group_size">smallest_group_size() (psef.models.group.GroupSet property)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.snippet.Snippet">Snippet (class in psef.models.snippet)</a>
@@ -1975,10 +2039,10 @@
       </ul></li>
       <li><a href="psef_api/psef.html#psef.auto_test.start_polling">start_polling() (in module psef.auto_test)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTest.start_test_run">start_test_run() (psef.models.auto_test.AutoTest method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.auto_test.AutoTestContainer.started_container">started_container() (psef.auto_test.AutoTestContainer method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.auto_test.StartedContainer">StartedContainer (class in psef.auto_test)</a>
@@ -2007,6 +2071,12 @@
 </li>
       <li><a href="psef_api/psef.html#psef.auto_test.StudentCommandResult">StudentCommandResult (class in psef.auto_test)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.lti.LTIInitalReplaceResultOperation.submission_details">submission_details (psef.lti.LTIInitalReplaceResultOperation attribute)</a>
+
+      <ul>
+        <li><a href="psef_api/psef.html#psef.lti.LTIReplaceResultBaseOperation.submission_details">(psef.lti.LTIReplaceResultBaseOperation attribute)</a>
+</li>
+      </ul></li>
       <li><a href="psef_api/psef.html#psef.lti.SubmissionDetails">SubmissionDetails (class in psef.lti)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.ignore.SubmissionFilter">SubmissionFilter (class in psef.ignore)</a>
@@ -2016,6 +2086,8 @@
       <li><a href="psef_api/psef.html#psef.ignore.SubmissionValidator">SubmissionValidator (class in psef.ignore)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.ignore.SubmissionValidator.Policy">SubmissionValidator.Policy (class in psef.ignore)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.lti.SubmissionDetails.submittedAt">submittedAt (psef.lti.SubmissionDetails attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.auto_test.SuiteInstructions">SuiteInstructions (class in psef.auto_test)</a>
 </li>
@@ -2069,6 +2141,8 @@
 </li>
       <li><a href="psef_api/psef.html#psef.lti.LTIResultDataType.text">text (psef.lti.LTIResultDataType attribute)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.plagiarism.Option.title">title (psef.plagiarism.Option attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.helpers.MissingType.token">token (psef.helpers.MissingType attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APICodes.TOO_MANY_SUBMISSIONS">TOO_MANY_SUBMISSIONS (psef.exceptions.APICodes attribute)</a>
@@ -2084,6 +2158,8 @@
       <li><a href="psef_api/psef.html#psef.ignore.Pattern.translate">translate() (psef.ignore.Pattern class method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.parsers.try_parse_email_list">try_parse_email_list() (in module psef.parsers)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.plagiarism.Option.type">type (psef.plagiarism.Option attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -2159,16 +2235,22 @@
         <li><a href="psef_api/psef.html#psef.linters.PMD.validate_config">(psef.linters.PMD class method)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.models.auto_test_step.AutoTestStepBase.validate_data">validate_data() (psef.models.auto_test_step.AutoTestStepBase method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.validate_group_set">validate_group_set() (psef.models.assignment.Assignment method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.auto_test_step.AutoTestStepBase.validate_weight">validate_weight() (psef.models.auto_test_step.AutoTestStepBase static method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.ValidationException">ValidationException</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.extract_tree.ExtractFileTree.values">values (psef.extract_tree.ExtractFileTree attribute)</a>
+
+      <ul>
+        <li><a href="psef_api/psef.html#psef.extract_tree.ExtractFileTreeDirectory.values">(psef.extract_tree.ExtractFileTreeDirectory attribute)</a>
+</li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
