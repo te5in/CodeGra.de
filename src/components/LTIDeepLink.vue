@@ -23,9 +23,21 @@
 
     <submission-limits v-model="submissionLimits" />
 
-    <submit-button class="float-right"
-                   :submit="() => submitDeepLinkRequest()"
-                   label="Create assignment" />
+    <div class="float-right"
+         v-b-popover.top.hover="submitPopover">
+        <submit-button :disabled="!!submitPopover"
+                       :submit="() => submitDeepLinkRequest()"
+                       @after-success="afterSubmitDeepLinkRequest"
+                       label="Create assignment" />
+    </div>
+
+    <template v-if="formData">
+        <form :action="formData.url"
+              method="POST"
+              ref="linkForm">
+            <input type="hidden" name="JWT" :value="formData.jwt" />
+        </form>
+    </template>
 </div>
 </template>
 
@@ -62,12 +74,13 @@ export default {
 
     data() {
         return {
+            formData: null,
             name: this.initialAssignmentName,
             deadline: this.initialAssignmentDeadline,
             submissionLimits: {
                 maxSubmissions: null,
                 coolOff: {
-                    amount: 0,
+                    amount: 1,
                     period: 0,
                 },
             },
@@ -75,9 +88,31 @@ export default {
         };
     },
 
+    computed: {
+        submitPopover() {
+            if (!this.deadline) {
+                return 'A deadline is required';
+            }
+            return '';
+        },
+    },
+
     methods: {
         submitDeepLinkRequest() {
-            return {};
+            return this.$http.post(`/api/v1/lti1.3/deep_link/${this.deepLinkId}/assignment`, {
+                name: this.name,
+                deadline: this.deadline,
+                max_submissions: parseFloat(this.submissionLimits.maxSubmissions),
+                cool_off_period: parseFloat(this.submissionLimits.coolOff.period),
+                amount_in_cool_off_period: parseFloat(this.submissionLimits.coolOff.amount),
+            });
+        },
+
+        async afterSubmitDeepLinkRequest({ data }) {
+            this.formData = data;
+            await this.$afterRerender();
+            console.log(this.$refs.linkForm);
+            this.$refs.linkForm.submit();
         },
     },
 

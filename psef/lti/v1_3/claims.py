@@ -8,3 +8,4 @@ NAMESROLES: Final = (
     'https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice'
 )
 GRADES: Final = 'https://purl.imsglobal.org/spec/lti-ags/claim/endpoint'
+DEEP_LINK: Final = 'https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings'

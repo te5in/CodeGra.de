@@ -579,7 +579,8 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
             course=course,
             deadline=self.get_assignment_deadline(),
             lti_assignment_id=self.assignment_id,
-            description=''
+            description='',
+            is_lti=True,
         )
         db.session.add(assignment)
         db.session.flush()

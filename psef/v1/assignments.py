@@ -113,7 +113,9 @@ def delete_assignment(assignment_id: int) -> EmptyResponse:
     :param int assignment_id: The id of the assignment
     """
     assignment = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
 
     auth.ensure_can_see_assignment(assignment)
@@ -143,7 +145,9 @@ def get_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                                  assignment. (INCORRECT_PERMISSION)
     """
     assignment = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
 
     auth.ensure_can_see_assignment(assignment)
@@ -167,7 +171,9 @@ def get_assignments_feedback(assignment_id: int) -> JSONResponse[
         by the current users are returned.
     """
     assignment = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
 
     auth.ensure_enrolled(assignment.course_id)
@@ -303,10 +309,11 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     :raises APIException: If an invalid value is submitted. (INVALID_PARAM)
     """
     assig = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
     content = ensure_json_dict(request.get_json())
-    warning_tags = set()
 
     lti_provider: t.Optional[models.LTIProviderBase]
     lms_name: t.Optional[str]
@@ -322,15 +329,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         ensure_keys_in_dict(content, [('state', str)])
         state = t.cast(str, content['state'])
-
-        try:
-            assig.set_state(state)
-        except InvalidAssignmentState:
-            raise APIException(
-                'The selected state is not valid',
-                'The state {} is not a valid state'.format(state),
-                APICodes.INVALID_PARAM, 400
-            )
+        assig.set_state(state)
 
     if 'name' in content:
         if assig.is_lti:
@@ -372,20 +371,13 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.deadline = parsers.parse_datetime(deadline)
 
     if 'ignore' in content:
-        warning_tags.add(models.AssignmentAmbiguousSettingTag.cgignore)
         auth.ensure_permission(CPerm.can_edit_cgignore, assig.course_id)
         ignore_version = helpers.get_key_from_dict(
             content, 'ignore_version', 'IgnoreFilterManager'
         )
-        filter_type = ignore.filter_handlers.get(ignore_version)
-        if filter_type is None:
-            raise APIException(
-                'The given ignore version was not found.', (
-                    'The known values are:'
-                    f' {", ".join(ignore.filter_handlers.keys())}'
-                ), APICodes.OBJECT_NOT_FOUND, 404
-            )
-        assig.cgignore = filter_type.parse(t.cast(JSONType, content['ignore']))
+        assig.update_cgignore(
+            ignore_version, t.cast(JSONType, content['ignore'])
+        )
 
     if 'max_grade' in content:
         if lti_provider is not None and not lti_provider.supports_max_points():
@@ -437,90 +429,37 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
 
         assig.group_set = group_set
 
-    if 'files_upload_enabled' in content:
+    if {'files_upload_enabled', 'webhook_upload_enabled'} & content.keys():
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
-        with get_from_map_transaction(content) as [get, _]:
-            assig.files_upload_enabled = get('files_upload_enabled', bool)
+        with get_from_map_transaction(content) as [_, opt_get]:
+            files = opt_get('files_upload_enabled', bool, None)
+            webhook = opt_get('webhook_upload_enabled', bool, None)
 
-    if 'webhook_upload_enabled' in content:
-        warning_tags.add(models.AssignmentAmbiguousSettingTag.webhook)
-        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
-        with get_from_map_transaction(content) as [get, _]:
-            assig.webhook_upload_enabled = get('webhook_upload_enabled', bool)
-        if not assig.webhook_upload_enabled and assig.has_webhooks():
-            helpers.add_warning(
-                (
-                    'This assignment already has existing webhooks, these will'
-                    ' continue to work'
-                ), APIWarnings.EXISTING_WEBHOOKS_EXIST
-            )
-
-    if not any([assig.webhook_upload_enabled, assig.files_upload_enabled]):
-        raise APIException(
-            'At least one way of uploading needs to be enabled',
-            'It is not possible to disable both webhook and files uploads',
-            APICodes.INVALID_STATE, 400
-        )
+        assig.update_submission_types(files=files, webhook=webhook)
 
     if 'max_submissions' in content:
-        warning_tags.add(models.AssignmentAmbiguousSettingTag.max_submissions)
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         with get_from_map_transaction(content) as [get, _]:
             max_submissions = get('max_submissions', (int, type(None)))
 
-        if helpers.handle_none(max_submissions, 1) <= 0:
-            raise APIException(
-                'You have to allow at least one submission',
-                'The set maximum amount of submissions is too low',
-                APICodes.INVALID_PARAM, 400
-            )
-
-        if max_submissions is not None and db.session.query(
-            assig.get_not_deleted_submissions().group_by(
-                models.Work.user_id
-            ).having(sql.func.count() > max_submissions).exists()
-        ).scalar():
-            helpers.add_warning(
-                (
-                    'There are already users with more submission than the'
-                    ' set max submissions amount'
-                ),
-                APIWarnings.LIMIT_ALREADY_EXCEEDED,
-            )
-
         assig.max_submissions = max_submissions
 
     if 'cool_off_period' in content:
-        warning_tags.add(models.AssignmentAmbiguousSettingTag.cool_off)
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         with get_from_map_transaction(content) as [get, _]:
-            assig.cool_off_period = datetime.timedelta(
-                seconds=get('cool_off_period', (int, float))
-            )
+            cool_off_period = get('cool_off_period', (int, float))
+
+        assig.cool_off_period = datetime.timedelta(seconds=cool_off_period)
 
     if 'amount_in_cool_off_period' in content:
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         with get_from_map_transaction(content) as [get, _]:
             amount = get('amount_in_cool_off_period', int)
 
-        if amount < 1:
-            raise APIException(
-                (
-                    'The minimum amount of submissions that can be done in a'
-                    ' cool of period should be at least one'
-                ), (
-                    f'The given amount ${amount} is too low for'
-                    ' `amount_in_cool_off_period`'
-                ), APICodes.INVALID_PARAM, 400
-            )
-
         assig.amount_in_cool_off_period = amount
 
-    for warning in assig.get_all_ambiguous_combinations():
-        if warning.tags & warning_tags:
-            helpers.add_warning(
-                warning.message, APIWarnings.AMBIGUOUS_COMBINATION
-            )
+    for warning in assig.get_changed_ambiguous_combinations():
+        helpers.add_warning(warning.message, APIWarnings.AMBIGUOUS_COMBINATION)
 
     db.session.commit()
 
@@ -589,7 +528,9 @@ def delete_rubric(assignment_id: int) -> EmptyResponse:
         (OBJECT_ID_NOT_FOUND)
     """
     assig = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
     auth.ensure_permission(CPerm.manage_rubrics, assig.course_id)
 
@@ -635,7 +576,9 @@ def import_assignment_rubric(assignment_id: int
         ``old_assignment_id``.
     """
     assig = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
     auth.ensure_permission(CPerm.manage_rubrics, assig.course_id)
 
@@ -694,7 +637,9 @@ def add_assignment_rubric(assignment_id: int
     :returns: The updated or created rubric.
     """
     assig = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
 
     auth.ensure_permission(CPerm.manage_rubrics, assig.course_id)
@@ -1103,7 +1048,9 @@ def get_all_graders(
                                  this assignment. (INCORRECT_PERMISSION)
     """
     assignment = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
     auth.ensure_permission(CPerm.can_see_assignee, assignment.course_id)
 
@@ -1156,7 +1103,9 @@ def set_grader_to_not_done(
         `can_grade_work` permission. (INCORRECT_PERMISSION)
     """
     assig = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
 
     if current_user.id == grader_id:
@@ -1279,7 +1228,9 @@ def get_all_works_by_user_for_assignment(
     :returns: A response containing the JSON serialized submissions.
     """
     assignment = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
     auth.ensure_permission(CPerm.can_see_assignments, assignment.course_id)
     if assignment.is_hidden:
@@ -1331,7 +1282,9 @@ def get_all_works_for_assignment(
                                  not allowed to view it. (INCORRECT_PERMISSION)
     """
     assignment = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
 
     auth.ensure_permission(CPerm.can_see_assignments, assignment.course_id)
@@ -1534,7 +1487,9 @@ def get_linters(assignment_id: int
                                  course. (INCORRECT_PERMISSION)
     """
     assignment = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
 
     auth.ensure_permission(CPerm.can_use_linter, assignment.course_id)
@@ -1599,7 +1554,9 @@ def start_linting(assignment_id: int) -> JSONResponse[models.AssignmentLinter]:
     content = ensure_json_dict(request.get_json())
 
     assig = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
     auth.ensure_permission(CPerm.can_use_linter, assig.course_id)
 
@@ -1672,7 +1629,9 @@ def get_plagiarism_runs(
         cases for this course. (INCORRECT_PERMISSION)
     """
     assig = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
     try:
         auth.ensure_permission(CPerm.can_view_plagiarism, assig.course_id)
@@ -1724,7 +1683,9 @@ def start_plagiarism_check(
         cases for this course. (INCORRECT_PERMISSION)
     """
     assig = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
     auth.ensure_permission(CPerm.can_manage_plagiarism, assig.course_id)
 
@@ -1891,7 +1852,9 @@ def get_group_member_states(assignment_id: int, group_id: int
         submit anyway will result in a failure.
     """
     assig = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
     group = helpers.filter_single_or_404(
         models.Group, models.Group.id == group_id,
@@ -1922,7 +1885,9 @@ def get_git_settings(assignment_id: int) -> JSONResponse[models.WebhookBase]:
         add the webhook to your provider.
     """
     assig = helpers.get_or_404(
-        models.Assignment, assignment_id, also_error=lambda a: not a.is_visible
+        models.Assignment,
+        assignment_id,
+        also_error=lambda a: not a.is_visible
     )
     if not assig.webhook_upload_enabled:
         raise APIException(

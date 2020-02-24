@@ -43,7 +43,8 @@ from .. import auth, ignore, helpers, signals
 from .role import CourseRole
 from .permission import Permission, PermissionComp
 from ..exceptions import (
-    APICodes, APIException, PermissionException, InvalidAssignmentState
+    APICodes, APIWarnings, APIException, PermissionException,
+    InvalidAssignmentState
 )
 from .link_tables import user_course, users_groups, course_permissions
 from ..permissions import CoursePermission as CPerm
@@ -427,6 +428,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     lti_assignment_id = db.Column(
         'lti_assignment_id', db.Unicode, nullable=True
     )
+    is_lti = db.Column('is_lti', db.Boolean, nullable=False, default=False)
 
     # This is the lti outcome service url for LTI 1.1 and for LTI 1.3 this is
     # the data passed under the
@@ -560,7 +562,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         'cool_off_period', db.Interval, default=None, nullable=True
     )
 
-    amount_in_cool_off_period = db.Column(
+    _amount_in_cool_off_period = db.Column(
         'amount_in_cool_off_period',
         db.Integer,
         default=1,
@@ -568,7 +570,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         server_default='1',
     )
 
-    max_submissions = db.Column(
+    _max_submissions = db.Column(
         'max_amount_of_submissions', db.Integer, default=None, nullable=True
     )
 
@@ -588,14 +590,56 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         )
     )
 
+    def __init__(
+        self,
+        course: 'course_models.Course',
+        is_lti: bool,
+        name: str = None,
+        visibility_state: AssignmentVisibilityState = (
+            AssignmentVisibilityState.visible
+        ),
+        state: _AssignmentStateEnum = None,
+        deadline: DatetimeWithTimezone = None,
+        lti_assignment_id: str = None,
+        description: str = ''
+    ) -> None:
+        super().__init__(
+            course=course,
+            name=name,
+            visibility_state=visibility_state,
+            state=state,
+            deadline=deadline,
+            lti_assignment_id=lti_assignment_id,
+            description=description,
+            is_lti=is_lti,
+        )
+        self._changed_ambiguous_settings: t.Set[AssignmentAmbiguousSettingTag]
+        self._on_orm_load()
+
+    @sqlalchemy.orm.reconstructor
+    def _on_orm_load(self) -> None:
+        self._changed_ambiguous_settings = set()
+
+    def __structlog__(self) -> t.Mapping[str, t.Union[str, int]]:
+        return {
+            'type': self.__class__.__name__,
+            'id': self.id,
+            'visibility_state': self.visibility_state.name,
+            'course_id': self.course_id,
+        }
+
     def __eq__(self, other: object) -> bool:
         """Check if two Assignments are equal.
 
-        >>> Assignment() == object()
+        >>> def make(id = None):
+        ...  a = Assignment(course=object(), is_lti=False)
+        ...  a.id = id
+        ...  return id
+        >>> mk() == object()
         False
-        >>> Assignment(id=5) == Assignment(id=6)
+        >>> make(id=5) == make(id=6)
         False
-        >>> Assignment(id=5) == Assignment(id=5)
+        >>> make(id=5) == make(id=5)
         True
         """
         if isinstance(other, Assignment):
@@ -612,6 +656,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         if group_set is not None:
             assert self.course_id == group_set.course_id
         return group_set
+
+    @property
+    def is_deep_linked(self) -> bool:
+        # This is a normal property and not a hybrid_property by design, as
+        # this will prevent us from using it in a query, where you should use
+        # `is_visible`.
+        return self.visibility_state == AssignmentVisibilityState.deep_linked
 
     @hybrid_property
     def is_visible(self) -> bool:
@@ -647,8 +698,22 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
     @cgignore.setter
     def cgignore(self, val: ignore.SubmissionFilter) -> None:
+        self._changed_ambiguous_settings.add(
+            AssignmentAmbiguousSettingTag.cgignore
+        )
         self._cgignore_version = ignore.filter_handlers.find(type(val), None)
         self._cgignore = json.dumps(val.export())
+
+    def update_cgignore(self, version: str, data: 'helpers.JSONType') -> None:
+        filter_type = ignore.filter_handlers.get(version)
+        if filter_type is None:
+            raise APIException(
+                'The given ignore version was not found.', (
+                    'The known values are:'
+                    f' {", ".join(ignore.filter_handlers.keys())}'
+                ), APICodes.OBJECT_NOT_FOUND, 404
+            )
+        self.cgignore = filter_type.parse(data)
 
     @property
     def cool_off_period(self) -> datetime.timedelta:
@@ -661,7 +726,59 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
     @cool_off_period.setter
     def cool_off_period(self, delta: datetime.timedelta) -> None:
+        self._changed_ambiguous_settings.add(
+            AssignmentAmbiguousSettingTag.cool_off
+        )
         self._cool_off_period = delta
+
+    @property
+    def amount_in_cool_off_period(self) -> int:
+        return self._amount_in_cool_off_period
+
+    @amount_in_cool_off_period.setter
+    def amount_in_cool_off_period(self, new_amount: int) -> None:
+        if new_amount < 1:
+            raise APIException(
+                (
+                    'The minimum amount of submissions that can be done in a'
+                    ' cool of period should be at least one'
+                ), (
+                    f'The given amount {new_amount} is too low for'
+                    ' `amount_in_cool_off_period`'
+                ), APICodes.INVALID_PARAM, 400
+            )
+        self._amount_in_cool_off_period = new_amount
+
+    @property
+    def max_submissions(self) -> t.Optional[int]:
+        return self._max_submissions
+
+    @max_submissions.setter
+    def max_submissions(self, max_submissions: t.Optional[int]) -> None:
+        self._changed_ambiguous_settings.add(
+            AssignmentAmbiguousSettingTag.max_submissions
+        )
+        if helpers.handle_none(max_submissions, 1) <= 0:
+            raise APIException(
+                'You have to allow at least one submission',
+                'The set maximum amount of submissions is too low',
+                APICodes.INVALID_PARAM, 400
+            )
+
+        if max_submissions is not None and db.session.query(
+            self.get_not_deleted_submissions().group_by(
+                work_models.Work.user_id
+            ).having(sqlalchemy.sql.func.count() > max_submissions).exists()
+        ).scalar():
+            helpers.add_warning(
+                (
+                    'There are already users with more submission than the'
+                    ' set max submissions amount'
+                ),
+                APIWarnings.LIMIT_ALREADY_EXCEEDED,
+            )
+
+        self._max_submissions = max_submissions
 
     # We don't use property.setter because in that case `new_val` could only be
     # a `float` because of https://github.com/python/mypy/issues/220
@@ -807,20 +924,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         ).group_by(work_models.Work.id)
 
         return db.session.query(sql.exists()).scalar() or False
-
-    def _get_is_lti(self) -> bool:
-        """Is this assignment a LTI assignment.
-
-        :returns: A boolean indicating if this is the case.
-        """
-        return self.lti_assignment_id is not None
-
-    @hybrid_expression
-    def _get_is_lti_expr(cls: t.Type['Assignment']) -> DbColumn[bool]:
-        # pylint: disable=no-self-argument
-        return cls.lti_assignment_id.isnot(None)
-
-    is_lti = hybrid_property(_get_is_lti, expr=_get_is_lti_expr)
 
     @property
     def max_rubric_points(self) -> t.Optional[float]:
@@ -1784,6 +1887,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             psef.models.WebhookBase.query.filter_by(assignment=self).exists()
         ).scalar() or False
 
+    def get_changed_ambiguous_combinations(
+        self
+    ) -> t.Iterator[_AssignmentAmbiguousSetting]:
+        for warning in self.get_all_ambiguous_combinations():
+            if warning.tags & self._changed_ambiguous_settings:
+                yield warning
+
     def get_all_ambiguous_combinations(
         self
     ) -> t.Sequence[_AssignmentAmbiguousSetting]:
@@ -1844,3 +1954,31 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             )
 
         return res
+
+
+    def update_submission_types(
+        self, *, webhook: t.Optional[bool], files: t.Optional[bool]
+    ) -> None:
+        if files is not None:
+            self.files_upload_enabled = files
+
+        if webhook is not None:
+            self._changed_ambiguous_settings.add(
+                AssignmentAmbiguousSettingTag.webhook
+            )
+
+            self.webhook_upload_enabled = webhook
+            if not self.webhook_upload_enabled and self.has_webhooks():
+                helpers.add_warning(
+                    (
+                        'This assignment already has existing webhooks, these '
+                        'will continue to work'
+                    ), APIWarnings.EXISTING_WEBHOOKS_EXIST
+                )
+
+        if not any([self.webhook_upload_enabled, self.files_upload_enabled]):
+            raise APIException(
+                'At least one way of uploading needs to be enabled',
+                'It is not possible to disable both webhook and files uploads',
+                APICodes.INVALID_STATE, 400
+            )

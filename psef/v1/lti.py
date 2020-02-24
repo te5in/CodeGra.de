@@ -20,13 +20,14 @@ import structlog
 import pylti1p3.exception
 from mypy_extensions import TypedDict
 from typing_extensions import Literal
+from pylti1p3.deep_link_resource import DeepLinkResource
 
 from psef import app
 from cg_json import jsonify
 from cg_dt_utils import DatetimeWithTimezone
 
 from . import api
-from .. import auth, errors, models, helpers, features, exceptions
+from .. import auth, errors, models, helpers, parsers, features, exceptions
 from ..lti import LTIVersion
 from ..lti import v1_1 as lti_v1_1
 from ..lti import v1_3 as lti_v1_3
@@ -34,6 +35,8 @@ from ..models import db
 from ..lti.abstract import LTILaunchData, AbstractLTIConnector
 
 logger = structlog.get_logger()
+
+_DEEP_LINK_NONCE_SESSION_KEY = 'cg_lti_deeplink-nonce'
 
 
 def _convert_boolean(value: t.Union[bool, str, None], default: bool) -> bool:
@@ -139,6 +142,11 @@ def get_lti_config() -> werkzeug.wrappers.Response:
         )
 
 
+class _LTIDeepLinkDirectSubmit(TypedDict):
+    id: str
+    type: Literal['deep_link_direct_submit']
+
+
 class _LTIDeepLinkResult(TypedDict):
     id: str
     assignment_name: str
@@ -148,21 +156,16 @@ class _LTIDeepLinkResult(TypedDict):
 
 
 class _LTILaunchResult(TypedDict):
-    data: t.Union[LTILaunchData, _LTIDeepLinkResult]
+    data: t.Union[LTILaunchData, _LTIDeepLinkResult, _LTIDeepLinkDirectSubmit]
     version: LTIVersion
 
 
 def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
-    def also_error(b: models.BlobStorage) -> bool:
-        age = helpers.get_request_start_time() - b.created_at
-        # Older than 5 minutes is too old
-        return age.total_seconds() > (60 * 5)
-
     blob = helpers.filter_single_or_404(
         models.BlobStorage,
         models.BlobStorage.id == uuid.UUID(blob_id),
         with_for_update=True,
-        also_error=also_error,
+        also_error=lambda b: b.age > timedelta(minutes=5),
     )
 
     try:
@@ -191,7 +194,8 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
 
     version = LTIVersion[launch_params.get('version', LTIVersion.v1_1)]
     data = launch_params['data']
-    result: t.Union[LTILaunchData, _LTIDeepLinkResult]
+    result: t.Union[LTILaunchData, _LTIDeepLinkResult, _LTIDeepLinkDirectSubmit
+                    ]
 
     if version == LTIVersion.v1_1:
         inst = lti_v1_1.LTI.create_from_launch_params(data)
@@ -214,21 +218,39 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
         message_data = launch_message.get_launch_data()
 
         if launch_message.is_deep_link_launch():
-            deep_link_data = message_data[
-                'https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings'
-            ]
-            result = _LTIDeepLinkResult(
-                id=str(uuid.uuid4()),
-                assignment_name=deep_link_data.get('title', ''),
-                auto_create=_convert_boolean(
-                    deep_link_data.get('auto_create'),
-                    False,
-                ),
-                assignment_description=deep_link_data.get('text', ''),
-                type='deep_link',
+            course = launch_message.get_course()
+            deep_link_data = message_data[lti_v1_3.claims.DEEP_LINK]
+
+            nonce = str(uuid.uuid4())
+            flask.session[_DEEP_LINK_NONCE_SESSION_KEY] = nonce
+            blob = models.BlobStorage(
+                json={
+                    'type': 'deep_link',
+                    'data': message_data,
+                    'nonce': nonce,
+                }
             )
+            db.session.add(blob)
+            db.session.flush()
+
+            if launch_message.get_assignment_or_none(course):
+                result = _LTIDeepLinkDirectSubmit(
+                    id=str(blob.id),
+                    type='deep_link_direct_submit',
+                )
+            else:
+                result = _LTIDeepLinkResult(
+                    id=str(blob.id),
+                    assignment_name=deep_link_data.get('title', ''),
+                    auto_create=_convert_boolean(
+                        deep_link_data.get('auto_create'),
+                        False,
+                    ),
+                    assignment_description=deep_link_data.get('text', ''),
+                    type='deep_link',
+                )
         elif launch_message.is_resource_launch():
-            result = launch_message.do_second_step_of_lti_launch()  #
+            result = launch_message.do_second_step_of_lti_launch()
         else:
             assert 0
     else:
@@ -260,6 +282,8 @@ def second_phase_lti_launch(
         blob_id = get('blob_id', str)
 
     res = _get_second_phase_lti_launch_data(blob_id)
+    db.session.commit()
+
     if helpers.extended_requested():
         return jsonify(res)
 
@@ -281,6 +305,8 @@ def do_oidc_login() -> werkzeug.wrappers.Response:
         oidc = lti_v1_3.FlaskOIDCLogin.from_request(req)
         red = oidc.get_redirect_object(target)
     except exceptions.APIException as exc:
+        logger.info('Login request went wrong', exc_info=True)
+
         if exc.api_code == exceptions.APICodes.OBJECT_NOT_FOUND:
             message = (
                 'This LMS was not found as a LTIProvider for CodeGrade, this'
@@ -342,4 +368,81 @@ def handle_lti_advantage_launch() -> werkzeug.wrappers.Response:
     return _make_blob_and_redirect(
         message_launch_data,
         version=LTIVersion.v1_3,
+    )
+
+
+@api.route('/lti1.3/deep_link/<uuid:blob_id>/assignment', methods=['POST'])
+def handle_lti_deep_link(blob_id: uuid.UUID
+                         ) -> helpers.JSONResponse[t.Mapping[str, str]]:
+    def also_error(bs: models.BlobStorage) -> bool:
+        session_nonce = flask.session.get(_DEEP_LINK_NONCE_SESSION_KEY)
+        logger.info(
+            'Checking correctness of given blob',
+            session_nonce=session_nonce,
+            blob_data=bs.data
+        )
+        data = bs.as_json()
+        return (
+            bs.age > timedelta(minutes=30) or not isinstance(data, dict) or
+            data.get('type') != 'deep_link' or
+            data.get('nonce') != session_nonce
+        )
+
+    blob = helpers.filter_single_or_404(
+        models.BlobStorage,
+        models.BlobStorage.id == blob_id,
+        with_for_update=True,
+        also_error=also_error,
+    )
+    db.session.delete(blob)
+    data = blob.as_json()
+    assert isinstance(data, dict)
+
+    launch_message = lti_v1_3.FlaskMessageLaunch.from_message_data(
+        request=flask.request,
+        launch_data=t.cast(dict, data['data']),
+    )
+    assert launch_message.is_deep_link_launch()
+    course = launch_message.get_course()
+    deep_link_data = launch_message.get_launch_data()[lti_v1_3.claims.DEEP_LINK
+                                                      ]
+
+    assig = launch_message.get_assignment_or_none(course)
+    dl_resources = []
+    if assig is None:
+        with helpers.get_from_map_transaction(
+            helpers.get_json_dict_from_request()
+        ) as [get, _]:
+            name = get('name', str)
+            deadline_str = get('deadline', str)
+            max_submissions = get('max_submissions', (int, type(None)))
+            cool_off_period = get('cool_off_period', (int, float))
+            amount_in_cool_off = get('amount_in_cool_off_period', int)
+
+        assig = launch_message.create_deep_link_assignment(course)
+        assig.name = name
+        assig.deadline = parsers.parse_datetime(deadline_str)
+        assig.max_submissions = max_submissions
+        assig.cool_off_period = timedelta(seconds=cool_off_period)
+        assig.amount_in_cool_off_period = amount_in_cool_off
+        db.session.add(assig)
+        db.session.flush()
+
+        for warning in assig.get_changed_ambiguous_combinations():
+            helpers.add_warning(
+                warning.message, exceptions.APIWarnings.AMBIGUOUS_COMBINATION
+            )
+
+        dl_resources.append(lti_v1_3.CGDeepLinkResource(assignment=assig))
+
+    db.session.commit()
+    print(deep_link_data)
+    print(launch_message.get_deep_link().get_message_jwt(dl_resources))
+
+    return jsonify(
+        {
+            'url': deep_link_data['deep_link_return_url'],
+            'jwt':
+                launch_message.get_deep_link().get_response_jwt(dl_resources),
+        }
     )

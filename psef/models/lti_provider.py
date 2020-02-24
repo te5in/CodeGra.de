@@ -117,11 +117,12 @@ class LTIProviderBase(Base):
         if assignment_id is None:
             return None, None
 
-        assig = assignment_models.Assignment.query.filter_by(
-            id=assignment_id,
+        assig = assignment_models.Assignment.query.filter(
+            assignment_models.Assignment.id == assignment_id,
+            assignment_models.Assignment.is_visible,
         ).with_for_update().one_or_none()
         if assig is None:
-            logger.info('Assignment not found', assignment=assig)
+            logger.info('Assignment not found', assignment_id=assignment_id)
             return None, None
         elif not assig.is_lti:
             logger.info("Assignment isn't a LTI assignment", assignment=assig)
@@ -470,16 +471,31 @@ class LTI1p3Provider(LTIProviderBase):
         assert self._lms_name is not None
         return self._lms_name
 
-    @classmethod
-    def create_and_generate_keys(
-        cls,
+    def finalize_registration(
+        self,
         iss: str,
         lms_name: str,
         auth_login_url: str,
         auth_token_url: str,
         client_id: str,
         key_set_url: str,
-    ) -> 'LTI1p3Provider':
+    ) -> None:
+        # Make sure we don't override these by accident
+        assert self._lms_name is None
+        assert self._auth_login_url is None
+        assert self._auth_token_url is None
+        assert self.client_id is None
+        assert self._key_set_url is None
+
+        self.key = iss
+        self._lms_name = lms_name
+        self._auth_login_url = auth_login_url
+        self._auth_token_url = auth_token_url
+        self.client_id = client_id
+        self._key_set_url = key_set_url
+
+    @classmethod
+    def create_and_generate_keys(cls, iss: str) -> 'LTI1p3Provider':
         key = rsa.generate_private_key(
             public_exponent=65537,
             key_size=4096,
@@ -487,11 +503,6 @@ class LTI1p3Provider(LTIProviderBase):
         )
         return cls(
             key=iss,
-            _lms_name=lms_name,
-            _auth_login_url=auth_login_url,
-            _auth_token_url=auth_token_url,
-            client_id=client_id,
-            _key_set_url=key_set_url,
             _crypto_key=key.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.PKCS8,
@@ -512,8 +523,8 @@ class LTI1p3Provider(LTIProviderBase):
         """
         key = self._private_key.public_key()
         return key.public_bytes(
-            encoding=serialization.Encoding.OpenSSH,
-            format=serialization.PublicFormat.OpenSSH,
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
         ).decode('utf8')
 
     @hybrid_property
