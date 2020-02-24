@@ -86,7 +86,10 @@ class AbstractLTIConnector(abc.ABC):
             assig = self.get_assignment(user, course)
             logger.bind(assignment=assig)
 
-            if assig.deleted:
+            if (
+                assig.visibility_state ==
+                models.AssignmentVisibilityState.deleted
+            ):
                 raise APIException(
                     'The launched assignment has been deleted on CodeGrade',
                     f'The assignment "{assig.id}" has been deleted',

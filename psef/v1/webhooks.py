@@ -40,7 +40,7 @@ def process_webhook(webhook_id: uuid.UUID) -> JSONResponse[t.Dict[str, str]]:
     webhook = get_or_404(
         models.WebhookBase,
         webhook_id,
-        also_error=lambda w: w.assignment.deleted
+        also_error=lambda w: not w.assignment.is_visible
     )
     try:
         webhook.handle_request(flask.request)

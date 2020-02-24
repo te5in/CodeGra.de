@@ -91,6 +91,17 @@ class _AssignmentStateEnum(enum.IntEnum):
     done = 2
 
 
+@enum.unique
+class AssignmentVisibilityState(enum.IntEnum):
+    """Assignment is created as a deep link, but is not yet visible for
+        listings."""
+    deep_linked = 0
+    """Assignment is visible and can be used as normal."""
+    visible = 1
+    """Assignment has been deleted and should be hidden."""
+    deleted = 2
+
+
 class AssignmentAssignedGrader(Base):
     """The class creates the link between an :class:`.user_models.User` and an
     :class:`.Assignment`.
@@ -353,6 +364,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     name = db.Column('name', db.Unicode, nullable=False)
     _cgignore = db.Column('cgignore', db.Unicode)
     _cgignore_version = db.Column('cgignore_version', db.Unicode)
+
+    visibility_state = db.Column(
+        'visibility_state',
+        db.Enum(AssignmentVisibilityState),
+        default=AssignmentVisibilityState.visible,
+        nullable=False,
+    )
     state = db.Column(
         'state',
         db.Enum(_AssignmentStateEnum),
@@ -426,7 +444,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         assert isinstance(self.lti_grade_service_data, dict)
 
         return AssignmentsGradesService(connector, self.lti_grade_service_data)
-
 
     assigned_graders: t.MutableMapping[
         int, AssignmentAssignedGrader] = db.relationship(
@@ -539,14 +556,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         nullable=False,
     )
 
-    deleted = db.Column(
-        'deleted',
-        db.Boolean,
-        default=False,
-        server_default='false',
-        nullable=False,
-    )
-
     _cool_off_period = db.Column(
         'cool_off_period', db.Interval, default=None, nullable=True
     )
@@ -603,6 +612,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         if group_set is not None:
             assert self.course_id == group_set.course_id
         return group_set
+
+    @hybrid_property
+    def is_visible(self) -> bool:
+        return self.visibility_state == AssignmentVisibilityState.visible
+
+    def mark_as_deleted(self) -> None:
+        self.visibility_state = AssignmentVisibilityState.deleted
 
     GRADE_SCALE = 10
 
@@ -1110,7 +1126,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             ~work_models.Work._deleted,  # pylint: disable=protected-access
         )
 
-        if self.deleted:
+        if not self.is_visible:
             return base_query.filter(sqlalchemy.sql.false())
 
         return base_query
@@ -1224,7 +1240,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             submissions.
         """
         base_query = db.session.query(*to_query).select_from(work_models.Work)
-        if self.deleted:
+        if not self.is_visible:
             return base_query.filter(sqlalchemy.sql.false())
 
         # TODO: Investigate this subquery here. We need to do that right now as
@@ -1689,7 +1705,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
                 user_models.User,
                 user_models.User.id == work_models.Work.user_id
             ).join(psef.models.Group).exists()
-        ).scalar() or False
+        ).scalar()
 
     def get_author_handing_in(
         self, request_args: t.Mapping[str, str]

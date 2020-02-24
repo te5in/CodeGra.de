@@ -581,7 +581,7 @@ class LTI1p3Provider(LTIProviderBase):
         for assig in assignment_models.Assignment.query.filter(
             assignment_models.Assignment.course == course,
             assignment_models.Assignment.is_lti,
-            ~assignment_models.Assignment.deleted,
+            assignment_models.Assignment.is_visible,
         ):
             self._passback_grade(
                 user=user,

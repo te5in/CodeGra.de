@@ -227,7 +227,7 @@ class Work(Base):
     def _get_deleted(self) -> bool:
         """Is this submission deleted.
         """
-        return self._deleted or self.assignment.deleted
+        return self._deleted or not self.assignment.is_visible
 
     @hybrid_expression
     def _get_deleted_expr(cls: t.Type['Work']) -> 'DbColumn[bool]':
@@ -235,7 +235,7 @@ class Work(Base):
         """
         # pylint: disable=no-self-argument
         return select(
-            [sql.or_(cls._deleted, assignment_models.Assignment.deleted)]
+            [sql.or_(cls._deleted, ~assignment_models.Assignment.is_visible)]
         ).where(
             cls.assignment_id == assignment_models.Assignment.id,
         ).label('deleted')
