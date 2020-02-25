@@ -200,8 +200,7 @@ class MyDb:  # pragma: no cover
         self,
         _name: str,
         *,
-        ondelete: (t.Union[None, Literal['SET NULL'], Literal['CASCADE']]
-                   ) = None,
+        ondelete: t.Union[None, Literal['SET NULL', 'CASCADE']] = None,
     ) -> _ForeignKey:
         ...
 
@@ -334,6 +333,7 @@ class MyDb:  # pragma: no cover
         back_populates: str,
         cascade: str = '',
         uselist: Literal[True] = True,
+        passive_deletes: bool = False,
         innerjoin: bool = None,
     ) -> 'ColumnProxy[t.List[T]]':
         ...
@@ -381,6 +381,7 @@ class MyDb:  # pragma: no cover
         *,
         backref: _Backref,
         uselist: Literal[True],
+        passive_deletes: bool = False,
         lazy: Literal['select', 'join', 'selectin'] = 'select',
     ) -> 'ColumnProxy[t.List[T]]':
         ...
@@ -391,6 +392,7 @@ class MyDb:  # pragma: no cover
         name: Union[t.Callable[[], t.Type[T]], t.Type[T]],
         *,
         uselist: Literal[True],
+        passive_deletes: bool = False,
         cascade: str = '',
         back_populates: str = None,
         backref: _Backref = None,
@@ -406,6 +408,7 @@ class MyDb:  # pragma: no cover
         name: t.Callable[[], t.Type[_T_BASE]],
         *,
         uselist: Literal[True],
+        passive_deletes: bool = False,
         secondary: 'RawTable',
         cascade: str = '',
         lazy: Literal['select', 'join', 'selectin'] = 'select',
