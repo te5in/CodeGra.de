@@ -1417,6 +1417,10 @@ export default {
 
         &:not(:last-child) {
             border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+
+            #app.dark & {
+                border-bottom-color: @color-primary-darker;
+            }
         }
     }
 

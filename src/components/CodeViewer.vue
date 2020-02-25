@@ -231,7 +231,7 @@ export default {
     background: rgb(248, 248, 248);
 
     #app.dark & {
-        background: @color-primary-darker;
+        background: @color-primary-darkest;
     }
 }
 </style>

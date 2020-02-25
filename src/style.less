@@ -146,12 +146,7 @@ input[type="datetime-local"] {
     .default-dropdown-menu-colors;
 
     .dropdown-item.active {
-        background-color: rgba(
-            red(@color-primary),
-            green(@color-primary),
-            blue(@color-primary),
-            0.1
-        );
+        background-color: rgba(0, 0, 0, 0.125);
     }
 }
 
@@ -294,17 +289,24 @@ body {
 }
 
 .linter-feedback-outer {
-    background: rgba(255, 0, 0, 0.025) !important;
+    background-color: rgba(255, 0, 0, 0.025) !important;
     color: red;
     font-weight: bold;
 
-    > * {
-        color: black;
-        font-weight: normal;
+    &:hover {
+        background-color: rgba(255, 0, 0, 0.075) !important;
+    }
 
-        body.cg-dark-mode & {
-            color: @text-color-dark;
+    #app.dark & {
+        background-color: rgba(255, 0, 0, 0.075) !important;
+
+        &:hover {
+            background-color: rgba(255, 0, 0, 0.15) !important;
         }
+    }
+
+    > code {
+        font-weight: normal;
     }
 }
 
@@ -324,11 +326,22 @@ body {
     flex: 0 0;
 }
 
+.alert,
+.popover {
+    p, ul {
+        &:last-child {
+            margin-bottom: 0 !important;
+        }
+    }
+}
+
 .popover {
     text-align: center;
 
-    :last-child {
-        margin-bottom: 0 !important;
+    // Allow to set class p-0 on the popover
+    // to remove the body's padding.
+    &.p-0 .popover-body {
+        padding: 0 !important;
     }
 }
 

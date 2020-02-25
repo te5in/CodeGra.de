@@ -894,6 +894,12 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
+.submission-uploader {
+    &.border.rounded {
+        overflow: hidden;
+    }
+}
+
 .form-group {
     margin-bottom: 0;
 }

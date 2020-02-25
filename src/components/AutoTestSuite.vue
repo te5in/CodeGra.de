@@ -557,6 +557,8 @@ export default {
         max-height: 5rem;
         display: block;
         overflow-y: auto;
+        margin-right: -1.5rem;
+        padding-right: 1.5rem;
     }
 
     &:not(:last-child) {

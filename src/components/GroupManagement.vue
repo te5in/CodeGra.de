@@ -63,7 +63,7 @@
                 </submit-button>
             </div>
         </masonry>
-        <span class="outer-block no-user-placeholder"
+        <span class="outer-block no-user-placeholder font-italic text-muted"
               v-if="group.members.length === 0">
             No members
         </span>
@@ -376,6 +376,7 @@ action is required.${divEnd}`;
     padding: 5px 10px;
     background: @color-secondary;
     color: white;
+
     #app.dark & .delete,
     #app.dark & {
         color: @color-lighter-gray;
@@ -386,11 +387,13 @@ action is required.${divEnd}`;
     display: flex;
     justify-content: space-between;
     vertical-align: center;
+
     .delete {
         border: 0 !important;
         box-shadow: none !important;
         background: none !important;
         padding: 0;
+
         &.btn-danger {
             color: @alert-danger-color;
         }
@@ -401,10 +404,6 @@ action is required.${divEnd}`;
     display: block;
     text-align: center;
     margin-bottom: 1rem;
-    color: gray;
-    #app.dark & {
-        color: @color-light-gray;
-    }
 }
 
 .lti-progress {

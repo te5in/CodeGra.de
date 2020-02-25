@@ -157,13 +157,17 @@ export default {
 
     &.selected .indicator {
         border-bottom: 2px solid @color-primary;
+
         #app.dark & {
             border-bottom: 2px solid @color-secondary;
         }
     }
 
     &:hover .indicator {
-        border-bottom: 2px solid lighten(@color-secondary, 20%);
+        &,
+        #app.dark & {
+            border-bottom: 2px solid lighten(@color-secondary, 20%);
+        }
     }
 
     span {

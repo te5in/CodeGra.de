@@ -75,6 +75,7 @@
                            triggers="click"
                            container="submission-page"
                            placement="bottom"
+                           custom-class="p-0"
                            @show="beforeShowPopover()">
                     <grade-history style="width: 30rem;"
                                    :submission-id="submission && submission.id"
@@ -90,8 +91,9 @@
                            triggers="click"
                            placement="bottom"
                            container="submission-page"
+                           custom-class="p-0"
                            @show="beforeShowPopover">
-                    <table class="table table-hover">
+                    <table class="table table-hover mb-0">
                         <tbody>
                             <tr @click="downloadType('zip')">
                                 <td><b>Archive</b></td>
@@ -931,7 +933,6 @@ export default {
 }
 
 .popover .table {
-    margin: -0.5rem -0.75rem;
     min-width: 10rem;
     text-align: left;
 }

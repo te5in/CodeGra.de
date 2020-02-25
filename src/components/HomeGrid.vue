@@ -31,7 +31,7 @@
         <div class="course-wrapper" v-for="course in filteredCourses" :key="course.id">
             <b-card no-body>
                 <b-card-header :class="`text-${getColorPair(course.name).color}`"
-                               :style="{ backgroundColor: getColorPair(course.name).background }">
+                               :style="{ backgroundColor: `${getColorPair(course.name).background} !important` }">
                     <div style="display: flex">
                         <b class="course-name">{{ course.name }}</b>
                         <router-link v-if="course.canManage"
@@ -284,6 +284,10 @@ export default {
             }
             display: table-row;
 
+            &:first-child td {
+                border-top-width: 0;
+            }
+
             &:nth-of-type(even) {
                 background-color: rgba(0, 0, 0, 0.05);
             }
@@ -309,6 +313,11 @@ export default {
 
     .course-wrapper {
         padding-bottom: 1em;
+
+        .card {
+            // Don't render content over the border
+            overflow: hidden;
+        }
 
         .card-body {
             @media @media-medium {

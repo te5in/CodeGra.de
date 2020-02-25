@@ -129,7 +129,6 @@ export default {
 
 <style lang="less" scoped>
 .grade-history {
-    margin: -0.5rem -0.75rem;
     max-height: 40em;
     overflow-y: auto;
 }

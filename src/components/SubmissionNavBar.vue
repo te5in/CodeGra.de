@@ -430,9 +430,10 @@ export default {
         padding: 0;
     }
 
-    .sub-late,
+    .sub-late .dropdown-item,
     &.current-sub-late .dropdown-toggle {
         background-color: @color-danger-table-row !important;
+
         #app.dark & {
             color: @text-color !important;
             background-color: @color-danger-dark !important;
@@ -440,6 +441,7 @@ export default {
 
         &:hover {
             background-color: saturate(darken(@color-danger-table-row, 5%), -20%) !important;
+
             #app.dark & {
                 background-color: saturate(darken(@color-danger-dark, 5%), -20%) !important;
             }

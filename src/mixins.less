@@ -259,7 +259,7 @@
 
         :not(.tabs) > .card-header,
         > .card-header {
-            background-color: @color-primary-darker;
+            background-color: @color-primary-darker !important;
             border-color: @color-primary-darker;
             color: @text-color-dark;
         }
@@ -314,6 +314,10 @@
             background-color: @color-primary-darkest;
             border-bottom-color: @color-primary-darkest;
             color: @color-secondary-text-lighter;
+
+            &::before {
+                border-color: inherit;
+            }
         }
 
         &.bs-popover-right .arrow::after {
@@ -345,7 +349,6 @@
 }
 
 .dark-table-colors {
-    background-color: @color-primary;
     color: @text-color-dark;
 
     tbody + tbody {
@@ -545,15 +548,11 @@
     .input-group-text {
         background-color: @color-primary-darker;
         color: @color-secondary-text-lighter;
-        border-color: @color-primary-darkest;
+        border-color: @color-primary-darker;
 
-        body.cg-dark-mode & {
-            color: @text-color-dark;
+        &.no-bg {
+            color: @text-color-dark !important;
         }
-    }
-
-    .input-group-text.no-bg {
-        color: @text-color-dark !important;
     }
 
     .btn-info {
@@ -601,10 +600,12 @@
 .default-dropdown-menu-colors {
     body.cg-dark-mode & {
         background-color: @color-primary;
+
         .dropdown-item {
             color: @text-color-dark !important;
             border-color: @color-primary-darker;
             outline: none !important;
+
             &:hover,
             &:focus {
                 background-color: @color-primary-darker;
@@ -650,7 +651,6 @@
             .modal-footer,
             .modal-header {
                 border-color: @color-primary-darker;
-                background-color: @color-primary;
             }
         }
     }

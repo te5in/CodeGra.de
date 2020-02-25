@@ -2,7 +2,9 @@
 <template>
 <loader center v-if="loading"/>
 
-<div class="submissions d-flex flex-column" v-else>
+<div class="submissions d-flex flex-column"
+     :class="{ 'is-student': isStudent }"
+     v-else>
     <local-header always-show-extra-slot
                   :back-route="headerBackRoute">
         <template slot="title" v-if="assignment && Object.keys(assignment).length">
@@ -171,7 +173,7 @@
 
                 <b-alert show
                          variant="warning"
-                         class="no-deadline-alert"
+                         class="no-deadline-alert mb-0"
                          v-if="uploaderDisabled">
                     <p v-if="!assignment.hasDeadline">
                         The deadline for this assignment has not yet been set.
@@ -800,10 +802,6 @@ export default {
     }
 }
 
-.alert p:last-child {
-    margin-bottom: 0;
-}
-
 .action-buttons {
     max-width: 48rem;
     width: 100%;
@@ -876,6 +874,17 @@ export default {
         .submit-button {
             box-shadow: none !important;
         }
+    }
+}
+</style>
+
+<style lang="less">
+.page.submissions.is-student {
+    // Hide the "extra" slot in the LocalHeader when a student is logged in
+    // because we need to render the CategorySelector so it responds to
+    // changes in the URL.
+    .local-header .always-extra-header {
+        display: none;
     }
 }
 </style>

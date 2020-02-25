@@ -75,26 +75,26 @@
                                    :value="item.item.sub.assigneeId || null"
                                    @input="updateAssignee($event, item.item.sub)"
                                    @click.native.stop
-                                   class="user-form-select"/>
+                                   class="user-form-select cursor-default"/>
                 </div>
             </span>
         </template>
     </b-table>
 
     <div v-if="!canSeeOthersWork && this.submissions.length === 0"
-         class="no-submissions-found border-bottom text-muted"
+         class="no-submissions-found border-bottom font-italic text-muted"
          >
         You have no submissions yet!
     </div>
 
     <div v-else-if="this.submissions.length === 0"
-         class="no-submissions-found border-bottom text-muted"
+         class="no-submissions-found border-bottom font-italic text-muted"
          >
         There are no submissions yet.
     </div>
 
     <div v-else-if="this.submissions && this.filteredSubmissions.length === 0"
-         class="no-submissions-found border-bottom text-muted">
+         class="no-submissions-found border-bottom font-italic text-muted">
         No submissions found with the given filters.
     </div>
 

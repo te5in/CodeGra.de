@@ -76,7 +76,7 @@
         </p>
 
         <p class="mb-0 pb-3">
-            This is a continuous rubric row. You can score anywhere between
+            This is a continuous rubric category. You can score anywhere between
             <b>0</b> and <b>{{ onlyItem.points }} points</b> in this category.
         </p>
     </div>

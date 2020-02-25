@@ -39,14 +39,14 @@
         </b-input-group-append>
     </b-button-toolbar>
 
-    <b-collapse id="local-header-extra" v-if="hasExtraSlot && !alwaysShowExtraSlot">
-        <hr class="separator">
-        <slot name="extra"/>
-    </b-collapse>
     <div class="always-extra-header" v-if="alwaysShowExtraSlot">
         <hr class="separator narrow">
         <slot name="extra"/>
     </div>
+    <b-collapse id="local-header-extra" v-else-if="hasExtraSlot">
+        <hr class="separator">
+        <slot name="extra"/>
+    </b-collapse>
 </div>
 </template>
 

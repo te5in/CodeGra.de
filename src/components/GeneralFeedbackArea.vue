@@ -14,7 +14,7 @@
                    :submit="submitFeedback"
                    @success="afterSubmitFeedback"
                    v-if="editable"
-                   style="margin: 15px 0; float: right;"/>
+                   class="float-right my-2" />
 </div>
 </template>
 
