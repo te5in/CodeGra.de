@@ -848,12 +848,7 @@ class Work(Base):
         :returns: ``True`` if the user is the author of this submission or a
             member of the group that is the author of this submission.
         """
-        if self.user_id == user.id:
-            return True
-        elif self.user.group and user in self.user.group.members:
-            return True
-        else:
-            return False
+        return self.user.contains_user(user)
 
     def create_zip(
         self,
@@ -983,4 +978,5 @@ class Work(Base):
                 user_models.User.group,
             ),
             undefer(cls.comment),
+            selectinload(cls.comment_author),
         )
