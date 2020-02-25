@@ -12,8 +12,8 @@ from mypy_extensions import TypedDict
 import psef
 import cg_json
 from cg_dt_utils import DatetimeWithTimezone
-from cg_sqlalchemy_helpers import hybrid_property
-from cg_sqlalchemy_helpers.types import ColumnProxy
+from cg_sqlalchemy_helpers import hybrid_property, hybrid_expression
+from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy
 
 from . import Base, DbColumn, db
 from . import work as work_models
@@ -159,25 +159,22 @@ class WorkRubricItem(helpers.NotEqualMixin, Base):
             'multiplier': self.multiplier,
         }
 
-    if t.TYPE_CHECKING:  # pragma: no cover
-        points: float
-    else:
+    def _get_points(self) -> float:
+        """The amount of points achieved by the work.
+        """
+        return self.multiplier * self.rubric_item.points
 
-        @hybrid_property
-        def points(self) -> float:
-            """The amount of points achieved by the work.
-            """
-            return self.multiplier * self.rubric_item.points
+    @hybrid_expression
+    def _get_points_expr(cls: t.Type['WorkRubricItem']) -> DbColumn[float]:
+        """Same as above, but this returns an expression used by
+        sqlalchemy.
+        """
+        # pylint: disable=no-self-argument
+        return select(
+            [cls.multiplier * RubricItem.points]
+        ).where(cls.rubricitem_id == RubricItem.id).label('points')
 
-        @points.expression
-        def points(cls: t.Type['WorkRubricItem']) -> object:
-            """Same as above, but this returns an expression used by
-            sqlalchemy.
-            """
-            # pylint: disable=no-self-argument
-            return select(
-                [cls.multiplier * RubricItem.points]
-            ).where(cls.rubricitem_id == RubricItem.id).label('points')
+    points = hybrid_property(_get_points, expr=_get_points_expr)
 
 
 class RubricLockReason(cg_json.SerializableEnum, enum.Enum):

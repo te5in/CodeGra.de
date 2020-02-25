@@ -236,7 +236,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
     auto_test_run_id = db.Column(
         'auto_test_run_id',
         db.Integer,
-        db.ForeignKey('AutoTestRun.id'),
+        db.ForeignKey('AutoTestRun.id', ondelete='CASCADE'),
         nullable=False
     )
 
@@ -288,6 +288,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
         order_by=lambda: auto_test_step_models.AutoTestStepResult.created_at,
         lazy='selectin',
         uselist=True,
+        passive_deletes=True,
     )
 
     _state = db.Column(
@@ -569,7 +570,7 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin, NotEqualMixin):
     run_id = db.Column(
         'run_id',
         db.Integer,
-        db.ForeignKey('AutoTestRun.id'),
+        db.ForeignKey('AutoTestRun.id', ondelete='CASCADE'),
         nullable=True,
         default=None,
     )
@@ -642,7 +643,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     auto_test_id = db.Column(
         'auto_test_id',
         db.Integer,
-        db.ForeignKey('AutoTest.id'),
+        db.ForeignKey('AutoTest.id', ondelete='CASCADE'),
         nullable=False
     )
 
@@ -666,6 +667,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         lambda: AutoTestRunner,
         back_populates='run',
         uselist=True,
+        passive_deletes=True,
     )
 
     auto_test = db.relationship(
@@ -682,6 +684,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         cascade='all,delete',
         order_by=lambda: AutoTestResult.created_at,
         uselist=True,
+        passive_deletes=True,
     )
 
     started_date = db.Column(
@@ -1134,6 +1137,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         cascade='all,delete,delete-orphan',
         order_by=lambda: AutoTestRun.created_at,
         uselist=True,
+        passive_deletes=True,
     )
 
     @property

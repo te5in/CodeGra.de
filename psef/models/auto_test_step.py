@@ -887,7 +887,7 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
     auto_test_result_id = db.Column(
         'auto_test_result_id',
         db.Integer,
-        db.ForeignKey('AutoTestResult.id'),
+        db.ForeignKey('AutoTestResult.id', ondelete='CASCADE'),
     )
 
     result = db.relationship(

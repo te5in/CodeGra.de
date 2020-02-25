@@ -77,13 +77,21 @@ def _load_user(user_id: int) -> t.Optional['psef.models.User']:
     return psef.models.User.query.get(int(user_id))
 
 
+def _resolve_user(user: t.Union[None, LocalProxy, 'psef.models.User']
+                  ) -> t.Optional['psef.models.User']:
+    if isinstance(user, LocalProxy):
+        # pylint: disable=protected-access
+        return user._get_current_object()
+    return user
+
+
 @t.overload
-def user_active(user: None) -> Literal[False]:
+def user_active(user: None) -> Literal[False]:  # pylint: disable=missing-docstring
     ...
 
 
 @t.overload
-def user_active(user: t.Union[LocalProxy, 'psef.models.User']) -> bool:
+def user_active(user: t.Union[LocalProxy, 'psef.models.User']) -> bool:  # pylint: disable=missing-docstring
     ...
 
 
@@ -92,8 +100,7 @@ def user_active(user: t.Union[None, LocalProxy, 'psef.models.User']) -> bool:
 
     :returns: True if the given user is not ``None`` and active.
     """
-    if isinstance(user, LocalProxy):
-        user = user._get_current_object()
+    user = _resolve_user(user)
 
     return user is not None and user.is_active
 
@@ -110,6 +117,27 @@ def login_required(fun: T) -> T:
         return fun(*args, **kwargs)
 
     return t.cast(T, __wrapper)
+
+
+@t.overload
+def _get_cur_user(*,
+                  allow_none: Literal[True]) -> t.Optional['psef.models.User']:
+    # pylint: disable=missing-docstring
+    ...
+
+
+@t.overload
+def _get_cur_user(*, allow_none: Literal[False] = False) -> 'psef.models.User':
+    # pylint: disable=missing-docstring
+    ...
+
+
+def _get_cur_user(allow_none: bool = False) -> t.Optional['psef.models.User']:
+    user = _resolve_user(psef.current_user)
+    if not allow_none:
+        ensure_logged_in()
+        assert user is not None
+    return user
 
 
 def ensure_logged_in() -> None:
@@ -140,7 +168,7 @@ def ensure_enrolled(
     if user is None:
         label = 'You are'
         ensure_logged_in()
-        user = psef.current_user
+        user = _get_cur_user()
     else:
         label = f'The user "{user.name}" is'
 
@@ -326,7 +354,7 @@ def ensure_can_submit_work(
 
     if current_user is None:
         ensure_logged_in()
-        current_user = psef.current_user
+        current_user = _get_cur_user()
 
     # Group users aren't enrolled in a course.
     ensure_enrolled(assig.course_id, for_user)
@@ -415,12 +443,23 @@ def ensure_can_see_grade(work: 'psef.models.Work') -> None:
     :raises PermissionException: If the user can not see the grade.
         (INCORRECT_PERMISSION)
     """
-    if not work.has_as_author(psef.current_user):
-        ensure_permission(CPerm.can_see_others_work, work.assignment.course_id)
+    user = _get_cur_user()
+    course_id = work.assignment.course_id
+
+    # Don't check for any state if we simply have all required
+    # permissions. This makes this function about twice as fast.
+    if (
+        user.has_permission(CPerm.can_see_others_work, course_id) and
+        user.has_permission(CPerm.can_see_grade_before_open, course_id)
+    ):
+        return
+
+    if not work.has_as_author(user):
+        ensure_permission(CPerm.can_see_others_work, course_id, user=user)
 
     if not work.assignment.is_done:
         ensure_permission(
-            CPerm.can_see_grade_before_open, work.assignment.course_id
+            CPerm.can_see_grade_before_open, course_id, user=user
         )
 
 
@@ -436,12 +475,23 @@ def ensure_can_see_user_feedback(work: 'psef.models.Work') -> None:
     :raises PermissionException: If the user can not see the grade.
         (INCORRECT_PERMISSION)
     """
-    if not work.has_as_author(psef.current_user):
-        ensure_permission(CPerm.can_see_others_work, work.assignment.course_id)
+    user = _get_cur_user()
+    course_id = work.assignment.course_id
+
+    # Don't check for any state if we simply have all required
+    # permissions. This makes this function about twice as fast.
+    if (
+        user.has_permission(CPerm.can_see_others_work, course_id) and user.
+        has_permission(CPerm.can_see_user_feedback_before_done, course_id)
+    ):
+        return
+
+    if not work.has_as_author(user):
+        ensure_permission(CPerm.can_see_others_work, course_id, user=user)
 
     if not work.assignment.is_done:
         ensure_permission(
-            CPerm.can_see_user_feedback_before_done, work.assignment.course_id
+            CPerm.can_see_user_feedback_before_done, course_id, user=user
         )
 
 
@@ -458,7 +508,7 @@ def ensure_can_see_linter_feedback(work: 'psef.models.Work') -> None:
     :raises PermissionException: If the user can not see the grade.
         (INCORRECT_PERMISSION)
     """
-    if not work.has_as_author(psef.current_user):
+    if not work.has_as_author(_get_cur_user()):
         ensure_permission(CPerm.can_see_others_work, work.assignment.course_id)
 
     if not work.assignment.is_done:
@@ -477,7 +527,7 @@ def ensure_can_edit_work(work: 'psef.models.Work') -> None:
     :raises PermissionException: If the user should not be able te edit these
         files.
     """
-    if work.user_id == psef.current_user.id:
+    if work.user_id == _get_cur_user().id:
         if work.assignment.is_open:
             ensure_permission(
                 CPerm.can_submit_own_work, work.assignment.course_id
@@ -541,7 +591,7 @@ def ensure_can_see_plagiarims_case(
 
     # If we have this permission in the external course we may also see al
     # the other information
-    if psef.current_user.has_permission(
+    if _get_cur_user().has_permission(
         CPerm.can_view_plagiarism, other_course_id
     ):
         return
@@ -551,7 +601,7 @@ def ensure_can_see_plagiarims_case(
     if assignments:
         ensure_can_see_assignment(other_assignment)
 
-    if submissions and not other_work.has_as_author(psef.current_user):
+    if submissions and not other_work.has_as_author(_get_cur_user()):
         ensure_permission(CPerm.can_see_others_work, other_course_id)
 
 
@@ -616,7 +666,7 @@ def ensure_can_view_autotest_result(
     ensure_enrolled(course_id)
 
     if run.auto_test.results_always_visible:
-        if work.has_as_author(psef.current_user):
+        if work.has_as_author(_get_cur_user()):
             return
         ensure_permission(CPerm.can_see_others_work, work.assignment.course_id)
     else:
@@ -652,7 +702,7 @@ def ensure_can_view_files(
         files.
     """
     try:
-        if not work.has_as_author(psef.current_user):
+        if not work.has_as_author(_get_cur_user()):
             try:
                 ensure_permission(
                     CPerm.can_see_others_work, work.assignment.course_id
@@ -664,8 +714,7 @@ def ensure_can_view_files(
 
         if teacher_files:
             if (
-                work.user_id == psef.current_user.id and
-                work.assignment.is_done
+                work.user_id == _get_cur_user().id and work.assignment.is_done
             ):
                 ensure_permission(
                     CPerm.can_view_own_teacher_files, work.assignment.course_id
@@ -689,7 +738,7 @@ def ensure_can_view_files(
             | (psef.models.PlagiarismCase.work2_id == work.id)
         ):
             other_work = case.work1 if case.work2_id == work.id else case.work2
-            if psef.current_user.has_permission(
+            if _get_cur_user().has_permission(
                 CPerm.can_view_plagiarism,
                 course_id=other_work.assignment.course_id,
             ):
@@ -706,13 +755,13 @@ def ensure_can_view_group(group: 'psef.models.Group') -> None:
     :raises PermissionException: If the current user cannot view the given
         group.
     """
-    if group.members and psef.current_user.id not in (
-        m.id for m in group.members
-    ):
-        ensure_permission(
-            CPerm.can_view_others_groups,
-            group.group_set.course_id,
-        )
+    if group.is_empty or group.has_as_member(_get_cur_user()):
+        return
+
+    ensure_permission(
+        CPerm.can_view_others_groups,
+        group.group_set.course_id,
+    )
 
 
 @login_required
@@ -728,7 +777,7 @@ def ensure_can_edit_members_of_group(
         group.
     """
     perms = []
-    if all(member.id == psef.current_user.id for member in members):
+    if all(member.id == _get_cur_user().id for member in members):
         perms.append(CPerm.can_edit_own_groups)
     perms.append(CPerm.can_edit_others_groups)
     ensure_any_of_permissions(
@@ -787,7 +836,7 @@ def ensure_any_of_permissions(
         'You do not have permission to do this.',
         'None of the permissions "{}" are enabled for user "{}"'.format(
             readable_join([p.name for p in permissions]),
-            psef.current_user.id,
+            _get_cur_user().id,
         ), APICodes.INCORRECT_PERMISSION, 403
     )
 
@@ -840,20 +889,20 @@ def ensure_permission(  # pylint: disable=function-redefined
     :raises PermissionException: If the permission is not enabled for the
                                  current user. (INCORRECT_PERMISSION)
     """
-    user = psef.current_user if user is None else user
+    user = _get_cur_user(allow_none=True) if user is None else user
 
-    if user_active(user):
-        if isinstance(permission,
-                      CPerm) and course_id is not None and user.has_permission(
-                          permission, course_id=course_id
-                      ):
+    if user is not None and user_active(user):
+        if (
+            isinstance(permission, CPerm) and course_id is not None and
+            user.has_permission(permission, course_id=course_id)
+        ):
             return
         elif isinstance(
             permission, GPerm
         ) and course_id is None and user.has_permission(permission):
             return
         else:
-            if psef.current_user and psef.current_user == user:
+            if _get_cur_user(allow_none=True) == user:
                 you_do = 'You do'
             else:
                 you_do = f'{user.name} does'

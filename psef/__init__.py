@@ -222,6 +222,9 @@ def create_app(  # pylint: disable=too-many-statements
             logger.error('Celery is not responding! Please check your config')
             raise
 
+    import cg_timers
+    cg_timers.init_app(resulting_app)
+
     signals.FINALIZE_APP.send(resulting_app)
 
     return resulting_app

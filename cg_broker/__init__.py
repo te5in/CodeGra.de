@@ -121,7 +121,7 @@ class BrokerFlask(flask.Flask):
 
         self.config['MAX_AMOUNT_OF_RUNNERS_PER_JOB'
                     ] = _parser['General'].getint(
-                        'MAX_AMOUNT_OF_RUNNERS', fallback=1
+                        'MAX_AMOUNT_OF_RUNNERS_PER_JOB', fallback=1
                     )
 
         self.config['RUNNER_MAX_TIME_ALIVE'] = _parser['General'].getint(
@@ -171,6 +171,7 @@ def create_app() -> flask.Flask:
     """
     # pylint: disable=redefined-outer-name, import-outside-toplevel
     from . import api, exceptions, models, tasks, admin_panel
+    import cg_timers
 
     app = BrokerFlask(__name__)
     cg_logger.init_app(app, set_user=False)
@@ -179,6 +180,7 @@ def create_app() -> flask.Flask:
     tasks.init_app(app)
     exceptions.init_app(app)
     admin_panel.init_app(app)
+    cg_timers.init_app(app)
 
     if app.debug:
         tasks.add_1.delay(1, 2)

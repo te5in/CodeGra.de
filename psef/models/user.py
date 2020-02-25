@@ -196,7 +196,7 @@ class User(NotEqualMixin, Base):
         """Check if given user is part of this user.
 
         A user ``A`` is part of a user ``B`` if either ``A == B`` or
-        ``B.is_group and A in B.group.members``
+        ``B.is_group and B.group.has_as_member(A)``
 
         :param possible_member: The user to check for if it is part of
             ``self``.
@@ -205,7 +205,7 @@ class User(NotEqualMixin, Base):
         if self.group is None:
             return self == possible_member
         else:
-            return possible_member in self.group.members
+            return self.group.has_as_member(possible_member)
 
     @classmethod
     def create_new_test_student(cls) -> 'User':

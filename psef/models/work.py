@@ -17,6 +17,7 @@ from sqlalchemy.types import JSON
 from typing_extensions import Literal
 
 import psef
+import cg_timers
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import hybrid_property, hybrid_expression
 from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy
@@ -499,6 +500,7 @@ class Work(Base):
 
         return item
 
+    @cg_timers.timed_function(collect_in_request=True)
     def __extended_to_json__(self) -> t.Mapping[str, t.Any]:
         """Create a extended JSON serializable representation of this object.
 
@@ -811,12 +813,7 @@ class Work(Base):
         :returns: ``True`` if the user is the author of this submission or a
             member of the group that is the author of this submission.
         """
-        if self.user_id == user.id:
-            return True
-        elif self.user.group and user in self.user.group.members:
-            return True
-        else:
-            return False
+        return self.user.contains_user(user)
 
     def create_zip(
         self,
@@ -932,4 +929,5 @@ class Work(Base):
                 user_models.User.group,
             ),
             undefer(cls.comment),
+            selectinload(cls.comment_author),
         )
