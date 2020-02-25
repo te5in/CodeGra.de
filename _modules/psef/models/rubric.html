@@ -211,8 +211,8 @@
 <span class="kn">import</span> <span class="nn">psef</span>
 <span class="kn">import</span> <span class="nn">cg_json</span>
 <span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
-<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers</span> <span class="kn">import</span> <span class="n">hybrid_property</span>
-<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">ColumnProxy</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers</span> <span class="kn">import</span> <span class="n">hybrid_property</span><span class="p">,</span> <span class="n">hybrid_expression</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">ColumnProxy</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">db</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">work</span> <span class="k">as</span> <span class="n">work_models</span>
@@ -360,25 +360,22 @@
             <span class="s1">&#39;multiplier&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiplier</span><span class="p">,</span>
         <span class="p">}</span>
 
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">points</span><span class="p">:</span> <span class="nb">float</span>
-    <span class="k">else</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_get_points</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;The amount of points achieved by the work.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiplier</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">rubric_item</span><span class="o">.</span><span class="n">points</span>
 
-        <span class="nd">@hybrid_property</span>
-        <span class="k">def</span> <span class="nf">points</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-            <span class="sd">&quot;&quot;&quot;The amount of points achieved by the work.</span>
-<span class="sd">            &quot;&quot;&quot;</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">multiplier</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">rubric_item</span><span class="o">.</span><span class="n">points</span>
+    <span class="nd">@hybrid_expression</span>
+    <span class="k">def</span> <span class="nf">_get_points_expr</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="s1">&#39;WorkRubricItem&#39;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">DbColumn</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Same as above, but this returns an expression used by</span>
+<span class="sd">        sqlalchemy.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># pylint: disable=no-self-argument</span>
+        <span class="k">return</span> <span class="n">select</span><span class="p">(</span>
+            <span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">multiplier</span> <span class="o">*</span> <span class="n">RubricItem</span><span class="o">.</span><span class="n">points</span><span class="p">]</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">rubricitem_id</span> <span class="o">==</span> <span class="n">RubricItem</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s1">&#39;points&#39;</span><span class="p">)</span>
 
-        <span class="nd">@points</span><span class="o">.</span><span class="n">expression</span>
-        <span class="k">def</span> <span class="nf">points</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="s1">&#39;WorkRubricItem&#39;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">object</span><span class="p">:</span>
-            <span class="sd">&quot;&quot;&quot;Same as above, but this returns an expression used by</span>
-<span class="sd">            sqlalchemy.</span>
-<span class="sd">            &quot;&quot;&quot;</span>
-            <span class="c1"># pylint: disable=no-self-argument</span>
-            <span class="k">return</span> <span class="n">select</span><span class="p">(</span>
-                <span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">multiplier</span> <span class="o">*</span> <span class="n">RubricItem</span><span class="o">.</span><span class="n">points</span><span class="p">]</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">rubricitem_id</span> <span class="o">==</span> <span class="n">RubricItem</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s1">&#39;points&#39;</span><span class="p">)</span></div>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">hybrid_property</span><span class="p">(</span><span class="n">_get_points</span><span class="p">,</span> <span class="n">expr</span><span class="o">=</span><span class="n">_get_points_expr</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="RubricLockReason"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.rubric.RubricLockReason">[docs]</a><span class="k">class</span> <span class="nc">RubricLockReason</span><span class="p">(</span><span class="n">cg_json</span><span class="o">.</span><span class="n">SerializableEnum</span><span class="p">,</span> <span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>

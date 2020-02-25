@@ -374,7 +374,7 @@
         <span class="sd">&quot;&quot;&quot;Check if given user is part of this user.</span>
 
 <span class="sd">        A user ``A`` is part of a user ``B`` if either ``A == B`` or</span>
-<span class="sd">        ``B.is_group and A in B.group.members``</span>
+<span class="sd">        ``B.is_group and B.group.has_as_member(A)``</span>
 
 <span class="sd">        :param possible_member: The user to check for if it is part of</span>
 <span class="sd">            ``self``.</span>
@@ -383,7 +383,7 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">possible_member</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">possible_member</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">group</span><span class="o">.</span><span class="n">members</span></div>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">group</span><span class="o">.</span><span class="n">has_as_member</span><span class="p">(</span><span class="n">possible_member</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="User.create_new_test_student"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.user.User.create_new_test_student">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">create_new_test_student</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;User&#39;</span><span class="p">:</span>
