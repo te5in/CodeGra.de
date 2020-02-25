@@ -252,7 +252,7 @@
 <span class="n">OutputCallback</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">bytes</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span>
 <span class="n">URL</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">NewType</span><span class="p">(</span><span class="s1">&#39;URL&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
 
-<span class="n">_STOP_CONTAINERS</span> <span class="o">=</span> <span class="n">Event</span><span class="p">()</span>
+<span class="n">_STOP_RUNNING</span> <span class="o">=</span> <span class="n">Event</span><span class="p">()</span>
 <span class="n">_LXC_START_STOP_LOCK</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
 
 <span class="n">T</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
@@ -675,19 +675,19 @@
 <span class="k">def</span> <span class="nf">_maybe_quit_running</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Throw appropriate exception if container should stop running.</span>
 
-<span class="sd">    &gt;&gt;&gt; _STOP_CONTAINERS.clear()</span>
+<span class="sd">    &gt;&gt;&gt; _STOP_RUNNING.clear()</span>
 <span class="sd">    &gt;&gt;&gt; _maybe_quit_running() is None</span>
 <span class="sd">    True</span>
-<span class="sd">    &gt;&gt;&gt; _STOP_CONTAINERS.set()</span>
+<span class="sd">    &gt;&gt;&gt; _STOP_RUNNING.set()</span>
 <span class="sd">    &gt;&gt;&gt; _maybe_quit_running()</span>
 <span class="sd">    Traceback (most recent call last):</span>
 <span class="sd">    ...</span>
 <span class="sd">    StopContainerException</span>
-<span class="sd">    &gt;&gt;&gt; _STOP_CONTAINERS.clear()</span>
+<span class="sd">    &gt;&gt;&gt; _STOP_RUNNING.clear()</span>
 <span class="sd">    &gt;&gt;&gt; _maybe_quit_running() is None</span>
 <span class="sd">    True</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">_STOP_CONTAINERS</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+    <span class="k">if</span> <span class="n">_STOP_RUNNING</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
         <span class="k">raise</span> <span class="n">StopContainerException</span>
 
 
@@ -987,7 +987,7 @@
     <span class="k">def</span> <span class="nf">get_broker_session</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">helpers</span><span class="o">.</span><span class="n">BrokerSession</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">helpers</span><span class="o">.</span><span class="n">BrokerSession</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">broker_url</span><span class="p">,</span> <span class="n">runner_pass</span><span class="p">)</span>
 
-    <span class="n">_STOP_CONTAINERS</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+    <span class="n">_STOP_RUNNING</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
 
     <span class="k">with</span> <span class="n">_get_base_container</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">started_container</span><span class="p">()</span> <span class="k">as</span> <span class="n">cont</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_TEMPLATE_CONTAINER&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -2367,16 +2367,19 @@
                     <span class="k">try</span><span class="p">:</span>
                         <span class="n">patch_res</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
                     <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">HTTPError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_old_submission_error</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_old_submission_error</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+                            <span class="n">opts</span><span class="o">.</span><span class="n">mark_work_as_finished</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
                             <span class="n">retry_work</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>
                         <span class="k">continue</span>
 
-                    <span class="k">if</span> <span class="p">(</span>
-                        <span class="n">patch_res</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span> <span class="ow">or</span>
-                        <span class="ow">not</span> <span class="n">patch_res</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;taken&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-                    <span class="p">):</span>
+                    <span class="k">if</span> <span class="n">patch_res</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;taken&#39;</span><span class="p">]:</span>
+                        <span class="n">opts</span><span class="o">.</span><span class="n">mark_work_as_finished</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
                         <span class="k">with</span> <span class="n">cg_logger</span><span class="o">.</span><span class="n">bound_to_logger</span><span class="p">(</span><span class="n">result_id</span><span class="o">=</span><span class="n">result_id</span><span class="p">):</span>
-                            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_student</span><span class="p">(</span><span class="n">cont</span><span class="p">,</span> <span class="n">cpu</span><span class="p">,</span> <span class="n">result_id</span><span class="p">):</span>
+                            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_student</span><span class="p">(</span><span class="n">cont</span><span class="p">,</span> <span class="n">cpu</span><span class="p">,</span> <span class="n">result_id</span><span class="p">):</span>
+                                <span class="n">opts</span><span class="o">.</span><span class="n">mark_work_as_finished</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>
+                            <span class="k">else</span><span class="p">:</span>
                                 <span class="c1"># Student didn&#39;t finish correctly. So put back</span>
                                 <span class="c1"># in the queue. The retry function contains the</span>
                                 <span class="c1"># functionality for only retrying a fixed</span>
@@ -2386,11 +2389,12 @@
 
     <span class="k">def</span> <span class="nf">_started_heartbeat</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;RepeatedTimer&#39;</span><span class="p">:</span>
         <span class="k">def</span> <span class="nf">push_heartbeat</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">req</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{self.base_url}</span><span class="s1">/runs/</span><span class="si">{self.instructions[&quot;run_id&quot;]}</span><span class="s1">/&#39;</span>
-                <span class="s1">&#39;heartbeats/&#39;</span><span class="p">,</span>
-                <span class="n">timeout</span><span class="o">=</span><span class="n">_REQUEST_TIMEOUT</span><span class="p">,</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">_STOP_RUNNING</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">req</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{self.base_url}</span><span class="s1">/runs/</span><span class="si">{self.instructions[&quot;run_id&quot;]}</span><span class="s1">/&#39;</span>
+                    <span class="s1">&#39;heartbeats/&#39;</span><span class="p">,</span>
+                    <span class="n">timeout</span><span class="o">=</span><span class="n">_REQUEST_TIMEOUT</span><span class="p">,</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
 
         <span class="n">interval</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instructions</span><span class="p">[</span><span class="s1">&#39;heartbeat_interval&#39;</span><span class="p">]</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Starting heartbeat interval&#39;</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="n">interval</span><span class="p">)</span>
@@ -2411,6 +2415,7 @@
                     <span class="bp">self</span><span class="o">.</span><span class="n">_run_test</span><span class="p">(</span><span class="n">cont</span><span class="p">)</span>
                 <span class="n">time_taken</span> <span class="o">=</span> <span class="n">get_time_taken</span><span class="p">()</span>
             <span class="k">finally</span><span class="p">:</span>
+                <span class="n">_STOP_RUNNING</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">req</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span>
                     <span class="n">run_result_url</span><span class="p">,</span>
                     <span class="n">json</span><span class="o">=</span><span class="p">{</span>
@@ -2495,12 +2500,12 @@
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">pool</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_work_producer</span><span class="p">)</span>
             <span class="k">except</span><span class="p">:</span>
-                <span class="n">_STOP_CONTAINERS</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;AutoTest crashed&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                 <span class="k">raise</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Done with containers, cleaning up&#39;</span><span class="p">)</span>
-                <span class="n">_STOP_CONTAINERS</span><span class="o">.</span><span class="n">set</span><span class="p">()</span></div>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="n">_STOP_RUNNING</span><span class="o">.</span><span class="n">set</span><span class="p">()</span></div>
 </pre></div>
 
            </div>

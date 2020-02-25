@@ -1245,18 +1245,25 @@
 
 
 <div class="viewcode-block" id="defer"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.defer">[docs]</a><span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
-<span class="k">def</span> <span class="nf">defer</span><span class="p">(</span><span class="n">function</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[],</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Generator</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="k">def</span> <span class="nf">defer</span><span class="p">(</span><span class="o">*</span><span class="n">functions</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[],</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Generator</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
     <span class="sd">&quot;&quot;&quot;Defer a function call to the end of the context manager.</span>
 
-<span class="sd">    :param: The function to call.</span>
-<span class="sd">    :returns: A context manager that can be used to execute the given function</span>
+<span class="sd">    :param functions: The functions to call, they will be called in order, so</span>
+<span class="sd">        the first function first, and the last. This means that</span>
+<span class="sd">        ``with defer(f1, f2)`` is equivalent to ``with defer(f2), defer(f1)``.</span>
+<span class="sd">    :returns: A context manager that can be used to execute the given functions</span>
 <span class="sd">        at the end of the block.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">try</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">functions</span><span class="p">:</span>
         <span class="k">yield</span>
-    <span class="k">finally</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Calling defer&#39;</span><span class="p">,</span> <span class="n">defer_function</span><span class="o">=</span><span class="n">function</span><span class="p">)</span>
-        <span class="n">function</span><span class="p">()</span></div>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="o">*</span><span class="n">rest</span><span class="p">,</span> <span class="n">function</span> <span class="o">=</span> <span class="n">functions</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">defer</span><span class="p">(</span><span class="o">*</span><span class="n">rest</span><span class="p">):</span>
+                <span class="k">yield</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Calling defer&#39;</span><span class="p">,</span> <span class="n">defer_function</span><span class="o">=</span><span class="n">function</span><span class="p">)</span>
+            <span class="n">function</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="StoppableThread"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.StoppableThread">[docs]</a><span class="k">class</span> <span class="nc">StoppableThread</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABC</span><span class="p">):</span>
@@ -1321,8 +1328,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">__cleanup</span> <span class="o">=</span> <span class="n">cleanup</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__setup</span> <span class="o">=</span> <span class="n">setup</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__background</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">,</span> <span class="n">multiprocessing</span><span class="o">.</span>
-                                   <span class="n">Process</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__background</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 
 <div class="viewcode-block" id="RepeatedTimer.cancel"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.RepeatedTimer.cancel">[docs]</a>    <span class="k">def</span> <span class="nf">cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">__finish</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
@@ -1336,24 +1342,15 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">__started</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
 
         <span class="k">def</span> <span class="nf">fun</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">__started</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                <span class="s1">&#39;Started repeating timer&#39;</span><span class="p">,</span> <span class="n">function</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">__function_name</span>
-            <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">__setup</span><span class="p">()</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">defer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__function</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__cleanup</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__finished</span><span class="o">.</span><span class="n">set</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__started</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s1">&#39;Started repeating timer&#39;</span><span class="p">,</span> <span class="n">function</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">__function_name</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__setup</span><span class="p">()</span>
+                <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">__finish</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">__function</span><span class="p">()</span>
-                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__finish</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__interval</span><span class="p">):</span>
-                        <span class="k">break</span>
-            <span class="k">finally</span><span class="p">:</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">__function</span><span class="p">()</span>
-                <span class="k">finally</span><span class="p">:</span>
-                    <span class="k">try</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">__cleanup</span><span class="p">()</span>
-                    <span class="k">finally</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">__finished</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__finish</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__interval</span><span class="p">)</span>
 
         <span class="n">back</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">fun</span><span class="p">)</span>
         <span class="n">back</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
