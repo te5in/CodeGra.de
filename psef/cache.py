@@ -10,19 +10,23 @@ import structlog
 from flask import g, current_app
 
 T = t.TypeVar('T', bound=t.Callable)
+Y = t.TypeVar('Y')
+Z = t.TypeVar('Z')
 
 logger = structlog.get_logger()
+
+
+def _set_g_vars() -> None:
+    g.cache_misses = 0
+    g.cache_hits = 0
+    g.psef_function_cache = defaultdict(dict)
 
 
 def init_app(app: t.Any) -> None:
     """Init the cache for the given app.
     """
 
-    @app.before_request
-    def __create_caches() -> None:  # pylint: disable=unused-variable
-        g.cache_misses = 0
-        g.cache_hits = 0
-        g.psef_function_cache = defaultdict(dict)
+    app.before_request(_set_g_vars)
 
     @app.after_request
     def __clear_caches(res: T) -> T:  # pylint: disable=unused-variable
@@ -52,6 +56,45 @@ def _make_key(args: t.Tuple[object, ...],
     return res
 
 
+def _cache_or_call(
+    master_key: object,
+    key: t.Tuple[object, ...],
+    fun: t.Callable,
+    args: t.Tuple,
+    kwargs: t.Dict,
+) -> t.Any:
+    try:
+        if not hasattr(g, 'psef_function_cache'):
+            _set_g_vars()
+    except:
+        # Never error because of this decorator
+        return fun(*args, **kwargs)
+
+    if key in g.psef_function_cache[master_key]:
+        g.cache_hits += 1
+    else:
+        g.psef_function_cache[master_key][key] = fun(*args, **kwargs)
+        g.cache_misses += 1
+
+    return g.psef_function_cache[master_key][key]
+
+
+def cache_within_request_make_key(
+    make_key: t.Callable[[Y], t.Tuple[object, ...]]
+) -> t.Callable[[t.Callable[[Y], Z]], t.Callable[[Y], Z]]:
+    def __wrapper(fun: t.Callable[[Y], Z]) -> t.Callable[[Y], Z]:
+        master_key = object()
+
+        @wraps(fun)
+        def __inner(arg: Y) -> Z:
+            key = make_key(arg)
+            return _cache_or_call(master_key, key, fun, (arg, ), {})
+
+        return __inner
+
+    return __wrapper
+
+
 def cache_within_request(f: T) -> T:
     """Decorator to cache the given function during the request.
 
@@ -76,18 +119,8 @@ def cache_within_request(f: T) -> T:
 
     @wraps(f)
     def __decorated(*args: t.Any, **kwargs: t.Any) -> t.Any:
-        if not current_app or not hasattr(g, 'psef_function_cache'):
-            # Never error because of this decorator
-            return f(*args, **kwargs)
-
         key = _make_key(args, kwargs)
-
-        if key not in g.psef_function_cache[master_key]:
-            g.psef_function_cache[master_key][key] = f(*args, **kwargs)
-            g.cache_misses += 1
-        else:
-            g.cache_hits += 1
-        return g.psef_function_cache[master_key][key]
+        return _cache_or_call(master_key, key, f, args, kwargs)
 
     def clear_cache() -> None:  # pragma: no cover
         g.psef_function_cache[master_key] = {}
