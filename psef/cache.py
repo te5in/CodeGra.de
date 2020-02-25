@@ -4,9 +4,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 from functools import wraps
+from collections import defaultdict
 
 import structlog
-from flask import g
+from flask import g, current_app
 
 T = t.TypeVar('T', bound=t.Callable)
 
@@ -21,11 +22,11 @@ def init_app(app: t.Any) -> None:
     def __create_caches() -> None:  # pylint: disable=unused-variable
         g.cache_misses = 0
         g.cache_hits = 0
-        g.psef_function_cache = {}
+        g.psef_function_cache = defaultdict(dict)
 
     @app.after_request
     def __clear_caches(res: T) -> T:  # pylint: disable=unused-variable
-        g.psef_function_cache = {}
+        g.psef_function_cache = defaultdict(dict)
         return res
 
 
@@ -59,6 +60,15 @@ def cache_within_request(f: T) -> T:
     receives, which all need to be hashable. For the same arguments the
     function will be only called once during the request.
 
+    This decorator can also be used outside of flask, in which case it WILL NOT
+    cache anything.
+
+    >>> p = cache_within_request(lambda: print('Hello'))
+    >>> p()
+    Hello
+    >>> p()
+    Hello
+
     :param f: The function to cache.
     :returns: A wrapped version of ``f`` that is cached.
     """
@@ -66,11 +76,9 @@ def cache_within_request(f: T) -> T:
 
     @wraps(f)
     def __decorated(*args: t.Any, **kwargs: t.Any) -> t.Any:
-        if not hasattr(g, 'psef_function_cache'):  # pragma: no cover
+        if not current_app or not hasattr(g, 'psef_function_cache'):
             # Never error because of this decorator
             return f(*args, **kwargs)
-        if master_key not in g.psef_function_cache:
-            g.psef_function_cache[master_key] = {}
 
         key = _make_key(args, kwargs)
 
