@@ -116,7 +116,6 @@ export default {
             try {
                 const data = JSON.parse(jsonString);
                 this.outputCells = Object.freeze(getOutputCells(data));
-                console.log('output cells', this.outputCells);
                 this.$emit('load');
             } catch (e) {
                 this.outputCells = [];
