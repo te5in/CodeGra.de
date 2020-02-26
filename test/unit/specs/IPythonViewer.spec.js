@@ -143,8 +143,6 @@ describe('IPythonViewer.vue', () => {
         });
 
         it('should join test in sources', async () => {
-            console.log('should join', comp);
-
             await setData([
                 {
                     cell_type: 'markdown',
