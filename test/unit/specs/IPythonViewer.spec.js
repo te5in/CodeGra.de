@@ -53,8 +53,8 @@ describe('IPythonViewer.vue', () => {
         mockIPython = (new util.TextEncoder()).encode(str);
         wrapper.setProps({ fileId: String(curId++), file: { id: String(curId) } });
 
-        await comp.$nextTick();
-        await comp.$nextTick();
+        await comp.loadCode();
+        await comp.$afterRerender();
     };
 
     beforeEach(() => {
@@ -143,6 +143,8 @@ describe('IPythonViewer.vue', () => {
         });
 
         it('should join test in sources', async () => {
+            console.log('should join', comp);
+
             await setData([
                 {
                     cell_type: 'markdown',
