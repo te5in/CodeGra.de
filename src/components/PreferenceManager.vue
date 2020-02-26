@@ -215,12 +215,11 @@ export default {
             // their feedback has gone.
             this.inlineFeedback = true;
 
-            return Promise.all([
-                this.loadWhitespace(fileId),
-                this.loadLanguage(fileId),
-            ]).then(() => {
-                this.loading = false;
-            });
+            return Promise.all([this.loadWhitespace(fileId), this.loadLanguage(fileId)]).then(
+                () => {
+                    this.loading = false;
+                },
+            );
         },
 
         loadWhitespace(fileId) {

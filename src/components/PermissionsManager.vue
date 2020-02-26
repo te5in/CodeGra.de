@@ -160,19 +160,16 @@ export default {
     computed: {
         filteredIndices() {
             const filter = this.filter.toLocaleLowerCase();
-            return this.items.reduce(
-                (acc, perm, i) => {
-                    if (
-                        perm.short_description.toLocaleLowerCase().match(filter) ||
-                        perm.long_description.toLocaleLowerCase().match(filter) ||
-                        (perm.warning && perm.warning.toLocaleLowerCase().match(filter))
-                    ) {
-                        acc.add(i);
-                    }
-                    return acc;
-                },
-                new Set(),
-            );
+            return this.items.reduce((acc, perm, i) => {
+                if (
+                    perm.short_description.toLocaleLowerCase().match(filter) ||
+                    perm.long_description.toLocaleLowerCase().match(filter) ||
+                    (perm.warning && perm.warning.toLocaleLowerCase().match(filter))
+                ) {
+                    acc.add(i);
+                }
+                return acc;
+            }, new Set());
         },
     },
 

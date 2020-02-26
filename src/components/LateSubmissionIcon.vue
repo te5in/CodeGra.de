@@ -68,7 +68,7 @@ export default {
 <style lang="less" scoped>
 .late-submission-icon.active {
     .late-icon.with-popover {
-            cursor: help;
+        cursor: help;
     }
 }
 </style>

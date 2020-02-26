@@ -128,11 +128,7 @@ export default {
         },
 
         selectedItems() {
-            return Object.entries(this.$utils.getProps(
-                this.internalResult,
-                {},
-                'selected',
-            )).reduce(
+            return Object.entries(this.$utils.getProps(this.internalResult, {}, 'selected')).reduce(
                 (acc, [rowId, item]) => {
                     const points = parseFloat(item.points);
                     const mult = parseFloat(item.multiplier);

@@ -421,7 +421,7 @@ action is required.${divEnd}`;
 </style>
 
 <style lang="less">
-@import "~mixins.less";
+@import '~mixins.less';
 
 .group-management .user-selector.multiselect .multiselect__tags {
     border-left: 0;

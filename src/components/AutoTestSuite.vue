@@ -656,7 +656,7 @@ export default {
     }
 }
 
-.popover .custom-checkbox input[name="network-disabled"] ~ label {
+.popover .custom-checkbox input[name='network-disabled'] ~ label {
     &::before,
     &::after {
         left: -1rem;
