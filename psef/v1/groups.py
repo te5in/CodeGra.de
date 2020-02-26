@@ -158,7 +158,7 @@ def add_member_to_group(group_id: int) -> ExtendedJSONResponse[models.Group]:
                 ), APICodes.INVALID_STATE, 400
             )
 
-    group.members.append(new_user)
+    group.add_member(new_user)
     models.db.session.commit()
     return extended_jsonify(group, use_extended=models.Group)
 
@@ -183,13 +183,6 @@ def remove_member_from_group(group_id: int, user_id: int
     user = get_or_404(models.User, user_id)
     auth.ensure_can_edit_members_of_group(group, [user])
 
-    if user not in group.members:
-        raise APIException(
-            'The selected user is not in the group',
-            f'The user {user.id} i snot in group {group.id}',
-            APICodes.INVALID_PARAM, 404
-        )
-
     if len(
         group.members
     ) == group.group_set.minimum_size and group.has_a_submission:
@@ -203,7 +196,7 @@ def remove_member_from_group(group_id: int, user_id: int
             ), APICodes.INVALID_STATE, 400
         )
 
-    group.members = [u for u in group.members if u != user]
+    group.remove_member(user)
 
     models.db.session.commit()
     return extended_jsonify(group, use_extended=models.Group)
@@ -227,7 +220,7 @@ def update_name_of_group(group_id: int) -> ExtendedJSONResponse[models.Group]:
     group = get_or_404(models.Group, group_id)
 
     perms = []
-    if current_user in group.members:
+    if group.has_as_member(current_user):
         perms.append(CPerm.can_edit_own_groups)
     perms.append(CPerm.can_edit_others_groups)
 

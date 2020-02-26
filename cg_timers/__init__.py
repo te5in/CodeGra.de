@@ -26,7 +26,7 @@ def init_app(app: flask.Flask) -> None:
 
     @app.after_request
     def after_req(res: flask.Response) -> flask.Response:
-        for key, timer_dict in flask.g.cg_timers_collection.items():
+        for key, timer_dict in sorted(flask.g.cg_timers_collection.items()):
             amount = timer_dict['amount']
             total_time = timer_dict['total_time']
 

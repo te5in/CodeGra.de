@@ -148,6 +148,9 @@ class _ImmutableColumnProxy(t.Generic[T, U]):
     def __get__(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         ...
 
+    __set__ = NotImplemented
+    __delete__ = NotImplemented
+
 
 class ImmutableColumnProxy(
     t.Generic[T], _ImmutableColumnProxy[T, 'DbColumn[T]']
@@ -487,6 +490,11 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
     def has(self, *args: object, **kwargs: object) -> t.Any:
         ...
 
+    def __mul__(
+        self: 'DbColumn[float]', other: 't.Union[DbColumn[float], float]'
+    ) -> 'DbColumn[float]':
+        ...
+
     def __eq__(  # type: ignore
         self, other: Union[t.Optional[T], 'DbColumn[T]', 'DbColumn[t.Optional[T]]',
                            'MyNonOrderableQuery[T]']
@@ -666,6 +674,14 @@ if t.TYPE_CHECKING:
     def hybrid_property(
         fget: t.Callable[[Z], T],
         *,
+        expr: t.Callable[[t.Type[Z]], DbColumn[T]],
+    ) -> ImmutableColumnProxy[T]:
+        ...
+
+    @t.overload
+    def hybrid_property(
+        fget: t.Callable[[Z], T],
+        *,
         custom_comparator: t.Callable[[t.Type[Z]], Y],
     ) -> _ImmutableColumnProxy[T, Y]:
         ...
@@ -675,7 +691,7 @@ if t.TYPE_CHECKING:
         fget: t.Callable[[Z], T],
         fset: t.Callable[[Z, Y], None],
         fdel: None = None,
-        expr: t.Callable[[t.Type[Z]], 'DbColumn[T]'] = None,
+        expr: t.Callable[[t.Type[Z]], DbColumn[T]] = None,
     ) -> _MutableColumnProxy[T, Y, DbColumn[T]]:
         ...
 

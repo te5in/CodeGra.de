@@ -45,7 +45,7 @@ pytest --cov cg_worker_pool \
        -vvvv
 res1="$?"
 
-timeout -k 300 300 \
+timeout -k 600 600 \
         pytest --cov psef \
         --cov-append \
         --postgresql="${BASE_DATABASE_URI}gw5" \
