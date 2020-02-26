@@ -15,7 +15,7 @@
         </div>
     </b-popover>
     <component :is="hugText ? 'sup' : 'span'"
-               class="desc-pop-span"
+               class="desc-pop-span px-2"
                :id="compId">
         <span :title="spanTitle">
             <icon :name="icon" scale="0.75"/>
@@ -91,12 +91,11 @@ export default {
 
 <style lang="less">
 .desc-pop-span {
-    padding: 0 0.5em;
     height: 100%;
     display: inline-block;
 
     .card-header .description-popover.float-right & {
-        padding-right: 0;
+        margin-right: -0.5rem;
     }
 }
 

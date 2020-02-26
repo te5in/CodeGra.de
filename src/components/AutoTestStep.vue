@@ -60,7 +60,8 @@
                 <label :for="programNameId">
                     Program to test
 
-                    <description-popover hug-text>
+                    <description-popover hug-text
+                                         boundary="window">
                         A bash command line to be executed.
 
                         <template v-if="value.type === 'io_test'">
@@ -102,7 +103,8 @@
                 <label :for="regexId">
                     Regex to match a grade
 
-                    <description-popover hug-text>
+                    <description-popover hug-text
+                                         boundary="window">
                         This regex will be applied line by line, starting from the <b>last</b> line.
                         The regex should be a <i>Python</i> regex and must contain at least one
                         capture group. The first capture group should capture a valid python float,
@@ -135,7 +137,8 @@
                                 <label :for="argsId(index)">
                                     Input arguments
 
-                                    <description-popover hug-text>
+                                    <description-popover hug-text
+                                                         boundary="window">
                                         Extra arguments appended to the "Program to test" option.
                                     </description-popover>
                                 </label>
@@ -149,7 +152,8 @@
                             <label :for="stdinId(index)">
                                 Input
 
-                                <description-popover hug-text>
+                                <description-popover hug-text
+                                                     boundary="window">
                                     Input passed to the program via <code>stdin</code>.
                                 </description-popover>
                             </label>
@@ -175,7 +179,8 @@
                                                      :disabled="disabledOptions[index][opt.value]">
                                         {{ opt.text }}
 
-                                        <description-popover hug-text>
+                                        <description-popover hug-text
+                                                             boundary="window">
                                             {{ opt.description }}
                                         </description-popover>
                                     </b-form-checkbox>
@@ -185,7 +190,8 @@
                             <label :for="stdoutId(index)">
                                 Expected output
 
-                                <description-popover hug-text>
+                                <description-popover hug-text
+                                                     boundary="window">
                                     Text to match the output of the program with, according to the
                                     rules selected above.
                                 </description-popover>
@@ -398,7 +404,8 @@
                                         <label>
                                             Match output on
 
-                                            <description-popover hug-text>
+                                            <description-popover hug-text
+                                                                 boundary="window">
                                                 Search the output of the command for this regex. If it
                                                 is found, the matched number of points is used as the
                                                 score for this step.
@@ -432,7 +439,8 @@
                                         <label>
                                             End of output
 
-                                            <description-popover hug-text>
+                                            <description-popover hug-text
+                                                                 boundary="window">
                                                 This is the part of the output that is searched for the
                                                 achieved score.
                                             </description-popover>
@@ -470,7 +478,8 @@
                                 <label>
                                     Match output on
 
-                                    <description-popover hug-text>
+                                    <description-popover hug-text
+                                                         boundary="window">
                                         Search the output of the command for this regex. If it
                                         is found, the matched number of points is used as the
                                         score for this step.
@@ -559,7 +568,8 @@
                                             <label>
                                                 Expected output
 
-                                                <description-popover hug-text>
+                                                <description-popover hug-text
+                                                                     boundary="window">
                                                     Expected output. This is interpreted as a regular
                                                     expression when the <code>regex</code> option below is set.
                                                 </description-popover>
@@ -607,7 +617,8 @@
                                                              :value-off="true"
                                                              label-off="Hide"
                                                              label-on="Show"/>)
-                                                    <description-popover hug-text>
+                                                    <description-popover hug-text
+                                                                         boundary="window">
                                                         Output that differs from the
                                                         expected output, but which is
                                                         ignored. I.e. you don't need to
@@ -616,7 +627,8 @@
                                                 </span>
                                                 <span>
                                                     <span class="added legenda-item"/>Missing output
-                                                    <description-popover hug-text>
+                                                    <description-popover hug-text
+                                                                         boundary="window">
                                                         Output that is present in the
                                                         expected output, but not in your
                                                         output. I.e. missing output.
@@ -625,7 +637,8 @@
                                                 <span>
                                                     <span class="removed legenda-item"/>
                                                     Superfluous output
-                                                    <description-popover hug-text>
+                                                    <description-popover hug-text
+                                                                         boundary="window">
                                                     Output that is present in your
                                                     output, but not in the expected
                                                     output. I.e. output that shouldn't
@@ -652,7 +665,8 @@
                                             <label>
                                                 Command line
 
-                                                <description-popover hug-text>
+                                                <description-popover hug-text
+                                                                     boundary="window">
                                                     A bash command line to be executed.
                                                 </description-popover>
                                             </label>
@@ -673,7 +687,8 @@
                                             <label>
                                                 Input
 
-                                                <description-popover hug-text>
+                                                <description-popover hug-text
+                                                                     boundary="window">
                                                     Input passed to the executed program via
                                                     <code>stdin</code>.
                                                 </description-popover>
@@ -712,7 +727,8 @@
                                     <label>
                                         Command line
 
-                                        <description-popover hug-text>
+                                        <description-popover hug-text
+                                                             boundary="window">
                                             A bash command line to be executed.
                                         </description-popover>
                                     </label>
@@ -733,7 +749,8 @@
                                     <label>
                                         Input
 
-                                        <description-popover hug-text>
+                                        <description-popover hug-text
+                                                             boundary="window">
                                             Input passed to the executed program via
                                             <code>stdin</code>.
                                         </description-popover>
@@ -754,7 +771,8 @@
                                     <label>
                                         Expected output
 
-                                        <description-popover hug-text>
+                                        <description-popover hug-text
+                                                             boundary="window">
                                             Expected output. This is interpreted as a regular
                                             expression when the <code>regex</code> option below is set.
                                         </description-popover>
