@@ -9,14 +9,14 @@ import typing as t
 from flask import current_app
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
-from . import Base, db, _MyQuery
+from cg_sqlalchemy_helpers.types import ColumnProxy
+
+from . import Base, db
+from . import course as course_models
+from . import _MyQuery
 from .permission import Permission
 from .link_tables import roles_permissions, course_permissions
 from ..permissions import BasePermission, CoursePermission, GlobalPermission
-
-if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=unused-import
-    from . import course as course_models
 
 _T = t.TypeVar('_T', bound=BasePermission)  # pylint: disable=invalid-name
 
@@ -36,7 +36,7 @@ class AbstractRole(t.Generic[_T]):
 
     @property
     @abc.abstractmethod
-    def id(self) -> int:
+    def id(self) -> ColumnProxy[int]:
         """The id of this role.
         """
         raise NotImplementedError
@@ -44,13 +44,13 @@ class AbstractRole(t.Generic[_T]):
     # Unfortunately mypy doesn't really support abstract properties at this
     # time.
     @property
-    def name(self) -> str:
+    def name(self) -> ColumnProxy[str]:
         """The name of this role.
         """
         raise NotImplementedError
 
     @name.setter
-    def name(self, new_name: str) -> None:
+    def name(self, new_name: ColumnProxy[str]) -> None:
         """The name of this role.
         """
         raise NotImplementedError
@@ -169,8 +169,8 @@ class Role(AbstractRole[GlobalPermission], Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['Role']] = Base.query
     __tablename__ = 'Role'
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    name: str = db.Column('name', db.Unicode, unique=True)
+    id = db.Column('id', db.Integer, primary_key=True)
+    name = db.Column('name', db.Unicode, unique=True, nullable=False)
     _permissions: t.MutableMapping[
         GlobalPermission, Permission[GlobalPermission]] = db.relationship(
             'Permission',
@@ -197,8 +197,8 @@ class CourseRole(AbstractRole[CoursePermission], Base):
         query = Base.query  # type: t.ClassVar[_MyQuery['CourseRole']]
     __tablename__ = 'Course_Role'
     id = db.Column('id', db.Integer, primary_key=True)
-    name: str = db.Column('name', db.Unicode)
-    course_id: int = db.Column(
+    name = db.Column('name', db.Unicode, unique=False, nullable=False)
+    course_id = db.Column(
         'Course_id',
         db.Integer,
         db.ForeignKey('Course.id'),
@@ -211,11 +211,14 @@ class CourseRole(AbstractRole[CoursePermission], Base):
             secondary=course_permissions
         )
 
-    course: 'course_models.Course' = db.relationship(
-        'Course', foreign_keys=course_id, backref="roles", innerjoin=True
+    course = db.relationship(
+        lambda: course_models.Course,
+        foreign_keys=course_id,
+        backref="roles",
+        innerjoin=True,
     )
 
-    hidden: bool = db.Column(
+    hidden = db.Column(
         'hidden',
         db.Boolean,
         default=False,

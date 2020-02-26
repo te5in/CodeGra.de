@@ -27,7 +27,7 @@ from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 from cg_dt_utils import DatetimeWithTimezone
 
 from . import app, auth, models, helpers, features, current_user
-from .auth import _user_active
+from .auth import user_active
 from .models import db
 from .helpers import register
 from .exceptions import APICodes, APIWarnings, APIException
@@ -511,7 +511,7 @@ class LTI:  # pylint: disable=too-many-public-methods
             optionally the updated email of the user as a string, this is
             ``None`` if the email was not updated.
         """
-        is_logged_in = _user_active(current_user)
+        is_logged_in = user_active(current_user)
         token = None
         user = None
 

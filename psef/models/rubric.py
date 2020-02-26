@@ -9,22 +9,22 @@ import numbers
 from sqlalchemy import select
 from mypy_extensions import TypedDict
 
+import psef
 import cg_json
 from cg_dt_utils import DatetimeWithTimezone
+from cg_sqlalchemy_helpers import hybrid_property, hybrid_expression
+from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy
 
-from . import Base, DbColumn, db, _MyQuery
+from . import Base, DbColumn, db
+from . import work as work_models
+from . import _MyQuery
 from .. import helpers
 from ..registry import rubric_row_types
 from ..exceptions import APICodes, APIException
 
 if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=unused-import, invalid-name
-    from . import assignment as assignment_models
-    from . import work as work_models
+    # pylint: disable=unused-import
     from . import auto_test as auto_test_models
-    hybrid_property = property
-else:
-    from sqlalchemy.ext.hybrid import hybrid_property
 
 T = t.TypeVar('T', bound=t.Type['RubricRowBase'])
 _ALL_RUBRIC_ROW_TYPES = sorted(['normal', 'continuous'])
@@ -33,6 +33,7 @@ _ALL_RUBRIC_ROW_TYPES = sorted(['normal', 'continuous'])
 def _register(cls: T) -> T:
     name = cls.__mapper_args__['polymorphic_identity']
 
+    assert isinstance(name, str)
     assert name in _ALL_RUBRIC_ROW_TYPES
     assert rubric_row_types.get(name) is None
     rubric_row_types.register(name)(cls)
@@ -86,7 +87,7 @@ class WorkRubricItem(helpers.NotEqualMixin, Base):
         nullable=False,
         primary_key=True,
     )
-    multiplier: float = db.Column(
+    multiplier = db.Column(
         'multiplier',
         db.Float,
         nullable=False,
@@ -94,9 +95,9 @@ class WorkRubricItem(helpers.NotEqualMixin, Base):
         server_default='1.0',
     )
 
-    work: 'work_models.Work' = db.relationship('Work', foreign_keys=work_id)
-    rubric_item: 'RubricItem' = db.relationship(
-        'RubricItem',
+    work = db.relationship(lambda: work_models.Work, foreign_keys=work_id)
+    rubric_item = db.relationship(
+        lambda: RubricItem,
         foreign_keys=rubricitem_id,
         lazy='selectin',
     )
@@ -104,7 +105,6 @@ class WorkRubricItem(helpers.NotEqualMixin, Base):
     def __eq__(self, other: object) -> bool:
         """Check if this rubric item is equal to another one.
 
-        >>> import psef
         >>> w1 = psef.models.Work(id=1)
         >>> w2 = psef.models.Work(id=2)
         >>> r1 = RubricItem(id=1)
@@ -161,25 +161,22 @@ class WorkRubricItem(helpers.NotEqualMixin, Base):
             'multiplier': self.multiplier,
         }
 
-    if t.TYPE_CHECKING:  # pragma: no cover
-        points: float
-    else:
+    def _get_points(self) -> float:
+        """The amount of points achieved by the work.
+        """
+        return self.multiplier * self.rubric_item.points
 
-        @hybrid_property
-        def points(self) -> float:
-            """The amount of points achieved by the work.
-            """
-            return self.multiplier * self.rubric_item.points
+    @hybrid_expression
+    def _get_points_expr(cls: t.Type['WorkRubricItem']) -> DbColumn[float]:
+        """Same as above, but this returns an expression used by
+        sqlalchemy.
+        """
+        # pylint: disable=no-self-argument
+        return select(
+            [cls.multiplier * RubricItem.points]
+        ).where(cls.rubricitem_id == RubricItem.id).label('points')
 
-        @points.expression
-        def points(cls: t.Type['WorkRubricItem']) -> object:
-            """Same as above, but this returns an expression used by
-            sqlalchemy.
-            """
-            # pylint: disable=no-self-argument
-            return select(
-                [cls.multiplier * RubricItem.points]
-            ).where(cls.rubricitem_id == RubricItem.id).label('points')
+    points = hybrid_property(_get_points, expr=_get_points_expr)
 
 
 class RubricLockReason(cg_json.SerializableEnum, enum.Enum):
@@ -195,17 +192,21 @@ class RubricItem(helpers.NotEqualMixin, Base):
 
     __tablename__ = 'RubricItem'
 
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    rubricrow_id: int = db.Column(
-        'Rubricrow_id', db.Integer,
-        db.ForeignKey('RubricRow.id', ondelete='CASCADE')
+    id = db.Column('id', db.Integer, primary_key=True)
+    rubricrow_id = db.Column(
+        'Rubricrow_id',
+        db.Integer,
+        db.ForeignKey('RubricRow.id', ondelete='CASCADE'),
+        nullable=False,
     )
-    header: str = db.Column('header', db.Unicode, default='')
-    description: str = db.Column('description', db.Unicode, default='')
-    points: float = db.Column('points', db.Float)
+    header = db.Column('header', db.Unicode, default='', nullable=False)
+    description = db.Column(
+        'description', db.Unicode, default='', nullable=False
+    )
+    points = db.Column('points', db.Float, nullable=False)
 
     # This variable is generated from the backref from RubricRowBase
-    rubricrow: 'RubricRowBase'
+    rubricrow: ColumnProxy['RubricRowBase']
 
     class JSONBaseSerialization(TypedDict, total=True):
         """The base serialization of a rubric item.
@@ -266,32 +267,33 @@ class RubricRowBase(helpers.NotEqualMixin, Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query = Base.query  # type: t.ClassVar[_MyQuery['RubricRowBase']]
     __tablename__ = 'RubricRow'
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    assignment_id: int = db.Column(
+    id = db.Column('id', db.Integer, primary_key=True)
+    assignment_id = db.Column(
         'Assignment_id', db.Integer, db.ForeignKey('Assignment.id')
     )
-    header: str = db.Column('header', db.Unicode)
-    description: str = db.Column('description', db.Unicode, default='')
+    header = db.Column('header', db.Unicode, nullable=False)
+    description = db.Column('description', db.Unicode, default='')
     created_at = db.Column(
         'created_at',
         db.TIMESTAMP(timezone=True),
         default=DatetimeWithTimezone.utcnow
     )
     items = db.relationship(
-        "RubricItem",
-        backref="rubricrow",
+        lambda: RubricItem,
+        backref=db.backref("rubricrow"),
         cascade='delete-orphan, delete, save-update',
-        order_by='asc(RubricItem.points)',
-    )  # type: t.MutableSequence[RubricItem]
+        order_by=RubricItem.points.asc,
+        uselist=True,
+    )
 
-    assignment: t.Optional['assignment_models.Assignment'] = db.relationship(
-        'Assignment',
+    assignment = db.relationship(
+        lambda: psef.models.Assignment,
         foreign_keys=assignment_id,
         back_populates='rubric_rows',
         lazy='select',
     )
 
-    rubric_row_type: str = db.Column(
+    rubric_row_type = db.Column(
         'rubric_row_type',
         db.Enum(*_ALL_RUBRIC_ROW_TYPES, name='rubricrowtype'),
         nullable=False,

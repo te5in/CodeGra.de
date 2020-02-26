@@ -256,7 +256,7 @@ export class NormalRubricRow extends RubricRow {
             msg += `You need to reach the ${
                 gradeCalculation === 'full' ? 'upper' : 'lower'
             } bound of a rubric item to achieve its score.`;
-        } else {
+        } else if (autoTest != null) {
             msg += 'No grade calculation method has been set yet.';
         }
 

@@ -16,7 +16,10 @@ from sqlalchemy.orm import undefer, selectinload
 from sqlalchemy.types import JSON
 
 import psef
+import cg_timers
 from cg_dt_utils import DatetimeWithTimezone
+from cg_sqlalchemy_helpers import hybrid_property, hybrid_expression
+from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy
 
 from . import Base, DbColumn, db
 from . import file as file_models
@@ -31,12 +34,6 @@ from .comment import Comment
 from ..helpers import JSONType
 from ..exceptions import PermissionException
 from ..permissions import CoursePermission
-
-if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=unused-import, invalid-name
-    hybrid_property = property
-else:
-    from sqlalchemy.ext.hybrid import hybrid_property
 
 
 class GradeOrigin(enum.Enum):
@@ -60,21 +57,23 @@ class GradeHistory(Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['GradeHistory']] = Base.query
     __tablename__ = "GradeHistory"
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    changed_at: DatetimeWithTimezone = db.Column(
-        db.TIMESTAMP(timezone=True), default=DatetimeWithTimezone.utcnow
+    id = db.Column('id', db.Integer, primary_key=True)
+    changed_at = db.Column(
+        db.TIMESTAMP(timezone=True),
+        default=DatetimeWithTimezone.utcnow,
+        nullable=False,
     )
-    is_rubric: bool = db.Column('is_rubric', db.Boolean)
-    grade: float = db.Column('grade', db.Float)
-    passed_back: bool = db.Column('passed_back', db.Boolean, default=False)
+    is_rubric = db.Column('is_rubric', db.Boolean)
+    grade = db.Column('grade', db.Float)
+    passed_back = db.Column('passed_back', db.Boolean, default=False)
 
-    work_id: int = db.Column(
+    work_id = db.Column(
         'Work_id',
         db.Integer,
         db.ForeignKey('Work.id', ondelete='CASCADE'),
         nullable=False,
     )
-    user_id: int = db.Column(
+    user_id = db.Column(
         'User_id',
         db.Integer,
         db.ForeignKey('User.id', ondelete='CASCADE'),
@@ -88,17 +87,15 @@ class GradeHistory(Base):
     )
 
     work = db.relationship(
-        'Work',
+        lambda: Work,
         foreign_keys=work_id,
         backref=db.backref(
             'grade_histories', lazy='select', cascade='all,delete'
         ),
         innerjoin=True,
-    )  # type: 'Work'
+    )
 
-    user = db.relationship(
-        'User', foreign_keys=user_id
-    )  # type: user_models.User
+    user = db.relationship(lambda: user_models.User, foreign_keys=user_id)
 
     __table_args__ = (
         db.CheckConstraint(
@@ -150,22 +147,22 @@ class Work(Base):
     if t.TYPE_CHECKING:  # pragma: no cover
         query = Base.query  # type: t.ClassVar[_MyQuery['Work']]
     __tablename__ = "Work"  # type: str
-    id = db.Column('id', db.Integer, primary_key=True)  # type: int
-    assignment_id: int = db.Column(
+    id = db.Column('id', db.Integer, primary_key=True)
+    assignment_id = db.Column(
         'Assignment_id',
         db.Integer,
         db.ForeignKey('Assignment.id'),
         nullable=False,
     )
-    user_id: int = db.Column(
+    user_id = db.Column(
         'User_id',
         db.Integer,
         db.ForeignKey('User.id', ondelete='CASCADE'),
         nullable=False,
     )
-    _grade: t.Optional[float] = db.Column('grade', db.Float, default=None)
-    comment: str = orm.deferred(db.Column('comment', db.Unicode, default=None))
-    comment_author_id: t.Optional[int] = db.Column(
+    _grade = db.Column('grade', db.Float, default=None, nullable=True)
+    comment = orm.deferred(db.Column('comment', db.Unicode, default=None))
+    comment_author_id = db.Column(
         'comment_author_id',
         db.Integer,
         db.ForeignKey('User.id', ondelete='SET NULL'),
@@ -173,35 +170,43 @@ class Work(Base):
     )
 
     orm.deferred(db.Column('comment', db.Unicode, default=None))
-    created_at: DatetimeWithTimezone = db.Column(
-        db.TIMESTAMP(timezone=True), default=DatetimeWithTimezone.utcnow
+    created_at = db.Column(
+        db.TIMESTAMP(timezone=True),
+        default=DatetimeWithTimezone.utcnow,
+        nullable=False,
     )
-    assigned_to: t.Optional[int] = db.Column(
+    assigned_to = db.Column(
         'assigned_to', db.Integer, db.ForeignKey('User.id'), nullable=True
     )
     selected_items = db.relationship(
-        'WorkRubricItem', cascade='all, delete-orphan'
-    )  # type: t.MutableSequence['WorkRubricItem']
+        lambda: WorkRubricItem, cascade='all, delete-orphan', uselist=True
+    )
 
     assignment = db.relationship(
-        'Assignment',
+        lambda: assignment_models.Assignment,
         foreign_keys=assignment_id,
         lazy='joined',
         innerjoin=True,
         backref=db.backref('submissions', lazy='select', uselist=True)
-    )  # type: 'assignment_models.Assignment'
+    )
     comment_author = db.relationship(
-        'User', foreign_keys=comment_author_id, lazy='select'
-    )  # type: t.Optional[user_models.User]
+        lambda: user_models.User,
+        foreign_keys=comment_author_id,
+        lazy='select'
+    )
     user = db.relationship(
-        'User', foreign_keys=user_id, lazy='joined', innerjoin=True
-    )  # type: user_models.User
+        lambda: user_models.User,
+        foreign_keys=user_id,
+        lazy='joined',
+        innerjoin=True
+    )
     assignee = db.relationship(
-        'User', foreign_keys=assigned_to, lazy='joined'
-    )  # type: t.Optional[user_models.User]
+        lambda: user_models.User, foreign_keys=assigned_to, lazy='joined'
+    )
 
     grade_histories: t.List['GradeHistory']
-    _deleted: bool = db.Column(
+
+    _deleted = db.Column(
         'deleted',
         db.Boolean,
         default=False,
@@ -214,40 +219,35 @@ class Work(Base):
         nullable=False,
         server_default=WorkOrigin.uploaded_files.name,
     )
-    extra_info: JSONType = db.Column(
+    extra_info: ColumnProxy[JSONType] = db.Column(
         'extra_info',
         JSON,
         nullable=True,
         default=None,
     )
 
-    # This variable is generated from the backref from all files
-    files: 't.List["file_models.File"]'
+    def _get_deleted(self) -> bool:
+        """Is this submission deleted.
+        """
+        return self._deleted or self.assignment.deleted
 
-    if t.TYPE_CHECKING:  # pragma: no cover
-        deleted: bool
-    else:
+    @hybrid_expression
+    def _get_deleted_expr(cls: t.Type['Work']) -> 'DbColumn[bool]':
+        """Get a query that checks if this submission is deleted.
+        """
+        # pylint: disable=no-self-argument
+        return select(
+            [sql.or_(cls._deleted, assignment_models.Assignment.deleted)]
+        ).where(
+            cls.assignment_id == assignment_models.Assignment.id,
+        ).label('deleted')
 
-        @hybrid_property
-        def deleted(self) -> bool:
-            """Is this submission deleted.
-            """
-            return self._deleted or self.assignment.deleted
+    def _set_deleted(self, new_value: bool) -> None:
+        self._deleted = new_value
 
-        @deleted.expression
-        def deleted(cls: t.Type['Work']) -> object:
-            """Get a query that checks if this submission is deleted.
-            """
-            # pylint: disable=no-self-argument
-            return select(
-                [sql.or_(cls._deleted, assignment_models.Assignment.deleted)]
-            ).where(
-                cls.assignment_id == assignment_models.Assignment.id,
-            ).label('deleted')
-
-        @deleted.setter
-        def deleted(self, new_value: bool) -> None:
-            self._deleted = new_value
+    deleted = hybrid_property(
+        _get_deleted, _set_deleted, None, _get_deleted_expr
+    )
 
     def divide_new_work(self) -> None:
         """Divide a freshly created work.
@@ -413,6 +413,7 @@ class Work(Base):
             # real user.
             return
         lti_provider = self.assignment.course.lti_provider
+        assert lti_provider
 
         lti_provider.passback_grade(self, initial)
 
@@ -534,6 +535,7 @@ class Work(Base):
 
         return item
 
+    @cg_timers.timed_function(collect_in_request=True)
     def __extended_to_json__(self) -> t.Mapping[str, t.Any]:
         """Create a extended JSON serializable representation of this object.
 
@@ -647,8 +649,10 @@ class Work(Base):
             :py:func:`psef.files.rename_directory_structure`
         :returns: Nothing
         """
-        file_models.File.create_from_extract_directory(
-            tree, None, {'work': self}
+        db.session.add(
+            file_models.File.create_from_extract_directory(
+                tree, None, {'work': self}
+            )
         )
 
     def get_user_feedback(self) -> t.Iterable[str]:
@@ -658,10 +662,10 @@ class Work(Base):
             feedback given by a person.
         """
         comments = Comment.query.filter(
-            t.cast(DbColumn[file_models.File], Comment.file).has(work=self),
+            Comment.file.has(work=self),
         ).order_by(
-            t.cast(DbColumn[int], Comment.file_id).asc(),
-            t.cast(DbColumn[int], Comment.line).asc(),
+            Comment.file_id.asc(),
+            Comment.line.asc(),
         )
         for com in comments:
             yield f'{com.file.get_path()}:{com.line + 1}:1: {com.comment}'
@@ -673,10 +677,10 @@ class Work(Base):
             by linters.
         """
         linter_comments = LinterComment.query.filter(
-            LinterComment.file.has(work=self)  # type: ignore
+            LinterComment.file.has(work=self)
         ).order_by(
-            LinterComment.file_id.asc(),  # type: ignore
-            LinterComment.line.asc(),  # type: ignore
+            LinterComment.file_id.asc(),
+            LinterComment.line.asc(),
         )
         for line_comm in linter_comments:
             yield (
@@ -766,7 +770,7 @@ class Work(Base):
 
     def get_file_children_mapping(
         self, exclude: 'file_models.FileOwner'
-    ) -> t.Mapping[int, t.Sequence['file_models.File']]:
+    ) -> t.Mapping[t.Optional[int], t.Sequence['file_models.File']]:
         """Get a mapping that maps a file id to all its children.
 
         This implementation does a single query to the database and runs in
@@ -780,7 +784,8 @@ class Work(Base):
         :returns: A mapping from file id to list of all its children for this
             submission.
         """
-        cache: t.Mapping[int, t.List['file_models.File']] = defaultdict(list)
+        cache: t.Mapping[t.Optional[int], t.
+                         List['file_models.File']] = defaultdict(list)
         files = file_models.File.query.filter(
             file_models.File.work == self,
             file_models.File.fileowner != exclude
@@ -843,12 +848,7 @@ class Work(Base):
         :returns: ``True`` if the user is the author of this submission or a
             member of the group that is the author of this submission.
         """
-        if self.user_id == user.id:
-            return True
-        elif self.user.group and user in self.user.group.members:
-            return True
-        else:
-            return False
+        return self.user.contains_user(user)
 
     def create_zip(
         self,
@@ -978,4 +978,5 @@ class Work(Base):
                 user_models.User.group,
             ),
             undefer(cls.comment),
+            selectinload(cls.comment_author),
         )
