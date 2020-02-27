@@ -22,7 +22,10 @@
                 </tr>
             </thead>
 
-            <component :is="doTransitions ? 'transition-group' : 'tbody'" v-if="sortedResults.length > 0" tag="tbody" name="result">
+            <component v-if="sortedResults.length > 0"
+                       :is="doTransitions ? 'transition-group' : 'tbody'"
+                       tag="tbody"
+                       name="result">
                 <tr v-for="result in visibleResults"
                     :key="`${result.id}-${result.state}`"
                     @click="openResult(result)">
@@ -30,17 +33,21 @@
                         <div v-if="submissions[result.submissionId]">
                             <user :user="submissions[result.submissionId].user"/>
                         </div>
-                        <div v-else class="name-loader">
-                            <loader :center="false" :scale="1"/>
+                        <div v-else
+                             class="name-loader">
+                            <loader :center="false"
+                                    :scale="1"/>
                         </div>
                     </td>
                     <td class="score shrink">
                         <div>
                             <span v-if="submissions[result.submissionId]">
                                 <icon v-if="submissions[result.submissionId].grade_overridden"
-                                    v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
+                                      v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
+                                    class="mr-2"
                                     name="exclamation-triangle"/>
                             </span>
+
                             {{ $utils.toMaxNDecimals($utils.getProps(result, '-', 'pointsAchieved'), 2) }} /
                             {{ $utils.toMaxNDecimals(autoTest.pointsPossible, 2) }}
                         </div>
@@ -257,15 +264,14 @@ export default {
 
     .score {
         text-align: right;
-
-        .fa-icon {
-            transform: translateY(2px);
-            margin-right: 0.5rem;
-        }
     }
 
     .state {
         text-align: center;
+    }
+
+    .fa-icon {
+        transform: translateY(-1px);
     }
 }
 

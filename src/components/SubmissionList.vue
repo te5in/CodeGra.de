@@ -40,7 +40,6 @@
                 <webhook-name :submission="item.item.sub" />
                 <icon name="exclamation-triangle"
                       class="text-warning ml-1"
-                      style="margin-bottom: -1px;"
                       v-b-popover.top.hover="getOtherSubmissionPopover(item.item.sub)"
                       v-if="!!getOtherSubmissionPopover(item.item.sub)"/>
             </router-link>
@@ -478,7 +477,7 @@ export default {
 }
 
 .submission-list {
-    .late-submission-icon .fa-icon {
+    .fa-icon {
         transform: translateY(-2px);
     }
 }

@@ -23,12 +23,15 @@
         </template>
     </component>
 </span>
-<span v-else class="user" :title="props.showTitle ? props.getNameOfUser(props.user) : undefined">
+<span v-else
+      class="user"
+      :title="props.showTitle ? props.getNameOfUser(props.user) : undefined">
     {{ props.user.name || props.user.username }}
     <span v-if="props.user.is_test_student">
         <component
             :is="injections.components.Icon"
             name="warning"
+            class="ml-2"
             v-b-popover.top.hover="'This student is a test student.'"/>
     </span>
 </span>
