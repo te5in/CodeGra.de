@@ -243,7 +243,7 @@ export default {
     padding: 0;
     background: rgb(248, 248, 248);
 
-    #app.dark & {
+    @{dark-mode} {
         background: @color-primary-darker;
     }
 }
@@ -260,7 +260,7 @@ ol {
         min-height: 5em;
     }
 
-    #app.dark & {
+    @{dark-mode} {
         background: @color-primary-darkest;
         color: @color-secondary-text-lighter;
     }
@@ -272,11 +272,17 @@ li {
     padding-right: 0.75em;
     background-color: lighten(@linum-bg, 1%);
     border-left: 1px solid darken(@linum-bg, 5%);
+    cursor: text;
+
+    @{dark-mode} {
+        background: @color-primary-darker;
+        border-left: 1px solid darken(@color-primary-darkest, 5%);
+    }
 
     &.added {
         background-color: @color-diff-added-light !important;
 
-        #app.dark & {
+        @{dark-mode} {
             background-color: @color-diff-added-dark !important;
         }
     }
@@ -284,18 +290,9 @@ li {
     &.removed {
         background-color: @color-diff-removed-light !important;
 
-        #app.dark & {
+        @{dark-mode} {
             background-color: @color-diff-removed-dark !important;
         }
-    }
-
-    &:hover {
-        cursor: text;
-    }
-
-    #app.dark & {
-        background: @color-primary-darker;
-        border-left: 1px solid darken(@color-primary-darkest, 5%);
     }
 }
 
@@ -305,7 +302,7 @@ code {
     white-space: pre-wrap;
     font-size: 100%;
 
-    #app.dark & {
+    @{dark-mode} {
         color: rgb(131, 148, 150);
     }
 
@@ -334,7 +331,8 @@ code {
 .diff-viewer {
     .whitespace {
         opacity: 0;
-        #app.dark & {
+
+        @{dark-mode} {
             color: @color-secondary-text;
         }
     }

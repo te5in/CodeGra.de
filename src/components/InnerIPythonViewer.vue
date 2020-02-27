@@ -190,7 +190,7 @@ export default {
         border: 1px solid rgba(0, 0, 0, 0.1);
         border-radius: @border-radius;
 
-        #app.dark & {
+        @{dark-mode} {
             background: @color-primary-darkest;
             color: @color-secondary-text-lighter;
         }

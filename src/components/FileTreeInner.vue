@@ -310,7 +310,7 @@ export default {
     cursor: default;
     color: @color-primary;
 
-    #app.dark & {
+    @{dark-mode} {
         color: @text-color-dark;
     }
 
@@ -320,11 +320,8 @@ export default {
             text-decoration: underline;
         }
 
-        #app.dark & {
-            &,
-            &:hover {
-                color: @text-color-dark;
-            }
+        @{dark-mode} {
+            color: @text-color-dark !important;
         }
     }
 

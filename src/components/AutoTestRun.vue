@@ -326,7 +326,7 @@ export default {
                 box-shadow: none;
             }
 
-            #app.dark & {
+            @{dark-mode} {
                 border-color: @color-primary-darkest;
                 background-color: @color-primary;
                 color: @text-color-dark;
@@ -342,7 +342,7 @@ export default {
             background-color: @color-primary;
             color: @text-color-dark;
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: @color-primary-darkest;
             }
         }

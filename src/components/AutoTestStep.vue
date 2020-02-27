@@ -1350,16 +1350,15 @@ export default {
     .results-log-collapse-row {
         .card-header {
             background-color: inherit;
-            border-bottom: 0;
+
+            @{dark-mode} {
+                border-bottom-color: @color-primary-darker;
+            }
         }
 
         .tab-pane {
             display: flex;
             padding: 0.75rem 0 0;
-        }
-
-        .tab-content {
-            border-top: 1px solid rgba(0, 0, 0, 0.125);
         }
 
         .custom-checkbox {
@@ -1391,7 +1390,8 @@ export default {
         padding-right: 0.75em;
         background-color: lighten(@linum-bg, 1%);
         min-height: 1.5em;
-        #app.dark & {
+
+        @{dark-mode} {
             background-color: @color-primary-darker;
         }
     }
@@ -1404,7 +1404,7 @@ export default {
     .removed {
         background-color: @color-diff-removed-light !important;
 
-        #app.dark & {
+        @{dark-mode} {
             background-color: @color-diff-removed-dark !important;
             color: black;
         }
@@ -1422,7 +1422,7 @@ export default {
         font-size: 100%;
         line-height: 1;
 
-        #app.dark & {
+        @{dark-mode} {
             color: rgb(131, 148, 150);
         }
     }

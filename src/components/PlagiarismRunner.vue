@@ -7,7 +7,7 @@
 <div v-else
      class="plagiarism-runner">
     <table v-if="(canView || canManage) && runs.length"
-           class="table table-striped runs-table">
+           class="table table-striped table-hover runs-table">
         <thead>
             <tr>
                 <th>Previous runs</th>
@@ -20,7 +20,10 @@
         <tbody>
             <tr v-for="run, i in runs"
                 :key="run.id"
-                :class="{ [`run-${run.state}`]: canView }"
+                :class="{
+                    [`run-${run.state}`]: canView,
+                    'table-danger': run.state === 'crashed'
+                }"
                 @click="goToOverview(run)">
                 <td class="provider">
                     <a v-if="canGoToOverview(run)"
@@ -603,49 +606,6 @@ export default {
         margin-bottom: 0;
     }
 
-    tr.run-done:hover,
-    tr.run-crashed:hover {
-        background-color: rgba(0, 0, 0, 0.075);
-        cursor: pointer;
-    }
-
-    tr.run-crashed {
-        td {
-            border-color: lighten(@alert-danger-color, 30%);
-
-            #app.dark & {
-                border-color: @alert-danger-color;
-            }
-        }
-
-        &:nth-of-type(2n + 1) {
-            background: lighten(@alert-danger-color, 20%);
-
-            #app.dark & {
-                background: @alert-danger-color;
-            }
-        }
-
-        &:nth-of-type(2n) {
-            background: lighten(@alert-danger-color, 30%);
-
-            #app.dark & {
-                background: lighten(@alert-danger-color, 10%);
-            }
-        }
-
-        &:hover {
-            background: lighten(@alert-danger-color, 10%);
-
-            #app.dark & {
-                background: darken(@alert-danger-color, 10%);
-                td {
-                    border-color: darken(@alert-danger-color, 10%);
-                }
-            }
-        }
-    }
-
     td {
         vertical-align: middle;
     }
@@ -682,7 +642,7 @@ export default {
     border-bottom: 1px solid rgba(0, 0, 0, 0.15);
     cursor: default !important;
 
-    #app.dark & {
+    @{dark-mode} {
         border-bottom: 1px solid @color-primary-darkest;
     }
 

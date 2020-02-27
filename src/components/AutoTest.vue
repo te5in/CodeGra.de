@@ -500,7 +500,9 @@
     <b-modal v-if="currentFixture"
              :id="fixtureModalId"
              @hidden="currentFixture = null"
-             class="fixture-modal">
+             class="fixture-modal"
+             body-class="p-0"
+             size="xl">
         <template slot="modal-title">
             Contents of fixture
             <code>$FIXTURES/{{ currentFixture.name }}</code>
@@ -509,11 +511,12 @@
         <loader v-if="currentFixture.raw_data == null" class="my-3" />
 
         <template v-else>
-            <b-alert v-if="currentFixture.err" show variant="danger" class="mt-3 mx-3">
+            <b-alert v-if="currentFixture.err" show variant="danger" class="rounded-0 mb-0">
                 {{ currentFixture.err }}
             </b-alert>
 
             <inner-code-viewer v-else
+                               class="rounded-0"
                                :assignment="assignment"
                                :code-lines="prepareOutput(currentFixture.data)"
                                :file-id="'-1'"
@@ -1407,7 +1410,7 @@ export default {
         opacity: 1 !important;
         color: @text-color;
 
-        #app.dark & {
+        @{dark-mode} {
             color: @text-color-dark;
         }
     }
@@ -1418,7 +1421,7 @@ export default {
         &:not(:last-child) {
             border-bottom: 1px solid rgba(0, 0, 0, 0.125);
 
-            #app.dark & {
+            @{dark-mode} {
                 border-bottom-color: @color-primary-darker;
             }
         }

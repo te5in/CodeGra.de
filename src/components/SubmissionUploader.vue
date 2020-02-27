@@ -125,7 +125,7 @@
              hide-footer
              title="Group"
              size="lg">
-        <div class="group-modal-wrapper">
+        <div class="group-modal-wrapper border-bottom">
             <p class="header">
                 This assignment is a group assignment. Each group should have at
                 least {{ assignment.group_set.minimum_size }} members.
@@ -235,7 +235,7 @@
            setting up Git submissions.
     </div>
 
-    <b-input-group class="submit-options border-top">
+    <b-input-group class="submit-options border-top" style="z-index: 25">
         <template v-if="forOthers">
             <div class="author-wrapper"
                  :class="canListUsers ? '' : 'd-flex'"
@@ -894,12 +894,6 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.submission-uploader {
-    &.border.rounded {
-        overflow: hidden;
-    }
-}
-
 .form-group {
     margin-bottom: 0;
 }
@@ -913,15 +907,10 @@ export default {
 
 .group-modal-wrapper {
     overflow: auto;
-    border-bottom: 1px solid rgb(233, 236, 239);
     margin: -0.95rem;
     margin-bottom: 0.95rem;
     padding: 0.95rem;
     min-height: 50vh;
-
-    #app.dark & {
-        border-color: @color-primary-darker;
-    }
 }
 
 .group-modal-body .groups-management {
@@ -1004,7 +993,7 @@ export default {
             width: 100%;
             background-color: transparent !important;
 
-            #app.dark & {
+            @{dark-mode} {
                 color: @text-color-dark !important;
             }
         }

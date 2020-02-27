@@ -222,7 +222,7 @@ export default {
     pointer-events: none;
     z-index: 1000;
 
-    #app.dark & {
+    @{dark-mode} {
         display: none;
     }
 }

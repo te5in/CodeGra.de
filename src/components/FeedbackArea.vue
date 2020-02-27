@@ -61,7 +61,7 @@
             </b-card>
             <textarea ref="field"
                       v-model="internalFeedback"
-                      class="form-control editable-feedback-area"
+                      class="form-control editable-feedback-area rounded-right-0"
                       :disabled="feedbackDisabled"
                       @keydown.esc.prevent="stopSnippets"
                       @keydown.exact.tab.prevent="maybeSelectNextSnippet(false)"
@@ -71,38 +71,38 @@
                       @keydown.ctrl.enter.prevent="doSubmit"/>
         </div>
         <div class="minor-buttons btn-group-vertical">
-                <b-btn class="snippet-btn"
-                       variant="secondary"
-                       v-if="canUseSnippets"
-                       @click="findSnippet(); showSnippetDialog = !showSnippetDialog"
-                       v-b-popover.top.hover="showSnippetDialog ? 'Hide snippet name' : 'Save as snippet'">
-                    <icon name="plus"
-                          aria-hidden="true"
-                          :class="{ rotated: showSnippetDialog }"/>
-                </b-btn>
-                <submit-button :submit="deleteFeedback"
-                               :filter-error="deleteFilter"
-                               :duration="300"
-                               :confirm="internalFeedback ? 'Are you sure you want to delete this comment?' : ''"
-                               @error="deleteFeedbackError"
-                               variant="danger"
-                               ref="deleteButton"
-                               v-b-popover.top.hover="'Delete feedback'"
-                               class="delete-feedback">
-                    <icon name="times" aria-hidden="true"/>
-                </submit-button>
-            </div>
-            <b-input-group-append class="submit-feedback">
-                <submit-button :submit="submitFeedback"
-                               @after-success="afterSubmitFeedback"
-                               @error="feedbackDisabled = false"
-                               ref="submitButton"
-                               v-b-popover.top.hover="'Save feedback'">
-                    <icon name="check" aria-hidden="true"/>
-                </submit-button>
-            </b-input-group-append>
-        </b-input-group>
-    </div>
+            <b-btn class="snippet-btn rounded-0"
+                   variant="secondary"
+                   v-if="canUseSnippets"
+                   @click="findSnippet(); showSnippetDialog = !showSnippetDialog"
+                   v-b-popover.top.hover="showSnippetDialog ? 'Hide snippet name' : 'Save as snippet'">
+                <icon name="plus"
+                      aria-hidden="true"
+                      :class="{ rotated: showSnippetDialog }"/>
+            </b-btn>
+            <submit-button :submit="deleteFeedback"
+                           :filter-error="deleteFilter"
+                           :duration="300"
+                           :confirm="internalFeedback ? 'Are you sure you want to delete this comment?' : ''"
+                           @error="deleteFeedbackError"
+                           variant="danger"
+                           ref="deleteButton"
+                           v-b-popover.top.hover="'Delete feedback'"
+                           class="delete-feedback rounded-0">
+                <icon name="times" aria-hidden="true"/>
+            </submit-button>
+        </div>
+        <b-input-group-append class="submit-feedback">
+            <submit-button :submit="submitFeedback"
+                           @after-success="afterSubmitFeedback"
+                           @error="feedbackDisabled = false"
+                           ref="submitButton"
+                           v-b-popover.top.hover="'Save feedback'">
+                <icon name="check" aria-hidden="true"/>
+            </submit-button>
+        </b-input-group-append>
+    </b-input-group>
+</div>
 </template>
 
 <script>
@@ -626,7 +626,8 @@ export default {
         border-bottom-left-radius: 0;
         border-bottom-right-radius: 0;
         box-shadow: 0.2em -0.1em 0.5em 0 rgb(206, 212, 218);
-        #app.dark & {
+
+        @{dark-mode} {
             box-shadow: 0.2em -0.1em 0.5em 0 @color-primary;
         }
 
@@ -641,7 +642,7 @@ export default {
     &:not(.snippets-above) {
         box-shadow: 0.2em 0.1em 0.5em 0 rgb(206, 212, 218);
 
-        #app.dark & {
+        @{dark-mode} {
             box-shadow: 0.2em 0.1em 0.5em 0 @color-primary;
         }
 
@@ -680,7 +681,8 @@ export default {
 
     .snippet-item {
         background: white;
-        #app.dark & {
+
+        @{dark-mode} {
             background: @color-primary;
             color: white;
         }
@@ -727,7 +729,7 @@ export default {
     background-color: white;
     margin-top: @line-spacing;
 
-    #app.dark & {
+    @{dark-mode} {
         background-color: @color-primary-darker;
     }
 
@@ -769,7 +771,7 @@ export default {
             border: 0;
         }
 
-        #app.dark & {
+        @{dark-mode} {
             background-color: @color-primary;
             border-color: @color-primary-darkest;
             color: @text-color-dark;
@@ -816,10 +818,6 @@ button {
     display: flex;
 }
 
-textarea {
-    min-height: 7em;
-}
-
 .snippet-btn {
     border-top-width: 1px;
     border-top-style: solid;
@@ -834,11 +832,6 @@ textarea {
     }
 }
 
-.editable-area {
-    padding: 0;
-    border-radius: @border-radius;
-}
-
 .input.snippet {
     margin: 0;
 }
@@ -849,25 +842,16 @@ textarea {
 
 .editable-feedback-area {
     position: relative;
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
+    min-height: 7em;
 }
 
 .snippet-icon {
     display: inline-block;
     width: 1rem;
+
     .fa-icon {
         vertical-align: middle;
         margin-top: -3px;
     }
-}
-</style>
-
-<style lang="less">
-.feedback-area .minor-buttons .submit-button.btn:last-child {
-    border-bottom-right-radius: 0;
-    border-bottom-left-radius: 0;
-    border-top-right-radius: 0;
-    border-top-left-radius: 0;
 }
 </style>

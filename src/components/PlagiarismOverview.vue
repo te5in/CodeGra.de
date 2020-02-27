@@ -304,7 +304,7 @@ export default {
         color: @color-secondary-text-lighter;
         background-color: transparent !important;
 
-        #app.dark & {
+        @{dark-mode} {
             color: @text-color-dark;
         }
 

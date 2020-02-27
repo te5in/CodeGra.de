@@ -372,8 +372,10 @@ export default {
     overflow: hidden;
 }
 
-#app.dark .general-feedback {
-    color: @text-color-dark;
+.general-feedback pre {
+    @{dark-mode} {
+        color: @text-color-dark;
+    }
 }
 </style>
 

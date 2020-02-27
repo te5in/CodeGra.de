@@ -5,6 +5,7 @@
         <template slot="title">
             Welcome {{ nameOfUser }}!
         </template>
+
         <div class="search-logo-wrapper">
             <input class="search form-control mr-3"
                    v-model="searchString"
@@ -13,6 +14,7 @@
             <cg-logo :small="$root.$isSmallWindow" :inverted="!darkMode" />
         </div>
     </local-header>
+
     <b-alert show v-if="showReleaseNote" variant="info">
         A new version of CodeGrade has been released:
         <b>{{ UserConfig.release.version }}</b>.
@@ -20,10 +22,17 @@
         changelog <a href="https://docs.codegra.de/about/changelog.html"
         target="_blank" class="alert-link">here</a>.
     </b-alert>
+
     <loader v-if="loadingCourses" page-loader/>
-    <div v-else-if="courses.length === 0">
-        <span class="no-courses">You have no courses yet!</span>
-    </div>
+
+    <template v-else-if="courses.length === 0">
+        <h3 class="text-center font-italic text-muted">You have no courses yet!</h3>
+    </template>
+
+    <template v-else-if="filteredCourses.length === 0">
+        <h3 class="text-center font-italic text-muted">No matching courses found!</h3>
+    </template>
+
     <masonry :cols="{default: 3, [$root.largeWidth]: 2, [$root.mediumWidth]: 1 }"
              :gutter="30"
              class="outer-block outer-course-wrapper"
@@ -50,7 +59,7 @@
                                 <router-link v-for="{ assignment, filtered } in getAssignments(course)"
                                              :key="assignment.id"
                                              :to="submissionsRoute(assignment)"
-                                             :class="filtered ? 'super-text-muted' : ''"
+                                             :class="filtered ? 'text-muted' : ''"
                                              class="assig-list-item">
                                     <td>
                                         <span>{{ assignment.name }}</span><br>
@@ -78,7 +87,7 @@
                             </tbody>
                         </table>
 
-                        <p class="no-assignments" v-else>
+                        <p class="m-3 font-italic text-muted" v-else>
                             No assignments for this course.
                         </p>
                     </div>
@@ -278,11 +287,12 @@ export default {
         margin-bottom: 0;
 
         .assig-list-item {
-            #app.dark &,
-            #app.dark & .fa-icon {
+            display: table-row;
+
+            @{dark-mode},
+            @{dark-mode} .fa-icon {
                 color: rgb(210, 212, 213);
             }
-            display: table-row;
 
             &:first-child td {
                 border-top-width: 0;
@@ -300,7 +310,6 @@ export default {
         a:hover {
             text-decoration: none;
 
-            #app.dark & .fa-icon,
             .fa-icon {
                 border-bottom-color: transparent;
             }
@@ -315,7 +324,7 @@ export default {
         padding-bottom: 1em;
 
         .card {
-            // Don't render content over the border
+            // Dont render content over the border
             overflow: hidden;
         }
 
@@ -364,7 +373,7 @@ export default {
 }
 
 a {
-    #app.dark & {
+    @{dark-mode} {
         color: @text-color-dark;
 
         &:hover {
@@ -379,29 +388,9 @@ a {
     &:hover .gear-icon {
         border-bottom: 1px solid lighten(@color-primary, 10%);
 
-        #app.dark & {
+        @{dark-mode} {
             border-color: darken(@text-color-dark, 10%);
         }
-    }
-}
-
-.no-courses {
-    display: block;
-    font-size: 1.5rem;
-    text-align: center;
-    color: @color-secondary-text;
-
-    #app.dark & {
-        color: @color-light-gray;
-    }
-}
-
-.no-assignments {
-    margin: 1rem 0.75rem;
-    color: @color-secondary-text;
-
-    #app.dark & {
-        color: @color-light-gray;
     }
 }
 
@@ -413,10 +402,5 @@ a {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-}
-
-.super-text-muted,
-.super-text-muted a {
-    color: rgb(204, 204, 204) !important;
 }
 </style>

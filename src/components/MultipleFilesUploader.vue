@@ -217,7 +217,7 @@ export default {
         height: 100%;
         margin-bottom: -1px;
 
-        #app.dark & {
+        @{dark-mode} {
             border-color: @color-primary-darker;
         }
 
@@ -234,7 +234,7 @@ export default {
             &.hovered {
                 background-color: rgba(0, 0, 0, 0.35);
 
-                #app.dark & {
+                @{dark-mode} {
                     background-color: rgba(0, 0, 0, 0.4);
                 }
             }
@@ -255,7 +255,7 @@ export default {
                 justify-content: center;
                 align-items: center;
 
-                #app.dark & {
+                @{dark-mode} {
                     color: @text-color-dark;
                     border-color: @text-color-dark;
                 }
@@ -308,7 +308,7 @@ export default {
                 background-color: white;
             }
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: darken(@color-primary, 2.5%);
                 border-color: @color-primary-darker;
 
@@ -360,7 +360,7 @@ export default {
                 transition: all 250ms;
                 color: @color-primary;
 
-                #app.dark & {
+                @{dark-mode} {
                     color: @text-color-dark;
                 }
             }

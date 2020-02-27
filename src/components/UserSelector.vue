@@ -219,7 +219,7 @@ export default {
     right: 0;
     cursor: pointer;
 
-    #app.dark & {
+    @{dark-mode} {
         color: @text-color-dark;
     }
 

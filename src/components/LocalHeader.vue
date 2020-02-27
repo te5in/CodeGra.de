@@ -118,6 +118,7 @@ export default {
 @import '~mixins.less';
 
 .local-header {
+    .default-footer-colors;
     position: relative;
     position: sticky;
     top: 0;
@@ -125,11 +126,10 @@ export default {
     margin: 0 -15px 1rem;
     border: 0;
     padding: 1rem;
-    .default-footer-colors;
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.75);
     color: @text-color;
 
-    #app.dark & {
+    @{dark-mode} {
         color: @text-color-dark;
     }
 }
@@ -179,7 +179,7 @@ export default {
         margin: 0.5rem 0 0.25rem;
     }
 
-    #app.dark & {
+    @{dark-mode} {
         border-color: @color-primary-darkest;
     }
 }
@@ -198,16 +198,18 @@ export default {
         }
     }
 
-    #app.dark & .btn.btn-primary {
-        background-color: @color-primary-darkest;
+    @{dark-mode} {
+        .btn.btn-primary {
+            background-color: @color-primary-darkest;
 
-        &:hover {
-            background-color: darken(@color-primary-darkest, 2%);
+            &:not(:disabled):not(.disabled):hover {
+                background-color: darken(@color-primary-darkest, 2%);
+            }
         }
-    }
 
-    #app.dark & .btn.btn-secondary:hover {
-        background-color: darken(@color-primary, 2.5%) !important;
+        .btn.btn-secondary:not(:disabled):not(.disabled):hover {
+            background-color: darken(@color-primary, 2.5%) !important;
+        }
     }
 }
 </style>

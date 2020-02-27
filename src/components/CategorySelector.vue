@@ -158,14 +158,14 @@ export default {
     &.selected .indicator {
         border-bottom: 2px solid @color-primary;
 
-        #app.dark & {
+        @{dark-mode} {
             border-bottom: 2px solid @color-secondary;
         }
     }
 
     &:hover .indicator {
         &,
-        #app.dark & {
+        @{dark-mode} {
             border-bottom: 2px solid lighten(@color-secondary, 20%);
         }
     }

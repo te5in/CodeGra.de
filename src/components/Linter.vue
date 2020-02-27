@@ -7,7 +7,7 @@
         <div v-if="state == 'new'"
              :class="{ 'lonely-start-button-wrapper' : Object.keys(options).length == 0 }">
             <div v-if="Object.keys(options).length > 0">
-                <b-button-toolbar justify class="mb-3">
+                <b-button-toolbar justify>
                     <b-dropdown :text="selectedOption">
                         <b-dropdown-header>Select your config file</b-dropdown-header>
                         <b-dropdown-item v-for="(_, optionName) in options"
@@ -26,7 +26,7 @@
 
                 <b-collapse :id="`sub_collapse_${name}_${assignment.id}`">
                     <form>
-                        <textarea class="form-control mb-3"
+                        <textarea class="form-control mt-3"
                                   rows="10"
                                   placeholder="Enter your custom config"
                                   v-model="config"/>
@@ -47,7 +47,7 @@
                 {{ done + crashed }} out of {{ working + crashed + done }}
             </div>
         </div>
-        <div v-if="state !== 'new'" class="mb-3">
+        <div v-if="state !== 'new'">
             <b-button-toolbar justify>
                 <submit-button class="delete-button"
                                :disabled="state === 'new'"

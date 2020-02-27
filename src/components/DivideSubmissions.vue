@@ -307,7 +307,7 @@ export default {
         &:not(:disabled):hover {
             border-color: @color-primary !important;
 
-            #app.dark & {
+            @{dark-mode} {
                 border-color: @color-primary-darkest !important;
             }
         }

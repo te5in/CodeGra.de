@@ -278,7 +278,7 @@ export default {
         color: @color-secondary;
         transition: width @transition-duration;
 
-        #app.dark & {
+        @{dark-mode} {
             background-color: fade(white, 15%);
             border-right: 1px solid fade(white, 25%);
             color: @text-color-dark;
@@ -294,7 +294,7 @@ export default {
                 1px 0 rgba(255, 255, 255, 0.75), 0 -1px rgba(255, 255, 255, 0.75);
             font-weight: bold !important;
 
-            #app.dark & {
+            @{dark-mode} {
                 text-shadow: -1px 0 @color-primary, 0 1px @color-primary, 1px 0 @color-primary,
                     0 -1px @color-primary;
             }

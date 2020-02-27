@@ -589,7 +589,7 @@ pre {
             background-color: @color-primary;
             border-color: @color-primary;
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: @color-primary-darker;
                 border-color: @color-primary-darker;
             }
@@ -603,7 +603,7 @@ pre {
                 background-color: rgba(0, 0, 0, 0.1);
             }
 
-            #app.dark & {
+            @{dark-mode} {
                 border-color: @color-primary-darker;
                 color: @text-color-dark;
             }

@@ -58,18 +58,21 @@
 @border-radius: 0.25rem;
 @transition-duration: 300ms;
 
+@dark-root: ~'body.cg-dark-mode';
+@dark-mode: ~'@{dark-root} &';
+
 .default-footer-colors {
     background-color: @footer-color;
     color: @color-secondary-text;
 
-    body.cg-dark-mode & {
+    @{dark-mode} {
         background-color: @color-primary-darker;
         color: @color-secondary-text-lighter;
     }
 }
 
 .default-alter-danger-colors {
-    body.cg-dark-mode & {
+    @{dark-mode} {
         background-color: @alert-danger-color;
         border-color: @alert-danger-color;
         color: darken(@alert-danger-color, 30%);
@@ -77,17 +80,17 @@
 }
 
 .default-text-colors {
-    body.cg-dark-mode & {
+    color: @text-color;
+    @{dark-mode} {
         color: @text-color-dark;
     }
-    color: @text-color;
 }
 
 .default-secondary-text-colors {
-    body.cg-dark-mode & {
+    color: @color-secondary-text;
+    @{dark-mode} {
         color: @color-secondary-text-lighter;
     }
-    color: @color-secondary-text;
 }
 
 .default-link-colors {
@@ -99,7 +102,7 @@
         }
     }
 
-    body.cg-dark-mode &:not(.inline-link):not(.btn) {
+    @{dark-mode}:not(.inline-link):not(.btn) {
         color: lighten(@color-primary, 30%);
 
         &:hover {
@@ -111,7 +114,7 @@
 .default-background {
     background-color: rgb(255, 255, 255);
 
-    body.cg-dark-mode & {
+    @{dark-mode} {
         background-color: @color-primary;
     }
 }
@@ -119,7 +122,7 @@
 .default-color {
     color: @text-color;
 
-    body.cg-dark-mode & {
+    @{dark-mode} {
         color: @text-color-dark;
     }
 }
@@ -140,7 +143,7 @@
         border-color: @color-primary;
     }
 
-    body.cg-dark-mode & {
+    @{dark-mode} {
         border-color: @color-primary-darker;
         color: @text-color-dark;
 
@@ -169,7 +172,7 @@
         border-color: fade(@color-primary, 60);
     }
 
-    body.cg-dark-mode & {
+    @{dark-mode} {
         background-color: @color-primary-darker;
         border-color: @color-primary-darker;
 
@@ -198,7 +201,7 @@
             color: @text-color;
             border-color: rgb(204, 204, 204);
 
-            body.cg-dark-mode & {
+            @{dark-mode} {
                 background-color: @color-primary;
                 border-color: @color-primary-darker;
                 &:hover:not(:disabled) {
@@ -229,7 +232,7 @@
         }
     }
 
-    body.cg-dark-mode & {
+    @{dark-mode} {
         & ~ .custom-control-indicator {
             background-color: @color-primary;
             border: 1px solid @color-secondary-text-lighter;
@@ -255,7 +258,7 @@
 }
 
 .default-card-colors {
-    body.cg-dark-mode & {
+    @{dark-mode} {
         background-color: @color-primary;
         border-color: @color-primary-darker;
 
@@ -285,7 +288,7 @@
         }
     }
 
-    body.cg-dark-mode & {
+    @{dark-mode} {
         border-color: @color-primary-darker;
 
         li.nav-item > .nav-link {
@@ -294,6 +297,7 @@
             &.active {
                 background-color: @color-primary;
                 border-color: @color-primary-darker;
+                border-bottom-color: transparent !important;
             }
 
             &:hover:not(.disabled) {
@@ -406,7 +410,7 @@
         border-top: 0;
     }
 
-    body.cg-dark-mode & {
+    @{dark-mode} {
         .dark-table-colors;
     }
 }
@@ -414,7 +418,7 @@
 .default-collapse-wrapper-colors,
 .default-form-control-colors,
 .default-list-group-item-colors {
-    body.cg-dark-mode &:not(.list-group-item-info) {
+    @{dark-mode}:not(.list-group-item-info) {
         background-color: @color-primary;
         border-color: @color-primary-darker;
         color: @text-color-dark;
@@ -427,12 +431,12 @@
         border-color: rgba(206, 212, 218, 100%);
     }
 
-    body.cg-dark-mode &:focus {
+    @{dark-mode}:focus {
         box-shadow: inset 0 0 0.2em 0 @color-primary-darkest;
         border-color: @color-primary-darkest;
     }
 
-    body.cg-dark-mode .has-danger & {
+    @{dark-root} .has-danger & {
         border-color: rgba(217, 83, 79, 100%);
     }
 }
@@ -449,7 +453,7 @@
 }
 
 .default-input-colors {
-    body.cg-dark-mode & {
+    @{dark-mode} {
         .dark-input-colors;
     }
 }
@@ -594,24 +598,18 @@
         color: @text-color !important;
     }
 
-    body.cg-dark-mode & {
+    @{dark-mode} {
         .dark-input-group-colors;
     }
 }
 
 .default-dropdown-menu-colors {
-    body.cg-dark-mode & {
+    @{dark-mode} {
         background-color: @color-primary;
 
         .dropdown-item {
             color: @text-color-dark !important;
-            border-color: @color-primary-darker;
             outline: none !important;
-
-            &:hover,
-            &:focus {
-                background-color: @color-primary-darker;
-            }
         }
 
         .dropdown-divider {
@@ -623,8 +621,20 @@
         }
     }
 
-    .dropdown-item:active {
-        background-color: darken(@background-color, 10%);
+    .dropdown-item {
+        &.active,
+        &:active {
+            background-color: rgba(0, 0, 0, 0.075);
+        }
+
+        &:hover,
+        &:focus {
+            background-color: rgba(0, 0, 0, 0.125);
+        }
+
+        &.disabled {
+            cursor: not-allowed;
+        }
     }
 }
 
@@ -636,16 +646,7 @@
             .default-link-colors;
         }
 
-        button.close {
-            .default-text-colors;
-            opacity: 0.7;
-            text-shadow: none;
-            &:hover {
-                opacity: 1;
-            }
-        }
-
-        body.cg-dark-mode & {
+        @{dark-mode} {
             background-color: @color-primary;
             color: @text-color-dark;
 
@@ -654,12 +655,16 @@
             .modal-header {
                 border-color: @color-primary-darker;
             }
+
+            .modal-header .close {
+                color: @text-color-dark;
+            }
         }
     }
 }
 
 .dark-multiselect-colors {
-    body.cg-dark-mode & {
+    @{dark-mode} {
         .multiselect__tags {
             background-color: @color-primary;
             border-color: @color-primary-darker;

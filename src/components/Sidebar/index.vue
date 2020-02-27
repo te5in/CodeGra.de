@@ -783,7 +783,7 @@ export default {
         background-color: white;
         color: @color-primary;
 
-        #app.dark & {
+        @{dark-mode} {
             background-color: @color-primary;
             color: white;
         }
@@ -869,14 +869,14 @@ export default {
         background-color: transparent !important;
         color: @text-color;
 
-        #app.dark & {
+        @{dark-mode} {
             color: @text-color-dark;
         }
 
         &:hover {
             background-color: @color-light-gray !important;
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: @color-primary-darker !important;
             }
         }
@@ -885,7 +885,7 @@ export default {
             background-color: @color-primary !important;
             color: white !important;
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: white !important;
                 color: @color-primary !important;
             }
@@ -981,7 +981,7 @@ export default {
         &:hover {
             background-color: @color-lighter-gray;
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: lighten(@color-primary-darker, 2%);
             }
         }
@@ -989,7 +989,7 @@ export default {
         &:not(.light-selected) a:hover {
             background-color: @color-light-gray;
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: @color-primary-darkest;
             }
         }
@@ -998,7 +998,7 @@ export default {
             background-color: lighten(@color-primary, 5%);
             color: white;
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: lightgray;
                 color: @color-primary;
             }
@@ -1006,7 +1006,7 @@ export default {
             a:hover:not(.selected) {
                 background-color: @color-primary-darkest;
 
-                #app.dark & {
+                @{dark-mode} {
                     background-color: darken(lightgray, 7.9%);
                 }
             }
@@ -1017,7 +1017,7 @@ export default {
             color: white;
             background-color: @color-primary;
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: white;
                 color: @color-primary;
             }
@@ -1027,7 +1027,7 @@ export default {
                 background-color: darken(@color-primary, 2%);
                 color: white;
 
-                #app.dark & {
+                @{dark-mode} {
                     background-color: darken(white, 7.9%);
                     color: @color-primary;
                 }

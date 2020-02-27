@@ -781,7 +781,7 @@ export default {
     background-color: white;
     flex: 1 1 auto;
 
-    #app.dark & {
+    @{dark-mode} {
         background-color: @color-primary;
     }
 }

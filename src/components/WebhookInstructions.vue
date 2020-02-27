@@ -505,7 +505,7 @@ export default {
         width: 100%;
     }
 
-    #app.dark &.github img {
+    @{dark-mode}.github img {
         filter: invert(1);
     }
 

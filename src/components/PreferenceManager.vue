@@ -303,18 +303,6 @@ export default {
 @import '~mixins.less';
 
 .popover .settings-content {
-    #app.dark ~ .popover & .table {
-        .dark-table-colors;
-    }
-
-    #app.dark ~ .popover & .table {
-        .dark-input-colors;
-    }
-
-    #app.dark ~ .popover & .input-group {
-        .dark-input-group-colors;
-    }
-
     .loader {
         margin-top: 4px;
         float: right;

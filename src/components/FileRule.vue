@@ -376,21 +376,14 @@ export default {
     vertical-align: initial;
 }
 
-#app.dark .file-part {
-    background-color: @color-primary-darker;
-    border-color: @color-primary-darkest;
-}
-
-#app.dark .special-part,
-#app.dark .wildcard,
-#app.dark .rule-selector {
-    background-color: @color-primary-darkest;
-    border-color: @color-primary-darkest;
-}
-
 .file-part {
     border: 1px solid rgb(204, 204, 204);
     background: white;
+
+    @{dark-mode} {
+        background-color: @color-primary-darker;
+        border-color: @color-primary-darkest;
+    }
 
     &.name-with-wildcard {
         padding: 0;
@@ -408,7 +401,7 @@ export default {
             border-left: 1px solid rgb(204, 204, 204);
         }
 
-        #app.dark & {
+        @{dark-mode} {
             border-color: @color-primary-darkest;
         }
     }
@@ -444,7 +437,9 @@ export default {
     font-variant: small-caps;
     color: @text-color-muted;
 
-    #app.dark & {
+    @{dark-mode} {
+        background-color: @color-primary-darkest;
+        border-color: @color-primary-darkest;
         color: lighten(@text-color-muted, 10%);
     }
 }

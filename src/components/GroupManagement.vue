@@ -377,11 +377,6 @@ action is required.${divEnd}`;
     background: @color-secondary;
     color: white;
 
-    #app.dark & .delete,
-    #app.dark & {
-        color: @color-lighter-gray;
-    }
-
     border-radius: @border-radius;
     border: 1px solid @color-secondary;
     display: flex;
