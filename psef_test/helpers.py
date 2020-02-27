@@ -54,6 +54,7 @@ def create_lti_assignment(
         deadline=deadline,
         lti_assignment_id=str(uuid.uuid4()),
         lti_outcome_service_url=str(uuid.uuid4()),
+        is_lti=True,
     )
     res.set_state(state)
     session.add(res)

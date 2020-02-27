@@ -225,6 +225,4 @@ def create_app(  # pylint: disable=too-many-statements
     import cg_timers
     cg_timers.init_app(resulting_app)
 
-    signals.FINALIZE_APP.send(resulting_app)
-
     return resulting_app

@@ -1,30 +1,32 @@
-import os
-import sys
-import json
+import copy
 import typing as t
 import dataclasses
 
+import requests
 import werkzeug
 import structlog
 import sqlalchemy.sql
+from pylti1p3.lineitem import LineItem
 from typing_extensions import Final
 from pylti1p3.deployment import Deployment
 from pylti1p3.oidc_login import OIDCLogin
 from pylti1p3.tool_config import ToolConfAbstract
 from pylti1p3.registration import Registration
 from pylti1p3.message_launch import MessageLaunch
+from pylti1p3.service_connector import ServiceConnector
+from pylti1p3.assignments_grades import AssignmentsGradesService
 from pylti1p3.deep_link_resource import DeepLinkResource
 
 import flask
 from cg_dt_utils import DatetimeWithTimezone
-from cg_flask_helpers import callback_after_this_request
 
 from . import claims
-from ... import PsefFlask, tasks, models, helpers, current_app
+from ... import PsefFlask, models, helpers, signals, current_app
 from .flask import (
     FlaskRequest, FlaskRedirect, FlaskCookieService, FlaskSessionService
 )
-from .roles import SystemRole, ContextRole
+from .roles import SystemRole
+from ...cache import cache_within_request_make_key
 from ...models import AssignmentVisibilityState, db
 from ..abstract import AbstractLTIConnector
 from ...exceptions import APICodes, APIException
@@ -37,57 +39,130 @@ if t.TYPE_CHECKING:
     from pylti1p3.message_launch import _JwtData, _LaunchData
 
 
+class CGAssignmentsGradesService(AssignmentsGradesService):
+    def __init__(
+        self, service_connector: ServiceConnector,
+        assignment: models.Assignment
+    ):
+        assert assignment.is_lti
+        assert isinstance(assignment.lti_grade_service_data, dict)
+
+        super().__init__(service_connector, assignment.lti_grade_service_data)
+        self._assignment = assignment
+
+    def _make_cache_key(self) -> t.Tuple[int]:
+        return (self._assignment.id, )
+
+    @cache_within_request_make_key(_make_cache_key)
+    def get_default_line_item(self) -> LineItem:
+        return self.find_lineitem_by_tag(str(self._assignment.id))
+
+    @cache_within_request_make_key(_make_cache_key)
+    def get_lineitems(self: 'CGAssignmentsGradesService') -> list:
+        return super().get_lineitems()
+
+    def update_line_item(self, line_item: 'LineItem') -> 'LineItem':
+        access_token = self._service_connector.get_access_token(
+            self._service_data['scope']
+        )
+        url = line_item.get_id()
+        json = {
+            'label': line_item.get_label(),
+            'scoreMaximum': line_item.get_score_maximum(),
+            'submission': {
+                'endDateTime': line_item.get_end_date_time(),
+            }
+        }
+
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Accept': 'application/vnd.ims.lis.v2.lineitem+json',
+            'Content-Type': 'application/vnd.ims.lis.v2.lineitem+json',
+        }
+        res = requests.put(url, headers=headers, json=json, verify=False)
+        #res.raise_for_status()
+        return LineItem(res.json())
+
+
 class CGCustomClaims:
     @dataclasses.dataclass(frozen=True)
     class ClaimResult:
         username: str
         deadline: t.Optional[DatetimeWithTimezone]
         is_available: t.Optional[bool]
+        resource_id: t.Optional[str]
         assignment_id: t.Optional[int]
+
+    class _ReplacementVar:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+    class _AbsoluteVar:
+        def __init__(self, name: str) -> None:
+            self.name = name
 
     @dataclasses.dataclass(frozen=True)
     class _Var:
         name: str
-        opts: t.List[str]
+        opts: t.List[t.Union['CGCustomClaims._ReplacementVar',
+                             'CGCustomClaims._AbsoluteVar']]
         required: bool
+
+        def get_replacement_opts(
+            self
+        ) -> t.Iterable['CGCustomClaims._ReplacementVar']:
+            for opt in self.opts:
+                if isinstance(opt, CGCustomClaims._ReplacementVar):
+                    yield opt
 
         def get_key(self, idx: int) -> str:
             return f'{self.name}_{idx}'
 
+    def __init__(self, assignment: models.Assignment) -> None:
+        self._assig = assignment
+
     _WANTED_VARS: Final = [
-        _Var('cg_username', ['$User.username'], True),
+        _Var(
+            'cg_username', [
+                _ReplacementVar('$User.username'),
+                _AbsoluteVar('lis_person_sourcedid')
+            ], True
+        ),
         _Var(
             'cg_deadline',
             [
-                '$ResourceLinke.submission.endDateTime',
-                '$Canvas.assignment.dueAt.iso8601'
+                _ReplacementVar('$ResourceLink.submission.endDateTime'),
+                _ReplacementVar('$Canvas.assignment.dueAt.iso8601')
             ],
             False,
         ),
         _Var(
             'cg_available_at',
-            ['$ResourceLink.submission.startDateTime'],
+            [_ReplacementVar('$ResourceLink.submission.startDateTime')],
             False,
         ),
-        _Var('cg_is_published', ['$Canvas.assignment.published'], False)
+        _Var(
+            'cg_is_published',
+            [_ReplacementVar('$Canvas.assignment.published')],
+            False,
+        ),
+        _Var(
+            'cg_resource_id',
+            [_ReplacementVar('$ResourceLink.id')],
+            False,
+        )
     ]
 
     _VAR_LOOKUP: Final = {var.name: var for var in _WANTED_VARS}
 
     _WANTED_PERMA: t.List[
-        t.Tuple[str, t.Callable[['CGCustomCalims'], str]]] = [
-            ('cg_assignment_id', lambda self: str(self._assig.id))
+        t.Tuple[str, t.Callable[['CGCustomClaims'], str]]] = [
+            ('cg_assig_id', lambda self: str(self._assig.id))
         ]
-
-    def __init__(self, assignment: models.Assignment) -> None:
-        self._assig = assignment
 
     def get_claims_config(self) -> t.Mapping[str, str]:
         res: t.Dict[str, str] = {}
-        for var in self._WANTED_VARS:
-            for idx, value in enumerate(var.opts):
-                res[var.get_key(idx)] = value
-
+        return {}
         for key, producer in self._WANTED_PERMA:
             res[key] = producer(self)
 
@@ -96,62 +171,88 @@ class CGCustomClaims:
     @classmethod
     def get_claim_keys(cls) -> t.Iterable[str]:
         for var in cls._WANTED_VARS:
-            for idx, _ in enumerate(var.opts):
+            for idx, _ in enumerate(var.get_replacement_opts()):
                 yield var.get_key(idx)
-
-        for key, producer in cls._WANTED_PERMA:
-            yield key
 
     @classmethod
     def _get_claim(
         cls,
         var_name: str,
-        data: t.Mapping[str, str],
+        custom_data: t.Mapping[str, str],
+        base_data: t.Mapping[str, object],
         converter: t.Callable[[str], T],
     ) -> t.Optional[T]:
         var = cls._VAR_LOOKUP[var_name]
 
-        for idx, default_val in enumerate(var.opts):
-            found_val = data.get(var.get_key(idx), default_val)
-            if found_val != default_val:
+        for idx, opt in enumerate(var.opts):
+            if isinstance(opt, cls._ReplacementVar):
+                found_val = custom_data.get(var.get_key(idx), opt.name)
+            else:
+                found_val = base_data.get(opt.name, opt.name)
+
+            if found_val != opt.name:
+                logger.info(
+                    'Trying to parse claim',
+                    found_value=found_val,
+                    current_variable=var
+                )
                 return converter(found_val)
 
-        assert not var.required, 'Required variable was not found'
+        if var.required:
+            raise AssertionError(
+                'Required variable {} was not found in {}'.format(
+                    var_name, base_data
+                )
+            )
         return None
 
     @classmethod
     def get_custom_claim_data(
-        cls, launch_data: '_LaunchData'
+        cls,
+        launch_data: '_LaunchData',
+        *,
+        base_data: t.Mapping[str, object] = None,
     ) -> 'CGCustomClaims.ClaimResult':
         data = launch_data[claims.CUSTOM]
-        username = cls._get_claim('cg_username', data, lambda x: x)
+        if base_data is None:
+            base_data = launch_data
+
+        username = cls._get_claim('cg_username', data, base_data, str)
         # Username is a required var
         assert username is not None
 
+        resource_id = cls._get_claim('cg_resource_id', data, base_data, str)
+
         deadline = cls._get_claim(
-            'cg_deadline', data, DatetimeWithTimezone.parse_isoformat
+            'cg_deadline', data, base_data,
+            DatetimeWithTimezone.parse_isoformat
         )
 
         available_at = cls._get_claim(
-            'cg_available_at', data, DatetimeWithTimezone.parse_isoformat
+            'cg_available_at', data, base_data,
+            DatetimeWithTimezone.parse_isoformat
         )
         if available_at is None:
             is_available = cls._get_claim(
-                'cg_is_published', data, lambda x: x == 'true'
+                'cg_is_published', data, base_data, lambda x: x == 'true'
             )
         else:
             is_available = DatetimeWithTimezone.utcnow() >= available_at
 
-        try:
-            assignment_id: t.Optional[int] = int(data['cg_assignment_id'])
-        except (KeyError, ValueError):
+        # The default value we set in the LMS for the cg_assignment_id is also
+        # 'NONE'. So if it is 'NONE' the variable was not expanded.
+        assignment_id_str = data.get('cg_assig_id', 'NONE')
+        if assignment_id_str == 'NONE':
             assignment_id = None
+        else:
+            assignment_id = int(assignment_id_str)
 
         return CGCustomClaims.ClaimResult(
             username=username,
             deadline=deadline,
             is_available=is_available,
             assignment_id=assignment_id,
+            resource_id=resource_id,
         )
 
 
@@ -165,6 +266,9 @@ class CGDeepLinkResource(DeepLinkResource):
             CGCustomClaims(assignment=assignment).get_claims_config()
         )
         self._assig = assignment
+        self.set_lineitem(
+            LineItem().set_tag(str(assignment.id)).set_score_maximum(10)
+        )
 
     def to_dict(self) -> t.Dict[str, object]:
         res = super().to_dict()
@@ -176,24 +280,7 @@ class CGDeepLinkResource(DeepLinkResource):
 
 
 def init_app(app: PsefFlask) -> None:
-    app.config['LTI1.3_CONFIG_JSON'] = {}
-    app.config['LTI1.3_CONFIG_DIRNAME'] = ''
-
-    path = app.config['_LTI1.3_CONFIG_JSON_PATH']
-    if path is not None:
-        app.config['LTI1.3_CONFIG_DIRNAME'] = os.path.dirname(path)
-        with open(path, 'r') as f:
-            conf = json.load(f)
-
-            # Make sure the config is a t.Mapping[str, t.Mapping[str, str]]
-            assert all(
-                (
-                    isinstance(v, dict) and
-                    all(isinstance(vv, str) for vv in v.values())
-                ) for v in conf.values()
-            )
-
-            app.config['LTI1.3_CONFIG_JSON'] = conf
+    pass
 
 
 class LTIConfig(ToolConfAbstract):
@@ -260,31 +347,58 @@ class FlaskMessageLaunch(
             models.Role.name == role_name,
         ).one()
 
-    def get_assignment_or_none(self, course: models.Course
-                               ) -> t.Optional[models.Assignment]:
+    def get_create_deep_link_assignment(self, course: models.Course
+                                        ) -> t.Tuple[models.Assignment, bool]:
+        assignment = self.find_assignment(course).one_or_none()
+        if assignment is not None:
+            return assignment, False
+
+        return (
+            models.Assignment(
+                course=course,
+                visibility_state=AssignmentVisibilityState.deep_linked,
+                is_lti=True,
+            ),
+            True,
+        )
+
+    def find_assignment(
+        self,
+        course: models.Course,
+    ) -> models.MyQuery[models.Assignment]:
+        query = course.get_assignments()
         custom_claim = self.get_custom_claims()
+        if custom_claim.resource_id is None:
+            launch_data = self.get_launch_data()
+            resource_claim = launch_data.get(claims.RESOURCE, {})
+            resource_id = resource_claim.get('id', -1)
+        else:
+            resource_id = custom_claim.resource_id
 
-        res = models.Assignment.query.filter(
-            models.Assignment.id == custom_claim.assignment_id,
-            models.Assignment.course == course,
-        )
-
-        return res.one_or_none()
-
-    def create_deep_link_assignment(
-        self, course: models.Course
-    ) -> models.Assignment:
-        assignment = self.get_assignment_or_none(course)
-        if assignment:
-            return assignment
-
-        assignment = models.Assignment(
-            course=course,
-            visibility_state=AssignmentVisibilityState.deep_linked,
-            is_lti=True,
-        )
-
-        return assignment
+        # For some reason some lmssen (looking at you blackboard) forget our
+        # custom parameters after editing the assignment. In that case we want
+        # to search using the `resource_id` as that should be available in that
+        # case.
+        if custom_claim.assignment_id is None:
+            logger.info(
+                (
+                    'Custom cg_assig_id claim was not available, using'
+                    ' resource_id'
+                ),
+                custom_claim=custom_claim,
+                resource_id=resource_id,
+                launch_data=self.get_launch_data(),
+            )
+            if resource_id is None:
+                return query.filter(sqlalchemy.sql.false())
+            return query.filter(
+                models.Assignment.is_visible,
+                models.Assignment.lti_assignment_id == resource_id,
+            )
+        else:
+            return query.filter(
+                models.Assignment.id == custom_claim.assignment_id,
+            )
 
     def get_assignment(
         self, user: models.User, course: models.Course
@@ -295,9 +409,8 @@ class FlaskMessageLaunch(
 
         resource_id = resource_claim['id']
 
-        assignment = self.get_assignment_or_none(course)
+        assignment = self.find_assignment(course).one_or_none()
         logger.bind(assignment=assignment)
-        logger.info('Searching for existing assignment')
 
         if assignment is not None and assignment.is_deep_linked:
             assignment.visibility_state = AssignmentVisibilityState.visible
@@ -310,6 +423,8 @@ class FlaskMessageLaunch(
                 ), f'The assignment "{resource_id}" was not found',
                 APICodes.OBJECT_NOT_FOUND, 404
             )
+
+        assignment.lti_grade_service_data = launch_data[claims.GRADES]
 
         if custom_claim.deadline is not None:
             assignment.deadline = custom_claim.deadline
@@ -389,7 +504,7 @@ class FlaskMessageLaunch(
             *keys: str,
         ) -> None:
             if mapping:
-                missing = [key for key in keys if not mapping.get(key)]
+                missing = [key for key in keys if key not in mapping]
             else:
                 missing = ['__ALL__']
 

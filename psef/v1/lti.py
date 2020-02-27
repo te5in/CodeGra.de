@@ -17,6 +17,7 @@ import jwt
 import flask
 import werkzeug
 import structlog
+import jwcrypto.jwk
 import pylti1p3.exception
 from mypy_extensions import TypedDict
 from typing_extensions import Literal
@@ -218,6 +219,7 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
         message_data = launch_message.get_launch_data()
 
         if launch_message.is_deep_link_launch():
+            logger.info('Got deep link launch', launch_data=message_data)
             course = launch_message.get_course()
             deep_link_data = message_data[lti_v1_3.claims.DEEP_LINK]
 
@@ -233,7 +235,9 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
             db.session.add(blob)
             db.session.flush()
 
-            if launch_message.get_assignment_or_none(course):
+            if db.session.query(
+                launch_message.find_assignment(course).exists()
+            ).scalar():
                 result = _LTIDeepLinkDirectSubmit(
                     id=str(blob.id),
                     type='deep_link_direct_submit',
@@ -340,6 +344,19 @@ def do_oidc_login() -> werkzeug.wrappers.Response:
     return red.do_redirect()
 
 
+@api.route('/lti1.3/jwks/<lti_provider_id>', methods=['GET'])
+def get_lti_provider_jwks(lti_provider_id: str) -> helpers.JSONResponse:
+    lti_provider = helpers.filter_single_or_404(
+        models.LTI1p3Provider, models.LTI1p3Provider.id == lti_provider_id
+    )
+    pub_key = lti_provider.get_public_key().encode('utf8')
+    jwk = jwcrypto.jwk.JWK.from_pem(pub_key)
+    assert not jwk.has_private
+
+    key = json.loads(jwk.export_public())
+    return jsonify({'keys': [key]})
+
+
 @api.route('/lti1.3/launch', methods=['POST'])
 def handle_lti_advantage_launch() -> werkzeug.wrappers.Response:
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
@@ -407,37 +424,38 @@ def handle_lti_deep_link(blob_id: uuid.UUID
     deep_link_data = launch_message.get_launch_data()[lti_v1_3.claims.DEEP_LINK
                                                       ]
 
-    assig = launch_message.get_assignment_or_none(course)
+    assig, created = launch_message.get_create_deep_link_assignment(course)
     dl_resources = []
-    if assig is None:
-        with helpers.get_from_map_transaction(
-            helpers.get_json_dict_from_request()
-        ) as [get, _]:
-            name = get('name', str)
-            deadline_str = get('deadline', str)
-            max_submissions = get('max_submissions', (int, type(None)))
-            cool_off_period = get('cool_off_period', (int, float))
-            amount_in_cool_off = get('amount_in_cool_off_period', int)
+    with helpers.get_from_map_transaction(
+        helpers.get_json_dict_from_request()
+    ) as [get, _]:
+        name = get('name', str)
+        deadline_str = get('deadline', str)
+        max_submissions = get('max_submissions', (int, type(None)))
+        cool_off_period = get('cool_off_period', (int, float))
+        amount_in_cool_off = get('amount_in_cool_off_period', int)
+        files = get('files_upload_enabled', bool)
+        webhook = get('webhook_upload_enabled', bool)
 
-        assig = launch_message.create_deep_link_assignment(course)
-        assig.name = name
-        assig.deadline = parsers.parse_datetime(deadline_str)
-        assig.max_submissions = max_submissions
-        assig.cool_off_period = timedelta(seconds=cool_off_period)
-        assig.amount_in_cool_off_period = amount_in_cool_off
-        db.session.add(assig)
-        db.session.flush()
+    assig.name = name
+    assig.deadline = parsers.parse_datetime(deadline_str)
+    assig.max_submissions = max_submissions
+    assig.cool_off_period = timedelta(seconds=cool_off_period)
+    assig.amount_in_cool_off_period = amount_in_cool_off
+    assig.update_submission_types(files=files, webhook=webhook)
 
-        for warning in assig.get_changed_ambiguous_combinations():
-            helpers.add_warning(
-                warning.message, exceptions.APIWarnings.AMBIGUOUS_COMBINATION
-            )
+    db.session.add(assig)
+    db.session.flush()
 
+    for warning in assig.get_changed_ambiguous_combinations():
+        helpers.add_warning(
+            warning.message, exceptions.APIWarnings.AMBIGUOUS_COMBINATION
+        )
+
+    if created:
         dl_resources.append(lti_v1_3.CGDeepLinkResource(assignment=assig))
 
     db.session.commit()
-    print(deep_link_data)
-    print(launch_message.get_deep_link().get_message_jwt(dl_resources))
 
     return jsonify(
         {

@@ -481,6 +481,7 @@ def create_new_assignment(course_id: int) -> JSONResponse[models.Assignment]:
     assig = models.Assignment(
         name=name,
         course=course,
+        is_lti=False,
     )
     db.session.add(assig)
     db.session.commit()

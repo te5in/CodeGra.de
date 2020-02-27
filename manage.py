@@ -174,7 +174,8 @@ def test_data(db=None):
                         state=c['state'],
                         description=c['description'],
                         course=m.Course.query.filter_by(name=c['course']
-                                                        ).first()
+                                                        ).first(),
+                        is_lti=False,
                     )
                 )
             else:

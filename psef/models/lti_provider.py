@@ -8,6 +8,7 @@ import uuid
 import typing as t
 
 import structlog
+import pylti1p3.grade
 import flask_jwt_extended as flask_jwt
 import pylti1p3.exception
 import pylti1p3.names_roles
@@ -109,18 +110,29 @@ class LTIProviderBase(Base):
 
         return user_link.user
 
+    @property
+    def member_sourcedid_required(self) -> bool:
+        raise NotImplementedError
+
     @classmethod
     def _get_self_from_assignment_id(
-        cls: t.Type[T_LTI_PROV], assignment_id: t.Optional[int]
+        cls: t.Type[T_LTI_PROV],
+        assignment_id: t.Optional[int],
+        *,
+        lock: bool = True
     ) -> t.Union[t.Tuple[None, None], t.Tuple['assignment_models.Assignment', t
                                               .Optional[T_LTI_PROV]]]:
         if assignment_id is None:
             return None, None
 
-        assig = assignment_models.Assignment.query.filter(
+        query = assignment_models.Assignment.query.filter(
             assignment_models.Assignment.id == assignment_id,
             assignment_models.Assignment.is_visible,
-        ).with_for_update().one_or_none()
+        )
+        if lock:
+            query = query.with_for_update(read=True)
+
+        assig = query.one_or_none()
         if assig is None:
             logger.info('Assignment not found', assignment_id=assignment_id)
             return None, None
@@ -163,14 +175,14 @@ class LTIProviderBase(Base):
 
         possible_self = course.lti_provider
 
-        if isinstance(possible_self, cls):
+        if not isinstance(possible_self, cls):
             logger.info(
                 'Course does not belong to this LTI Provider',
                 course=course,
                 lti_provider_cls=cls.__name__,
             )
-            return possible_self
-        return None
+            return None
+        return possible_self
 
     @property
     @abc.abstractmethod
@@ -204,9 +216,11 @@ class LTIProviderBase(Base):
                 DbColumn[DatetimeWithTimezone],
                 work_models.GradeHistory.changed_at,
             ).desc(),
-        ).limit(1).with_for_update().one()
+        ).limit(1).with_for_update().one_or_none()
 
-        if newest_grade_history is not None:
+        if newest_grade_history is None:
+            logger.info('Could not find grade history item')
+        else:
             newest_grade_history.passed_back = True
 
         return newest_grade_history
@@ -219,6 +233,10 @@ class LTI1p1Provider(LTIProviderBase):
     def __init__(self, key: str) -> None:
         super().__init__()
         self.key = key
+
+    @property
+    def member_sourcedid_required(self) -> bool:
+        return True
 
     @property
     def lms_name(self) -> str:
@@ -381,14 +399,12 @@ class LTI1p1Provider(LTIProviderBase):
         return self.lti_class.supports_max_points()
 
     @classmethod
-    def setup_signals(cls, app: 'psef.PsefFlask') -> None:
+    def setup_signals(cls) -> None:
         if cls._SIGNALS_SETUP:
             return
         cls._SIGNALS_SETUP = True
-        celery = app.celery
 
         signals.WORK_DELETED.connect_celery(
-            celery=celery,
             pre_check=lambda wd: wd.was_latest and wd.new_latest is not None,
             converter=(
                 lambda wd: (
@@ -401,7 +417,6 @@ class LTI1p1Provider(LTIProviderBase):
         )(cls._passback_grades)
 
         signals.GRADE_UPDATED.connect_celery(
-            celery=celery,
             converter=lambda work: (
                 [work.id],
                 work.assignment_id,
@@ -410,20 +425,17 @@ class LTI1p1Provider(LTIProviderBase):
         )(cls._passback_grades)
 
         signals.ASSIGNMENT_STATE_CHANGED.connect_celery(
-            celery=celery,
             converter=lambda a:
             ([w.id for w in a.get_all_latest_submissions()], a.id),
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._passback_grades)
 
         signals.WORK_CREATED.connect_celery(
-            celery=celery,
             converter=lambda w: (w.id, w.assignment_id),
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._create_submission_in_lms)
 
         signals.WORK_DELETED.connect_celery(
-            celery=celery,
             converter=lambda wd: (
                 wd.deleted_work.id,
                 wd.deleted_work.assignment_id,
@@ -432,7 +444,7 @@ class LTI1p1Provider(LTIProviderBase):
         )(cls._delete_subsmision)
 
 
-signals.FINALIZE_APP.connect_immediate(LTI1p1Provider.setup_signals)
+LTI1p1Provider.setup_signals()
 
 
 @lti_provider_handlers.register_table
@@ -465,6 +477,10 @@ class LTI1p3Provider(LTIProviderBase):
     _key_set_url = db.Column('key_set_url', db.Unicode)
 
     _crypto_key = db.Column('crypto_key', db.LargeBinary)
+
+    @property
+    def member_sourcedid_required(self) -> bool:
+        return False
 
     @property
     def lms_name(self) -> str:
@@ -608,30 +624,39 @@ class LTI1p3Provider(LTIProviderBase):
         cls, work_assignment_id: t.Tuple[int, int]
     ) -> None:
         work_id, assignment_id = work_assignment_id
-        assig, self = cls._get_self_from_assignment_id(assignment_id)
-        now = DatetimeWithTimezone.utcnow()
+        try:
+            assig, self = cls._get_self_from_assignment_id(assignment_id)
+            now = DatetimeWithTimezone.utcnow()
 
-        if self is None or assig is None:
-            return
+            if self is None or assig is None:
+                logger.info(
+                    'Could not find self or assignment',
+                    found_self=self,
+                    found_assignment=assig
+                )
+                return
 
-        work = assig.get_all_latest_submissions().filter_by(
-            work_models.Work.id == work_id
-        ).one_or_none()
-        if work is None:
-            logger.info(
-                'Submission is not the latest',
+            work = assig.get_all_latest_submissions().filter(
+                work_models.Work.id == work_id
+            ).one_or_none()
+            if work is None:
+                logger.info(
+                    'Submission is not the latest',
+                    assignment=assig,
+                    work_id=work_id
+                )
+                return
+
+            self._passback_grade(
+                sub=work,
                 assignment=assig,
-                work_id=work_id
+                timestamp=now,
             )
-            return
+            db.session.commit()
 
-        self._passback_grade(
-            sub=work,
-            assignment=assig,
-            timestamp=now,
-        )
-
-        db.session.commit()
+        except:
+            logger.info('Error when passing back', exc_info=True)
+            raise
 
     @classmethod
     def _passback_grades(cls, assignment_id: int) -> None:
@@ -688,6 +713,7 @@ class LTI1p3Provider(LTIProviderBase):
         if sub is not None and sub.deleted:
             logger.info('Submission is deleted, not passing back', work=sub)
             return None
+        logger.info('Passing back submission', work=sub)
 
         grade = pylti1p3.grade.Grade()
         grade.set_score_maximum(assignment.GRADE_SCALE)
@@ -709,9 +735,10 @@ class LTI1p3Provider(LTIProviderBase):
             grade.set_activity_progress('Submitted')
 
         service_connector = self.get_service_connector()
-        grades_service = assignment.get_lti_assignments_grades_service(
-            service_connector
+        grades_service = psef.lti.v1_3.CGAssignmentsGradesService(
+            service_connector, assignment
         )
+        line_item = grades_service.get_default_line_item()
 
         if sub is None:
             # This is assured by the mypy overloads
@@ -726,7 +753,7 @@ class LTI1p3Provider(LTIProviderBase):
                 t.cast(DbColumn[str], UserLTIProvider.lti_user_id),
             ).filter(
                 UserLTIProvider.lti_provider == self,
-                UserLTIProvider.user.in_(authors),
+                UserLTIProvider.user_id.in_([a.id for a in authors]),
             ).all()
         )
 
@@ -744,12 +771,15 @@ class LTI1p3Provider(LTIProviderBase):
 
             grade.set_user_id(lti_user_id)
             try:
-                # We pass `None` as line_item to use the default line item for
-                # this activity.
-                grades_service.put_grade(grade, line_item=None)
+                res = grades_service.put_grade(grade, line_item=line_item)
             except pylti1p3.exception.LtiException:
                 logger.info('Passing back grade failed', exc_info=True)
             else:
+                logger.info(
+                    'Successfully passed back grade',
+                    work=sub,
+                    passback_result=res
+                )
                 passed_back_once = True
 
         if (
@@ -770,18 +800,22 @@ class LTI1p3Provider(LTIProviderBase):
         assert course_lti_provider is not None
 
         service_connector = self.get_service_connector()
+        members = course_lti_provider.get_members(service_connector)
+        logger.info('Got members', found_members=members)
 
-        for member in course_lti_provider.get_members(service_connector):
+        for member in members:
+            logger.info('Got member', member=member)
             status = member.get('status', 'Active')
 
             # This is NOT a typo, the claim is really called 'message' and it
             # contains an array of messages.
-            messages = member.get('message', [])
-            if not messages:
+            messages = member.get('message', None)
+            if messages is None:
                 continue
+            custom_claim = psef.lti.v1_3.CGCustomClaims.get_custom_claim_data(
+                messages, base_data=member
+            )
 
-            custom_claim = messages[0][psef.lti.v1_3.claims.CUSTOM]
-            assert isinstance(custom_claim, dict)
             assert status in {
                 'Active', 'Inactive'
             }, 'We currently do not support the "Deleted" state'
@@ -789,7 +823,7 @@ class LTI1p3Provider(LTIProviderBase):
             user, _ = UserLTIProvider.get_or_create_user(
                 lti_user_id=member['user_id'],
                 lti_provider=self,
-                wanted_username=custom_claim['cg_username'],
+                wanted_username=custom_claim.username,
                 email=member['email'],
                 full_name=member['name'],
             )
@@ -800,51 +834,67 @@ class LTI1p3Provider(LTIProviderBase):
 
         db.session.commit()
 
+    @classmethod
+    def _update_deadline_in_lms(cls, assignment_id: int) -> None:
+        assignment, self = cls._get_self_from_assignment_id(
+            assignment_id, lock=False
+        )
+
+        if self is None or assignment is None:
+            return
+
+        service_connector = self.get_service_connector()
+        grades_service = psef.lti.v1_3.CGAssignmentsGradesService(
+            service_connector, assignment
+        )
+        line_item = grades_service.get_default_line_item()
+        line_item.set_end_date_time(assignment.deadline.isoformat())
+        grades_service.update_line_item(line_item)
+
     def supports_deadline(self) -> bool:
         return False
 
     @classmethod
-    def setup_signals(cls, app: 'psef.PsefFlask') -> None:
+    def setup_signals(cls) -> None:
         if cls._SIGNALS_SETUP:
             return
         cls._SIGNALS_SETUP = True
-        celery = app.celery
 
         signals.ASSIGNMENT_STATE_CHANGED.connect_celery(
-            celery=celery,
             converter=lambda a: a.id,
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._passback_grades)
 
         signals.WORK_DELETED.connect_celery(
-            celery=celery,
             converter=lambda wd: wd.deleted_work.id,
             task_args=_PASSBACK_CELERY_OPTS
         )(cls._delete_submission)
 
         signals.WORK_CREATED.connect_celery(
-            celery=celery,
             converter=lambda sub: (sub.id, sub.assignment_id),
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._passback_submission)
 
         signals.GRADE_UPDATED.connect_celery(
-            celery=celery,
             converter=lambda s: (s.id, s.assignment_id),
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._passback_submission)
 
         signals.USER_ADDED_TO_COURSE.connect_celery(
-            celery=celery,
-            converter=lambda uc: (uc.user.id, uc.course_role.course_id),
+            converter=lambda uc: uc.course_role.course_id,
             pre_check=lambda uc: uc.course_role.course.is_lti,
             task_args=_PASSBACK_CELERY_OPTS,
             prevent_recursion=True,
-        )
+        )(cls._retrieve_users_in_course)
+
+        signals.ASSIGNMENT_DEADLINE_CHANGED.connect_celery(
+            converter=lambda a: a.id,
+            pre_check=lambda a: a.is_lti,
+            task_args=_PASSBACK_CELERY_OPTS,
+        )(cls._update_deadline_in_lms)
 
 
-signals.FINALIZE_APP.connect_immediate(LTI1p3Provider.setup_signals)
-
+LTI1p3Provider.setup_signals()
 lti_provider_handlers.freeze()
 
 # Begin of classes that provide connections between other classes and the LTI
@@ -936,9 +986,14 @@ class UserLTIProvider(Base, TimestampMixin):
         lti_user = lti_provider.find_user(lti_user_id=lti_user_id)
 
         if is_logged_in and lti_user is not None and current_user == lti_user:
+            logger.info('Currently logged in user is user doing launch')
             # The currently logged in user is now using LTI
             user = current_user
         elif lti_user is not None:
+            logger.info(
+                'Found different LTI user than logged in user',
+                lti_user=lti_user
+            )
             # LTI users are used before the current logged user.
             token = flask_jwt.create_access_token(
                 identity=lti_user.id,
@@ -947,6 +1002,10 @@ class UserLTIProvider(Base, TimestampMixin):
             user = lti_user
         elif is_logged_in and not cls.user_is_linked(current_user):
             # TODO show some sort of screen if this linking is wanted
+            logger.info(
+                'Found no LTI user, linking current user',
+                lti_user_id=lti_user_id
+            )
             db.session.add(
                 cls(
                     user=current_user,
@@ -956,6 +1015,11 @@ class UserLTIProvider(Base, TimestampMixin):
             )
             user = current_user
         else:
+            logger.info(
+                'Creating new user for lti user id',
+                lti_user_id=lti_user_id,
+                wanted_username=wanted_username
+            )
             # New LTI user id is found and no user is logged in or the current
             # user has a different LTI user id. A new user is created and
             # logged in.
@@ -1073,8 +1137,9 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
     def can_poll_names_again(self) -> bool:
         if self.last_names_roles_poll is None:
             return True
+
         return (
-            self.last_names_roles_poll - DatetimeWithTimezone.utcnow()
+            DatetimeWithTimezone.utcnow() - self.last_names_roles_poll
         ).total_seconds() > current_app.config['LTI1.3_MIN_POLL_INTERVAL']
 
     def get_members(
@@ -1084,8 +1149,21 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
             return []
 
         assert isinstance(self.names_roles_claim, dict)
+        claim = {**self.names_roles_claim}
+        rlid = db.session.query(
+            assignment_models.Assignment.lti_assignment_id
+        ).filter(
+            assignment_models.Assignment.course_id == self.course_id,
+            assignment_models.Assignment.lti_assignment_id.isnot(None),
+            assignment_models.Assignment.is_visible,
+        ).limit(1).scalar()
+        if rlid is None:
+            return []
+        else:
+            claim['context_memberships_url'] += f'&rlid={rlid}'
+
         res = pylti1p3.names_roles.NamesRolesProvisioningService(
-            service_connector, self.names_roles_claim
+            service_connector, claim
         ).get_members()
         self.last_names_roles_poll = DatetimeWithTimezone.utcnow()
         return res
@@ -1114,7 +1192,7 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
         if user.is_enrolled(self.course):
             return None
 
-        roles = psef.lti.v1_3.ContextRole[str].parse_roles(roles_claim)
+        roles = psef.lti.v1_3.roles.ContextRole[str].parse_roles(roles_claim)
         logger.info(
             'Finding role for user',
             roles_claim=roles_claim,
@@ -1129,9 +1207,9 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
             )
             return None
 
-        unmapped_roles = psef.lti.v1_3.ContextRole[None].get_umapped_roles(
-            roles_claim
-        )
+        unmapped_roles = psef.lti.v1_3.roles.ContextRole[
+            None].get_umapped_roles(roles_claim)
+
         if unmapped_roles:
             logger.info(
                 'No mapped LTI roles found, searching for unmapped roles',

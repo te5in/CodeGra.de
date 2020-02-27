@@ -82,9 +82,6 @@ FlaskConfig = TypedDict(
         'TESTING': bool,
         'Celery': CeleryConfig,
         'LTI_CONSUMER_KEY_SECRETS': t.Mapping[str, str],
-        '_LTI1.3_CONFIG_JSON_PATH': t.Optional[str],
-        'LTI1.3_CONFIG_JSON': t.Mapping[str, t.Mapping[str, str]],
-        'LTI1.3_CONFIG_DIRNAME': str,
         'LTI1.3_MIN_POLL_INTERVAL': int,
         'DEBUG': bool,
         'SQLALCHEMY_DATABASE_URI': str,
@@ -562,14 +559,7 @@ if lti_parser.read(config_file) and 'LTI Consumer keys' in lti_parser:
 else:
     CONFIG['LTI_CONSUMER_KEY_SECRETS'] = {}
 
-# For LTI1.3
-set_str(
-    CONFIG,
-    backend_ops,
-    '_LTI1.3_CONFIG_JSON_PATH',
-    None,
-    key_in_parser='lti1.3_config_json_path'
-)
+set_int(CONFIG, backend_ops, 'LTI1.3_MIN_POLL_INTERVAL', 60)
 
 ###################
 # Jplag languages #

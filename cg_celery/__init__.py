@@ -258,6 +258,14 @@ class CGCelery(Celery):
                 result=kwargs['result'],
             )
 
+        @self._signals.task_retry.connect(weak=False)
+        def __celery_retry(**_: object) -> None:  # pragma: no cover
+            self._call_callbacks(TaskStatus.failure)
+            logger.error(
+                'Task failed',
+                exc_info=True,
+            )
+
         @self._signals.task_failure.connect(weak=False)
         def __celery_failure(**_: object) -> None:  # pragma: no cover
             self._call_callbacks(TaskStatus.failure)

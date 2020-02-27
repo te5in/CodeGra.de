@@ -138,8 +138,6 @@ export default {
             if (data.type !== 'normal_result') {
                 throw new Error(`Unknown LTI1.1 type: ${data.type}.`);
             }
-            console.log(data);
-
             this.$LTIAssignmentId = data.assignment.id;
 
             if (data.new_role_created) {

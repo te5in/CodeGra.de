@@ -1,8 +1,6 @@
 import typing as t
 import dataclasses
 
-from typing_extensions import Final
-
 from cg_signals import Dispatcher
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
@@ -10,9 +8,7 @@ if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     from . import models
     from . import PsefFlask
 
-
-def init_app(app: object) -> None:
-    pass
+T = t.TypeVar('T')
 
 
 @dataclasses.dataclass(frozen=True)
@@ -41,7 +37,7 @@ class WorkDeletedData:
 
 @dataclasses.dataclass(frozen=True)
 class UserToCourseData:
-    __slots__ = ('user', 'course')
+    __slots__ = ('user', 'course_role')
 
     user: 'models.User'
     course_role: 'models.CourseRole'
@@ -56,3 +52,36 @@ FINALIZE_APP = Dispatcher['PsefFlask']('FINALIZE_APP')
 WORK_DELETED = Dispatcher[WorkDeletedData]('WORK_DELETED')
 USER_ADDED_TO_COURSE = Dispatcher['UserToCourseData']('USER_ADDED_TO_COURSE')
 ASSIGNMENT_CREATED = Dispatcher['models.Assignment']('ASSIGNMENT_CREATED')
+ASSIGNMENT_DEADLINE_CHANGED = Dispatcher['models.Assignment'](
+    'ASSIGNMENT_DEADLINE_CHANGED'
+)
+
+
+# We use this function to make sure the list has a type of Dispatcher[object]
+# and not Dispatcher[Any]
+def _make_all_signals_list(*s: Dispatcher) -> t.Sequence[Dispatcher[object]]:
+    return list(s)
+
+
+_ALL_SIGNALS = _make_all_signals_list(
+    WORK_CREATED,
+    GRADE_UPDATED,
+    ASSIGNMENT_STATE_CHANGED,
+    FINALIZE_APP,
+    WORK_DELETED,
+    USER_ADDED_TO_COURSE,
+    ASSIGNMENT_CREATED,
+    ASSIGNMENT_DEADLINE_CHANGED,
+)
+
+
+def init_app(app: 'PsefFlask') -> None:
+    for signal in _ALL_SIGNALS:
+        signal.finalize_celery(app.celery)
+
+    FINALIZE_APP.send(app)
+
+    # Loop again to make it possible to setup celery tasks on the
+    # `FINALIZE_APP` signal.
+    for signal in _ALL_SIGNALS:
+        signal.finalize_celery(app.celery)

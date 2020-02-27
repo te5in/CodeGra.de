@@ -312,6 +312,9 @@ class Course(NotEqualMixin, Base):
             assigs, key=lambda item: item.deadline or DatetimeWithTimezone.max
         )
 
+    def get_assignments(self) -> MyQuery['Assignment']:
+        return Assignment.query.filter(Assignment.course == self)
+
     def get_all_users_in_course(self, *, include_test_students: bool
                                 ) -> MyQuery['t.Tuple[User, CourseRole]']:
         """Get a query that returns all users in the current course and their
@@ -354,7 +357,9 @@ class Course(NotEqualMixin, Base):
             name=f'VIRTUAL_COURSE__{uuid.uuid4()}', virtual=True
         )
         assig = Assignment(
-            name=f'Virtual assignment - {tree.name}', course=self
+            name=f'Virtual assignment - {tree.name}',
+            course=self,
+            is_lti=False
         )
         self.assignments.append(assig)
         for child in copy.copy(tree.values):
@@ -392,7 +397,7 @@ class Course(NotEqualMixin, Base):
             role = CourseRole(
                 name=f'Test_Student_Role__{uuid.uuid4()}',
                 course=self,
-                hidden=True
+                hidden=True,
             )
             db.session.add(role)
             user = User.create_new_test_student()

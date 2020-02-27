@@ -388,7 +388,11 @@ def ensure_can_submit_work(
 
     # We do not passback test student grades, so we do not need them to
     # be present in the assignment_results
-    if assig.is_lti and not author.is_test_student:
+    if author.is_test_student:
+        pass
+    elif not assig.is_lti:
+        pass
+    elif assig.course.lti_provider.member_sourcedid_required:
         if author.group is not None:
             members = author.group.members
         else:

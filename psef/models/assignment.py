@@ -21,9 +21,7 @@ from mypy_extensions import DefaultArg
 from sqlalchemy.types import JSON
 from pylti1p3.lineitem import LineItem
 from sqlalchemy.sql.expression import and_, func
-from pylti1p3.service_connector import ServiceConnector
 from sqlalchemy.orm.collections import attribute_mapped_collection
-from pylti1p3.assignments_grades import AssignmentsGradesService
 
 import psef
 from cg_dt_utils import DatetimeWithTimezone
@@ -387,7 +385,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         default=DatetimeWithTimezone.utcnow,
         nullable=False
     )
-    deadline = db.Column('deadline', db.TIMESTAMP(timezone=True))
+    _deadline = db.Column('deadline', db.TIMESTAMP(timezone=True))
 
     _mail_task_id = db.Column(
         'mail_task_id',
@@ -438,14 +436,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     lti_grade_service_data = db.Column(
         'lti_grade_service_data', JSON, nullable=True
     )
-
-    def get_lti_assignments_grades_service(
-        self, connector: ServiceConnector
-    ) -> AssignmentsGradesService:
-        assert self.is_lti
-        assert isinstance(self.lti_grade_service_data, dict)
-
-        return AssignmentsGradesService(connector, self.lti_grade_service_data)
 
     assigned_graders: t.MutableMapping[
         int, AssignmentAssignedGrader] = db.relationship(
@@ -632,10 +622,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         """Check if two Assignments are equal.
 
         >>> def make(id = None):
-        ...  a = Assignment(course=object(), is_lti=False)
+        ...  a = Assignment(course=None, is_lti=False)
         ...  a.id = id
         ...  return id
-        >>> mk() == object()
+        >>> make() == object()
         False
         >>> make(id=5) == make(id=6)
         False
@@ -645,6 +635,18 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         if isinstance(other, Assignment):
             return self.id == other.id
         return NotImplemented
+
+    def _get_deadline(self) -> t.Optional[DatetimeWithTimezone]:
+        return self._deadline
+
+    def _set_deadline(
+        self, dt: t.Optional[DatetimeWithTimezone]
+    ) -> None:
+        if self._deadline != dt or True:
+            self._deadline = dt
+            signals.ASSIGNMENT_DEADLINE_CHANGED.send(self)
+
+    deadline = hybrid_property(_get_deadline, _set_deadline)
 
     @validates('group_set')
     def validate_group_set(
@@ -961,7 +963,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     def deadline_expired(self) -> bool:
         """Has the deadline of this assignment expired.
 
-        >>> a = Assignment(deadline=None)
+        >>> a = Assignment(deadline=None, is_lti=False, course=None)
         >>> a.deadline_expired
         False
         >>> from datetime import datetime
@@ -1954,7 +1956,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             )
 
         return res
-
 
     def update_submission_types(
         self, *, webhook: t.Optional[bool], files: t.Optional[bool]

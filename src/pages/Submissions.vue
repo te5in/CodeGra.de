@@ -348,7 +348,8 @@ export default {
                 {
                     id: 'git',
                     name: 'Git instructions',
-                    enabled: this.isStudent && this.assignment.webhook_upload_enabled,
+                    enabled:
+                        this.isStudent && this.assignment && this.assignment.webhook_upload_enabled,
                 },
                 {
                     id: 'rubric',

@@ -1,42 +1,45 @@
 <template>
 <div class="lti-deep-link">
-    <b-form-fieldset>
-        <b-input-group prepend="Name">
-            <input class="form-control"
-                   v-model="name"
-                   placeholder="The name of the new assignment" />
-        </b-input-group>
-    </b-form-fieldset>
-
-    <b-form-fieldset>
-        <b-input-group prepend="Deadline">
-            <datetime-picker v-model="deadline"
-                             placeholder="The deadline of the new assignment"/>
-        </b-input-group>
-    </b-form-fieldset>
-
-    <b-form-fieldset>
-        <assignment-submit-types
-            :assignment-id="null"
-            v-model="submitTypes" />
-    </b-form-fieldset>
-
-    <submission-limits v-model="submissionLimits" />
-
-    <div class="float-right"
-         v-b-popover.top.hover="submitPopover">
-        <submit-button :disabled="!!submitPopover"
-                       :submit="() => submitDeepLinkRequest()"
-                       @after-success="afterSubmitDeepLinkRequest"
-                       label="Create assignment" />
-    </div>
-
     <template v-if="formData">
+        <loader />
         <form :action="formData.url"
               method="POST"
               ref="linkForm">
             <input type="hidden" name="JWT" :value="formData.jwt" />
         </form>
+    </template>
+
+    <template v-else>
+        <b-form-fieldset>
+            <b-input-group prepend="Name">
+                <input class="form-control"
+                    v-model="name"
+                    placeholder="The name of the new assignment" />
+            </b-input-group>
+        </b-form-fieldset>
+
+        <b-form-fieldset>
+            <b-input-group prepend="Deadline">
+                <datetime-picker v-model="deadline"
+                                placeholder="The deadline of the new assignment"/>
+            </b-input-group>
+        </b-form-fieldset>
+
+        <b-form-fieldset>
+            <assignment-submit-types
+                :assignment-id="null"
+                v-model="submitTypes" />
+        </b-form-fieldset>
+
+        <submission-limits v-model="submissionLimits" />
+
+        <div class="float-right"
+            v-b-popover.top.hover="submitPopover">
+            <submit-button :disabled="!!submitPopover"
+                        :submit="() => submitDeepLinkRequest()"
+                        @after-success="afterSubmitDeepLinkRequest"
+                        label="Create assignment" />
+        </div>
     </template>
 </div>
 </template>
@@ -46,6 +49,7 @@ import SubmissionLimits from './SubmissionLimits';
 import DatetimePicker from './DatetimePicker';
 import AssignmentSubmitTypes from './AssignmentSubmitTypes';
 import SubmitButton from './SubmitButton';
+import Loader from './Loader';
 
 export default {
     name: 'lti-deep-link',
@@ -105,13 +109,14 @@ export default {
                 max_submissions: parseFloat(this.submissionLimits.maxSubmissions),
                 cool_off_period: parseFloat(this.submissionLimits.coolOff.period),
                 amount_in_cool_off_period: parseFloat(this.submissionLimits.coolOff.amount),
+                files_upload_enabled: this.submitTypes.files,
+                webhook_upload_enabled: this.submitTypes.webhook,
             });
         },
 
         async afterSubmitDeepLinkRequest({ data }) {
             this.formData = data;
             await this.$afterRerender();
-            console.log(this.$refs.linkForm);
             this.$refs.linkForm.submit();
         },
     },
@@ -121,6 +126,7 @@ export default {
         DatetimePicker,
         AssignmentSubmitTypes,
         SubmitButton,
+        Loader,
     },
 };
 </script>

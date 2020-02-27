@@ -575,7 +575,8 @@ def assignment(course_name, state_is_hidden, session, request, with_works):
         state=state,
         course=course,
         deadline=DatetimeWithTimezone.utcnow() +
-        datetime.timedelta(days=1 if request.param == 'new' else -1)
+        datetime.timedelta(days=1 if request.param == 'new' else -1),
+        is_lti=False,
     )
     session.add(assig)
     session.commit()

@@ -25,9 +25,9 @@ from psef import current_user
 from cg_dt_utils import DatetimeWithTimezone
 from psef.models import db
 from psef.helpers import (
-    JSONType, JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
-    add_warning, ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
-    make_empty_response, get_from_map_transaction
+    MISSING, JSONType, JSONResponse, EmptyResponse, ExtendedJSONResponse,
+    jsonify, add_warning, ensure_json_dict, extended_jsonify,
+    ensure_keys_in_dict, make_empty_response, get_from_map_transaction
 )
 from psef.exceptions import (
     APICodes, APIWarnings, APIException, InvalidAssignmentState
@@ -314,6 +314,20 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         also_error=lambda a: not a.is_visible
     )
     content = ensure_json_dict(request.get_json())
+    with get_from_map_transaction(content) as [_, opt_get]:
+        new_state = opt_get('state', str)
+        new_name = opt_get('name', str)
+        new_deadline = opt_get('deadline', str)
+        new_ignore = opt_get('new_ignore', (dict, list, str))
+        new_max_grade = opt_get('max_grade', (float, int, type(None)))
+        new_group_set_id = opt_get('group_set_id', (int, type(None)))
+
+        new_files_upload = opt_get('files_upload_enabled', bool, None)
+        new_webhook_upload = opt_get('webhook_upload_enabled', bool, None)
+
+        new_max_submissions = opt_get('max_submissions', (int, type(None)))
+        new_cool_off_period = opt_get('cool_off_period', (int, float))
+        new_amount_cool_off = opt_get('amount_in_cool_off_period', int)
 
     lti_provider: t.Optional[models.LTIProviderBase]
     lms_name: t.Optional[str]
@@ -325,37 +339,35 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         lti_provider = None
         lms_name = None
 
-    if 'state' in content:
+    if new_state is not MISSING:
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
-        ensure_keys_in_dict(content, [('state', str)])
-        state = t.cast(str, content['state'])
-        assig.set_state(state)
+        assig.set_state(new_state)
 
-    if 'name' in content:
+    if new_name is not MISSING:
         if assig.is_lti:
             raise APIException(
                 (
                     'The name of this assignment should be changed in '
                     f'{lms_name}.'
-                ), f'{assig.name} is an LTI assignment', APICodes.UNSUPPORTED,
-                400
+                ),
+                f'{assig.name} is an LTI assignment',
+                APICodes.UNSUPPORTED,
+                400,
             )
 
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
-        ensure_keys_in_dict(content, [('name', str)])
-        name = t.cast(str, content['name'])
 
-        if not name:
+        if not new_name:
             raise APIException(
                 'The name of an assignment should be at least 1 char',
-                'len({}) == 0'.format(content['name']),
+                f'The new_name "{new_name}" is not long enough',
                 APICodes.INVALID_PARAM,
                 400,
             )
 
-        assig.name = name
+        assig.name = new_name
 
-    if 'deadline' in content:
+    if new_deadline is not MISSING:
         if lti_provider is not None and lti_provider.supports_deadline():
             raise APIException(
                 (
@@ -366,20 +378,16 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
             )
 
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
-        ensure_keys_in_dict(content, [('deadline', str)])
-        deadline = t.cast(str, content['deadline'])
-        assig.deadline = parsers.parse_datetime(deadline)
+        assig.deadline = parsers.parse_datetime(new_deadline)
 
-    if 'ignore' in content:
+    if new_ignore is not MISSING:
         auth.ensure_permission(CPerm.can_edit_cgignore, assig.course_id)
         ignore_version = helpers.get_key_from_dict(
             content, 'ignore_version', 'IgnoreFilterManager'
         )
-        assig.update_cgignore(
-            ignore_version, t.cast(JSONType, content['ignore'])
-        )
+        assig.update_cgignore(ignore_version, new_ignore)
 
-    if 'max_grade' in content:
+    if new_max_grade is not MISSING:
         if lti_provider is not None and not lti_provider.supports_max_points():
             raise APIException(
                 f'{lms_name} does not support setting the maximum grade',
@@ -387,34 +395,28 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 APICodes.UNSUPPORTED, 400
             )
 
-        auth.ensure_permission(CPerm.can_edit_maximum_grade, assig.course_id)
-        ensure_keys_in_dict(content, [('max_grade', (float, int, type(None)))])
-        max_grade = t.cast(t.Union[float, int, None], content['max_grade'])
-        if not (max_grade is None or max_grade > 0):
+        if not (new_max_grade is None or new_max_grade > 0):
             raise APIException(
                 'The maximum grade must be higher than 0',
-                f'The value "{max_grade}" is too low as a maximum grade',
+                f'The value "{new_max_grade}" is too low as a maximum grade',
                 APICodes.INVALID_PARAM, 400
             )
-        assig.set_max_grade(max_grade)
+        assig.set_max_grade(new_max_grade)
 
-    if any(t in content for t in ['done_type', 'reminder_time', 'done_email']):
+    if {'done_type', 'reminder_time', 'done_email'} & content.keys():
         auth.ensure_permission(
-            CPerm.can_update_course_notifications,
-            assig.course_id,
+            CPerm.can_update_course_notifications, assig.course_id
         )
         set_reminder(assig, content)
 
-    if 'group_set_id' in content:
+    if new_group_set_id is not MISSING:
         auth.ensure_permission(
             CPerm.can_edit_group_assignment, assig.course_id
         )
-        ensure_keys_in_dict(content, [('group_set_id', (int, type(None)))])
-        group_set_id = t.cast(t.Optional[int], content['group_set_id'])
-        if group_set_id is None:
+        if new_group_set_id is None:
             group_set = None
         else:
-            group_set = helpers.get_or_404(models.GroupSet, group_set_id)
+            group_set = helpers.get_or_404(models.GroupSet, new_group_set_id)
 
         if assig.group_set != group_set and assig.has_group_submissions():
             raise APIException(
@@ -429,34 +431,23 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
 
         assig.group_set = group_set
 
-    if {'files_upload_enabled', 'webhook_upload_enabled'} & content.keys():
+    if new_files_upload is not None or new_webhook_upload is not None:
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
-        with get_from_map_transaction(content) as [_, opt_get]:
-            files = opt_get('files_upload_enabled', bool, None)
-            webhook = opt_get('webhook_upload_enabled', bool, None)
+        assig.update_submission_types(
+            files=new_files_upload, webhook=new_webhook_upload
+        )
 
-        assig.update_submission_types(files=files, webhook=webhook)
-
-    if 'max_submissions' in content:
+    if new_max_submissions is not MISSING:
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
-        with get_from_map_transaction(content) as [get, _]:
-            max_submissions = get('max_submissions', (int, type(None)))
+        assig.max_submissions = new_max_submissions
 
-        assig.max_submissions = max_submissions
-
-    if 'cool_off_period' in content:
+    if new_cool_off_period is not MISSING:
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
-        with get_from_map_transaction(content) as [get, _]:
-            cool_off_period = get('cool_off_period', (int, float))
+        assig.cool_off_period = datetime.timedelta(seconds=new_cool_off_period)
 
-        assig.cool_off_period = datetime.timedelta(seconds=cool_off_period)
-
-    if 'amount_in_cool_off_period' in content:
+    if new_amount_cool_off is not MISSING:
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
-        with get_from_map_transaction(content) as [get, _]:
-            amount = get('amount_in_cool_off_period', int)
-
-        assig.amount_in_cool_off_period = amount
+        assig.amount_in_cool_off_period = new_amount_cool_off
 
     for warning in assig.get_changed_ambiguous_combinations():
         helpers.add_warning(warning.message, APIWarnings.AMBIGUOUS_COMBINATION)

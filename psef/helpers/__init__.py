@@ -26,7 +26,7 @@ import structlog
 import mypy_extensions
 from flask import g, request
 from mypy_extensions import Arg
-from typing_extensions import Literal, Protocol
+from typing_extensions import Final, Literal, Protocol
 from sqlalchemy.dialects import postgresql
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.sql.expression import or_
@@ -77,7 +77,13 @@ class MissingType(enum.Enum):
     token = 0
 
 
-MISSING: MissingType = MissingType.token
+class _RequiredButMissingType(enum.Enum):
+    token = '__REQUIRED_BUT_MISSING__'
+
+
+MISSING: Literal[MissingType.token] = MissingType.token
+_REQUIRED_BUT_MISSING: Literal[_RequiredButMissingType.token
+                               ] = _RequiredButMissingType.token
 
 
 def init_app(app: 'psef.Flask') -> None:
@@ -782,11 +788,30 @@ class TransactionOptionalGet(Protocol[T_CONTRA]):
 
     @t.overload
     def __call__(
+        self, to_get: T_CONTRA, typ: t.Tuple[t.Type[T], t.Type[TT]],
+        default: ZZ
+    ) -> t.Union[T, TT, ZZ]:
+        ...
+
+    @t.overload
+    def __call__(self, to_get: T_CONTRA,
+                 typ: t.Type[T]) -> t.Union[T, Literal[MissingType.token]]:
+        ...
+
+    @t.overload
+    def __call__(
         self,
         to_get: T_CONTRA,
         typ: t.Tuple[t.Type[T], t.Type[TT]],
-        default: ZZ,
-    ) -> t.Union[T, TT, ZZ]:
+    ) -> t.Union[T, TT, Literal[MissingType.token]]:
+        ...
+
+    @t.overload
+    def __call__(
+        self,
+        to_get: T_CONTRA,
+        typ: t.Tuple[t.Type[T], t.Type[TT], t.Type[ZZ]],
+    ) -> t.Union[T, TT, ZZ, Literal[MissingType.token]]:
         ...
 
 
@@ -821,11 +846,13 @@ def get_from_map_transaction(
     def get(key: T, typ: t.Union[t.Type, t.Tuple[t.Type, ...]]) -> TT:
         all_keys_requested.append(key)
         keys.append((key, typ))
-        return t.cast(TT, mapping.get(key, MISSING))
+        return t.cast(TT, mapping.get(key, _REQUIRED_BUT_MISSING))
 
     def optional_get(
-        key: T, typ: t.Union[t.Type, t.Tuple[t.Type, ...]], default: ZZ
-    ) -> t.Union[TT, ZZ]:
+        key: T,
+        typ: t.Union[t.Type, t.Tuple[t.Type, ...]],
+        default: t.Any = MISSING
+    ) -> object:
         if key not in mapping:
             all_keys_requested.append(key)
             return default

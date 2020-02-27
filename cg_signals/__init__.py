@@ -16,8 +16,11 @@ Y = t.TypeVar('Y')
 
 class Dispatcher(t.Generic[T]):
     __slots__ = (
-        '__name', '__after_request_callbacks', '__immediate_callbacks',
-        '__registered_functions'
+        '__name',
+        '__after_request_callbacks',
+        '__immediate_callbacks',
+        '__registered_functions',
+        '__celery_todo',
     )
 
     def __init__(self, name: str) -> None:
@@ -25,6 +28,7 @@ class Dispatcher(t.Generic[T]):
         self.__registered_functions: t.Set[str] = set()
         self.__after_request_callbacks: t.List[t.Callable[[T], object]] = []
         self.__immediate_callbacks: t.List[t.Callable[[T], object]] = []
+        self.__celery_todo: t.List[t.Callable[[Celery], None]] = []
 
     def _check_function_not_registered(self, name: str) -> None:
         assert (
@@ -35,6 +39,9 @@ class Dispatcher(t.Generic[T]):
 
     def send(self, value: T) -> None:
         logger.info('Sending signal', signal_name=self.__name)
+        assert not self.__celery_todo, (
+            'Still celery tasks that were not registered'
+        )
 
         if self.__after_request_callbacks:
 
@@ -62,11 +69,15 @@ class Dispatcher(t.Generic[T]):
         )
         return '{}.{}'.format(module.__name__ if module else '???', name)
 
+    def finalize_celery(self, celery: Celery) -> None:
+        for fun in self.__celery_todo:
+            fun(celery)
+        self.__celery_todo.clear()
+
     def connect_celery(
         self,
         *,
         converter: t.Callable[[T], Z],
-        celery: Celery,
         pre_check: t.Callable[[T], bool] = lambda _: True,
         task_args: t.Mapping[str, t.Any] = None,
         prevent_recursion: bool = False,
@@ -74,28 +85,29 @@ class Dispatcher(t.Generic[T]):
         module = self.__class__.__module__
 
         def __inner(callback: t.Callable[[Z], Y]) -> t.Callable[[Z], Y]:
-            assert celery is not None
             self._check_function_not_registered(self._get_fullname(callback))
             task_name = (
                 f'{module}.{self.__name}'
-                '.{self._get_fullname(callback)}.celery_task'
+                f'.{self._get_fullname(callback)}.celery_task'
             )
 
-            @celery.task(name=task_name, **(task_args or {}))
-            def __celery_task(arg: Z) -> Y:
-                return callback(arg)
+            def __celery_setup(celery: Celery) -> None:
+                @celery.task(name=task_name, **(task_args or {}))
+                def __celery_task(arg: Z) -> Y:
+                    return callback(arg)
 
-            def __registered(arg: T) -> None:
-                if (
-                    prevent_recursion and celery.current_task and
-                    celery.current_task.name == task_name
-                ):
-                    return
-                if pre_check(arg):
-                    __celery_task.delay(converter(arg))
+                def __registered(arg: T) -> None:
+                    if (
+                        prevent_recursion and celery.current_task and
+                        celery.current_task.name == task_name
+                    ):
+                        return
+                    if pre_check(arg):
+                        __celery_task.delay(converter(arg))
 
-            self.__after_request_callbacks.append(__registered)
+                self.__after_request_callbacks.append(__registered)
 
+            self.__celery_todo.append(__celery_setup)
             return callback
 
         return __inner
