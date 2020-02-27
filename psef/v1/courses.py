@@ -307,8 +307,8 @@ def set_course_permission_user(
     res: t.Union[EmptyResponse, JSONResponse[_UserCourse]]
 
     if 'user_id' in content:
-        ensure_keys_in_dict(content, [('user_id', int)])
-        user_id = t.cast(int, content['user_id'])
+        with get_from_map_transaction(content) as [get, _]:
+            user_id = get('user_id', int)
 
         user = helpers.get_or_404(models.User, user_id)
 
@@ -321,10 +321,11 @@ def set_course_permission_user(
 
         res = make_empty_response()
     elif 'username' in content:
-        ensure_keys_in_dict(content, [('username', str)])
+        with get_from_map_transaction(content) as [get, _]:
+            username = get('username', str)
 
         user = helpers.filter_single_or_404(
-            models.User, models.User.username == content['username']
+            models.User, models.User.username == username
         )
 
         if course_id in user.courses:
@@ -467,13 +468,15 @@ def create_new_assignment(course_id: int) -> JSONResponse[models.Assignment]:
         also_error=lambda c: c.virtual,
     )
 
-    if course.lti_course_id is not None:
+    if course.lti_provider is not None:
         lms = course.lti_provider.lms_name
         raise APIException(
             f'You cannot add assignments to a {lms} course',
             f'The course "{course_id}" is a LTI course',
             APICodes.INVALID_STATE, 400
         )
+    else:
+        assert course.lti_course_id is None
 
     assig = models.Assignment(
         name=name,

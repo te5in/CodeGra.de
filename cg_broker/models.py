@@ -7,6 +7,7 @@ import time
 import uuid
 import typing as t
 import secrets
+import dataclasses
 from datetime import timedelta
 
 import boto3
@@ -24,18 +25,16 @@ from cg_logger import bound_to_logger
 from cg_timers import timed_code
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
-from cg_sqlalchemy_helpers import types, mixins
+from cg_sqlalchemy_helpers import types, mixins, hybrid_property
+from cg_sqlalchemy_helpers.types import ColumnProxy
 
 from . import BrokerFlask, app, utils
-
-if t.TYPE_CHECKING:
-    hybrid_property = property  # pylint: disable=invalid-name
-else:
-    from sqlalchemy.ext.hybrid import hybrid_property
 
 logger = structlog.get_logger()
 
 db: cgs.types.MyDb = cgs.make_db()
+
+T = t.TypeVar('T')
 
 
 def init_app(flask_app: BrokerFlask) -> None:
@@ -111,7 +110,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
 
     __tablename__ = 'runner'
 
-    ipaddr: str = db.Column(
+    ipaddr = db.Column(
         'ipaddr', db.Unicode, nullable=True, default=None, index=True
     )
     _runner_type = db.Column('type', db.Enum(RunnerType), nullable=False)
@@ -121,7 +120,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         nullable=False,
         default=RunnerState.not_running
     )
-    started_at: t.Optional[DatetimeWithTimezone] = db.Column(
+    started_at = db.Column(
         db.TIMESTAMP(timezone=True), default=None, nullable=True
     )
 
@@ -131,7 +130,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         'last_log_emitted', db.Boolean, nullable=False, default=False
     )
 
-    job_id: t.Optional[int] = db.Column(
+    job_id = db.Column(
         'job_id',
         db.Integer,
         db.ForeignKey('job.id'),
@@ -140,11 +139,11 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         unique=False
     )
 
-    job: t.Optional['Job'] = db.relationship(
-        'Job', foreign_keys=job_id, back_populates='runners'
+    job = db.relationship(
+        lambda: Job, foreign_keys=job_id, back_populates='runners'
     )
 
-    public_id: uuid.UUID = db.Column(
+    public_id = db.Column(
         'public_id',
         UUIDType,
         unique=True,
@@ -153,7 +152,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         server_default=sqlalchemy.func.uuid_generate_v4(),
     )
 
-    _pass: str = db.Column(
+    _pass = db.Column(
         'pass',
         db.Unicode,
         unique=False,
@@ -178,6 +177,10 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         return secrets.compare_digest(self._pass, requesting_pass)
 
     def is_ip_valid(self, requesting_ip: str) -> bool:
+        """Check if the requesting ip is valid for this Runner.
+        """
+        if self.ipaddr is None:
+            return False
         return secrets.compare_digest(self.ipaddr, requesting_ip)
 
     def __hash__(self) -> int:
@@ -260,8 +263,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
             needed.
         """
         return db.session.query(cls).filter(
-            t.cast(types.DbColumn[RunnerState],
-                   cls.state).in_(RunnerState.get_active_states())
+            cls.state.in_(RunnerState.get_active_states())
         )
 
     @classmethod
@@ -270,9 +272,8 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         assigned.
         """
         return db.session.query(cls).filter(
-            t.cast(types.DbColumn[RunnerState],
-                   cls.state).in_(RunnerState.get_before_running_states()),
-            t.cast(types.DbColumn[t.Optional[int]], cls.job_id).is_(None)
+            cls.state.in_(RunnerState.get_before_running_states()),
+            cls.job_id.is_(None)
         )
 
     def make_unassigned(self) -> None:
@@ -322,7 +323,7 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
 
     __mapper_args__ = {
         'polymorphic_on': _runner_type,
-        'polymorphic_identity': None,
+        'polymorphic_identity': '__non_existing__',
     }
 
 
@@ -534,11 +535,9 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
     remote_id = db.Column(
         'remote_id', db.Unicode, nullable=False, index=True, unique=True
     )
-    runners: t.List['Runner'] = db.relationship(
-        'Runner', back_populates='job', uselist=True
-    )
+    runners = db.relationship(Runner, back_populates='job', uselist=True)
 
-    _job_metadata: t.Optional[t.Dict[str, object]] = db.Column(
+    _job_metadata: ColumnProxy[t.Optional[t.Dict[str, object]]] = db.Column(
         'job_metadata', JSON, nullable=True, default={}
     )
 
@@ -551,7 +550,7 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
     def update_metadata(self, new_values: t.Dict[str, object]) -> None:
         self._job_metadata = {**self.job_metadata, **new_values}
 
-    _wanted_runners: int = db.Column(
+    _wanted_runners = db.Column(
         'wanted_runners',
         db.Integer,
         default=1,
@@ -559,32 +558,32 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
         nullable=False
     )
 
-    @hybrid_property
-    def wanted_runners(self) -> int:
+    def _get_wanted_runners(self) -> int:
         """The amount of runners this job wants.
         """
         return self._wanted_runners
 
-    @wanted_runners.setter
-    def wanted_runners(self, new_value: int) -> None:
+    def _set_wanted_runners(self, new_value: int) -> None:
         self._wanted_runners = min(
             max(new_value, 1),
             app.config['MAX_AMOUNT_OF_RUNNERS_PER_JOB'],
         )
 
-    @hybrid_property
-    def state(self) -> JobState:
+    wanted_runners = hybrid_property(_get_wanted_runners, _set_wanted_runners)
+
+    def _get_state(self) -> JobState:
         """Get the state of this job.
         """
         return self._state
 
-    @state.setter
-    def state(self, new_state: JobState) -> None:
-        if self.state is not None and new_state < self.state:
+    def _set_state(self, new_state: JobState) -> None:
+        if new_state < self.state:
             raise ValueError(
                 'Cannot decrease the state!', self.state, new_state
             )
         self._state = new_state
+
+    state = hybrid_property(_get_state, _set_state)
 
     def get_active_runners(self) -> t.List[Runner]:
         return [
@@ -594,7 +593,7 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
 
     def __log__(self) -> t.Dict[str, object]:
         return {
-            'state': self.state.name,
+            'state': self.state and self.state.name,
             'cg_url': self.cg_url,
             'id': self.id,
         }
@@ -704,9 +703,16 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
         :param startable: The amount of runners we may start.
         :returns: The amount of new runners started.
         """
-        needed = self.wanted_runners - len(self.get_active_runners())
-        to_start = []
-        created = []
+        needed = max(0, self.wanted_runners - len(self.get_active_runners()))
+        to_start: t.List[uuid.UUID] = []
+        created: t.List[Runner] = []
+
+        if needed > 0 and unassigned_runners:
+            # We will assign runner that were previously unassigned, so we
+            # might need to start some extra runners.
+            callback_after_this_request(
+                cg_broker.tasks.start_needed_unassigned_runners.delay
+            )
 
         for _ in range(needed):
             if unassigned_runners:
@@ -723,12 +729,84 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
         db.session.flush()
 
         for runner in created:
-            to_start.append(runner.id.hex)
+            to_start.append(runner.id)
 
         def start_runners() -> None:
             for runner_id in to_start:
-                cg_broker.tasks.start_runner.delay(runner_id)
+                cg_broker.tasks.start_runner.delay(runner_id.hex)
 
         callback_after_this_request(start_runners)
 
         return len(created)
+
+
+@dataclasses.dataclass(frozen=True)
+class _PossibleSetting(t.Generic[T]):
+    default_value: T
+    type_convert: t.Callable[[str], T]
+    input_type: str
+    after_update: t.Callable[[], None]
+
+
+def _after_update_minimum_amount_extra_runners() -> None:
+    callback_after_this_request(
+        cg_broker.tasks.start_needed_unassigned_runners.delay
+    )
+
+
+@enum.unique
+class PossibleSetting(enum.Enum):
+    """This enum lists all possible settings that can be set via the web
+    interface of the broker.
+    """
+    minimum_amount_extra_runners = _PossibleSetting(
+        default_value=0,
+        type_convert=int,
+        input_type='number',
+        after_update=_after_update_minimum_amount_extra_runners,
+    )
+
+
+class Setting(Base, mixins.TimestampMixin):
+    """A setting for the broker that can be changed via an interface on the
+    broker's web page.
+    """
+    setting = db.Column(
+        'settting', db.Enum(PossibleSetting), nullable=False, primary_key=True
+    )
+    value: object = db.Column('value', JSON, nullable=False)
+
+    # Unfortunately it is not yet possible to create generic enums:
+    # https://github.com/python/typing/issues/535
+    @classmethod
+    def get(cls, setting: PossibleSetting) -> t.Any:
+        """Get the current value of this setting.
+        """
+        found = db.session.query(cls).filter_by(setting=setting).one_or_none()
+        if found is None:
+            return setting.value.default_value
+        return found.value
+
+    @classmethod
+    def set(cls, setting: PossibleSetting, value: object) -> None:
+        """Set a new value for this setting.
+        """
+        assert isinstance(value, type(setting.value.default_value))
+        found = db.session.query(cls).filter_by(setting=setting).one_or_none()
+        logger.info(
+            'Setting config setting',
+            setting=setting.name,
+            new_value=value,
+            existing_value=found and found.value,
+        )
+
+        # This can lead to an integrity error when two users create the same
+        # setting for the first time. But as the broker is only used internally
+        # that is not really a problem.
+        if found is not None:
+            found.value = value
+        else:
+            new_setting = cls(setting=setting, value=value)
+            db.session.add(new_setting)
+
+        setting.value.after_update()

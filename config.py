@@ -68,7 +68,7 @@ FlaskConfig = TypedDict(
         'AUTO_TEST_BDEVTYPE': str,
         'AUTO_TEST_HEARTBEAT_INTERVAL': int,
         'AUTO_TEST_HEARTBEAT_MAX_MISSED': int,
-        'AUTO_TEST_TEMPLATE_CONTAINER': str,
+        'AUTO_TEST_TEMPLATE_CONTAINER': t.Optional[str],
         'AUTO_TEST_BROKER_URL': str,
         'AUTO_TEST_BROKER_PASSWORD': str,
         'AUTO_TEST_CF_SLEEP_TIME': float,

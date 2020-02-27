@@ -177,8 +177,6 @@ def _waitpid_noblock(pid: int) -> t.Optional[int]:
     # not be exited (new_pid == status == 0), or should exit normally
     # (os.WIFEXITED), or it exited through a signal (os.WIFSIGNALED).
     assert False
-    # Pylint issue https://github.com/PyCQA/pylint/issues/2908
-    return None  # pragma: no cover
 
 
 def _wait_for_attach(
@@ -781,7 +779,6 @@ def start_polling(config: 'psef.FlaskConfig') -> None:
     if os.path.isfile(runner_pass_file):
         with open(runner_pass_file, 'r') as f:
             runner_pass = f.read().strip()
-        os.unlink(runner_pass_file)
     else:
         logger.warning(
             'Could not find runner pass file',
@@ -1667,7 +1664,7 @@ class AutoTestRunner:
     def _work_producer(self, last_call: bool) -> t.List[cg_worker_pool.Work]:
         url = (
             f'{self.base_url}/runs/{self.instructions["run_id"]}/'
-            f'results/?last_call={last_call}'
+            f'results/?last_call={last_call}?limit={_get_amount_cpus() * 4}'
         )
         res = self.req.get(url, timeout=_REQUEST_TIMEOUT)
         res.raise_for_status()

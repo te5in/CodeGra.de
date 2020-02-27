@@ -55,7 +55,7 @@ def _update_auto_test(
         has_new_fixtures = optional_get('has_new_fixtures', bool, False)
         grade_calculation = optional_get('grade_calculation', str, None)
         results_always_visible: t.Optional[bool] = optional_get(
-            'results_always_visible', t.cast(t.Any, (bool, type(None))), None
+            'results_always_visible', (bool, type(None)), None
         )
 
     if old_fixtures is not None:
@@ -354,9 +354,7 @@ def update_auto_test_set(auto_test_id: int, auto_test_set_id: int
     auto_test_set.auto_test.ensure_no_runs()
 
     with get_from_map_transaction(get_json_dict_from_request()) as [_, opt]:
-        stop_points = t.cast(
-            t.Optional[float], opt('stop_points', numbers.Real, None)
-        )
+        stop_points = opt('stop_points', (int, float), None)
 
     if stop_points is not None:
         if stop_points < 0:
@@ -451,10 +449,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         rubric_row_id = get('rubric_row_id', int)
         network_disabled = get('network_disabled', bool)
         suite_id = opt('id', int, None)
-        time_limit = t.cast(
-            t.Optional[float],
-            opt('command_time_limit', numbers.Real, None),
-        )
+        time_limit = opt('command_time_limit', (float, int), None)
 
     if suite_id is None:
         # Make sure the time_limit is always set when creating a new suite
@@ -878,8 +873,7 @@ def get_auto_test_result_proxy(
 
     base_file = filter_single_or_404(
         models.AutoTestOutputFile,
-        t.cast(models.DbColumn[UUID],
-               models.AutoTestOutputFile.parent_id).is_(None),
+        models.AutoTestOutputFile.parent_id.is_(None),
         models.AutoTestOutputFile.auto_test_suite_id == suite_id,
         models.AutoTestOutputFile.result == result,
     )

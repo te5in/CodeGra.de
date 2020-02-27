@@ -294,10 +294,10 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
         res['authors'] = authors if can_view_authors else None
 
         comments = models.Comment.query.filter(
-            t.cast(DbColumn[models.File], models.Comment.file).has(work=work),
+            models.Comment.file.has(work=work),
         ).order_by(
-            t.cast(DbColumn[int], models.Comment.file_id).asc(),
-            t.cast(DbColumn[int], models.Comment.line).asc(),
+            models.Comment.file_id.asc(),
+            models.Comment.line.asc(),
         )
 
         for comment in comments:
@@ -311,11 +311,10 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
         pass
     else:
         linter_comments = models.LinterComment.query.filter(
-            t.cast(DbColumn[models.File],
-                   models.LinterComment.file).has(work=work)
+            models.LinterComment.file.has(work=work)
         ).order_by(
-            t.cast(DbColumn[int], models.LinterComment.file_id).asc(),
-            t.cast(DbColumn[int], models.LinterComment.line).asc(),
+            models.LinterComment.file_id.asc(),
+            models.LinterComment.line.asc(),
         )
         for lcomment in linter_comments:
             res['linter'][lcomment.file_id][lcomment.line].append(
@@ -435,7 +434,7 @@ def select_rubric_items(submission_id: int
             RowType(row_id=item.rubricrow_id, item_id=item.id, multiplier=1.0)
             for item in helpers.get_in_or_error(
                 models.RubricItem,
-                t.cast(DbColumn[int], models.RubricItem.id),
+                models.RubricItem.id,
                 t.cast(t.List[int], json_input),
             )
         ]
@@ -454,7 +453,7 @@ def select_rubric_items(submission_id: int
 
     rows = helpers.get_in_or_error(
         models.RubricRow,
-        t.cast(DbColumn[int], models.RubricRow.id),
+        models.RubricRow.id,
         [item.row_id for item in sanitized_input],
         options=[selectinload(models.RubricRow.items)],
         as_map=True,
@@ -779,9 +778,9 @@ def get_grade_history(submission_id: int
 
     hist: t.MutableSequence[models.GradeHistory]
     hist = db.session.query(
-        models.GradeHistory
+        models.GradeHistory,
     ).filter_by(work_id=work.id).order_by(
-        models.GradeHistory.changed_at.desc(),  # type: ignore
+        models.GradeHistory.changed_at.desc(),
     ).all()
 
     return jsonify(hist)
@@ -843,7 +842,7 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
         models.File.work_id == submission_id,
         models.File.fileowner != exclude_owner,
         models.File.name == patharr[0],
-        t.cast(DbColumn[int], models.File.parent_id).is_(None),
+        models.File.parent_id.is_(None),
     )
 
     code = None
@@ -976,7 +975,7 @@ def get_dir_contents(
     else:
         file = helpers.filter_single_or_404(
             models.File, models.File.work_id == submission_id,
-            t.cast(DbColumn[int], models.File.parent_id).is_(None),
+            models.File.parent_id.is_(None),
             models.File.fileowner != exclude_owner
         )
 
@@ -1028,7 +1027,7 @@ def create_proxy(submission_id: int) -> JSONResponse[models.Proxy]:
     base_file = models.File.query.filter(
         models.File.work == submission,
         models.File.fileowner != exclude_owner,
-        t.cast(models.DbColumn[int], models.File.parent_id).is_(None),
+        models.File.parent_id.is_(None),
     ).one()
 
     proxy = models.Proxy(

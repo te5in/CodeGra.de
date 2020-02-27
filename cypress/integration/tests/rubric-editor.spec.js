@@ -45,9 +45,16 @@ context('Rubric Editor', () => {
 
     before(() => {
         cy.visit('/');
-        cy.createCourse(`Rubric Editor Course ${unique}`).then(res => {
+        cy.createCourse(
+            `Rubric Editor Course ${unique}`,
+            [{ name: 'student1', role: 'Student' }],
+        ).then(res => {
             course = res;
-            cy.createAssignment(course.id, `Rubric Editor Assignment ${unique}`).then(res => {
+            cy.createAssignment(
+                course.id,
+                `Rubric Editor Assignment ${unique}`,
+                { state: 'open', deadline: 'tomorrow' },
+            ).then(res => {
                 assignment = res;
             });
         });
@@ -713,33 +720,13 @@ context('Rubric Editor', () => {
         });
 
         it('should indicate which rows are connected to AutoTest', () => {
-            const rubric = new Rubric([1], [1], [0, 1, 2], [0, 1, 2]);
-            cy.createRubric(assignment.id, rubric).then(res =>
-                cy.createAutoTest(assignment.id, {
-                    sets: [{
-                        suites: [{
-                            rubric_row_id: res[0].id,
-                            network_disabled: true,
-                            steps: [{
-                                type: 'run_program',
-                                weight: 1,
-                                hidden: false,
-                                name: 'step 1',
-                                data: { program: 'true' },
-                            }],
-                        }, {
-                            rubric_row_id: res[2].id,
-                            network_disabled: true,
-                            steps: [{
-                                type: 'run_program',
-                                weight: 1,
-                                hidden: false,
-                                name: 'step 2',
-                                data: { program: 'true' },
-                            }],
-                        }],
-                    }],
-                }),
+            const rubricData = new Rubric([1], [1], [0, 1, 2], [0, 1, 2]);
+            cy.createRubric(assignment.id, rubricData).then(rubric =>
+                cy.createAutoTestFromFixture(
+                    assignment.id,
+                    'single_cat_two_items',
+                    rubric,
+                ),
             ).then(autoTest => {
                 loadPage(true);
 
@@ -913,33 +900,13 @@ context('Rubric Editor', () => {
         });
 
         it('should indicate which rows are connected to AutoTest', () => {
-            const rubric = new Rubric([1], [1], [0, 1, 2], [0, 1, 2]);
-            cy.createRubric(assignment.id, rubric).then(res =>
-                cy.createAutoTest(assignment.id, {
-                    sets: [{
-                        suites: [{
-                            rubric_row_id: res[0].id,
-                            network_disabled: true,
-                            steps: [{
-                                type: 'run_program',
-                                weight: 1,
-                                hidden: false,
-                                name: 'step 1',
-                                data: { program: 'true' },
-                            }],
-                        }, {
-                            rubric_row_id: res[2].id,
-                            network_disabled: true,
-                            steps: [{
-                                type: 'run_program',
-                                weight: 1,
-                                hidden: false,
-                                name: 'step 2',
-                                data: { program: 'true' },
-                            }],
-                        }],
-                    }],
-                }),
+            const rubricData = new Rubric([1], [1], [0, 1, 2], [0, 1, 2]);
+            cy.createRubric(assignment.id, rubricData).then(rubric =>
+                cy.createAutoTestFromFixture(
+                    assignment.id,
+                    'single_cat_two_items',
+                    rubric,
+                ),
             ).then(autoTest => {
                 loadPage(true);
 
@@ -998,6 +965,36 @@ context('Rubric Editor', () => {
                     .click();
                 cy.get('.rubric-editor .rubric-editor-row.continuous:visible p')
                     .shouldNotOverflow();
+            });
+        });
+
+        it('should be visible even if the user does not have the permission to see the AutoTest', () => {
+            const rubricData = new Rubric([1], [1], [0, 1, 2], [0, 1, 2]);
+            cy.createRubric(assignment.id, rubricData).then(rubric =>
+                cy.createAutoTestFromFixture(
+                    assignment.id,
+                    'no_continuous',
+                    rubric,
+                ),
+            ).then(autoTest => {
+                loadPage(true);
+                cy.get('.rubric-editor')
+                    .should('not.have.class', 'alert')
+                    .should('be.visible');
+
+                cy.login('student1', 'Student1');
+                loadPage(false);
+                cy.get('.rubric-editor')
+                    .should('not.have.class', 'alert')
+                    .should('be.visible')
+                    .find('[id^="rubric-lock-"]:visible')
+                    .trigger('mouseenter');
+                cy.get('.popover')
+                    .should('be.visible')
+                    .should('have.length', 1)
+                    .should('not.contain', 'Grade calculation');
+
+                cy.deleteAutoTest(autoTest.id);
             });
         });
     });

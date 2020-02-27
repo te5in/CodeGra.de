@@ -21,14 +21,14 @@ T = t.TypeVar('T')
 
 
 def _search_candiate(
-    lookup: t.Mapping[T, t.Mapping[str, T]],
+    lookup: t.Mapping[t.Optional[T], t.Mapping[str, T]],
     base_file: NestedFileMixin[T],
     path: t.Sequence[str],
 ) -> t.Optional[T]:
     """
     """
     try:
-        cur = base_file.id
+        cur = base_file.get_id()
         for wanted_name in path:
             cur = lookup[cur][wanted_name]
         return cur
@@ -66,7 +66,7 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         db.ForeignKey('File.id'),
         nullable=True,
     )
-    base_work_file = db.relationship('File', foreign_keys=base_work_file_id)
+    base_work_file = db.relationship(File, foreign_keys=base_work_file_id)
 
     base_at_result_file_id = db.Column(
         'base_at_result_file_id',
@@ -75,10 +75,10 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         nullable=True,
     )
     base_at_result_file = db.relationship(
-        'AutoTestOutputFile', foreign_keys=base_at_result_file_id
+        AutoTestOutputFile, foreign_keys=base_at_result_file_id
     )
 
-    excluding_fileowner: FileOwner = db.Column(
+    excluding_fileowner = db.Column(
         'excluding_fileowner',
         db.Enum(FileOwner),
         default=None,
@@ -207,7 +207,8 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         base = self.base_at_result_file
         assert base is not None
 
-        lookup: t.Mapping[UUID, t.Dict[str, UUID]] = defaultdict(dict)
+        lookup: t.Mapping[t.Optional[UUID], t.
+                          Dict[str, UUID]] = defaultdict(dict)
 
         for f_id, f_name, f_parent_id in db.session.query(
             AutoTestOutputFile.id,
@@ -230,7 +231,8 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         assert base is not None
         assert self.excluding_fileowner is not None
 
-        lookup: t.Mapping[int, t.Dict[str, int]] = defaultdict(dict)
+        lookup: t.Mapping[t.Optional[int], t.
+                          Dict[str, int]] = defaultdict(dict)
         for f_id, f_name, f_parent_id in db.session.query(
             File.id, File.name, File.parent_id
         ).filter(

@@ -248,13 +248,14 @@ def user_patch_handle_send_reset_email() -> EmptyResponse:
     :returns: An empty response.
     """
     data = ensure_json_dict(request.get_json())
-    ensure_keys_in_dict(data, [('username', str)])
+    with helpers.get_from_map_transaction(data) as [get, _]:
+        username = get('username', str)
 
     mail.send_reset_password_email(
         helpers.filter_single_or_404(
             models.User,
             ~models.User.is_test_student,
-            models.User.username == data['username'],
+            models.User.username == username,
         )
     )
     db.session.commit()

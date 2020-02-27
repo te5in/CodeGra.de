@@ -17,6 +17,7 @@ import contextlib
 import subprocess
 import urllib.parse
 import multiprocessing
+from operator import itemgetter
 from functools import wraps
 
 import flask
@@ -26,6 +27,7 @@ import mypy_extensions
 from flask import g, request
 from mypy_extensions import Arg
 from typing_extensions import Literal, Protocol
+from sqlalchemy.dialects import postgresql
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.sql.expression import or_
 
@@ -478,11 +480,37 @@ def get_in_or_error(
     return [item[1] for item in res]
 
 
+@t.overload
+def _filter_or_404(
+    model: t.Type[Y],
+    get_all: Literal[True],
+    criteria: t.Tuple,
+    also_error: t.Optional[t.Callable[[t.List[Y]], bool]],
+    with_for_update: t.Union[bool, LockType],
+    options: t.Optional[t.List[t.Any]] = None,
+    with_for_update_of: t.Optional[t.Type['Base']] = None,
+) -> t.Sequence[Y]:
+    ...
+
+
+@t.overload
+def _filter_or_404(
+    model: t.Type[Y],
+    get_all: Literal[False],
+    criteria: t.Tuple,
+    also_error: t.Optional[t.Callable[[Y], bool]],
+    with_for_update: t.Union[bool, LockType],
+    options: t.Optional[t.List[t.Any]] = None,
+    with_for_update_of: t.Optional[t.Type['Base']] = None,
+) -> Y:
+    ...
+
+
 def _filter_or_404(
     model: t.Type[Y],
     get_all: bool,
     criteria: t.Tuple,
-    also_error: t.Optional[t.Callable[[Y], bool]],
+    also_error: t.Optional[t.Callable[[t.Any], bool]],
     with_for_update: t.Union[bool, LockType],
     options: t.Optional[t.List[t.Any]] = None,
     with_for_update_of: t.Optional[t.Type['Base']] = None,
@@ -510,11 +538,18 @@ def _filter_or_404(
     obj = query.all() if get_all else query.one_or_none()
 
     if not obj or (also_error is not None and also_error(obj)):
-        crit_str = ' AND '.join(str(crit) for crit in criteria)
+        crit_str = ' AND '.join(
+            str(
+                crit.compile(
+                    dialect=postgresql.dialect(),
+                    compile_kwargs={'literal_binds': True}
+                )
+            ) for crit in criteria
+        )
         raise psef.errors.APIException(
             f'The requested {model.__name__.lower()} was not found',
             f'There is no "{model.__name__}" when filtering with {crit_str}',
-            psef.errors.APICodes.OBJECT_ID_NOT_FOUND, 404
+            psef.errors.APICodes.OBJECT_NOT_FOUND, 404
         )
     return obj
 
