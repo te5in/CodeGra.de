@@ -195,6 +195,7 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
     def expired(self) -> bool:
         """Is this proxy expired.
         """
+        return False
         return (
             helpers.get_request_start_time() - self.created_at > self.max_age
         )
@@ -257,7 +258,9 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         assert not self.expired
         assert not self.deleted
 
-        if self.base_at_result_file_id is None:
+        if not path:
+            return None
+        elif self.base_at_result_file_id is None:
             return self._get_work_file(path)
         else:
             return self._get_at_file(path)

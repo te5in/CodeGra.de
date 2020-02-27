@@ -27,7 +27,7 @@
         <li v-for="f in tree.entries"
             class="file"
             :class="{ directory: f.entries, faded: fadeFile(f), active: fileIsSelected(f), 'fade-active': fadeSelected }">
-            <file-tree-inner v-else-if="f.entries"
+            <file-tree-inner v-if="f.entries"
                              :file-tree="fileTree"
                              :tree="f"
                              :fade-selected="fadeSelected"

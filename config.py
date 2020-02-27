@@ -96,6 +96,7 @@ FlaskConfig = TypedDict(
         'MAX_LARGE_UPLOAD_SIZE': int,
         'DEFAULT_ROLE': str,
         'EXTERNAL_URL': str,
+        'EXTERNAL_PROXY_URL': str,
         'JAVA_PATH': str,
         'JPLAG_JAR': str,
         'JPLAG_SUPPORTED_LANGUAGES': t.Mapping[str, str],
@@ -317,6 +318,7 @@ set_str(CONFIG, backend_ops, 'DEFAULT_ROLE', 'Student')
 
 # The external URL the server runs on.
 set_str(CONFIG, backend_ops, 'EXTERNAL_URL', '')
+set_str(CONFIG, backend_ops, 'EXTERNAL_PROXY_URL', '')
 
 set_str(CONFIG, backend_ops, 'JAVA_PATH', 'java')
 

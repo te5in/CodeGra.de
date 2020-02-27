@@ -1,25 +1,28 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-only
 
+DEV_DB="codegrade_dev1"
+DEV_BROKER_DB="codegrade_broker_dev1"
+
 if [[ $1 = 'broker' ]]; then
     echo "NOTE THIS IS VERY HACKY AND PROBABLY WON'T WORK WITH YOUR POSTGRESQL INSTALL"
     echo "Dropping and creating broker database"
 
-    dropdb "codegrade_broker_dev"
-    psql -c "create database codegrade_broker_dev"
-    psql codegrade_broker_dev -c 'create extension "uuid-ossp";'
+    dropdb "$DEV_BROKER_DB"
+    psql -c "create database $DEV_BROKER_DB"
+    psql "$DEV_BROKER_DB" -c 'create extension "uuid-ossp";'
     ./manage_broker.py db upgrade
     exit $?
 fi
 
 fix_perms() {
-    psql -d "codegrade_dev" -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA  public TO "www-data"'
-    psql -d "codegrade_dev" -c 'GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "www-data"'
-    psql -d "codegrade_dev" -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "www-data"'
-    psql -d "codegrade_dev" -c 'GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "www-data"'
-    psql -c 'grant all privileges on database codegrade_dev  to "www-data";'
-    psql -d "codegrade_dev" -c 'GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "www-data"'
-    psql -d "codegrade_dev" -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "www-data"'
+    psql -d "$DEV_DB" -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA  public TO "www-data"'
+    psql -d "$DEV_DB" -c 'GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "www-data"'
+    psql -d "$DEV_DB" -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "www-data"'
+    psql -d "$DEV_DB" -c 'GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "www-data"'
+    psql -c "grant all privileges on database $DEV_DB  to \"www-data\";"
+    psql -d "$DEV_DB" -c 'GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "www-data"'
+    psql -d "$DEV_DB" -c 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "www-data"'
 }
 
 
@@ -31,8 +34,8 @@ if [[ $1 = "perms" ]]; then
     exit 0
 fi
 
-dropdb "codegrade_dev"
-psql -c "create database codegrade_dev"
+dropdb "$DEV_DB"
+psql -c "create database $DEV_DB"
 if [[ "$1" = "prod" ]]; then
     fix_perms
 fi

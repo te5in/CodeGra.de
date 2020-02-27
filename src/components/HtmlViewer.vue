@@ -44,7 +44,7 @@
                                     v-model="allowRemoteScripts"
                                     :options="yesNoOptions" />
             </b-form-group>
-    </advanced-collapse>
+        </advanced-collapse>
     </div>
 </b-alert>
 <div v-else class="flex-column d-flex-non-important">
@@ -56,16 +56,23 @@
     </b-alert>
     <loader v-if="!loaded" class="pt-3"/>
 
-    <iframe :src="iframeSrc"
-            ref="iframe"
-            class="border-0"
-            v-if="proxyId"
-            :class=" loaded ? 'flex-grow-1' : ''"
-            :style="{ opacity: loaded ? 1 : 0 }"
-            @load="onLoad"
-            @loading="log"
-            referrer="no-referrer"
+    <template v-if="proxyId">
+        <form target="myIframe" :action="iframeSrc" method="post" v-show="false" ref="hiddenForm">
+            <input type="submit">
+        </form>
+
+        <iframe name="myIframe"
+                src=""
+                ref="iframe"
+                class="border-0"
+                v-if="proxyId"
+                :class=" loaded ? 'flex-grow-1' : ''"
+                :style="{ opacity: loaded ? 1 : 0 }"
+                @load="onLoad"
+                @loading="log"
+                referrer="no-referrer"
             :sandbox="allowScripts ? 'allow-scripts allow-popups' : 'allow-popups'"/>
+    </template>
 </div>
 </template>
 
@@ -296,6 +303,9 @@ export default {
         afterGetIframeSrc({ data }) {
             this.proxyId = data.id;
             this.$root.$emit('cg::root::fade-selected-file');
+            this.$nextTick(() => {
+                this.$refs.hiddenForm.submit();
+            });
         },
 
         rejectWarning() {
