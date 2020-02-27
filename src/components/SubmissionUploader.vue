@@ -257,7 +257,7 @@
                     <b-form-checkbox v-model="isTestSubmission"
                                      :disabled="disabled || !!author">
                         Test submission
-                        <description-popover hug-text>
+                        <description-popover hug-text placement="top">
                             This submission will be uploaded by a special test student.
                             When you enable this option you will not be able to select
                             another author.
@@ -553,16 +553,16 @@ export default {
             return '';
         },
 
+        disabledPopover() {
+            return 'You cannot select both an author and upload as a test submission.';
+        },
+
         authorDisabledPopover() {
-            return this.disabled || this.isTestSubmission
-                ? 'You cannot select both an author and upload as a test submission.'
-                : '';
+            return this.disabled || this.isTestSubmission ? this.disabledPopover : '';
         },
 
         testSubmissionDisabledPopover() {
-            return this.disabled || this.author
-                ? 'You cannot select both an author and upload as a test submission.'
-                : '';
+            return this.disabled || this.author ? this.disabledPopover : '';
         },
 
         currentGroup() {

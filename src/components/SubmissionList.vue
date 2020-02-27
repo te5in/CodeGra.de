@@ -68,13 +68,13 @@
                 <loader :scale="1"
                         v-else-if="assigneeUpdating[item.item.sub.id]"/>
                 <div v-else
-                     v-b-popover.top.hover="item.item.sub.user.is_test_student ? 'You cannot assign test students to graders.' : ''">
+                     v-b-popover.top.hover="graderDisabledMessage(item.item.sub)">
                     <b-form-select :options="assignees"
-                                   :disabled="!!(item.item.sub.user.is_test_student || getOtherSubmissionPopover(item.item.sub))"
+                                   :disabled="!!graderDisabledMessage(item.item.sub)"
                                    :value="item.item.sub.assigneeId || null"
                                    @input="updateAssignee($event, item.item.sub)"
                                    @click.native.stop
-                                   class="user-form-select cursor-default"/>
+                                   class="user-form-select"/>
                 </div>
             </span>
         </template>
@@ -410,6 +410,21 @@ export default {
                     otherSub.user.group.name
                 }", which also created a submission.`;
             }
+            return null;
+        },
+
+        graderDisabledMessage(sub) {
+            const msg = 'You cannot assign graders to';
+
+            if (sub.user.is_test_student) {
+                return `${msg} test students.`;
+            }
+
+            const otherSub = this.getGroupSubmissionOfUser(this.assignment.id, sub.userId);
+            if (otherSub) {
+                return `${msg} students that also have a group submission.`;
+            }
+
             return null;
         },
     },
