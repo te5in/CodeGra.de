@@ -133,19 +133,19 @@ context('Sidebar', () => {
             cy.login('admin', 'admin');
             openProfile();
 
-            cy.get('#app:not(.dark)').should('exist');
+            cy.get('body').should('not.have.class', 'cg-dark-mode');
             cy.get('.settings-content .toggle-container.colors').should('exist');
             cy.get('.settings-content .toggle-container.colors[checked=checked]').should('not.exist');
 
             cy.get('.settings-content .toggle-container .label-on').click();
-            cy.get('#app.dark').should('exist');
+            cy.get('body').should('have.class', 'cg-dark-mode');
 
             cy.reload();
-            cy.get('#app.dark').should('exist');
+            cy.get('body').should('have.class', 'cg-dark-mode');
             openProfile();
             cy.get('.settings-content .toggle-container.colors[checked=checked]').should('exist');
             cy.get('.settings-content .toggle-container .toggle').click();
-            cy.get('#app.dark').should('not.exist');
+            cy.get('body').should('not.have.class', 'cg-dark-mode');
         });
     });
 });
