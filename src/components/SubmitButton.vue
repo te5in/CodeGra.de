@@ -41,8 +41,13 @@
                :target="btnId"
                triggers=""
                variant="danger"
+               @shown="$refs.errorPopover.focus()"
                @hidden="onHideError">
-        <div class="submit-button-error">
+        <div class="submit-button-error"
+             ref="errorPopover"
+             tabindex="-1"
+             style="outline: 0;"
+             @blur.capture="hideError">
             <icon name="times"
                   class="hide-button"
                   @click.native="hideError"/>
@@ -60,8 +65,13 @@
                :target="btnId"
                triggers=""
                variant="warning"
+               @shown="$refs.warningPopover.focus()"
                @hidden="onHideWarning">
-        <div class="submit-button-warning">
+        <div class="submit-button-warning"
+             ref="warningPopover"
+             tabindex="-1"
+             style="outline: 0;"
+             @blur.capture="hideWarning">
             <icon name="times"
                   class="hide-button"
                   @click.native="hideWarning"/>
@@ -406,12 +416,14 @@ export default {
         resetConfirm(resetState = false) {
             if (!this.confirmAccepted && this.confirmVisible && resetState) {
                 this.state = 'default';
+                this.$emit('reject-confirm');
             }
             this.confirmVisible = false;
             this.confirmAccepted = false;
         },
 
         acceptConfirm() {
+            this.$emit('accept-confirm');
             this.confirmVisible = false;
             this.confirmAccepted = true;
             this.doSubmit();

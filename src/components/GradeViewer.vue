@@ -67,18 +67,13 @@
 
             <b-input-group-append class="delete-button-group"
                                   v-if="realEditable">
-                <b-popover :triggers="showDeleteButton ? 'hover' : ''"
-                           placement="top"
-                           target="delete-grade-button">
-                    {{ deleteButtonText }}
-                </b-popover>
-                <submit-button id="delete-grade-button"
-                               class="delete-button"
+                <submit-button class="delete-button"
                                variant="danger"
                                :disabled="!showDeleteButton"
                                :submit="deleteGrade"
                                @success="afterPutGrade"
-                               :confirm="deleteConfirmText">
+                               :confirm="deleteConfirmText"
+                               v-b-popover.hover.top="deleteButtonText">
                     <icon :name="rubricOverridden || submission.grade_overridden ? 'reply' : 'times'"/>
                 </submit-button>
             </b-input-group-append>

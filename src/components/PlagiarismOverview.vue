@@ -305,12 +305,16 @@ export default {
         background-color: transparent !important;
 
         @{dark-mode} {
-            color: @text-color-dark;
+            color: @text-color-muted;
         }
 
         td {
             background-color: transparent !important;
             border-color: @border-color;
+
+            @{dark-mode} {
+                border-color: @color-primary-darker;
+            }
         }
 
         &:nth-of-type(odd) {

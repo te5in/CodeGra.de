@@ -206,13 +206,16 @@
                 </icon>
                 <b-popover :show="loadingWebhookError != null"
                            target="git-error-icon"
-                           triggers=""
+                           triggers="blur"
                            placement="top"
-                           @hide="loadingWebhookError = null">
+                           @hide="loadingWebhookError = null"
+                           @shown="$refs.loadingWebhookError.focus()">
                     <icon name="times"
                           class="hide-button"
                           @click.native="loadingWebhookError = null"/>
-                    <span>
+                    <span tabindex="-1"
+                          ref="loadingWebhookError"
+                          style="outline: 0;">
                         {{ $utils.getErrorMessage(loadingWebhookError) }}
                     </span>
                 </b-popover>
@@ -693,12 +696,6 @@ export default {
         this.loadSubmissionsIfNeeded();
     },
 
-    destroyed() {
-        // Make sure we don't leak the promise and event handler
-        // set in the checkUpload method.
-        this.$emit('warn-popover-hidden');
-    },
-
     methods: {
         ...mapActions('submissions', ['addSubmission', 'loadSubmissionsByUser']),
         ...mapActions('users', ['addOrUpdateUser', 'loadGroupsOfGroupSet']),
@@ -830,7 +827,10 @@ export default {
                 `/api/v1/assignments/${this.assignment.id}/webhook_settings?webhook_type=git&${
                     this.uploadUrlQueryArgs
                 }`,
-            );
+            ).then(() => {
+                // eslint-disable-next-line
+                throw 'ERROR';
+            });
 
             return this.$utils.waitAtLeast(250, req).then(
                 async ({ data }) => {

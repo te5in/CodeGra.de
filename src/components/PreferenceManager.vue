@@ -1,16 +1,15 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <component :is="inPopover ? 'b-btn' : 'div'"
-           :id="`settings-toggle-${id}`"
+           :id="btnId"
            class="preference-manager"
            :class="{ 'settings-toggle': inPopover }"
            v-b-popover.hover.top="inPopover ? 'Settings' : ''">
     <icon name="cog" v-if="inPopover"/>
 
     <component :is="inPopover ? 'b-popover' : 'div'"
-               triggers="click"
-               :target="`settings-toggle-${id}`"
-               @show="$emit('show')"
+               triggers="click blur"
+               :target="btnId"
                :placement="placement"
                :boundary="boundary"
                :container="container">
@@ -164,12 +163,13 @@ export default {
     },
 
     data() {
+        const id = this.$utils.getUniqueId();
         const languages = listLanguages();
         languages.push('plain');
         languages.sort(cmpNoCase);
         languages.unshift('Default');
         return {
-            id: this.$utils.getUniqueId(),
+            btnId: `settings-toggle-${id}`,
             loading: true,
             languages,
             whitespace: true,
@@ -302,7 +302,7 @@ export default {
 <style lang="less">
 @import '~mixins.less';
 
-.popover .settings-content {
+.settings-content {
     .loader {
         margin-top: 4px;
         float: right;

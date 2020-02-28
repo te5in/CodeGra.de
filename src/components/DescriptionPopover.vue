@@ -3,13 +3,19 @@
 <span class="description-popover"
       :class="{ 'float-right': !hugText }"
       @click.stop.prevent>
-    <b-popover :placement="placement"
+    <!-- Some element in the popover must be focused for the
+         blur trigger to work.
+         https://github.com/bootstrap-vue/bootstrap-vue/issues/4548 -->
+    <b-popover @shown="$refs.description.focus()"
+               :placement="placement"
                :triggers="triggers"
                :show="show"
                :target="compId"
                :boundary="boundary"
                :title="title">
-        <div class="description-popover-content">
+        <div ref="description"
+             tabindex="-1"
+             class="description-popover-content">
             <slot name="description">{{ description }}</slot>
             <slot v-if="!!$slots.default"/>
         </div>
@@ -50,7 +56,7 @@ export default {
 
         triggers: {
             type: [String, Array],
-            default: 'click',
+            default: 'click blur',
         },
 
         show: {
@@ -107,5 +113,6 @@ export default {
 .description-popover-content {
     text-align: justify;
     hyphens: auto;
+    outline: none !important;
 }
 </style>

@@ -187,7 +187,7 @@
             </a>
 
             <b-popover :target="optionsPopoverId"
-                       triggers="click"
+                       triggers="click blur"
                        placement="left">
                 <table class="text-left">
                     <tr>

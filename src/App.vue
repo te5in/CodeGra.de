@@ -98,32 +98,19 @@ export default {
             this.$inLTI = true;
         }
 
-        let popoversShown = false;
-
         document.body.addEventListener(
             'click',
             event => {
-                popoversShown = false;
-                if (!event.target.closest('.popover-body')) {
-                    if (!event.target.closest('.sidebar') && this.$refs.sidebar) {
-                        this.$refs.sidebar.$emit('sidebar::close');
-                    }
-
-                    setTimeout(() => {
-                        this.$nextTick(() => {
-                            if (!popoversShown) {
-                                this.$root.$emit('bv::hide::popover');
-                            }
-                        });
-                    }, 10);
+                if (
+                    !event.target.closest('.popover-body') &&
+                    !event.target.closest('.sidebar') &&
+                    this.$refs.sidebar
+                ) {
+                    this.$refs.sidebar.$emit('sidebar::close');
                 }
             },
             true,
         );
-
-        this.$root.$on('bv::popover::show', () => {
-            popoversShown = true;
-        });
 
         document.body.addEventListener(
             'keyup',

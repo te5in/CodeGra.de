@@ -3,17 +3,17 @@
 <div class="maximum-grade">
     <b-input-group>
         <b-input-group-prepend is-text>
-            Max points<description-popover
-                          placement="top"
-                          description="The maximum grade it is possible to
-                                       achieve for this assignment.  Setting
-                                       this value enables you to give 'bonus'
-                                       points for an assignment, as a 10 will
-                                       still be seen as a perfect score. So if
-                                       this value is 12 a user can score 2
-                                       additional bonus points. The default
-                                       value is 10. Existing grades will not be
-                                       changed by changing this value!"/>
+            Max points <description-popover
+                           placement="top"
+                           description="The maximum grade it is possible to
+                                        achieve for this assignment.  Setting
+                                        this value enables you to give 'bonus'
+                                        points for an assignment, as a 10 will
+                                        still be seen as a perfect score. So if
+                                        this value is 12 a user can score 2
+                                        additional bonus points. The default
+                                        value is 10. Existing grades will not be
+                                        changed by changing this value!"/>
         </b-input-group-prepend>
         <input type="number"
                min="0"

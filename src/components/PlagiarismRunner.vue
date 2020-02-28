@@ -67,9 +67,9 @@
                                 v-b-popover.hover.top="'This job is running'"/>
                     </span>
                 </td>
-                <td class="run-delete shrink">
-                    <submit-button v-if="canManage"
-                                   :variant="runIsFinished(run) ? 'danger' : 'warning'"
+                <td v-if="canManage"
+                    class="run-delete shrink">
+                    <submit-button :variant="runIsFinished(run) ? 'danger' : 'warning'"
                                    size="sm"
                                    :confirm="runIsFinished(run) ? 'Are you sure you want to delete the results?'
                                        : 'Are you sure you want to cancel this run?'"
@@ -83,7 +83,7 @@
             </tr>
         </tbody>
     </table>
-    <div v-else-if="!canManage" class="text-muted ml-3 mt-3">
+    <div v-else-if="!canManage" class="text-muted m-3">
         There are no runs yet, and you do not have permission to create them.
     </div>
 
@@ -184,32 +184,27 @@
                 </tbody>
             </table>
 
-            <submit-button id="plagiarism-run-button"
-                           class="run-button"
-                           ref="runButton"
-                           label="Run"
-                           :disabled="!allOptionsValid"
-                           :submit="runPlagiarismChecker"
-                           @success="afterRunPlagiarismChecker"
-                           @mouseenter.native="!allOptionsValid && $refs.runButtonPopover.$emit('open')"
-                           @mouseleave.native="!allOptionsValid && $refs.runButtonPopover.$emit('close')">
-                <template slot="error" slot-scope="error" v-if="error.error">
-                    <div class="invalid-options">
-                        {{ error.error.response.data.description }}
+            <div v-b-popover.top.hover="allOptionsValid ? '' : 'Not all mandatory options have been set!'"
+                 class="mr-3 float-right">
+                <submit-button id="plagiarism-run-button"
+                               ref="runButton"
+                               label="Run"
+                               :disabled="!allOptionsValid"
+                               :submit="runPlagiarismChecker"
+                               @success="afterRunPlagiarismChecker">
+                    <template slot="error" slot-scope="error" v-if="error.error">
+                        <div class="invalid-options">
+                            {{ error.error.response.data.description }}
 
-                        <ul>
-                            <li v-for="option in error.error.response.data.invalid_options">
-                                {{ option }}
-                            </li>
-                        </ul>
-                    </div>
-                </template>
-            </submit-button>
-            <b-popover target="plagiarism-run-button"
-                       content="Not all mandatory options have been set!"
-                       placement="left"
-                       ref="runButtonPopover"
-                       v-if="!allOptionsValid"/>
+                            <ul>
+                                <li v-for="option in error.error.response.data.invalid_options">
+                                    {{ option }}
+                                </li>
+                            </ul>
+                        </div>
+                    </template>
+                </submit-button>
+            </div>
         </div>
     </div>
 </div>
@@ -649,11 +644,6 @@ export default {
     td {
         vertical-align: middle;
     }
-}
-
-.run-button {
-    float: right;
-    margin-right: 1rem;
 }
 
 .invalid-options {

@@ -28,8 +28,7 @@
                 <div class="pencil"
                      v-if="canEdit"
                      @click="startEditTitle"
-                     v-b-popover.top.hover="'Edit or delete group'"
-                     >
+                     v-b-popover.top.hover="'Edit or delete group'">
                     <icon name="pencil"/>
                 </div>
             </div>

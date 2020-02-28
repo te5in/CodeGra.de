@@ -27,8 +27,7 @@
                                 :show-language="selectedCat === 'code'"
                                 @whitespace="whitespaceChanged"
                                 @language="languageChanged"
-                                @inline-feedback="inlineFeedbackChanged"
-                                @show="beforeShowPopover" />
+                                @inline-feedback="inlineFeedbackChanged" />
 
             <b-button v-if="editable"
                       id="codeviewer-general-feedback"
@@ -36,10 +35,9 @@
                 <icon name="edit"/>
 
                 <b-popover target="codeviewer-general-feedback"
-                           triggers="click"
+                           triggers="click blur"
                            container="submission-page"
-                           placement="bottom"
-                           @show="beforeShowPopover">
+                           placement="bottom">
                     <template slot="title">
                         <span v-if="submission && submission.comment_author">
                             General feedback by <user :user="submission.comment_author"/>
@@ -62,11 +60,10 @@
 
                 <b-popover target="codeviewer-grade-history"
                            title="Grade history"
-                           triggers="click"
+                           triggers="click blur"
                            container="submission-page"
                            placement="bottom"
-                           custom-class="p-0"
-                           @show="beforeShowPopover()">
+                           custom-class="p-0">
                     <grade-history style="width: 30rem;"
                                    :submission-id="submission && submission.id"
                                    :isLTI="assignment && assignment.course.is_lti"/>
@@ -78,12 +75,12 @@
                 <icon name="download"/>
 
                 <b-popover target="codeviewer-download-toggle"
-                           triggers="click"
+                           triggers="click blur"
                            placement="bottom"
                            container="submission-page"
-                           custom-class="p-0"
-                           @show="beforeShowPopover">
-                    <table class="table table-hover mb-0">
+                           custom-class="p-0">
+                    <table style="width: 10rem;"
+                           class="table table-hover mb-0 text-left">
                         <tbody>
                             <tr @click="downloadType('zip')">
                                 <td><b>Archive</b></td>
@@ -769,10 +766,6 @@ export default {
             this.currentFile = this.fileTree && this.fileTree.search(this.revision, this.fileId);
         },
 
-        beforeShowPopover() {
-            this.$root.$emit('bv::hide::popover');
-        },
-
         deleteSubmission() {
             const sub = this.submission;
             return this.$http.delete(`/api/v1/submissions/${this.submissionId}`).then(() => sub);
@@ -920,11 +913,6 @@ export default {
 
 .grade-viewer {
     flex: 0 0 auto;
-}
-
-.popover .table {
-    min-width: 10rem;
-    text-align: left;
 }
 </style>
 

@@ -5,7 +5,7 @@
       :title="props.showTitle ? props.getNameOfUser(props.user) : undefined">
     {{ props.beforeGroup }} "{{ props.user.group.name }}"
     <component :is="injections.components.DescriptionPopover"
-               triggers="click"
+               triggers="click blur"
                hug-text
                span-title="Click to show the users of this group"
                boundary="window"

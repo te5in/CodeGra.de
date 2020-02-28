@@ -812,12 +812,6 @@ export default {
 input.max-points {
     width: 6.66rem;
 }
-
-.submit-popover {
-    :last-child {
-        margin-bottom: 0 !important;
-    }
-}
 </style>
 
 <style lang="less">

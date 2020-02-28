@@ -75,9 +75,10 @@
                            ref="submitButton"/>
         </div>
 
-        <b-popover triggers="click hover"
+        <b-popover v-if="invalidParentSelected"
+                   triggers="click blur hover"
+                   placement="top"
                    show
-                   v-if="invalidParentSelected"
                    target="division-submit-button-wrapper">
             <div class="text-justify">
                 The division of the selected assignment is determined by

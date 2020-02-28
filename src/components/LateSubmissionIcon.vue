@@ -7,7 +7,7 @@
         name="clock-o"
         :scale="props.scale"
         class="late-icon"
-        :class="{ 'with-popover': !props.hidePopover }"
+        :class="{ 'cursor-help': !props.hidePopover }"
         v-b-popover.hover.top="props.hidePopover ? '' : props.getHandedInLateText(props)"/>
 </span>
 <span v-else class="late-submission-icon non-active" :class="data.class"/>
@@ -64,11 +64,3 @@ export default {
     },
 };
 </script>
-
-<style lang="less" scoped>
-.late-submission-icon.active {
-    .late-icon.with-popover {
-        cursor: help;
-    }
-}
-</style>

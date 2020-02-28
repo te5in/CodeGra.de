@@ -57,10 +57,10 @@
     <div v-else>
         <template v-if="value.locked">
             <b-popover :show="lockPopoverVisible"
-                        :target="`rubric-lock-${id}`"
-                        :content="lockPopover"
-                        triggers=""
-                        placement="top" />
+                       :target="`rubric-lock-${id}`"
+                       :content="lockPopover"
+                       triggers=""
+                       placement="top" />
 
             <icon name="lock"
                     class="float-right"

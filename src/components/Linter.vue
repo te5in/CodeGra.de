@@ -104,7 +104,7 @@
                                           v-else-if="test.state === 'crashed'"
                                           name="exclamation-triangle"/>
                                     <b-popover v-if="test.state === 'crashed'"
-                                               triggers="click"
+                                               triggers="click blur"
                                                title="The linter crashed!"
                                                :target="`detail-linter-crash-button-${test.id}`">
                                         <inner-markdown-viewer :markdown="test.error_summary"
