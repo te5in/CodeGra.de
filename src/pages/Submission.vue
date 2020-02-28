@@ -29,29 +29,11 @@
                                 @language="languageChanged"
                                 @inline-feedback="inlineFeedbackChanged" />
 
-            <b-button v-if="editable"
-                      id="codeviewer-general-feedback"
-                      v-b-popover.hover.top="`Edit general feedback`">
-                <icon name="edit"/>
-
-                <b-popover target="codeviewer-general-feedback"
-                           triggers="click blur"
-                           container="submission-page"
-                           placement="bottom">
-                    <template slot="title">
-                        <span v-if="submission && submission.comment_author">
-                            General feedback by <user :user="submission.comment_author"/>
-                        </span>
-                        <span v-else>
-                            General feedback
-                        </span>
-                    </template>
-                    <general-feedback-area style="width: 35em;"
-                                           :assignment="assignment"
-                                           :submission="submission"
-                                           :editable="true"/>
-                </b-popover>
-            </b-button>
+            <general-feedback-area v-if="editable"
+                                   in-popover
+                                   :assignment="assignment"
+                                   :submission="submission"
+                                   :editable="true" />
 
             <b-button v-if="canSeeGradeHistory"
                       id="codeviewer-grade-history"
