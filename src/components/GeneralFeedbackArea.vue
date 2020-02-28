@@ -179,7 +179,8 @@ export default {
                 this.manualSave = false;
             } else if (this.feedbackChanged) {
                 event.preventDefault();
-                this.confirmMsg = 'Do you want to save the changes? Clicking "no" will discard your changes.';
+                this.confirmMsg =
+                    'Do you want to save the changes? Clicking "no" will discard your changes.';
                 this.$afterRerender(this.$refs.submitButton.onClick);
             }
         },

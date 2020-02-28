@@ -827,10 +827,7 @@ export default {
                 `/api/v1/assignments/${this.assignment.id}/webhook_settings?webhook_type=git&${
                     this.uploadUrlQueryArgs
                 }`,
-            ).then(() => {
-                // eslint-disable-next-line
-                throw 'ERROR';
-            });
+            );
 
             return this.$utils.waitAtLeast(250, req).then(
                 async ({ data }) => {
