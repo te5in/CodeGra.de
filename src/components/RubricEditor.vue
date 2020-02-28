@@ -828,10 +828,6 @@ input.max-points {
         .nav-item:first-child {
             margin-left: 15px;
         }
-
-        .nav-link:hover {
-            border-color: @color-light-gray;
-        }
     }
 
     .nav-tabs {
