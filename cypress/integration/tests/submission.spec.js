@@ -379,6 +379,22 @@ context('Submission page', () => {
                 checkGeneralFeedbackOverview(generalMsg);
             });
         });
+
+        it('should ask to save feedback when closing the popover', () => {
+            showGeneralFeedbackArea()
+                .find('textarea')
+                .type('abc');
+            toggleGeneralFeedbackArea();
+            cy.get('[id^="submit-button-"][id$="-confirm-popover"]')
+                .should('be.visible');
+        });
+
+        it('should not ask to save feedback when there are no changes', () => {
+            showGeneralFeedbackArea();
+            toggleGeneralFeedbackArea();
+            cy.get('[id^="submit-button-"][id$="-confirm-popover"]')
+                .should('not.exist');
+        });
     });
 
     context('Inline feedback', () => {

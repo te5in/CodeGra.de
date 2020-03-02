@@ -35,7 +35,8 @@
         </slot>
     </span>
 
-    <b-popover :placement="popoverPlacement"
+    <b-popover :id="`${btnId}-error-popover`"
+               :placement="popoverPlacement"
                :show="!!error"
                :container="container"
                :target="btnId"
@@ -60,7 +61,8 @@
         </div>
     </b-popover>
 
-    <b-popover :placement="popoverPlacement"
+    <b-popover :id="`${btnId}-warning-popover`"
+               :placement="popoverPlacement"
                :show="!!warning"
                :target="btnId"
                triggers=""
@@ -121,6 +123,7 @@
         </b-modal>
 
         <b-popover v-else-if="confirm && confirm.length > 0"
+                   :id="`${btnId}-confirm-popover`"
                    :placement="popoverPlacement"
                    :container="container"
                    :show="confirmVisible"
