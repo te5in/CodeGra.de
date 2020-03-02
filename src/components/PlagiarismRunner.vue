@@ -611,7 +611,7 @@ export default {
         .loader {
             display: inline-block;
             margin-left: 0.5rem;
-            transform: translateY(2px);
+            transform: translateY(-1px);
         }
     }
 
