@@ -226,11 +226,11 @@ export default {
         },
 
         numStudents() {
-            return new Set(this.submissions.map(sub => nameOfUser(sub.user))).size;
+            return this.submissions.length;
         },
 
         numFilteredStudents() {
-            return new Set(this.filteredSubmissions.map(({ sub }) => sub.userId)).size;
+            return this.filteredSubmissions.length;
         },
 
         assigneeCheckboxDisabled() {
