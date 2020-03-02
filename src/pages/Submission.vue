@@ -31,6 +31,7 @@
 
             <general-feedback-area v-if="editable"
                                    in-popover
+                                   container="#submission-page"
                                    :assignment="assignment"
                                    :submission="submission"
                                    :editable="true" />

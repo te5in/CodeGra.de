@@ -31,7 +31,6 @@
                       :placeholder="placeholder"
                       class="form-control"
                       :rows="10"
-                      :cols="64"
                       v-model="feedback"
                       @keydown.ctrl.enter.prevent="$refs.submitButton.onClick"
                       @keydown.tab.capture="expandSnippet" />
@@ -224,5 +223,9 @@ export default {
     padding: 0.375rem 0.75rem;
     white-space: pre-wrap;
     text-align: left;
+}
+
+textarea {
+    width: 25rem;
 }
 </style>
