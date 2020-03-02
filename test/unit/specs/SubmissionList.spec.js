@@ -1,4 +1,3 @@
-// import Submissions from '@/pages/Submissions';
 import SubmissionList from '@/components/SubmissionList';
 import { Submission } from '@/models/submission';
 import axios from 'axios';
