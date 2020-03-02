@@ -272,6 +272,7 @@ export default {
 .filter-input {
     margin-top: 0.2rem;
     margin-bottom: 0.2rem;
+    word-wrap: nowrap;
 }
 
 .description {
