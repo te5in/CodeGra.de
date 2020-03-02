@@ -14,6 +14,7 @@
                :placement="placement"
                :boundary="boundary"
                :container="container"
+               @shown="focusTextarea"
                @hide="maybeSaveFeedback">
         <template slot="title">
             <span v-if="submission && submission.comment_author">
@@ -192,6 +193,10 @@ export default {
             this.reset();
             // We need to focus something in the popover to make the popover "blur" work.
             // https://github.com/bootstrap-vue/bootstrap-vue/issues/4548
+            this.focusTextarea();
+        },
+
+        focusTextarea() {
             this.$refs.textarea.focus();
         },
 
