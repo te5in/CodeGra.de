@@ -523,11 +523,10 @@ Cypress.Commands.add('shouldNotOverflow', { prevSubject: true }, (subject) => {
     );
 });
 
-Cypress.Commands.add('maybeType', { prevSubject: true }, (subject, text) => {
+Cypress.Commands.add('setText', { prevSubject: true }, (subject, text) => {
     // Clear the input and type `text` if it is a nonempty string.
-    return cy.wrap(subject)
-        .clear()
-        .then($el => typeof text === 'string' && text ? cy.wrap($el).type(text) : cy.wrap($el));
+    const toWrite = `{selectall}{backspace}${text  || ''}`;
+    return cy.wrap(subject).type(toWrite);
 });
 
 // Click a submit button, and optionally wait for its state to return back to

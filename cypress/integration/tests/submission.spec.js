@@ -23,26 +23,29 @@ context('Submission page', () => {
     }
 
     function toggleGeneralFeedbackArea() {
-        cy.get('#codeviewer-general-feedback').click();
-        return cy.get('.general-feedback-area');
+        cy.get('[id^="general-feedback-toggle"]').click();
+        return cy.get('[id^="general-feedback-popover"]');
     }
 
     function showGeneralFeedbackArea() {
-        return toggleGeneralFeedbackArea().should('be.visible');
+        return toggleGeneralFeedbackArea()
+            .should('not.have.class', 'fade')
+            .should('be.visible');
     }
 
     function hideGeneralFeedbackArea() {
-        return toggleGeneralFeedbackArea().should('not.be.visible');
+        return toggleGeneralFeedbackArea()
+            .should('not.be.visible');
     }
 
     function giveGeneralFeedback(feedback) {
         showGeneralFeedbackArea()
+            .as('gfArea')
             .find('textarea')
-            .maybeType(feedback)
-            .parent()
+            .setText(feedback)
+        cy.get('@gfArea')
             .find('.submit-button')
             .submit('success');
-        return hideGeneralFeedbackArea();
     }
 
     function checkGeneralFeedbackArea(feedback) {
@@ -112,7 +115,7 @@ context('Submission page', () => {
             .should('be.visible');
         getLine(line, viewer)
             .find('.feedback-area.edit textarea')
-            .maybeType(feedback);
+            .setText(feedback);
         getLine(line, viewer)
             .find('.feedback-area.edit .submit-feedback .submit-button')
             .submit('success', opts);
@@ -138,7 +141,7 @@ context('Submission page', () => {
             .should('be.visible');
         getLine(line, viewer)
             .find('.feedback-area.edit textarea')
-            .maybeType(feedback);
+            .setText(feedback);
         getLine(line, viewer)
             .find('.feedback-area.edit .submit-button.delete-feedback')
             .submit('success', opts);
@@ -190,7 +193,7 @@ context('Submission page', () => {
         getSingleFeedbackArea('edit', viewer)
             .find('textarea')
             .clear()
-            .maybeType(feedback);
+            .setText(feedback);
         getSingleFeedbackArea('edit', viewer)
             .find('.submit-feedback .submit-button')
             .submit('success', { waitForDefault: false });
@@ -272,7 +275,7 @@ context('Submission page', () => {
     function typeGrade(grade, opts={}) {
         getGradeInput()
             .clear()
-            .maybeType(grade.toString());
+            .setText(grade.toString());
     }
 
     function giveGrade(grade) {
@@ -403,7 +406,7 @@ context('Submission page', () => {
                     .should('be.visible');
                 getLine(0)
                     .find('.feedback-area.edit textarea')
-                    .maybeType(`${inlineMsg}{ctrl}{enter}`);
+                    .setText(`${inlineMsg}{ctrl}{enter}`);
                 checkInlineFeedback(0, inlineMsg);
             });
 

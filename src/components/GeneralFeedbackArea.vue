@@ -24,7 +24,7 @@
             </span>
         </template>
 
-        <div class="feedback-wrapper clearfix">
+        <div class="clearfix">
             <textarea v-if="editable"
                       ref="textarea"
                       :placeholder="placeholder"

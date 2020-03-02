@@ -14,6 +14,7 @@ context('Sidebar', () => {
 
         cy.get('.sidebar .sidebar-entry-courses').click();
         cy.get('.sidebar .add-course-button').click();
+        cy.get('.popover .submit-input input').should('be.visible');
         cy.get('.popover .submit-input input').type(course);
         cy.get('.popover .submit-input .btn').click();
 
@@ -31,6 +32,7 @@ context('Sidebar', () => {
         });
 
         cy.get('.sidebar .add-assignment-button').click();
+        cy.get('.popover .submit-input input').should('be.visible');
         cy.get('.popover .submit-input input').type(assig);
         cy.get('.popover .submit-input .btn').click();
 
