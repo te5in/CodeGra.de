@@ -175,6 +175,10 @@
                          variant="warning"
                          class="no-deadline-alert mb-0"
                          v-if="uploaderDisabled">
+                    <p v-if="!canUploadForSelf && !canUploadForOthers">
+                        You do not have permission to upload work to this assignment.
+                    </p>
+
                     <p v-if="!assignment.hasDeadline">
                         The deadline for this assignment has not yet been set.
 
@@ -479,7 +483,12 @@ export default {
         },
 
         uploaderDisabled() {
-            return !!(this.ltiUploadDisabledMessage || !this.assignment.hasDeadline);
+            return !!(
+                this.ltiUploadDisabledMessage ||
+                !this.assignment.hasDeadline ||
+                !this.canUploadForSelf ||
+                !this.canUploadForOthers
+            );
         },
 
         deadlineEditable() {
