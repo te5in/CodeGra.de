@@ -242,6 +242,7 @@ def test_data(db=None):
                                     filename=filename
                                 )
                             ]
+                            db.session.add(f)
                             db.session.add(work)
     db.session.commit()
     with open(
