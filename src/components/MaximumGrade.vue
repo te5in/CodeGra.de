@@ -4,6 +4,7 @@
     <b-input-group>
         <b-input-group-prepend is-text>
             Max points <description-popover
+                           hug-text
                            placement="top"
                            description="The maximum grade it is possible to
                                         achieve for this assignment.  Setting

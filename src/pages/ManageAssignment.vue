@@ -60,7 +60,7 @@
                                                :class="{ 'warning': !assignment.hasDeadline }">
                             Deadline
 
-                            <description-popover placement="top">
+                            <description-popover placement="top" hug-text>
                                 <template v-if="ltiProvider && !ltiProvider.supportsDeadline"
                                           slot="description">
                                     {{ lmsName }} did not pass this assignment's deadline on to
@@ -96,7 +96,7 @@
                     <b-input-group class="max-submissions">
                         <b-input-group-prepend is-text slot="prepend">
                             Maximum amount of submissions
-                            <description-popover>
+                            <description-popover hug-text>
                                 The maximum amount of submissions, inclusive, students will
                                 be able to make. If you leave this value empty,
                                 or set it to 0, students will be able to make an
@@ -123,7 +123,7 @@
                     <b-input-group class="cool-off-period-wrapper">
                         <b-input-group-prepend is-text slot="prepend">
                             Cool off period
-                            <description-popover>
+                            <description-popover hug-text>
                                 The minimum amount of time there should be
                                 between submissions. The first input determines
                                 the amount of submissions, and the second the
