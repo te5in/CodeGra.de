@@ -625,3 +625,37 @@ hr {
         }
     }
 }
+
+.pagination {
+    display: flex;
+    justify-content: center;
+
+    .page-item {
+        .page-link {
+            &:active,
+            &:focus {
+                box-shadow: none;
+            }
+
+            @{dark-mode} {
+                border-color: @color-primary-darkest;
+                background-color: @color-primary;
+                color: @text-color-dark;
+
+                &:hover {
+                    background-color: rgba(0, 0, 0, 0.125);
+                }
+            }
+        }
+
+        &.active .page-link {
+            border-color: @color-primary;
+            background-color: @color-primary;
+            color: @text-color-dark;
+
+            @{dark-mode} {
+                background-color: @color-primary-darkest;
+            }
+        }
+    }
+}

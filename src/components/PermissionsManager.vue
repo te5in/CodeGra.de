@@ -15,7 +15,6 @@
         </thead>
 
         <tbody>
-            <!-- <tr v-for="perm, i in filteredPermissions" -->
             <tr v-for="perm, i in items"
                 v-if="filteredIndices.has(i)"
                 :class="{ 'table-danger': perm.warning }">

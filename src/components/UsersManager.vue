@@ -112,42 +112,52 @@
         </table>
     </div>
 
-    <b-table striped
-             ref="table"
-             v-if="canListUsers"
-             class="users-table"
-             :items="filteredUsers"
-             :fields="fields"
-             :sort-compare="sortTable"
-             sort-by="User">
+    <template v-if="canListUsers">
+        <b-table striped
+                 ref="table"
+                 class="users-table"
+                 :items="visibleUsers"
+                 :id="tableId"
+                 :fields="fields"
+                 :sort-compare="sortTable"
+                 sort-by="User">
 
-        <template #cell(User)="item">
-            <span class="username">{{item.value.name}} ({{item.value.username}})</span>
-        </template>
+            <template #cell(User)="item">
+                <span class="username">{{item.value.name}} ({{item.value.username}})</span>
+            </template>
 
-        <template #cell(CourseRole)="item">
-            <b-dropdown class="role-dropdown"
-                        v-b-popover.top.hover="item.item.User.name === userName ? 'You cannot change your own role' : ''"
-                        :disabled="updating[item.item.User.id] || item.item.User.name === userName">
+            <template #cell(CourseRole)="item">
+                <b-dropdown class="role-dropdown"
+                            v-b-popover.top.hover="item.item.User.name === userName ? 'You cannot change your own role' : ''"
+                            :disabled="updating[item.item.User.id] || item.item.User.name === userName">
 
-                <template slot="button-content"
-                          v-if="updating[item.item.User.id]">
-                    <loader class="d-inline" :scale="1" />
-                </template>
-                <template slot="button-content"
-                          v-else>
-                    {{ item.value.name }}
-                </template>
+                    <template slot="button-content"
+                              v-if="updating[item.item.User.id]">
+                        <loader class="d-inline" :scale="1" />
+                    </template>
+                    <template slot="button-content"
+                              v-else>
+                        {{ item.value.name }}
+                    </template>
 
-                <b-dropdown-header>Select the new role</b-dropdown-header>
-                <b-dropdown-item v-for="role in roles"
-                                 @click="changed(item.item, role)"
-                                 :key="role.id">
-                    {{ role.name }}
-                </b-dropdown-item>
-            </b-dropdown>
-        </template>
-    </b-table>
+                    <b-dropdown-header>Select the new role</b-dropdown-header>
+                    <b-dropdown-item v-for="role in roles"
+                                     @click="changed(item.item, role)"
+                                     :key="role.id">
+                        {{ role.name }}
+                    </b-dropdown-item>
+                </b-dropdown>
+            </template>
+        </b-table>
+
+        <b-pagination
+            v-if="showPagination"
+            v-model="currentPage"
+            :total-rows="totalRows"
+            :per-page="perPage"
+            :aria-controls="tableId"
+    ></b-pagination>
+    </template>
 
     <b-alert show variant="danger" v-else>
         You can only actually manage users when you also have the 'list course
@@ -230,6 +240,7 @@ export default {
             newStudentUsername: null,
             canListUsers: false,
             canSearchUsers: false,
+            tableId: `users-table-${this.$utils.getUniqueId()}`,
             newRole: '',
             error: '',
             fields: [
@@ -247,6 +258,7 @@ export default {
 
             registrationLinks: [],
             UserConfig,
+            currentPage: 1,
         };
     },
 
@@ -255,12 +267,34 @@ export default {
             userName: 'name',
         }),
 
+        totalRows() {
+            return this.$utils.getProps(this.filteredUsers, 0, 'length');
+        },
+
+        perPage() {
+            return 15;
+        },
+
         courseId() {
             return this.course.id;
         },
 
         filteredUsers() {
             return this.users.filter(this.filterFunction);
+        },
+
+        showPagination() {
+            return this.totalRows > this.perPage;
+        },
+
+        visibleUsers() {
+            if (!this.showPagination) {
+                return this.filteredUsers;
+            }
+
+            const start = this.perPage * (this.currentPage - 1);
+            const end = this.perPage * this.currentPage;
+            return this.filteredUsers.slice(start, end);
         },
     },
 
@@ -269,6 +303,14 @@ export default {
             if (newVal.id !== oldVal.id) {
                 this.loadData();
             }
+        },
+
+        users() {
+            this.currentPage = 1;
+        },
+
+        filter() {
+            this.currentPage = 1;
         },
     },
 
