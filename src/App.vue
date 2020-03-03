@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div id="app" :class="{ dark: hasDarkMode, lti: $inLTI }">
+<div id="app">
     <loader v-if="loading" page-loader/>
     <template v-else>
         <sidebar ref="sidebar" v-if="showSidebar"/>

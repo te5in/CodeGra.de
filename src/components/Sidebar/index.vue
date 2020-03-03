@@ -618,7 +618,7 @@ export default {
     background-color: @color-primary;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 
-    #app.lti:not(.dark) & {
+    body:not(.cg-dark-mode) .sidebar.inLTI & {
         background-color: white;
         color: @text-color;
     }
@@ -920,7 +920,7 @@ export default {
         &:hover {
             background-color: lighten(@color-primary-darker, 2%);
 
-            #app.lti:not(.dark) & {
+            body:not(.cg-dark-mode) .sidebar.inLTI & {
                 background-color: @color-lighter-gray;
             }
         }
@@ -928,7 +928,7 @@ export default {
         &:not(.light-selected) a:hover {
             background-color: @color-primary-darkest;
 
-            #app.lti:not(.dark) & {
+            body:not(.cg-dark-mode) .sidebar.inLTI & {
                 background-color: @color-light-gray;
             }
         }
@@ -937,14 +937,14 @@ export default {
             background-color: lightgray;
             color: @color-primary;
 
-            #app.lti:not(.dark) & {
+            body:not(.cg-dark-mode) .sidebar.inLTI & {
                 background-color: lighten(@color-primary, 5%);
                 color: white;
             }
 
             a:hover:not(.selected) {
                 background-color: darken(lightgray, 7.9%);
-                #app.lti:not(.dark) & {
+                body:not(.cg-dark-mode) .sidebar.inLTI & {
                     background-color: @color-primary-darkest;
                 }
             }
@@ -955,7 +955,7 @@ export default {
             background-color: white;
             color: @color-primary;
 
-            #app.lti:not(.dark) & {
+            body:not(.cg-dark-mode) .sidebar.inLTI & {
                 color: white;
                 background-color: @color-primary;
             }
@@ -965,7 +965,7 @@ export default {
                 background-color: darken(white, 7.9%);
                 color: @color-primary;
 
-                #app.lti:not(.dark) & {
+                body:not(.cg-dark-mode) .sidebar.inLTI & {
                     background-color: darken(@color-primary, 2%);
                     color: white;
                 }
