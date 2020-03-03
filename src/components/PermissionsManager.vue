@@ -161,7 +161,7 @@ export default {
             const filter = this.filter.toLocaleLowerCase();
             return this.items.reduce((acc, perm, i) => {
                 if (
-                    perm.short_description.toLocaleLowerCase().indexOf(filter) >= 0  ||
+                    perm.short_description.toLocaleLowerCase().indexOf(filter) >= 0 ||
                     perm.long_description.toLocaleLowerCase().indexOf(filter) >= 0 ||
                     (perm.warning && perm.warning.toLocaleLowerCase().indexOf(filter) >= 0)
                 ) {
