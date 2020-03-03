@@ -23,7 +23,7 @@
 
         <small v-if="!small" class="course" :title="assignment.course.name">{{ assignment.course.name }}</small>
 
-        <small v-if="!small && assignment.deadline" class="deadline">
+        <small v-if="!small && assignment.hasDeadline" class="deadline">
             Due {{ readableDeadline }}
         </small>
         <small v-else-if="!small" class="deadline text-muted">
