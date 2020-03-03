@@ -26,11 +26,11 @@ def start_proxy(
         models.Proxy, proxy_id, also_error=lambda p: p.deleted
     )
     flask.session['proxy_id'] = str(proxy.id)
+    base_url = app.config['EXTERNAL_PROXY_URL']
+    if not base_url:
+        base_url = app.config['EXTERNAL_URL'] + '/api/v1/proxy'
     return flask.redirect(
-        (
-            app.config['EXTERNAL_PROXY_URL'] + '/' + str(proxy.id) + '/' +
-            path_str
-        ),
+        base_url + '/' + str(proxy.id) + '/' + path_str,
         code=303
     )
 
@@ -53,7 +53,14 @@ def get_proxy_file(
     if proxy_id is not None:
         proxy = models.Proxy.query.filter_by(id=proxy_id).one_or_none()
         if flask.session.get('proxy_id') != str(proxy.id):
-            # TODO: Show nice cookie error message
+            return flask.render_template(
+                'error_page.j2',
+                error_title='Could not load session',
+                error_message=(
+                    'There was a problem loading the session. Please make sure'
+                    ' you are not in an incognito browser session.'
+                ),
+            )
             assert 0
 
     if proxy is None or proxy.deleted:
@@ -88,6 +95,5 @@ def get_proxy_file(
         )
     ctype, _ = mimetypes.guess_type(path_str)
     res = flask.Response(found_file.open(), mimetype=ctype)
-    # res.headers['Content-Security-Policy'] = proxy.csp_header
-    res.headers['Referrer-Policy'] = 'unsafe-url'
+    res.headers['Content-Security-Policy'] = proxy.csp_header
     return res
