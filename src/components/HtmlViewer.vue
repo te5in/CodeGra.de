@@ -131,7 +131,7 @@ export default {
     data() {
         return {
             proxyId: null,
-            loaded: false,
+            loaded: 0,
 
             allowScripts: true,
             allowRemoteResources: true,
@@ -142,11 +142,10 @@ export default {
     },
 
     watch: {
-        id: {
+        fileId: {
             immediate: true,
             handler() {
                 this.setDefaultOptions();
-
                 this.$emit('load');
                 if (this.isMyFile) {
                     this.getIframeSrc().then(
@@ -255,7 +254,7 @@ export default {
     },
 
     destroyed() {
-        this.$root.$emit('cg::root::unfade-selected-file');
+        this.$root.$emit('cg::file-tree::unfade-selected-file');
     },
 
     methods: {
@@ -265,10 +264,11 @@ export default {
 
         setDefaultOptions() {
             this.proxyId = null;
-            this.loaded = false;
+            this.loaded = 0;
             this.allowScripts = true;
             this.allowRemoteResources = true;
             this.allowRemoteScripts = this.isMyFile;
+            this.$root.$emit('cg::file-tree::unfade-selected-file');
         },
 
         getIframeSrc() {
@@ -308,7 +308,6 @@ export default {
 
         afterGetIframeSrc({ data }) {
             this.proxyId = data.id;
-            this.$root.$emit('cg::root::fade-selected-file');
             this.$nextTick(() => {
                 this.$refs.hiddenForm.submit();
             });
@@ -320,7 +319,21 @@ export default {
         },
 
         onLoad() {
-            this.loaded = true;
+            // Fade the filename in the file tree when jumping to another file.
+            // In chromium an iframe sends two load events on the first load,
+            // while Firefox only sends one. To handle this we increment `loaded`
+            // only after a short while so that the second time the load event is
+            // triggered in chromium it doesn't actually emit the event.
+            if (this.loaded > 0) {
+                this.$root.$emit('cg::file-tree::fade-selected-file');
+            } else {
+                const fileId = this.fileId;
+                setTimeout(() => {
+                    if (fileId === this.fileId) {
+                        this.loaded++;
+                    }
+                }, 500);
+            }
         },
 
         log: console.log,

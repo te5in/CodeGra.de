@@ -144,17 +144,17 @@ export default {
     },
 
     mounted() {
-        this.$root.$on('cg::root::fade-selected-file', () => {
+        this.$root.$on('cg::file-tree::fade-selected-file', () => {
             this.fadeSelected = true;
         });
-        this.$root.$on('cg::root::unfade-selected-file', () => {
+        this.$root.$on('cg::file-tree::unfade-selected-file', () => {
             this.fadeSelected = false;
         });
     },
 
     destroyed() {
-        this.$root.$off('cg::root::fade-selected-file');
-        this.$root.$off('cg::root::unfade-selected-file');
+        this.$root.$off('cg::file-tree::fade-selected-file');
+        this.$root.$off('cg::file-tree::unfade-selected-file');
     },
 
     data() {
