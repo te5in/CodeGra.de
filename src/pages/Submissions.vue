@@ -32,13 +32,14 @@
                     <icon name="gear"/>
                 </b-button>
 
-                <submit-button :wait-at-least="500"
-                               name="refresh-button"
-                               :submit="submitForceLoadSubmissions"
-                               v-b-popover.bottom.hover="'Reload submissions'">
-                    <icon name="refresh"/>
-                    <icon name="refresh" spin slot="pending-label"/>
-                </submit-button>
+                <b-button-group v-b-popover.bottom.hover="'Reload submissions'">
+                    <submit-button :wait-at-least="500"
+                                   name="refresh-button"
+                                   :submit="submitForceLoadSubmissions">
+                        <icon name="refresh"/>
+                        <icon name="refresh" spin slot="pending-label"/>
+                    </submit-button>
+                </b-button-group>
             </b-button-group>
         </b-input-group>
 
