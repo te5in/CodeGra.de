@@ -48,16 +48,22 @@
     </div>
 </b-alert>
 <div v-else class="flex-column d-flex-non-important">
-    <b-alert variant="warning" show dismissible
-             class="m-0 border-bottom rounded-0">
-        Displayed below is a rendered html file,
-        <a href="#" @click.capture.prevent.stop="rejectWarning">click here</a> to
+    <b-alert show
+             dismissible
+             variant="warning"
+             class="mb-0 border-bottom rounded-0">
+        Displayed below is a rendered html file.
+        <a href="#" @click.capture.prevent.stop="rejectWarning">Click here</a> to
         show the source.
     </b-alert>
     <loader v-if="!loaded" class="pt-3"/>
 
     <template v-if="proxyId">
-        <form target="myIframe" :action="iframeSrc" method="post" v-show="false" ref="hiddenForm">
+        <form target="myIframe"
+              :action="iframeSrc"
+              method="post"
+              v-show="false"
+              ref="hiddenForm">
             <input type="submit">
         </form>
 
@@ -71,7 +77,7 @@
                 @load="onLoad"
                 @loading="log"
                 referrer="no-referrer"
-            :sandbox="allowScripts ? 'allow-scripts allow-popups' : 'allow-popups'"/>
+                :sandbox="allowScripts ? 'allow-scripts allow-popups' : 'allow-popups'"/>
     </template>
 </div>
 </template>

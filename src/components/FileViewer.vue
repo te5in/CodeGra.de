@@ -1,32 +1,47 @@
 <template>
 <div class="file-viewer"
      :class="dynamicClasses">
-    <b-alert class="error mb-0" variant="danger" show v-if="error">
+    <b-alert v-if="error"
+             show
+             variant="danger"
+             class="error mb-0">
         {{ error }}
     </b-alert>
 
     <loader v-else-if="loading"
             page-loader />
 
-    <div class="wrapper" :class="{ scroller: fileData && fileData.scroller }">
-        <component v-show="!loading"
-                   v-if="fileData"
-                   :is="fileData.component"
-                   class="inner-viewer"
-                   :assignment="assignment"
-                   :submission="submission"
-                   :file="file"
-                   :file-id="fileId"
-                   :revision="revision"
-                   :show-whitespace="showWhitespace"
-                   :show-inline-feedback="showInlineFeedback"
-                   :editable="editable"
-                   @language="$emit('language', $event)"
-                   :language="language"
-                   :can-use-snippets="canUseSnippets"
-                   @force-viewer="setForcedFileComponent"
-                   @load="onLoad"
-                   @error="onError" />
+    <b-alert v-else-if="forcedFileComponent != null"
+             show
+             dismissible
+             variant="warning"
+             class="mb-0 border-bottom rounded-bottom-0">
+        You are viewing the source of a file that can be rendered.
+        <a href="#" @click.capture.prevent.stop="forcedFileComponent = null">Click here</a>
+        to show the rendered version.
+    </b-alert>
+
+    <div class="wrapper"
+         :class="{ scroller: fileData && fileData.scroller }">
+        <template v-if="fileData">
+            <component v-show="!loading"
+                       :is="fileData.component"
+                       class="inner-viewer"
+                       :assignment="assignment"
+                       :submission="submission"
+                       :file="file"
+                       :file-id="fileId"
+                       :revision="revision"
+                       :show-whitespace="showWhitespace"
+                       :show-inline-feedback="showInlineFeedback"
+                       :editable="editable"
+                       @language="$emit('language', $event)"
+                       :language="language"
+                       :can-use-snippets="canUseSnippets"
+                       @force-viewer="setForcedFileComponent"
+                       @load="onLoad"
+                       @error="onError" />
+        </template>
     </div>
 </div>
 </template>
