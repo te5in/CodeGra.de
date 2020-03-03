@@ -153,6 +153,7 @@
         <b-pagination
             v-if="showPagination"
             v-model="currentPage"
+            :limit="10"
             :total-rows="totalRows"
             :per-page="perPage"
             :aria-controls="tableId"
