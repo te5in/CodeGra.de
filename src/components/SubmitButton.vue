@@ -38,6 +38,7 @@
     <b-popover :id="`${btnId}-error-popover`"
                :placement="popoverPlacement"
                :show="!!error"
+               v-if="!mounting"
                :container="container"
                :target="btnId"
                triggers=""
@@ -64,6 +65,7 @@
     <b-popover :id="`${btnId}-warning-popover`"
                :placement="popoverPlacement"
                :show="!!warning"
+               v-if="!mounting"
                :target="btnId"
                triggers=""
                variant="warning"
@@ -255,12 +257,17 @@ export default {
         return {
             state: 'default',
             btnId: this.id || `submit-button-${i++}`,
+            mounting: true,
             error: null,
             warning: null,
             response: null,
             confirmVisible: false,
             confirmAccepted: false,
         };
+    },
+
+    mounted() {
+        this.mounting = false;
     },
 
     computed: {
