@@ -195,7 +195,6 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
     def expired(self) -> bool:
         """Is this proxy expired.
         """
-        return False
         return (
             helpers.get_request_start_time() - self.created_at > self.max_age
         )
