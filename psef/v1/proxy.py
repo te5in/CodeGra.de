@@ -79,7 +79,7 @@ def get_proxy_file(
 
     found_file = None
     if is_dir:
-        for f in ['index.html']:
+        for f in ['index.html', 'index.HTML', 'index.htm', 'index.HTM']:
             found_file = proxy.get_file([*path, f])
             if found_file:
                 break

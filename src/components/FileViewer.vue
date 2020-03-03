@@ -108,19 +108,19 @@ export default {
             forcedFileComponent: null,
             fileTypes: [
                 {
-                    cond: f => f.name.endsWith('.html') && this.revision !== 'diff',
+                    cond: () => this.hasExtension('html', 'htm') && this.revision !== 'diff',
                     component: HtmlViewer,
                     showLanguage: false,
                     scroller: false,
                 },
                 {
-                    cond: () => this.fileExtension === 'pdf',
+                    cond: () => this.hasExtension('pdf'),
                     component: PdfViewer,
                     showLanguage: false,
                     scroller: false,
                 },
                 {
-                    cond: () => /^(?:gif|jpe?g|png|svg)$/.test(this.fileExtension),
+                    cond: () => this.hasExtension('gif', 'jpg', 'jpeg', 'png', 'svg'),
                     component: ImageViewer,
                     showLanguage: false,
                     scroller: false,
@@ -132,13 +132,13 @@ export default {
                     scroller: true,
                 },
                 {
-                    cond: () => this.fileExtension === 'ipynb',
+                    cond: () => this.hasExtension('ipynb'),
                     component: IpythonViewer,
                     showLanguage: false,
                     scroller: true,
                 },
                 {
-                    cond: () => this.fileExtension === 'md' || this.fileExtension === 'markdown',
+                    cond: () => this.hasExtension('md', 'markdown'),
                     component: MarkdownViewer,
                     showLanguage: false,
                     scroller: false,
@@ -232,6 +232,12 @@ export default {
             this.error = '';
             await this.$afterRerender();
             this.forcedFileComponent = fc;
+        },
+
+        hasExtension(...exts) {
+            return exts.some(
+                ext => this.fileExtension === ext || this.fileExtension === ext.toUpperCase(),
+            );
         },
     },
 
