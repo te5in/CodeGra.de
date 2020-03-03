@@ -272,7 +272,7 @@ export default {
         },
     },
 
-    mounted() {
+    created() {
         if (this.graders) {
             this.updateGraders(this.graders);
         }
@@ -281,6 +281,9 @@ export default {
                 s => s.userId === this.userId || (s.assignee && s.assigneeId === this.userId),
             );
         }
+    },
+
+    mounted() {
         if (!this.mineOnly) {
             this.submit();
         }
