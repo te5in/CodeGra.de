@@ -61,7 +61,6 @@ def get_proxy_file(
                     ' you are not in an incognito browser session.'
                 ),
             )
-            assert 0
 
     if proxy is None or proxy.deleted:
         proxy = helpers.get_or_404(
