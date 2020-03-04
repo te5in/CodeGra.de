@@ -133,8 +133,8 @@
             <template #cell(CourseRole)="item">
                 <b-dropdown class="role-dropdown"
                             menu-class="w-100"
-                            v-b-popover.top.hover="item.item.User.name === userName ? 'You cannot change your own role' : ''"
-                            :disabled="updating[item.item.User.id] || item.item.User.name === userName">
+                            v-b-popover.top.hover="item.item.User.id === loggedInUserId ? 'You cannot change your own role' : ''"
+                            :disabled="updating[item.item.User.id] || item.item.User.id === loggedInUserId">
 
                     <template slot="button-content"
                               v-if="updating[item.item.User.id]">
@@ -273,7 +273,7 @@ export default {
 
     computed: {
         ...mapGetters('user', {
-            userName: 'name',
+            loggedInUserId: 'id',
         }),
 
         totalRows() {
