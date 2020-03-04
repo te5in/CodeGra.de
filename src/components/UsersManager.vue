@@ -39,7 +39,7 @@
                     class="registration-links">
                     <template v-if="link.id == null">
                         <td  />
-                        <td class="align-middle">
+                        <td class="align-middle text-muted font-italic">
                             This link has not been saved yet
                         </td>
                     </template>
