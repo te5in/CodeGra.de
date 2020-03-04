@@ -106,12 +106,14 @@
                  @hide="$nextTick(() => resetConfirm(true))"
                  :visible="confirmVisible"
                  :id="`${btnId}-modal`">
-            <div class="text-left text-wrap">
-                {{ confirm }}
-            </div>
+            <slot name="confirm">
+                <div class="text-left text-wrap">
+                    {{ confirm }}
+                </div>
+            </slot>
 
             <template slot="modal-footer">
-                <div class="d-flex justify-content-between" style="width: 100%">
+                <div class="w-100 d-flex justify-content-between">
                     <b-btn variant="outline-danger"
                            @click="acceptConfirm">
                         Confirm
@@ -132,14 +134,15 @@
                    :target="btnId"
                    triggers=""
                    @hide="resetConfirm(true)">
-            <div class="submit-button-confirm">
+            <div class="submit-button-confirm text-justify">
                 <slot name="confirm">
                     <p class="confirm-message">
                         {{ confirm }}
                     </p>
                 </slot>
 
-                <b-button-toolbar justify>
+                <b-button-toolbar justify
+                                  class="mt-2">
                     <b-button size="sm"
                               variant="outline-primary"
                               class="confirm-button confirm-button-accept mr-2"
@@ -493,10 +496,6 @@ export default {
     &:hover {
         opacity: 1;
     }
-}
-
-.confirm-message {
-    text-align: justify;
 }
 
 .confirm-button {

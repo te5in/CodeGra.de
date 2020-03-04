@@ -462,6 +462,12 @@
     body & .btn:focus {
         box-shadow: none;
     }
+
+    & > .btn-group:not(:last-child) > .btn:last-child,
+    & > .btn-group:not(:last-child) > .btn-group:last-child .btn {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
 }
 
 .default-checkbox-and-radio-colors {
