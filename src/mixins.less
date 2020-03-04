@@ -167,6 +167,12 @@
         border-color: saturate(lighten(@color-primary, 7.5%), 10%);
     }
 
+    &:not(:disabled):not(.disabled):active,
+    &:not(:disabled):not(.disabled):focus,
+    &:not(:disabled):not(.disabled):active:focus {
+        box-shadow: 0 0 0 0.2rem fade(@color-primary, 20%);
+    }
+
     &[disabled] {
         background-color: fade(@color-primary, 80);
         border-color: fade(@color-primary, 60);
@@ -181,6 +187,12 @@
         &:focus {
             background-color: saturate(@color-primary-darkest, 10%);
             border-color: saturate(@color-primary-darkest, 10%);
+        }
+
+        &:not(:disabled):not(.disabled):active,
+        &:not(:disabled):not(.disabled):focus,
+        &:not(:disabled):not(.disabled):active:focus {
+            box-shadow: 0 0 0 0.2rem fade(@text-color-dark, 20%);
         }
 
         &[disabled] {
