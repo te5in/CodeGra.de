@@ -470,6 +470,30 @@
     }
 }
 
+.default-select-colors {
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%23ccc' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E");
+
+    &:focus {
+        border-color: @color-primary;
+        box-shadow: 0 0 0 0.2rem fade(@color-primary, 20%);
+    }
+
+    @{dark-mode} {
+        background-color: @color-primary;
+        border-color: @color-primary-darker;
+        color: @text-color-dark;
+
+        &:disabled,
+        &.disabled {
+            background-color: darken(@color-primary, 5%);
+        }
+
+        &:focus {
+            box-shadow: 0 0 0 0.2rem fade(@text-color-dark, 20%);
+        }
+    }
+}
+
 .default-checkbox-and-radio-colors {
     &:not(.cg-dark-mode) {
         .custom-checkbox,
