@@ -818,6 +818,7 @@ def copy_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
     methods=['POST']
 )
 @feature_required(Feature.AUTO_TEST)
+@feature_required(Feature.RENDER_HTML)
 def get_auto_test_result_proxy(
     auto_test_id: int,
     run_id: int,

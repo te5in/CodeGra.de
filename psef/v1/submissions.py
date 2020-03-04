@@ -990,6 +990,7 @@ def get_dir_contents(
 
 
 @api.route('/submissions/<int:submission_id>/proxy', methods=['POST'])
+@features.feature_required(features.Feature.RENDER_HTML)
 def create_proxy(submission_id: int) -> JSONResponse[models.Proxy]:
     """Create a proxy to view the files of the given submission through.
 

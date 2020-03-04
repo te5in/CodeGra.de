@@ -108,7 +108,10 @@ export default {
             forcedFileComponent: null,
             fileTypes: [
                 {
-                    cond: () => this.hasExtension('html', 'htm') && this.revision !== 'diff',
+                    cond: () =>
+                        UserConfig.features.render_html &&
+                        this.hasExtension('html', 'htm') &&
+                        this.revision !== 'diff',
                     component: HtmlViewer,
                     showLanguage: false,
                     scroller: false,

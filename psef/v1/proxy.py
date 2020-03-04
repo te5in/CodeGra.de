@@ -2,8 +2,6 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-import os
-import re
 import uuid
 import mimetypes
 
@@ -12,7 +10,7 @@ import werkzeug
 import structlog
 
 from . import api
-from .. import app, files, models, helpers
+from .. import app, files, models, helpers, features
 from ..exceptions import APICodes, APIException
 
 logger = structlog.get_logger()
@@ -46,6 +44,7 @@ def _get_base_url() -> str:
 
 
 @api.route('/proxy/<uuid:proxy_id>/<path:path_str>', methods=['POST'])
+@features.feature_required(features.Feature.RENDER_HTML)
 def start_proxy(
     proxy_id: uuid.UUID, path_str: str
 ) -> werkzeug.wrappers.Response:
@@ -64,6 +63,7 @@ def start_proxy(
 
 
 @api.route('/proxy/<uuid:proxy_id>/<path:path_str>', methods=['GET'])
+@features.feature_required(features.Feature.RENDER_HTML)
 def second_step_starting_proxy(
     proxy_id: uuid.UUID, path_str: str
 ) -> werkzeug.wrappers.Response:
@@ -80,6 +80,7 @@ def second_step_starting_proxy(
 
 @api.route('/proxy/', methods=['GET'])
 @api.route('/proxy/<path:path_str>', methods=['GET'])
+@features.feature_required(features.Feature.RENDER_HTML)
 def get_proxy_file(path_str: str = '') -> werkzeug.wrappers.Response:
     """Get a file for the given proxy.
 

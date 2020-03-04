@@ -541,6 +541,8 @@ set_bool(CONFIG['__S_FEATURES'], feature_ops, 'GROUPS', False)
 
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'AUTO_TEST', False)
 
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'RENDER_HTML', False)
+
 ############
 # LTI keys #
 ############
