@@ -2,14 +2,14 @@
     <i v-if="props.gitOrigins[props.submission.origin]" class="webhook-name git">
         via
         <a :href="props.getGitLink(props.submission)"
-            target="_blank"
-            @click.stop
-            class="inline-link"
-            >{{ props.gitOrigins[props.submission.origin] }}</a>
+           target="_blank"
+           @click.stop
+           class="inline-link"
+           >{{ props.gitOrigins[props.submission.origin] }}</a>
         <component :is="injections.components.DescriptionPopover"
-                    hug-text
-                    triggers="click"
-                    v-if="props.submission.extra_info">
+                   hug-text
+                   triggers="click blur"
+                   v-if="props.submission.extra_info">
             This submission was submitted through {{ props.gitOrigins[props.submission.origin] }}
             by <code>{{ props.submission.extra_info.sender_name }}</code>
             to the branch
