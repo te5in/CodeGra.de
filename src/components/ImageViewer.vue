@@ -173,7 +173,7 @@ export default {
 <style lang="less">
 .image-viewer.floating-feedback-button .content-wrapper {
     display: block;
-    min-height: 10rem;
+    min-height: 5rem;
     text-align: center;
 }
 </style>
