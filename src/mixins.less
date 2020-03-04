@@ -170,7 +170,7 @@
     &:not(:disabled):not(.disabled):active,
     &:not(:disabled):not(.disabled):focus,
     &:not(:disabled):not(.disabled):active:focus {
-        box-shadow: 0 0 0 0.2rem fade(@color-primary, 20%);
+        box-shadow: 0 0 0 0.2rem fade(@color-primary, 30%);
     }
 
     &[disabled] {
@@ -183,7 +183,7 @@
         border-color: @color-primary-darker;
 
         &:hover,
-        &:active,
+        &:active:not(:disabled):not(.disabled),
         &:focus {
             background-color: saturate(@color-primary-darkest, 10%);
             border-color: saturate(@color-primary-darkest, 10%);
@@ -192,12 +192,23 @@
         &:not(:disabled):not(.disabled):active,
         &:not(:disabled):not(.disabled):focus,
         &:not(:disabled):not(.disabled):active:focus {
-            box-shadow: 0 0 0 0.2rem fade(@text-color-dark, 20%);
+            box-shadow: 0 0 0 0.2rem fade(@text-color-dark, 30%);
         }
 
         &[disabled] {
             background-color: fade(@color-primary-darker, 80);
             border-color: fade(@color-primary-darker, 60);
+        }
+    }
+
+    @{dark-root} .local-header &,
+    @{dark-root} .card-header & {
+        background-color: @color-primary-darkest;
+        border-color: @color-primary-darkest;
+
+        &:not(:disabled):not(.disabled):hover {
+            background-color: darken(@color-primary-darkest, 2%);
+            border-color: darken(@color-primary-darkest, 2%);
         }
     }
 }
@@ -221,6 +232,13 @@
                 }
                 color: @text-color-dark;
             }
+        }
+    }
+
+    @{dark-root} .local-header &,
+    @{dark-root} .card-header & {
+        &:not(:disabled):not(.disabled):hover {
+            background-color: darken(@color-primary, 2.5%) !important;
         }
     }
 }

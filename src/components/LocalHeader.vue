@@ -197,21 +197,5 @@ export default {
             margin-right: 0;
         }
     }
-
-    @{dark-mode} {
-        .btn.btn-primary {
-            background-color: @color-primary-darkest;
-            border-color: @color-primary-darkest;
-
-            &:not(:disabled):not(.disabled):hover {
-                background-color: darken(@color-primary-darkest, 2%);
-                border-color: darken(@color-primary-darkest, 2%);
-            }
-        }
-
-        .btn.btn-secondary:not(:disabled):not(.disabled):hover {
-            background-color: darken(@color-primary, 2.5%) !important;
-        }
-    }
 }
 </style>
