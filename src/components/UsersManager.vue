@@ -521,7 +521,6 @@ export default {
     td {
         &:last-child {
             width: 1px;
-
         }
     }
 }
