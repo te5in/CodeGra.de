@@ -68,10 +68,9 @@
                     </td>
                     <td class="shrink">
                         <b-dropdown :text="link.role.name"
-                                    class="role-dropdown"
-                                    toggle-class="form-control"
+                                    class="w-100 role-dropdown"
                                     menu-class="w-100">
-                            <b-dropdown-header>Select the new role</b-dropdown-header>
+                            <b-dropdown-header>Select a default role</b-dropdown-header>
                             <b-dropdown-item v-for="role in roles"
                                              @click="$set(link, 'role', role)"
                                              :key="role.id">
@@ -133,6 +132,7 @@
 
             <template #cell(CourseRole)="item">
                 <b-dropdown class="role-dropdown"
+                            menu-class="w-100"
                             v-b-popover.top.hover="item.item.User.name === userName ? 'You cannot change your own role' : ''"
                             :disabled="updating[item.item.User.id] || item.item.User.name === userName">
 
@@ -185,9 +185,12 @@
                            :disabled="course.is_lti"/>
 
             <template slot="append">
-                <b-dropdown class="drop"
+                <b-dropdown dropup
+                            class="role-dropdown"
+                            toggle-class="h-100 border"
                             :text="newRole ? newRole.name : 'Role'"
                             :disabled="course.is_lti">
+                    <b-dropdown-header>Select the new role</b-dropdown-header>
                     <b-dropdown-item v-for="role in roles"
                                      v-on:click="() => {newRole = role; error = '';}"
                                      :key="role.id">
@@ -518,21 +521,20 @@ export default {
     td {
         &:last-child {
             width: 1px;
+
         }
     }
 }
 
-.users-table td {
-    vertical-align: middle;
-}
+.users-table {
+    td {
+        vertical-align: middle;
+    }
 
-.add-student .drop .btn {
-    border-radius: 0;
-}
-
-.new-user-popover button {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
+    .dropdown-toggle {
+        padding-top: 3px;
+        padding-bottom: 4px;
+    }
 }
 
 .username {
@@ -548,26 +550,19 @@ export default {
 
 .role-dropdown {
     .dropdown-toggle {
-        width: 10rem;
-        padding-top: 3px;
-        padding-bottom: 4px;
+        min-width: 10rem;
+        padding-right: 1.5rem;
 
         &::after {
-            float: right;
-            margin-top: 0.66rem;
+            position: absolute;
+            top: 50%;
+            right: 0.5rem;
+            transform: translateY(-50%);
         }
     }
 
     .dropdown-menu {
         overflow-y: auto;
-    }
-}
-
-.add-user-button {
-    .btn {
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
-        height: 100%;
     }
 }
 
