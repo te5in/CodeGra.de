@@ -228,10 +228,5 @@ export default {
 .code-viewer {
     position: relative;
     padding: 0;
-    /* background: rgb(248, 248, 248); */
-
-    /* @{dark-mode} { */
-    /*     background: @color-primary-darkest; */
-    /* } */
 }
 </style>
