@@ -142,7 +142,7 @@ export default {
     },
 
     watch: {
-        fileId: {
+        id: {
             immediate: true,
             handler() {
                 this.setDefaultOptions();
