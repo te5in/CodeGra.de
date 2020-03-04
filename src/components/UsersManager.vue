@@ -69,7 +69,8 @@
                     <td class="shrink">
                         <b-dropdown :text="link.role.name"
                                     class="role-dropdown"
-                                    style="width: 12rem;">
+                                    toggle-class="form-control"
+                                    menu-class="w-100">
                             <b-dropdown-header>Select the new role</b-dropdown-header>
                             <b-dropdown-item v-for="role in roles"
                                              @click="$set(link, 'role', role)"
@@ -511,10 +512,6 @@ export default {
 </script>
 
 <style lang="less">
-.users-table tr :nth-child(2) {
-    text-align: center;
-}
-
 .users-manager .users-table,
 .users-manager .registration-table {
     th,
