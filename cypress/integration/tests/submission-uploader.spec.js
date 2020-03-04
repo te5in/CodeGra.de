@@ -435,7 +435,7 @@ context('Submission uploader', () => {
         }
 
         function closeWebhookModal() {
-            cy.get('@modal')
+            cy.get('#git-instructions-modal')
                 .find('button.close')
                 .click();
             cy.get('#git-instructions-modal')
@@ -499,7 +499,7 @@ context('Submission uploader', () => {
 
             cy.login('student1', 'Student1');
             goToSubmissions();
-            doAction('Set up Git');
+            doAction('Upload files');
             getGitLink(false);
         });
 

@@ -176,7 +176,7 @@
                          variant="warning"
                          class="no-deadline-alert mb-0"
                          v-if="uploaderDisabled">
-                    <p v-if="!canUploadForSelf && !canUploadForOthers">
+                    <p v-if="!canUploadForSomeone">
                         You do not have permission to upload work to this assignment.
                     </p>
 
@@ -487,8 +487,7 @@ export default {
             return !!(
                 this.ltiUploadDisabledMessage ||
                 !this.assignment.hasDeadline ||
-                !this.canUploadForSelf ||
-                !this.canUploadForOthers
+                !this.canUploadForSomeone
             );
         },
 
@@ -585,6 +584,10 @@ export default {
 
         canUploadForOthers() {
             return this.coursePermissions.can_submit_others_work;
+        },
+
+        canUploadForSomeone() {
+            return this.canUploadForSelf || this.canUploadForOthers;
         },
 
         canListUsers() {
