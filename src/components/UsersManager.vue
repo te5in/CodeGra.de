@@ -116,11 +116,15 @@
         <b-table striped
                  ref="table"
                  class="users-table"
-                 :items="visibleUsers"
                  :id="tableId"
                  :fields="fields"
+                 :items="filteredUsers"
                  :sort-compare="sortTable"
-                 sort-by="User">
+                 sort-by="User"
+                 :per-page="perPage"
+                 :current-page="currentPage"
+                 show-empty
+                 empty-text="No users found.">
 
             <template #cell(User)="item">
                 <span class="username">{{item.value.name}} ({{item.value.username}})</span>
@@ -286,16 +290,6 @@ export default {
 
         showPagination() {
             return this.totalRows > this.perPage;
-        },
-
-        visibleUsers() {
-            if (!this.showPagination) {
-                return this.filteredUsers;
-            }
-
-            const start = this.perPage * (this.currentPage - 1);
-            const end = this.perPage * this.currentPage;
-            return this.filteredUsers.slice(start, end);
         },
     },
 
