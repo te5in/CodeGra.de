@@ -75,8 +75,7 @@
                 :class=" loaded ? 'flex-grow-1' : ''"
                 :style="{ opacity: loaded ? 1 : 0 }"
                 @load="onLoad"
-                @loading="log"
-                referrer="no-referrer"
+                referrerpolicy="no-referrer"
                 :sandbox="allowScripts ? 'allow-scripts allow-popups' : 'allow-popups'"/>
     </template>
 </div>
@@ -335,8 +334,6 @@ export default {
                 }, 500);
             }
         },
-
-        log: console.log,
     },
 
     components: {

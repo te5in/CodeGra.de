@@ -53,6 +53,14 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         query: t.ClassVar[MyQuery['Proxy']]
     __tablename__ = 'proxy'
 
+    times_used = db.Column(
+        'times_used',
+        db.Integer,
+        nullable=False,
+        default=0,
+        server_default='0'
+    )
+
     max_age = db.Column(
         'max_age',
         db.Interval,
@@ -185,11 +193,11 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
                 "default-src 'self' 'unsafe-inline';"
                 " style-src * 'unsafe-inline';"
                 " font-src * 'unsafe-inline';"
-                " img-src * 'unsafe-inline';"
+                " img-src * 'unsafe-inline' data:;"
                 " media-src * 'unsafe-inline'"
             )
         else:
-            return "default-src * 'unsafe-eval' 'unsafe-inline'"
+            return "default-src * data: 'unsafe-eval' 'unsafe-inline'"
 
     @property
     def expired(self) -> bool:

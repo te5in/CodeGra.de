@@ -19,7 +19,9 @@
 </head>
 <body>
     <div>
-        {{ error_message }}
+        <p style="max-width: 40rem; margin: 0 auto; text-align: justify;">
+            {{ error_message | safe }}
+        </p>
     </div>
 </body>
 </html>
