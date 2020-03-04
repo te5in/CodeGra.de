@@ -60,7 +60,7 @@
                 </tr>
             </component>
             <tbody v-else>
-                <tr>
+                <tr class="text-center text-muted font-italic">
                     <td colspan="3">No results</td>
                 </tr>
             </tbody>
