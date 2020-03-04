@@ -121,10 +121,6 @@ export default {
             type: Function,
             default: () => true,
         },
-        canSeeRevision: {
-            type: Boolean,
-            default: false,
-        },
         revision: {
             type: String,
             default: '',
@@ -139,7 +135,7 @@ export default {
         },
 
         showRevisions() {
-            return this.canSeeRevision && this.fileTree.hasRevision(this.fileTree.student);
+            return this.fileTree.hasAnyRevision();
         },
     },
 

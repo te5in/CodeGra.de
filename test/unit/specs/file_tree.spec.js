@@ -225,6 +225,7 @@ describe('The submission file tree', () => {
 
             // No revision should be added
             expect(fileTree.hasRevision(fileTree.student.entries[0])).toBe(false);
+            expect(fileTree.hasAnyRevision()).toBe(false);
         });
 
         it('should work with a modified tree', () => {
@@ -250,6 +251,7 @@ describe('The submission file tree', () => {
             });
             expect(fileTree.hasRevision(tree1.entries[0])).toBe(true);
             expect(fileTree.getRevisionId(tree1.entries[0])).toBe(null);
+            expect(fileTree.hasAnyRevision()).toBe(true);
         });
 
         it('should work with a inserted directory', () => {
@@ -275,6 +277,7 @@ describe('The submission file tree', () => {
                     },
                 ],
             });
+            expect(fileTree.hasAnyRevision()).toBe(true);
         });
 
         it('should work when replacing a directory with a file', () => {
@@ -299,7 +302,21 @@ describe('The submission file tree', () => {
                     },
                 ],
             });
+
             expect(fileTree.hasRevision(tree1.entries[1])).toBe(true);
+            expect(fileTree.hasAnyRevision()).toBe(true);
+        });
+
+
+        it('should have a revision when only adding a single file', () => {
+            const fileTree = FileTree.fromServerData(tree1, tree3);
+
+            expect(fileTree.hasAnyRevision()).toBe(true);
+            // Student tree has no revision
+            expect(tree1.entries.some(entry => fileTree.hasRevision(entry))).toBe(false);
+            // Teacher tree has a revision
+            expect(tree3.entries.some(entry => fileTree.hasRevision(entry))).toBe(true);
+            expect(fileTree.hasRevision(tree3)).toBe(true);
         });
 
         it('should work when replacing a file with a directory', () => {
@@ -330,6 +347,8 @@ describe('The submission file tree', () => {
             // They don't have a equivalent, as they are of different types.
             expect(fileTree.getRevisionId(tree4.entries[1])).toBe(null);
             expect(fileTree.getRevisionId(tree1.entries[1])).toBe(null);
+
+            expect(fileTree.hasAnyRevision()).toBe(true);
         });
     });
 });

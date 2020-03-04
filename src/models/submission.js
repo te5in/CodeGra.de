@@ -157,6 +157,8 @@ class DiffTree extends DiffEntry {
 
     getRevisions(accum) {
         const res = this.entries.reduce((foundAny, entry) => {
+            // The method `getRevisions` mutates `accum` so don't short circuit
+            // here.
             const val = entry.getRevisions(accum);
             return foundAny || val;
         }, this.ids[0] !== this.ids[1]);
@@ -240,6 +242,10 @@ export class FileTree {
         });
 
         return filePaths;
+    }
+
+    hasAnyRevision() {
+        return this.hasRevision(this.teacher) || this.hasRevision(this.student);
     }
 
     hasRevision(f) {
