@@ -549,14 +549,20 @@ export default {
     hyphens: auto;
 }
 
-.role-dropdown .dropdown-toggle {
-    width: 10rem;
-    padding-top: 3px;
-    padding-bottom: 4px;
+.role-dropdown {
+    .dropdown-toggle {
+        width: 10rem;
+        padding-top: 3px;
+        padding-bottom: 4px;
 
-    &::after {
-        float: right;
-        margin-top: 0.66rem;
+        &::after {
+            float: right;
+            margin-top: 0.66rem;
+        }
+    }
+
+    .dropdown-menu {
+        overflow-y: auto;
     }
 }
 
