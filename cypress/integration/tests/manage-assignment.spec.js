@@ -155,11 +155,21 @@ context('Manage Assignment', () => {
 
             cy.get('.danger-zone-wrapper')
                 .contains('.submit-button', 'Delete assignment')
-                .submit('success', { hasConfirm: true, confirmInModal: true, doConfirm: false });
+                .submit('success', {
+                    hasConfirm: true,
+                    confirmInModal: true,
+                    doConfirm: false,
+                    confirmMsg: 'Deleting this assignment cannot be reversed',
+                });
 
             cy.get('.danger-zone-wrapper')
                 .contains('.submit-button', 'Delete assignment')
-                .submit('success', { hasConfirm: true, confirmInModal: true, waitForDefault: false });
+                .submit('success', {
+                    hasConfirm: true,
+                    confirmInModal: true,
+                    waitForDefault: false,
+                    confirmMsg: 'Deleting this assignment cannot be reversed',
+                });
 
             cy.url().should('eq', Cypress.config().baseUrl + '/');
             cy.get('.assig-list').should('not.contain', assignment.name);
