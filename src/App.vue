@@ -47,10 +47,6 @@ export default {
             );
         },
 
-        hasDarkMode() {
-            return this.$store.getters['pref/darkMode'];
-        },
-
         showSidebar() {
             return this.$route.name !== 'lti-launch' && (!this.$inLTI || this.canManageLTICourse);
         },
