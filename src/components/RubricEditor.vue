@@ -262,6 +262,21 @@
                         </ul>
                     </template>
 
+                    <template v-if="rowsWithoutZeroItem.length > 0">
+                        <b>Rows without items with 0 points</b>
+
+                        <p class="mb-2">
+                            The following categories do not contain an item
+                            with zero points:
+                        </p>
+
+                        <ul>
+                            <li v-for="row in rowsWithoutZeroItem">
+                                {{ row.nonEmptyHeader }}
+                            </li>
+                        </ul>
+                    </template>
+
                     <template v-if="deletedItems.length > 0">
                         <b>Deleted item{{ deletedItems.length > 1 ? 's' : ''}}</b>
 
@@ -529,18 +544,20 @@ export default {
         },
 
         rowsWithSingleItem() {
-            return this.rubricRows.reduce((acc, row) => {
-                if (row.type === 'normal' && row.items.length === 1) {
-                    acc.push(row);
-                }
-                return acc;
-            }, []);
+            return this.rubricRows.filter(row => row.type === 'normal' && row.items.length === 1);
+        },
+
+        rowsWithoutZeroItem() {
+            return this.rubricRows.filter(
+                row => row.type === 'normal' && !row.items.find(item => item.points === 0),
+            );
         },
 
         shouldConfirm() {
             return (
                 this.deletedItems.length +
                     this.rowsWithEqualItems.length +
+                    this.rowsWithoutZeroItem.length +
                     this.rowsWithSingleItem.length >
                 0
             );
