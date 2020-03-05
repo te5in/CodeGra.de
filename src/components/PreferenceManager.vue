@@ -12,7 +12,8 @@
                :target="btnId"
                :placement="placement"
                :boundary="boundary"
-               :container="container">
+               :container="container"
+               @show="$root.$emit('bv::hide::popover')">
         <loader v-if="loading"/>
         <table v-else
                class="table mb-0 settings-content" >

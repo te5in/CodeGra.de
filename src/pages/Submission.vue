@@ -46,7 +46,8 @@
                            triggers="click blur"
                            container="submission-page"
                            placement="bottom"
-                           custom-class="p-0">
+                           custom-class="p-0"
+                           @show="$root.$emit('bv::hide::popover')">
                     <grade-history style="width: 30rem;"
                                    :submission-id="submission && submission.id"
                                    :isLTI="assignment && assignment.course.is_lti"/>
@@ -61,7 +62,8 @@
                            triggers="click blur"
                            placement="bottom"
                            container="submission-page"
-                           custom-class="p-0">
+                           custom-class="p-0"
+                           @show="$root.$emit('bv::hide::popover')">
                     <table style="width: 10rem;"
                            class="table table-hover mb-0 text-left">
                         <tbody>

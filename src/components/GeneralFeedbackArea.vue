@@ -14,6 +14,7 @@
                :placement="placement"
                :boundary="boundary"
                :container="container"
+               @show="$root.$emit('bv::hide::popover')"
                @shown="focusTextarea"
                @hide="maybeSaveFeedback">
         <template slot="title">
