@@ -87,7 +87,7 @@ export default {
         return {
             history: [],
             fields,
-            loading: false,
+            loading: true,
         };
     },
 
@@ -115,8 +115,13 @@ export default {
         },
     },
 
-    mounted() {
-        this.updateHistory();
+    watch: {
+        submissionId: {
+            immediate: true,
+            handler() {
+                this.updateHistory();
+            },
+        },
     },
 
     components: {
