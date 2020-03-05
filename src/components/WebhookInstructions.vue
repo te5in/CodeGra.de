@@ -246,7 +246,7 @@
             to hand in your current repository, you can do this by an empty
             commit.
             You can run
-            <code>git commit --allow-empty -m "Create a CodeGrade submission" &amp;&amp; git push</code>
+            <code class="d-block p-3">git commit --allow-empty -m "Create a CodeGrade submission" &amp;&amp; git push</code>
             while the {{ data.default_branch }} branch is checked out. If you
             are using a GUI for Git that does not support empty commits, simply
             making an arbitrary change in a tracked file will allow you to
