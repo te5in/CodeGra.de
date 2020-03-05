@@ -228,10 +228,6 @@ export default {
                 this.loadDetail();
             }
         },
-
-        exportMatches() {
-            console.log(this.exportMatches);
-        },
     },
 
     computed: {
