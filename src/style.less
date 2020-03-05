@@ -211,33 +211,13 @@ body {
 }
 
 .custom-file {
+    .default-file-input-colors;
+
     padding: 0;
     overflow: hidden;
 
     input {
         cursor: pointer;
-    }
-
-    & &-label {
-        cursor: pointer;
-        border-color: @color-lighter-gray;
-
-        &::after {
-            height: inherit;
-            background-color: @color-lighter-gray;
-        }
-
-        @{dark-mode} {
-            background-color: @color-primary;
-            border-color: @color-primary-darker;
-            color: @color-secondary-text-lighter;
-
-            &::after {
-                background-color: @color-primary-darker;
-                border-color: @color-primary-darker;
-                color: @color-secondary-text-lighter;
-            }
-        }
     }
 }
 

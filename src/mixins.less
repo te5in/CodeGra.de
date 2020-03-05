@@ -504,7 +504,7 @@
     background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%23ccc' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E");
 
     &:focus {
-        border-color: @color-primary;
+        border-color: @border-color;
         box-shadow: 0 0 0 0.2rem fade(@color-primary, 20%);
     }
 
@@ -606,6 +606,24 @@
     .cursor-not-allowed .custom-checkbox .custom-control-label,
     .cursor-not-allowed .custom-radio .custom-control-label {
         cursor: not-allowed !important;
+    }
+}
+
+.default-file-input-colors {
+    & .custom-file-label {
+        box-shadow: none !important;
+
+        @{dark-mode} {
+            background-color: @color-primary;
+            border-color: @color-primary-darker;
+            color: @color-secondary-text-lighter;
+
+            &::after {
+                background-color: @color-primary-darker;
+                border-color: @color-primary-darker;
+                color: @color-secondary-text-lighter;
+            }
+        }
     }
 }
 
