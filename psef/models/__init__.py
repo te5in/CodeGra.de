@@ -180,4 +180,4 @@ if True:  # pylint: disable=using-constant-test
     )
     from .webhook import WebhookBase, GitCloneData
     from .blob_storage import BlobStorage
-    from .proxy import Proxy
+    from .proxy import Proxy, ProxyState

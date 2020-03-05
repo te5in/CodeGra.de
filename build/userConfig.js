@@ -75,7 +75,7 @@ if (Object.hasOwnProperty.call(userConfig.AutoTest, 'auto_test_max_time_command'
     config.autoTest.auto_test_max_command_time = Number(userConfig.AutoTest.auto_test_max_time_command);
 }
 
-config.proxyUrl = userConfig['Back-end'].external_proxy_url
+config.proxyBaseDomain = userConfig['Back-end'].proxy_base_domain
 config.isProduction = process.env.NODE_ENV === 'production';
 
 if (!config.proxyUrl && config.isProduction) {

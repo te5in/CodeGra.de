@@ -76,6 +76,7 @@
                 :style="{ opacity: loaded ? 1 : 0 }"
                 @load="onLoad"
                 referrerpolicy="no-referrer"
+                referrer="no-referrer"
                 :sandbox="allowScripts ? 'allow-scripts allow-popups' : 'allow-popups'"/>
     </template>
 </div>
@@ -211,12 +212,11 @@ export default {
         },
 
         iframeSrc() {
-            if (UserConfig.proxyUrl) {
-                return `${UserConfig.proxyUrl}/${this.proxyId}/${this.currentPath}`;
-            } else {
-                const { host, protocol } = window.location;
-                return `${protocol}//${host}/api/v1/proxy/${this.proxyId}/${this.currentPath}`;
+            const { host, protocol } = window.location;
+            if (UserConfig.proxyBaseDomain) {
+                return `${protocol}//${this.proxyId}.${UserConfig.proxyBaseDomain}/${this.proxyId}/${this.currentPath}`;
             }
+            return `${protocol}//${host}/api/v1/proxies/${this.proxyId}/${this.currentPath}`;
         },
 
         hasFeedback() {

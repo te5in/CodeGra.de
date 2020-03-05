@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from freezegun import freeze_time
 
+import psef
 import helpers
 
 
@@ -64,7 +65,7 @@ def test_proxy_with_submission(
 
 
 def test_getting_files_from_proxy(
-    test_client, logged_in, describe, session, admin_user
+    test_client, logged_in, describe, session, admin_user, monkeypatch
 ):
     with describe('setup'), logged_in(admin_user):
         course = helpers.create_course(test_client)
@@ -97,40 +98,77 @@ def test_getting_files_from_proxy(
                 }
             )['id']
 
-        res = test_client.get(f'/api/v1/proxy/{proxy}/nested/index.html')
-        assert res.status_code == 200
+        res = test_client.post(
+            f'/api/v1/proxies/{proxy}/nested/index.html',
+            follow_redirects=False
+        )
+        assert res.status_code == 303
+        res = test_client.get(res.headers['Location'])
         assert res.headers['Content-Type'] == 'text/html; charset=utf-8'
-        assert res.headers['Content-Security-Policy'
-                           ] == "default-src * 'unsafe-eval' 'unsafe-inline'"
+        assert res.headers[
+            'Content-Security-Policy'
+        ] == "default-src * data: 'unsafe-eval' 'unsafe-inline'"
 
     with describe('Proxy should have correct content type'):
-        res = test_client.get(f'/api/v1/proxy/{proxy}/fiets.jpg')
+        res = test_client.get(f'/api/v1/proxies/fiets.jpg')
         assert res.status_code == 200
         assert res.headers['Content-Type'] == 'image/jpeg'
 
     with describe('Not found files should return a 404'):
         for f in ['nope', 'non_existing_dir/file', 'nested/nope']:
-            res = test_client.get(f'/api/v1/proxy/{proxy}/{f}')
+            res = test_client.get(f'/api/v1/proxies/{f}')
             assert res.status_code == 404
 
-    with describe('A directory cannot be retrieved'):
-        res = test_client.get(f'/api/v1/proxy/{proxy}/nested/')
-        assert res.status_code == 404
+    with describe('A directory will try to retrieve the index.html'):
+        res1 = test_client.get(f'/api/v1/proxies/nested/index.html')
+        assert res1.status_code == 200
+
+        res2 = test_client.get(f'/api/v1/proxies/nested')
+        assert res2.status_code == 200
+
+        res3 = test_client.get(f'/api/v1/proxies/nested')
+        assert res3.status_code == 200
+
+        assert len(res1.get_data()) > 1
+        assert res1.get_data() == res2.get_data()
+        assert res1.get_data() == res3.get_data()
 
     with describe('A path is required'):
-        res = test_client.get(f'/api/v1/proxy/{proxy}//')
+        res = test_client.get(f'/api/v1/proxies/')
+        assert res.status_code == 404
+
+    with describe('When we find a dir 404 is returned'):
+        monkeypatch.setattr(
+            psef.v1.proxies, '_INDEX_FILES', ['not_in_dir.html']
+        )
+        res = test_client.get(f'/api/v1/proxies/nested')
         assert res.status_code == 404
 
     with describe('A proxy should stop working when expired'):
-        url = f'/api/v1/proxy/{proxy}/fiets.jpg'
+        url = f'/api/v1/proxies/fiets.jpg'
         assert test_client.get(url).status_code == 200
 
         with freeze_time(datetime.utcnow() + timedelta(days=1)):
             assert test_client.get(url).status_code == 400
 
+    with describe('We cannot reused the proxy'):
+        assert test_client.get('/api/v1/proxies/fiets.jpg').status_code == 200
+
+        # After clearing cookies we cannot use the endpoint anymore
+        test_client.cookie_jar.clear()
+        assert test_client.get('/api/v1/proxies/fiets.jpg').status_code == 400
+
+        # Cannot do a new post to the proxy endpoint
+        res = test_client.post(
+            f'/api/v1/proxies/{proxy}/nested/index.html',
+            follow_redirects=True
+        )
+        assert res.status_code == 404
+        assert test_client.get('/api/v1/proxies/fiets.jpg').status_code == 400
+
 
 def test_teacher_revision_in_proxy(
-    test_client, logged_in, describe, session, admin_user
+    test_client, logged_in, describe, session, admin_user, app
 ):
     with describe('setup'), logged_in(admin_user):
         course = helpers.create_course(test_client)
@@ -194,22 +232,26 @@ def test_teacher_revision_in_proxy(
             }
         )['id']
 
-    with describe('Teacher revision proxy should return teacher rev'):
-        res = test_client.get(
-            f'/api/v1/proxy/{teacher_proxy}/nested/index.html'
+    with describe(
+        'Teacher revision proxy should return teacher rev'
+    ), app.test_client() as t_client, app.test_client() as s_client:
+        res = t_client.post(
+            f'/api/v1/proxies/{teacher_proxy}/nested/index.html',
+            follow_redirects=True
         )
         assert res.status_code == 200
         assert res.get_data() == b'TEACHER FILE'
 
-        res = test_client.get(
-            f'/api/v1/proxy/{student_proxy}/nested/index.html'
+        res = s_client.post(
+            f'/api/v1/proxies/{student_proxy}/nested/index.html',
+            follow_redirects=True
         )
         assert res.status_code == 200
         assert res.get_data() != b'TEACHER FILE'
 
-        res = test_client.get(f'/api/v1/proxy/{teacher_proxy}/nested/woo')
+        res = t_client.get(f'/api/v1/proxies/nested/woo')
         assert res.status_code == 200
         assert res.get_data() == b''
 
-        res = test_client.get(f'/api/v1/proxy/{student_proxy}/nested/woo')
+        res = s_client.get(f'/api/v1/proxies/nested/woo')
         assert res.status_code == 404

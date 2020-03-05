@@ -2,7 +2,9 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import enum
 import typing as t
+import secrets
 import datetime
 from uuid import UUID
 from collections import defaultdict
@@ -15,6 +17,7 @@ from . import (
     Base, File, MyQuery, FileOwner, NestedFileMixin, AutoTestOutputFile, db
 )
 from .. import helpers
+from ..cache import cache_within_request
 from ..exceptions import APICodes, APIException
 
 T = t.TypeVar('T')
@@ -36,6 +39,12 @@ def _search_candiate(
         return None
 
 
+class ProxyState(enum.IntEnum):
+    before_post = 0
+    in_use = 1
+    deleted = 2
+
+
 class Proxy(Base, UUIDMixin, TimestampMixin):
     """A proxy, which can be used to get files from an AutoTest result or a
     submission for a limited time without authentication.
@@ -53,12 +62,18 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         query: t.ClassVar[MyQuery['Proxy']]
     __tablename__ = 'proxy'
 
-    times_used = db.Column(
-        'times_used',
-        db.Integer,
+    state = db.Column(
+        'state',
+        db.Enum(ProxyState),
         nullable=False,
-        default=0,
-        server_default='0'
+        default=ProxyState.before_post,
+        server_default='before_post',
+    )
+    _password = db.Column(
+        'password',
+        db.Unicode,
+        nullable=False,
+        default=secrets.token_hex,
     )
 
     max_age = db.Column(
@@ -160,9 +175,15 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         )
 
     @property
+    def password(self) -> str:
+        return self._password
+
+    @property
     def deleted(self) -> bool:
         """Is this proxy deleted
         """
+        if self.state == ProxyState.deleted:
+            return True
         if self.base_work_file is None:
             return False
         return self.base_work_file.work.deleted
@@ -210,13 +231,15 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
     def __to_json__(self) -> t.Mapping[str, str]:
         return {'id': str(self.id)}
 
-    def _get_at_file(self, path: t.Sequence[str]
-                     ) -> t.Optional[NestedFileMixin[UUID]]:
+    @cache_within_request
+    def _get_at_file_lookup(
+        self
+    ) -> t.Mapping[t.Optional[UUID], t.Mapping[str, UUID]]:
         base = self.base_at_result_file
         assert base is not None
 
-        lookup: t.Mapping[t.Optional[UUID], t.
-                          Dict[str, UUID]] = defaultdict(dict)
+        lookup: t.MutableMapping[t.Optional[UUID], t.
+                                 Dict[str, UUID]] = defaultdict(dict)
 
         for f_id, f_name, f_parent_id in db.session.query(
             AutoTestOutputFile.id,
@@ -228,13 +251,24 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         ):
             lookup[f_parent_id][f_name] = f_id
 
+        return lookup
+
+    def _get_at_file(self, path: t.Sequence[str]
+                     ) -> t.Optional[NestedFileMixin[UUID]]:
+        base = self.base_at_result_file
+        assert base is not None
+
+        lookup = self._get_at_file_lookup()
+
         found_id = _search_candiate(lookup, base, path)
         if found_id is None:
             return None
         return AutoTestOutputFile.query.get(found_id)
 
-    def _get_work_file(self, path: t.Sequence[str]
-                       ) -> t.Optional[NestedFileMixin[int]]:
+    @cache_within_request
+    def _get_work_file_lookup(
+        self
+    ) -> t.Mapping[t.Optional[int], t.Dict[str, int]]:
         base = self.base_work_file
         assert base is not None
         assert self.excluding_fileowner is not None
@@ -249,13 +283,21 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         ):
             lookup[f_parent_id][f_name] = f_id
 
+        return lookup
+
+    def _get_work_file(self, path: t.Sequence[str]
+                       ) -> t.Optional[NestedFileMixin[int]]:
+        base = self.base_work_file
+        assert base is not None
+        lookup = self._get_work_file_lookup()
+
         found_id = _search_candiate(lookup, base, path)
         if found_id is None:
             return None
         return File.query.get(found_id)
 
     def get_file(
-        self, path: t.Sequence[str]
+        self, path: t.Sequence[str], *, dir_ok: bool
     ) -> t.Union[None, NestedFileMixin[int], NestedFileMixin[UUID]]:
         """Get a file from this proxy for the given path.
 
@@ -264,10 +306,13 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         """
         assert not self.expired
         assert not self.deleted
+        res: t.Union[None, NestedFileMixin[int], NestedFileMixin[UUID]]
 
-        if not path:
-            return None
-        elif self.base_at_result_file_id is None:
-            return self._get_work_file(path)
+        if self.base_at_result_file_id is None:
+            res = self._get_work_file(path)
         else:
-            return self._get_at_file(path)
+            res = self._get_at_file(path)
+
+        if res is None or (res.is_directory and not dir_ok):
+            return None
+        return res
