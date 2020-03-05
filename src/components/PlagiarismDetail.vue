@@ -76,9 +76,12 @@
                       @click="$root.$emit('bv::hide::modal', 'plagiarism-export');">
                 Cancel
             </b-button>
-            <submit-button label="Export"
-                           :submit="exportToLatex"
-                           @success="afterExportToLatex"/>
+            <b-button-group v-b-popover.top.hover="exportDisabled ? 'Select at least one case to export' : ''">
+                <submit-button label="Export"
+                               :disabled="exportDisabled"
+                               :submit="exportToLatex"
+                               @success="afterExportToLatex"/>
+            </b-button-group>
         </b-button-toolbar>
     </b-modal>
 
@@ -225,6 +228,10 @@ export default {
                 this.loadDetail();
             }
         },
+
+        exportMatches() {
+            console.log(this.exportMatches);
+        },
     },
 
     computed: {
@@ -357,6 +364,10 @@ export default {
                 });
                 return accum;
             }, {});
+        },
+
+        exportDisabled() {
+            return Object.values(this.exportMatches).filter(x => x).length === 0;
         },
     },
 
