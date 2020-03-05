@@ -13,7 +13,7 @@ context('Sidebar', () => {
         cy.visit('/');
 
         cy.get('.sidebar .sidebar-entry-courses').click();
-        cy.get('.sidebar .add-course-button').click();
+        cy.get('.sidebar .add-course-button').should('be.visible').click();
         cy.get('.popover .submit-input input').should('be.visible');
         cy.get('.popover .submit-input input').type(course);
         cy.get('.popover .submit-input .btn').click();
