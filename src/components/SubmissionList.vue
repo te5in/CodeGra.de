@@ -26,8 +26,9 @@
              hover
              class="mb-0 border-bottom submissions-table"
              primary-key="id"
-             :items="filteredSubmissions"
+             show-empty
              :fields="fields"
+             :items="filteredSubmissions"
              :sort-by="this.$route.query.sortBy || 'user'"
              :sort-desc="!parseBool(this.$route.query.sortAsc, true)"
              :sort-compare="(a, b, sortBy) => sortSubmissions(a.sub, b.sub, sortBy)"
@@ -78,29 +79,30 @@
                 </div>
             </span>
         </template>
+
+        <template #empty>
+            <div class="text-center font-italic text-muted">
+                <template v-if="!canSeeOthersWork && submissions.length === 0">
+                    You have no submissions yet.
+                </template>
+                <template v-else-if="submissions.length === 0">
+                    There are no submissions yet.
+                </template>
+                <template v-else>
+                    No submissions found with the given filters.
+                </template>
+            </div>
+        </template>
+
+        <template #custom-foot
+                  v-if="canSeeOthersWork">
+            <tr>
+                <td colspan="4">
+                    Showing {{ numFilteredStudents }} out of {{ numStudents }} students.
+                </td>
+            </tr>
+        </template>
     </b-table>
-
-    <div v-if="!canSeeOthersWork && this.submissions.length === 0"
-         class="no-submissions-found border-bottom font-italic text-muted"
-         >
-        You have no submissions yet!
-    </div>
-
-    <div v-else-if="this.submissions.length === 0"
-         class="no-submissions-found border-bottom font-italic text-muted"
-         >
-        There are no submissions yet.
-    </div>
-
-    <div v-else-if="this.submissions && this.filteredSubmissions.length === 0"
-         class="no-submissions-found border-bottom font-italic text-muted">
-        No submissions found with the given filters.
-    </div>
-
-    <div v-if="canSeeOthersWork"
-         class="submission-count border-bottom">
-        Showing {{ numFilteredStudents }} out of {{ numStudents }} students.
-    </div>
 </div>
 </template>
 

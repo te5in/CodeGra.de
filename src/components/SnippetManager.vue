@@ -54,7 +54,7 @@
             </tr>
 
             <tr v-if="filteredSnippets.length === 0">
-                <td class="no-snippets text-muted" colspan="3">
+                <td class="p-3 text-center font-italic text-muted" colspan="3">
                     <template v-if="this.snippets.length === 0">
                         You have not created any snippets yet!
                     </template>
@@ -452,11 +452,6 @@ export default {
         white-space: nowrap;
         text-overflow: ellipsis;
         overflow: hidden;
-    }
-
-    .no-snippets {
-        padding: 1.5rem;
-        text-align: center;
     }
 }
 

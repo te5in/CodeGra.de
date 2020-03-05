@@ -92,8 +92,9 @@
                         </div>
                     </td>
                 </tr>
+
                 <tr v-if="registrationLinks.filter(x => !x.deleted).length === 0">
-                    <td colspan="5" class="text-muted font-italic">
+                    <td colspan="5" class="text-center text-muted font-italic">
                         There are no registration links yet.
                     </td>
                 </tr>
@@ -123,8 +124,7 @@
                  sort-by="User"
                  :per-page="perPage"
                  :current-page="currentPage"
-                 show-empty
-                 empty-text="No users found.">
+                 show-empty>
 
             <template #cell(User)="item">
                 <span class="username">{{item.value.name}} ({{item.value.username}})</span>
@@ -152,6 +152,12 @@
                         {{ role.name }}
                     </b-dropdown-item>
                 </b-dropdown>
+            </template>
+
+            <template #empty>
+                <div class="text-center font-italic text-muted">
+                    No users found.
+                </div>
             </template>
         </b-table>
 
