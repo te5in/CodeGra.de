@@ -57,13 +57,22 @@ context('FileViewer', () => {
 
     context('Inline feedback preference', () => {
         function openSettings() {
-            cy.get('.local-header .settings-toggle').click();
-            return cy.get('.settings-content').should('be.visible');
+            cy.get('.local-header .settings-toggle')
+                .click();
+            cy.get('[id^="settings-popover"]')
+                .should('not.have.class', 'fade')
+                .should('be.visible');
+            return cy.get('.settings-content')
+                .should('be.visible');
         }
 
         function closeSettings() {
-            cy.get('.local-header .settings-toggle').click();
-            return cy.get('.settings-content').should('not.be.visible');
+            cy.get('.local-header .settings-toggle')
+                .click();
+            cy.get('[id^="settings-popover"]')
+                .should('not.be.visible');
+            return cy.get('.settings-content')
+                .should('not.be.visible');
         }
 
         function getSettingsToggle(name) {

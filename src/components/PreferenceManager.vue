@@ -9,6 +9,7 @@
 
     <component :is="inPopover ? 'b-popover' : 'div'"
                triggers="click blur"
+               :id="popoverId"
                :target="btnId"
                :placement="placement"
                :boundary="boundary"
@@ -171,6 +172,7 @@ export default {
         languages.unshift('Default');
         return {
             btnId: `settings-toggle-${id}`,
+            popoverId: `settings-popover-${id}`,
             loading: true,
             languages,
             whitespace: true,
