@@ -244,7 +244,10 @@ export class FileTree {
     }
 
     hasAnyRevision() {
-        return this.hasRevision(this.teacher) || this.hasRevision(this.student);
+        if (this.teacher == null) {
+            return false;
+        }
+        return this.hasRevision(this.student) || this.hasRevision(this.teacher);
     }
 
     hasRevision(f) {

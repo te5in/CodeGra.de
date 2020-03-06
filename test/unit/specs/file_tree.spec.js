@@ -319,6 +319,11 @@ describe('The submission file tree', () => {
             expect(fileTree.hasRevision(tree3)).toBe(true);
         });
 
+        it('should not have any revision when teacher tree is null', () => {
+            const fileTree = FileTree.fromServerData(tree1, null);
+            expect(fileTree.hasAnyRevision()).toBe(false);
+        });
+
         it('should work when replacing a file with a directory', () => {
             const fileTree = FileTree.fromServerData(tree4, tree1);
 
