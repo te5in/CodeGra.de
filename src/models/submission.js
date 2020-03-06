@@ -2,6 +2,7 @@
 import {
     getProps,
     setProps,
+    cmpNoCase,
     formatGrade,
     snakeToCamelCase,
     readableFormatDate,
@@ -145,10 +146,11 @@ class DiffTree extends DiffEntry {
         }, []);
 
         entries.sort((a, b) => {
-            if (a.name === b.name) {
+            const res = cmpNoCase(a.name, b.name);
+            if (res === 0 && !(a.entries && b.entries)) {
                 return a.entries ? -1 : 1;
             }
-            return a.name.localeCompare(b.name);
+            return res;
         });
 
         return new DiffTree([dir1.id, dir2.id], dir1.name, entries);
