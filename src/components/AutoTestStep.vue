@@ -1298,8 +1298,8 @@ export default {
             transform: rotate(-90deg);
         }
 
-        .caret {
-            margin-right: 0.333rem;
+        .caret + .fa-icon {
+            margin-left: 0.333rem;
         }
     }
 
