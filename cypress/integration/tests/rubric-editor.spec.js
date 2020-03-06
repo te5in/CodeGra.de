@@ -534,6 +534,10 @@ context('Rubric Editor', () => {
 
             submit('error', {
                 hasConfirm: true,
+                confirmMsg: [
+                    'Rows without items with 0 points',
+                    'Category Without Items',
+                ],
                 popoverMsg: [
                     'The following category has no items',
                     'Category Without Items',
@@ -590,6 +594,23 @@ context('Rubric Editor', () => {
                 confirmMsg: [
                     'Rows with only a single item',
                     'Single Item',
+                ],
+            });
+        });
+
+        it('should show a confirmation popover when a normal category does not contain an item with 0 points', () => {
+            addNormalRow('No 0 Item');
+            addItem(1, 'First Item');
+            addNormalRow('No 0 Item 2');
+            addItem(-1, 'First Item');
+
+            submit('success', {
+                waitForState: false,
+                hasConfirm: true,
+                confirmMsg: [
+                    'Rows without items with 0 points',
+                    'No 0 Item',
+                    'No 0 Item 2',
                 ],
             });
         });
