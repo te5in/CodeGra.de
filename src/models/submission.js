@@ -7,11 +7,10 @@ import {
     readableFormatDate,
     coerceToString,
 } from '@/utils';
+import { NONEXISTENT } from '@/constants';
 import moment from 'moment';
 import { store } from '@/store';
 import * as mutationTypes from '@/store/mutation-types';
-
-const NONEXISTENT = {};
 
 const REVISIONS = ['student', 'teacher'];
 

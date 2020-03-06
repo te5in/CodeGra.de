@@ -16,24 +16,8 @@ context('HTML viewer', () => {
         }).then(res => {
             assig = res;
             cy.visit(`/courses/${course.id}/assignments/${assig.id}/submissions`);
-            return cy.fixture('test_submissions/html.tar.gz', 'base64').then(fileContent => {
-                cy.get('.dropzone').upload(
-                    {
-                        fileContent,
-                        fileName: 'html.tar.gz',
-                        mimeType: 'text/tar',
-                        encoding: 'base64',
-                    },
-                    { subjectType: 'drag-n-drop' },
-                );
-                cy.get('.submission-uploader .submit-button').submit('success', {
-                    hasConfirm: true,
-                    waitForState: false,
-                });
-
-                return cy.url().should('contain', '/files/').then($url => {
-                    url = $url;
-                });
+            return cy.createSubmission(assig.id, 'test_submissions/html.tar.gz').then(body => {
+                url = `/courses/${course.id}/assignments/${assig.id}/submissions/${body.id}`;
             });
         });
     });

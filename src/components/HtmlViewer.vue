@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<b-alert show v-if="!proxyId && !isMyFile" variant="light" style="overflow: auto;">
+<b-alert show v-if="!proxyId && !isMyFile" variant="light" style="overflow: auto;"
+         class="html-viewer">
     <div>
         <p>
             This file looks like an HTML file. We can render this file, or show its
@@ -17,9 +18,8 @@
         </b-button-toolbar>
 
 
-        <advanced-collapse start-open>
-            <b-form-group label-cols="10"
-                          horizontal
+        <advanced-collapse start-open class="html-viewer-opts">
+            <b-form-group horizontal
                           label-for="allow-scripts-iframe"
                           label="Allow JavaScript execution">
                 <b-form-radio-group id="allow-scripts-iframe"
@@ -27,8 +27,7 @@
                                     :options="yesNoOptions" />
             </b-form-group>
 
-            <b-form-group label-cols="10"
-                          horizontal
+            <b-form-group horizontal
                           label-for="allow-remote-iframe-resources"
                           label="Allow remote resources">
                 <b-form-radio-group id="allow-remote-iframe-resources"
@@ -36,8 +35,7 @@
                                     :options="yesNoOptions" />
             </b-form-group>
 
-            <b-form-group label-cols="10"
-                          horizontal
+            <b-form-group horizontal
                           label-for="allow-remote-scripts-iframe"
                           label="Allow 'eval' usage and loading of remote JavaScript">
                 <b-form-radio-group id="allow-remote-scripts-iframe"
@@ -47,7 +45,7 @@
         </advanced-collapse>
     </div>
 </b-alert>
-<div v-else class="flex-column d-flex-non-important">
+<div v-else class="flex-column d-flex-non-important html-viewer">
     <b-alert show
              dismissible
              variant="warning"
@@ -350,5 +348,20 @@ export default {
 <style lang="less">
 .html-viewer .d-flex-non-important {
     display: flex;
+}
+
+.html-viewer .html-viewer-opts .form-row {
+    display: flex;
+
+    label {
+        max-width: unset;
+        flex: 1;
+    }
+
+    > :last-child {
+        max-width: unset;
+        flex: 1;
+        text-align: right;
+    }
 }
 </style>
