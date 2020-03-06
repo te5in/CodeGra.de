@@ -58,7 +58,7 @@ def _show_session_error() -> werkzeug.wrappers.Response:
 
 def _get_url(proxy: models.Proxy, path: str) -> str:
     base_domain = app.config['PROXY_BASE_DOMAIN']
-    if base_domain:
+    if base_domain:  # pragma: no cover
         protocol = 'http:' if app.debug else 'https:'
         base_url = f'{protocol}//{proxy.id}.{base_domain}'
 

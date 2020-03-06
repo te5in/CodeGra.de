@@ -1845,6 +1845,40 @@ def test_output_dir(
                 '/api/v1/code/{file_id}'.format(file_id=sym_link_id)
             ).status_code == 403
 
+    with describe('Can use proxy to view files'):
+        proxy_url = f'{url}/runs/{run_id}/results/{res}/suites/{suite2}/proxy'
+        with logged_in(teacher):
+            proxy = test_client.req(
+                'post',
+                proxy_url,
+                200,
+                data={
+                    'allow_remote_resources': True,
+                    'allow_remote_scripts': True,
+                }
+            )['id']
+
+        res = test_client.post(
+            f'/api/v1/proxies/{proxy}/bye', follow_redirects=False
+        )
+        assert res.status_code == 303
+        res = test_client.get(res.headers['Location'])
+        assert res.status_code == 200
+
+        assert test_client.get(
+            '/api/v1/proxies/non_existing'
+        ).status_code == 404
+
+    with describe('Students cannot use proxy'), logged_in(student):
+        proxy = test_client.req(
+            'post',
+            proxy_url,
+            403,
+            data={
+                'allow_remote_resources': True, 'allow_remote_scripts': True
+            }
+        )
+
     with describe('After deleting run results are removed from disk'):
         file = m.AutoTestOutputFile.query.get(sym_link_id)
         assert file is not None

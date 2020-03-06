@@ -858,11 +858,10 @@ def get_auto_test_result_proxy(
         )
 
     def also_error(obj: models.AutoTestResult) -> bool:
-        if obj.auto_test_run_id != run_id or obj.run.auto_test_id != test.id:
-            return True
-        elif obj.work.deleted:
-            return True
-        return False
+        return (
+            obj.auto_test_run_id != run_id or
+            obj.run.auto_test_id != test.id or obj.work.deleted
+        )
 
     result = get_or_404(
         models.AutoTestResult,

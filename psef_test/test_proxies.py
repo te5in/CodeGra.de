@@ -151,12 +151,32 @@ def test_getting_files_from_proxy(
         with freeze_time(datetime.utcnow() + timedelta(days=1)):
             assert test_client.get(url).status_code == 400
 
+    with describe('A proxy cannot be used when the stat is deleted'):
+        url = f'/api/v1/proxies/fiets.jpg'
+        assert test_client.get(url).status_code == 200
+
+        psef.models.Proxy.query.filter_by(id=proxy).update({
+            'state': psef.models.ProxyState.deleted,
+        })
+        assert test_client.get(url).status_code == 404
+
+        psef.models.Proxy.query.filter_by(id=proxy).update({
+            'state': psef.models.ProxyState.in_use,
+        })
+        assert test_client.get(url).status_code == 200
+
     with describe('We cannot reused the proxy'):
         assert test_client.get('/api/v1/proxies/fiets.jpg').status_code == 200
+        assert test_client.get(
+            f'/api/v1/proxies/{proxy}/fiets.jpg'
+        ).status_code == 200
 
         # After clearing cookies we cannot use the endpoint anymore
         test_client.cookie_jar.clear()
         assert test_client.get('/api/v1/proxies/fiets.jpg').status_code == 400
+        assert test_client.get(
+            f'/api/v1/proxies/{proxy}/fiets.jpg'
+        ).status_code == 400
 
         # Cannot do a new post to the proxy endpoint
         res = test_client.post(
