@@ -207,9 +207,9 @@
 # external_url = http://localhost:8080
 
 
-# The external proxy url should be a safe url that proxies every request to
-# "$external_url"/api/v1/proxy
-# external_proxy_url =
+# The proxy base domain should be a domain that will be used for serving
+# files. It should have a valid ssl certificate for *.$proxy_base_domain.
+# proxy_base_domain =
 
 # Path to the java runtime executable. May also be just the name of the
 # executable, if it is in a directory in the PATH environment variable.
@@ -290,7 +290,7 @@
 
 # Should it be possible for teachers to create links that users can use to
 # register and enroll in a course.
-# course_registration = false
+# course_register = false
 
 # Should it be possible to render html files within CodeGrade. This opens up
 # more attack surfaces as it is now possible by design for students to run
