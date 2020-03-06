@@ -26,6 +26,7 @@
              hover
              class="mb-0 border-bottom submissions-table"
              primary-key="id"
+             :id="tableId"
              show-empty
              :fields="fields"
              :items="filteredSubmissions"
@@ -33,6 +34,8 @@
              :sort-desc="!parseBool(this.$route.query.sortAsc, true)"
              :sort-compare="(a, b, sortBy) => sortSubmissions(a.sub, b.sub, sortBy)"
              @sort-changed="sortChanged"
+             :per-page="perPage"
+             :current-page="currentPage"
              @row-clicked="gotoSubmission">
         <template #cell(user)="item">
             <router-link class="invisible-link"
@@ -103,6 +106,15 @@
             </tr>
         </template>
     </b-table>
+
+    <b-pagination
+        class="mt-3"
+        v-if="showPagination"
+        v-model="currentPage"
+        :limit="10"
+        :total-rows="numFilteredStudents"
+        :per-page="perPage"
+        :aria-controls="tableId" />
 </div>
 </template>
 
@@ -158,6 +170,8 @@ export default {
             assigneeUpdating: [],
             // For use in v-b-popover directives.
             quote: '"',
+            currentPage: parseInt(this.$route.query.page, 10) || 1,
+            tableId: `submissions-table-${this.$utils.getUniqueId()}`,
         };
     },
 
@@ -245,15 +259,28 @@ export default {
                 s => this.$utils.getProps(s, null, 'assignee', 'id') === this.userId,
             );
         },
+
+        perPage() {
+            return 15;
+        },
+
+        showPagination() {
+            return this.numFilteredStudents > this.perPage || this.currentPage !== 1;
+        },
     },
 
     watch: {
         filteredSubmissions: {
             immediate: true,
-            handler() {
+            handler(newVal, oldVal) {
                 this.$emit('filter', {
                     submissions: this.filteredSubmissions.map(s => s.sub),
                 });
+
+                // This is null on the immediate call of this wachter.
+                if (oldVal != null) {
+                    this.currentPage = 1;
+                }
             },
         },
 
@@ -271,6 +298,10 @@ export default {
                     this.submit();
                 }
             },
+        },
+
+        currentPage() {
+            this.submitDelayed();
         },
     },
 
@@ -331,6 +362,7 @@ export default {
                     search: this.filter || undefined,
                     sortBy: this.sortBy,
                     sortAsc: this.sortAsc,
+                    page: this.currentPage,
                 },
             };
         },
@@ -358,6 +390,7 @@ export default {
                 query: Object.assign({}, this.$route.query, {
                     mine: this.mineOnly,
                     q: this.filter || undefined,
+                    page: this.currentPage,
                 }),
                 hash: this.$route.hash,
             });

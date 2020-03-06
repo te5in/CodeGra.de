@@ -600,7 +600,18 @@ hr {
     justify-content: center;
 
     .page-item {
+        &:not(.disabled) .page-link {
+            color: @color-primary;
+        }
+        &.disabled .page-link {
+            color: @text-color-muted;
+            @{dark-mode} {
+                color: @text-color-muted;
+            }
+        }
+
         .page-link {
+
             &:active,
             &:focus {
                 box-shadow: none;

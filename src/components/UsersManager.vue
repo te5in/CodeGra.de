@@ -167,8 +167,7 @@
             :limit="10"
             :total-rows="totalRows"
             :per-page="perPage"
-            :aria-controls="tableId"
-    ></b-pagination>
+            :aria-controls="tableId" />
     </template>
 
     <b-alert show variant="danger" v-else>
