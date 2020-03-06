@@ -214,7 +214,9 @@ export default {
         iframeSrc() {
             const { host, protocol } = window.location;
             if (UserConfig.proxyBaseDomain) {
-                return `${protocol}//${this.proxyId}.${UserConfig.proxyBaseDomain}/${this.proxyId}/${this.currentPath}`;
+                return `${protocol}//${this.proxyId}.${UserConfig.proxyBaseDomain}/${
+                    this.proxyId
+                }/${this.currentPath}`;
             }
             return `${protocol}//${host}/api/v1/proxies/${this.proxyId}/${this.currentPath}`;
         },
