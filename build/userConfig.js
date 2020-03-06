@@ -75,10 +75,12 @@ if (Object.hasOwnProperty.call(userConfig.AutoTest, 'auto_test_max_time_command'
     config.autoTest.auto_test_max_command_time = Number(userConfig.AutoTest.auto_test_max_time_command);
 }
 
-config.proxyBaseDomain = userConfig['Back-end'].proxy_base_domain
+const backendOpts = userConfig['Back-end'];
+
+config.proxyBaseDomain = backendOpts ? backendOpts.proxy_base_domain : '';
 config.isProduction = process.env.NODE_ENV === 'production';
 
-if (!config.proxyUrl && config.isProduction) {
+if (!config.proxyBaseDomain && config.isProduction) {
     throw new Error('Production can only be used with a proxy url.');
 }
 
