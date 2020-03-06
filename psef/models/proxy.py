@@ -200,7 +200,7 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         ...  allow_remote_scripts=True)
         >>> strict.csp_header == "default-src 'self' 'unsafe-inline'"
         True
-        >>> open.csp_header == "default-src * 'unsafe-eval' 'unsafe-inline'"
+        >>> open.csp_header == "default-src * data: 'unsafe-eval' 'unsafe-inline'"
         True
         >>> liberal.csp_header != open.csp_header
         True
