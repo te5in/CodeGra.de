@@ -100,7 +100,8 @@
         <template #custom-foot
                   v-if="canSeeOthersWork">
             <tr>
-                <td colspan="4">
+                <td colspan="4"
+                    class="submission-count">
                     Showing {{ numFilteredStudents }} out of {{ numStudents }} students.
                 </td>
             </tr>

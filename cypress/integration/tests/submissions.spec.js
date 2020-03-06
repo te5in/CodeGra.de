@@ -296,7 +296,7 @@ context('Submissions page', () => {
                 getStudent('Student3').should('exist');
                 getStudent('Student4').should('exist');
 
-                cy.get('.submissions-table ~ .submission-count').as('count');
+                cy.get('.submissions-table .submission-count').as('count');
                 cy.get('@count').should('contain', '5 out of 5');
                 filterSubmissions('Student');
                 cy.get('@count').should('contain', '4 out of 5');
@@ -312,7 +312,7 @@ context('Submissions page', () => {
             it('should show a message when there are no submissions', () => {
                 visitSubmissions(assignments.withoutSubs);
 
-                cy.get('.submissions-table ~ .no-submissions-found')
+                cy.get('.submissions-table .b-table-empty-row')
                     .should('contain', 'There are no submissions yet');
             });
 
@@ -320,13 +320,13 @@ context('Submissions page', () => {
                 getStudent('Robin').should('exist');
                 filterSubmissions('xyz');
 
-                cy.get('.submissions-table ~ .no-submissions-found')
+                cy.get('.submissions-table .b-table-empty-row')
                     .should('contain', 'No submissions found with the given filters');
 
                 visitSubmissions(assignments.withoutSubs);
                 filterSubmissions('xyz');
 
-                cy.get('.submissions-table ~ .no-submissions-found')
+                cy.get('.submissions-table .b-table-empty-row')
                     .should('contain', 'There are no submissions yet');
             });
 
