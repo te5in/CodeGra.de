@@ -42,9 +42,9 @@ def _show_session_error() -> werkzeug.wrappers.Response:
             error_message=(
                 """
         There was a problem settings cookies, it seems like we are not allowed
-        to do so. Cookies are required for this feature, as we need them to
-        remember which submission you are viewing. They will not be used for
-        analytical purposes.
+        to do so. Cookies are required for rendering HTML safely, as we need
+        them to remember which submission you are viewing. They will not be
+        used for analytical purposes.
 
         <br>
         In some browsers, Safari for example, you need to allow third party

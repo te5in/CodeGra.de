@@ -160,6 +160,7 @@ export default {
     computed: {
         ...mapGetters('feedback', ['getFeedback']),
         ...mapGetters('user', { myId: 'id' }),
+        ...mapGetters('users', ['getUser']),
         ...mapGetters('autotest', {
             allAutoTests: 'tests',
         }),
@@ -248,7 +249,7 @@ export default {
         },
 
         isMyFile() {
-            return this.myId === this.submission.userId;
+            return this.getUser(this.myId).isEqualOrMemberOf(this.submission.user);
         },
     },
 
