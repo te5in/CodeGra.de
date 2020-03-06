@@ -20,15 +20,15 @@ logger = structlog.get_logger()
 _INDEX_FILES = ['index.html', 'index.htm', 'index.HTML', 'index.HTM']
 
 
-def make_also_error(
+def _make_also_error(
     wanted_state: models.ProxyState,
     *,
     ignore_expire: bool = False,
 ) -> t.Callable[[models.Proxy], bool]:
-    def also_error(p: models.Proxy) -> bool:
-        res = p.deleted or p.state != wanted_state
+    def also_error(proxy: models.Proxy) -> bool:
+        res = proxy.deleted or proxy.state != wanted_state
         if not ignore_expire:
-            res = res or p.expired
+            res = res or proxy.expired
         return res
 
     return also_error
@@ -65,7 +65,6 @@ def _get_url(proxy: models.Proxy, path: str) -> str:
     else:
         assert app.debug, 'PROXY_BASE_DOMAIN should be set in production'
         base_url = f'/api/v1/proxies/{proxy.id}'
-    print(base_url, path)
     return f'{base_url}/{path}'
 
 
@@ -80,11 +79,19 @@ def _proxy_pass_correct(proxy: models.Proxy) -> bool:
 def start_proxy(
     proxy_id: uuid.UUID, path_str: str
 ) -> werkzeug.wrappers.Response:
+    """Start using the given proxy.
+
+    :param proxy_id: The proxy you want to start using.
+    :param path_str: The initial file that should be served.
+    :returns: A redirection to a url which can be used to get the requested
+        file. This is done after setting some session variables that will be
+        used for identification and authorization.
+    """
     proxy = helpers.filter_single_or_404(
         models.Proxy,
         models.Proxy.id == proxy_id,
         with_for_update=True,
-        also_error=make_also_error(models.ProxyState.before_post),
+        also_error=_make_also_error(models.ProxyState.before_post),
     )
     proxy.state = models.ProxyState.in_use
     flask.session['proxy_pass'] = proxy.password
@@ -119,7 +126,7 @@ def get_proxy_file(
     proxy = helpers.get_or_404(
         models.Proxy,
         proxy_id,
-        also_error=make_also_error(
+        also_error=_make_also_error(
             models.ProxyState.in_use, ignore_expire=True
         ),
     )

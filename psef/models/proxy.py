@@ -40,6 +40,8 @@ def _search_candiate(
 
 
 class ProxyState(enum.IntEnum):
+    """The state that a proxy is in.
+    """
     before_post = 0
     in_use = 1
     deleted = 2
@@ -176,6 +178,13 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
 
     @property
     def password(self) -> str:
+        """Get the password of this proxy.
+
+        .. warning::
+
+            Only compare with this password using a method like
+            :meth:`hmac.compare_digest`
+        """
         return self._password
 
     @property

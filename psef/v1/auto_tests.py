@@ -5,8 +5,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import json
 import typing as t
-import numbers
-from uuid import UUID
 
 import werkzeug
 import structlog
