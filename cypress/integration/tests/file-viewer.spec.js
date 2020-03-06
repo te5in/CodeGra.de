@@ -66,19 +66,29 @@ context('FileViewer', () => {
             return cy.get('.settings-content').should('not.be.visible');
         }
 
-        function getOptionTR(name) {
-            return openSettings().contains('tr', name);
+        function getSettingsToggle(name) {
+            return openSettings()
+                .contains('tr', name)
+                .find('.toggle-container');
         }
 
         function hideComments() {
-            getOptionTR('Inline feedback')
-                .find('.toggle-container .label-off').click();
+            getSettingsToggle('Inline feedback')
+                .as('toggle')
+                .find('.label-off')
+                .click();
+            cy.get('@toggle')
+                .should('not.have.attr', 'checked');
             closeSettings();
         }
 
         function showComments() {
-            getOptionTR('Inline feedback')
-                .find('.toggle-container .label-on').click();
+            getSettingsToggle('Inline feedback')
+                .as('toggle')
+                .find('.label-on')
+                .click();
+            cy.get('@toggle')
+                .should('have.attr', 'checked');
             closeSettings();
         }
 
@@ -117,7 +127,7 @@ context('FileViewer', () => {
             openFile('timer.c');
             hideComments();
             openFile('lemon.c');
-            getOptionTR('Inline feedback').find('.toggle-container')
+            getSettingsToggle('Inline feedback')
                 .should('have.attr', 'checked')
                 .should('eq', 'checked');
         });
