@@ -142,17 +142,14 @@ export default {
 
         selectedItems() {
             const selected = this.$utils.getProps(this.internalResult, {}, 'selected');
-            return Object.entries(selected).reduce(
-                (acc, [rowId, item]) => {
-                    const points = parseFloat(item.points);
-                    const mult = parseFloat(item.multiplier);
-                    if (!Number.isNaN(points) && !Number.isNaN(mult)) {
-                        acc[rowId] = mult * points;
-                    }
-                    return acc;
-                },
-                {},
-            );
+            return Object.entries(selected).reduce((acc, [rowId, item]) => {
+                const points = parseFloat(item.points);
+                const mult = parseFloat(item.multiplier);
+                if (!Number.isNaN(points) && !Number.isNaN(mult)) {
+                    acc[rowId] = mult * points;
+                }
+                return acc;
+            }, {});
         },
 
         autoTestConfigId() {
