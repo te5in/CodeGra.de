@@ -235,7 +235,7 @@
 
                         <p class="mb-2">
                             The following categories contain only a single
-                            item; this means it is only possible to select
+                            item, which means it is only possible to select
                             this item, and an AutoTest will always select it:
                         </p>
 
@@ -266,8 +266,11 @@
                         <b>Rows without items with 0 points</b>
 
                         <p class="mb-2">
-                            The following categories do not contain an item
-                            with zero points:
+                            There are categories without an item with zero
+                            points, without which it may be unclear if the
+                            category is yet to be filled in or was
+                            intentionally left blank. The following categories
+                            do not contain an item with 0 points:
                         </p>
 
                         <ul>
