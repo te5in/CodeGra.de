@@ -363,7 +363,7 @@ export default {
         },
 
         exportDisabled() {
-            return Object.values(this.exportMatches).filter(x => x).length === 0;
+            return !Object.values(this.exportMatches).some(x => x);
         },
     },
 
