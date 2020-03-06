@@ -14,9 +14,12 @@ context('Sidebar', () => {
 
         cy.get('.sidebar .sidebar-entry-courses').click();
         cy.get('.sidebar .add-course-button').should('be.visible').click();
-        cy.get('.popover .submit-input input').should('be.visible');
-        cy.get('.popover .submit-input input').type(course);
-        cy.get('.popover .submit-input .btn').click();
+        cy.get('#add-course-popover')
+            .should('not.have.class', 'fade')
+            .within(() => {
+                cy.get('input').type(course);
+                cy.get('.submit-button').click();
+            });
 
         // Wait for manage-course page to be loaded.
         cy.get('.page.manage-course').should('exist');
@@ -31,10 +34,13 @@ context('Sidebar', () => {
             cy.visit(`/courses/${course.id}`);
         });
 
-        cy.get('.sidebar .add-assignment-button').click();
-        cy.get('.popover .submit-input input').should('be.visible');
-        cy.get('.popover .submit-input input').type(assig);
-        cy.get('.popover .submit-input .btn').click();
+        cy.get('.sidebar .add-assignment-button').should('be.visible').click();
+        cy.get('#add-assignment-popover')
+            .should('not.have.class', 'fade')
+            .within(() => {
+                cy.get('input').type(assig);
+                cy.get('.submit-button').click();
+            });
 
         // Wait for manage-assignment page to be loaded.
         cy.get('.page.manage-assignment').should('exist');

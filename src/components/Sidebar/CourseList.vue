@@ -46,6 +46,7 @@
                v-b-popover.hover.top="'Add new course'">
             <icon name="plus" style="margin-right: 0;"/>
             <b-popover :target="addButtonId"
+                       id="add-course-popover"
                        triggers="click blur"
                        placement="top">
                 <submit-input placeholder="New course name"

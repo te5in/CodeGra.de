@@ -47,6 +47,7 @@
                v-b-popover.hover.top="'Add new assignment'">
             <icon name="plus" style="margin-right: 0;"/>
             <b-popover :target="addButtonId"
+                       id="add-assignment-popover"
                        triggers="click blur"
                        placement="top">
                 <submit-input placeholder="New assignment name"
