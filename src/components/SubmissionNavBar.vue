@@ -17,10 +17,8 @@
                   class="text-center flex-grow-1">
                 <user :user="curSub.user"/> at {{ curSub.formattedCreatedAt }}
                 <webhook-name :submission="curSub" />
-                <!-- <span class="d-inline-block"> -->
                 <late-submission-icon :submission="curSub"
                                       :assignment="assignment"/>
-                <!-- </span> -->
                 <icon name="exclamation-triangle"
                       class="text-warning ml-1"
                       style="margin-bottom: -1px;"
