@@ -533,6 +533,7 @@ context('Rubric Editor', () => {
             addNormalRow('Category Without Items');
 
             submit('error', {
+                hasConfirm: true,
                 popoverMsg: [
                     'The following category has no items',
                     'Category Without Items',
