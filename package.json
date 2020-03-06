@@ -27,7 +27,7 @@
     "babel-plugin-add-module-exports": "^1.0.2",
     "babyparse": "^0.4.6",
     "bootstrap": "^4.4.1",
-    "bootstrap-vue": "^2.4.0",
+    "bootstrap-vue": "^2.6.0",
     "denque": "^1.4.1",
     "diff-match-patch": "^1.0.4",
     "escape-latex": "^1.2.0",
