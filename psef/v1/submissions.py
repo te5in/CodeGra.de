@@ -133,7 +133,9 @@ def get_feedback(work: models.Work) -> t.Mapping[str, str]:
     else:
         linter_comments = work.get_linter_feedback()
 
-    filename = f'{work.assignment.name}-{work.user.name}-feedback.txt'
+    filename = f'{work.assignment.name}-{work.user.name}-feedback.txt'.replace(
+        '/', '_'
+    )
 
     path, name = psef.files.random_file_path(True)
 
@@ -175,7 +177,10 @@ def get_zip(work: models.Work,
 
     return {
         'name': work.create_zip(exclude_owner),
-        'output_name': f'{work.assignment.name}-{work.user.name}-archive.zip'
+        'output_name':
+            f'{work.assignment.name}-{work.user.name}-archive.zip'.replace(
+                '/', '_'
+            )
     }
 
 
