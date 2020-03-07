@@ -829,7 +829,9 @@ export default {
                 .then(({ data }) => {
                     const params = new URLSearchParams();
                     params.append('not_as_attachment', '');
-                    const url = `/api/v1/files/${data.name}/${encodeURIComponent(data.output_name)}?${params.toString()}`;
+                    const url = `/api/v1/files/${data.name}/${encodeURIComponent(
+                        data.output_name,
+                    )}?${params.toString()}`;
                     window.open(url);
                 });
         },
