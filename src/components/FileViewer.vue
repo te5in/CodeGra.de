@@ -182,69 +182,7 @@ export default {
 
         dynamicClasses() {
             if (this.fileData) {
-* Add initial version to render html files
-
-* Fix proxy for AutoTest files
-
-* Fix pylint error
-
-* Add some tests for html viewer and proxy
-
-* Fix deletion of proxies when AT run is deleted
-
-* Rewrite filetree to fix unit tests
-
-* Make absolute urls work as expected
-
-* Add migration
-
-* Respect proxy's max_age
-
-* Show error message when can't store session
-
-* Make it possible to switch between rendered and source views
-
-* Remove assertion
-
-* Also allow uppercase file extensions
-
-* Fade filename only after clicking on a link
-
-* Fix id watcher
-
-* Limit the amount of times proxies can be used to one
-
-* Add feature flag for rendering html
-
-* Fix permission for seeing files
-
-* Add some tests for groups and teacher revisions
-
-* Start using different domains for proxies
-
-* Try to fix doctests
-
-* Fix formatting
-
-* Fix pylint errors
-
-* Fix review comments
-
-* Improve test coverage
-
-* Fix failing linters
-
-* Fix file tree for students
-
-They do not have a teacher tree, which made `hasAnyRevision` throw an exception.
-
-* Fix config.ini.example
-
-* Fix comments by Olmo
-
-* Sort diff tree case insensitively
-
-* Enable html render feature in tests                return `${this.fileData.component.name} border rounded ${
+               return `${this.fileData.component.name} border rounded ${
                     this.loading ? 'loading' : ''
                 }`;
             } else {
