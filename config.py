@@ -9,6 +9,7 @@ import subprocess
 from configparser import ConfigParser
 
 from mypy_extensions import TypedDict
+from typing_extensions import Literal
 
 config_file = os.getenv('CODEGRADE_CONFIG_FILE', 'config.ini')
 
@@ -125,7 +126,7 @@ FlaskConfig = TypedDict(
         '_TRANSIP_USERNAME': str,
         'ADMIN_USER': t.Optional[str],
         'GIT_CLONE_PROGRAM': t.List[str],
-        'SESSION_COOKIE_SAMESITE': t.Literal['None', 'Strict', 'Lax'],
+        'SESSION_COOKIE_SAMESITE': Literal['None', 'Strict', 'Lax'],
         'SESSION_COOKIE_SECURE': bool,
     },
     total=True
