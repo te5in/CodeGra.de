@@ -125,6 +125,8 @@ FlaskConfig = TypedDict(
         '_TRANSIP_USERNAME': str,
         'ADMIN_USER': t.Optional[str],
         'GIT_CLONE_PROGRAM': t.List[str],
+        'SESSION_COOKIE_SAMESITE': t.Literal['None', 'Strict', 'Lax'],
+        'SESSION_COOKIE_SECURE': bool,
     },
     total=True
 )
