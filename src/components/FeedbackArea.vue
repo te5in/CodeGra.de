@@ -613,6 +613,7 @@ export default {
 @import '~mixins.less';
 
 .snippet-list-wrapper {
+    .default-text-colors;
     position: absolute;
     width: 100%;
     top: 100%;
@@ -843,6 +844,7 @@ button {
 .editable-feedback-area {
     position: relative;
     min-height: 7em;
+    font-size: 1em;
 }
 
 .snippet-icon {
