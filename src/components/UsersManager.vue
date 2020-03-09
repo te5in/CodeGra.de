@@ -56,9 +56,8 @@
                         <td class="align-middle">
                             <div class="d-flex">
                                 <code style="word-break: break-all"
-                                      :style="{ textDecoration: isLinkExpired(link) ? 'line-through' : 'none' }">
-                                    {{ getRegistrationLinkUrl(link) }}
-                                </code>
+                                      :style="{ textDecoration: isLinkExpired(link) ? 'line-through' : 'none' }"
+                                      >{{ getRegistrationLinkUrl(link) }}</code>
                             </div>
                         </td>
                     </template>
