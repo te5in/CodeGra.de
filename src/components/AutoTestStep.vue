@@ -254,12 +254,12 @@
 <tbody v-else class="auto-test-step">
     <template v-if="value.type === 'check_points'">
         <tr class="step-summary"
-            :class="{ 'with-output': canViewOutput }"
+            :class="{ 'with-output': canViewOutput, 'text-muted': value.hidden }"
             :key="resultsCollapseId"
             v-cg-toggle="resultsCollapseId">
             <td class="expand shrink">
-                <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
-                <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
+                <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" class="caret" />
+                <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
                       v-b-popover.hover.top="hiddenPopover" />
             </td>
             <td class="shrink">{{ index }}</td>
@@ -291,12 +291,12 @@
 
     <template v-else-if="value.type === 'run_program'">
         <tr class="step-summary"
-            :class="{ 'with-output': canViewOutput }"
+            :class="{ 'with-output': canViewOutput, 'text-muted': value.hidden }"
             :key="resultsCollapseId"
             v-cg-toggle="resultsCollapseId">
             <td class="expand shrink">
-                <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" />
-                <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
+                <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" class="caret" />
+                <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
                       v-b-popover.hover.top="hiddenPopover" />
             </td>
             <td class="shrink">{{ index }}</td>
@@ -366,12 +366,12 @@
 
     <template v-else-if="value.type === 'custom_output'">
         <tr class="step-summary"
-            :class="{ 'with-output': canViewDetails }"
+            :class="{ 'with-output': canViewDetails, 'text-muted': value.hidden }"
             :key="resultsCollapseId"
             v-cg-toggle="resultsCollapseId">
             <td class="expand shrink">
-                <icon v-if="canViewDetails" name="chevron-down" :scale="0.75" />
-                <icon v-else-if="value.hidden" name="eye-slash" :scale="0.85"
+                <icon v-if="canViewDetails" name="chevron-down" :scale="0.75" class="caret" />
+                <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
                       v-b-popover.hover.top="hiddenPopover" />
             </td>
             <td class="shrink">{{ index }}</td>
@@ -496,7 +496,7 @@
     </template>
 
     <template v-else-if="value.type === 'io_test'">
-        <tr>
+        <tr :class="{ 'text-muted': value.hidden }">
             <td class="expand shrink">
                 <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
                       v-b-popover.hover.top="hiddenPopover" />
@@ -523,11 +523,11 @@
 
         <template v-for="input, i in inputs">
             <tr class="step-summary"
-                :class="{ 'with-output': canViewDetails }"
+                :class="{ 'with-output': canViewDetails, 'text-muted': value.hidden }"
                 :key="`${resultsCollapseId}-${i}`"
                 v-cg-toggle="`${resultsCollapseId}-${i}`">
                 <td class="expand shrink">
-                    <icon v-if="canViewDetails" name="chevron-down" :scale="0.75" />
+                    <icon v-if="canViewDetails" name="chevron-down" :scale="0.75" class="caret" />
                 </td>
                 <td class="shrink">{{ index }}.{{ i + 1 }}</td>
                 <td>
@@ -1291,7 +1291,7 @@ export default {
 
     .x-collapsing .handle .fa-icon,
     .x-collapsed .handle .fa-icon,
-    &.collapsed .fa-icon {
+    &.collapsed .caret {
         transform: translateY(-2px) rotate(-90deg);
     }
 }
@@ -1315,8 +1315,12 @@ export default {
             transition: transform 300ms;
         }
 
-        &.collapsed .expand .fa-icon {
+        &.collapsed .expand .caret {
             transform: rotate(-90deg);
+        }
+
+        .caret + .fa-icon {
+            margin-left: 0.333rem;
         }
     }
 }
