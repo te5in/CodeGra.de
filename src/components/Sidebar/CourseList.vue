@@ -46,11 +46,12 @@
                v-b-popover.hover.top="'Add new course'">
             <icon name="plus" style="margin-right: 0;"/>
             <b-popover :target="addButtonId"
-                       id="add-course-popover"
-                       triggers="click blur"
+                       :id="popoverId"
+                       triggers="click"
                        placement="top">
                 <submit-input placeholder="New course name"
-                              @create="createNewCourse"/>
+                              @create="createNewCourse"
+                              @cancel="closePopover"/>
             </b-popover>
         </b-btn>
     </b-button-group>
@@ -81,9 +82,11 @@ export default {
     },
 
     data() {
+        const id = idNum++;
         return {
             filter: '',
-            addButtonId: `course-add-btn-${idNum++}`,
+            addButtonId: `course-add-btn-${id}`,
+            popoverId: `course-add-popover-${id}`,
             showAddButton: false,
         };
     },
@@ -194,23 +197,31 @@ export default {
                     name,
                 })
                 .then(
-                    ({ data: course }) => {
-                        this.$emit('loading');
-                        resolve();
-                        return this.reloadCourses().then(() => {
-                            this.$emit('loaded');
-                            this.$router.push({
-                                name: 'manage_course',
-                                params: {
-                                    courseId: course.id,
-                                },
+                    res => {
+                        const course = res.data;
+                        res.onAfterSuccess = () => {
+                            this.$emit('loading');
+                            this.reloadCourses().then(() => {
+                                this.$emit('loaded');
+                                this.$router.push({
+                                    name: 'manage_course',
+                                    params: {
+                                        courseId: course.id,
+                                    },
+                                });
                             });
-                        });
+                        };
+
+                        resolve(res);
                     },
                     err => {
                         reject(err);
                     },
                 );
+        },
+
+        closePopover() {
+            this.$root.$emit('bv::hide::popover', this.popoverId);
         },
     },
 
