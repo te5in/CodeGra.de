@@ -308,27 +308,7 @@ def get_file_contents(code: models.FileMixin[T]) -> bytes:
     :param code: The file object to read.
     :returns: The contents of the file with newlines.
     """
-    if code.is_directory:
-        raise APIException(
-            'Cannot display this file as it is a directory.',
-            f'The selected file with id {code.get_id()} is a directory.',
-            APICodes.OBJECT_WRONG_TYPE, 400
-        )
-
-    filename = code.get_diskname()
-    if os.path.islink(filename):  # pragma: no cover
-        # This should not be possible as we replace symlinks with regular
-        # files on submission.
-        logger.error(
-            'Symlink found in uploads directory',
-            filename=filename,
-        )
-        raise APIException(
-            f'This file is a symlink to `{os.readlink(filename)}`.',
-            f'The file {code.get_id()} is a symlink', APICodes.INVALID_STATE,
-            410
-        )
-    with open(filename, 'rb') as codefile:
+    with code.open() as codefile:
         return codefile.read()
 
 
