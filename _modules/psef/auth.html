@@ -898,8 +898,9 @@
 <span class="sd">    :raises PermissionException: If the user should not be able te see these</span>
 <span class="sd">        files.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cur_user</span> <span class="o">=</span> <span class="n">_get_cur_user</span><span class="p">()</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">work</span><span class="o">.</span><span class="n">has_as_author</span><span class="p">(</span><span class="n">_get_cur_user</span><span class="p">()):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">work</span><span class="o">.</span><span class="n">has_as_author</span><span class="p">(</span><span class="n">cur_user</span><span class="p">):</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">ensure_permission</span><span class="p">(</span>
                     <span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_others_work</span><span class="p">,</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span>
@@ -910,9 +911,7 @@
                 <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">teacher_files</span><span class="p">:</span>
-            <span class="k">if</span> <span class="p">(</span>
-                <span class="n">work</span><span class="o">.</span><span class="n">user_id</span> <span class="o">==</span> <span class="n">_get_cur_user</span><span class="p">()</span><span class="o">.</span><span class="n">id</span> <span class="ow">and</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">is_done</span>
-            <span class="p">):</span>
+            <span class="k">if</span> <span class="n">work</span><span class="o">.</span><span class="n">has_as_author</span><span class="p">(</span><span class="n">cur_user</span><span class="p">)</span> <span class="ow">and</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">is_done</span><span class="p">:</span>
                 <span class="n">ensure_permission</span><span class="p">(</span>
                     <span class="n">CPerm</span><span class="o">.</span><span class="n">can_view_own_teacher_files</span><span class="p">,</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span>
                 <span class="p">)</span>
@@ -935,7 +934,7 @@
             <span class="o">|</span> <span class="p">(</span><span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">PlagiarismCase</span><span class="o">.</span><span class="n">work2_id</span> <span class="o">==</span> <span class="n">work</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
         <span class="p">):</span>
             <span class="n">other_work</span> <span class="o">=</span> <span class="n">case</span><span class="o">.</span><span class="n">work1</span> <span class="k">if</span> <span class="n">case</span><span class="o">.</span><span class="n">work2_id</span> <span class="o">==</span> <span class="n">work</span><span class="o">.</span><span class="n">id</span> <span class="k">else</span> <span class="n">case</span><span class="o">.</span><span class="n">work2</span>
-            <span class="k">if</span> <span class="n">_get_cur_user</span><span class="p">()</span><span class="o">.</span><span class="n">has_permission</span><span class="p">(</span>
+            <span class="k">if</span> <span class="n">cur_user</span><span class="o">.</span><span class="n">has_permission</span><span class="p">(</span>
                 <span class="n">CPerm</span><span class="o">.</span><span class="n">can_view_plagiarism</span><span class="p">,</span>
                 <span class="n">course_id</span><span class="o">=</span><span class="n">other_work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span><span class="p">,</span>
             <span class="p">):</span>

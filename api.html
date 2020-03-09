@@ -352,123 +352,147 @@ working.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#get--api-v1-proxies-(uuid-proxy_id)-(path-path_str)">GET /api/v1/proxies/(uuid:proxy_id)/(path:path_str)</a></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#get--api-v1-proxies-(uuid-proxy_id)-">GET /api/v1/proxies/(uuid:proxy_id)/</a></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#get--api-v1-proxies-(path-path_str)">GET /api/v1/proxies/(path:path_str)</a></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#get--api-v1-proxies-">GET /api/v1/proxies/</a></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#post--api-v1-proxies-(uuid-proxy_id)-(path-path_str)">POST /api/v1/proxies/(uuid:proxy_id)/(path:path_str)</a></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-code-(uuid-file_id)">GET /api/v1/code/(uuid:file_id)</a></p></td>
 <td></td>
 </tr>
-<tr class="row-odd"><td><p>About</p></td>
+<tr class="row-even"><td><p>About</p></td>
 <td><p><a class="reference external" href="#get--api-v1-about">GET /api/v1/about</a></p></td>
 <td><p>Get the version and features.</p></td>
 </tr>
-<tr class="row-even"><td><p>Assignment</p></td>
+<tr class="row-odd"><td><p>Assignment</p></td>
 <td><p><a class="reference external" href="#get--api-v1-assignments-">GET /api/v1/assignments/</a></p></td>
 <td><p>Get all assignments.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#delete--api-v1-assignments-(int-assignment_id)-graders-(int-grader_id)-done">DELETE /api/v1/assignments/(int:assignment_id)/graders/(int:grader_id)/done</a></p></td>
 <td><p>Set the grader status to ‘not done’.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#post--api-v1-assignments-(int-assignment_id)-graders-(int-grader_id)-done">POST /api/v1/assignments/(int:assignment_id)/graders/(int:grader_id)/done</a></p></td>
 <td><p>Set the grader status to ‘done’.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-assignments-(int-assignment_id)-groups-(int-group_id)-member_states-">GET /api/v1/assignments/(int:assignment_id)/groups/(int:group_id)/member_states/</a></p></td>
 <td><p>Get LTI states for members of a group.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-assignments-(int-assignment_id)-users-(int-user_id)-submissions-">GET /api/v1/assignments/(int:assignment_id)/users/(int:user_id)/submissions/</a></p></td>
 <td><p>Get all works for an assignment for a given user.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#post--api-v1-assignments-(int-assignment_id)-webhook_settings">POST /api/v1/assignments/(int:assignment_id)/webhook_settings</a></p></td>
 <td><p>Get webhook settings to hand-in submissions.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#patch--api-v1-assignments-(int-assignment_id)-division_parent">PATCH /api/v1/assignments/(int:assignment_id)/division_parent</a></p></td>
 <td><p>Change the division parent of an assignment.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-assignments-(int-assignment_id)-submissions-">GET /api/v1/assignments/(int:assignment_id)/submissions/</a></p></td>
 <td><p>Get all works for an assignment.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#post--api-v1-assignments-(int-assignment_id)-submissions-">POST /api/v1/assignments/(int:assignment_id)/submissions/</a></p></td>
 <td><p>Create works from a blackboard zip.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#post--api-v1-assignments-(int-assignment_id)-submission">POST /api/v1/assignments/(int:assignment_id)/submission</a></p></td>
 <td><p>Create work by uploading a file.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-assignments-(int-assignment_id)-plagiarism-">GET /api/v1/assignments/(int:assignment_id)/plagiarism/</a></p></td>
 <td><p>Get all plagiarism runs for an assignment.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#post--api-v1-assignments-(int-assignment_id)-plagiarism">POST /api/v1/assignments/(int:assignment_id)/plagiarism</a></p></td>
 <td><p>Run a plagiarism checker for an assignment.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-assignments-(int-assignment_id)-feedbacks-">GET /api/v1/assignments/(int:assignment_id)/feedbacks/</a></p></td>
 <td><p>Get feedback for all submissions in a assignment.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-assignments-(int-assignment_id)-rubrics-">GET /api/v1/assignments/(int:assignment_id)/rubrics/</a></p></td>
 <td><p>Get the rubric of an assignment.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#delete--api-v1-assignments-(int-assignment_id)-rubrics-">DELETE /api/v1/assignments/(int:assignment_id)/rubrics/</a></p></td>
 <td><p>Delete the rubric of an assignment.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#put--api-v1-assignments-(int-assignment_id)-rubrics-">PUT /api/v1/assignments/(int:assignment_id)/rubrics/</a></p></td>
 <td><p>Add a rubric to an assignment.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-assignments-(int-assignment_id)-graders-">GET /api/v1/assignments/(int:assignment_id)/graders/</a></p></td>
 <td><p>Get all graders for an assignment.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-assignments-(int-assignment_id)-linters-">GET /api/v1/assignments/(int:assignment_id)/linters/</a></p></td>
 <td><p>Get all linters for a assignment.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#post--api-v1-assignments-(int-assignment_id)-rubric">POST /api/v1/assignments/(int:assignment_id)/rubric</a></p></td>
 <td><p>Import a rubric from a different assignment.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#patch--api-v1-assignments-(int-assignment_id)-divide">PATCH /api/v1/assignments/(int:assignment_id)/divide</a></p></td>
 <td><p>Divide a submission among given TA’s.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#post--api-v1-assignments-(int-assignment_id)-linter">POST /api/v1/assignments/(int:assignment_id)/linter</a></p></td>
 <td><p>Start linting an assignment with a given linter.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#delete--api-v1-assignments-(int-assignment_id)">DELETE /api/v1/assignments/(int:assignment_id)</a></p></td>
 <td><p>Delete a single assignment by id.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-assignments-(int-assignment_id)">GET /api/v1/assignments/(int:assignment_id)</a></p></td>
 <td><p>Get a single assignment by id.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#patch--api-v1-assignments-(int-assignment_id)">PATCH /api/v1/assignments/(int:assignment_id)</a></p></td>
 <td><p>Update assignment information.</p></td>
 </tr>
-<tr class="row-even"><td><p>AutoTest</p></td>
+<tr class="row-odd"><td><p>AutoTest</p></td>
 <td><p><a class="reference external" href="#post--api-v1-auto_tests-">POST /api/v1/auto_tests/</a></p></td>
 <td><p>Create a new AutoTest configuration.</p></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#post--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)-results-(int-result_id)-suites-(int-suite_id)-proxy">POST /api/v1/auto_tests/(int:auto_test_id)/runs/(int:run_id)/results/(int:result_id)/suites/(int:suite_id)/proxy</a></p></td>
+<td><p>Create a proxy to view the files a result.</p></td>
 </tr>
 <tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)-users-(int-user_id)-results-">GET /api/v1/auto_tests/(int:auto_test_id)/runs/(int:run_id)/users/(int:user_id)/results/</a></p></td>
 <td><p>Get all AutoTest results for a given.</p></td>
 </tr>
 <tr class="row-even"><td></td>
-<td><p><a class="reference external" href="#delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">DELETE /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)/hide</a></p></td>
+<td><p><a class="reference external" href="#post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">POST /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)/hide</a></p></td>
 <td><p>Change the hidden state of a fixture.</p></td>
 </tr>
 <tr class="row-odd"><td></td>
-<td><p><a class="reference external" href="#post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">POST /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)/hide</a></p></td>
+<td><p><a class="reference external" href="#delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">DELETE /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)/hide</a></p></td>
 <td></td>
 </tr>
 <tr class="row-even"><td></td>
@@ -796,38 +820,42 @@ working.</p>
 <td><p>Get the directory contents for a submission.</p></td>
 </tr>
 <tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#post--api-v1-submissions-(int-submission_id)-proxy">POST /api/v1/submissions/(int:submission_id)/proxy</a></p></td>
+<td><p>Create a proxy to view the files of a submission</p></td>
+</tr>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-submissions-(int-submission_id)">GET /api/v1/submissions/(int:submission_id)</a></p></td>
 <td><p>Get a single submission.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#delete--api-v1-submissions-(int-submission_id)">DELETE /api/v1/submissions/(int:submission_id)</a></p></td>
 <td><p>Delete a submission and all its files.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#patch--api-v1-submissions-(int-submission_id)">PATCH /api/v1/submissions/(int:submission_id)</a></p></td>
 <td><p>Update a submissions grade and feedback.</p></td>
 </tr>
-<tr class="row-even"><td><p>User</p></td>
+<tr class="row-odd"><td><p>User</p></td>
 <td><p><a class="reference external" href="#post--api-v1-login">POST /api/v1/login</a></p></td>
 <td><p>Login a given user.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-login">GET /api/v1/login</a></p></td>
 <td><p>Get information about the currently logged in user.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#patch--api-v1-login">PATCH /api/v1/login</a></p></td>
 <td><p>Update the currently logged users information or reset a password.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-users-">GET /api/v1/users/</a></p></td>
 <td><p>Fuzzy search for a user by name and username.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#post--api-v1-user">POST /api/v1/user</a></p></td>
 <td><p>Create a new user by registering it.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Webhook</p></td>
+<tr class="row-even"><td><p>Webhook</p></td>
 <td><p><a class="reference external" href="#post--api-v1-webhooks-(uuid-webhook_id)">POST /api/v1/webhooks/(uuid:webhook_id)</a></p></td>
 <td><p>Process a webhook request.</p></td>
 </tr>
@@ -1743,9 +1771,9 @@ add the webhook to your provider.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></p>
 </dd>
 </dl>
-<dl class="delete">
-<dt id="delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">
-<code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">at_id</em><span class="sig-paren">)</span><code class="sig-name descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">fixture_id</em><span class="sig-paren">)</span><code class="sig-name descname">/hide</code><a class="headerlink" href="#delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
+<dl class="post">
+<dt id="post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">at_id</em><span class="sig-paren">)</span><code class="sig-name descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">fixture_id</em><span class="sig-paren">)</span><code class="sig-name descname">/hide</code><a class="headerlink" href="#post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
 <dd><p>Change the visibility of the given fixture.</p>
 <p>Doing a <code class="docutils literal notranslate"><span class="pre">POST</span></code> request to this route will hide the fixture, doing a
 <code class="docutils literal notranslate"><span class="pre">DELETE</span></code> request to this route will set <code class="docutils literal notranslate"><span class="pre">hidden</span></code> to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
@@ -1764,9 +1792,9 @@ add the webhook to your provider.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="post">
-<dt id="post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">
-<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">at_id</em><span class="sig-paren">)</span><code class="sig-name descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">fixture_id</em><span class="sig-paren">)</span><code class="sig-name descname">/hide</code><a class="headerlink" href="#post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
+<dl class="delete">
+<dt id="delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">
+<code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">at_id</em><span class="sig-paren">)</span><code class="sig-name descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">fixture_id</em><span class="sig-paren">)</span><code class="sig-name descname">/hide</code><a class="headerlink" href="#delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
 <dd><p>Change the visibility of the given fixture.</p>
 <p>Doing a <code class="docutils literal notranslate"><span class="pre">POST</span></code> request to this route will hide the fixture, doing a
 <code class="docutils literal notranslate"><span class="pre">DELETE</span></code> request to this route will set <code class="docutils literal notranslate"><span class="pre">hidden</span></code> to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
@@ -1982,6 +2010,41 @@ that results will not be serialized as an extended version.</p>
 <dl class="field-list simple">
 <dt class="field-odd">rtype</dt>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.auto_test.AutoTestResult" title="psef.models.auto_test.AutoTestResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTestResult</span></code></a>]</p>
+</dd>
+</dl>
+<dl class="post">
+<dt id="post--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)-results-(int-result_id)-suites-(int-suite_id)-proxy">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><code class="sig-name descname">/runs/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">run_id</em><span class="sig-paren">)</span><code class="sig-name descname">/results/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">result_id</em><span class="sig-paren">)</span><code class="sig-name descname">/suites/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">suite_id</em><span class="sig-paren">)</span><code class="sig-name descname">/proxy</code><a class="headerlink" href="#post--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)-results-(int-result_id)-suites-(int-suite_id)-proxy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a proxy to view the files of the given AT result through.</p>
+<p>This allows you to view files of an AutoTest result (within a suite)
+without authentication for a limited time.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>auto_test_id</strong> – The id of the AutoTest in which the result is located.</p></li>
+<li><p><strong>run_id</strong> – The id of run in which the result is located.</p></li>
+<li><p><strong>result_id</strong> – The id of the result from which you want to get the
+files.</p></li>
+<li><p><strong>suite_id</strong> – The suite from which you want to proxy the output files.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Request JSON Object</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>allow_remote_resources</strong> (<em>bool</em>) – Allow the proxy to load remote
+resources.</p></li>
+<li><p><strong>allow_remote_scripts</strong> (<em>bool</em>) – Allow the proxy to load remote scripts,
+and allow to usage of ‘eval’.</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Response JSON Object</dt>
+<dd class="field-odd"><p>The created proxy.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Proxy</span></code>]</p>
 </dd>
 </dl>
 <dl class="get">
@@ -3818,6 +3881,67 @@ cases for the course associated with the run. (INCORRECT_PERMISSION)</p>
 </dd>
 </dl>
 <dl class="get">
+<dt id="get--api-v1-proxies-(uuid-proxy_id)-(path-path_str)">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/proxies/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">proxy_id</em><span class="sig-paren">)</span><code class="sig-name descname">/</code><span class="sig-paren">(</span><em class="property">path: </em><em class="sig-param">path_str</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-proxies-(uuid-proxy_id)-(path-path_str)" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="get">
+<dt id="get--api-v1-proxies-(uuid-proxy_id)-">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/proxies/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">proxy_id</em><span class="sig-paren">)</span><code class="sig-name descname">/</code><a class="headerlink" href="#get--api-v1-proxies-(uuid-proxy_id)-" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="get">
+<dt id="get--api-v1-proxies-(path-path_str)">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/proxies/</code><span class="sig-paren">(</span><em class="property">path: </em><em class="sig-param">path_str</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-proxies-(path-path_str)" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="get">
+<dt id="get--api-v1-proxies-">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/proxies/</code><a class="headerlink" href="#get--api-v1-proxies-" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a file for the given proxy.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>proxy_id</strong> – The proxy in which you want to get a file.</p></li>
+<li><p><strong>path</strong> – The path of the file you want to get.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Response JSON Object</dt>
+<dd class="field-even"><p>The found file, or a 404 error.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></p>
+</dd>
+</dl>
+<dl class="post">
+<dt id="post--api-v1-proxies-(uuid-proxy_id)-(path-path_str)">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/proxies/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">proxy_id</em><span class="sig-paren">)</span><code class="sig-name descname">/</code><span class="sig-paren">(</span><em class="property">path: </em><em class="sig-param">path_str</em><span class="sig-paren">)</span><a class="headerlink" href="#post--api-v1-proxies-(uuid-proxy_id)-(path-path_str)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Start using the given proxy.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>proxy_id</strong> – The proxy you want to start using.</p></li>
+<li><p><strong>path_str</strong> – The initial file that should be served.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Response JSON Object</dt>
+<dd class="field-even"><p>A redirection to a url which can be used to get the requested
+file. This is done after setting some session variables that will be
+used for identification and authorization.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></p>
+</dd>
+</dl>
+<dl class="get">
 <dt id="get--api-v1-roles-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/roles/</code><a class="headerlink" href="#get--api-v1-roles-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all global roles with their permissions</p>
@@ -4291,6 +4415,39 @@ permission to grade this submission. (INCORRECT_PERMISSION)</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">rtype</dt>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
+</dd>
+</dl>
+<dl class="post">
+<dt id="post--api-v1-submissions-(int-submission_id)-proxy">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><code class="sig-name descname">/proxy</code><a class="headerlink" href="#post--api-v1-submissions-(int-submission_id)-proxy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a proxy to view the files of the given submission through.</p>
+<p>This allows you to view files of a submission without authentication for a
+limited time.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>submission_id</strong> – The submission for which the proxy should be created.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Request JSON Object</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>allow_remote_resources</strong> (<em>bool</em>) – Allow the proxy to load remote
+resources.</p></li>
+<li><p><strong>allow_remote_scripts</strong> (<em>bool</em>) – Allow the proxy to load remote scripts,
+and allow to usage of ‘eval’.</p></li>
+<li><p><strong>teacher_revision</strong> – Create a proxy for the teacher revision of the
+submission.</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Response JSON Object</dt>
+<dd class="field-odd"><p>The created proxy.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Proxy</span></code>]</p>
 </dd>
 </dl>
 <dl class="patch">
