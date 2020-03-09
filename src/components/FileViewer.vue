@@ -182,7 +182,7 @@ export default {
 
         dynamicClasses() {
             if (this.fileData) {
-               return `${this.fileData.component.name} border rounded ${
+                return `${this.fileData.component.name} border rounded ${
                     this.loading ? 'loading' : ''
                 }`;
             } else {
