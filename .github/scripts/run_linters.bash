@@ -1,6 +1,7 @@
 #!/bin/bash
 set -o xtrace
 
+printf '[Back-end]\nproxy_base_domain = test.com' > config.ini
 npm run build &
 NPM_PID="$!"
 
