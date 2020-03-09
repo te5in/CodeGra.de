@@ -351,7 +351,7 @@ export default {
     display: flex;
 }
 
-.html-viewer .html-viewer-opts .form-row {
+.html-viewer .html-viewer-opts .form-group {
     display: flex;
 
     label {
