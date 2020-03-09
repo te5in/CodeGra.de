@@ -261,7 +261,7 @@ context('Rubric Editor', () => {
     });
 
     context('Editing an existing rubric', () => {
-        const rubricPoints = [[1], [1, 2, 3], [2], [4, 5, 6]];
+        const rubricPoints = [[1], [0, 1, 2, 3], [2], [0, 4, 5, 6]];
         const rubric = new Rubric(...rubricPoints);
 
         function addRow() {
@@ -383,8 +383,8 @@ context('Rubric Editor', () => {
 
         it('should be possible to add a normal rubric row', () => {
             addNormalRow('Normal Row', 'Description');
+            addItem(0, '0 points');
             addItem(1, '1 point');
-            addItem(2, '2 points');
             submit('success');
             loadPage(true);
 
@@ -397,8 +397,8 @@ context('Rubric Editor', () => {
 
         it('should be possible to delete a normal rubric row', () => {
             addNormalRow('Normal Row');
+            addItem(0, '0 points');
             addItem(1, '1 point');
-            addItem(2, '2 points');
             submit('success');
             loadPage(true);
 
@@ -414,8 +414,8 @@ context('Rubric Editor', () => {
 
         it('should only delete normal rows after submitting the rubric', () => {
             addNormalRow('Normal Row');
+            addItem(0, '0 points');
             addItem(1, '1 point');
-            addItem(2, '2 points');
             submit('success');
             loadPage(true);
 
@@ -428,21 +428,21 @@ context('Rubric Editor', () => {
 
         it('should be possible to add items to a normal rubric row', () => {
             addNormalRow('Normal Row');
+            addItem(0, '0 points', '0 points');
             addItem(1, '1 point', '1 point');
-            addItem(2, '2 points', '2 points');
             submit('success');
             loadPage(true);
 
             showRow('Normal Row');
             cy.get('.rubric-editor .rubric-item:visible:nth-child(1)').within(() => {
+                cy.get('.points').should('have.value', '0');
+                cy.get('.header').should('have.value', '0 points');
+                cy.get('.description').should('have.value', '0 points');
+            });
+            cy.get('.rubric-editor .rubric-item:visible:nth-child(2)').within(() => {
                 cy.get('.points').should('have.value', '1');
                 cy.get('.header').should('have.value', '1 point');
                 cy.get('.description').should('have.value', '1 point');
-            });
-            cy.get('.rubric-editor .rubric-item:visible:nth-child(2)').within(() => {
-                cy.get('.points').should('have.value', '2');
-                cy.get('.header').should('have.value', '2 points');
-                cy.get('.description').should('have.value', '2 points');
             });
         });
 
@@ -460,8 +460,8 @@ context('Rubric Editor', () => {
 
         it('should be possible to delete items from a normal rubric row', () => {
             addNormalRow('Normal Row');
+            addItem(0, '0 points', '0 points');
             addItem(1, '1 point', '1 point');
-            addItem(2, '2 points', '2 points');
             submit('success');
             loadPage(true);
 
@@ -533,6 +533,11 @@ context('Rubric Editor', () => {
             addNormalRow('Category Without Items');
 
             submit('error', {
+                hasConfirm: true,
+                confirmMsg: [
+                    'Rows without items with 0 points',
+                    'Category Without Items',
+                ],
                 popoverMsg: [
                     'The following category has no items',
                     'Category Without Items',
@@ -589,6 +594,23 @@ context('Rubric Editor', () => {
                 confirmMsg: [
                     'Rows with only a single item',
                     'Single Item',
+                ],
+            });
+        });
+
+        it('should show a confirmation popover when a normal category does not contain an item with 0 points', () => {
+            addNormalRow('No 0 Item');
+            addItem(1, 'First Item');
+            addNormalRow('No 0 Item 2');
+            addItem(-1, 'First Item');
+
+            submit('success', {
+                waitForState: false,
+                hasConfirm: true,
+                confirmMsg: [
+                    'Rows without items with 0 points',
+                    'No 0 Item',
+                    'No 0 Item 2',
                 ],
             });
         });
@@ -697,9 +719,9 @@ context('Rubric Editor', () => {
             cy.get('.rubric-editor .tab-pane:nth-child(2) .rubric-editor-row').within(() => {
                 cy.get('.category-name').should('have.value', 'rubric row 1');
                 cy.get('.category-description').should('have.value', 'rubric row 1');
-                cy.get('.rubric-item:first-child .points').should('have.value', '1');
-                cy.get('.rubric-item:first-child .header').should('have.value', '1 points');
-                cy.get('.rubric-item:first-child .description').should('have.value', '1 points');
+                cy.get('.rubric-item:first-child .points').should('have.value', '0');
+                cy.get('.rubric-item:first-child .header').should('have.value', '0 points');
+                cy.get('.rubric-item:first-child .description').should('have.value', '0 points');
             });
 
             cy.get('.rubric-editor .tab-pane:nth-child(3) .rubric-editor-row').within(() => {
@@ -711,9 +733,9 @@ context('Rubric Editor', () => {
             cy.get('.rubric-editor .tab-pane:nth-child(4) .rubric-editor-row').within(() => {
                 cy.get('.category-name').should('have.value', 'rubric row 3');
                 cy.get('.category-description').should('have.value', 'rubric row 3');
-                cy.get('.rubric-item:first-child .points').should('have.value', '4');
-                cy.get('.rubric-item:first-child .header').should('have.value', '4 points');
-                cy.get('.rubric-item:first-child .description').should('have.value', '4 points');
+                cy.get('.rubric-item:first-child .points').should('have.value', '0');
+                cy.get('.rubric-item:first-child .header').should('have.value', '0 points');
+                cy.get('.rubric-item:first-child .description').should('have.value', '0 points');
             });
 
             cy.get('.rubric-editor .tab-pane:nth-child(5)').should('not.exist');
