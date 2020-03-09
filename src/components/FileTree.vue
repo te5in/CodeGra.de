@@ -8,6 +8,7 @@
     <file-tree-inner :file-tree="fileTree"
                      :tree="fileTree.student"
                      :collapse-function="collapseFunction"
+                     :fade-selected="fadeSelected"
                      collapsed
                      revision="student"
                      :icon="submission.user.group ? 'user-plus' : 'user'"
@@ -32,6 +33,7 @@
                          :collapse-function="collapseFunction"
                          collapsed
                          fade-unchanged
+                         :fade-selected="fadeSelected"
                          revision="teacher"
                          icon="graduation-cap"
                          class="teacher-tree">
@@ -119,10 +121,6 @@ export default {
             type: Function,
             default: () => true,
         },
-        canSeeRevision: {
-            type: Boolean,
-            default: false,
-        },
         revision: {
             type: String,
             default: '',
@@ -137,8 +135,28 @@ export default {
         },
 
         showRevisions() {
-            return this.canSeeRevision && this.fileTree.hasRevision(this.fileTree.student);
+            return this.fileTree.hasAnyRevision();
         },
+    },
+
+    mounted() {
+        this.$root.$on('cg::file-tree::fade-selected-file', () => {
+            this.fadeSelected = true;
+        });
+        this.$root.$on('cg::file-tree::unfade-selected-file', () => {
+            this.fadeSelected = false;
+        });
+    },
+
+    destroyed() {
+        this.$root.$off('cg::file-tree::fade-selected-file');
+        this.$root.$off('cg::file-tree::unfade-selected-file');
+    },
+
+    data() {
+        return {
+            fadeSelected: false,
+        };
     },
 
     watch: {

@@ -96,6 +96,7 @@ FlaskConfig = TypedDict(
         'MAX_LARGE_UPLOAD_SIZE': int,
         'DEFAULT_ROLE': str,
         'EXTERNAL_URL': str,
+        'PROXY_BASE_DOMAIN': str,
         'JAVA_PATH': str,
         'JPLAG_JAR': str,
         'JPLAG_SUPPORTED_LANGUAGES': t.Mapping[str, str],
@@ -317,6 +318,7 @@ set_str(CONFIG, backend_ops, 'DEFAULT_ROLE', 'Student')
 
 # The external URL the server runs on.
 set_str(CONFIG, backend_ops, 'EXTERNAL_URL', '')
+set_str(CONFIG, backend_ops, 'PROXY_BASE_DOMAIN', '')
 
 set_str(CONFIG, backend_ops, 'JAVA_PATH', 'java')
 
@@ -538,6 +540,8 @@ set_bool(CONFIG['__S_FEATURES'], feature_ops, 'REGISTER', False)
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'GROUPS', False)
 
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'AUTO_TEST', False)
+
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'RENDER_HTML', False)
 
 ############
 # LTI keys #
