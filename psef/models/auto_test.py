@@ -69,7 +69,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
     auto_test_set_id = db.Column(
         'auto_test_set_id',
         db.Integer,
-        db.ForeignKey('AutoTestSet.id'),
+        db.ForeignKey('AutoTestSet.id', ondelete='CASCADE'),
         nullable=False
     )
 
@@ -186,7 +186,7 @@ class AutoTestSet(Base, TimestampMixin, IdMixin):
     auto_test_id = db.Column(
         'auto_test_id',
         db.Integer,
-        db.ForeignKey('AutoTest.id'),
+        db.ForeignKey('AutoTest.id', ondelete='CASCADE'),
         nullable=False
     )
 
@@ -258,7 +258,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
     auto_test_runner_id = db.Column(
         'auto_test_runner_id',
         UUIDType,
-        db.ForeignKey('AutoTestRunner.id'),
+        db.ForeignKey('AutoTestRunner.id', ondelete='CASCADE'),
         nullable=True,
     )
 
