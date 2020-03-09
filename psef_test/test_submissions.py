@@ -897,13 +897,16 @@ def test_get_dir_contents(
 )
 def test_get_zip_file(
     test_client, logged_in, assignment_real_works, error_template, named_user,
-    request, user_type, get_own
+    request, user_type, get_own, session
 ):
     assignment, work = assignment_real_works
+    assignment.name += '/hello'
+    session.commit()
+
     if get_own:
-        work_id = m.Work.query.filter_by(user=named_user).order_by(
-            m.Work.created_at.desc()
-        ).first().id
+        work_id = m.Work.query.filter_by(
+            user=named_user, assignment=assignment
+        ).order_by(m.Work.created_at.desc()).first().id
     else:
         work_id = work['id']
 
@@ -922,12 +925,17 @@ def test_get_zip_file(
                 'get',
                 f'/api/v1/submissions/{work_id}',
                 error or 200,
-                result=error_template
-                if error else {'name': str, 'output_name': str},
+                result=(
+                    error_template
+                    if error else {'name': str, 'output_name': str}
+                ),
                 query={'type': 'zip', 'owner': user_type},
             )
 
             if not error:
+                assert '/' not in res['output_name']
+                assert '_hello' in res['output_name']
+
                 file_name = res['name']
                 res = test_client.get(url.format(**res))
 
