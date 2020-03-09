@@ -267,7 +267,7 @@
 
 
 <span class="n">jwt</span><span class="o">.</span><span class="n">user_loader_error_loader</span><span class="p">(</span>
-    <span class="k">lambda</span> <span class="nb">id</span><span class="p">:</span> <span class="n">_handle_jwt_errors</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No user with id &quot;</span><span class="si">{id}</span><span class="s1">&quot; was found.&#39;</span><span class="p">)</span>
+    <span class="k">lambda</span> <span class="nb">id</span><span class="p">:</span> <span class="n">_handle_jwt_errors</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No user with id &quot;</span><span class="si">{</span><span class="nb">id</span><span class="si">}</span><span class="s1">&quot; was found.&#39;</span><span class="p">)</span>
 <span class="p">)</span>
 
 
@@ -369,12 +369,12 @@
         <span class="n">ensure_logged_in</span><span class="p">()</span>
         <span class="n">user</span> <span class="o">=</span> <span class="n">_get_cur_user</span><span class="p">()</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">label</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;The user &quot;</span><span class="si">{user.name}</span><span class="s1">&quot; is&#39;</span>
+        <span class="n">label</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;The user &quot;</span><span class="si">{</span><span class="n">user</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot; is&#39;</span>
 
     <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">virtual</span> <span class="ow">or</span> <span class="n">course_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">user</span><span class="o">.</span><span class="n">courses</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">PermissionException</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{label}</span><span class="s1"> not enrolled in this course.&#39;</span><span class="p">,</span>
-            <span class="sa">f</span><span class="s1">&#39;The user &quot;</span><span class="si">{user.id}</span><span class="s1">&quot; is not enrolled in course &quot;</span><span class="si">{course_id}</span><span class="s1">&quot;&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1"> not enrolled in this course.&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The user &quot;</span><span class="si">{</span><span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1">&quot; is not enrolled in course &quot;</span><span class="si">{</span><span class="n">course_id</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">,</span>
             <span class="n">APICodes</span><span class="o">.</span><span class="n">INCORRECT_PERMISSION</span><span class="p">,</span> <span class="mi">403</span>
         <span class="p">)</span></div>
 
@@ -475,7 +475,7 @@
             <span class="n">you_text</span> <span class="o">=</span> <span class="s1">&#39;Your group has&#39;</span> <span class="k">if</span> <span class="n">author</span><span class="o">.</span><span class="n">group</span> <span class="k">else</span> <span class="s1">&#39;You have&#39;</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">you_text</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;The group &quot;</span><span class="si">{author.group.name}</span><span class="s1">&quot;&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;The group &quot;</span><span class="si">{</span><span class="n">author</span><span class="o">.</span><span class="n">group</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
                 <span class="k">if</span> <span class="n">author</span><span class="o">.</span><span class="n">group</span> <span class="k">else</span> <span class="n">author</span><span class="o">.</span><span class="n">name</span>
             <span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; has&#39;</span>
 
@@ -485,13 +485,13 @@
 
         <span class="k">raise</span> <span class="n">PermissionException</span><span class="p">(</span>
             <span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{you_text}</span><span class="s1"> reached the maximum amount of&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39; </span><span class="si">{assig.max_submissions}</span><span class="s1"> </span><span class="si">{submissions_text}</span><span class="s1"> for this&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">you_text</span><span class="si">}</span><span class="s1"> reached the maximum amount of&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; </span><span class="si">{</span><span class="n">assig</span><span class="o">.</span><span class="n">max_submissions</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">submissions_text</span><span class="si">}</span><span class="s1"> for this&#39;</span>
                 <span class="s1">&#39; assignment.&#39;</span>
             <span class="p">),</span>
             <span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;The user </span><span class="si">{author.id}</span><span class="s1"> has </span><span class="si">{amount_subs}</span><span class="s1"> which is too&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39; much, as the limit is </span><span class="si">{assig.max_submissions}</span><span class="s1">.&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;The user </span><span class="si">{</span><span class="n">author</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1"> has </span><span class="si">{</span><span class="n">amount_subs</span><span class="si">}</span><span class="s1"> which is too&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; much, as the limit is </span><span class="si">{</span><span class="n">assig</span><span class="o">.</span><span class="n">max_submissions</span><span class="si">}</span><span class="s1">.&#39;</span>
             <span class="p">),</span>
             <span class="n">APICodes</span><span class="o">.</span><span class="n">TOO_MANY_SUBMISSIONS</span><span class="p">,</span>
             <span class="mi">403</span><span class="p">,</span>
@@ -509,7 +509,7 @@
                 <span class="s1">&#39;You cannot submit again yet, you have to wait at least </span><span class="si">{}</span><span class="s1">&#39;</span>
                 <span class="s1">&#39; before you can upload again&#39;</span>
             <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">humanfriendly</span><span class="o">.</span><span class="n">format_timespan</span><span class="p">(</span><span class="n">wait_time</span><span class="p">)),</span>
-            <span class="sa">f</span><span class="s1">&#39;The user </span><span class="si">{author.id}</span><span class="s1"> submitted too early to try again&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The user </span><span class="si">{</span><span class="n">author</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1"> submitted too early to try again&#39;</span><span class="p">,</span>
             <span class="n">APICodes</span><span class="o">.</span><span class="n">COOL_OFF_PERIOD_ACTIVE</span><span class="p">,</span>
             <span class="mi">403</span><span class="p">,</span>
         <span class="p">)</span>
@@ -601,7 +601,7 @@
             <span class="n">lms</span> <span class="o">=</span> <span class="n">assig</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span><span class="o">.</span><span class="n">lms_name</span>
             <span class="k">if</span> <span class="n">author</span><span class="o">.</span><span class="n">group</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Some authors haven&#39;t opened the assignment in </span><span class="si">{lms}</span><span class="s2"> yet&quot;</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s2">&quot;Some authors haven&#39;t opened the assignment in </span><span class="si">{</span><span class="n">lms</span><span class="si">}</span><span class="s2"> yet&quot;</span><span class="p">,</span>
                     <span class="p">(</span>
                         <span class="s1">&#39;No assignment_results found for some authors in the&#39;</span>
                         <span class="s1">&#39; group&#39;</span>
@@ -614,14 +614,14 @@
 
             <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
                 <span class="p">(</span>
-                    <span class="sa">f</span><span class="s1">&#39;This is a </span><span class="si">{lms}</span><span class="s1"> assignment and it seems we do not have&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;This is a </span><span class="si">{</span><span class="n">lms</span><span class="si">}</span><span class="s1"> assignment and it seems we do not have&#39;</span>
                     <span class="s1">&#39; the possibility to pass back the grade. Please </span><span class="si">{}</span><span class="s1">visit&#39;</span>
-                    <span class="sa">f</span><span class="s1">&#39; the assignment again on </span><span class="si">{lms}</span><span class="s1">. If this issue persists,&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39; the assignment again on </span><span class="si">{</span><span class="n">lms</span><span class="si">}</span><span class="s1">. If this issue persists,&#39;</span>
                     <span class="s1">&#39; please contact your system administrator.&#39;</span>
                 <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;ask the given author to &#39;</span> <span class="k">if</span> <span class="n">submit_self</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">),</span>
                 <span class="p">(</span>
-                    <span class="sa">f</span><span class="s1">&#39;The assignment </span><span class="si">{assig.id}</span><span class="s1"> is not present in the &#39;</span>
-                    <span class="sa">f</span><span class="s1">&#39;user </span><span class="si">{author.id}</span><span class="s1"> `assignment_results`&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;The assignment </span><span class="si">{</span><span class="n">assig</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1"> is not present in the &#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;user </span><span class="si">{</span><span class="n">author</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1"> `assignment_results`&#39;</span>
                 <span class="p">),</span>
                 <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span>
                 <span class="mi">400</span><span class="p">,</span>
@@ -740,7 +740,7 @@
                     <span class="s1">&#39;You cannot edit work as teacher&#39;</span>
                     <span class="s1">&#39; if the assignment is stil open!&#39;</span>
                 <span class="p">),</span>
-                <span class="sa">f</span><span class="s1">&#39;The assignment &quot;</span><span class="si">{work.assignment.id}</span><span class="s1">&quot; is still open.&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The assignment &quot;</span><span class="si">{</span><span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1">&quot; is still open.&#39;</span><span class="p">,</span>
                 <span class="n">APICodes</span><span class="o">.</span><span class="n">INCORRECT_PERMISSION</span><span class="p">,</span>
                 <span class="mi">403</span><span class="p">,</span>
             <span class="p">)</span>
@@ -987,7 +987,7 @@
         <span class="k">if</span> <span class="n">member</span><span class="o">.</span><span class="n">is_test_student</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
                 <span class="s1">&#39;You cannot add test students to groups&#39;</span><span class="p">,</span>
-                <span class="sa">f</span><span class="s1">&#39;The user </span><span class="si">{member.id}</span><span class="s1"> is a test student&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The user </span><span class="si">{</span><span class="n">member</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1"> is a test student&#39;</span><span class="p">,</span>
                 <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span> <span class="mi">400</span>
             <span class="p">)</span>
 
@@ -1102,7 +1102,7 @@
             <span class="k">if</span> <span class="n">_get_cur_user</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">==</span> <span class="n">user</span><span class="p">:</span>
                 <span class="n">you_do</span> <span class="o">=</span> <span class="s1">&#39;You do&#39;</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">you_do</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{user.name}</span><span class="s1"> does&#39;</span>
+                <span class="n">you_do</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">user</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> does&#39;</span>
 
             <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="s1">&#39;</span><span class="si">{you_do}</span><span class="s1"> not have the permission&#39;</span>

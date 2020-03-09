@@ -344,7 +344,7 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">should_not_raise</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">LTIRoleException</span><span class="p">(</span>
                     <span class="s1">&#39;The given role could not be parsed as an LTI role.&#39;</span><span class="p">,</span>
-                    <span class="sa">f</span><span class="s1">&#39;The role </span><span class="si">{urn}</span><span class="s1"> could not be parsed as an LTI role.&#39;</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;The role </span><span class="si">{</span><span class="n">urn</span><span class="si">}</span><span class="s1"> could not be parsed as an LTI role.&#39;</span><span class="p">,</span>
                     <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span> <span class="mi">400</span>
                 <span class="p">)</span>
 
@@ -368,7 +368,7 @@
     <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="n">kind</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
         <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">subnames</span><span class="p">])</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{kind}</span><span class="s1">:</span><span class="si">{name}</span><span class="s1">&#39;</span></div>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">kind</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span></div>
 
 
 <div class="viewcode-block" id="LTICourseRole"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTICourseRole">[docs]</a><span class="k">class</span> <span class="nc">LTICourseRole</span><span class="p">(</span><span class="n">LTIRole</span><span class="p">):</span>
@@ -740,7 +740,7 @@
             <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
 
             <span class="k">def</span> <span class="nf">_get_username</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39; (</span><span class="si">{i}</span><span class="s1">)&#39;</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39; (</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">)&#39;</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
 
             <span class="k">while</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
                 <span class="n">models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">_get_username</span><span class="p">())</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
@@ -829,7 +829,7 @@
         <span class="k">if</span> <span class="n">assignment</span><span class="o">.</span><span class="n">deleted</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
                 <span class="s1">&#39;The launched assignment has been deleted on CodeGrade&#39;</span><span class="p">,</span>
-                <span class="sa">f</span><span class="s1">&#39;The assignment &quot;</span><span class="si">{assignment.id}</span><span class="s1">&quot; has been deleted&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The assignment &quot;</span><span class="si">{</span><span class="n">assignment</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1">&quot; has been deleted&#39;</span><span class="p">,</span>
                 <span class="n">APICodes</span><span class="o">.</span><span class="n">OBJECT_NOT_FOUND</span><span class="p">,</span> <span class="mi">404</span>
             <span class="p">)</span>
 
@@ -839,8 +839,8 @@
                     <span class="s1">&#39;The assignment was previously connected to a different&#39;</span>
                     <span class="s1">&#39; course.&#39;</span>
                 <span class="p">),</span> <span class="p">(</span>
-                    <span class="sa">f</span><span class="s1">&#39;The assignment </span><span class="si">{self.assignment_id}</span><span class="s1"> was previously&#39;</span>
-                    <span class="sa">f</span><span class="s1">&#39; connected to </span><span class="si">{course.id}</span><span class="s1">&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;The assignment </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">assignment_id</span><span class="si">}</span><span class="s1"> was previously&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39; connected to </span><span class="si">{</span><span class="n">course</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1">&#39;</span>
                 <span class="p">),</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span> <span class="mi">400</span>
             <span class="p">)</span>
 
@@ -946,7 +946,7 @@
                 <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
                     <span class="s1">&#39;The given LTI role could not be found or was not valid. &#39;</span>
                     <span class="s1">&#39;Please ask your instructor or site administrator.&#39;</span><span class="p">,</span>
-                    <span class="sa">f</span><span class="s1">&#39;No role in &quot;{list(self.course_roles)}&quot; is a known LTI role&#39;</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s1">&#39;No role in &quot;</span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">course_roles</span><span class="p">)</span><span class="si">}</span><span class="s1">&quot; is a known LTI role&#39;</span><span class="p">,</span>
                     <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span> <span class="mi">400</span>
                 <span class="p">)</span>
 
@@ -1125,7 +1125,7 @@
                         <span class="s1">&#39; assignment to this module, are you sure you did not&#39;</span>
                         <span class="s1">&#39; add CodeGrade directly as an external tool?&#39;</span>
                     <span class="p">),</span>
-                    <span class="sa">f</span><span class="s2">&quot;The property </span><span class="si">{lti_prop.external}</span><span class="s2"> didn&#39;t have a value.&quot;</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s2">&quot;The property </span><span class="si">{</span><span class="n">lti_prop</span><span class="o">.</span><span class="n">external</span><span class="si">}</span><span class="s2"> didn&#39;t have a value.&quot;</span><span class="p">,</span>
                     <span class="n">APICodes</span><span class="o">.</span><span class="n">MISSING_REQUIRED_PARAM</span><span class="p">,</span> <span class="mi">400</span>
                 <span class="p">)</span></div>
 
@@ -1292,7 +1292,7 @@
         <span class="c1"># get parameters in the body. This makes sure we won&#39;t override actual</span>
         <span class="c1"># launch parameters. Also the url doesn&#39;t need to be quoted, as canvas</span>
         <span class="c1"># does this for us.</span>
-        <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{host}</span><span class="s1">/api/v1/lti/launch/1?codegrade_redirect=</span><span class="si">{redirect}</span><span class="s1">&#39;</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s1">/api/v1/lti/launch/1?codegrade_redirect=</span><span class="si">{</span><span class="n">redirect</span><span class="si">}</span><span class="s1">&#39;</span>
         <span class="bp">cls</span><span class="o">.</span><span class="n">_passback_grade</span><span class="p">(</span>
             <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span>
             <span class="n">secret</span><span class="o">=</span><span class="n">secret</span><span class="p">,</span>

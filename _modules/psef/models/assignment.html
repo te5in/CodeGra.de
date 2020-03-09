@@ -896,7 +896,7 @@
         <span class="c1"># This is needed because of https://github.com/python/mypy/issues/4223</span>
         <span class="c1"># and to please pylint</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;The assignment has a invalid `done_type`: </span><span class="si">{self.done_type}</span><span class="s1">&#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;The assignment has a invalid `done_type`: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">done_type</span><span class="si">}</span><span class="s1">&#39;</span>
         <span class="p">)</span>  <span class="c1"># pragma: no cover</span></div>
 
 <div class="viewcode-block" id="Assignment.get_assigned_grader_ids"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.get_assigned_grader_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_assigned_grader_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
@@ -1266,7 +1266,7 @@
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lti_outcome_service_url</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_submit_grades</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">InvalidAssignmentState</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{state}</span><span class="s1"> is not a valid state&#39;</span><span class="p">)</span></div>
+            <span class="k">raise</span> <span class="n">InvalidAssignmentState</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s1"> is not a valid state&#39;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Assignment.get_not_deleted_submissions"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.get_not_deleted_submissions">[docs]</a>    <span class="k">def</span> <span class="nf">get_not_deleted_submissions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;work_models.Work&#39;</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Get a query returning all not deleted submissions to this</span>
@@ -1901,7 +1901,7 @@
                 <span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39; You can still upload a test submission.&#39;</span>
             <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
                 <span class="n">msg</span><span class="p">,</span>
-                <span class="sa">f</span><span class="s1">&#39;The deadline for assignment </span><span class="si">{self.name}</span><span class="s1"> is unset.&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The deadline for assignment </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> is unset.&#39;</span><span class="p">,</span>
                 <span class="n">APICodes</span><span class="o">.</span><span class="n">ASSIGNMENT_DEADLINE_UNSET</span><span class="p">,</span>
                 <span class="mi">400</span><span class="p">,</span>
             <span class="p">)</span>

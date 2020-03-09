@@ -542,8 +542,8 @@
         <span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
                 <span class="s1">&#39;This file already exists within this directory&#39;</span><span class="p">,</span>
-                <span class="sa">f</span><span class="s1">&#39;The file &quot;</span><span class="si">{new_parent.id}</span><span class="s1">&quot; has &#39;</span>
-                <span class="sa">f</span><span class="s1">&#39;a child with the name &quot;</span><span class="si">{new_name}</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The file &quot;</span><span class="si">{</span><span class="n">new_parent</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1">&quot; has &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;a child with the name &quot;</span><span class="si">{</span><span class="n">new_name</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span>
                 <span class="mi">400</span>
             <span class="p">)</span>
 

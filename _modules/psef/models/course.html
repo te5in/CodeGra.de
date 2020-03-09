@@ -543,10 +543,10 @@
 <span class="sd">        :returns: A virtual course with a random name.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">create_and_add</span><span class="p">(</span>
-            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;VIRTUAL_COURSE__{uuid.uuid4()}&#39;</span><span class="p">,</span> <span class="n">virtual</span><span class="o">=</span><span class="kc">True</span>
+            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;VIRTUAL_COURSE__</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">virtual</span><span class="o">=</span><span class="kc">True</span>
         <span class="p">)</span>
         <span class="n">assig</span> <span class="o">=</span> <span class="n">Assignment</span><span class="p">(</span>
-            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Virtual assignment - </span><span class="si">{tree.name}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">course</span><span class="o">=</span><span class="bp">self</span>
+            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Virtual assignment - </span><span class="si">{</span><span class="n">tree</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">course</span><span class="o">=</span><span class="bp">self</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assignments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">assig</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">tree</span><span class="o">.</span><span class="n">values</span><span class="p">):</span>
@@ -582,7 +582,7 @@
 
         <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">role</span> <span class="o">=</span> <span class="n">CourseRole</span><span class="p">(</span>
-                <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Test_Student_Role__{uuid.uuid4()}&#39;</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Test_Student_Role__</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
                 <span class="n">course</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
                 <span class="n">hidden</span><span class="o">=</span><span class="kc">True</span>
             <span class="p">)</span>

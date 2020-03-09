@@ -271,7 +271,7 @@
 
         <span class="n">api_exp</span> <span class="o">=</span> <span class="n">APIException</span><span class="p">(</span>
             <span class="s1">&#39;The request route was not found&#39;</span><span class="p">,</span>
-            <span class="sa">f</span><span class="s1">&#39;The route &quot;</span><span class="si">{request.path}</span><span class="s1">&quot; does not exist&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The route &quot;</span><span class="si">{</span><span class="n">request</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s1">&quot; does not exist&#39;</span><span class="p">,</span>
             <span class="n">APICodes</span><span class="o">.</span><span class="n">ROUTE_NOT_FOUND</span><span class="p">,</span> <span class="mi">404</span>
         <span class="p">)</span>
         <span class="n">response</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">api_exp</span><span class="p">))</span>
@@ -290,7 +290,7 @@
         <span class="n">models</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">expire_all</span><span class="p">()</span>
 
         <span class="n">api_exp</span> <span class="o">=</span> <span class="n">APIException</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;Something went wrong (id: </span><span class="si">{g.request_id}</span><span class="s1">)&#39;</span><span class="p">,</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Something went wrong (id: </span><span class="si">{</span><span class="n">g</span><span class="o">.</span><span class="n">request_id</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">,</span> <span class="p">(</span>
                 <span class="s1">&#39;The reason for this is unknown, &#39;</span>
                 <span class="s1">&#39;please contact the system administrator&#39;</span>
             <span class="p">),</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">UNKOWN_ERROR</span><span class="p">,</span> <span class="mi">500</span>

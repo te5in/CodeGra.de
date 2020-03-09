@@ -342,7 +342,7 @@
     <span class="p">)</span>
     <span class="n">g</span><span class="o">.</span><span class="n">request_warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
         <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">make_warning</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;This API is deprecated: </span><span class="si">{warning}</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;This API is deprecated: </span><span class="si">{</span><span class="n">warning</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
             <span class="n">psef</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">APIWarnings</span><span class="o">.</span><span class="n">DEPRECATED</span><span class="p">,</span>
         <span class="p">)</span>
     <span class="p">)</span></div>
@@ -668,8 +668,8 @@
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">in_values</span><span class="p">):</span>
         <span class="k">raise</span> <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APIException</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;Not all requested {model.__name__.lower()} could be found&#39;</span><span class="p">,</span> <span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;Out of the {len(in_values)} requested only {len(res)} were&#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;Not all requested </span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s1"> could be found&#39;</span><span class="p">,</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Out of the </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">in_values</span><span class="p">)</span><span class="si">}</span><span class="s1"> requested only </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="p">)</span><span class="si">}</span><span class="s1"> were&#39;</span>
                 <span class="s1">&#39; found&#39;</span>
             <span class="p">),</span> <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APICodes</span><span class="o">.</span><span class="n">OBJECT_ID_NOT_FOUND</span><span class="p">,</span> <span class="mi">404</span>
         <span class="p">)</span>
@@ -746,8 +746,8 @@
             <span class="p">)</span> <span class="k">for</span> <span class="n">crit</span> <span class="ow">in</span> <span class="n">criteria</span>
         <span class="p">)</span>
         <span class="k">raise</span> <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APIException</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;The requested {model.__name__.lower()} was not found&#39;</span><span class="p">,</span>
-            <span class="sa">f</span><span class="s1">&#39;There is no &quot;</span><span class="si">{model.__name__}</span><span class="s1">&quot; when filtering with </span><span class="si">{crit_str}</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The requested </span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s1"> was not found&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;There is no &quot;</span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1">&quot; when filtering with </span><span class="si">{</span><span class="n">crit_str</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
             <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APICodes</span><span class="o">.</span><span class="n">OBJECT_NOT_FOUND</span><span class="p">,</span> <span class="mi">404</span>
         <span class="p">)</span>
     <span class="k">return</span> <span class="n">obj</span>
@@ -847,8 +847,8 @@
 
     <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="p">(</span><span class="n">also_error</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">also_error</span><span class="p">(</span><span class="n">obj</span><span class="p">)):</span>
         <span class="k">raise</span> <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APIException</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;The requested &quot;</span><span class="si">{model.__name__}</span><span class="s1">&quot; was not found&#39;</span><span class="p">,</span>
-            <span class="sa">f</span><span class="s1">&#39;There is no &quot;</span><span class="si">{model.__name__}</span><span class="s1">&quot; with primary key </span><span class="si">{object_id}</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The requested &quot;</span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1">&quot; was not found&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;There is no &quot;</span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1">&quot; with primary key </span><span class="si">{</span><span class="n">object_id</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
             <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APICodes</span><span class="o">.</span><span class="n">OBJECT_ID_NOT_FOUND</span><span class="p">,</span> <span class="mi">404</span>
         <span class="p">)</span>
     <span class="k">return</span> <span class="n">obj</span></div>
@@ -867,7 +867,7 @@
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\s&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">query</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APIException</span><span class="p">(</span>
             <span class="s1">&#39;The search string should be at least 3 chars&#39;</span><span class="p">,</span>
-            <span class="sa">f</span><span class="s1">&#39;The search string &quot;</span><span class="si">{query}</span><span class="s1">&quot; is not 3 chars or longer.&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The search string &quot;</span><span class="si">{</span><span class="n">query</span><span class="si">}</span><span class="s1">&quot; is not 3 chars or longer.&#39;</span><span class="p">,</span>
             <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span> <span class="mi">400</span>
         <span class="p">)</span>
 
@@ -943,10 +943,10 @@
     <span class="n">val</span> <span class="o">=</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">default</span><span class="p">)):</span>
         <span class="k">raise</span> <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APIException</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;The given object contains the wrong type for the key &quot;</span><span class="si">{key}</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;A value of type &quot;{_get_type_name(type(default))} is&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39; required, but &quot;</span><span class="si">{val}</span><span class="s1">&quot; was given, which is a&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39; &quot;{_get_type_name(type(val))}&quot;&#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;The given object contains the wrong type for the key &quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;A value of type &quot;</span><span class="si">{</span><span class="n">_get_type_name</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">default</span><span class="p">))</span><span class="si">}</span><span class="s1"> is&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; required, but &quot;</span><span class="si">{</span><span class="n">val</span><span class="si">}</span><span class="s1">&quot; was given, which is a&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; &quot;</span><span class="si">{</span><span class="n">_get_type_name</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">val</span><span class="p">))</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
             <span class="p">),</span> <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APICodes</span><span class="o">.</span><span class="n">MISSING_REQUIRED_PARAM</span><span class="p">,</span> <span class="mi">400</span>
         <span class="p">)</span>
     <span class="k">return</span> <span class="n">val</span></div>
@@ -1072,15 +1072,15 @@
         <span class="k">elif</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mapping</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">check_type</span><span class="p">)</span>
               <span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">check_type</span> <span class="o">==</span> <span class="nb">int</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mapping</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">bool</span><span class="p">)):</span>
             <span class="n">missing</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;{str(key)} was of wrong type&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39; (should be a &quot;{_get_type_name(check_type)}&quot;&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39;, was a &quot;{type(mapping[key]).__name__}&quot;)&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="si">}</span><span class="s1"> was of wrong type&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; (should be a &quot;</span><span class="si">{</span><span class="n">_get_type_name</span><span class="p">(</span><span class="n">check_type</span><span class="p">)</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;, was a &quot;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">mapping</span><span class="p">[</span><span class="n">key</span><span class="p">])</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1">&quot;)&#39;</span>
             <span class="p">)</span>
             <span class="n">type_wrong</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;The given object does not contain all required keys&#39;</span>
         <span class="n">key_type</span> <span class="o">=</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&#39;</span><span class="si">{k[0]}</span><span class="se">\&#39;</span><span class="s2">: {_get_type_name(k[1])}&quot;</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&#39;</span><span class="si">{</span><span class="n">k</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="se">\&#39;</span><span class="s2">: </span><span class="si">{</span><span class="n">_get_type_name</span><span class="p">(</span><span class="n">k</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span>
         <span class="p">)</span>
         <span class="k">raise</span> <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APIException</span><span class="p">(</span>
             <span class="n">msg</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39; or the type was wrong&#39;</span> <span class="k">if</span> <span class="n">type_wrong</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">),</span>
@@ -1146,7 +1146,7 @@
         <span class="k">return</span> <span class="n">json_value</span>
     <span class="k">raise</span> <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APIException</span><span class="p">(</span>
         <span class="s1">&#39;The given JSON is not a object as is required&#39;</span><span class="p">,</span>
-        <span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{json_value}</span><span class="s1">&quot; is not a object&#39;</span><span class="p">,</span>
+        <span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">json_value</span><span class="si">}</span><span class="s1">&quot; is not a object&#39;</span><span class="p">,</span>
         <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span>
         <span class="mi">400</span><span class="p">,</span>
     <span class="p">)</span></div>
@@ -1175,8 +1175,8 @@
         <span class="n">size_f</span> <span class="o">/=</span> <span class="mf">1024.0</span>
 
     <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">size_f</span><span class="p">)</span> <span class="o">==</span> <span class="n">size_f</span><span class="p">:</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;{int(size_f)}</span><span class="si">{unit}</span><span class="s2">&quot;</span>
-    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{size_f:.2f}{unit}</span><span class="s2">&quot;</span></div>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">size_f</span><span class="p">)</span><span class="si">}{</span><span class="n">unit</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">size_f</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}{</span><span class="n">unit</span><span class="si">}</span><span class="s2">&quot;</span></div>
 
 
 <div class="viewcode-block" id="raise_file_too_big_exception"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.raise_file_too_big_exception">[docs]</a><span class="k">def</span> <span class="nf">raise_file_too_big_exception</span><span class="p">(</span>
@@ -1190,13 +1190,13 @@
     <span class="k">if</span> <span class="n">single_file</span><span class="p">:</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
             <span class="sa">f</span><span class="s1">&#39;The size of a single file is larger than the maximum, which &#39;</span>
-            <span class="sa">f</span><span class="s1">&#39;is {human_readable_size(psef.app.max_single_file_size)}.&#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;is </span><span class="si">{</span><span class="n">human_readable_size</span><span class="p">(</span><span class="n">psef</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">max_single_file_size</span><span class="p">)</span><span class="si">}</span><span class="s1">.&#39;</span>
         <span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
             <span class="sa">f</span><span class="s1">&#39;The size of the uploaded files is larger than the maximum. &#39;</span>
             <span class="sa">f</span><span class="s1">&#39;The maximum is (extracted) size is &#39;</span>
-            <span class="sa">f</span><span class="s1">&#39;{human_readable_size(max_size)}.&#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">human_readable_size</span><span class="p">(</span><span class="n">max_size</span><span class="p">)</span><span class="si">}</span><span class="s1">.&#39;</span>
         <span class="p">)</span>
     <span class="k">raise</span> <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APIException</span><span class="p">(</span>
         <span class="n">msg</span><span class="p">,</span> <span class="s1">&#39;Request is bigger than maximum upload size of max_size bytes.&#39;</span><span class="p">,</span>

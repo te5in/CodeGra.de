@@ -535,7 +535,7 @@
 
         <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
             <span class="s2">&quot;This rubric row doesn&#39;t contain the requested rubric item&quot;</span><span class="p">,</span>
-            <span class="sa">f</span><span class="s1">&#39;The item </span><span class="si">{item_id}</span><span class="s1"> is not in rubric row </span><span class="si">{self.id}</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The item </span><span class="si">{</span><span class="n">item_id</span><span class="si">}</span><span class="s1"> is not in rubric row </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
             <span class="n">APICodes</span><span class="o">.</span><span class="n">OBJECT_ID_NOT_FOUND</span><span class="p">,</span> <span class="mi">404</span>
         <span class="p">)</span>
 
@@ -620,7 +620,7 @@
                 <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
                     <span class="p">(</span>
                         <span class="sa">f</span><span class="s1">&#39;No items can be added or deleted from row&#39;</span>
-                        <span class="sa">f</span><span class="s1">&#39; &quot;</span><span class="si">{row_name}</span><span class="s1">&quot; as it is locked for an AutoTestRun.&#39;</span>
+                        <span class="sa">f</span><span class="s1">&#39; &quot;</span><span class="si">{</span><span class="n">row_name</span><span class="si">}</span><span class="s1">&quot; as it is locked for an AutoTestRun.&#39;</span>
                     <span class="p">),</span> <span class="p">(</span>
                         <span class="s1">&#39;Some items were added or removed, but this is not&#39;</span>
                         <span class="s1">&#39; allowed as an AutoTest run has already been done&#39;</span>
@@ -759,7 +759,7 @@
         <span class="k">if</span> <span class="n">multiplier</span> <span class="o">!=</span> <span class="mf">1.0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
                 <span class="s1">&#39;Normal rubric rows only support 1.0 as multiplier&#39;</span><span class="p">,</span>
-                <span class="sa">f</span><span class="s1">&#39;The rubric row </span><span class="si">{self.id}</span><span class="s1"> got a multiplier of </span><span class="si">{multiplier}</span><span class="s1">&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The rubric row </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1"> got a multiplier of </span><span class="si">{</span><span class="n">multiplier</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
                 <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span> <span class="mi">400</span>
             <span class="p">)</span>
 
@@ -801,7 +801,7 @@
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">items</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
                 <span class="s1">&#39;Continuous rubric rows only support exactly one item.&#39;</span><span class="p">,</span>
-                <span class="sa">f</span><span class="s1">&#39;The row </span><span class="si">{self.id}</span><span class="s1"> was given {len(items)} item(s).&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The row </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1"> was given </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">items</span><span class="p">)</span><span class="si">}</span><span class="s1"> item(s).&#39;</span><span class="p">,</span>
                 <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span>
                 <span class="mi">409</span><span class="p">,</span>
             <span class="p">)</span>

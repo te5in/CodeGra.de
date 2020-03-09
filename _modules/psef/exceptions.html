@@ -337,7 +337,7 @@
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">feature</span><span class="p">:</span> <span class="s1">&#39;Feature&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
             <span class="s1">&#39;This feature is not enabled on this instance.&#39;</span><span class="p">,</span>
-            <span class="sa">f</span><span class="s1">&#39;The feature &quot;</span><span class="si">{feature.name}</span><span class="s1">&quot; is not enabled.&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The feature &quot;</span><span class="si">{</span><span class="n">feature</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot; is not enabled.&#39;</span><span class="p">,</span>
             <span class="n">APICodes</span><span class="o">.</span><span class="n">DISABLED_FEATURE</span><span class="p">,</span>
             <span class="mi">400</span><span class="p">,</span>
             <span class="n">disabled_feature</span><span class="o">=</span><span class="n">feature</span><span class="p">,</span>

@@ -395,7 +395,7 @@
 
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
             <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Test Student&#39;</span><span class="p">,</span>
-            <span class="n">username</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;TEST_STUDENT__{uuid.uuid4()}&#39;</span><span class="p">,</span>
+            <span class="n">username</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;TEST_STUDENT__</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
             <span class="n">is_test_student</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">email</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
         <span class="p">)</span></div>
@@ -408,8 +408,8 @@
 <span class="sd">            with &#39;Virtual - &#39; and a random username.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
-            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Virtual - </span><span class="si">{name}</span><span class="s1">&#39;</span><span class="p">,</span>
-            <span class="n">username</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;VIRTUAL_USER__{uuid.uuid4()}&#39;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Virtual - </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="n">username</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;VIRTUAL_USER__</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
             <span class="n">virtual</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">email</span><span class="o">=</span><span class="s1">&#39;&#39;</span>
         <span class="p">)</span></div>
@@ -744,7 +744,7 @@
             <span class="p">)</span>
             <span class="k">raise</span> <span class="n">PermissionException</span><span class="p">(</span>
                 <span class="s1">&#39;The given token is not valid&#39;</span><span class="p">,</span>
-                <span class="sa">f</span><span class="s1">&#39;The given token </span><span class="si">{token}</span><span class="s1"> is not valid.&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The given token </span><span class="si">{</span><span class="n">token</span><span class="si">}</span><span class="s1"> is not valid.&#39;</span><span class="p">,</span>
                 <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_CREDENTIALS</span><span class="p">,</span> <span class="mi">403</span>
             <span class="p">)</span>
 
@@ -754,7 +754,7 @@
         <span class="p">):</span>  <span class="c1"># pragma: no cover</span>
             <span class="k">raise</span> <span class="n">PermissionException</span><span class="p">(</span>
                 <span class="s1">&#39;The given token is not valid for this user&#39;</span><span class="p">,</span>
-                <span class="sa">f</span><span class="s1">&#39;The given token </span><span class="si">{token}</span><span class="s1"> is not valid for user &quot;</span><span class="si">{self.id}</span><span class="s1">&quot;.&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The given token </span><span class="si">{</span><span class="n">token</span><span class="si">}</span><span class="s1"> is not valid for user &quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1">&quot;.&#39;</span><span class="p">,</span>
                 <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_CREDENTIALS</span><span class="p">,</span> <span class="mi">403</span>
             <span class="p">)</span>
 
@@ -808,7 +808,7 @@
                             <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">():</span>
             <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
                 <span class="s1">&#39;The given username is already in use&#39;</span><span class="p">,</span>
-                <span class="sa">f</span><span class="s1">&#39;The username &quot;</span><span class="si">{username}</span><span class="s1">&quot; is taken&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The username &quot;</span><span class="si">{</span><span class="n">username</span><span class="si">}</span><span class="s1">&quot; is taken&#39;</span><span class="p">,</span>
                 <span class="n">APICodes</span><span class="o">.</span><span class="n">OBJECT_ALREADY_EXISTS</span><span class="p">,</span>
                 <span class="mi">400</span><span class="p">,</span>
             <span class="p">)</span>

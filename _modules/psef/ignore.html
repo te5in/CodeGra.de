@@ -644,7 +644,7 @@
 <span class="sd">        :param path: Path to check</span>
 <span class="sd">        :return: Iterator over Pattern instances</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">assert</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isabs</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="sa">f</span><span class="s1">&#39;File &quot;</span><span class="si">{path}</span><span class="s1">&quot; is an absolute path&#39;</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isabs</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="sa">f</span><span class="s1">&#39;File &quot;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">&quot; is an absolute path&#39;</span>
 
         <span class="n">parts</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
 
@@ -778,7 +778,7 @@
                     <span class="n">begin</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dir_names</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
                 <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{begin}{self.name}</span><span class="s1">&#39;</span>
+                <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">begin</span><span class="si">}{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span>
 
 <div class="viewcode-block" id="FileRule.Filename.matches"><a class="viewcode-back" href="../../psef_api/psef.html#psef.ignore.FileRule.Filename.matches">[docs]</a>        <span class="k">def</span> <span class="nf">matches</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="n">ExtractFileTreeBase</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
             <span class="sd">&quot;&quot;&quot;Check if a file matches this filename pattern.</span>
@@ -903,13 +903,13 @@
             <span class="n">rule_type</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">RuleType</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;rule_type&#39;</span><span class="p">)]</span>  <span class="c1"># type: ignore</span>
         <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;The given rule type (&quot;{data.get(&quot;rule_type&quot;)}&quot;) is not&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;The given rule type (&quot;</span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;rule_type&quot;</span><span class="p">)</span><span class="si">}</span><span class="s1">&quot;) is not&#39;</span>
                 <span class="s1">&#39; valid.&#39;</span>
             <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;file_type&#39;</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;directory&#39;</span><span class="p">}:</span>
             <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;Unknown file type, got &quot;{data.get(&quot;file_type&quot;)}&quot;&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;Unknown file type, got &quot;</span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;file_type&quot;</span><span class="p">)</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
                 <span class="sa">f</span><span class="s1">&#39;  but only &quot;file&quot; or &quot;directory&quot; is allowed.&#39;</span>
             <span class="p">)</span>
         <span class="n">file_type</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">FileType</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;file_type&#39;</span><span class="p">))]</span>
@@ -918,20 +918,20 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
                 <span class="s1">&#39;The filename of a rule should be a non empty string, but got:&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39; &quot;</span><span class="si">{filename}</span><span class="s1">&quot;&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; &quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
             <span class="p">)</span>
 
         <span class="n">star_amount</span><span class="p">,</span> <span class="n">star_indices</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">count_chars</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">file_type</span> <span class="o">==</span> <span class="bp">cls</span><span class="o">.</span><span class="n">FileType</span><span class="o">.</span><span class="n">directory</span> <span class="ow">and</span> <span class="n">star_amount</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;Directories cannot contain wildcards, but &quot;</span><span class="si">{filename}</span><span class="s1">&quot;&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39; filename </span><span class="si">{star_amount}</span><span class="s1">&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39; wildcard{&quot;s&quot; if star_amount &gt; 1 else &quot;&quot;}.&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;Directories cannot contain wildcards, but &quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; filename </span><span class="si">{</span><span class="n">star_amount</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; wildcard</span><span class="si">{</span><span class="s2">&quot;s&quot;</span> <span class="k">if</span> <span class="n">star_amount</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="si">}</span><span class="s1">.&#39;</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="n">star_amount</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;Files can only contain one wildcard but &quot;</span><span class="si">{filename}</span><span class="s1">&quot;&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39; contains </span><span class="si">{star_amount}</span><span class="s1"> wildcards.&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;Files can only contain one wildcard but &quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; contains </span><span class="si">{</span><span class="n">star_amount</span><span class="si">}</span><span class="s1"> wildcards.&#39;</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="p">(</span>
             <span class="n">file_type</span> <span class="o">==</span> <span class="bp">cls</span><span class="o">.</span><span class="n">FileType</span><span class="o">.</span><span class="n">file</span> <span class="ow">and</span> <span class="n">star_amount</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span>
@@ -939,20 +939,20 @@
         <span class="p">):</span>
             <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
                 <span class="s1">&#39;Files can only contain a wildcard for the name of the file,&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39; not for preceding directories, however &quot;</span><span class="si">{filename}</span><span class="s1">&quot;&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; not for preceding directories, however &quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
                 <span class="s1">&#39; contains a wildcard in the directory name.&#39;</span>
             <span class="p">)</span>
 
         <span class="n">f</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">Filename</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span> <span class="ow">and</span> <span class="n">file_type</span> <span class="o">==</span> <span class="bp">cls</span><span class="o">.</span><span class="n">FileType</span><span class="o">.</span><span class="n">file</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;Filenames should not end with a &quot;/&quot;, but &quot;</span><span class="si">{filename}</span><span class="s1">&quot; ends&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;Filenames should not end with a &quot;/&quot;, but &quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">&quot; ends&#39;</span>
                 <span class="s1">&#39; with a &quot;/&quot; , you can escape the slash by placing a &quot;</span><span class="se">\\</span><span class="s1">&quot;&#39;</span>
                 <span class="s1">&#39; before the slash.&#39;</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span> <span class="ow">and</span> <span class="n">file_type</span> <span class="o">==</span> <span class="bp">cls</span><span class="o">.</span><span class="n">FileType</span><span class="o">.</span><span class="n">directory</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;Directory names should end with a &quot;/&quot;, but &quot;</span><span class="si">{filename}</span><span class="s1">&quot; ends&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;Directory names should end with a &quot;/&quot;, but &quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s1">&quot; ends&#39;</span>
                 <span class="s1">&#39; with &quot;</span><span class="si">{f.name}</span><span class="s1">&quot;.&#39;</span>
             <span class="p">)</span>
 
@@ -963,7 +963,7 @@
         <span class="p">)</span></div>
 
     <span class="k">def</span> <span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{self.rule_type}</span><span class="s1"> </span><span class="si">{self.file_type}</span><span class="s1"> </span><span class="si">{self.filename}</span><span class="s1">&#39;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">rule_type</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">file_type</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="si">}</span><span class="s1">&#39;</span>
 
 <div class="viewcode-block" id="FileRule.matches"><a class="viewcode-back" href="../../psef_api/psef.html#psef.ignore.FileRule.matches">[docs]</a>    <span class="k">def</span> <span class="nf">matches</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="n">ExtractFileTreeBase</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Check if a file matches this rule.</span>
@@ -1010,7 +1010,7 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
                 <span class="s1">&#39;The &quot;value&quot; key was not found or was not a boolean in:&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39; &quot;</span><span class="si">{rule}</span><span class="s1">&quot;.&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39; &quot;</span><span class="si">{</span><span class="n">rule</span><span class="si">}</span><span class="s1">&quot;.&#39;</span><span class="p">,</span>
             <span class="p">)</span>
 
         <span class="n">option_name</span> <span class="o">=</span> <span class="n">rule</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;key&#39;</span><span class="p">)</span>
@@ -1018,13 +1018,13 @@
             <span class="k">if</span> <span class="n">option</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">option_name</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">option</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_opts</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s1">&#39;Option &quot;</span><span class="si">{option_name}</span><span class="s1">&quot; was specified multiple times.&#39;</span>
+                        <span class="sa">f</span><span class="s1">&#39;Option &quot;</span><span class="si">{</span><span class="n">option_name</span><span class="si">}</span><span class="s1">&quot; was specified multiple times.&#39;</span>
                     <span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_opts</span><span class="p">[</span><span class="n">option</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
                 <span class="k">break</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;Option &quot;</span><span class="si">{option_name}</span><span class="s1">&quot; is not a valid option,&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;Option &quot;</span><span class="si">{</span><span class="n">option_name</span><span class="si">}</span><span class="s1">&quot; is not a valid option,&#39;</span>
                 <span class="s1">&#39; expected one of </span><span class="si">{}</span><span class="s1">.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                     <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">OptionName</span><span class="p">)</span>
                 <span class="p">)</span>
@@ -1074,8 +1074,8 @@
         <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">required_keys</span><span class="p">):</span>
             <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
                 <span class="s1">&#39;Not all required keys are found in the given config, all of&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39; &quot;{&quot;, &quot;.join(required_keys)}&quot; are required, but only&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39; &quot;{&quot;, &quot;.join(data.keys())}&quot; were found.&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; &quot;</span><span class="si">{</span><span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">required_keys</span><span class="p">)</span><span class="si">}</span><span class="s1">&quot; are required, but only&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; &quot;</span><span class="si">{</span><span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s1">&quot; were found.&#39;</span>
             <span class="p">)</span>
 
         <span class="n">given_policy</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;policy&#39;</span><span class="p">]</span>
@@ -1088,7 +1088,7 @@
             <span class="n">policy</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">Policy</span><span class="o">.</span><span class="n">deny_all_files</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;The policy &quot;</span><span class="si">{given_policy}</span><span class="s1">&quot; is not known, only the&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;The policy &quot;</span><span class="si">{</span><span class="n">given_policy</span><span class="si">}</span><span class="s1">&quot; is not known, only the&#39;</span>
                 <span class="s1">&#39; policies &quot;</span><span class="si">{}</span><span class="s1">&quot; are known.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                     <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">Policy</span><span class="p">)</span>
                 <span class="p">)</span>
@@ -1096,7 +1096,7 @@
 
         <span class="k">if</span> <span class="n">policy</span> <span class="o">==</span> <span class="bp">cls</span><span class="o">.</span><span class="n">Policy</span><span class="o">.</span><span class="n">deny_all_files</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">given_rules</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;When the policy is set to &quot;</span><span class="si">{policy.name}</span><span class="s1">&quot; it is required to&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;When the policy is set to &quot;</span><span class="si">{</span><span class="n">policy</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot; it is required to&#39;</span>
                 <span class="s1">&#39; have rules that allow or require some files.&#39;</span>
             <span class="p">)</span>
 
@@ -1121,10 +1121,10 @@
         <span class="k">for</span> <span class="n">rule</span> <span class="ow">in</span> <span class="n">rules</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">rule</span><span class="o">.</span><span class="n">rule_type</span> <span class="o">==</span> <span class="n">disallow_rule</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">ParseError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s1">&#39;The policy is set to &quot;</span><span class="si">{policy.name}</span><span class="s1">&quot;, so it is not&#39;</span>
-                    <span class="sa">f</span><span class="s1">&#39; possible to have a rule &quot;</span><span class="si">{rule}</span><span class="s1">&quot; as it is only possible&#39;</span>
-                    <span class="sa">f</span><span class="s1">&#39; to {str(rule.rule_type).lower()} files when the policy&#39;</span>
-                    <span class="sa">f</span><span class="s1">&#39; is not &quot;</span><span class="si">{policy.name}</span><span class="s1">&quot;.&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;The policy is set to &quot;</span><span class="si">{</span><span class="n">policy</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot;, so it is not&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39; possible to have a rule &quot;</span><span class="si">{</span><span class="n">rule</span><span class="si">}</span><span class="s1">&quot; as it is only possible&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39; to </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">rule</span><span class="o">.</span><span class="n">rule_type</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s1"> files when the policy&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39; is not &quot;</span><span class="si">{</span><span class="n">policy</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot;.&#39;</span>
                 <span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">policy</span><span class="p">,</span> <span class="n">opts</span><span class="p">,</span> <span class="n">rules</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span></div>

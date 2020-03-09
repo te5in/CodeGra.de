@@ -340,11 +340,11 @@
         <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">file_occurrence_lookup</span><span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">][</span><span class="s1">&#39;fixed&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">num</span> <span class="o">=</span> <span class="n">file_occurrence_lookup</span><span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">][</span><span class="s1">&#39;fixed&#39;</span><span class="p">]</span>
-                <span class="k">while</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{f.name}</span><span class="s1"> (</span><span class="si">{num}</span><span class="s1">)&#39;</span> <span class="ow">in</span> <span class="n">file_occurrence_lookup</span><span class="p">:</span>
+                <span class="k">while</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> (</span><span class="si">{</span><span class="n">num</span><span class="si">}</span><span class="s1">)&#39;</span> <span class="ow">in</span> <span class="n">file_occurrence_lookup</span><span class="p">:</span>
                     <span class="n">num</span> <span class="o">+=</span> <span class="mi">1</span>
                 <span class="n">file_occurrence_lookup</span><span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">][</span><span class="s1">&#39;fixed&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">num</span>
                 <span class="n">old_name</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span>
-                <span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{f.name}</span><span class="s1"> (</span><span class="si">{num}</span><span class="s1">)&#39;</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> (</span><span class="si">{</span><span class="n">num</span><span class="si">}</span><span class="s1">)&#39;</span>
                 <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
                     <span class="s1">&#39;old_name&#39;</span><span class="p">:</span> <span class="n">old_name</span><span class="p">,</span>
                     <span class="s1">&#39;new_name&#39;</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
@@ -392,7 +392,7 @@
         <span class="n">new_name</span> <span class="o">=</span> <span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;-USER_PROVIDED&#39;</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Invalid filename found&#39;</span><span class="p">,</span> <span class="n">original_filename</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
         <span class="n">helpers</span><span class="o">.</span><span class="n">add_warning</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;Invalid filename &quot;</span><span class="si">{name}</span><span class="s1">&quot; was renamed to &quot;</span><span class="si">{new_name}</span><span class="s1">&quot;&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;Invalid filename &quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot; was renamed to &quot;</span><span class="si">{</span><span class="n">new_name</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">,</span>
             <span class="n">APIWarnings</span><span class="o">.</span><span class="n">INVALID_FILENAME</span>
         <span class="p">)</span>
         <span class="n">name</span> <span class="o">=</span> <span class="n">new_name</span>
@@ -449,7 +449,7 @@
         <span class="k">if</span> <span class="n">missing_files</span><span class="p">:</span>
             <span class="n">message</span> <span class="o">+=</span> <span class="s1">&#39; and it misses required files&#39;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
-            <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{message}</span><span class="s1">.&#39;</span><span class="p">,</span>
+            <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">,</span>
             <span class="n">description</span><span class="o">=</span><span class="s1">&#39;Some files in the archive matched the ignore file&#39;</span><span class="p">,</span>
             <span class="n">api_code</span><span class="o">=</span><span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_FILE_IN_ARCHIVE</span><span class="p">,</span>
             <span class="n">status_code</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span>
@@ -510,7 +510,7 @@
     <span class="k">if</span> <span class="n">code</span><span class="o">.</span><span class="n">is_directory</span><span class="p">:</span>
         <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
             <span class="s1">&#39;Cannot display this file as it is a directory.&#39;</span><span class="p">,</span>
-            <span class="sa">f</span><span class="s1">&#39;The selected file with id {code.get_id()} is a directory.&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The selected file with id </span><span class="si">{</span><span class="n">code</span><span class="o">.</span><span class="n">get_id</span><span class="p">()</span><span class="si">}</span><span class="s1"> is a directory.&#39;</span><span class="p">,</span>
             <span class="n">APICodes</span><span class="o">.</span><span class="n">OBJECT_WRONG_TYPE</span><span class="p">,</span> <span class="mi">400</span>
         <span class="p">)</span>
 
@@ -523,8 +523,8 @@
             <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;This file is a symlink to `{os.readlink(filename)}`.&#39;</span><span class="p">,</span>
-            <span class="sa">f</span><span class="s1">&#39;The file {code.get_id()} is a symlink&#39;</span><span class="p">,</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;This file is a symlink to `</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">readlink</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="si">}</span><span class="s1">`.&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The file </span><span class="si">{</span><span class="n">code</span><span class="o">.</span><span class="n">get_id</span><span class="p">()</span><span class="si">}</span><span class="s1"> is a symlink&#39;</span><span class="p">,</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span>
             <span class="mi">410</span>
         <span class="p">)</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">codefile</span><span class="p">:</span>
@@ -589,7 +589,7 @@
                 <span class="n">cur</span> <span class="o">=</span> <span class="n">entry</span>
                 <span class="k">break</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Path (</span><span class="si">{path}</span><span class="s1">) not in tree&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Path (</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">) not in tree&#39;</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">cur</span><span class="o">.</span><span class="n">id</span></div>
 
 
@@ -821,7 +821,7 @@
         <span class="n">archive</span><span class="o">.</span><span class="n">UnrecognizedArchiveFormat</span>
     <span class="p">):</span>
         <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;The given </span><span class="si">{archive_name}</span><span class="s1"> could not be extracted&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The given </span><span class="si">{</span><span class="n">archive_name</span><span class="si">}</span><span class="s1"> could not be extracted&#39;</span><span class="p">,</span>
             <span class="s2">&quot;The given archive doesn&#39;t seem to be an archive&quot;</span><span class="p">,</span>
             <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_ARCHIVE</span><span class="p">,</span>
             <span class="mi">400</span><span class="p">,</span>
@@ -833,7 +833,7 @@
     <span class="k">except</span> <span class="n">archive</span><span class="o">.</span><span class="n">UnsafeArchive</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Unsafe archive submitted&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;The given </span><span class="si">{archive_name}</span><span class="s1"> contains invalid or too many files&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;The given </span><span class="si">{</span><span class="n">archive_name</span><span class="si">}</span><span class="s1"> contains invalid or too many files&#39;</span><span class="p">,</span>
             <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">UNSAFE_ARCHIVE</span><span class="p">,</span> <span class="mi">400</span>
         <span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>

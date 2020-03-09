@@ -867,7 +867,7 @@
             <span class="n">Comment</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">asc</span><span class="p">(),</span>
         <span class="p">)</span>
         <span class="k">for</span> <span class="n">com</span> <span class="ow">in</span> <span class="n">comments</span><span class="p">:</span>
-            <span class="k">yield</span> <span class="sa">f</span><span class="s1">&#39;{com.file.get_path()}:{com.line + 1}:1: </span><span class="si">{com.comment}</span><span class="s1">&#39;</span></div>
+            <span class="k">yield</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">com</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">get_path</span><span class="p">()</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="n">com</span><span class="o">.</span><span class="n">line</span> <span class="o">+</span> <span class="mi">1</span><span class="si">}</span><span class="s1">:1: </span><span class="si">{</span><span class="n">com</span><span class="o">.</span><span class="n">comment</span><span class="si">}</span><span class="s1">&#39;</span></div>
 
 <div class="viewcode-block" id="Work.get_linter_feedback"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.get_linter_feedback">[docs]</a>    <span class="k">def</span> <span class="nf">get_linter_feedback</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Get all linter feedback for this work.</span>
@@ -883,9 +883,9 @@
         <span class="p">)</span>
         <span class="k">for</span> <span class="n">line_comm</span> <span class="ow">in</span> <span class="n">linter_comments</span><span class="p">:</span>
             <span class="k">yield</span> <span class="p">(</span>
-                <span class="sa">f</span><span class="s1">&#39;{line_comm.file.get_path()}:{line_comm.line + 1}:1: &#39;</span>
-                <span class="sa">f</span><span class="s1">&#39;(</span><span class="si">{line_comm.linter.tester.name}</span><span class="s1">&#39;</span>
-                <span class="sa">f</span><span class="s1">&#39; </span><span class="si">{line_comm.linter_code}</span><span class="s1">) </span><span class="si">{line_comm.comment}</span><span class="s1">&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">line_comm</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">get_path</span><span class="p">()</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="n">line_comm</span><span class="o">.</span><span class="n">line</span> <span class="o">+</span> <span class="mi">1</span><span class="si">}</span><span class="s1">:1: &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;(</span><span class="si">{</span><span class="n">line_comm</span><span class="o">.</span><span class="n">linter</span><span class="o">.</span><span class="n">tester</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39; </span><span class="si">{</span><span class="n">line_comm</span><span class="o">.</span><span class="n">linter_code</span><span class="si">}</span><span class="s1">) </span><span class="si">{</span><span class="n">line_comm</span><span class="o">.</span><span class="n">comment</span><span class="si">}</span><span class="s1">&#39;</span>
             <span class="p">)</span></div>
 
 <div class="viewcode-block" id="Work.remove_selected_rubric_item"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.remove_selected_rubric_item">[docs]</a>    <span class="k">def</span> <span class="nf">remove_selected_rubric_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">row_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -935,7 +935,7 @@
                 <span class="n">file_models</span><span class="o">.</span><span class="n">File</span><span class="o">.</span><span class="n">parent_id</span> <span class="o">==</span> <span class="n">parent</span><span class="p">,</span>
                 <span class="n">file_models</span><span class="o">.</span><span class="n">File</span><span class="o">.</span><span class="n">work_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
                 <span class="n">file_models</span><span class="o">.</span><span class="n">File</span><span class="o">.</span><span class="n">is_directory</span><span class="p">,</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">subquery</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;parent_</span><span class="si">{idx}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">subquery</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;parent_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">parent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">parent</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">id</span>

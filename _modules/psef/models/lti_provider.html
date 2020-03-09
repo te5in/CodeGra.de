@@ -330,7 +330,7 @@
         <span class="k">if</span> <span class="bp">cls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APIException</span><span class="p">(</span>
                 <span class="s1">&#39;The requested LMS is not supported&#39;</span><span class="p">,</span>
-                <span class="sa">f</span><span class="s1">&#39;The LMS &quot;</span><span class="si">{lms}</span><span class="s1">&quot; is not supported&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The LMS &quot;</span><span class="si">{</span><span class="n">lms</span><span class="si">}</span><span class="s1">&quot; is not supported&#39;</span><span class="p">,</span>
                 <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span> <span class="mi">400</span>
             <span class="p">)</span>
         <span class="k">return</span> <span class="bp">cls</span></div>

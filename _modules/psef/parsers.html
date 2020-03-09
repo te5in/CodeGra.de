@@ -298,8 +298,8 @@
             <span class="k">pass</span>
 
     <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
-        <span class="sa">f</span><span class="s1">&#39;The given {option_name or &quot;option&quot;} is not a valid option&#39;</span><span class="p">,</span>
-        <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{to_parse}</span><span class="s1"> is not a member from </span><span class="si">{parse_into_enum.__name__}</span><span class="s1">.&#39;</span><span class="p">,</span>
+        <span class="sa">f</span><span class="s1">&#39;The given </span><span class="si">{</span><span class="n">option_name</span> <span class="ow">or</span> <span class="s2">&quot;option&quot;</span><span class="si">}</span><span class="s1"> is not a valid option&#39;</span><span class="p">,</span>
+        <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">to_parse</span><span class="si">}</span><span class="s1"> is not a member from </span><span class="si">{</span><span class="n">parse_into_enum</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">,</span>
         <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span> <span class="mi">400</span>
     <span class="p">)</span></div>
 
@@ -331,7 +331,7 @@
 
     <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
         <span class="sa">f</span><span class="s1">&#39;The given string of emails contains invalid items&#39;</span><span class="p">,</span>
-        <span class="sa">f</span><span class="s1">&#39;The string &quot;</span><span class="si">{to_parse}</span><span class="s1">&quot; contains invalid items.&#39;</span><span class="p">,</span>
+        <span class="sa">f</span><span class="s1">&#39;The string &quot;</span><span class="si">{</span><span class="n">to_parse</span><span class="si">}</span><span class="s1">&quot; contains invalid items.&#39;</span><span class="p">,</span>
         <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span> <span class="mi">400</span>
     <span class="p">)</span></div>
 

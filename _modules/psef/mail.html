@@ -267,8 +267,8 @@
     <span class="n">_send_mail</span><span class="p">(</span>
         <span class="n">html_body</span><span class="p">,</span>
         <span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;Grading has finished for </span><span class="si">{assig.name}</span><span class="s1"> on &#39;</span>
-            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{current_app.config[&quot;EXTERNAL_URL&quot;]}</span><span class="s1">&#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;Grading has finished for </span><span class="si">{</span><span class="n">assig</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> on &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;EXTERNAL_URL&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span>
         <span class="p">),</span>
         <span class="n">recipients</span><span class="p">,</span>
     <span class="p">)</span></div>
@@ -297,8 +297,8 @@
     <span class="n">_send_mail</span><span class="p">(</span>
         <span class="n">html_body</span><span class="p">,</span>
         <span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;Grade status toggled for </span><span class="si">{assig.name}</span><span class="s1"> on &#39;</span>
-            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{current_app.config[&quot;EXTERNAL_URL&quot;]}</span><span class="s1">&#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;Grade status toggled for </span><span class="si">{</span><span class="n">assig</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> on &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;EXTERNAL_URL&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span>
         <span class="p">),</span>
         <span class="p">[</span><span class="n">user</span><span class="o">.</span><span class="n">email</span><span class="p">],</span>
     <span class="p">)</span></div>
@@ -329,8 +329,8 @@
     <span class="n">_send_mail</span><span class="p">(</span>
         <span class="n">html_body</span><span class="p">,</span>
         <span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;Grade reminder for </span><span class="si">{assig.name}</span><span class="s1"> on &#39;</span>
-            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{current_app.config[&quot;EXTERNAL_URL&quot;]}</span><span class="s1">&#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;Grade reminder for </span><span class="si">{</span><span class="n">assig</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> on &#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;EXTERNAL_URL&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span>
         <span class="p">),</span>
         <span class="p">[</span><span class="n">user</span><span class="o">.</span><span class="n">email</span><span class="p">],</span>
         <span class="n">mailer</span><span class="p">,</span>
@@ -349,8 +349,8 @@
     <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
         <span class="n">site_url</span><span class="o">=</span><span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;EXTERNAL_URL&quot;</span><span class="p">],</span>
         <span class="n">url</span><span class="o">=</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{current_app.config[&quot;EXTERNAL_URL&quot;]}</span><span class="s1">/reset_&#39;</span>
-            <span class="sa">f</span><span class="s1">&#39;password/?user=</span><span class="si">{user.id}</span><span class="s1">&amp;token=</span><span class="si">{token}</span><span class="s1">&#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;EXTERNAL_URL&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/reset_&#39;</span>
+            <span class="sa">f</span><span class="s1">&#39;password/?user=</span><span class="si">{</span><span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1">&amp;token=</span><span class="si">{</span><span class="n">token</span><span class="si">}</span><span class="s1">&#39;</span>
         <span class="p">),</span>
         <span class="n">user_id</span><span class="o">=</span><span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
         <span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span>
@@ -359,7 +359,7 @@
     <span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">_send_mail</span><span class="p">(</span>
-            <span class="n">html_body</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;Reset password on </span><span class="si">{psef.app.config[&quot;EXTERNAL_URL&quot;]}</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="n">html_body</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;Reset password on </span><span class="si">{</span><span class="n">psef</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;EXTERNAL_URL&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
             <span class="p">[</span><span class="n">user</span><span class="o">.</span><span class="n">email</span><span class="p">]</span>
         <span class="p">)</span>
     <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
@@ -367,7 +367,7 @@
         <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
             <span class="s1">&#39;Something went wrong sending the email, &#39;</span>
             <span class="s1">&#39;please contact your site admin&#39;</span><span class="p">,</span>
-            <span class="sa">f</span><span class="s1">&#39;Sending email to </span><span class="si">{user.id}</span><span class="s1"> went wrong.&#39;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s1">&#39;Sending email to </span><span class="si">{</span><span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1"> went wrong.&#39;</span><span class="p">,</span>
             <span class="n">APICodes</span><span class="o">.</span><span class="n">UNKOWN_ERROR</span><span class="p">,</span>
             <span class="mi">500</span><span class="p">,</span>
         <span class="p">)</span></div>
