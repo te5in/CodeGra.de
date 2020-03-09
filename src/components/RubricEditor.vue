@@ -253,7 +253,7 @@
 
                         <p class="mb-2">
                             The following categories contain only a single
-                            item; this means it is only possible to select
+                            item, which means it is only possible to select
                             this item, and an AutoTest will always select it:
                         </p>
 
@@ -276,6 +276,24 @@
                         <ul>
                             <li v-for="row in rowsWithEqualItems">
                                 {{ row }}
+                            </li>
+                        </ul>
+                    </template>
+
+                    <template v-if="rowsWithoutZeroItem.length > 0">
+                        <b>Rows without items with 0 points</b>
+
+                        <p class="mb-2">
+                            There are categories without an item with zero
+                            points, without which it may be unclear if the
+                            category is yet to be filled in or was
+                            intentionally left blank. The following categories
+                            do not contain an item with 0 points:
+                        </p>
+
+                        <ul>
+                            <li v-for="row in rowsWithoutZeroItem">
+                                {{ row.nonEmptyHeader }}
                             </li>
                         </ul>
                     </template>
@@ -547,18 +565,20 @@ export default {
         },
 
         rowsWithSingleItem() {
-            return this.rubricRows.reduce((acc, row) => {
-                if (row.type === 'normal' && row.items.length === 1) {
-                    acc.push(row);
-                }
-                return acc;
-            }, []);
+            return this.rubricRows.filter(row => row.type === 'normal' && row.items.length === 1);
+        },
+
+        rowsWithoutZeroItem() {
+            return this.rubricRows.filter(
+                row => row.type === 'normal' && !row.items.find(item => item.points === 0),
+            );
         },
 
         shouldConfirm() {
             return (
                 this.deletedItems.length +
                     this.rowsWithEqualItems.length +
+                    this.rowsWithoutZeroItem.length +
                     this.rowsWithSingleItem.length >
                 0
             );

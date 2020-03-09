@@ -31,6 +31,8 @@ Vue.use(VueClipboard);
 
 Vue.config.productionTip = false;
 
+moment.relativeTimeThreshold('h', 48);
+
 Icon.register({
     tilde: {
         width: 24,
