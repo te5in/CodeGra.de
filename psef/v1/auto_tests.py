@@ -5,7 +5,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import json
 import typing as t
-import numbers
 
 import werkzeug
 import structlog
@@ -54,7 +53,7 @@ def _update_auto_test(
         has_new_fixtures = optional_get('has_new_fixtures', bool, False)
         grade_calculation = optional_get('grade_calculation', str, None)
         results_always_visible: t.Optional[bool] = optional_get(
-            'results_always_visible', t.cast(t.Any, (bool, type(None))), None
+            'results_always_visible', (bool, type(None)), None
         )
 
     if old_fixtures is not None:
@@ -353,9 +352,7 @@ def update_auto_test_set(auto_test_id: int, auto_test_set_id: int
     auto_test_set.auto_test.ensure_no_runs()
 
     with get_from_map_transaction(get_json_dict_from_request()) as [_, opt]:
-        stop_points = t.cast(
-            t.Optional[float], opt('stop_points', numbers.Real, None)
-        )
+        stop_points = opt('stop_points', (int, float), None)
 
     if stop_points is not None:
         if stop_points < 0:
@@ -450,10 +447,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         rubric_row_id = get('rubric_row_id', int)
         network_disabled = get('network_disabled', bool)
         suite_id = opt('id', int, None)
-        time_limit = t.cast(
-            t.Optional[float],
-            opt('command_time_limit', numbers.Real, None),
-        )
+        time_limit = opt('command_time_limit', (float, int), None)
 
     if suite_id is None:
         # Make sure the time_limit is always set when creating a new suite
@@ -812,3 +806,81 @@ def copy_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
     assignment.auto_test = test.copy(mapping)
     db.session.commit()
     return jsonify(assignment.auto_test)
+
+
+@api.route(
+    (
+        '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/results/'
+        '<int:result_id>/suites/<int:suite_id>/proxy'
+    ),
+    methods=['POST']
+)
+@feature_required(Feature.AUTO_TEST)
+@feature_required(Feature.RENDER_HTML)
+def get_auto_test_result_proxy(
+    auto_test_id: int,
+    run_id: int,
+    result_id: int,
+    suite_id: int,
+) -> JSONResponse[models.Proxy]:
+    """Create a proxy to view the files of the given AT result through.
+
+    .. :quickref: AutoTest; Create a proxy to view the files a result.
+
+    This allows you to view files of an AutoTest result (within a suite)
+    without authentication for a limited time.
+
+    :param auto_test_id: The id of the AutoTest in which the result is located.
+    :param run_id: The id of run in which the result is located.
+    :param result_id: The id of the result from which you want to get the
+        files.
+    :param suite_id: The suite from which you want to proxy the output files.
+    :<json bool allow_remote_resources: Allow the proxy to load remote
+        resources.
+    :<json bool allow_remote_scripts: Allow the proxy to load remote scripts,
+        and allow to usage of 'eval'.
+    :returns: The created proxy.
+    """
+    with get_from_map_transaction(get_json_dict_from_request()) as [get, _]:
+        allow_remote_resources = get('allow_remote_resources', bool)
+        allow_remote_scripts = get('allow_remote_scripts', bool)
+
+    test = get_or_404(
+        models.AutoTest,
+        auto_test_id,
+        also_error=lambda at: at.assignment.deleted
+    )
+    auth.ensure_can_view_autotest(test)
+    if not test.assignment.is_done:
+        auth.ensure_permission(
+            CPerm.can_view_autotest_output_files_before_done,
+            test.assignment.course_id,
+        )
+
+    def also_error(obj: models.AutoTestResult) -> bool:
+        return (
+            obj.auto_test_run_id != run_id or
+            obj.run.auto_test_id != test.id or obj.work.deleted
+        )
+
+    result = get_or_404(
+        models.AutoTestResult,
+        result_id,
+        also_error=also_error,
+    )
+
+    base_file = filter_single_or_404(
+        models.AutoTestOutputFile,
+        models.AutoTestOutputFile.parent_id.is_(None),
+        models.AutoTestOutputFile.auto_test_suite_id == suite_id,
+        models.AutoTestOutputFile.result == result,
+    )
+
+    proxy = models.Proxy(
+        base_at_result_file=base_file,
+        allow_remote_resources=allow_remote_resources,
+        allow_remote_scripts=allow_remote_scripts,
+    )
+    db.session.add(proxy)
+    db.session.commit()
+    return jsonify(proxy)

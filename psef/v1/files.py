@@ -66,7 +66,7 @@ def post_file() -> JSONResponse[str]:
 
 
 @api.route('/files/<file_name>', methods=['GET'])
-@api.route('/files/<file_name>/<name>')
+@api.route('/files/<file_name>/<path:name>')
 def get_file(
     file_name: str, name: str = 'export'
 ) -> werkzeug.wrappers.Response:
