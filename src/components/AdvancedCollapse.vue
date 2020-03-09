@@ -30,12 +30,17 @@ export default {
             type: String,
             default: 'Advanced options',
         },
+
+        startOpen: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     data() {
         return {
             id: `${this.$utils.getUniqueId()}`,
-            state: false,
+            state: this.startOpen,
         };
     },
 

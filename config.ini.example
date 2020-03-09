@@ -206,6 +206,11 @@
 # The external URL the server runs on.
 # external_url = http://localhost:8080
 
+
+# The proxy base domain should be a domain that will be used for serving
+# files. It should have a valid ssl certificate for *.$proxy_base_domain.
+# proxy_base_domain =
+
 # Path to the java runtime executable. May also be just the name of the
 # executable, if it is in a directory in the PATH environment variable.
 # java_path = java
@@ -285,7 +290,12 @@
 
 # Should it be possible for teachers to create links that users can use to
 # register and enroll in a course.
-# course_registration = false
+# course_register = false
+
+# Should it be possible to render html files within CodeGrade. This opens up
+# more attack surfaces as it is now possible by design for students to run
+# javascript. This is all done in a sandboxed iframe but still.
+# render_html = false
 
 # All LTI consumer keys mapped to secret keys. Please add your own, these ARE
 # case sensitive.

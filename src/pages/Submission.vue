@@ -128,8 +128,7 @@
                 <div class="file-tree-container border rounded p-0 mt-3 mt-lg-0" slot="secondPane">
                     <file-tree :assignment="assignment"
                                :submission="submission"
-                               :revision="revision"
-                               :can-see-revision="canSeeRevision" />
+                               :revision="revision" />
                 </div>
             </component>
         </div>
@@ -305,18 +304,6 @@ export default {
 
         canViewAutoTestBeforeDone() {
             return this.coursePerms.can_view_autotest_before_done;
-        },
-
-        canSeeRevision() {
-            if (
-                this.submission &&
-                this.userId === this.submission.user.id &&
-                this.canSeeUserFeedback
-            ) {
-                return this.coursePerms.can_view_own_teacher_files;
-            } else {
-                return this.coursePerms.can_edit_others_work;
-            }
         },
 
         canGiveLineFeedback() {
