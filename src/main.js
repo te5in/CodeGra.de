@@ -332,6 +332,17 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 return this.epoch;
             },
         },
+
+        watch: {
+            isEdge: {
+                immediate: true,
+                handler() {
+                    if (this.isEdge) {
+                        document.body.classList.add('cg-edge');
+                    }
+                },
+            },
+        },
     });
 
     // eslint-disable-next-line
