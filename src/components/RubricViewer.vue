@@ -186,7 +186,7 @@ export default {
         submissionId: {
             immediate: true,
             handler() {
-                this.changedItems = {};
+                this.reset();
 
                 this.storeLoadRubricResult({
                     submissionId: this.submissionId,
@@ -217,10 +217,14 @@ export default {
         this.$root.$on('cg::rubric-viewer::open-category', id => {
             this.currentCategory = this.rubric.rows.findIndex(row => row.id === id);
         });
+        this.$root.$on('cg::rubric-viewer::reset', () => {
+            this.reset();
+        });
     },
 
     destroyed() {
         this.$root.$off('cg::rubric-viewer::open-category');
+        this.$root.$off('cg::rubric-viewer::reset');
     },
 
     methods: {
@@ -237,6 +241,10 @@ export default {
         resultUpdated(rowId, item) {
             this.$set(this.changedItems, rowId, item);
             this.$emit('input', this.internalResult);
+        },
+
+        reset() {
+            this.changedItems = {};
         },
     },
 
