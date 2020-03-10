@@ -14,7 +14,7 @@
 <script>
 import 'vue-awesome/icons/times';
 import { Loader } from '@/components';
-import { mapActions } from 'vuex';
+import { mapActions, mapGetters } from 'vuex';
 import { disablePersistance } from '@/store';
 import ltiProviders from '@/lti_providers';
 
@@ -47,8 +47,13 @@ export default {
         this.secondStep(true);
     },
 
+    computed: {
+        ...mapGetters('courses', ['assignments']),
+    },
+
     methods: {
         ...mapActions('user', ['logout', 'updateAccessToken']),
+        ...mapActions('courses', ['loadCourses', 'reloadCourses']),
         ...mapActions('plagiarism', { clearPlagiarismCases: 'clear' }),
 
         secondStep(first) {
@@ -56,13 +61,15 @@ export default {
 
             setPageTitle('LTI is launching, please wait');
 
-            this.$http
-                .post('/api/v1/lti/launch/2', {
+            Promise.all([
+                this.$http.post('/api/v1/lti/launch/2', {
                     jwt_token: this.$route.query.jwt,
                     blob_id: this.$route.query.blob_id,
-                })
+                }),
+                this.loadCourses(),
+            ])
                 .then(
-                    async response => {
+                    async ([response]) => {
                         const { data } = response;
                         if (data.access_token) {
                             await this.logout();
@@ -79,6 +86,12 @@ export default {
                         );
 
                         this.$ltiProvider = ltiProviders[data.custom_lms_name];
+
+                        // A new assignment was created so we should reload the
+                        // courses.
+                        if (!this.assignments[data.assignment.id]) {
+                            await this.reloadCourses();
+                        }
                         this.$LTIAssignmentId = data.assignment.id;
 
                         if (data.new_role_created) {
