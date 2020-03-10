@@ -109,7 +109,7 @@
     <b-btn class="extra-load-btn"
            v-if="moreCoursesAvailable && !loadingCourses"
            @click="showMoreCourses()">
-        <loader v-if="renderingMoreCourses > 0" :scale="1"/>
+        <loader v-if="renderingMoreCourses > 0" :scale="1" class="py-1"/>
         <span v-else>
             Load more courses
         </span>
@@ -485,5 +485,9 @@ a {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
+}
+
+.extra-load-btn {
+    margin: 0 auto;
 }
 </style>
