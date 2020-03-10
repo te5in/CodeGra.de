@@ -138,6 +138,10 @@ export default {
 .manage-link {
     flex: 0 0 auto;
     padding-top: 4px;
+
+    .cg-edge & .fa-icon {
+        transform: translateY(-3px);
+    }
 }
 
 a {
