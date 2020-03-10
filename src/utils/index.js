@@ -73,6 +73,18 @@ export function cmpNoCase(first, second) {
 }
 
 /**
+ * Compare many 2-tuples of strings stopping at the first tuple that is not
+ * equal. The `opts` param should be an array of arrays with two items.
+ */
+export function cmpNoCaseMany(...opts) {
+    let res = 0;
+    for (let i = 0; res === 0 && i < opts.length; ++i) {
+        res = cmpNoCase(...opts[i]);
+    }
+    return res;
+}
+
+/**
  * Parse the given value as a boolean.
  * If it is a boolean return it, if it is 'false' or 'true' convert
  * that to its correct boolean value, otherwise return `dflt`.

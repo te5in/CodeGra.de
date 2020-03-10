@@ -126,7 +126,7 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/gear';
 import InfiniteLoading from 'vue-infinite-loading';
 
-import { hashString, cmpNoCase } from '@/utils';
+import { hashString, cmpNoCaseMany } from '@/utils';
 
 import AssignmentState from './AssignmentState';
 import UserInfo from './UserInfo';
@@ -177,7 +177,9 @@ export default {
         ...mapGetters('pref', ['darkMode']),
 
         courses() {
-            return Object.values(this.unsortedCourses).sort((a, b) => cmpNoCase(a.name, b.name));
+            return Object.values(this.unsortedCourses).sort(
+                (a, b) => cmpNoCaseMany([b.created_at, a.created_at], [a.name, b.name]),
+            );
         },
 
         filteredCourses() {
