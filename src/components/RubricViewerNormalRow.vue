@@ -167,9 +167,10 @@ export default {
                 return;
             }
 
-            const rowId = this.rubricRow.id;
-            const value = this.value.toggleItem(rowId, item);
-            this.$emit('input', value);
+            this.$emit(
+                'input',
+                item.id === this.selectedId ? null : Object.assign({}, item, { multiplier: 1 }),
+            );
         },
     },
 

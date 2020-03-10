@@ -332,7 +332,7 @@ context('Submission page', () => {
 
         after(() => {
             login('admin', 'admin');
-            giveGeneralFeedback('');
+            cy.patchSubmission(submission.id, { feedback: '' });
         });
 
         it('should be possible to give general feedback', () => {
@@ -394,6 +394,41 @@ context('Submission page', () => {
             toggleGeneralFeedbackArea();
             cy.get('[id^="submit-button-"][id$="-confirm-popover"]')
                 .should('not.exist');
+        });
+
+        it('should not clear the rubric upon saving general feedback', () => {
+            cy.createRubric(assignment.id, [
+                {
+                    header: 'Category 1',
+                    description: 'Category 1',
+                    items: [
+                        { points: 0, header: '0 points', description: '0 points' },
+                        { points: 1, header: '1 points', description: '1 points' },
+                        { points: 2, header: '2 points', description: '2 points' },
+                        { points: 3, header: '3 points', description: '3 points' },
+                    ],
+                },
+            ]);
+            reload();
+
+            cy.get('.grade-viewer .rubric-save-warning').should('not.exist');
+            cy.get('.rubric-viewer .rubric-item:first').click();
+            cy.get('.rubric-viewer .rubric-item:first').should('have.class', 'selected');
+            cy.get('.grade-viewer .rubric-save-warning').should('be.visible');
+
+            showGeneralFeedbackArea()
+                .as('gfArea')
+                .find('textarea')
+                .type(generalMsg);
+            cy.get('@gfArea')
+                .find('.submit-button')
+                .submit('success', { waitForDefault: false });
+
+            cy.get('.rubric-viewer .rubric-item:first').should('have.class', 'selected');
+            cy.get('.grade-viewer .rubric-save-warning').should('be.visible');
+
+            cy.patchSubmission(submission.id, { feedback: '' });
+            cy.deleteRubric(assignment.id);
         });
     });
 

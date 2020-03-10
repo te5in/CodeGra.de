@@ -188,8 +188,6 @@ export default {
             clearTimeout(this.timerId);
 
             const inputEl = this.$refs.multiplierInput;
-            const rowId = this.rubricRow.id;
-            const item = this.onlyItem;
 
             let value = parseFloat(inputEl.value);
             if (!Number.isNaN(value)) {
@@ -200,15 +198,13 @@ export default {
                 return;
             }
 
-            const newResult = this.value.setMultiplier(rowId, item, value);
-
             if (delay) {
                 this.timerId = setTimeout(() => {
                     this.timerId = null;
-                    this.$emit('input', newResult);
+                    this.emitItem(value);
                 }, this.timerDelay);
             } else {
-                this.$emit('input', newResult);
+                this.emitItem(value);
             }
         },
 
@@ -218,6 +214,14 @@ export default {
             this.$nextTick(() => {
                 this.$emit('submit');
             });
+        },
+
+        emitItem(multiplier) {
+            if (multiplier == null) {
+                this.$emit('input', null);
+            } else {
+                this.$emit('input', Object.assign({}, this.onlyItem, { multiplier }));
+            }
         },
     },
 
