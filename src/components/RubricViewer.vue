@@ -214,17 +214,13 @@ export default {
     },
 
     mounted() {
-        this.$root.$on('cg::rubric-viewer::open-category', id => {
-            this.currentCategory = this.rubric.rows.findIndex(row => row.id === id);
-        });
-        this.$root.$on('cg::rubric-viewer::reset', () => {
-            this.reset();
-        });
+        this.$root.$on('cg::rubric-viewer::open-category', this.gotoCategory);
+        this.$root.$on('cg::rubric-viewer::reset', this.reset);
     },
 
     destroyed() {
-        this.$root.$off('cg::rubric-viewer::open-category');
-        this.$root.$off('cg::rubric-viewer::reset');
+        this.$root.$off('cg::rubric-viewer::open-category', this.gotoCategory);
+        this.$root.$off('cg::rubric-viewer::reset', this.reset);
     },
 
     methods: {
@@ -245,6 +241,10 @@ export default {
 
         reset() {
             this.changedItems = {};
+        },
+
+        gotoCategory(rowId) {
+            this.currentCategory = this.rubric.rows.findIndex(row => row.id === rowId);
         },
     },
 
