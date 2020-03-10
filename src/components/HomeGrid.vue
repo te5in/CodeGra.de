@@ -321,9 +321,9 @@ export default {
         // vue-infinite-loader plugin, and should have two callable props:
         // `loaded` and `complete`.
         async showMoreCourses($state = null) {
-            this.amountCoursesToShow += EXTRA_COURSES_AMOUNT;
             this.renderingMoreCourses += 1;
             await this.$afterRerender();
+            this.amountCoursesToShow += EXTRA_COURSES_AMOUNT;
             this.renderingMoreCourses -= 1;
 
             if ($state) {
