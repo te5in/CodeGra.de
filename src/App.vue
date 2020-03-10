@@ -91,7 +91,7 @@ export default {
                 } else {
                     document.body.classList.remove('cg-in-lti');
                 }
-            }
+            },
         },
     },
 
