@@ -20,7 +20,8 @@
         <b>{{ UserConfig.release.version }}</b>.
         {{ UserConfig.release.message }} You can check the entire
         changelog <a href="https://docs.codegra.de/about/changelog.html"
-        target="_blank" class="alert-link">here</a>.
+                     target="_blank"
+                     class="alert-link">here</a>.
     </b-alert>
 
     <loader v-if="loadingCourses" page-loader/>
@@ -37,7 +38,9 @@
              :gutter="30"
              class="outer-block outer-course-wrapper"
              v-else>
-        <div class="course-wrapper" v-for="course in filteredCourses" :key="course.id">
+        <div class="course-wrapper" v-for="course, idx in filteredCourses"
+             :key="course.id"
+             v-if="idx < amountCoursesToShow">
             <b-card no-body>
                 <b-card-header :class="`text-${getColorPair(course.name).color}`"
                                :style="{ backgroundColor: `${getColorPair(course.name).background} !important` }">
@@ -95,6 +98,23 @@
             </b-card>
         </div>
     </masonry>
+
+
+    <b-btn class="extra-load-btn"
+           v-if="moreCoursesAvailable && !loadingCourses"
+           @click="showMoreCourses()">
+        <span>
+            Load more courses
+        </span>
+        <infinite-loading @infinite="showMoreCourses" :distance="150">
+            <div slot="spinner"></div>
+            <div slot="no-more"></div>
+            <div slot="no-results"></div>
+            <div slot="error" slot-scope="err">
+                {{ err }}
+            </div>
+        </infinite-loading>
+    </b-btn>
 </div>
 </template>
 
@@ -104,6 +124,7 @@ import moment from 'moment';
 import { mapGetters, mapActions } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/gear';
+import InfiniteLoading from 'vue-infinite-loading';
 
 import { hashString, cmpNoCase } from '@/utils';
 
@@ -136,6 +157,8 @@ const COLOR_PAIRS = [
     { background: 'rgb(234, 182, 108)', color: 'dark' },
 ];
 
+const INITIAL_COURSES_AMOUNT = 12;
+
 export default {
     name: 'home-grid',
 
@@ -143,6 +166,7 @@ export default {
         return {
             loadingCourses: true,
             UserConfig,
+            amountCoursesToShow: INITIAL_COURSES_AMOUNT,
             searchString: '',
         };
     },
@@ -175,6 +199,12 @@ export default {
                 UserConfig.release.message &&
                 this.$root.$now.diff(moment(UserConfig.release.date), 'days') < 7
             );
+        },
+
+        // Are there more courses available. If this is true we should show the
+        // infinite loader.
+        moreCoursesAvailable() {
+            return this.filteredCourses.length > this.amountCoursesToShow;
         },
     },
 
@@ -252,6 +282,22 @@ export default {
                 },
             };
         },
+
+        // This method should be called when the infinite loader comes into view.
+        // The optional $state parameter should be the state parameter of the
+        // vue-infinite-loader plugin, and should have two callable props:
+        // `loaded` and `complete`.
+        async showMoreCourses($state = null) {
+            this.amountCoursesToShow += INITIAL_COURSES_AMOUNT;
+            if ($state) {
+                await this.$afterRerender();
+                if (this.moreCoursesAvailable) {
+                    $state.loaded();
+                } else {
+                    $state.complete();
+                }
+            }
+        },
     },
 
     components: {
@@ -261,6 +307,7 @@ export default {
         UserInfo,
         Loader,
         LocalHeader,
+        InfiniteLoading,
     },
 };
 </script>
