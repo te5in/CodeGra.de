@@ -38,7 +38,8 @@
              :gutter="30"
              class="outer-block outer-course-wrapper"
              v-else>
-        <div class="course-wrapper" v-for="course, idx in filteredCourses"
+        <div class="course-wrapper"
+             v-for="course, idx in filteredCourses"
              :key="course.id"
              v-if="idx < amountCoursesToShow">
             <b-card no-body>
