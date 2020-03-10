@@ -35,7 +35,7 @@ context('HomeGrid', () => {
         cy.url().should('match', /\/courses\/[0-9]+/);
     });
 
-    it.only('should show the entire date for courses with the same name', () => {
+    it('should show the entire date for courses with the same name', () => {
         const now = new Date().toISOString().slice(0, 10);
         const name1 = `Duplicate course - ${Math.random()}`;
         const name2 = `Unique course - ${Math.random()}`;
