@@ -7,13 +7,13 @@
         <table class="linter-feedback">
             <tr v-for="(val, i) in feedback"
                 :key="i">
-                <td>
+                <td class="pr-3">
                     <b>{{ val[0] }}</b>
                 </td>
-                <td style="text-align: left">
-                    <span v-if="val[1].code">
+                <td class="text-left">
+                    <template v-if="val[1].code">
                         [{{ val[1].code }}]
-                    </span>
+                    </template>
                     {{ val[1].msg }}
                 </td>
             </tr>
@@ -34,7 +34,6 @@ export default {
 
     data() {
         return {
-            show: false,
             divId: `linterFeedback-${i++}`,
         };
     },
@@ -42,11 +41,17 @@ export default {
 </script>
 
 <style lang="less" scoped>
-table.linter-feedback tr td:not(:last-child) {
-    padding-right: 1rem;
-}
+@import '~mixins.less';
 
 .linter-feedback-inner {
     display: inline;
+}
+
+.linter-toggle {
+    min-width: @code-linum-width;
+    height: 100%;
+    top: 0;
+    right: 100%;
+    position: absolute;
 }
 </style>

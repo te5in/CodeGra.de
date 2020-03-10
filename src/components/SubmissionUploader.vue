@@ -5,14 +5,16 @@
     <b-modal id="git-instructions-modal"
              v-if="gitData != null"
              title="Git instructions"
-             hide-footer>
+             hide-footer
+             size="xl">
         <webhook-instructions :data="gitData" />
     </b-modal>
 
-    <b-modal id="wrong-files-modal"
-             v-if="showWrongFileModal"
+    <b-modal v-if="showWrongFileModal"
+             id="wrong-files-modal"
+             title="Your submission does not follow the hand-in instruction required by your teacher!"
              hide-footer
-             title="Your submission does not follow the hand-in instruction required by your teacher!">
+             size="xl">
         <div v-if="oldIgnoreFormat">
             <p>
                 The following files should not be in your archive according to
@@ -35,7 +37,7 @@
                     content-class="missing-required-files-content">
                 <b-tab title="Missing files" class="ignore-tab" :disabled="wrongFileError.missing_files.length === 0">
                     <b-card class="ignore-card missing-card" no-body>
-                        <p class="explanation">
+                        <p class="m-3">
                             The following files were required by your teacher, but
                             were not found in your submission.
                         </p>
@@ -121,8 +123,9 @@
     <b-modal id="group-manage-modal"
              v-if="showGroupModal"
              hide-footer
-             title="Group">
-        <div class="group-modal-wrapper">
+             title="Group"
+             size="lg">
+        <div class="group-modal-wrapper border-bottom">
             <p class="header">
                 This assignment is a group assignment. Each group should have at
                 least {{ assignment.group_set.minimum_size }} members.
@@ -203,13 +206,16 @@
                 </icon>
                 <b-popover :show="loadingWebhookError != null"
                            target="git-error-icon"
-                           triggers=""
+                           triggers="blur"
                            placement="top"
-                           @hide="loadingWebhookError = null">
+                           @hide="loadingWebhookError = null"
+                           @shown="$refs.loadingWebhookError.focus()">
                     <icon name="times"
                           class="hide-button"
                           @click.native="loadingWebhookError = null"/>
-                    <span>
+                    <span tabindex="-1"
+                          ref="loadingWebhookError"
+                          style="outline: 0;">
                         {{ $utils.getErrorMessage(loadingWebhookError) }}
                     </span>
                 </b-popover>
@@ -232,7 +238,7 @@
            setting up Git submissions.
     </div>
 
-    <b-input-group class="submit-options border-top">
+    <b-input-group class="submit-options border-top" style="z-index: 25">
         <template v-if="forOthers">
             <div class="author-wrapper"
                  :class="canListUsers ? '' : 'd-flex'"
@@ -248,12 +254,13 @@
             </div>
 
             <b-input-group-prepend class="test-student-checkbox border-left"
+                                   :class="{ 'cursor-not-allowed': disabled || !!author }"
                                    v-b-popover.hover.top="testSubmissionDisabledPopover">
                 <b-input-group-text class="border-0">
                     <b-form-checkbox v-model="isTestSubmission"
                                      :disabled="disabled || !!author">
                         Test submission
-                        <description-popover hug-text>
+                        <description-popover hug-text placement="top">
                             This submission will be uploaded by a special test student.
                             When you enable this option you will not be able to select
                             another author.
@@ -406,22 +413,18 @@ export default {
             required: true,
             type: Object,
         },
-
         disabled: {
             default: false,
             type: Boolean,
         },
-
         forOthers: {
             type: Boolean,
             required: true,
         },
-
         canListUsers: {
             type: Boolean,
             required: true,
         },
-
         noBorder: {
             type: Boolean,
             default: false,
@@ -553,16 +556,16 @@ export default {
             return '';
         },
 
+        disabledPopover() {
+            return 'You cannot select both an author and upload as a test submission.';
+        },
+
         authorDisabledPopover() {
-            return this.disabled || this.isTestSubmission
-                ? 'You cannot select both an author and upload as a test submission.'
-                : '';
+            return this.disabled || this.isTestSubmission ? this.disabledPopover : '';
         },
 
         testSubmissionDisabledPopover() {
-            return this.disabled || this.author
-                ? 'You cannot select both an author and upload as a test submission.'
-                : '';
+            return this.disabled || this.author ? this.disabledPopover : '';
         },
 
         currentGroup() {
@@ -691,12 +694,6 @@ export default {
 
     mounted() {
         this.loadSubmissionsIfNeeded();
-    },
-
-    destroyed() {
-        // Make sure we don't leak the promise and event handler
-        // set in the checkUpload method.
-        this.$emit('warn-popover-hidden');
     },
 
     methods: {
@@ -907,15 +904,10 @@ export default {
 
 .group-modal-wrapper {
     overflow: auto;
-    border-bottom: 1px solid #e9ecef;
     margin: -0.95rem;
     margin-bottom: 0.95rem;
     padding: 0.95rem;
     min-height: 50vh;
-
-    #app.dark & {
-        border-color: @color-primary-darker;
-    }
 }
 
 .group-modal-body .groups-management {
@@ -926,12 +918,7 @@ export default {
     flex: 0 0 auto;
 }
 
-.missing-card .explanation {
-    padding: 0 0.75rem;
-}
-
 .ignore-card {
-    padding-top: 0.75rem;
     border-top-right-radius: 0;
     border-top-left-radius: 0;
     border-top: 0;
@@ -1003,7 +990,7 @@ export default {
             width: 100%;
             background-color: transparent !important;
 
-            #app.dark & {
+            @{dark-mode} {
                 color: @text-color-dark !important;
             }
         }

@@ -174,31 +174,34 @@ describe('FeedbackArea.vue', () => {
                 expect(comp.possibleSnippets.length).toBe(3);
 
                 updateSelection();
+                await comp.$afterRerender();
                 comp.maybeSelectNextSnippet();
-                await comp.$nextTick();
+                await comp.$afterRerender();
                 expect(comp.internalFeedback).toBe(
                     value.replace(/snippet$/, snippets[0].value),
                 );
 
                 updateSelection();
+                await comp.$afterRerender();
                 comp.maybeSelectNextSnippet();
-                await comp.$nextTick();
+                await comp.$afterRerender();
                 expect(comp.internalFeedback).toBe(
                     value.replace(/snippet$/, snippets[1].value),
                 );
 
                 updateSelection();
+                await comp.$afterRerender();
                 comp.maybeSelectNextSnippet();
-                await comp.$nextTick();
+                await comp.$afterRerender();
                 expect(comp.internalFeedback).toBe(
                     value.replace(/snippet$/, snippets[2].value),
                 );
 
                 updateSelection();
+                await comp.$afterRerender();
                 comp.maybeSelectNextSnippet();
                 expect(comp.snippetIndexSelected).toBe(null);
-                await comp.$nextTick();
-                await comp.$nextTick();
+                await comp.$afterRerender();
                 expect(comp.internalFeedback).toBe(value);
             }
         });

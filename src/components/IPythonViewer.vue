@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="ipython-viewer p-3">
+<div class="ipython-viewer">
     <inner-ipython-viewer
         :assignment="assignment"
         :editable="editable"

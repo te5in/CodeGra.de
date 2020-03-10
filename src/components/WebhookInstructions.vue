@@ -443,7 +443,7 @@ export default {
             // Get the latest submission of the user for the current webhook
             // and check if it is a git submission.
 
-            const latestDate = this.latestSubmission.createdAt;
+            const latestDate = this.$utils.getProps(this.latestSubmission, null, 'createdAt');
 
             return this.storeLoadSubmissionsByUser({
                 assignmentId: this.assignmentId,
@@ -453,7 +453,7 @@ export default {
                 const latestGitSubmission = (subs || []).find(
                     s =>
                         (s.origin === 'github' || s.origin === 'gitlab') &&
-                        s.createdAt.isAfter(latestDate),
+                        (latestDate == null || s.createdAt.isAfter(latestDate)),
                 );
 
                 this.checkLatestResults = {
@@ -503,7 +503,7 @@ export default {
         width: 100%;
     }
 
-    #app.dark &.github img {
+    @{dark-mode}.github img {
         filter: invert(1);
     }
 

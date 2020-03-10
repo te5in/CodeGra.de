@@ -46,10 +46,13 @@
                v-if="showAddButton"
                v-b-popover.hover.top="'Add new assignment'">
             <icon name="plus" style="margin-right: 0;"/>
-            <b-popover :target="addButtonId" triggers="click"
+            <b-popover :target="addButtonId"
+                       :id="popoverId"
+                       triggers="click"
                        placement="top">
                 <submit-input placeholder="New assignment name"
-                              @create="createNewAssignment"/>
+                              @create="createNewAssignment"
+                              @cancel="closePopover"/>
             </b-popover>
         </b-btn>
         <router-link class="btn  sidebar-footer-button"
@@ -196,9 +199,11 @@ export default {
     },
 
     data() {
+        const id = idNum++;
         return {
             filter: '',
-            addButtonId: `assignment-add-btn-${idNum++}`,
+            addButtonId: `assignment-add-btn-${id}`,
+            popoverId: `assignment-add-popover-${id}`,
         };
     },
 
@@ -232,24 +237,31 @@ export default {
                     name,
                 })
                 .then(
-                    ({ data: assig }) => {
-                        this.$emit('loading');
-                        resolve();
-                        return this.reloadCourses().then(() => {
-                            this.$emit('loaded');
-                            this.$router.push({
-                                name: 'manage_assignment',
-                                params: {
-                                    courseId: this.currentCourse.id,
-                                    assignmentId: assig.id,
-                                },
+                    res => {
+                        const assig = res.data;
+                        res.onAfterSuccess = () => {
+                            this.$emit('loading');
+                            this.reloadCourses().then(() => {
+                                this.$emit('loaded');
+                                this.$router.push({
+                                    name: 'manage_assignment',
+                                    params: {
+                                        courseId: this.currentCourse.id,
+                                        assignmentId: assig.id,
+                                    },
+                                });
                             });
-                        });
+                        };
+                        resolve(res);
                     },
                     err => {
                         reject(err);
                     },
                 );
+        },
+
+        closePopover() {
+            this.$root.$emit('bv::hide::popover', this.popoverId);
         },
     },
 

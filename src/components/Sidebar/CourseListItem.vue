@@ -5,7 +5,7 @@
             'light-selected': selected,
             }"
     class="sidebar-list-item course-list-item">
-    <a class="sidebar-item course-name"
+    <a class="sidebar-item course-name flex-grow-1 text-truncate"
        @click="openAssignmentsList"
        :title="course.name">
         {{ course.name }}
@@ -81,13 +81,6 @@ export default {
 
 <style lang="less" scoped>
 @import '~mixins.less';
-
-.course-name {
-    flex: 1 1 auto;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
 
 a {
     text-decoration: none;

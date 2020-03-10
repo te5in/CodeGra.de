@@ -1,12 +1,12 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="divide-submissions">
-    <table class="table table-striped grader-list">
+<div class="divide-submissions mb-3">
+    <table class="table table-striped grader-list border-bottom mb-3">
         <thead>
             <tr>
-                <th class="name">Grader</th>
+                <th class="name shrink">Grader</th>
                 <th class="weight">Weight</th>
-                <th class="percentage">Percent</th>
+                <th class="percentage shrink">Percent</th>
             </tr>
         </thead>
 
@@ -15,14 +15,14 @@
             <tr v-for="grader, i in graders"
                 :class="{ 'text-muted': tableDisabled }"
                 class="grader">
-                <td class="name">
+                <td class="name shrink">
                     <b-form-checkbox @change="graderChanged(i)"
                                      :disabled="tableDisabled"
                                      :checked="grader.weight != 0">
                         <user :user="grader"/>
                     </b-form-checkbox>
                 </td>
-                <td class="weight">
+                <td class="weight p-0 align-bottom">
                     <input class="form-control"
                            :class="{ 'text-muted': tableDisabled }"
                            :disabled="tableDisabled"
@@ -30,11 +30,10 @@
                            min="0"
                            step="any"
                            ref="inputField"
-                           style="min-width: 3em;"
                            @keydown.ctrl.enter="$refs.submitButton.onClick"
                            v-model.number="grader.weight"/>
                 </td>
-                <td class="percentage">
+                <td class="percentage shrink">
                     {{ (100 * grader.weight / totalWeight).toFixed(1) }}%
                 </td>
             </tr>
@@ -43,8 +42,8 @@
 
     <b-button-toolbar v-if="graders.length"
                       justify
-                      class="button-bar">
-        <multiselect class="assignment-selector"
+                      class="button-bar flex-row mx-3">
+        <multiselect class="assignment-selector mr-3 flex-grow-1"
                      :disabled="divisionChildren.length > 0"
                      v-model="importAssignment"
                      :options="otherAssignments"
@@ -66,19 +65,22 @@
                 No results were found.
             </span>
         </multiselect>
-        <div id="division-submit-button-wrapper">
+
+        <div id="division-submit-button-wrapper"
+             class="flex-grow-0">
             <submit-button label="Divide"
                            :disabled="divisionChildren.length > 0 || invalidParentSelected"
-                           style="height: inherit;"
                            :submit="divideSubmissions"
                            @success="afterDivideSubmissions"
                            ref="submitButton"/>
         </div>
-        <b-popover triggers="click hover"
+
+        <b-popover v-if="invalidParentSelected"
+                   triggers="click blur hover"
+                   placement="top"
                    show
-                   v-if="invalidParentSelected"
                    target="division-submit-button-wrapper">
-            <div style="text-align: justify;">
+            <div class="text-justify">
                 The division of the selected assignment is determined by
                 {{getDivisionParent(importAssignment).name}}, so you cannot
                 connect to this assignment.
@@ -281,20 +283,35 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.grader-list,
-.divide-submissions {
-    margin-bottom: 1rem;
-}
+.table {
+    th {
+        border-top: 0;
+    }
 
-th {
-    border-top: 0;
-}
+    .weight,
+    .percentage {
+        text-align: right;
+    }
 
-.grader {
-    border-bottom: 1px solid #dee2e6;
+    .weight input {
+        min-width: 3rem;
+        padding: 0.75rem;
+        height: auto;
+        border: none;
+        border-bottom: 1px solid transparent !important;
+        border-radius: 0;
+        background: transparent !important;
+        margin-bottom: -1px;
+        position: relative;
+        z-index: 1;
 
-    #app.dark & {
-        border-bottom: 1px solid @color-primary-darker;
+        &:not(:disabled):hover {
+            border-color: @color-primary !important;
+
+            @{dark-mode} {
+                border-color: @color-primary-darkest !important;
+            }
+        }
     }
 }
 
@@ -302,58 +319,15 @@ th {
     cursor: not-allowed;
 }
 
-tbody .weight {
-    padding: 0;
-
-    input {
-        padding: 0.75rem;
-        border: none;
-        border-bottom: 1px solid transparent !important;
-        border-radius: 0;
-        background: transparent !important;
-
-        &:not(:disabled):hover {
-            border-color: @color-primary !important;
-
-            #app.dark & {
-                border-color: @color-primary-darkest !important;
-            }
-        }
-    }
-}
-
-.weight,
-.percentage {
-    text-align: right;
-}
-
-.name,
-.percentage {
-    width: 1px;
-    white-space: nowrap;
-}
-
 .button-bar {
-    margin: 0 1rem;
-    .assignment-selector {
-        flex: 0 1 70%;
-    }
-    .submit-button {
-        flex: 0;
-    }
+    flex-wrap: nowrap;
 }
 </style>
 
 <style lang="less">
 .divide-submissions {
-    .grader-list {
-        .custom-checkbox {
-            display: flex;
-
-            label {
-                width: 100%;
-            }
-        }
+    .custom-checkbox label {
+        display: block;
     }
 
     .disabled-option {
@@ -362,7 +336,7 @@ tbody .weight {
 
     .multiselect__option:not(.multiselect__option--highlight) {
         .disabled-option {
-            color: #cecece;
+            color: rgb(206, 206, 206);
         }
     }
 }

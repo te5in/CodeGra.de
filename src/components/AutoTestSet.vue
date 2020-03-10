@@ -52,8 +52,11 @@
                     <b-alert show
                              v-if="setResult.finished"
                              :variant="setResult.passed ? 'success' : 'danger'">
-                        You scored <code class="percentage">{{ $utils.toMaxNDecimals(setResult.percentage, 2) }}%</code> of the
-                        <code class="percentage">{{ stopPoints }}%</code> required to continue.
+                        You scored
+                        <code class="percentage">{{ $utils.toMaxNDecimals(setResult.percentage, 2) }}%</code>
+                        of the
+                        <code class="percentage">{{ stopPoints }}%</code>
+                        required to continue.
 
                         <template v-if="!previousSetPassed && setResult.percentage >= stopPoints">
                             However, you failed a previous level.
@@ -317,7 +320,9 @@ export default {
     }
 }
 
-#app.dark .alert.alert-danger code.percentage {
-    color: @text-color-dark;
+.alert.alert-danger code.percentage {
+    @{dark-mode} {
+        color: @text-color-dark;
+    }
 }
 </style>

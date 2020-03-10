@@ -29,8 +29,8 @@
 </multiselect>
 <input :value="value ? value.username : ''"
        @input="onInput({ username: $event.target.value })"
-       class="form-control user-selector border-0 rounded-0"
-       :class="{ disabled }"
+       class="user-selector form-control border-left-0 border-bottom-0 border-right-0 rounded-top-0"
+       :class="{ disabled, 'border-top': !noBorder }"
        :placeholder="placeholder"
        :disabled="disabled"
        v-else/>
@@ -55,17 +55,14 @@ export default {
             type: String,
             required: true,
         },
-
         useSelector: {
             type: Boolean,
             default: true,
         },
-
         filterStudents: {
             type: Function,
             default: () => true,
         },
-
         selectLabel: {
             type: String,
             default: 'Press enter to select',
@@ -208,23 +205,30 @@ export default {
 </script>
 
 <style lang="less" scoped>
+@import '~mixins.less';
+
 .disabled {
     cursor: not-allowed;
 }
 
 .caret {
-    line-height: 16px;
     display: block;
     position: absolute;
-    box-sizing: border-box;
     width: 40px;
-    height: 38px;
-    right: 1px;
-    top: 13px;
-    margin: 0;
-    text-decoration: none;
-    text-align: center;
+    height: 100%;
+    right: 0;
     cursor: pointer;
+
+    @{dark-mode} {
+        color: @text-color-dark;
+    }
+
+    .fa-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
 }
 </style>
 
@@ -259,10 +263,10 @@ export default {
         }
 
         &.multiselect__option--selected {
-            background: #d9534f !important;
+            background: rgb(217, 83, 79) !important;
 
             &::after {
-                background: #d9534f !important;
+                background: rgb(217, 83, 79) !important;
             }
         }
     }
