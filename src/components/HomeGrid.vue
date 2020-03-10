@@ -236,13 +236,11 @@ export default {
         },
     },
 
-    mounted() {
-        Promise.all([this.$afterRerender(), this.loadCourses()]).then(() => {
-            this.loadingCourses = false;
-            this.$nextTick(() => {
-                this.$refs.searchInput.focus();
-            });
-        });
+    async mounted() {
+        await Promise.all([this.$afterRerender(), this.loadCourses()]);
+        this.loadingCourses = false;
+        await this.$afterRerender();
+        this.$refs.searchInput.focus();
     },
 
     methods: {
