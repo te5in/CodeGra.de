@@ -20,7 +20,8 @@
         <b>{{ UserConfig.release.version }}</b>.
         {{ UserConfig.release.message }} You can check the entire
         changelog <a href="https://docs.codegra.de/about/changelog.html"
-        target="_blank" class="alert-link">here</a>.
+                     target="_blank"
+                     class="alert-link">here</a>.
     </b-alert>
 
     <loader v-if="loadingCourses" page-loader/>
@@ -37,12 +38,15 @@
              :gutter="30"
              class="outer-block outer-course-wrapper"
              v-else>
-        <div class="course-wrapper" v-for="course in filteredCourses" :key="course.id">
+        <div class="course-wrapper"
+             v-for="course, idx in filteredCourses"
+             :key="course.id"
+             v-if="idx < amountCoursesToShow">
             <b-card no-body>
                 <b-card-header :class="`text-${getColorPair(course.name).color}`"
                                :style="{ backgroundColor: `${getColorPair(course.name).background} !important` }">
                     <div style="display: flex">
-                        <b class="course-name">{{ course.name }}</b>
+                        <b class="course-name">{{ courseNamesToDisplay[course.id] }}</b>
                         <router-link v-if="course.canManage"
                                      :to="manageCourseRoute(course)"
                                      v-b-popover.window.top.hover="'Manage course'"
@@ -95,6 +99,23 @@
             </b-card>
         </div>
     </masonry>
+
+
+    <b-btn class="extra-load-btn"
+           v-if="moreCoursesAvailable && !loadingCourses"
+           @click="showMoreCourses()">
+        <span>
+            Load more courses
+        </span>
+        <infinite-loading @infinite="showMoreCourses" :distance="150">
+            <div slot="spinner"></div>
+            <div slot="no-more"></div>
+            <div slot="no-results"></div>
+            <div slot="error" slot-scope="err">
+                {{ err }}
+            </div>
+        </infinite-loading>
+    </b-btn>
 </div>
 </template>
 
@@ -104,8 +125,10 @@ import moment from 'moment';
 import { mapGetters, mapActions } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/gear';
+import InfiniteLoading from 'vue-infinite-loading';
 
-import { hashString, cmpNoCase } from '@/utils';
+import { hashString, cmpNoCaseMany } from '@/utils';
+import { Counter } from '@/utils/counter';
 
 import AssignmentState from './AssignmentState';
 import UserInfo from './UserInfo';
@@ -136,6 +159,12 @@ const COLOR_PAIRS = [
     { background: 'rgb(234, 182, 108)', color: 'dark' },
 ];
 
+// The amount of extra courses that should be loaded when we reach the end of
+// the infinite scroll list. This is a multiple of 3 and of 2 (and 1 ofc) as
+// those are the amount of columns we use in our masonry. So by using a multiple
+// we increase the chance that we fill the masonry nice and even.
+const INITIAL_COURSES_AMOUNT = 12;
+
 export default {
     name: 'home-grid',
 
@@ -143,6 +172,7 @@ export default {
         return {
             loadingCourses: true,
             UserConfig,
+            amountCoursesToShow: INITIAL_COURSES_AMOUNT,
             searchString: '',
         };
     },
@@ -153,7 +183,29 @@ export default {
         ...mapGetters('pref', ['darkMode']),
 
         courses() {
-            return Object.values(this.unsortedCourses).sort((a, b) => cmpNoCase(a.name, b.name));
+            return Object.values(this.unsortedCourses).sort((a, b) =>
+                cmpNoCaseMany([b.created_at, a.created_at], [a.name, b.name]),
+            );
+        },
+
+        courseNamesToDisplay() {
+            const getNameAndYear = c => `${c.name} (${c.created_at.slice(0, 4)})`;
+
+            const courseName = new Counter(this.courses.map(c => c.name));
+            const courseNameAndYear = new Counter(this.courses.map(getNameAndYear));
+
+            return this.courses.reduce((acc, course) => {
+                if (courseName.getCount(course.name) > 1) {
+                    if (courseNameAndYear.getCount(getNameAndYear(course)) > 1) {
+                        acc[course.id] = `${course.name} (${course.created_at.slice(0, 10)})`;
+                    } else {
+                        acc[course.id] = getNameAndYear(course);
+                    }
+                } else {
+                    acc[course.id] = course.name;
+                }
+                return acc;
+            }, {});
         },
 
         filteredCourses() {
@@ -176,15 +228,19 @@ export default {
                 this.$root.$now.diff(moment(UserConfig.release.date), 'days') < 7
             );
         },
+
+        // Are there more courses available. If this is true we should show the
+        // infinite loader.
+        moreCoursesAvailable() {
+            return this.filteredCourses.length > this.amountCoursesToShow;
+        },
     },
 
-    mounted() {
-        Promise.all([this.$afterRerender(), this.loadCourses()]).then(() => {
-            this.loadingCourses = false;
-            this.$nextTick(() => {
-                this.$refs.searchInput.focus();
-            });
-        });
+    async mounted() {
+        await Promise.all([this.$afterRerender(), this.loadCourses()]);
+        this.loadingCourses = false;
+        await this.$afterRerender();
+        this.$refs.searchInput.focus();
     },
 
     methods: {
@@ -252,6 +308,22 @@ export default {
                 },
             };
         },
+
+        // This method should be called when the infinite loader comes into view.
+        // The optional $state parameter should be the state parameter of the
+        // vue-infinite-loader plugin, and should have two callable props:
+        // `loaded` and `complete`.
+        async showMoreCourses($state = null) {
+            this.amountCoursesToShow += INITIAL_COURSES_AMOUNT;
+            if ($state) {
+                await this.$afterRerender();
+                if (this.moreCoursesAvailable) {
+                    $state.loaded();
+                } else {
+                    $state.complete();
+                }
+            }
+        },
     },
 
     components: {
@@ -261,6 +333,7 @@ export default {
         UserInfo,
         Loader,
         LocalHeader,
+        InfiniteLoading,
     },
 };
 </script>

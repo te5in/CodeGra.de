@@ -415,6 +415,8 @@ context('Submission uploader', () => {
         let i = 0;
 
         beforeEach(() => {
+            cy.server();
+
             cy.createAssignment(course.id, `GitSubmissions${i++}`, {
                 state: 'open',
                 deadline: 'tomorrow',
@@ -430,7 +432,14 @@ context('Submission uploader', () => {
         }
 
         function openWebhookModal() {
+            cy.route({
+                method: 'POST',
+                url: '/api/v1/assignments/*/webhook_settings?*',
+            }).as('webhookRequest');
+
             getGitLink().click();
+            cy.wait('@webhookRequest', { timeout: 10000 });
+
             return cy.get('#git-instructions-modal').should('be.visible');
         }
 
