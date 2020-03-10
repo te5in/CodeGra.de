@@ -315,7 +315,7 @@ export default {
     cursor: default;
     color: @color-primary;
 
-    #app.dark & {
+    @{dark-mode} {
         color: @text-color-dark;
     }
 
@@ -325,11 +325,8 @@ export default {
             text-decoration: underline;
         }
 
-        #app.dark & {
-            &,
-            &:hover {
-                color: @text-color-dark;
-            }
+        @{dark-mode} {
+            color: @text-color-dark !important;
         }
     }
 
@@ -375,24 +372,24 @@ export default {
 
     .caret-icon {
         width: 1em;
-        transform: translateY(3px) rotate(0);
+        transform: translateY(-1px) rotate(0);
         transition: transform @transition-duration;
 
         &.collapsed {
-            transform: translateY(3px) rotate(-90deg);
+            transform: translateY(-1px) rotate(-90deg);
         }
     }
 
     .dir-icon {
         width: 1.5em;
         margin-right: 0.2rem;
-        transform: translateY(2px);
+        transform: translateY(-1px);
     }
 
     .file-icon {
         width: 1em;
         margin-right: 0.5em;
-        transform: translateY(2px);
+        transform: translateY(-1px);
     }
 
     .rev-popover {

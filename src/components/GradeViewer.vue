@@ -66,14 +66,9 @@
             </b-input-group-append>
 
             <b-input-group-append class="delete-button-group"
-                                  v-if="realEditable">
-                <b-popover :triggers="showDeleteButton ? 'hover' : ''"
-                           placement="top"
-                           target="delete-grade-button">
-                    {{ deleteButtonText }}
-                </b-popover>
-                <submit-button id="delete-grade-button"
-                               class="delete-button"
+                                  v-if="realEditable"
+                                  v-b-popover.hover.top="showDeleteButton ? deleteButtonText : ''">
+                <submit-button class="delete-button"
                                variant="danger"
                                :disabled="!showDeleteButton"
                                :submit="deleteGrade"

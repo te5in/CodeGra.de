@@ -1,21 +1,27 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <span class="description-popover"
-      :style="{ float: hugText ? 'none' : 'right' }"
+      :class="{ 'float-right': !hugText }"
       @click.stop.prevent>
-    <b-popover :placement="placement"
+    <!-- Some element in the popover must be focused for the
+         blur trigger to work.
+         https://github.com/bootstrap-vue/bootstrap-vue/issues/4548 -->
+    <b-popover @shown="$refs.description.focus()"
+               :placement="placement"
                :triggers="triggers"
                :show="show"
                :target="compId"
                :boundary="boundary"
                :title="title">
-        <div class="description-popover-content">
+        <div ref="description"
+             tabindex="-1"
+             class="description-popover-content">
             <slot name="description">{{ description }}</slot>
             <slot v-if="!!$slots.default"/>
         </div>
     </b-popover>
     <component :is="hugText ? 'sup' : 'span'"
-               class="desc-pop-span"
+               class="desc-pop-span px-2"
                :id="compId">
         <span :title="spanTitle">
             <icon :name="icon" scale="0.75"/>
@@ -50,7 +56,7 @@ export default {
 
         triggers: {
             type: [String, Array],
-            default: 'click',
+            default: 'click blur',
         },
 
         show: {
@@ -91,9 +97,12 @@ export default {
 
 <style lang="less">
 .desc-pop-span {
-    padding: 0 0.5em;
     height: 100%;
     display: inline-block;
+
+    .card-header .description-popover.float-right & {
+        margin-right: -0.5rem;
+    }
 }
 
 .description-popover {
@@ -104,5 +113,6 @@ export default {
 .description-popover-content {
     text-align: justify;
     hyphens: auto;
+    outline: none !important;
 }
 </style>

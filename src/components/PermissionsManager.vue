@@ -2,60 +2,71 @@
 <template>
 <loader v-if="loading" page-loader/>
 <div class="permissions-manager" v-else>
-    <b-table striped
-             class="permissions-table"
-             :fields="fields"
-             :items="items"
-             :filter="filter"
-             ref="permissionTable"
-             :response="true">
-        <template slot="name" slot-scope="item">
-            <span v-if="item.value !== 'Remove'">
-                {{ item.item.title }}
-                <description-popover hug-text
-                                     :icon="item.item._rowVariant === 'danger' ? 'exclamation-triangle' : undefined"
-                                     placement="right">
-                    <div slot="description"
-                         class="permission-description">
+    <table class="table table-striped"
+           :class="{ 'mb-0': !showAddRole }">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th v-for="field in fields"
+                    class="text-center">
+                    {{ field.label }}
+                </th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr v-for="perm, i in items"
+                v-if="filteredIndices.has(i)"
+                :class="{ 'table-danger': perm.warning }">
+                <td>
+                    {{ perm.short_description }}
+
+                    <description-popover
+                        hug-text
+                        :icon="perm.warning ? 'exclamation-triangle' : undefined"
+                        placement="right">
                         <p>
-                            {{ item.item.description }}
+                            {{ perm.long_description }}
                         </p>
-                        <p v-if="item.item.warning" >
-                             <b class="text-danger">Warning:</b> {{ item.item.warning }}
+
+                        <p v-if="perm.warning">
+                            <b class="text-danger">Warning:</b>
+                            {{ perm.warning }}
                         </p>
-                    </div>
-                </description-popover>
-            </span>
-            <b v-else-if="showDeleteRole">{{ item.value }}</b>
-        </template>
-        <template v-for="(field, i) in fields"
-                  :slot="field.key === 'name' ? `|||____$name$__||||${Math.random()}` : field.key"
-                  slot-scope="item"
-                  v-if="field.key != 'name'">
-            <b-input-group v-if="item.item.name !== 'Remove'">
-                <loader :scale="1"
-                        v-if="item.item[field.key] === 'loading'"/>
-                <span v-else-if="item.item.name === fixedPermission && field.own"
-                      v-b-popover.top.hover="'You cannot disable this permission for yourself'">
-                    <b-form-checkbox :class="`role-${field.key}`"
-                                     :checked="item.item[field.key]"
-                                     disabled/>
-                </span>
-                <b-form-checkbox :class="`role-${field.key}`"
-                                 :checked="item.item[field.key]"
-                                 @change="changeButton(item.item.name, field)"
-                                 v-else/>
-            </b-input-group>
-            <b-input-group v-else-if="showDeleteRole">
-                <submit-button label="Remove"
-                               :ref="`delete-perm-${i}`"
-                               variant="danger"
-                               :submit="() => removeRole(i)"
-                               @after-success="afterRemoveRole(i)"/>
-            </b-input-group>
-        </template>
-    </b-table>
-    <b-form-fieldset class="add-role" v-if="showAddRole">
+                    </description-popover>
+                </td>
+
+                <td v-for="field in fields"
+                    class="text-center align-middle"
+                    v-b-popover.hover.top="perm.name === fixedPermission && field.own ? 'You cannot disable this permission for yourself' : ''">
+                    <loader v-if="perm[field.key] === 'loading'"
+                            :scale="1" />
+
+                    <b-form-checkbox v-else
+                                     :class="`role-${field.key}`"
+                                     :checked="perm[field.key]"
+                                     :disabled="perm.name === fixedPermission && field.own"
+                                     @change="changeButton(i, field)"/>
+                </td>
+            </tr>
+
+            <tr v-if="showDeleteRole">
+                <td/>
+                <td v-for="field, i in fields"
+                    class="text-center">
+                    <submit-button variant="danger"
+                                   :submit="() => removeRole(i)"
+                                   @after-success="afterRemoveRole(i)"
+                                   v-b-popover.hover.top="'Delete this role'">
+                        Delete
+                    </submit-button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <b-form-fieldset v-if="showAddRole"
+                     class="add-role">
         <b-input-group>
             <input v-model="newRoleName"
                    class="form-control"
@@ -63,6 +74,7 @@
                    @keyup.ctrl.enter="$refs.addUserBtn.onClick"/>
 
             <submit-button label="Add"
+                           class="rounded-left-0"
                            ref="addUserBtn"
                            :submit="addRole"
                            @after-success="afterAddRole"/>
@@ -85,7 +97,9 @@
 </template>
 
 <script>
+import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/exclamation-triangle';
+import 'vue-awesome/icons/times';
 
 import { waitAtLeast } from '@/utils';
 
@@ -97,38 +111,34 @@ export default {
     name: 'permissions-manager',
 
     props: {
-        courseId: {},
-
+        courseId: {
+            type: Number,
+            default: null,
+        },
         filter: {
             type: String,
             default: '',
         },
-
         fixedPermission: {
             default: 'can_edit_course_roles',
             type: String,
         },
-
         showDeleteRole: {
             type: Boolean,
             default: true,
         },
-
         showAddRole: {
             type: Boolean,
             default: true,
         },
-
         getRetrieveUrl: {
             type: Function,
             default: courseId => `/api/v1/courses/${courseId}/roles/?with_roles=true`,
         },
-
         getChangePermUrl: {
             type: Function,
             default: (courseId, roleId) => `/api/v1/courses/${courseId}/roles/${roleId}`,
         },
-
         getDeleteRoleUrl: {
             type: Function,
             default: (courseId, roleId) => `/api/v1/courses/${courseId}/roles/${roleId}`,
@@ -144,6 +154,22 @@ export default {
             hideChanged: false,
             changed: {},
         };
+    },
+
+    computed: {
+        filteredIndices() {
+            const filter = this.filter.toLocaleLowerCase();
+            return this.items.reduce((acc, perm, i) => {
+                if (
+                    perm.short_description.toLocaleLowerCase().indexOf(filter) >= 0 ||
+                    perm.long_description.toLocaleLowerCase().indexOf(filter) >= 0 ||
+                    (perm.warning && perm.warning.toLocaleLowerCase().indexOf(filter) >= 0)
+                ) {
+                    acc.add(i);
+                }
+                return acc;
+            }, new Set());
+        },
     },
 
     watch: {
@@ -169,13 +195,7 @@ export default {
 
         getAllPermissions() {
             return this.$http.get(this.getRetrieveUrl(this.courseId)).then(({ data }) => {
-                const fields = [
-                    {
-                        key: 'name',
-                        label: 'Name',
-                        sortable: true,
-                    },
-                ];
+                const fields = [];
 
                 this.items = [];
 
@@ -183,7 +203,6 @@ export default {
                     fields.push({
                         key: item.name,
                         label: item.name,
-                        sortable: true,
                         id: item.id,
                         own: item.own,
                     });
@@ -191,34 +210,18 @@ export default {
                     let i = 0;
                     Object.entries(item.perms).forEach(([name, value]) => {
                         if (!this.items[i]) {
-                            this.items[i] = {
-                                name,
-                                title: Permissions[name].short_description,
-                                description: Permissions[name].long_description,
-                                warning: Permissions[name].warning,
-                                _rowVariant: Permissions[name].warning ? 'danger' : '',
-                            };
+                            this.items[i] = Object.assign({ name }, Permissions[name]);
                         }
                         this.items[i][item.name] = value;
                         i += 1;
                     });
                 });
 
-                if (this.showDeleteRole) {
-                    this.items.push({ name: 'Remove' });
-                }
-
                 this.fields = fields;
             });
         },
 
-        changeButton(permName, field) {
-            let i = 0;
-            for (let len = this.items.length; i < len; i += 1) {
-                if (permName === this.items[i].name) {
-                    break;
-                }
-            }
+        changeButton(i, field) {
             const item = this.items[i];
             const newValue = !item[field.key];
             item[field.key] = 'loading';
@@ -229,11 +232,8 @@ export default {
             });
             waitAtLeast(500, req).then(() => {
                 this.hideChanged = false;
-                this.$set(
-                    this.changed,
-                    `${this.courseId}-${field.id}-${item.name}`,
-                    !this.changed[`${this.courseId}-${field.id}-${item.name}`],
-                );
+                const key = `${this.courseId}-${field.id}-${item.name}`;
+                this.$set(this.changed, key, !this.changed[key]);
                 item[field.key] = newValue;
                 this.$set(this.items, i, item);
             });
@@ -273,47 +273,13 @@ export default {
     },
 
     components: {
+        Icon,
         Loader,
         SubmitButton,
         DescriptionPopover,
     },
 };
 </script>
-
-<style lang="less">
-.permissions-manager {
-    table.permissions-table {
-        margin-bottom: 0;
-        .delete .loader {
-            height: 1.25rem;
-        }
-
-        tr {
-            :first-child {
-                vertical-align: middle;
-            }
-            :not(:first-child) {
-                vertical-align: middle;
-                text-align: center;
-                .input-group {
-                    align-items: center;
-                    justify-content: center;
-                }
-            }
-        }
-    }
-    .add-role {
-        .btn {
-            border-top-left-radius: 0;
-            border-bottom-left-radius: 0;
-        }
-    }
-}
-
-.permission-description p:last-child {
-    margin-bottom: 0;
-}
-</style>
 
 <style lang="less" scoped>
 @import '~mixins.less';
@@ -337,5 +303,24 @@ export default {
 .fade-enter,
 .fade-leave-to {
     opacity: 0;
+}
+</style>
+
+<style lang="less">
+.permissions-manager {
+    .custom-checkbox {
+        padding: 0 !important;
+
+        label {
+            display: block;
+            text-align: center;
+
+            &::before,
+            &::after {
+                left: 50%;
+                transform: translateX(-50%);
+            }
+        }
+    }
 }
 </style>

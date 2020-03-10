@@ -5,15 +5,20 @@
     <b-form-fieldset>
         <b-input-group>
             <input type="text"
-                    class="form-control"
-                    :disabled="disabled"
-                    :placeholder="placeholder"
-                    v-model="name"/>
+                   class="form-control"
+                   :disabled="disabled"
+                   :placeholder="placeholder"
+                   v-model="name"/>
             <b-button-group>
+                <b-button variant="danger"
+                          @click="cancel">
+                    <icon name="times" />
+                </b-button>
                 <submit-button ref="submitButton"
-                                label="Add"
-                                :submit="submit"
-                                @after-success="afterSubmit"/>
+                               :submit="submit"
+                               @after-success="afterSubmit">
+                    <icon name="check" />
+                </submit-button>
             </b-button-group>
         </b-input-group>
     </b-form-fieldset>
@@ -21,6 +26,10 @@
 </template>
 
 <script>
+import Icon from 'vue-awesome/components/Icon';
+import 'vue-awesome/icons/check';
+import 'vue-awesome/icons/times';
+
 import Loader from './Loader';
 import SubmitButton from './SubmitButton';
 
@@ -42,6 +51,7 @@ export default {
     components: {
         SubmitButton,
         Loader,
+        Icon,
     },
 
     methods: {
@@ -60,6 +70,10 @@ export default {
         afterSubmit() {
             this.name = '';
             this.disabled = false;
+        },
+
+        cancel() {
+            this.$emit('cancel');
         },
     },
 };

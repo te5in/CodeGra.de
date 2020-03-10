@@ -36,6 +36,7 @@
         :filter="filter"
         :run="run">
         <b-table :fields="tableFields"
+                 hover
                  striped
                  slot-scope="{ cases }"
                  show-empty
@@ -47,11 +48,11 @@
                  @row-hovered="rowHovered"
                  @mouseleave.native="rowHovered(null)"
                  class="overview-table">
-            <template slot="user1" slot-scope="row">
+            <template v-slot:cell(user1)="row">
                 <user :user="row.item.users[0]"/>
             </template>
 
-            <template slot="user2" slot-scope="row">
+            <template v-slot:cell(user2)="row">
                 <span>
                     <user :user="row.item.users[1]"/>
                     <sup v-b-popover.hover.top="getOtherAssignmentPlagiarismDesc(row.item, 1)"
@@ -61,7 +62,7 @@
                 </span>
             </template>
 
-            <template slot="empty">
+            <template v-slot:empty>
                 <div style="text-align: center;">
                     <span v-if="run.cases.length == 0">No plagiarism found</span>
                 <span v-else>No results found</span>
@@ -201,7 +202,7 @@ export default {
             const index = item.assignments[0].id === this.assignmentId ? 1 : 0;
 
             this.disabledPopoverContent = `You don't have the permission
-            \`can_view_plagiarism\` for the course
+            "View plagiarism" for the course
             "${item.assignments[index].course.name}" which is necessary to view
             this case.`;
 
@@ -271,9 +272,11 @@ export default {
 .filter-input {
     margin-top: 0.2rem;
     margin-bottom: 0.2rem;
+    word-wrap: nowrap;
 }
 
 .description {
+    font-size: 100%;
     cursor: help;
 }
 </style>
@@ -297,32 +300,27 @@ export default {
 }
 
 .plagiarism-overview .overview-table {
-    .table-info,
     .table-warning {
-        #app.dark & {
-            color: @text-color-dark;
-        }
+        cursor: not-allowed;
+        color: @color-secondary-text-lighter;
         background-color: transparent !important;
+
+        @{dark-mode} {
+            color: @text-color-muted;
+        }
 
         td {
             background-color: transparent !important;
+            border-color: @border-color;
+
+            @{dark-mode} {
+                border-color: @color-primary-darker;
+            }
         }
 
         &:nth-of-type(odd) {
             background-color: rgba(0, 0, 0, 0.05) !important;
         }
-    }
-
-    .table-info {
-        cursor: pointer;
-
-        &:hover {
-            background-color: rgba(0, 0, 0, 0.075) !important;
-        }
-    }
-
-    .table-warning {
-        color: @color-secondary-text-lighter;
     }
 }
 </style>

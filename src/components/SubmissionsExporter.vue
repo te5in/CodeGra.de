@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="submissions-exporter clearfix">
-    <b-form-fieldset>
+    <b-form-group>
         <b-input-group>
             <b-input-group-prepend is-text>
                 Filename
@@ -11,29 +11,44 @@
                    type="text"
                    :placeholder="filename"/>
         </b-input-group>
-    </b-form-fieldset>
+    </b-form-group>
 
-    <b-form-fieldset
-        label="Columns:"
-        description="Checked columns will be included in the exported file.">
-        <b-form-checkbox v-for="(col, key) in columns"
-                            :key="key"
-                            v-model="col.enabled">
-            {{ col.name }}
-        </b-form-checkbox>
-    </b-form-fieldset>
+    <b-form-group>
+        <template v-slot:label>
+            Columns
 
-    <b-form-fieldset
-        label="Rows:"
-        description="When <i>All</i> is selected all submissions of this
-            assignment will be exported.<br>The <i>Current</i> option only
-            exports the submissions that are shown by the current filter that
-            is applied to the list.">
-        <b-form-radio-group v-model="exportSetting">
+            <description-popover hug-text>
+                Checked columns will be included in the exported file.
+            </description-popover>
+        </template>
+
+        <div class="border rounded px-3 py-2">
+            <b-form-checkbox v-for="(col, key) in columns"
+                             :key="key"
+                             v-model="col.enabled">
+                {{ col.name }}
+            </b-form-checkbox>
+        </div>
+    </b-form-group>
+
+    <b-form-group>
+        <template v-slot:label>
+            Rows
+
+            <description-popover hug-text>
+                When <i>All</i> is selected all submissions of this
+                assignment will be exported.<br>The <i>Current</i> option only
+                exports the submissions that are shown by the current filter that
+                is applied to the list.
+            </description-popover>
+        </template>
+
+        <b-form-radio-group v-model="exportSetting"
+                            class="border rounded px-3 py-2">
             <b-form-radio value="All">All</b-form-radio>
             <b-form-radio value="Current">Current</b-form-radio>
         </b-form-radio-group>
-    </b-form-fieldset>
+    </b-form-group>
 
     <submit-button variant="primary"
                    class="export-button"
@@ -52,6 +67,7 @@ import Baby from 'babyparse';
 import { downloadFile, nameOfUser } from '@/utils';
 
 import SubmitButton from './SubmitButton';
+import DescriptionPopover from './DescriptionPopover';
 
 export default {
     name: 'submissions-exporter',
@@ -59,6 +75,7 @@ export default {
     components: {
         Icon,
         SubmitButton,
+        DescriptionPopover,
     },
 
     props: {

@@ -431,14 +431,14 @@ context('Submission uploader', () => {
 
         function openWebhookModal() {
             getGitLink().click();
-            return cy.get('#git-instructions-modal').should('exist');
+            return cy.get('#git-instructions-modal').should('be.visible');
         }
 
         function closeWebhookModal() {
-            cy.get('@modal')
+            cy.get('#git-instructions-modal')
                 .find('button.close')
                 .click();
-            cy.get('@modal')
+            cy.get('#git-instructions-modal')
                 .should('not.be.visible');
         }
 
@@ -499,7 +499,7 @@ context('Submission uploader', () => {
 
             cy.login('student1', 'Student1');
             goToSubmissions();
-            doAction('Set up Git');
+            doAction('Upload files');
             getGitLink(false);
         });
 

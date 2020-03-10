@@ -24,83 +24,98 @@
 
     <b-table striped
              hover
-             ref="table"
-             @row-clicked="gotoSubmission"
-             @sort-changed="(ctx) => $nextTick(() => sortChanged(ctx))"
-             :items="filteredSubmissions"
+             class="mb-0 border-bottom submissions-table"
+             primary-key="id"
+             :id="tableId"
+             show-empty
              :fields="fields"
-             :current-page="currentPage"
-             :sort-compare="(a, b, sortBy) => sortSubmissions(a.sub, b.sub, sortBy)"
+             :items="filteredSubmissions"
              :sort-by="this.$route.query.sortBy || 'user'"
              :sort-desc="!parseBool(this.$route.query.sortAsc, true)"
-             class="mb-0 border-bottom submissions-table">
-        <a class="invisible-link"
-           href="#"
-           slot="user"
-           slot-scope="item"
-           @click.prevent>
-            <user :user="item.item.sub.user"/>
-            <webhook-name :submission="item.item.sub" />
-            <icon name="exclamation-triangle"
-                  class="text-warning ml-1"
-                  style="margin-bottom: -1px;"
-                  v-b-popover.top.hover="getOtherSubmissionPopover(item.item.sub)"
-                  v-if="!!getOtherSubmissionPopover(item.item.sub)"/>
-        </a>
-
-        <span slot="grade" slot-scope="item" class="submission-grade">
-            {{ item.item.sub.grade || '-' }}
-        </span>
-
-        <template slot="formattedCreatedAt" slot-scope="item">
-            {{item.item.sub.formattedCreatedAt }}
-            <late-submission-icon
-                :submission="item.item.sub"
-                :assignment="assignment" />
+             :sort-compare="(a, b, sortBy) => sortSubmissions(a.sub, b.sub, sortBy)"
+             @sort-changed="sortChanged"
+             :per-page="perPage"
+             :current-page="currentPage"
+             @row-clicked="gotoSubmission">
+        <template #cell(user)="item">
+            <router-link class="invisible-link"
+                         :to="submissionRoute(item.item.sub)">
+                <user :user="item.item.sub.user"/>
+                <webhook-name :submission="item.item.sub" />
+                <icon name="exclamation-triangle"
+                      class="text-warning ml-1"
+                      v-b-popover.top.hover="getOtherSubmissionPopover(item.item.sub)"
+                      v-if="!!getOtherSubmissionPopover(item.item.sub)"/>
+            </router-link>
         </template>
 
-        <span slot="assignee" slot-scope="item" class="assigned-to-grader">
-            <span v-if="!canAssignGrader || graders == null">
-                <user :user="item.item.sub.assignee"
-                      v-if="item.item.sub.assignee"/>
-                <span v-else>-</span>
+        <template #cell(grade)="item">
+            <span class="submission-grade">
+                {{ item.item.sub.grade || '-' }}
             </span>
-            <loader :scale="1"
-                    v-else-if="assigneeUpdating[item.item.sub.id]"/>
-            <div v-else
-                 v-b-popover.top.hover="item.item.sub.user.is_test_student ? 'You cannot assign test students to graders.' : ''">
-                <b-form-select :options="assignees"
-                               :disabled="!!(item.item.sub.user.is_test_student || getOtherSubmissionPopover(item.item.sub))"
-                               :value="item.item.sub.assigneeId || null"
-                               @input="updateAssignee($event, item.item.sub)"
-                               @click.native.stop
-                               class="user-form-select"/>
+        </template>
+
+        <template #cell(formattedCreatedAt)="item">
+            {{item.item.sub.formattedCreatedAt }}
+
+            <late-submission-icon :submission="item.item.sub"
+                                  :assignment="assignment" />
+        </template>
+
+        <template #cell(assignee)="item" >
+            <span class="assigned-to-grader">
+                <span v-if="!canAssignGrader || graders == null">
+                    <user :user="item.item.sub.assignee"
+                          v-if="item.item.sub.assignee"/>
+                    <span v-else>-</span>
+                </span>
+                <loader :scale="1"
+                        v-else-if="assigneeUpdating[item.item.sub.id]"/>
+                <div v-else
+                     v-b-popover.top.hover="graderDisabledMessage(item.item.sub)">
+                    <b-form-select :options="assignees"
+                                   :disabled="!!graderDisabledMessage(item.item.sub)"
+                                   :value="item.item.sub.assigneeId || null"
+                                   @input="updateAssignee($event, item.item.sub)"
+                                   @click.native.stop
+                                   class="user-form-select"/>
+                </div>
+            </span>
+        </template>
+
+        <template #empty>
+            <div class="text-center font-italic text-muted">
+                <template v-if="!canSeeOthersWork && submissions.length === 0">
+                    You have no submissions yet.
+                </template>
+                <template v-else-if="submissions.length === 0">
+                    There are no submissions yet.
+                </template>
+                <template v-else>
+                    No submissions found with the given filters.
+                </template>
             </div>
-        </span>
+        </template>
+
+        <template #custom-foot
+                  v-if="canSeeOthersWork">
+            <tr>
+                <td colspan="4"
+                    class="submission-count">
+                    Showing {{ numFilteredStudents }} out of {{ numStudents }} students.
+                </td>
+            </tr>
+        </template>
     </b-table>
 
-    <div v-if="!canSeeOthersWork && this.submissions.length === 0"
-         class="no-submissions-found border-bottom text-muted"
-         >
-        You have no submissions yet!
-    </div>
-
-    <div v-else-if="this.submissions.length === 0"
-         class="no-submissions-found border-bottom text-muted"
-         >
-        There are no submissions yet.
-    </div>
-
-    <div v-else-if="this.submissions && this.filteredSubmissions.length === 0"
-         class="no-submissions-found border-bottom text-muted"
-         >
-        No submissions found with the given filters.
-    </div>
-
-    <div v-if="canSeeOthersWork"
-         class="submission-count border-bottom">
-        Showing {{ numFilteredStudents }} out of {{ numStudents }} students.
-    </div>
+    <b-pagination
+        class="mt-3"
+        v-if="showPagination"
+        v-model="currentPage"
+        :limit="10"
+        :total-rows="numFilteredStudents"
+        :per-page="perPage"
+        :aria-controls="tableId" />
 </div>
 </template>
 
@@ -148,14 +163,16 @@ export default {
 
     data() {
         return {
-            parseBool,
             mineOnly: parseBool(this.$route.query.mine, null),
-            currentPage: 1,
+            sortAsc: true,
+            sortBy: 'user',
             filter: this.$route.query.q || '',
             assignees: [],
             assigneeUpdating: [],
             // For use in v-b-popover directives.
             quote: '"',
+            currentPage: parseInt(this.$route.query.page, 10) || 1,
+            tableId: `submissions-table-${this.$utils.getUniqueId()}`,
         };
     },
 
@@ -218,6 +235,7 @@ export default {
                     }
 
                     return {
+                        id: sub.id,
                         sub,
                         _rowVariant: variant,
                     };
@@ -242,15 +260,28 @@ export default {
                 s => this.$utils.getProps(s, null, 'assignee', 'id') === this.userId,
             );
         },
+
+        perPage() {
+            return 15;
+        },
+
+        showPagination() {
+            return this.numFilteredStudents > this.perPage || this.currentPage !== 1;
+        },
     },
 
     watch: {
         filteredSubmissions: {
             immediate: true,
-            handler() {
+            handler(newVal, oldVal) {
                 this.$emit('filter', {
                     submissions: this.filteredSubmissions.map(s => s.sub),
                 });
+
+                // This is null on the immediate call of this wachter.
+                if (oldVal != null) {
+                    this.currentPage = 1;
+                }
             },
         },
 
@@ -269,9 +300,13 @@ export default {
                 }
             },
         },
+
+        currentPage() {
+            this.submitDelayed();
+        },
     },
 
-    mounted() {
+    created() {
         if (this.graders) {
             this.updateGraders(this.graders);
         }
@@ -280,6 +315,9 @@ export default {
                 s => s.userId === this.userId || (s.assignee && s.assigneeId === this.userId),
             );
         }
+    },
+
+    mounted() {
         if (!this.mineOnly) {
             this.submit();
         }
@@ -301,29 +339,38 @@ export default {
         },
 
         sortChanged(context) {
-            this.$router.replace({
-                query: Object.assign({}, this.$route.query, {
-                    sortBy: context.sortBy,
-                    sortAsc: !context.sortDesc,
-                }),
-                hash: this.$route.hash,
+            this.$nextTick().then(() => {
+                const { sortBy, sortDesc } = context;
+                this.sortBy = sortBy;
+                // Fuck you bootstrapVue (sortDesc should've been sortAsc)
+                this.sortAsc = !sortDesc;
+                this.$router.replace({
+                    query: Object.assign({}, this.$route.query, {
+                        sortBy,
+                        sortAsc: !sortDesc,
+                    }),
+                    hash: this.$route.hash,
+                });
             });
         },
 
-        gotoSubmission({ sub: submission }) {
-            this.submit();
-
-            this.$router.push({
+        submissionRoute(submission) {
+            return {
                 name: 'submission',
                 params: { submissionId: submission.id },
                 query: {
                     mine: this.mineOnly == null ? undefined : this.mineOnly,
                     search: this.filter || undefined,
-                    // Fuck you bootstrapVue (sortDesc should've been sortAsc)
-                    sortBy: this.$refs.table.sortBy,
-                    sortAsc: !this.$refs.table.sortDesc,
+                    sortBy: this.sortBy,
+                    sortAsc: this.sortAsc,
+                    page: this.currentPage,
                 },
-            });
+            };
+        },
+
+        gotoSubmission({ sub: submission }) {
+            this.submit();
+            this.$router.push(this.submissionRoute(submission));
         },
 
         submitDelayed() {
@@ -344,6 +391,7 @@ export default {
                 query: Object.assign({}, this.$route.query, {
                     mine: this.mineOnly,
                     q: this.filter || undefined,
+                    page: this.currentPage,
                 }),
                 hash: this.$route.hash,
             });
@@ -390,6 +438,7 @@ export default {
             );
         },
 
+        parseBool,
         formatGrade,
         sortSubmissions,
 
@@ -400,6 +449,21 @@ export default {
                     otherSub.user.group.name
                 }", which also created a submission.`;
             }
+            return null;
+        },
+
+        graderDisabledMessage(sub) {
+            const msg = 'You cannot assign graders to';
+
+            if (sub.user.is_test_student) {
+                return `${msg} test students.`;
+            }
+
+            const otherSub = this.getGroupSubmissionOfUser(this.assignment.id, sub.userId);
+            if (otherSub) {
+                return `${msg} students that also have a group submission.`;
+            }
+
             return null;
         },
     },
@@ -466,9 +530,9 @@ export default {
     }
 }
 
-.submission-list .search-wrapper {
-    #app.dark & .input-group-append .input-group-text {
-        background-color: @color-primary-darkest !important;
+.submission-list {
+    .fa-icon {
+        transform: translateY(-2px);
     }
 }
 </style>

@@ -11,8 +11,7 @@
             <b-input-group-append is-text>
                 <description-popover
                     placement="top"
-                    description="You cannot change this after registration!"
-                    :show="showHelp"/>
+                    description="You cannot change this after registration!" />
             </b-input-group-append>
         </b-input-group>
     </b-form-fieldset>
@@ -111,7 +110,6 @@ export default {
             firstEmail: '',
             secondEmail: '',
             name: '',
-            showHelp: false,
             firstPw: '',
             secondPw: '',
 

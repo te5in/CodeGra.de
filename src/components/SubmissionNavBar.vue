@@ -6,45 +6,44 @@
                   :disabled="prevSub == null"
                   v-b-popover.hover.bottom="generatePopoverTitle(prevSub)"
                   @click="selectSub(prevSub)"
-                  class="prev">
+                  class="prev flex-grow-0">
             <icon name="angle-left"/>
         </b-button>
 
         <b-dropdown @show="onDropdownShow" v-if="curSub"
                     class="title navbar-old-subs-dropdown"
                     :class="subLate(curSub) ? 'current-sub-late' : ''">
-            <template slot="button-content">
-                <span class="button-content">
-                    <user :user="curSub.user"/> at {{ curSub.formattedCreatedAt }}
-                    <webhook-name :submission="curSub" />
-                    <span class="d-inline-block" style="transform: translateY(-2px)">
-                        <late-submission-icon
-                            :submission="curSub"
-                            :assignment="assignment"/>
-                    </span>
-                    <icon name="exclamation-triangle"
-                          class="text-warning ml-1"
-                          style="margin-bottom: -1px;"
-                          v-b-popover.top.hover="'You are currently not viewing the latest submission.'"
-                          v-if="notLatest"/>
-                    <icon name="exclamation-triangle"
-                          class="text-warning ml-1"
-                          style="margin-bottom: -1px;"
-                          v-b-popover.top.hover="`This user is member of the group ${quote}${groupOfUser.group.name}${quote}, which also created a submission.`"
-                          v-else-if="groupOfUser"/>
-                </span>
-            </template>
+            <span slot="button-content"
+                  class="text-center flex-grow-1">
+                <user :user="curSub.user"/> at {{ curSub.formattedCreatedAt }}
+                <webhook-name :submission="curSub" />
+                <late-submission-icon :submission="curSub"
+                                      :assignment="assignment"/>
+                <icon name="exclamation-triangle"
+                      class="text-warning ml-1"
+                      style="margin-bottom: -1px;"
+                      v-b-popover.top.hover="'You are currently not viewing the latest submission.'"
+                      v-if="notLatest"/>
+                <icon name="exclamation-triangle"
+                      class="text-warning ml-1"
+                      style="margin-bottom: -1px;"
+                      v-b-popover.top.hover="`This user is member of the group ${quote}${groupOfUser.group.name}${quote}, which also created a submission.`"
+                      v-else-if="groupOfUser"/>
+            </span>
+
             <template v-if="!loadingOldSubs && loadedOldSubs">
                 <b-dropdown-item v-if="oldSubmissions.length === 0">
                     <b>No submissions found on the server</b>
                 </b-dropdown-item>
-                <b-dropdown-item v-for="sub in oldSubmissions"
+
+                <b-dropdown-item v-else
+                                 v-for="sub in oldSubmissions"
                                  :key="sub.id"
-                                 v-else
                                  href="#"
                                  @click="selectSub(sub)"
-                                 :class="{currentSub: sub.id === curSub.id, 'sub-late': subLate(sub)}"
-                                 class="old-sub">
+                                 class="text-center"
+                                 :active="sub.id === curSub.id"
+                                 :class="{'sub-late': subLate(sub)}">
                     <template v-if="hasMixedSubmissions">
                         <user :user="sub.user" /> at
                     </template>
@@ -62,9 +61,10 @@
                         :assignment="assignment"/>
                 </b-dropdown-item>
             </template>
+
             <b-dropdown-item v-else>
                 <loader :scale="1"
-                        class="old-sub"
+                        class="text-center m-2"
                         :center="true"/>
             </b-dropdown-item>
         </b-dropdown>
@@ -76,7 +76,7 @@
                   :disabled="nextSub == null"
                   v-b-popover.hover.bottom="generatePopoverTitle(nextSub)"
                   @click="selectSub(nextSub)"
-                  class="next">
+                  class="next flex-grow-0">
             <icon name="angle-right"/>
         </b-button>
     </b-button-group>
@@ -353,14 +353,6 @@ export default {
 
 <style lang="less" scoped>
 @import '~mixins.less';
-.select {
-    border-left: 0;
-    border-right: 0;
-}
-
-.slot {
-    margin-left: 15px;
-}
 
 .nav-wrapper {
     flex: 1 1 auto;
@@ -372,41 +364,16 @@ export default {
     padding: 0.5rem;
 }
 
-.dropdown-header .dropdown-item:active {
-    background-color: inherit;
-}
-
-#student-selector {
-    border-radius: 0;
-    width: 100%;
-    padding-top: 0.625rem;
-}
-
 .nav-wrapper .title {
     .default-text-colors;
 
     flex: 1;
     text-align: center;
+
     &.placeholder {
         background-color: white;
-        border: 1px solid #ccc;
+        border: 1px solid rgb(204, 204, 204);
         padding: 0.375rem 0.75rem;
-    }
-
-    #app.dark & {
-        border-color: @color-primary-darker;
-    }
-}
-
-.old-sub {
-    text-align: center;
-}
-
-.currentSub {
-    background-color: @color-lighter-gray;
-
-    #app:not(.lti).dark & {
-        background-color: @color-primary-darkest;
     }
 }
 </style>
@@ -415,35 +382,37 @@ export default {
 @import '~mixins.less';
 
 .navbar-old-subs-dropdown {
-    .btn {
-        width: 100%;
+    .dropdown-toggle {
         display: flex;
         align-items: center;
-
-        .button-content {
-            flex: 1 1 auto;
-        }
     }
+
     .dropdown-menu {
         width: 100%;
         overflow: auto;
         padding: 0;
     }
 
-    .sub-late,
-    &.current-sub-late .dropdown-toggle {
+    &.current-sub-late .dropdown-toggle,
+    .sub-late .dropdown-item {
         background-color: @color-danger-table-row !important;
-        #app.dark & {
+
+        @{dark-mode} {
             color: @text-color !important;
             background-color: @color-danger-dark !important;
         }
 
         &:hover {
             background-color: saturate(darken(@color-danger-table-row, 5%), -20%) !important;
-            #app.dark & {
+
+            @{dark-mode} {
                 background-color: saturate(darken(@color-danger-dark, 5%), -20%) !important;
             }
         }
+    }
+
+    .fa-icon {
+        transform: translateY(-2px);
     }
 }
 </style>

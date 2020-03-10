@@ -53,8 +53,8 @@ describe('IPythonViewer.vue', () => {
         mockIPython = (new util.TextEncoder()).encode(str);
         wrapper.setProps({ fileId: String(curId++), file: { id: String(curId) } });
 
-        await comp.$nextTick();
-        await comp.$nextTick();
+        await comp.loadCode();
+        await comp.$afterRerender();
     };
 
     beforeEach(() => {

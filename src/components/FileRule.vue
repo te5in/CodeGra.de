@@ -31,9 +31,9 @@
                        class="save-rule"
                        variant="primary"
                        :disabled="!internalNameValid">
-                Save
-            </b-btn>
-        </span>
+                    Save
+                </b-btn>
+            </span>
         </b-input-group>
     </div>
     <div v-else class="rule-parts-wrapper">
@@ -356,6 +356,7 @@ export default {
 
 .file-rule {
     width: 100%;
+
     .rule-parts-wrapper {
         display: flex;
     }
@@ -363,54 +364,48 @@ export default {
 
 .rule-selector,
 .save-rule,
-.add-dir-part,
-.delete-dir-part,
 .concrete-part,
 .wildcard,
 .file-part {
     font-weight: 400;
     padding: 0.375rem 0.75rem;
     font-size: 1rem;
-    line-height: 1.5rem;
-    height: 2.5rem;
-    border-radius: 0.25rem;
+    line-height: 1.5;
+    border-radius: @border-radius;
     box-shadow: none;
     vertical-align: initial;
 }
 
-#app.dark .file-part {
-    background-color: @color-primary-darker;
-    border-color: @color-primary-darkest;
-}
-
-#app.dark .special-part,
-#app.dark .wildcard,
-#app.dark .rule-selector {
-    background-color: @color-primary-darkest;
-    border-color: @color-primary-darkest;
-}
-
 .file-part {
-    border: 1px solid transparent;
-    border-color: #ccc;
+    border: 1px solid rgb(204, 204, 204);
     background: white;
+
+    @{dark-mode} {
+        background-color: @color-primary-darker;
+        border-color: @color-primary-darkest;
+    }
+
     &.name-with-wildcard {
         padding: 0;
-        height: 100%;
         display: inherit;
     }
+
     .concrete-part {
         border-radius: 0;
+
         &:first-child {
-            border-right: 1px solid #ccc;
+            border-right: 1px solid rgb(204, 204, 204);
         }
+
         &:last-child {
-            border-left: 1px solid #ccc;
+            border-left: 1px solid rgb(204, 204, 204);
         }
-        #app.dark & {
+
+        @{dark-mode} {
             border-color: @color-primary-darkest;
         }
     }
+
     pre {
         display: inline;
         color: inherit;
@@ -424,6 +419,7 @@ export default {
     padding: 0.375rem 0.125rem;
     vertical-align: middle;
     margin: 0 2px;
+
     .file-rule.editable &.click {
         cursor: pointer;
     }
@@ -436,13 +432,16 @@ export default {
 .rule-selector,
 .wildcard,
 .special-part {
+    font-style: italic;
     font-weight: normal;
     font-variant: small-caps;
     color: @text-color-muted;
-    #app.dark & {
+
+    @{dark-mode} {
+        background-color: @color-primary-darkest;
+        border-color: @color-primary-darkest;
         color: lighten(@text-color-muted, 10%);
     }
-    font-style: italic;
 }
 
 .wildcard,
@@ -452,26 +451,14 @@ export default {
     background-color: @footer-color;
 }
 
-.rule-selector {
+.rule-selector,
+.rule-type {
     width: 6.5em;
 }
 
 .rule-type {
     background: white;
-    width: 6.5em;
     text-align: center;
-}
-
-.delete-dir-part {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-}
-
-.toolbar {
-    margin-bottom: 5px;
-    .toolbar-button-group {
-        margin: 0 auto;
-    }
 }
 
 .name-input-group {

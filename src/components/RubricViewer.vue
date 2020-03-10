@@ -6,8 +6,39 @@
     <b-tabs no-fade
             v-model="currentCategory">
         <b-tab v-for="row, i in rubric.rows"
-               :head-html="tabTitleHTML(row)"
                :key="`rubric-${row.id}`">
+            <template #title>
+                <template v-if="row.header">
+                    {{ row.header }}
+                </template>
+
+                <span v-else
+                      class="text-muted font-italic">
+                    Unnamed
+                </span>
+
+                <template v-if="Object.hasOwnProperty.call(selectedItems, row.id)">
+                    - <sup>{{
+                        $utils.toMaxNDecimals(selectedItems[row.id], 2)
+                    }}</sup>&frasl;<sub>{{
+                        row.maxPoints
+                    }}</sub>
+                </template>
+
+                <template v-else-if="!editable">
+                    - <sup>Nothing</sup>&frasl;<sub>{{
+                        row.maxPoints
+                    }}</sub>
+                </template>
+
+                <b-badge v-if="row.locked === 'auto_test'"
+                         title="This is an AutoTest category"
+                         variant="primary"
+                         class="ml-1">
+                    AT
+                </b-badge>
+            </template>
+
             <component
                 v-if="row.type === 'normal' || row.type === 'continuous'"
                 :is="`rubric-viewer-${row.type}-row`"
@@ -96,6 +127,20 @@ export default {
             return this.submission.id;
         },
 
+        selectedItems() {
+            return Object.entries(this.$utils.getProps(this.internalResult, {}, 'selected')).reduce(
+                (acc, [rowId, item]) => {
+                    const points = parseFloat(item.points);
+                    const mult = parseFloat(item.multiplier);
+                    if (!Number.isNaN(points) && !Number.isNaN(mult)) {
+                        acc[rowId] = mult * points;
+                    }
+                    return acc;
+                },
+                {},
+            );
+        },
+
         autoTestConfigId() {
             return this.assignment.auto_test_id;
         },
@@ -177,42 +222,6 @@ export default {
             storeLoadAutoTestResult: 'loadAutoTestResult',
         }),
 
-        tabTitleHTML(row) {
-            const escape = this.$utils.htmlEscape;
-            const toDec = val => escape(this.$utils.toMaxNDecimals(val, 2));
-            const makeFraction = (upper, lower) =>
-                `<sup>${escape(upper)}</sup>&frasl;<sub>${escape(lower)}</sub>`;
-
-            const parts = [];
-
-            if (row.header) {
-                parts.push(escape(row.header));
-            } else {
-                parts.push('<span class="text-muted font-italic">Unnamed category</span>');
-            }
-
-            const selectedItem = this.$utils.getProps(
-                this.internalResult,
-                null,
-                'selected',
-                row.id,
-            );
-
-            if (selectedItem && !Number.isNaN(Number(selectedItem.multiplier))) {
-                const mul = Math.max(0, Math.min(selectedItem.multiplier, 1));
-                const points = toDec(selectedItem.points * mul);
-                parts.push(`- ${makeFraction(points, row.maxPoints)}`);
-            } else if (!this.editable) {
-                parts.push(`- ${makeFraction('Nothing', row.maxPoints)}`);
-            }
-
-            if (row.locked === 'auto_test') {
-                parts.push(constants.RUBRIC_BADGE_AT);
-            }
-
-            return parts.join(' ');
-        },
-
         resultUpdated(result) {
             this.internalResult = result;
             this.$emit('input', result);
@@ -238,6 +247,10 @@ export default {
         &.active {
             background-color: rgba(0, 0, 0, 0.0625);
             border-bottom-width: 0;
+        }
+
+        .badge {
+            transform: translateY(-2px);
         }
     }
 
@@ -265,7 +278,7 @@ export default {
         color: @color-secondary;
         transition: width @transition-duration;
 
-        #app.dark & {
+        @{dark-mode} {
             background-color: fade(white, 15%);
             border-right: 1px solid fade(white, 25%);
             color: @text-color-dark;
@@ -281,7 +294,7 @@ export default {
                 1px 0 rgba(255, 255, 255, 0.75), 0 -1px rgba(255, 255, 255, 0.75);
             font-weight: bold !important;
 
-            #app.dark & {
+            @{dark-mode} {
                 text-shadow: -1px 0 @color-primary, 0 1px @color-primary, 1px 0 @color-primary,
                     0 -1px @color-primary;
             }

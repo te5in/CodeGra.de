@@ -5,6 +5,7 @@
         <template slot="title">
             Welcome {{ nameOfUser }}!
         </template>
+
         <div class="search-logo-wrapper">
             <input class="search form-control mr-3"
                    v-model="searchString"
@@ -13,6 +14,7 @@
             <cg-logo :small="$root.$isSmallWindow" :inverted="!darkMode" />
         </div>
     </local-header>
+
     <b-alert show v-if="showReleaseNote" variant="info">
         A new version of CodeGrade has been released:
         <b>{{ UserConfig.release.version }}</b>.
@@ -20,10 +22,17 @@
         changelog <a href="https://docs.codegra.de/about/changelog.html"
         target="_blank" class="alert-link">here</a>.
     </b-alert>
+
     <loader v-if="loadingCourses" page-loader/>
-    <div v-else-if="courses.length === 0">
-        <span class="no-courses">You have no courses yet!</span>
-    </div>
+
+    <template v-else-if="courses.length === 0">
+        <h3 class="text-center font-italic text-muted">You have no courses yet!</h3>
+    </template>
+
+    <template v-else-if="filteredCourses.length === 0">
+        <h3 class="text-center font-italic text-muted">No matching courses found!</h3>
+    </template>
+
     <masonry :cols="{default: 3, [$root.largeWidth]: 2, [$root.mediumWidth]: 1 }"
              :gutter="30"
              class="outer-block outer-course-wrapper"
@@ -31,7 +40,7 @@
         <div class="course-wrapper" v-for="course in filteredCourses" :key="course.id">
             <b-card no-body>
                 <b-card-header :class="`text-${getColorPair(course.name).color}`"
-                               :style="{ backgroundColor: getColorPair(course.name).background }">
+                               :style="{ backgroundColor: `${getColorPair(course.name).background} !important` }">
                     <div style="display: flex">
                         <b class="course-name">{{ course.name }}</b>
                         <router-link v-if="course.canManage"
@@ -50,7 +59,7 @@
                                 <router-link v-for="{ assignment, filtered } in getAssignments(course)"
                                              :key="assignment.id"
                                              :to="submissionsRoute(assignment)"
-                                             :class="filtered ? 'super-text-muted' : ''"
+                                             :class="filtered ? 'text-muted' : ''"
                                              class="assig-list-item">
                                     <td>
                                         <span>{{ assignment.name }}</span><br>
@@ -62,12 +71,13 @@
                                             No deadline
                                         </small>
                                     </td>
-                                    <td>
+                                    <td class="shrink">
                                         <assignment-state :assignment="assignment"
                                                           :editable="false"
                                                           size="sm"/>
                                     </td>
-                                    <td v-if="assignment.canManage">
+                                    <td v-if="assignment.canManage"
+                                        class="shrink">
                                         <router-link :to="manageAssignmentRoute(assignment)"
                                                      v-b-popover.window.top.hover="'Manage assignment'">
                                             <icon name="gear" class="gear-icon"/>
@@ -77,7 +87,7 @@
                             </tbody>
                         </table>
 
-                        <p class="no-assignments" v-else>
+                        <p class="m-3 font-italic text-muted" v-else>
                             No assignments for this course.
                         </p>
                     </div>
@@ -104,26 +114,26 @@ import LocalHeader from './LocalHeader';
 import CgLogo from './CgLogo';
 
 const COLOR_PAIRS = [
-    { background: '#70A3A2', color: 'dark' },
-    { background: '#DFD3AA', color: 'dark' },
-    { background: '#DFB879', color: 'dark' },
-    { background: '#956F48', color: 'light' },
-    { background: '#4F5F56', color: 'light' },
-    { background: '#A7AE91', color: 'dark' },
-    { background: '#D7CEA6', color: 'dark' },
-    { background: '#CC3A28', color: 'light' },
-    { background: '#598D86', color: 'dark' },
-    { background: '#E6DCCD', color: 'dark' },
-    { background: '#D6CE5B', color: 'dark' },
-    { background: '#D97E71', color: 'dark' },
-    { background: '#5D8D7D', color: 'dark' },
-    { background: '#D2CF9F', color: 'dark' },
-    { background: '#EADB93', color: 'dark' },
-    { background: '#CB5452', color: 'light' },
-    { background: '#65686C', color: 'light' },
-    { background: '#B4AEA4', color: 'dark' },
-    { background: '#E7EEE9', color: 'dark' },
-    { background: '#EAB66C', color: 'dark' },
+    { background: 'rgb(112, 163, 162)', color: 'dark' },
+    { background: 'rgb(223, 211, 170)', color: 'dark' },
+    { background: 'rgb(223, 184, 121)', color: 'dark' },
+    { background: 'rgb(149, 111,  72)', color: 'light' },
+    { background: 'rgb( 79,  95,  86)', color: 'light' },
+    { background: 'rgb(167, 174, 145)', color: 'dark' },
+    { background: 'rgb(215, 206, 166)', color: 'dark' },
+    { background: 'rgb(204,  58,  40)', color: 'light' },
+    { background: 'rgb( 89, 141, 134)', color: 'dark' },
+    { background: 'rgb(230, 220, 205)', color: 'dark' },
+    { background: 'rgb(214, 206,  91)', color: 'dark' },
+    { background: 'rgb(217, 126, 113)', color: 'dark' },
+    { background: 'rgb( 93, 141, 125)', color: 'dark' },
+    { background: 'rgb(210, 207, 159)', color: 'dark' },
+    { background: 'rgb(234, 219, 147)', color: 'dark' },
+    { background: 'rgb(203,  84,  82)', color: 'light' },
+    { background: 'rgb(101, 104, 108)', color: 'light' },
+    { background: 'rgb(180, 174, 164)', color: 'dark' },
+    { background: 'rgb(231, 238, 233)', color: 'dark' },
+    { background: 'rgb(234, 182, 108)', color: 'dark' },
 ];
 
 export default {
@@ -277,11 +287,16 @@ export default {
         margin-bottom: 0;
 
         .assig-list-item {
-            #app.dark &,
-            #app.dark & .fa-icon {
-                color: #d2d4d5;
-            }
             display: table-row;
+
+            @{dark-mode},
+            @{dark-mode} .fa-icon {
+                color: rgb(210, 212, 213);
+            }
+
+            &:first-child td {
+                border-top-width: 0;
+            }
 
             &:nth-of-type(even) {
                 background-color: rgba(0, 0, 0, 0.05);
@@ -292,19 +307,9 @@ export default {
             }
         }
 
-        td:not(:first-child) {
-            width: 1px;
-            white-space: nowrap;
-        }
-
-        td:last-child a {
-            padding-bottom: 0;
-        }
-
         a:hover {
             text-decoration: none;
 
-            #app.dark & .fa-icon,
             .fa-icon {
                 border-bottom-color: transparent;
             }
@@ -317,6 +322,11 @@ export default {
 
     .course-wrapper {
         padding-bottom: 1em;
+
+        .card {
+            // Dont render content over the border
+            overflow: hidden;
+        }
 
         .card-body {
             @media @media-medium {
@@ -363,7 +373,7 @@ export default {
 }
 
 a {
-    #app.dark & {
+    @{dark-mode} {
         color: @text-color-dark;
 
         &:hover {
@@ -378,29 +388,9 @@ a {
     &:hover .gear-icon {
         border-bottom: 1px solid lighten(@color-primary, 10%);
 
-        #app.dark & {
+        @{dark-mode} {
             border-color: darken(@text-color-dark, 10%);
         }
-    }
-}
-
-.no-courses {
-    display: block;
-    font-size: 1.5rem;
-    text-align: center;
-    color: @color-secondary-text;
-
-    #app.dark & {
-        color: @color-light-gray;
-    }
-}
-
-.no-assignments {
-    margin: 1rem 0.75rem;
-    color: @color-secondary-text;
-
-    #app.dark & {
-        color: @color-light-gray;
     }
 }
 
@@ -412,10 +402,5 @@ a {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-}
-
-.super-text-muted,
-.super-text-muted a {
-    color: #ccc !important;
 }
 </style>

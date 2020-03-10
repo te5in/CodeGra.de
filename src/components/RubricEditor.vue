@@ -83,7 +83,7 @@
     <b-tabs no-fade
             nav-class="border-0"
             v-model="currentCategory">
-        <b-nav-item slot="tabs"
+        <b-nav-item slot="tabs-end"
                     class="add-row font-weight-bold"
                     @click.prevent="createRow"
                     href="#"
@@ -95,8 +95,25 @@
         <b-tab class="border px-3 pt-3 pb-0"
                :class="{ 'rounded-bottom': editable, 'border-bottom-0': !editable }"
                v-for="row, i in rubricRows"
-               :title="rubricCategoryTitle(row)"
                :key="`rubric-${id}-${i}`">
+
+            <template #title>
+                <template v-if="row.header">
+                    {{ row.header }}
+                </template>
+
+                <span v-else
+                      class="text-muted font-italic">
+                    Unnamed
+                </span>
+
+                <b-badge v-if="row.locked === 'auto_test'"
+                         title="This is an AutoTest category"
+                         variant="primary"
+                         class="ml-1">
+                    AT
+                </b-badge>
+            </template>
 
             <template v-if="row.type == '' && editable">
                 <h4 class="text-center pb-3 pt-3">Select the type of category</h4>
@@ -205,6 +222,7 @@
                 <submit-button class="delete-rubric border-right rounded-right-0"
                                style="margin-right: -1px;"
                                variant="danger"
+                               v-b-popover.top.hover="'Delete rubric'"
                                :submit="deleteRubric"
                                :filter-error="deleteFilter"
                                @after-success="afterDeleteRubric"
@@ -384,7 +402,7 @@ import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/reply';
 import 'vue-awesome/icons/ellipsis-h';
 
-import { RUBRIC_BADGE_AT, NONEXISTENT } from '@/constants';
+import { NONEXISTENT } from '@/constants';
 import { Rubric } from '@/models';
 import { ValidationError } from '@/models/errors';
 import { formatGrade } from '@/utils';
@@ -738,10 +756,9 @@ export default {
 
         createRow() {
             this.ensureEditable();
-
             this.rubric = this.rubric.createRow();
 
-            this.$nextTick().then(() => {
+            this.$afterRerender(() => {
                 this.currentCategory = this.rubric.rows.length - 1;
             });
         },
@@ -767,20 +784,6 @@ export default {
         setRowType(idx, type) {
             const row = this.rubric.rows[idx].setType(type);
             this.rubric = this.rubric.updateRow(idx, row);
-        },
-
-        rubricCategoryTitle(row) {
-            if (!row.header) {
-                return '<span class="text-muted font-italic">Unnamed category</span>';
-            }
-
-            let title = this.$utils.htmlEscape(row.header);
-
-            if (row.locked === 'auto_test') {
-                title += ` ${RUBRIC_BADGE_AT}`;
-            }
-
-            return title;
         },
     },
 
@@ -829,12 +832,6 @@ export default {
 input.max-points {
     width: 6.66rem;
 }
-
-.submit-popover {
-    :last-child {
-        margin-bottom: 0 !important;
-    }
-}
 </style>
 
 <style lang="less">
@@ -844,10 +841,6 @@ input.max-points {
     &:not(.editable) .nav-tabs {
         .nav-item:first-child {
             margin-left: 15px;
-        }
-
-        .nav-link:hover {
-            border-color: @color-light-gray;
         }
     }
 

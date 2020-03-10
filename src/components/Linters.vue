@@ -5,7 +5,8 @@
     <loader/>
 </div>
 <div v-else class="linters">
-    <b-tabs no-fade>
+    <b-tabs no-fade
+            content-class="p-3 border border-top-0 rounded-bottom">
         <b-tab :title="linter.name"
                :key="linter.id"
                v-for="linter in linters">
@@ -66,20 +67,3 @@ export default {
     },
 };
 </script>
-
-
-<style lang="less">
-@import '~mixins.less';
-
-.linters .tab-content {
-    #app.dark & {
-        border-color: @color-primary-darker;
-    }
-    border: 1px solid #dee2e6;
-    border-top: 0;
-    border-bottom-right-radius: 0.25rem;
-    border-bottom-left-radius: 0.25rem;
-    padding: 1em;
-    padding-bottom: 0;
-}
-</style>

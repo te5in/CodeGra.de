@@ -29,7 +29,7 @@
                             registering with this link.
                         </description-popover>
                     </th>
-                    <th />
+                    <th class="shrink" />
                 </tr>
             </thead>
             <tbody>
@@ -39,7 +39,7 @@
                     class="registration-links">
                     <template v-if="link.id == null">
                         <td  />
-                        <td class="align-middle">
+                        <td class="align-middle text-muted font-italic">
                             This link has not been saved yet
                         </td>
                     </template>
@@ -65,10 +65,11 @@
                         <datetime-picker v-model="link.expiration_date"
                                          placeholder="None set"/>
                     </td>
-                    <td>
+                    <td class="shrink">
                         <b-dropdown :text="link.role.name"
-                                    class="role-dropdown">
-                            <b-dropdown-header>Select the new role</b-dropdown-header>
+                                    class="w-100 role-dropdown"
+                                    menu-class="w-100">
+                            <b-dropdown-header>Select a default role</b-dropdown-header>
                             <b-dropdown-item v-for="role in roles"
                                              @click="$set(link, 'role', role)"
                                              :key="role.id">
@@ -76,7 +77,7 @@
                             </b-dropdown-item>
                         </b-dropdown>
                     </td>
-                    <td>
+                    <td class="shrink">
                         <div class="save-link-wrapper">
                             <submit-button :submit="() => saveLink(link)" label="Save"
                                            :disabled="link.role.id == null || link.expiration_date == null"
@@ -90,8 +91,9 @@
                         </div>
                     </td>
                 </tr>
+
                 <tr v-if="registrationLinks.filter(x => !x.deleted).length === 0">
-                    <td colspan="5" class="text-muted font-italic">
+                    <td colspan="5" class="text-center text-muted font-italic">
                         There are no registration links yet.
                     </td>
                 </tr>
@@ -110,38 +112,62 @@
         </table>
     </div>
 
-    <b-table striped
-             ref="table"
-             v-if="canListUsers"
-             class="users-table"
-             :items="filteredUsers"
-             :fields="fields"
-             :sort-compare="sortTable"
-             sort-by="User">
+    <template v-if="canListUsers">
+        <b-table striped
+                 ref="table"
+                 class="users-table"
+                 :id="tableId"
+                 :fields="fields"
+                 :items="filteredUsers"
+                 :sort-compare="sortTable"
+                 sort-by="User"
+                 :per-page="perPage"
+                 :current-page="currentPage"
+                 show-empty>
 
-        <template slot="User" slot-scope="item">
-            <span class="username">{{item.value.name}} ({{item.value.username}})</span>
-        </template>
+            <template #cell(User)="item">
+                <span class="username">{{item.value.name}} ({{item.value.username}})</span>
+            </template>
 
-        <template slot="CourseRole" slot-scope="item">
-            <loader :scale="2" v-if="updating[item.item.User.id]"/>
-            <b-dropdown :text="item.value.name"
-                        disabled
-                        class="role-dropdown"
-                        v-b-popover.top.hover="'You cannot change your own role'"
-                        v-else-if="item.item.User.name == userName"/>
-            <b-dropdown :text="item.value.name"
-                        class="role-dropdown"
-                        v-else>
-                <b-dropdown-header>Select the new role</b-dropdown-header>
-                <b-dropdown-item v-for="role in roles"
-                                 @click="changed(item.item, role)"
-                                 :key="role.id">
-                    {{ role.name }}
-                </b-dropdown-item>
-            </b-dropdown>
-        </template>
-    </b-table>
+            <template #cell(CourseRole)="item">
+                <b-dropdown class="role-dropdown"
+                            menu-class="w-100"
+                            v-b-popover.top.hover="item.item.User.id === loggedInUserId ? 'You cannot change your own role' : ''"
+                            :disabled="updating[item.item.User.id] || item.item.User.id === loggedInUserId">
+
+                    <template slot="button-content"
+                              v-if="updating[item.item.User.id]">
+                        <loader class="d-inline" :scale="1" />
+                    </template>
+                    <template slot="button-content"
+                              v-else>
+                        {{ item.value.name }}
+                    </template>
+
+                    <b-dropdown-header>Select the new role</b-dropdown-header>
+                    <b-dropdown-item v-for="role in roles"
+                                     @click="changed(item.item, role)"
+                                     :key="role.id">
+                        {{ role.name }}
+                    </b-dropdown-item>
+                </b-dropdown>
+            </template>
+
+            <template #empty>
+                <div class="text-center font-italic text-muted">
+                    No users found.
+                </div>
+            </template>
+        </b-table>
+
+        <b-pagination
+            v-if="showPagination"
+            v-model="currentPage"
+            :limit="10"
+            :total-rows="totalRows"
+            :per-page="perPage"
+            :aria-controls="tableId" />
+    </template>
 
     <b-alert show variant="danger" v-else>
         You can only actually manage users when you also have the 'list course
@@ -163,9 +189,12 @@
                            :disabled="course.is_lti"/>
 
             <template slot="append">
-                <b-dropdown class="drop"
+                <b-dropdown dropup
+                            class="role-dropdown"
+                            toggle-class="h-100 border"
                             :text="newRole ? newRole.name : 'Role'"
                             :disabled="course.is_lti">
+                    <b-dropdown-header>Select the new role</b-dropdown-header>
                     <b-dropdown-item v-for="role in roles"
                                      v-on:click="() => {newRole = role; error = '';}"
                                      :key="role.id">
@@ -224,30 +253,40 @@ export default {
             newStudentUsername: null,
             canListUsers: false,
             canSearchUsers: false,
+            tableId: `users-table-${this.$utils.getUniqueId()}`,
             newRole: '',
             error: '',
-            fields: {
-                User: {
+            fields: [
+                {
                     label: 'Name',
-                    sortable: true,
                     key: 'User',
-                },
-                CourseRole: {
-                    label: 'role',
                     sortable: true,
-                    key: 'CourseRole',
                 },
-            },
+                {
+                    label: 'Role',
+                    key: 'CourseRole',
+                    sortable: true,
+                },
+            ],
 
             registrationLinks: [],
             UserConfig,
+            currentPage: 1,
         };
     },
 
     computed: {
         ...mapGetters('user', {
-            userName: 'name',
+            loggedInUserId: 'id',
         }),
+
+        totalRows() {
+            return this.$utils.getProps(this.filteredUsers, 0, 'length');
+        },
+
+        perPage() {
+            return 15;
+        },
 
         courseId() {
             return this.course.id;
@@ -256,6 +295,10 @@ export default {
         filteredUsers() {
             return this.users.filter(this.filterFunction);
         },
+
+        showPagination() {
+            return this.totalRows > this.perPage;
+        },
     },
 
     watch: {
@@ -263,6 +306,14 @@ export default {
             if (newVal.id !== oldVal.id) {
                 this.loadData();
             }
+        },
+
+        users() {
+            this.currentPage = 1;
+        },
+
+        filter() {
+            this.currentPage = 1;
         },
     },
 
@@ -468,10 +519,6 @@ export default {
 </script>
 
 <style lang="less">
-.users-table tr :nth-child(2) {
-    text-align: center;
-}
-
 .users-manager .users-table,
 .users-manager .registration-table {
     th,
@@ -482,21 +529,15 @@ export default {
     }
 }
 
-.users-table td {
-    vertical-align: middle;
-}
+.users-table {
+    td {
+        vertical-align: middle;
+    }
 
-.users-table .dropdown .btn {
-    width: 10rem;
-}
-
-.add-student .drop .btn {
-    border-radius: 0;
-}
-
-.new-user-popover button {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
+    .dropdown-toggle {
+        padding-top: 3px;
+        padding-bottom: 4px;
+    }
 }
 
 .username {
@@ -510,20 +551,21 @@ export default {
     hyphens: auto;
 }
 
-.role-dropdown .dropdown-toggle {
-    padding-top: 3px;
-    padding-bottom: 4px;
-}
+.role-dropdown {
+    .dropdown-toggle {
+        min-width: 10rem;
+        padding-right: 1.5rem;
 
-.registration-table .role-dropdown .btn {
-    padding: 0.375rem 0.75rem;
-}
+        &::after {
+            position: absolute;
+            top: 50%;
+            right: 0.5rem;
+            transform: translateY(-50%);
+        }
+    }
 
-.add-user-button {
-    .btn {
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
-        height: 100%;
+    .dropdown-menu {
+        overflow-y: auto;
     }
 }
 
