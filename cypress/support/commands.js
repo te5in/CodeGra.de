@@ -565,6 +565,7 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
         if (opts.confirmInModal) {
             const id = subject.get(0).id;
             cy.get(`#${id}-modal`)
+                .should('have.class', 'show')
                 .should('be.visible')
                 .containsAll(opts.confirmMsg)
                 .contains('.btn', opts.doConfirm ? 'Confirm' : 'Cancel')
