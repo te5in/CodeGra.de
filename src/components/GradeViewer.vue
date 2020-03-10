@@ -405,7 +405,10 @@ export default {
                 case DeleteButtonState.RUBRIC_OVERRIDDEN:
                     return this.clearSubmissionGrade();
                 case DeleteButtonState.CLEAR_RUBRIC:
-                    return this.clearRubricItems();
+                    return this.clearRubricItems().then(res => {
+                        this.$root.$emit('cg::rubric-viewer::reset');
+                        return res;
+                    });
                 case DeleteButtonState.RUBRIC_CHANGED_AND_OVERRIDDEN:
                     return {
                         data: {

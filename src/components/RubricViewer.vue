@@ -44,7 +44,7 @@
                 :is="`rubric-viewer-${row.type}-row`"
                 class="border border-top-0 rounded rounded-top-0"
                 :value="internalResult"
-                @input="resultUpdated"
+                @input="resultUpdated(row.id, $event)"
                 @submit="$emit('submit')"
                 :rubric-row="row"
                 :assignment="assignment"
@@ -68,6 +68,7 @@ import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/lock';
 
 import * as constants from '@/constants';
+import { RubricResult } from '@/models';
 
 import Loader from './Loader';
 import RubricViewerNormalRow from './RubricViewerNormalRow';
@@ -95,7 +96,7 @@ export default {
         return {
             id: this.$utils.getUniqueId(),
             currentCategory: 0,
-            internalResult: null,
+            changedItems: {},
         };
     },
 
@@ -119,6 +120,18 @@ export default {
             return this.storeRubricResults[this.submissionId];
         },
 
+        internalResult() {
+            const selected = Object.assign({}, this.result.selected);
+            Object.entries(this.changedItems).forEach(([rowId, item]) => {
+                if (item == null) {
+                    delete selected[rowId];
+                } else {
+                    selected[rowId] = item;
+                }
+            });
+            return new RubricResult(this.submissionId, selected);
+        },
+
         assignmentId() {
             return this.assignment.id;
         },
@@ -128,17 +141,15 @@ export default {
         },
 
         selectedItems() {
-            return Object.entries(this.$utils.getProps(this.internalResult, {}, 'selected')).reduce(
-                (acc, [rowId, item]) => {
-                    const points = parseFloat(item.points);
-                    const mult = parseFloat(item.multiplier);
-                    if (!Number.isNaN(points) && !Number.isNaN(mult)) {
-                        acc[rowId] = mult * points;
-                    }
-                    return acc;
-                },
-                {},
-            );
+            const selected = this.$utils.getProps(this.internalResult, {}, 'selected');
+            return Object.entries(selected).reduce((acc, [rowId, item]) => {
+                const points = parseFloat(item.points);
+                const mult = parseFloat(item.multiplier);
+                if (!Number.isNaN(points) && !Number.isNaN(mult)) {
+                    acc[rowId] = mult * points;
+                }
+                return acc;
+            }, {});
         },
 
         autoTestConfigId() {
@@ -175,6 +186,8 @@ export default {
         submissionId: {
             immediate: true,
             handler() {
+                this.reset();
+
                 this.storeLoadRubricResult({
                     submissionId: this.submissionId,
                     assignmentId: this.assignmentId,
@@ -195,20 +208,19 @@ export default {
         result: {
             immediate: true,
             handler() {
-                this.internalResult = this.result;
-                this.$emit('load', this.result);
+                this.$emit('load', this.internalResult);
             },
         },
     },
 
     mounted() {
-        this.$root.$on('cg::rubric-viewer::open-category', id => {
-            this.currentCategory = this.rubric.rows.findIndex(row => row.id === id);
-        });
+        this.$root.$on('cg::rubric-viewer::open-category', this.gotoCategory);
+        this.$root.$on('cg::rubric-viewer::reset', this.reset);
     },
 
     destroyed() {
-        this.$root.$off('cg::rubric-viewer::open-category');
+        this.$root.$off('cg::rubric-viewer::open-category', this.gotoCategory);
+        this.$root.$off('cg::rubric-viewer::reset', this.reset);
     },
 
     methods: {
@@ -222,9 +234,17 @@ export default {
             storeLoadAutoTestResult: 'loadAutoTestResult',
         }),
 
-        resultUpdated(result) {
-            this.internalResult = result;
-            this.$emit('input', result);
+        resultUpdated(rowId, item) {
+            this.$set(this.changedItems, rowId, item);
+            this.$emit('input', this.internalResult);
+        },
+
+        reset() {
+            this.changedItems = {};
+        },
+
+        gotoCategory(rowId) {
+            this.currentCategory = this.rubric.rows.findIndex(row => row.id === rowId);
         },
     },
 
