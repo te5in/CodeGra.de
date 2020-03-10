@@ -82,6 +82,17 @@ export default {
                 }
             },
         },
+
+        $inLTI: {
+            immediate: true,
+            handler() {
+                if (this.$inLTI) {
+                    document.body.classList.add('cg-in-lti');
+                } else {
+                    document.body.classList.remove('cg-in-lti');
+                }
+            }
+        },
     },
 
     methods: {
