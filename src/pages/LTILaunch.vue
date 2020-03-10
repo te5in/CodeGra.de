@@ -66,7 +66,6 @@ export default {
                     jwt_token: this.$route.query.jwt,
                     blob_id: this.$route.query.blob_id,
                 }),
-                this.loadCourses().catch(() => null),
             ])
                 .then(
                     async ([response]) => {
@@ -75,7 +74,6 @@ export default {
                             await this.logout();
                             disablePersistance();
                             await this.updateAccessToken(data.access_token);
-                            await this.loadCourses();
                         } else {
                             this.clearPlagiarismCases();
                         }
