@@ -322,6 +322,9 @@
                          <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">resulting_app</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+        <span class="n">resulting_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SESSION_COOKIE_SAMESITE&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;None&#39;</span>
+        <span class="n">resulting_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;SESSION_COOKIE_SECURE&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
         <span class="k">assert</span> <span class="ow">not</span> <span class="n">resulting_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_DISABLE_ORIGIN_CHECK&#39;</span><span class="p">]</span>
 
     <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
