@@ -435,10 +435,10 @@ context('Submission uploader', () => {
             cy.route({
                 method: 'POST',
                 url: '/api/v1/assignments/*/webhook_settings?*',
-            }).as('webhookData');
+            }).as('webhookRequest');
 
             getGitLink().click();
-            cy.wait('@webhookData', { timeout: 10000 });
+            cy.wait('@webhookRequest', { timeout: 10000 });
 
             return cy.get('#git-instructions-modal').should('be.visible');
         }
