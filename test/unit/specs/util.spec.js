@@ -26,6 +26,8 @@ import {
     toMaxNDecimals,
 } from '@/utils';
 
+import { Counter } from '@/utils/counter';
+
 import * as assignmentState from '@/store/assignment-states';
 import * as visualize from '@/utils/visualize';
 
@@ -806,4 +808,31 @@ describe('utils.js', () => {
             expect(cmpNoCaseMany(['a', 'a'], ['a', 'A'], ['A', 'a'])).toBe(0);
         });
     });
+});
+
+describe('counter.js', () => {
+    describe('Counter', () => {
+        const obj1 = {};
+        const obj2 = {};
+        let c1 = new Counter([1, 2, '3', '4', '4', 1, obj1, obj1, obj2])
+
+        it('should work for simple keys', () => {
+            expect(c1.getCount(1)).toBe(2);
+            expect(c1.getCount(2)).toBe(1);
+            expect(c1.getCount('3')).toBe(1);
+            expect(c1.getCount('4')).toBe(2);
+        });
+
+        it('should work for object keys', () => {
+            expect(c1.getCount(obj1)).toBe(2);
+            expect(c1.getCount(obj2)).toBe(1);
+        });
+
+        it('should work missing keys', () => {
+            expect(c1.getCount(4)).toBe(0);
+            expect(c1.getCount({})).toBe(0);
+            expect(c1.getCount('1')).toBe(0);
+            expect(c1.getCount(0)).toBe(0);
+        });
+    })
 });

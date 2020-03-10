@@ -45,7 +45,7 @@
                 <b-card-header :class="`text-${getColorPair(course.name).color}`"
                                :style="{ backgroundColor: `${getColorPair(course.name).background} !important` }">
                     <div style="display: flex">
-                        <b class="course-name">{{ course.name }}</b>
+                        <b class="course-name">{{ courseNamesToDisplay[course.id] }}</b>
                         <router-link v-if="course.canManage"
                                      :to="manageCourseRoute(course)"
                                      v-b-popover.window.top.hover="'Manage course'"
@@ -127,6 +127,7 @@ import 'vue-awesome/icons/gear';
 import InfiniteLoading from 'vue-infinite-loading';
 
 import { hashString, cmpNoCaseMany } from '@/utils';
+import { Counter } from '@/utils/counter';
 
 import AssignmentState from './AssignmentState';
 import UserInfo from './UserInfo';
@@ -177,9 +178,29 @@ export default {
         ...mapGetters('pref', ['darkMode']),
 
         courses() {
-            return Object.values(this.unsortedCourses).sort(
-                (a, b) => cmpNoCaseMany([b.created_at, a.created_at], [a.name, b.name]),
+            return Object.values(this.unsortedCourses).sort((a, b) =>
+                cmpNoCaseMany([b.created_at, a.created_at], [a.name, b.name]),
             );
+        },
+
+        courseNamesToDisplay() {
+            const getNameAndYear = c => `${c.name} (${c.created_at.slice(0, 4)})`;
+
+            const courseName = new Counter(this.courses.map(c => c.name));
+            const courseNameAndYear = new Counter(this.courses.map(getNameAndYear));
+
+            return this.courses.reduce((acc, course) => {
+                if (courseName.getCount(course.name) > 1) {
+                    if (courseNameAndYear.getCount(getNameAndYear(course)) > 1) {
+                        acc[course.id] = `${course.name} (${course.created_at.slice(0, 10)})`;
+                    } else {
+                        acc[course.id] = getNameAndYear(course);
+                    }
+                } else {
+                    acc[course.id] = course.name;
+                }
+                return acc;
+            }, {});
         },
 
         filteredCourses() {
