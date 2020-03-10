@@ -151,7 +151,7 @@ const COLOR_PAIRS = [
     { background: 'rgb(167, 174, 145)', color: 'dark' },
     { background: 'rgb(215, 206, 166)', color: 'dark' },
     { background: 'rgb(204,  58,  40)', color: 'light' },
-    { background: 'rgb( 89, 141, 134)', color: 'dark' },
+    { background: 'rgb( 89, 141, 134)', color: 'light' },
     { background: 'rgb(230, 220, 205)', color: 'dark' },
     { background: 'rgb(214, 206,  91)', color: 'dark' },
     { background: 'rgb(217, 126, 113)', color: 'dark' },
