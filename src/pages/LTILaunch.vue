@@ -53,7 +53,7 @@ export default {
 
     methods: {
         ...mapActions('user', ['logout', 'updateAccessToken']),
-        ...mapActions('courses', ['loadCourses', 'reloadCourses']),
+        ...mapActions('courses', ['reloadCourses']),
         ...mapActions('plagiarism', { clearPlagiarismCases: 'clear' }),
 
         secondStep(first) {
@@ -61,14 +61,12 @@ export default {
 
             setPageTitle('LTI is launching, please wait');
 
-            Promise.all([
-                this.$http.post('/api/v1/lti/launch/2', {
-                    jwt_token: this.$route.query.jwt,
-                    blob_id: this.$route.query.blob_id,
-                }),
-            ])
+            this.$http.post('/api/v1/lti/launch/2', {
+                jwt_token: this.$route.query.jwt,
+                blob_id: this.$route.query.blob_id,
+            })
                 .then(
-                    async ([response]) => {
+                    async response => {
                         const { data } = response;
                         if (data.access_token) {
                             await this.logout();
