@@ -158,6 +158,10 @@ const COLOR_PAIRS = [
     { background: 'rgb(234, 182, 108)', color: 'dark' },
 ];
 
+// The amount of extra courses that should be loaded when we reach the end of
+// the infinite scroll list. This is a multiple of 3 and of 2 (and 1 ofc) as
+// those are the amount of columns we use in our masonry. So by using a multiple
+// we increase the chance that we fill the masonry nice and even.
 const INITIAL_COURSES_AMOUNT = 12;
 
 export default {

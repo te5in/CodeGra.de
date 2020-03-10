@@ -795,16 +795,16 @@ describe('utils.js', () => {
     });
 
     describe('cmpNoCaseMany', () => {
-        it('should work when the first case is different', () => {
+        it('should work when the first option is different', () => {
             expect(cmpNoCaseMany(['a', 'b'], ['a', 'a'])).toBe(-1);
             expect(cmpNoCaseMany(['b', 'a'], ['a', 'a'])).toBe(1);
         });
 
-        it('should work when the second case is different', () => {
+        it('should work when the second option is different', () => {
             expect(cmpNoCaseMany(['a', 'a'], ['a', 'B'], ['B', 'a'])).toBe(-1);
         });
 
-        it('should work when the all cases are the same', () => {
+        it('should work when the all options are the same', () => {
             expect(cmpNoCaseMany(['a', 'a'], ['a', 'A'], ['A', 'a'])).toBe(0);
         });
     });
