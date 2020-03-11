@@ -52,11 +52,11 @@
                     <td>
                         <b-input-group right="px">
                             <input :value="fontSize"
-                                    @input="fontSizeChanged($event.target.value)"
-                                    class="form-control"
-                                    type="number"
-                                    step="1"
-                                    min="1"/>
+                                   @input="fontSizeChanged($event.target.value)"
+                                   class="form-control"
+                                   type="number"
+                                   step="1"
+                                   min="1"/>
                         </b-input-group>
                     </td>
                 </tr>
