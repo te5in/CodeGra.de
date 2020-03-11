@@ -287,7 +287,11 @@ export default {
     overflow: hidden;
 
     .input-group {
-        width: 14rem;
+        width: 18rem;
+    }
+
+    input {
+        min-width: 4rem;
     }
 }
 
