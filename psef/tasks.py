@@ -391,14 +391,14 @@ def _notify_broker_of_new_job_1(
         run = p.models.AutoTestRun.query.filter_by(
             id=run_id
         ).with_for_update().one_or_none()
-        if wanted_runners is None:
-            wanted_runners = run.get_amount_of_needed_runners()
-
         if run is None:
             logger.warning('Trying to start run that does not exist')
             return
     else:
         run = run_id
+
+    if wanted_runners is None:
+        wanted_runners = run.get_amount_needed_runners()
 
     with p.helpers.BrokerSession() as ses:
         req = ses.put(
