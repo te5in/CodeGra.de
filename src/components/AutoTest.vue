@@ -481,7 +481,8 @@
              size="xl"
              hide-footer
              @hidden="currentResult = null"
-             class="result-modal">
+             body-class="p-0"
+             dialog-class="auto-test-result-modal">
         <loader v-if="resultSubmissionLoading" class="my-3" />
 
         <template slot="modal-title" v-else>
@@ -503,7 +504,7 @@
     <b-modal v-if="currentFixture"
              :id="fixtureModalId"
              @hidden="currentFixture = null"
-             class="fixture-modal"
+             dialog-class="auto-test-fixture-modal"
              body-class="p-0"
              size="xl">
         <template slot="modal-title">
@@ -1395,19 +1396,6 @@ export default {
 @import '~mixins.less';
 
 .auto-test {
-    .fixture-modal,
-    .result-modal {
-        .modal-dialog {
-            max-width: calc(100vw - 8rem);
-            width: calc(100vw - 8rem);
-            margin-top: 2rem;
-        }
-
-        .modal-body {
-            padding: 0;
-        }
-    }
-
     .custom-control.readably-disabled label,
     .readably-disabled .custom-control label {
         opacity: 1 !important;
@@ -1452,5 +1440,12 @@ export default {
             border-top-right-radius: 0;
         }
     }
+}
+
+.auto-test-fixture-modal,
+.auto-test-result-modal {
+    max-width: calc(100vw - 8rem);
+    width: calc(100vw - 8rem);
+    margin-top: 2rem;
 }
 </style>
