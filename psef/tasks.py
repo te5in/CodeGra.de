@@ -109,6 +109,8 @@ def _passback_grades_1(
     for sub in subs:
         sub.passback_grade(initial=initial)
 
+    p.models.db.session.commit()
+
 
 @celery.task
 def _delete_submission_1(work_id: int, assignment_id: int) -> None:
