@@ -559,6 +559,7 @@ ${right.join('\n')}
                     submissionId: this.detail.submissions[index].id,
                     fileId: file.id,
                 },
+                hash: '#code',
             };
         },
 
