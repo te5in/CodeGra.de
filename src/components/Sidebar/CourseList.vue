@@ -48,8 +48,10 @@
             <b-popover :target="addButtonId"
                        :id="popoverId"
                        triggers="click"
-                       placement="top">
-                <submit-input placeholder="New course name"
+                       placement="top"
+                       custom-class="no-max-width">
+                <submit-input style="width: 18rem;"
+                              placeholder="New course name"
                               @create="createNewCourse"
                               @cancel="closePopover"/>
             </b-popover>
