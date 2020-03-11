@@ -789,14 +789,13 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             self.runners_requested = 0
             self.increment_job_id()
             db.session.flush()
+            run_id = self.id
 
             @callback_after_this_request
             def after_req() -> None:
                 psef.tasks.notify_broker_end_of_job(old_job_id)
                 if any_results_left:
-                    psef.tasks.notify_broker_of_new_job(
-                        self.id, self.get_amount_needed_runners()
-                    )
+                    psef.tasks.notify_broker_of_new_job(run_id, None)
         else:
             to_kill = [r.id.hex for r in runners]
             run_id = self.id
@@ -1304,9 +1303,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         db.session.bulk_save_objects(results)
         if results:
             psef.helpers.callback_after_this_request(
-                lambda: psef.tasks.notify_broker_of_new_job(
-                    run.id, run.get_amount_needed_runners()
-                )
+                lambda: psef.tasks.notify_broker_of_new_job(run.id, None)
             )
         return run
 
