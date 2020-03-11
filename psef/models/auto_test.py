@@ -773,7 +773,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         db.session.flush()
         any_results_left = any_cleared or db.session.query(
             self.get_results_to_run().exists()
-        ).scalar() or False
+        ).scalar()
 
         logger.info(
             'Killed runners',
@@ -781,16 +781,22 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             any_results_left=any_results_left
         )
 
-        if all_deleted and not any_results_left:
+        if all_deleted:
             # We don't need to kill each individual runner, as the end of job
             # will kill all associated runners.
-            job_id = self.get_job_id()
-            callback_after_this_request(
-                lambda: psef.tasks.notify_broker_end_of_job(job_id)
-            )
+            old_job_id = self.get_job_id()
+
             self.runners_requested = 0
             self.increment_job_id()
             db.session.flush()
+
+            @callback_after_this_request
+            def after_req() -> None:
+                psef.tasks.notify_broker_end_of_job(old_job_id)
+                if any_results_left:
+                    psef.tasks.notify_broker_of_new_job(
+                        self.id, self.get_amount_needed_runners()
+                    )
         else:
             to_kill = [r.id.hex for r in runners]
             run_id = self.id
