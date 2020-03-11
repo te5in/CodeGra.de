@@ -2,13 +2,14 @@
 <template>
 <b-input-group class="submission-nav-bar">
     <b-button-group class="nav-wrapper">
-        <b-button v-if="showUserButtons && filteredSubmissions.length > 1"
-                  :disabled="prevSub == null"
-                  v-b-popover.hover.bottom="generatePopoverTitle(prevSub)"
-                  @click="selectSub(prevSub)"
-                  class="prev flex-grow-0">
-            <icon name="angle-left"/>
-        </b-button>
+        <b-button-group v-b-popover.hover.bottom="prevSub == null ? 'No previous submission' : generatePopoverTitle(prevSub)">
+            <b-button :disabled="prevSub == null"
+                      v-if="showUserButtons && filteredSubmissions.length > 1"
+                      @click="selectSub(prevSub)"
+                      class="prev flex-grow-0">
+                <icon name="angle-left"/>
+            </b-button>
+        </b-button-group>
 
         <b-dropdown @show="onDropdownShow" v-if="curSub"
                     class="title navbar-old-subs-dropdown"
@@ -72,13 +73,14 @@
         <div class="title placeholder" v-else>
             -
         </div>
-        <b-button v-if="showUserButtons && filteredSubmissions.length > 1"
-                  :disabled="nextSub == null"
-                  v-b-popover.hover.bottom="generatePopoverTitle(nextSub)"
-                  @click="selectSub(nextSub)"
-                  class="next flex-grow-0">
-            <icon name="angle-right"/>
-        </b-button>
+        <b-button-group v-if="showUserButtons && filteredSubmissions.length > 1"
+                        v-b-popover.hover.bottom="nextSub == null ? 'No next submission' : generatePopoverTitle(nextSub)">
+            <b-button :disabled="nextSub == null"
+                    @click="selectSub(nextSub)"
+                    class="next flex-grow-0">
+                <icon name="angle-right"/>
+            </b-button>
+        </b-button-group>
     </b-button-group>
 </b-input-group>
 </template>
@@ -337,6 +339,9 @@ export default {
         },
 
         generatePopoverTitle(sub) {
+            if (sub == null) {
+                return '';
+            }
             return `Go to ${sub && nameOfUser(sub.user)}'s submission`;
         },
     },
