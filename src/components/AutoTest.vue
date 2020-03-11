@@ -242,7 +242,10 @@
                                         <li v-for="fixture, index in test.fixtures"
                                             class="border-bottom"
                                             :key="fixture.id">
-                                            <div class="px-3 py-1 d-flex align-items-center justify-content-between">
+                                            <!-- We must use an inline-flex here becuase otherwise
+                                                 Edge inexplicably renders another rem of top-padding
+                                                 on each line... -->
+                                            <div class="px-3 py-1 w-100 d-inline-flex align-items-center">
                                                 <a v-if="canViewFixture(fixture)"
                                                    class="flex-grow-1"
                                                    href="#"
