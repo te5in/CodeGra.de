@@ -267,6 +267,7 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 smallWidth: 628,
                 mediumWidth: 768,
                 largeWidth: 992,
+                xlargeWidth: 1200,
                 // `Now` and `epoch` both contain the current time. They are
                 // the same, except that `epoch` is recalculated every second
                 // while `now` is set only every minute. We do not want `now`
