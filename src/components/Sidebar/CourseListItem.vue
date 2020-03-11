@@ -87,7 +87,7 @@ a {
     color: inherit;
 }
 
-.cg-edge .manage-link .fa-icon {
+body.cg-edge .manage-link .fa-icon {
     transform: translateY(-3px);
 }
 </style>

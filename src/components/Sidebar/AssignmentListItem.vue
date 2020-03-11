@@ -139,7 +139,7 @@ export default {
     flex: 0 0 auto;
     padding-top: 4px;
 
-    .cg-edge & .fa-icon {
+    body.cg-edge & .fa-icon {
         transform: translateY(-3px);
     }
 }
