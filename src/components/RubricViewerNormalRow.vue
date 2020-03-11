@@ -4,10 +4,22 @@
      :class="{ editable, locked }"
      @mouseenter="lockPopoverVisible = true"
      @mouseleave="lockPopoverVisible = false">
-    <div class="row-description border-bottom">
+    <div class="row-description d-flex border-bottom">
+        <p v-if="rubricRow.description"
+           class="flex-grow-1 my-2 px-3 text-wrap-pre">{{
+            rubricRow.description
+        }}</p>
+        <p v-else
+           class="flex-grow-1 my-2 px-3 text-muted font-italic">
+            This category has no description.
+        </p>
+
         <template v-if="locked">
+            <!-- Due to a rendering issue in edge, giving the icon
+                 a margin-right moves it left by twice that amount... -->
             <icon name="lock"
-                  class="rubric-lock float-right mx-3 my-2"
+                  class="rubric-lock my-2"
+                  :class="{ 'mr-3': !$root.isEdge, 'mr-2': $root.isEdge }"
                   :id="`rubric-lock-${id}`" />
 
             <!-- We need to key this popover to make sure it actually
@@ -20,11 +32,6 @@
                        placement="top"
                        boundary="window" />
         </template>
-
-        <p class="text-wrap-pre mb-0 py-2 px-3" v-if="rubricRow.description">{{ rubricRow.description }}</p>
-        <p class="mb-0 py-2 px-3 text-muted font-italic" v-else>
-            This category has no description.
-        </p>
     </div>
 
     <div class="rubric-row-items position-relative d-flex flex-row">
