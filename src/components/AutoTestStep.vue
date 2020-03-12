@@ -528,6 +528,8 @@
                 v-cg-toggle="`${resultsCollapseId}-${i}`">
                 <td class="expand shrink">
                     <icon v-if="canViewDetails" name="chevron-down" :scale="0.75" class="caret" />
+                    <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
+                          v-b-popover.hover.top="hiddenPopover" />
                 </td>
                 <td class="shrink">{{ index }}.{{ i + 1 }}</td>
                 <td>
