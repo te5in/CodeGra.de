@@ -347,12 +347,20 @@ export default {
             }
             this.$set(this.editing, line, true);
 
-            this.$nextTick(() => {
-                const feedbackArea = el.querySelector('.feedback-area textarea');
-                if (feedbackArea) {
-                    feedbackArea.focus();
-                }
-            });
+            await this.$nextTick();
+            const feedbackArea = el.querySelector('.feedback-area textarea');
+
+            if (feedbackArea) {
+                feedbackArea.focus();
+
+                // Put the cursor at the end of the text (Safari puts it at the
+                // start for some reason...
+                await this.$afterRerender();
+                feedbackArea.setSelectionRange(
+                    feedbackArea.value.length,
+                    feedbackArea.value.length,
+                );
+            }
         },
 
         feedbackChange(line) {
