@@ -791,11 +791,12 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             db.session.flush()
             run_id = self.id
 
-            @callback_after_this_request
             def after_req() -> None:
                 psef.tasks.notify_broker_end_of_job(old_job_id)
                 if any_results_left:
                     psef.tasks.notify_broker_of_new_job(run_id, None)
+
+            callback_after_this_request(after_req)
         else:
             to_kill = [r.id.hex for r in runners]
             run_id = self.id
