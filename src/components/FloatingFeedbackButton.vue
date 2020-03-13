@@ -193,9 +193,7 @@ export default {
     width: 100%;
     height: 100%;
     overflow: auto;
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 100%;
+    display: block;
 }
 
 .feedback-area-wrapper {
