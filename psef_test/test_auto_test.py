@@ -795,6 +795,13 @@ def test_run_auto_test(
 
         monkeypatch_broker()
         live_server_url, stop_server = live_server(get_stop=True)
+        with logged_in(teacher, yield_token=True) as token:
+            response = requests.get(
+                f'{live_server_url}{url}/runs/{run.id}',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+            response.raise_for_status()
+
         thread = threading.Thread(
             target=psef.auto_test.start_polling, args=(app.config, )
         )
