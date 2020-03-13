@@ -42,7 +42,8 @@
             <tbody>
                 <tr v-for="match in matchesSortedByRange"
                     @click="$set(exportMatches, match.id, !exportMatches[match.id])">
-                    <td><b-form-checkbox v-model="exportMatches[match.id]"/></td>
+                    <td><b-form-checkbox v-model="exportMatches[match.id]"
+                                         @click.native.prevent /></td>
                     <td class="col-student-name">
                         {{ getFromFileTree(tree1, match.files[0]) }}
                     </td>
