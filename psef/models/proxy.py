@@ -219,7 +219,7 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         self_src = "'self'"
         base_domain = app and app.config['PROXY_BASE_DOMAIN']
         if base_domain:  # pragma: no cover
-            self_src += " https://{self.id}.{base_domain}"
+            self_src += f" https://{self.id}.{base_domain}"
 
         if not self.allow_remote_resources:
             return f"default-src {self_src} 'unsafe-inline'"
