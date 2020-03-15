@@ -4,7 +4,7 @@ Changelog
 Version Knoet.3
 -----------------
 
-**Released**: March 14th, 2020
+**Released**: March 16th, 2020
 
 You can now render HTML pages submitted by students right inside CodeGrade,
 allowing you to preview webpages or testing Javascript more easily than ever.
@@ -17,8 +17,8 @@ allowing you to preview webpages or testing Javascript more easily than ever.
 - Make the HomeGrid easier and faster to use `(#1292)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1292>`__: We now sort the
   courses on the HomeGrid based on the creation date of the courses, and courses
-  with duplicate names are can now be more easily identified as the creation
-  date of the course will be appended to the name.
+  with duplicate names can now be more easily identified as the creation date of
+  the course will be appended to the name.
 
 
 **Updates**
@@ -31,9 +31,9 @@ allowing you to preview webpages or testing Javascript more easily than ever.
   <https://github.com/CodeGra-de/CodeGra.de/pull/1290>`__.
 - Disable plagiarism export button when no cases selected `(#1288)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1288>`__.
-- Give a better indication when an AT step is hidden `(#1286)
+- Give a better indication when an AutoTest step is hidden `(#1286)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1286>`__.
-- Various performances improvements `(#1278)
+- Various performance improvements `(#1278)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1278>`__: We've increased
   performance of various API routes, and added pagination and infinite scrollers
   to the HomeGrid, Submissions list and users manager to improve the first
