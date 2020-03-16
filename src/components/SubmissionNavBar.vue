@@ -2,9 +2,9 @@
 <template>
 <b-input-group class="submission-nav-bar">
     <b-button-group class="nav-wrapper">
-        <b-button-group v-b-popover.hover.bottom="prevSub == null ? 'No previous submission' : generatePopoverTitle(prevSub)">
+        <b-button-group v-if="showUserButtons && filteredSubmissions.length > 1"
+                        v-b-popover.hover.bottom="prevSub == null ? 'No previous submission' : generatePopoverTitle(prevSub)">
             <b-button :disabled="prevSub == null"
-                      v-if="showUserButtons && filteredSubmissions.length > 1"
                       @click="selectSub(prevSub)"
                       class="prev flex-grow-0">
                 <icon name="angle-left"/>
@@ -76,8 +76,8 @@
         <b-button-group v-if="showUserButtons && filteredSubmissions.length > 1"
                         v-b-popover.hover.bottom="nextSub == null ? 'No next submission' : generatePopoverTitle(nextSub)">
             <b-button :disabled="nextSub == null"
-                    @click="selectSub(nextSub)"
-                    class="next flex-grow-0">
+                      @click="selectSub(nextSub)"
+                      class="next flex-grow-0">
                 <icon name="angle-right"/>
             </b-button>
         </b-button-group>
