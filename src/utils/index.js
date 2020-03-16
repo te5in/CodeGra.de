@@ -333,10 +333,18 @@ export function highlightCode(sourceArr, language, maxLen = 5000) {
     }
 
     let state = null;
-    return sourceArr.map(line => {
+    const lastLineIdx = sourceArr.length - 1;
+
+    return sourceArr.map((line, idx) => {
         const { top, value } = highlight(language, line, true, state);
 
         state = top;
+        // Make sure that if the last line is empty we emit this as an empty
+        // line. We do this to make sure that our detection for trailing
+        // newlines (or actually the absence of them) works correctly.
+        if (idx === lastLineIdx && line === '') {
+            return visualizeWhitespace(htmlEscape(line));
+        }
         return visualizeWhitespace(value);
     });
 }

@@ -526,7 +526,7 @@ Cypress.Commands.add('shouldNotOverflow', { prevSubject: true }, (subject) => {
 Cypress.Commands.add('setText', { prevSubject: true }, (subject, text) => {
     // Clear the input and type `text` if it is a nonempty string.
     const toWrite = `{selectall}{backspace}${text  || ''}`;
-    return cy.wrap(subject).type(toWrite);
+    return cy.wrap(subject).clear().type(toWrite);
 });
 
 // Click a submit button, and optionally wait for its state to return back to
@@ -568,13 +568,13 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
                 .should('have.class', 'show')
                 .should('be.visible')
                 .containsAll(opts.confirmMsg)
-                .contains('.btn', opts.doConfirm ? 'Confirm' : 'Cancel')
+                .contains('.btn:visible', opts.doConfirm ? 'Confirm' : 'Cancel')
                 .click();
         } else {
             cy.get('.popover .submit-button-confirm')
                 .containsAll(opts.confirmMsg)
                 .should('be.visible')
-                .contains('.btn', opts.doConfirm ? 'Yes' : 'No')
+                .contains('.btn:visible', opts.doConfirm ? 'Yes' : 'No')
                 .click();
         }
 

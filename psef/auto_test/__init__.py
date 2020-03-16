@@ -1816,8 +1816,8 @@ class AutoTestRunner:
 
         cont.run_command(
             [
-                'unzip', f'{_get_home_dir(CODEGRADE_USER)}/student.zip', '-d',
-                f'{_get_home_dir(CODEGRADE_USER)}/student/'
+                'unzip', '-DD', f'{_get_home_dir(CODEGRADE_USER)}/student.zip',
+                '-d', f'{_get_home_dir(CODEGRADE_USER)}/student/'
             ],
             user=CODEGRADE_USER
         )

@@ -149,8 +149,7 @@ def remove_runner_of_job(job_id: str) -> EmptyResponse:
 
     runner = db.session.query(models.Runner).filter_by(
         ipaddr=g.data['ipaddr'], job=job
-    ).filter(models.Runner.state.in_(models.RunnerState.get_active_states())
-             ).with_for_update().one_or_none()
+    ).with_for_update().one_or_none()
     if runner is None:
         raise NotFoundException
 

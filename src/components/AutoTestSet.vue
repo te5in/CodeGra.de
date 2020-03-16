@@ -25,7 +25,7 @@
             </template>
         </span>
 
-        <masonry :gutter="30" :cols="{default: (result ? 1 : 2), [$root.largeWidth]: 1 }">
+        <masonry :gutter="30" :cols="{default: (result ? 1 : 2), [$root.xlargeWidth]: 1 }">
             <auto-test-suite v-for="suite, j in value.suites"
                              class="mb-3"
                              :editable="editable"
@@ -287,7 +287,11 @@ export default {
     overflow: hidden;
 
     .input-group {
-        width: 14rem;
+        width: 18rem;
+    }
+
+    input {
+        min-width: 4rem;
     }
 }
 

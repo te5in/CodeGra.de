@@ -16,7 +16,7 @@ from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 from . import (
     Base, File, MyQuery, FileOwner, NestedFileMixin, AutoTestOutputFile, db
 )
-from .. import helpers
+from .. import app, helpers
 from ..cache import cache_within_request
 from ..exceptions import APICodes, APIException
 
@@ -216,11 +216,16 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         >>> liberal.csp_header != strict.csp_header
         True
         """
+        self_src = "'self'"
+        base_domain = app and app.config['PROXY_BASE_DOMAIN']
+        if base_domain:  # pragma: no cover
+            self_src += f" https://{self.id}.{base_domain}"
+
         if not self.allow_remote_resources:
-            return "default-src 'self' 'unsafe-inline'"
+            return f"default-src {self_src} 'unsafe-inline'"
         elif not self.allow_remote_scripts:
             return (
-                "default-src 'self' 'unsafe-inline';"
+                f"default-src {self_src} 'unsafe-inline';"
                 " style-src * 'unsafe-inline';"
                 " font-src * 'unsafe-inline';"
                 " img-src * 'unsafe-inline' data:;"

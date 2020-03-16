@@ -194,11 +194,7 @@ export default {
             this.loadedSnippets = true;
         }
 
-        this.$nextTick(() => {
-            if (this.editing) {
-                this.$refs.field.focus();
-            }
-        });
+        this.focusInput();
     },
 
     watch: {
@@ -432,19 +428,26 @@ export default {
         async changeFeedback(e) {
             if (this.editable) {
                 this.$emit('editFeedback', this.line);
-                this.$nextTick(() => this.$refs.field.focus());
                 this.internalFeedback = this.serverFeedback;
                 e.stopPropagation();
+                this.focusInput();
                 this.loadedSnippets = false;
                 await this.maybeRefreshSnippets();
                 this.loadedSnippets = true;
             }
         },
 
-        focusInput() {
-            this.$nextTick(() => {
-                if (this.$refs.field) this.$refs.field.focus();
-            });
+        async focusInput() {
+            await this.$nextTick();
+
+            const el = this.$refs.field;
+            if (el != null) {
+                el.focus();
+                // Put the cursor at the end of the text (Safari puts it at the
+                // start for some reason...
+                await this.$afterRerender();
+                el.setSelectionRange(el.value.length, el.value.length);
+            }
         },
 
         doSubmit() {

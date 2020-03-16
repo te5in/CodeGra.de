@@ -83,6 +83,10 @@ main {
     .fa-icon {
         transform: translateY(-1px);
 
+        body.cg-edge & {
+            transform: translateY(-3px);
+        }
+
         &:not(:first-of-type) {
             margin-left: 0.66em;
         }
@@ -494,6 +498,10 @@ hr {
 
 .flex-grow-1 {
     flex: 1 1 auto;
+}
+
+.no-max-width {
+    max-width: initial !important;
 }
 
 .shadow-none {

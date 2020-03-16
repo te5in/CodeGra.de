@@ -2,7 +2,7 @@
 <template>
 <div class="submit-input"
      @keyup.ctrl.enter="$refs.submitButton.onClick">
-    <b-form-fieldset>
+    <b-form-fieldset class="mb-0">
         <b-input-group>
             <input type="text"
                    class="form-control"
