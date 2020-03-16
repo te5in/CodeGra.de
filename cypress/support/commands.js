@@ -568,7 +568,7 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
                 .should('have.class', 'show')
                 .should('be.visible')
                 .containsAll(opts.confirmMsg)
-                .contains('.btn', opts.doConfirm ? 'Confirm' : 'Cancel')
+                .contains('.btn:visible', opts.doConfirm ? 'Confirm' : 'Cancel')
                 .click();
         } else {
             cy.get('.popover .submit-button-confirm')
