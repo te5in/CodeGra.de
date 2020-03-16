@@ -122,36 +122,12 @@ def remove_comment(code_id: int, line: int) -> EmptyResponse:
     return make_empty_response()
 
 
-def get_auto_test_output_file(
-    file_id: uuid.UUID
-) -> werkzeug.wrappers.Response:
-    """Get data from the :class:`.models.AutoTestOutputFile` with a given id.
-
-    This function is very similar to ``/api/v1/code/<int:file_id>``, however it
-    only supports getting the code (i.e. none of the get parameters).
-
-    :param uuid: The file id of the AutoTest output file.
-    :returns: The content of the file.
-    """
-    f = helpers.get_or_404(models.AutoTestOutputFile, file_id)
-    auth.ensure_can_view_autotest_result(f.result)
-
-    assig = f.suite.auto_test_set.auto_test.assignment
-    if not assig.is_done:
-        auth.ensure_permission(
-            CPerm.can_view_autotest_output_files_before_done, assig.course_id
-        )
-
-    res = Response(f.open())
-    res.headers['Content-Type'] = 'application/octet-stream'
-    return res
-
-
 @api.route('/code/<uuid:file_id>', methods=['GET'])
 @api.route("/code/<int:file_id>", methods=['GET'])
 @auth.login_required
-def get_code(file_id: t.Union[int, uuid.UUID]) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
-    t.Union[t.Mapping[str, str], models.File, _FeedbackMapping]]]:
+def get_code(file_id: t.Union[int, uuid.UUID]
+             ) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
+                 t.Union[t.Mapping[str, str], models.File, _FeedbackMapping]]]:
     """Get data from a :class:`.models.File` or a
         :class:`.models.AutoTestOutputFile` with the given id.
 
@@ -205,7 +181,8 @@ def get_code(file_id: t.Union[int, uuid.UUID]) -> t.Union[werkzeug.wrappers.Resp
         assig = f.suite.auto_test_set.auto_test.assignment
         if not assig.is_done:
             auth.ensure_permission(
-                CPerm.can_view_autotest_output_files_before_done, assig.course_id
+                CPerm.can_view_autotest_output_files_before_done,
+                assig.course_id
             )
 
     get_type = request.args.get('type', None)
