@@ -187,15 +187,17 @@ def get_code(file_id: t.Union[int, uuid.UUID]
     if get_type == 'metadata':
         return jsonify(f)
     elif get_type == 'feedback':
-        if not isinstance(f, models.File):
-            return jsonify({})
-        return jsonify(get_feedback(f, linter=False))
+        feedback = {}
+        if isinstance(f, models.File):
+            feedback = get_feedback(f, linter=False)
+        return jsonify(feedback)
     elif get_type in ('pdf', 'file-url'):
         return jsonify({'name': get_file_url(f)})
     elif get_type == 'linter-feedback':
-        if not isinstance(f, models.File):
-            return jsonify({})
-        return jsonify(get_feedback(f, linter=True))
+        feedback = {}
+        if isinstance(f, models.File):
+            feedback = get_feedback(f, linter=True)
+        return jsonify(feedback)
     else:
         res = Response(f.open())
         res.headers['Content-Type'] = 'application/octet-stream'
