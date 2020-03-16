@@ -132,6 +132,7 @@
 <li class="toctree-l1 current"><a class="reference internal" href="about.html">About CodeGrade</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="whatis.html">What is CodeGrade?</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Changelog</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#version-knoet-3">Version Knoet.3</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#version-1-19-0-knoet-2">Version 1.19.0 (Knoet.2)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#version-1-17-0-knoet-1">Version 1.17.0 (Knoet.1)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#version-1-16-2-knoet">Version 1.16.2 (Knoet)</a></li>
@@ -239,6 +240,42 @@
             
   <div class="section" id="changelog">
 <h1>Changelog<a class="headerlink" href="#changelog" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="version-knoet-3">
+<h2>Version Knoet.3<a class="headerlink" href="#version-knoet-3" title="Permalink to this headline">¶</a></h2>
+<p><strong>Released</strong>: March 16th, 2020</p>
+<p>You can now render HTML pages submitted by students right inside CodeGrade,
+allowing you to preview webpages or test Javascript more easily than ever.</p>
+<p><strong>Features</strong></p>
+<ul class="simple">
+<li><p>Make it possible to render html pages <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1246">(#1246)</a>: It is now possible to
+render HTML pages inside CodeGrade.</p></li>
+<li><p>Make the HomeGrid easier and faster to use <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1292">(#1292)</a>: We now sort the
+courses on the HomeGrid based on the creation date of the courses, and courses
+with duplicate names can now be more easily identified as the creation date of
+the course will be appended to the name.</p></li>
+</ul>
+<p><strong>Updates</strong></p>
+<ul class="simple">
+<li><p>Upgrade bootstrap-vue <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1259">(#1259)</a>.</p></li>
+<li><p>Show confirmation when rubric has rows without item with 0 points <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1287">(#1287)</a>.</p></li>
+<li><p>Update threshold when relative time starts using days <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1290">(#1290)</a>.</p></li>
+<li><p>Disable plagiarism export button when no cases selected <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1288">(#1288)</a>.</p></li>
+<li><p>Give a better indication when an AutoTest step is hidden <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1286">(#1286)</a>.</p></li>
+<li><p>Various performance improvements <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1278">(#1278)</a>: We’ve increased
+performance of various API routes, and added pagination and infinite scrollers
+to the HomeGrid, Submissions list and users manager to improve the first
+render speed.</p></li>
+<li><p>Start using timezones everywhere when dealing with datetimes <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1257">(#1257)</a>.</p></li>
+</ul>
+<p><strong>Fixes</strong></p>
+<ul class="simple">
+<li><p>Do not discard changed rubric viewer when saving general feedback <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1283">(#1283)</a>: The previous version
+contained a bug that when you saved the general feedback while you had a
+changed rubric the changes in the rubric were discarded.</p></li>
+<li><p>Fix downloading submissions with reserved chars in their name <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1289">(#1289)</a>.</p></li>
+<li><p>Fix student count in submission list <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1282">(#1282)</a>.</p></li>
+</ul>
+</div>
 <div class="section" id="version-1-19-0-knoet-2">
 <h2>Version 1.19.0 (Knoet.2)<a class="headerlink" href="#version-1-19-0-knoet-2" title="Permalink to this headline">¶</a></h2>
 <p><strong>Released</strong>: January 30th, 2020</p>
