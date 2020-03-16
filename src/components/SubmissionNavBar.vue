@@ -92,6 +92,8 @@ import 'vue-awesome/icons/angle-left';
 import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/angle-right';
 
+import * as models from '@/models';
+
 import User from './User';
 import Loader from './Loader';
 import LateSubmissionIcon from './LateSubmissionIcon';
@@ -106,7 +108,7 @@ export default {
             required: true,
         },
         groupOfUser: {
-            type: Object,
+            type: models.User,
             default: null,
         },
         currentSubmission: {
