@@ -972,7 +972,7 @@
         <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
         <span class="n">any_results_left</span> <span class="o">=</span> <span class="n">any_cleared</span> <span class="ow">or</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">get_results_to_run</span><span class="p">()</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span> <span class="ow">or</span> <span class="kc">False</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
 
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
             <span class="s1">&#39;Killed runners&#39;</span><span class="p">,</span>
@@ -980,16 +980,22 @@
             <span class="n">any_results_left</span><span class="o">=</span><span class="n">any_results_left</span>
         <span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">all_deleted</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">any_results_left</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">all_deleted</span><span class="p">:</span>
             <span class="c1"># We don&#39;t need to kill each individual runner, as the end of job</span>
             <span class="c1"># will kill all associated runners.</span>
-            <span class="n">job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job_id</span><span class="p">()</span>
-            <span class="n">callback_after_this_request</span><span class="p">(</span>
-                <span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">notify_broker_end_of_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
-            <span class="p">)</span>
+            <span class="n">old_job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job_id</span><span class="p">()</span>
+
             <span class="bp">self</span><span class="o">.</span><span class="n">runners_requested</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">increment_job_id</span><span class="p">()</span>
             <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+            <span class="n">run_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span>
+
+            <span class="k">def</span> <span class="nf">after_req</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">psef</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">notify_broker_end_of_job</span><span class="p">(</span><span class="n">old_job_id</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">any_results_left</span><span class="p">:</span>
+                    <span class="n">psef</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">notify_broker_of_new_job</span><span class="p">(</span><span class="n">run_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+            <span class="n">callback_after_this_request</span><span class="p">(</span><span class="n">after_req</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">to_kill</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">hex</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">runners</span><span class="p">]</span>
             <span class="n">run_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span>
@@ -1497,9 +1503,7 @@
         <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">bulk_save_objects</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">results</span><span class="p">:</span>
             <span class="n">psef</span><span class="o">.</span><span class="n">helpers</span><span class="o">.</span><span class="n">callback_after_this_request</span><span class="p">(</span>
-                <span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">notify_broker_of_new_job</span><span class="p">(</span>
-                    <span class="n">run</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">run</span><span class="o">.</span><span class="n">get_amount_needed_runners</span><span class="p">()</span>
-                <span class="p">)</span>
+                <span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">notify_broker_of_new_job</span><span class="p">(</span><span class="n">run</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
             <span class="p">)</span>
         <span class="k">return</span> <span class="n">run</span></div>
 
