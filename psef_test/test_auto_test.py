@@ -1835,6 +1835,23 @@ def test_output_dir(
             assert response.status_code == 200
             assert 'symbolic link' in response.get_data(as_text=True)
 
+    with describe('It should never have feedback'):
+        with logged_in(teacher):
+            file_url = '/api/v1/code/{file_id}'.format(
+                    file_id=sym_link_id
+                )
+            test_client.req(
+                'get', f'{file_url}?type=feedback', 200, result={}
+            )
+            test_client.req(
+                'get', f'{file_url}?type=linter-feedback', 200, result={}
+            )
+            test_client.req(
+                'get', f'{file_url}?type=file-url', 200, result={
+                    'name': re.compile(r'[\-0-9a-fA-F]'),
+                }
+            )
+
     with describe('Students do not see the files by default'):
         with logged_in(student):
             # Students do not have permission to see suite files by default by
