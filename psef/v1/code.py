@@ -28,8 +28,6 @@ _HumanFeedback = models.Comment
 _LinterFeedback = t.MutableSequence[t.Tuple[str, models.LinterComment]]  # pylint: disable=invalid-name
 _FeedbackMapping = t.Dict[str, t.Union[_HumanFeedback, _LinterFeedback]]  # pylint: disable=invalid-name
 
-T = t.TypeVar('T')
-
 
 @api.route("/code/<int:code_id>/comments/<int:line>", methods=['PUT'])
 def put_comment(code_id: int, line: int) -> EmptyResponse:
