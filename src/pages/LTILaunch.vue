@@ -14,7 +14,7 @@
 <script>
 import 'vue-awesome/icons/times';
 import { Loader } from '@/components';
-import { mapActions } from 'vuex';
+import { mapActions, mapGetters } from 'vuex';
 import { disablePersistance } from '@/store';
 import ltiProviders from '@/lti_providers';
 
@@ -47,8 +47,13 @@ export default {
         this.secondStep(true);
     },
 
+    computed: {
+        ...mapGetters('courses', ['assignments']),
+    },
+
     methods: {
         ...mapActions('user', ['logout', 'updateAccessToken']),
+        ...mapActions('courses', ['reloadCourses']),
         ...mapActions('plagiarism', { clearPlagiarismCases: 'clear' }),
 
         secondStep(first) {
@@ -79,6 +84,12 @@ export default {
                         );
 
                         this.$ltiProvider = ltiProviders[data.custom_lms_name];
+
+                        // A new assignment was created so we should reload the
+                        // courses.
+                        if (!this.assignments[data.assignment.id]) {
+                            await this.reloadCourses();
+                        }
                         this.$LTIAssignmentId = data.assignment.id;
 
                         if (data.new_role_created) {

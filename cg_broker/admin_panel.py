@@ -17,6 +17,7 @@ from flask_login import (
 )
 from werkzeug.wrappers import Response
 
+from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.types import DbColumn
 
 from . import BrokerFlask, app, tasks, models
@@ -49,10 +50,10 @@ def unauthorized_request() -> Response:
 
 
 @admin.add_app_template_global
-def utcnow() -> datetime.datetime:
+def utcnow() -> DatetimeWithTimezone:
     """Get current date.
     """
-    return datetime.datetime.utcnow()
+    return DatetimeWithTimezone.utcnow()
 
 
 @admin.app_template_filter('datetime')
@@ -75,11 +76,13 @@ def _nested_get(
 
 @admin.app_template_filter('age')
 def _get_age_datetime(
-    date: t.Union[datetime.datetime, str], add_m: bool = False
+    date: t.Union[DatetimeWithTimezone, str], add_m: bool = False
 ) -> t.Union[float, str]:
     if isinstance(date, str):
-        date = datetime.datetime.fromisoformat(date)
-    res = int(round((datetime.datetime.utcnow() - date).total_seconds() / 60))
+        date = DatetimeWithTimezone.fromisoformat(date)
+    res = int(
+        round((DatetimeWithTimezone.utcnow() - date).total_seconds() / 60)
+    )
     if add_m:
         return f'{res}m'
     return res
@@ -241,3 +244,36 @@ def create_runner() -> Response:
             tasks.start_unassigned_runner.delay(amount)
 
     return redirect(url_for('.show_all_runners'))
+
+
+@admin.route('/settings/', methods=['GET'])
+@login_required
+def show_settings() -> str:
+    """Display the settings and their values.
+    """
+    lookup = {
+        setting.setting: setting.value
+        for setting in models.Setting.query.all()
+    }
+    all_settings = [(item, lookup.get(item, item.value.default_value))
+                    for item in models.PossibleSetting]
+    return render_template(
+        'settings.j2',
+        all_settings=all_settings,
+    )
+
+
+@admin.route('/settings/', methods=['POST'])
+@login_required
+def update_setting() -> Response:
+    """Update values of settings.
+    """
+    setting_name = request.form['setting']
+    setting_value = request.form['value']
+
+    setting = models.PossibleSetting[setting_name]
+    value = setting.value.type_convert(setting_value)
+    models.Setting.set(setting, value)
+    db.session.commit()
+
+    return redirect(url_for('.show_settings'))

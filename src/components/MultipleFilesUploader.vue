@@ -188,25 +188,24 @@ export default {
 .multiple-files-uploader {
     &:not(.no-border) .dropzone {
         border: 1px solid rgba(0, 0, 0, 0.125);
-        border-top-left-radius: 0.25rem;
-        border-top-right-radius: 0.25rem;
+        border-top-left-radius: @border-radius;
+        border-top-right-radius: @border-radius;
 
         &.dropzone-amount-files-0 .dz-custom-message:hover,
-        .dz-message + .dz-preview,
         .dz-hover-overlay {
-            border-top-left-radius: 0.25rem;
-            border-top-right-radius: 0.25rem;
+            border-top-left-radius: @border-radius;
+            border-top-right-radius: @border-radius;
         }
     }
 
     &.no-hard-bottom-corners .dropzone {
-        border-bottom-right-radius: 0.25rem;
-        border-bottom-left-radius: 0.25rem;
+        border-bottom-right-radius: @border-radius;
+        border-bottom-left-radius: @border-radius;
 
         &.dropzone-amount-files-0 .dz-custom-message:hover,
         .dz-hover-overlay {
-            border-bottom-right-radius: 0.25rem;
-            border-bottom-left-radius: 0.25rem;
+            border-bottom-right-radius: @border-radius;
+            border-bottom-left-radius: @border-radius;
         }
     }
 
@@ -217,7 +216,7 @@ export default {
         height: 100%;
         margin-bottom: -1px;
 
-        #app.dark & {
+        @{dark-mode} {
             border-color: @color-primary-darker;
         }
 
@@ -234,7 +233,7 @@ export default {
             &.hovered {
                 background-color: rgba(0, 0, 0, 0.35);
 
-                #app.dark & {
+                @{dark-mode} {
                     background-color: rgba(0, 0, 0, 0.4);
                 }
             }
@@ -247,7 +246,7 @@ export default {
                 right: 0.75rem;
                 bottom: 0.75rem;
                 border: 2px dashed white;
-                border-radius: 0.5rem;
+                border-radius: 2 * @border-radius;
                 color: white;
                 font-size: 2rem;
                 text-align: center;
@@ -255,7 +254,7 @@ export default {
                 justify-content: center;
                 align-items: center;
 
-                #app.dark & {
+                @{dark-mode} {
                     color: @text-color-dark;
                     border-color: @text-color-dark;
                 }
@@ -286,8 +285,9 @@ export default {
                     position: absolute;
                     display: block;
                     top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
+                    transform: translateY(-50%);
+                    width: 100%;
+                    text-align: center;
                 }
             }
         }
@@ -304,11 +304,16 @@ export default {
             background-color: @color-lighter-gray;
             border-bottom: 1px solid rgba(0, 0, 0, 0.125);
 
+            &:nth-child(2) {
+                border-top-right-radius: 0.25rem;
+                border-top-left-radius: 0.25rem;
+            }
+
             &:nth-child(2n) {
                 background-color: white;
             }
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: darken(@color-primary, 2.5%);
                 border-color: @color-primary-darker;
 
@@ -360,7 +365,7 @@ export default {
                 transition: all 250ms;
                 color: @color-primary;
 
-                #app.dark & {
+                @{dark-mode} {
                     color: @text-color-dark;
                 }
             }

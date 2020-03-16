@@ -22,6 +22,7 @@ from helpers import (
     get_id, create_course, create_marker, create_auto_test, create_assignment,
     create_submission, create_user_with_perms, get_newest_submissions
 )
+from cg_dt_utils import DatetimeWithTimezone
 from psef.errors import APICodes, APIWarnings
 from psef.ignore import SubmissionValidator
 from psef.helpers import ensure_keys_in_dict
@@ -165,7 +166,7 @@ def test_get_non_existing_assignment(
     'update_data', [{
         'name': 'NEW AND UPDATED NAME',
         'state': 'open',
-        'deadline': datetime.datetime.utcnow().isoformat(),
+        'deadline': DatetimeWithTimezone.utcnow().isoformat(),
     }]
 )
 @pytest.mark.parametrize('keep_name', [True, False])
@@ -266,7 +267,7 @@ def test_update_assignment_wrong_permissions(
             data={
                 'name': 'name',
                 'state': 'open',
-                'deadline': datetime.datetime.utcnow().isoformat(),
+                'deadline': DatetimeWithTimezone.utcnow().isoformat(),
             }
         )
         res['code'] = (
@@ -1148,7 +1149,7 @@ def test_upload_for_other(
 
     if (
         named_user.username == author and named_user.name == 'Student1' and
-        assignment.deadline > datetime.datetime.utcnow()
+        assignment.deadline > DatetimeWithTimezone.utcnow()
     ):
         code = 201
         marker = None
@@ -1156,7 +1157,7 @@ def test_upload_for_other(
 
     if (
         marker is None and not after_deadline and
-        assignment.deadline < datetime.datetime.utcnow()
+        assignment.deadline < DatetimeWithTimezone.utcnow()
     ):
         marker = True
         code = 403
@@ -3257,7 +3258,7 @@ def test_reminder_email(
     revoker = stub_function_class()
     monkeypatch.setattr(psef.tasks.celery.control, 'revoke', revoker)
 
-    time = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    time = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
     data = {
         'done_type': 'assigned_only', 'reminder_time': time.isoformat(),
         'done_email': '"thomas schaper" <thomas@example>, aa@example.com'
@@ -3319,8 +3320,8 @@ def test_reminder_email(
             if grader not in assigned_graders:
                 set_to_done(grader)
 
-        if data['done_type'] is 'all_graders' and data['done_email'
-                                                       ] is not None:
+        if data['done_type'
+                ] == 'all_graders' and data['done_email'] is not None:
             assert mailer.called
         else:
             assert not mailer.called
@@ -3466,7 +3467,7 @@ def test_reminder_email(
         test_done_email()
 
         # This date is not far enough in the future so it should error
-        data['reminder_time'] = datetime.datetime.utcnow().isoformat()
+        data['reminder_time'] = DatetimeWithTimezone.utcnow().isoformat()
         test_client.req(
             'patch',
             f'/api/v1/assignments/{assig_id}',
@@ -3657,7 +3658,7 @@ def test_division_parent(
                 test_client,
                 get_id(course),
                 state='open',
-                deadline=datetime.datetime.utcnow() +
+                deadline=DatetimeWithTimezone.utcnow() +
                 datetime.timedelta(days=1)
             ) for _ in range(9)
         ]
@@ -3791,7 +3792,7 @@ def test_division_connect_error_conditions(
                 test_client,
                 get_id(course),
                 state='open',
-                deadline=datetime.datetime.utcnow() +
+                deadline=DatetimeWithTimezone.utcnow() +
                 datetime.timedelta(days=1)
             ) for _ in range(9)
         ]
@@ -5057,7 +5058,7 @@ def test_cool_off_period(
         )['id']
         stud = helpers.create_user_with_role(session, 'Student', [course])
         teacher = helpers.create_user_with_role(session, 'Teacher', [course])
-        submit_time = datetime.datetime.utcnow()
+        submit_time = DatetimeWithTimezone.utcnow()
 
     with describe('Only teachers can set cool off period'):
         for user, code in [(stud, 403), (teacher, 200)]:
@@ -5122,7 +5123,7 @@ def test_cool_off_period_larger_amount(
         )['id']
         stud = helpers.create_user_with_role(session, 'Student', [course])
 
-        first_submit_time = datetime.datetime.utcnow()
+        first_submit_time = DatetimeWithTimezone.utcnow()
         next_submit_time = first_submit_time + datetime.timedelta(minutes=5)
         final_submit_time = first_submit_time + datetime.timedelta(minutes=10)
 
@@ -5162,4 +5163,62 @@ def test_cool_off_period_larger_amount(
             f'/api/v1/assignments/{assig}',
             403,
             data={'amount_in_cool_off_period': 1}
+        )
+
+
+def test_get_assigned_grader_ids(
+    describe, session, test_client, logged_in, admin_user
+):
+    with describe('Setup'), logged_in(admin_user):
+        course = create_course(test_client)
+        assig_id = create_assignment(
+            test_client,
+            course,
+            state='open',
+            deadline=(
+                DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
+            )
+        )['id']
+
+        students = [
+            create_user_with_perms(
+                session,
+                [
+                    CPerm.can_submit_own_work, CPerm.can_see_assignments,
+                    CPerm.can_upload_after_deadline
+                ],
+                courses=[course],
+            ) for _ in range(10)
+        ]
+        tas = [
+            create_user_with_perms(
+                session, [
+                    CPerm.can_submit_own_work, CPerm.can_see_assignments,
+                    CPerm.can_upload_after_deadline, CPerm.can_grade_work
+                ],
+                courses=[course]
+            ) for _ in range(15)
+        ]
+
+        subs = []
+        for student in students:
+            with logged_in(student):
+                subs.append(create_submission(test_client, assig_id))
+
+        # Don't assign one submission. We do this to make sure that even when
+        # there are unassigned submissions `get_assigned_grader_ids` never
+        # returns `None`.
+        subs_to_assign = subs[:-1]
+
+        for sub, ta in zip(subs_to_assign, tas):
+            m.Work.query.get(sub['id']).assigned_to = ta.id
+
+        session.commit()
+
+    with describe('All assigned graders should be returned'):
+        assig = m.Assignment.query.get(assig_id)
+        grader_ids = list(assig.get_assigned_grader_ids())
+        assert None not in grader_ids
+        assert sorted(grader_ids) == sorted(
+            ta.id for ta in tas[:len(subs_to_assign)]
         )

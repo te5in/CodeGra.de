@@ -3,18 +3,26 @@ SQLAlchemy especially in the context of Flask.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import time
 import uuid
 import typing as t
-import datetime
 
 from flask import Flask, g
 from sqlalchemy import event
+from sqlalchemy.orm import deferred as _deferred
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy_utils import UUIDType as _UUIDType
 from sqlalchemy_utils import force_auto_coercion
 
 from . import types, mixins
+from .types import Comparator, hybrid_property, hybrid_expression
 
 UUID_LENGTH = len(str(uuid.uuid4()))  # 36
+
+UUIDType: types.DbType[uuid.UUID] = _UUIDType
+
+T = t.TypeVar('T')
+deferred: t.Callable[[T], T] = _deferred
 
 
 def make_db() -> types.MyDb:
@@ -47,15 +55,14 @@ def init_app(db: types.MyDb, app: Flask) -> None:
         @event.listens_for(db.engine, "before_cursor_execute")
         def __before_cursor_execute(*_args: object) -> None:
             if hasattr(g, 'query_start'):
-                g.query_start = datetime.datetime.utcnow()
+                g.query_start = time.time()
 
         @event.listens_for(db.engine, "after_cursor_execute")
         def __after_cursor_execute(*_args: object) -> None:
             if hasattr(g, 'queries_amount'):
                 g.queries_amount += 1
             if hasattr(g, 'query_start'):
-                delta = (datetime.datetime.utcnow() -
-                         g.query_start).total_seconds()
+                delta = time.time() - g.query_start
                 if hasattr(g, 'queries_total_duration'):
                     g.queries_total_duration += delta
                 if (

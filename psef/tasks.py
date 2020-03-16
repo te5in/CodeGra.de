@@ -27,6 +27,7 @@ from celery.schedules import crontab
 import psef as p
 import cg_celery
 import cg_logger
+from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.types import DbColumn
 
 logger = structlog.get_logger()
@@ -108,6 +109,8 @@ def _passback_grades_1(
     for sub in subs:
         sub.passback_grade(initial=initial)
 
+    p.models.db.session.commit()
+
 
 @celery.task
 def _delete_submission_1(work_id: int, assignment_id: int) -> None:
@@ -118,7 +121,9 @@ def _delete_submission_1(work_id: int, assignment_id: int) -> None:
         logger.info('Could not find assignment', assignment_id=assignment_id)
         return
     if assignment.course.lti_provider is None:
-        logger.info('Not an LTI submission, ignoring')
+        logger.info(
+            'Not an LTI submission, ignoring', assignment_id=assignment_id
+        )
         return
 
     # TODO: This has a bug: if a user has a group submission, that is already
@@ -312,7 +317,7 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
                     set_state(p.models.PlagiarismState.comparing)
                     plagiarism_run.submissions_done = 0
                 else:
-                    val = cur + plagiarism_run.submissions_total - tot
+                    val = cur + (plagiarism_run.submissions_total or 0) - tot
                     plagiarism_run.submissions_done = val
                 p.models.db.session.commit()
                 return True
@@ -351,7 +356,7 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
 
 @celery.task
 def _run_autotest_batch_runs_1() -> None:
-    now = datetime.datetime.utcnow()
+    now = DatetimeWithTimezone.utcnow()
     # Limit the amount of runs, this way we never accidentally overload the
     # server by doing a large amount of batch run.
     max_runs = p.app.config['AUTO_TEST_MAX_CONCURRENT_BATCH_RUNS']
@@ -360,7 +365,7 @@ def _run_autotest_batch_runs_1() -> None:
         p.models.AutoTestRun.auto_test
     ).join(p.models.Assignment).filter(
         t.cast(DbColumn[bool], p.models.AutoTestRun.batch_run_done).is_(False),
-        p.models.Assignment.deadline < now,  # type: ignore
+        p.models.Assignment.deadline < now,
     ).options(contains_eager(p.models.AutoTestRun.auto_test)).order_by(
         p.models.Assignment.deadline
     ).with_for_update().limit(max_runs).all()
@@ -379,18 +384,21 @@ def _run_autotest_batch_runs_1() -> None:
     retry_kwargs={'max_retries': 15}
 )
 def _notify_broker_of_new_job_1(
-    run_id: t.Union[int, p.models.AutoTestRun], wanted_runners: int = 1
+    run_id: t.Union[int, p.models.AutoTestRun],
+    wanted_runners: t.Optional[int] = 1
 ) -> None:
     if isinstance(run_id, int):
         run = p.models.AutoTestRun.query.filter_by(
             id=run_id
         ).with_for_update().one_or_none()
-
         if run is None:
             logger.warning('Trying to start run that does not exist')
             return
     else:
         run = run_id
+
+    if wanted_runners is None:
+        wanted_runners = run.get_amount_needed_runners()
 
     with p.helpers.BrokerSession() as ses:
         req = ses.put(
@@ -475,7 +483,7 @@ def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
     interval = p.app.config['AUTO_TEST_HEARTBEAT_INTERVAL']
     max_missed = p.app.config['AUTO_TEST_HEARTBEAT_MAX_MISSED']
     max_interval = datetime.timedelta(seconds=interval * max_missed)
-    needed_time = datetime.datetime.utcnow() - max_interval
+    needed_time = DatetimeWithTimezone.utcnow() - max_interval
     expired = runner.last_heartbeat < needed_time
 
     logger.info(
@@ -551,16 +559,18 @@ def _update_latest_results_in_broker_1(auto_test_run_id: int) -> None:
 
     def get_latest_date(
         state: m.AutoTestStepResultState,
-        col: t.Optional[datetime.datetime],
+        col: t.Union[DbColumn[DatetimeWithTimezone], DbColumn[
+            t.Optional[DatetimeWithTimezone]]],
         oldest: bool = True
     ) -> t.Optional[str]:
-        c = t.cast(m.DbColumn[datetime.datetime], col)  # pylint: disable=invalid-name
-        date = m.db.session.query(c).filter_by(
+        date = m.db.session.query(col).filter_by(
             auto_test_run_id=auto_test_run_id,
             state=state,
-        ).order_by(c if oldest else c.desc()).first()
+        ).order_by(col if oldest else col.desc()).first()
 
-        return date and date[0].isoformat()
+        if date is None or date[0] is None:
+            return None
+        return date[0].isoformat()
 
     # yapf: disable
     results = {
@@ -624,7 +634,7 @@ def _clone_commit_as_submission_1(
     assignment = p.models.Assignment.query.filter_by(id=webhook.assignment_id
                                                      ).with_for_update().one()
 
-    created_at = datetime.datetime.fromtimestamp(unix_timestamp)
+    created_at = DatetimeWithTimezone.utcfromtimestamp(unix_timestamp)
 
     with webhook.written_private_key() as fname, tempfile.TemporaryDirectory(
     ) as tmpdir:
@@ -671,7 +681,7 @@ def _delete_file_at_time_1(
     filename: str, in_mirror_dir: bool, deletion_time: str
 ) -> None:
     if current_task.maybe_delay_task(
-        datetime.datetime.fromisoformat(deletion_time)
+        DatetimeWithTimezone.fromisoformat(deletion_time)
     ):
         return
 
@@ -715,11 +725,12 @@ update_latest_results_in_broker = _update_latest_results_in_broker_1.delay  # py
 clone_commit_as_submission = _clone_commit_as_submission_1.delay  # pylint: disable=invalid-name
 delete_file_at_time = _delete_file_at_time_1.delay  # pylint: disable=invalid-name
 
-send_reminder_mails: t.Callable[[
-    t.Tuple[int], NamedArg(t.Optional[datetime.datetime], 'eta')
-], t.Any] = _send_reminder_mails_1.apply_async  # pylint: disable=invalid-name
+send_reminder_mails: t.Callable[
+    [t.Tuple[int],
+     NamedArg(t.Optional[DatetimeWithTimezone], 'eta')], t.
+    Any] = _send_reminder_mails_1.apply_async  # pylint: disable=invalid-name
 
 check_heartbeat_auto_test_run: t.Callable[
     [t.Tuple[str],
-     DefaultNamedArg(t.Optional[datetime.datetime], 'eta')], t.
+     DefaultNamedArg(t.Optional[DatetimeWithTimezone], 'eta')], t.
     Any] = _check_heartbeat_stop_test_runner_1.apply_async  # pylint: disable=invalid-name

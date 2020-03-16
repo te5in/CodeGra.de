@@ -5,6 +5,7 @@
         <template slot="title">
             Welcome {{ nameOfUser }}!
         </template>
+
         <div class="search-logo-wrapper">
             <input class="search form-control mr-3"
                    v-model="searchString"
@@ -13,27 +14,44 @@
             <cg-logo :small="$root.$isSmallWindow" :inverted="!darkMode" />
         </div>
     </local-header>
+
     <b-alert show v-if="showReleaseNote" variant="info">
         A new version of CodeGrade has been released:
         <b>{{ UserConfig.release.version }}</b>.
         {{ UserConfig.release.message }} You can check the entire
         changelog <a href="https://docs.codegra.de/about/changelog.html"
-        target="_blank" class="alert-link">here</a>.
+                     target="_blank"
+                     class="alert-link">here</a>.
     </b-alert>
+
     <loader v-if="loadingCourses" page-loader/>
-    <div v-else-if="courses.length === 0">
-        <span class="no-courses">You have no courses yet!</span>
-    </div>
+
+    <template v-else-if="courses.length === 0">
+        <h3 class="text-center font-italic text-muted">You have no courses yet!</h3>
+    </template>
+
+    <template v-else-if="filteredCourses.length === 0">
+        <h3 class="text-center font-italic text-muted">No matching courses found!</h3>
+    </template>
+
     <masonry :cols="{default: 3, [$root.largeWidth]: 2, [$root.mediumWidth]: 1 }"
              :gutter="30"
              class="outer-block outer-course-wrapper"
              v-else>
-        <div class="course-wrapper" v-for="course in filteredCourses" :key="course.id">
+        <div class="course-wrapper"
+             v-for="course, idx in filteredCourses"
+             :key="course.id"
+             v-if="idx < amountCoursesToShow">
             <b-card no-body>
                 <b-card-header :class="`text-${getColorPair(course.name).color}`"
-                               :style="{ backgroundColor: getColorPair(course.name).background }">
+                               :style="{ backgroundColor: `${getColorPair(course.name).background} !important` }">
                     <div style="display: flex">
-                        <b class="course-name">{{ course.name }}</b>
+                        <div class="course-name">
+                            <b>{{ course.name }}</b>
+                            <i v-if="courseExtraDataToDisplay[course.id]">
+                                ({{ courseExtraDataToDisplay[course.id] }})
+                            </i>
+                        </div>
                         <router-link v-if="course.canManage"
                                      :to="manageCourseRoute(course)"
                                      v-b-popover.window.top.hover="'Manage course'"
@@ -50,7 +68,7 @@
                                 <router-link v-for="{ assignment, filtered } in getAssignments(course)"
                                              :key="assignment.id"
                                              :to="submissionsRoute(assignment)"
-                                             :class="filtered ? 'super-text-muted' : ''"
+                                             :class="filtered ? 'text-muted' : ''"
                                              class="assig-list-item">
                                     <td>
                                         <span>{{ assignment.name }}</span><br>
@@ -62,12 +80,13 @@
                                             No deadline
                                         </small>
                                     </td>
-                                    <td>
+                                    <td class="shrink">
                                         <assignment-state :assignment="assignment"
                                                           :editable="false"
                                                           size="sm"/>
                                     </td>
-                                    <td v-if="assignment.canManage">
+                                    <td v-if="assignment.canManage"
+                                        class="shrink">
                                         <router-link :to="manageAssignmentRoute(assignment)"
                                                      v-b-popover.window.top.hover="'Manage assignment'">
                                             <icon name="gear" class="gear-icon"/>
@@ -77,7 +96,7 @@
                             </tbody>
                         </table>
 
-                        <p class="no-assignments" v-else>
+                        <p class="m-3 font-italic text-muted" v-else>
                             No assignments for this course.
                         </p>
                     </div>
@@ -85,6 +104,24 @@
             </b-card>
         </div>
     </masonry>
+
+
+    <b-btn class="extra-load-btn"
+           v-if="moreCoursesAvailable && !loadingCourses"
+           @click="showMoreCourses()">
+        <loader v-if="renderingMoreCourses > 0" :scale="1" class="py-1"/>
+        <span v-else>
+            Load more courses
+        </span>
+        <infinite-loading @infinite="showMoreCourses" :distance="150">
+            <div slot="spinner"></div>
+            <div slot="no-more"></div>
+            <div slot="no-results"></div>
+            <div slot="error" slot-scope="err">
+                {{ err }}
+            </div>
+        </infinite-loading>
+    </b-btn>
 </div>
 </template>
 
@@ -94,8 +131,10 @@ import moment from 'moment';
 import { mapGetters, mapActions } from 'vuex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/gear';
+import InfiniteLoading from 'vue-infinite-loading';
 
-import { hashString, cmpNoCase } from '@/utils';
+import { hashString, cmpNoCaseMany } from '@/utils';
+import { Counter } from '@/utils/counter';
 
 import AssignmentState from './AssignmentState';
 import UserInfo from './UserInfo';
@@ -104,27 +143,33 @@ import LocalHeader from './LocalHeader';
 import CgLogo from './CgLogo';
 
 const COLOR_PAIRS = [
-    { background: '#70A3A2', color: 'dark' },
-    { background: '#DFD3AA', color: 'dark' },
-    { background: '#DFB879', color: 'dark' },
-    { background: '#956F48', color: 'light' },
-    { background: '#4F5F56', color: 'light' },
-    { background: '#A7AE91', color: 'dark' },
-    { background: '#D7CEA6', color: 'dark' },
-    { background: '#CC3A28', color: 'light' },
-    { background: '#598D86', color: 'dark' },
-    { background: '#E6DCCD', color: 'dark' },
-    { background: '#D6CE5B', color: 'dark' },
-    { background: '#D97E71', color: 'dark' },
-    { background: '#5D8D7D', color: 'dark' },
-    { background: '#D2CF9F', color: 'dark' },
-    { background: '#EADB93', color: 'dark' },
-    { background: '#CB5452', color: 'light' },
-    { background: '#65686C', color: 'light' },
-    { background: '#B4AEA4', color: 'dark' },
-    { background: '#E7EEE9', color: 'dark' },
-    { background: '#EAB66C', color: 'dark' },
+    { background: 'rgb(112, 163, 162)', color: 'dark' },
+    { background: 'rgb(223, 211, 170)', color: 'dark' },
+    { background: 'rgb(223, 184, 121)', color: 'dark' },
+    { background: 'rgb(149, 111,  72)', color: 'light' },
+    { background: 'rgb( 79,  95,  86)', color: 'light' },
+    { background: 'rgb(167, 174, 145)', color: 'dark' },
+    { background: 'rgb(215, 206, 166)', color: 'dark' },
+    { background: 'rgb(204,  58,  40)', color: 'light' },
+    { background: 'rgb( 89, 141, 134)', color: 'light' },
+    { background: 'rgb(230, 220, 205)', color: 'dark' },
+    { background: 'rgb(214, 206,  91)', color: 'dark' },
+    { background: 'rgb(217, 126, 113)', color: 'dark' },
+    { background: 'rgb( 93, 141, 125)', color: 'light' },
+    { background: 'rgb(210, 207, 159)', color: 'dark' },
+    { background: 'rgb(234, 219, 147)', color: 'dark' },
+    { background: 'rgb(203,  84,  82)', color: 'light' },
+    { background: 'rgb(101, 104, 108)', color: 'light' },
+    { background: 'rgb(180, 174, 164)', color: 'dark' },
+    { background: 'rgb(231, 238, 233)', color: 'dark' },
+    { background: 'rgb(234, 182, 108)', color: 'dark' },
 ];
+
+// The amount of extra courses that should be loaded when we reach the end of
+// the infinite scroll list. This is a multiple of 3 and of 2 (and 1 ofc) as
+// those are the amount of columns we use in our masonry. So by using a multiple
+// we increase the chance that we fill the masonry nice and even.
+const EXTRA_COURSES_AMOUNT = 12;
 
 export default {
     name: 'home-grid',
@@ -133,7 +178,9 @@ export default {
         return {
             loadingCourses: true,
             UserConfig,
+            amountCoursesToShow: EXTRA_COURSES_AMOUNT,
             searchString: '',
+            renderingMoreCourses: 0,
         };
     },
 
@@ -143,7 +190,29 @@ export default {
         ...mapGetters('pref', ['darkMode']),
 
         courses() {
-            return Object.values(this.unsortedCourses).sort((a, b) => cmpNoCase(a.name, b.name));
+            return Object.values(this.unsortedCourses).sort((a, b) =>
+                cmpNoCaseMany([b.created_at, a.created_at], [a.name, b.name]),
+            );
+        },
+
+        courseExtraDataToDisplay() {
+            const getNameAndYear = c => `${c.name} (${c.created_at.slice(0, 4)})`;
+
+            const courseName = new Counter(this.courses.map(c => c.name));
+            const courseNameAndYear = new Counter(this.courses.map(getNameAndYear));
+
+            return this.courses.reduce((acc, course) => {
+                if (courseName.getCount(course.name) > 1) {
+                    if (courseNameAndYear.getCount(getNameAndYear(course)) > 1) {
+                        acc[course.id] = course.created_at.slice(0, 10);
+                    } else {
+                        acc[course.id] = course.created_at.slice(0, 4);
+                    }
+                } else {
+                    acc[course.id] = null;
+                }
+                return acc;
+            }, {});
         },
 
         filteredCourses() {
@@ -166,15 +235,19 @@ export default {
                 this.$root.$now.diff(moment(UserConfig.release.date), 'days') < 7
             );
         },
+
+        // Are there more courses available. If this is true we should show the
+        // infinite loader.
+        moreCoursesAvailable() {
+            return this.filteredCourses.length > this.amountCoursesToShow;
+        },
     },
 
-    mounted() {
-        Promise.all([this.$afterRerender(), this.loadCourses()]).then(() => {
-            this.loadingCourses = false;
-            this.$nextTick(() => {
-                this.$refs.searchInput.focus();
-            });
-        });
+    async mounted() {
+        await Promise.all([this.$afterRerender(), this.loadCourses()]);
+        this.loadingCourses = false;
+        await this.$afterRerender();
+        this.$refs.searchInput.focus();
     },
 
     methods: {
@@ -242,6 +315,26 @@ export default {
                 },
             };
         },
+
+        // This method should be called when the infinite loader comes into view.
+        // The optional $state parameter should be the state parameter of the
+        // vue-infinite-loader plugin, and should have two callable props:
+        // `loaded` and `complete`.
+        async showMoreCourses($state = null) {
+            this.renderingMoreCourses += 1;
+            await this.$afterRerender();
+            this.amountCoursesToShow += EXTRA_COURSES_AMOUNT;
+            this.renderingMoreCourses -= 1;
+
+            if ($state) {
+                if (this.moreCoursesAvailable) {
+                    $state.loaded();
+                } else {
+                    this.renderingMoreCourses = 0;
+                    $state.complete();
+                }
+            }
+        },
     },
 
     components: {
@@ -251,6 +344,7 @@ export default {
         UserInfo,
         Loader,
         LocalHeader,
+        InfiniteLoading,
     },
 };
 </script>
@@ -277,11 +371,16 @@ export default {
         margin-bottom: 0;
 
         .assig-list-item {
-            #app.dark &,
-            #app.dark & .fa-icon {
-                color: #d2d4d5;
-            }
             display: table-row;
+
+            @{dark-mode},
+            @{dark-mode} .fa-icon {
+                color: rgb(210, 212, 213);
+            }
+
+            &:first-child td {
+                border-top-width: 0;
+            }
 
             &:nth-of-type(even) {
                 background-color: rgba(0, 0, 0, 0.05);
@@ -292,19 +391,9 @@ export default {
             }
         }
 
-        td:not(:first-child) {
-            width: 1px;
-            white-space: nowrap;
-        }
-
-        td:last-child a {
-            padding-bottom: 0;
-        }
-
         a:hover {
             text-decoration: none;
 
-            #app.dark & .fa-icon,
             .fa-icon {
                 border-bottom-color: transparent;
             }
@@ -318,6 +407,11 @@ export default {
     .course-wrapper {
         padding-bottom: 1em;
 
+        .card {
+            // Dont render content over the border
+            overflow: hidden;
+        }
+
         .card-body {
             @media @media-medium {
                 max-height: 15em;
@@ -329,7 +423,6 @@ export default {
             padding: 0.75rem;
 
             .course-name {
-                display: flex;
                 flex: 1 1 auto;
             }
 
@@ -353,7 +446,7 @@ export default {
         }
 
         .card-header.text-light {
-            color: @text-color-dark !important;
+            color: @color-lighter-gray !important;
 
             .fa-icon {
                 fill: @text-color-dark;
@@ -363,7 +456,7 @@ export default {
 }
 
 a {
-    #app.dark & {
+    @{dark-mode} {
         color: @text-color-dark;
 
         &:hover {
@@ -378,29 +471,9 @@ a {
     &:hover .gear-icon {
         border-bottom: 1px solid lighten(@color-primary, 10%);
 
-        #app.dark & {
+        @{dark-mode} {
             border-color: darken(@text-color-dark, 10%);
         }
-    }
-}
-
-.no-courses {
-    display: block;
-    font-size: 1.5rem;
-    text-align: center;
-    color: @color-secondary-text;
-
-    #app.dark & {
-        color: @color-light-gray;
-    }
-}
-
-.no-assignments {
-    margin: 1rem 0.75rem;
-    color: @color-secondary-text;
-
-    #app.dark & {
-        color: @color-light-gray;
     }
 }
 
@@ -414,8 +487,7 @@ a {
     align-items: center;
 }
 
-.super-text-muted,
-.super-text-muted a {
-    color: #ccc !important;
+.extra-load-btn {
+    margin: 0 auto;
 }
 </style>

@@ -5,22 +5,24 @@
 
 <loader page-loader v-else-if="loading" />
 
-<div v-else-if="!canSeeFeedback" class="p-3 border rounded font-italic text-muted">
+<div v-else-if="!canSeeFeedback" class="feedback-overview p-3 border rounded font-italic text-muted">
     The feedback is not yet available.
 </div>
 
 <div v-else class="feedback-overview border rounded">
     <div class="scroller">
-        <b-card header="General feedback">
+        <b-card header="General feedback"
+                class="general-feedback">
             <pre v-if="generalFeedback"
-                 class="general-feedback mb-0">{{ generalFeedback }}</pre>
+                 class="text-wrap-pre mb-0">{{ generalFeedback }}</pre>
             <span v-else class="text-muted font-italic">
                 No general feedback given.
             </span>
         </b-card>
 
         <b-card v-if="fileIds.length === 0"
-                header="Inline feedback">
+                header="Inline feedback"
+                class="inline-feedback">
             <span class="text-muted font-italic">
                 This submission has no line comments.
             </span>
@@ -28,7 +30,8 @@
 
         <template v-else>
             <b-card v-for="id in fileIds"
-                    :key="id">
+                    :key="id"
+                    class="inline-feedback">
                 <router-link slot="header" :to="getFileLink(id)">
                     {{ fileTree.flattened[id] }}
                 </router-link>
@@ -55,7 +58,7 @@
                      :key="`file-${id}-line-${part[0]}`">
                     <hr v-if="i !== 0">
 
-                    <inner-code-viewer class="form-control p-0"
+                    <inner-code-viewer class="border rounded p-0"
                                        :assignment="assignment"
                                        :submission="submission"
                                        :code-lines="codeLines[id]"
@@ -369,10 +372,8 @@ export default {
     overflow: hidden;
 }
 
-.general-feedback {
-    white-space: pre-wrap;
-
-    #app.dark & {
+.general-feedback pre {
+    @{dark-mode} {
         color: @text-color-dark;
     }
 }
@@ -414,7 +415,7 @@ export default {
         border-radius: 0;
         margin-top: -1px;
         z-index: 100;
-        background-color: #f7f7f7;
+        background-color: rgb(247, 247, 247);
     }
 }
 </style>

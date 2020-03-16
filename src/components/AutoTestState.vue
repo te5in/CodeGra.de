@@ -19,8 +19,6 @@
 </template>
 
 <script>
-import moment from 'moment';
-
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/ban';
 import 'vue-awesome/icons/check';
@@ -107,18 +105,8 @@ export default {
             }
         },
 
-        startMSec() {
-            const startedAt = this.result.startedAt;
-            return (
-                startedAt &&
-                moment(startedAt)
-                    .utc()
-                    .valueOf()
-            );
-        },
-
         passedSinceStart() {
-            return Math.max(0, (this.$root.$epoch - this.startMSec) / 1000);
+            return Math.max(0, this.$root.$epoch.diff(this.result.startedAt, 'seconds'));
         },
 
         minutes() {
@@ -139,5 +127,9 @@ export default {
 <style lang="less" scoped>
 .auto-test-state.btn {
     pointer-events: none;
+}
+
+.fa-icon {
+    transform: translateY(-2px);
 }
 </style>

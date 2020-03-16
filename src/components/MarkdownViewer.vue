@@ -16,7 +16,7 @@
     always-show-button
     add-space>
     <inner-markdown-viewer v-if="data"
-                           class="py-2 px-3"
+                           class="w-100 py-2 px-3"
                            :markdown="data"
                            :show-code-whitespace="showWhitespace"/>
 </floating-feedback-button>

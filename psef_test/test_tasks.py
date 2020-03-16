@@ -1,6 +1,6 @@
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
@@ -11,6 +11,7 @@ from psef import models as m
 from helpers import create_auto_test, create_assignment, create_submission
 from conftest import DESCRIBE_HOOKS
 from cg_celery import TaskStatus
+from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
 
 
@@ -79,7 +80,7 @@ def test_check_heartbeat(
     with describe('not expired'):
         t._check_heartbeat_stop_test_runner_1(runner.id.hex)
         flush_callbacks()
-        now = datetime.utcnow()
+        now = DatetimeWithTimezone.utcnow()
 
         # As the heartbeats have not expired yet a new check should be
         # scheduled
@@ -93,7 +94,7 @@ def test_check_heartbeat(
         assert not stub_notify_kill_single.all_args
 
     with describe('expired'):
-        runner.last_heartbeat = datetime.fromtimestamp(0)
+        runner.last_heartbeat = DatetimeWithTimezone.utcfromtimestamp(0)
         old_job_id = run.get_job_id()
         session.commit()
         run = runner.run
@@ -211,7 +212,7 @@ def test_batch_run_auto_test(
     test_client, logged_in, admin_user, session, monkeypatch,
     stub_function_class, monkeypatch_celery
 ):
-    now = datetime.utcnow()
+    now = DatetimeWithTimezone.utcnow()
     five_minutes = timedelta(minutes=5)
 
     all_args = []
@@ -302,6 +303,7 @@ def test_delete_submission(
         sourcedid='wow', user_id=user_id
     )
     assignment.course.lti_provider = m.LTIProvider(key='my_lti')
+    assignment.lti_outcome_service_url = 'http://aaa'
     session.commit()
 
     with describe('deleting newest submission'):

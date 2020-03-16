@@ -31,11 +31,21 @@ const config = Object.assign({}, {
     maxLines: 2500,
 }, userConfig['Front-end']);
 
-const version = execFileSync('git', ['describe', '--abbrev=0', '--tags']).toString().trim();
+let version = execFileSync('git', ['describe', '--abbrev=0', '--tags']).toString().trim();
+const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD']).toString().trim();
 const tagMsg = execFileSync('git', ['tag', '-l', '-n400', version]).toString().split('\n');
 let inCorrectPart = false;
 let done = false;
 let skip = false;
+
+// If the version doesn't start with a capital and the branch is not the stable
+// branch show the commit hash. We heavily prefer a false negative (we should
+// show the commit hash but show the version instead) over a false positive (we
+// show a commit hash instead of a version) as this would mean we would show a
+// commit hash on a production server which looks bad.
+if (version.match(/^[^A-Z]/) && branch.indexOf('stable') < 0) {
+    version = '#' + execFileSync('git', ['rev-parse', '--short', 'HEAD']).toString().trim();
+}
 
 config.release = {
     version,
@@ -75,6 +85,13 @@ if (Object.hasOwnProperty.call(userConfig.AutoTest, 'auto_test_max_time_command'
     config.autoTest.auto_test_max_command_time = Number(userConfig.AutoTest.auto_test_max_time_command);
 }
 
+const backendOpts = userConfig['Back-end'];
+
+config.proxyBaseDomain = backendOpts ? backendOpts.proxy_base_domain : '';
 config.isProduction = process.env.NODE_ENV === 'production';
+
+if (!config.proxyBaseDomain && config.isProduction) {
+    throw new Error('Production can only be used with a proxy url.');
+}
 
 module.exports = config;

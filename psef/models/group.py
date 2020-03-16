@@ -3,31 +3,316 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
-import datetime
 from sys import maxsize as _maxsize
+from functools import wraps
 
 import coolname
+from werkzeug.utils import cached_property
 from sqlalchemy.sql.expression import or_ as sql_or
 from sqlalchemy.sql.expression import func as sql_func
 
-from cg_sqlalchemy_helpers.types import MyQueryTuple
+import psef
+from cg_dt_utils import DatetimeWithTimezone
+from cg_sqlalchemy_helpers.types import MyQueryTuple, hybrid_property
 
 from . import Base, DbColumn, db
 from . import user as user_models
 from . import work as work_models
 from . import _MyQuery
-from . import assignment as assignment_models
+from .. import cache
 from ..helpers import NotEqualMixin
 from ..exceptions import APICodes, APIException
 from .link_tables import users_groups
 
-if t.TYPE_CHECKING:  # pragma: no cover
-    # pylint: disable=invalid-name,unused-import
-    from . import course as course_models
-    from . import assignment as assignment_models
-    cached_property = property
-else:
-    from werkzeug.utils import cached_property
+FUN = t.TypeVar('FUN', bound=t.Callable)
+
+
+def _group_members_manipulator(fun: FUN) -> FUN:
+    @wraps(fun)
+    def __inner(*args: object, **kwargs: object) -> object:
+        try:
+            return fun(*args, **kwargs)
+        finally:
+            Group.has_as_member.clear_cache()  # type: ignore[attr-defined]
+
+    return t.cast(FUN, __inner)
+
+
+class Group(Base):
+    """This class represents a single group.
+
+    A group is a collection of real (non virtual) users that itself is
+    connected to a virtual user. A group is connected to a :class:`.GroupSet`.
+
+    :ivar ~.Group.name: The name of the group. This has to be unique in a group
+        set.
+    :ivar virtual_user: The virtual user this group is connected to. This user
+        is used to submissions as the group.
+    :ivar group_set: The :class:`.GroupSet` this group is connected to.
+    """
+    if t.TYPE_CHECKING:  # pragma: no cover
+        query: t.ClassVar[_MyQuery['Group']]
+    __tablename__ = 'Group'
+
+    id = db.Column('id', db.Integer, primary_key=True)
+    name = db.Column('name', db.Unicode)
+    group_set_id = db.Column(
+        'group_set_id',
+        db.Integer,
+        db.ForeignKey('GroupSet.id'),
+        nullable=False,
+    )
+    created_at = db.Column(
+        db.TIMESTAMP(timezone=True),
+        default=DatetimeWithTimezone.utcnow,
+        nullable=False
+    )
+    virtual_user_id = db.Column(
+        'virtual_user_id',
+        db.Integer,
+        db.ForeignKey('User.id'),
+        nullable=False,
+    )
+    _members = db.relationship(
+        lambda: user_models.User,
+        secondary=users_groups,
+        lazy='selectin',
+        order_by=lambda: user_models.User.name,
+        uselist=True,
+    )
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        group_set: 'GroupSet',
+        virtual_user: 'user_models.User',
+        members: t.List['user_models.User'],
+    ) -> None:
+        super().__init__(
+            name=name,
+            group_set=group_set,
+            virtual_user=virtual_user,
+            _members=members,
+        )
+
+    def __eq__(self, other: object) -> bool:
+        """Check if two Groups are equal.
+
+        >>> g1 = Group(name='', group_set=None, virtual_user=None, members=[])
+        >>> g2 = Group(name='', group_set=None, virtual_user=None, members=[])
+        >>> g3 = Group(name='', group_set=None, virtual_user=None, members=[])
+        >>> g1.id = 1
+        >>> g2.id = 1
+        >>> g3.id = 2
+
+        >>> g1 == object()
+        False
+        >>> g1 == g2
+        True
+        >>> g1 == g3
+        False
+        """
+        if not isinstance(other, Group):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+
+    @cache.cache_within_request
+    def has_as_member(self, user: 'user_models.User') -> bool:
+        """Check if the given user is member of this group.
+
+        :param user: The user to check for
+        """
+        return user in self._members or user == self.virtual_user
+
+    @property
+    def is_empty(self) -> bool:
+        """Check if this group has no members.
+        """
+        return not self._members
+
+    @hybrid_property
+    def members(self) -> t.Sequence['user_models.User']:
+        """The members of this group.
+        """
+        return self._members
+
+    @_group_members_manipulator
+    def add_member(self, new_member: 'user_models.User') -> None:
+        """Add a member to this group.
+        """
+        self._members.append(new_member)
+
+    @_group_members_manipulator
+    def remove_member(self, member_to_remove: 'user_models.User') -> None:
+        """Add a member from this group.
+
+        This also checks if the member is already in a group.
+        """
+        if not self.has_as_member(member_to_remove):
+            raise APIException(
+                'The selected user is not in the group',
+                f'The user {member_to_remove.id} i snot in group {self.id}',
+                APICodes.INVALID_PARAM, 404
+            )
+
+        self._members = [u for u in self._members if u != member_to_remove]
+
+    virtual_user = db.relationship(
+        lambda: psef.models.User, foreign_keys=virtual_user_id, uselist=False
+    )
+
+    group_set = db.relationship(
+        lambda: GroupSet,
+        back_populates='groups',
+        innerjoin=True,
+        uselist=False,
+    )
+
+    __table_args__ = (db.UniqueConstraint('group_set_id', 'name'), )
+
+    @cached_property
+    def has_a_submission(self) -> bool:
+        """Is a submission handed in by this group.
+
+        .. note::
+
+            This property is cached after the first access within a request.
+
+        """
+        return db.session.query(
+            work_models.Work.query.filter_by(
+                user_id=self.virtual_user_id,
+                deleted=False,
+            ).exists()
+        ).scalar() or False
+
+    @classmethod
+    def create_group(
+        cls: 't.Type[Group]',
+        group_set: 'GroupSet',
+        members: t.List['user_models.User'],
+        name: t.Optional[str] = None,
+    ) -> 'Group':
+        """Create a group with the given members.
+
+        .. warning::
+
+           This function **does** check if the given members are not yet in a
+           group. It however doesn't check if the current user has the
+           permission to add these users to the group, nor if the members are
+           enrolled in the course.
+
+        :param group_set: In which group set should this group be placed.
+        :param members: The initial members should this group have.
+        :param name: The name of the group. If not given a random name is
+            generated.
+        :returns: The newly created group.
+        """
+        if members and db.session.query(
+            cls.contains_users(members).filter_by(group_set=group_set).exists()
+        ).scalar():
+            raise APIException(
+                'Member already in a group',
+                'One of the members is already in a group for this group set',
+                APICodes.INVALID_PARAM, 400
+            )
+        virt = user_models.User.create_virtual_user('GROUP_')
+        name = name or ' '.join(coolname.generate(3))
+        self = cls(
+            group_set=group_set, members=members, virtual_user=virt, name=name
+        )
+        db.session.flush()
+        virt.name += str(self.id)
+        return self
+
+    @classmethod
+    def contains_users(
+        cls: t.Type['Group'],
+        users: t.Sequence['user_models.User'],
+        *,
+        include_empty: bool = False,
+    ) -> _MyQuery['Group']:
+        """Get a query that for all groups that include the given users.
+
+        :param users: Filter groups so that at least one of their members is
+            one of these users.
+        :param include_empty: Also include empty groups, so without users, in
+            the query.
+        :returns: The query as described above.
+        """
+        res = db.session.query(Group)
+        cond = t.cast(DbColumn[int], Group.id).in_(
+            db.session.query(users_groups.c.group_id).filter(
+                t.cast(DbColumn[int],
+                       users_groups.c.user_id).in_([m.id for m in users])
+            )
+        )
+        if include_empty:
+            cond = sql_or(cond, ~Group.members.any())
+
+        return res.filter(cond)
+
+    def get_member_lti_states(
+        self,
+        assignment: 'psef.models.Assignment',
+    ) -> t.Mapping[int, bool]:
+        """Get the lti state of all members in the group.
+
+        Check if it is possible to passback the grade for all members in this
+        group. This is done by checking if there is a row for each user,
+        assignment combination in the `.psef.models.AssignmentResult`
+        table.
+
+        :param assignment: The assignment to get the states for.
+        :returns: A mapping between user id and if we can passback the grade
+            for this user for every member in this group.
+        """
+        assert any(a.id == assignment.id for a in self.group_set.assignments)
+
+        if assignment.is_lti and self.members:
+            assig_results: t.Set[int] = set(
+                user_id
+                for user_id, in db.session.query(psef.models.AssignmentResult).
+                filter_by(assignment_id=assignment.id).filter(
+                    t.cast(
+                        DbColumn[int],
+                        user_models.User.id,
+                    ).in_([member.id for member in self._members])
+                ).with_entities(
+                    t.cast(
+                        DbColumn[int],
+                        psef.models.AssignmentResult.user_id,
+                    )
+                )
+            )
+            return {
+                member.id: member.id in assig_results
+                for member in self._members
+            }
+        else:
+            return {member.id: True for member in self._members}
+
+    def __to_json__(self) -> t.Mapping[str, t.Any]:
+        return {
+            'id': self.id,
+            'members': self.members,
+            'name': self.name,
+            'group_set_id': self.group_set_id,
+            'created_at': self.created_at.isoformat(),
+        }
+
+    def __extended_to_json__(self) -> t.Mapping[str, t.Any]:
+        virt_user = self.virtual_user.__to_json__()
+        del virt_user['group']
+
+        return {
+            **self.__to_json__(),
+            'virtual_user': virt_user,
+        }
 
 
 class GroupSet(NotEqualMixin, Base):
@@ -45,39 +330,41 @@ class GroupSet(NotEqualMixin, Base):
         query: t.ClassVar[_MyQuery['GroupSet']]
     __tablename__ = 'GroupSet'
 
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    minimum_size: int = db.Column('minimum_size', db.Integer, nullable=False)
-    maximum_size: int = db.Column('maximum_size', db.Integer, nullable=False)
-    course_id: int = db.Column(
+    id = db.Column('id', db.Integer, primary_key=True)
+    minimum_size = db.Column('minimum_size', db.Integer, nullable=False)
+    maximum_size = db.Column('maximum_size', db.Integer, nullable=False)
+    course_id = db.Column(
         'Course_id', db.Integer, db.ForeignKey('Course.id'), nullable=False
     )
-    created_at: datetime.datetime = db.Column(
-        db.DateTime, default=datetime.datetime.utcnow
+    created_at = db.Column(
+        db.TIMESTAMP(timezone=True),
+        default=DatetimeWithTimezone.utcnow,
+        nullable=False
     )
 
-    course: 'course_models.Course' = db.relationship(
-        'Course',
+    course = db.relationship(
+        lambda: psef.models.Course,
         foreign_keys=course_id,
         back_populates='group_sets',
         innerjoin=True,
     )
 
     assignments = db.relationship(
-        'Assignment',
+        lambda: psef.models.Assignment,
         back_populates='group_set',
         lazy='joined',
         uselist=True,
-        order_by='Assignment.created_at'
-    )  # type: t.MutableSequence['assignment_models.Assignment']
+        order_by=lambda: psef.models.Assignment.created_at
+    )
 
     groups = db.relationship(
-        'Group',
+        lambda: psef.models.Group,
         back_populates='group_set',
         lazy='select',
         cascade='all,delete',
         uselist=True,
-        order_by='Group.created_at',
-    )  # type: t.MutableSequence['Group']
+        order_by=lambda: psef.models.Group.created_at,
+    )
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, GroupSet):
@@ -204,191 +491,3 @@ class GroupSet(NotEqualMixin, Base):
         return self.__get_group_size_query(
             asc=False, has_subs=True
         ).limit(1).scalar() or _maxsize
-
-
-class Group(Base):
-    """This class represents a single group.
-
-    A group is a collection of real (non virtual) users that itself is
-    connected to a virtual user. A group is connected to a :class:`.GroupSet`.
-
-    :ivar ~.Group.name: The name of the group. This has to be unique in a group
-        set.
-    :ivar virtual_user: The virtual user this group is connected to. This user
-        is used to submissions as the group.
-    :ivar group_set: The :class:`.GroupSet` this group is connected to.
-    """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['Group']]
-    __tablename__ = 'Group'
-
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    name: str = db.Column('name', db.Unicode)
-    group_set_id: int = db.Column(
-        'group_set_id',
-        db.Integer,
-        db.ForeignKey('GroupSet.id'),
-        nullable=False,
-    )
-    created_at: datetime.datetime = db.Column(
-        db.DateTime, default=datetime.datetime.utcnow
-    )
-    virtual_user_id: int = db.Column(
-        'virtual_user_id',
-        db.Integer,
-        db.ForeignKey('User.id'),
-        nullable=False,
-    )
-    members: t.MutableSequence['user_models.User'] = db.relationship(
-        'User',
-        secondary=users_groups,
-        lazy='selectin',
-        order_by='User.name',
-    )
-    virtual_user: 'user_models.User' = db.relationship(
-        'User', foreign_keys=virtual_user_id
-    )
-
-    group_set: GroupSet = db.relationship('GroupSet', back_populates='groups')
-
-    __table_args__ = (db.UniqueConstraint('group_set_id', 'name'), )
-
-    @cached_property
-    def has_a_submission(self) -> bool:
-        """Is a submission handed in by this group.
-
-        .. note::
-
-            This property is cached after the first access within a request.
-
-        """
-        return db.session.query(
-            work_models.Work.query.filter_by(
-                user_id=self.virtual_user_id,
-                deleted=False,
-            ).exists()
-        ).scalar() or False
-
-    @classmethod
-    def create_group(
-        cls: 't.Type[Group]',
-        group_set: GroupSet,
-        members: t.MutableSequence['user_models.User'],
-        name: t.Optional[str] = None,
-    ) -> 'Group':
-        """Create a group with the given members.
-
-        .. warning::
-
-           This function **does** check if the given members are not yet in a
-           group. It however doesn't check if the current user has the
-           permission to add these users to the group, nor if the members are
-           enrolled in the course.
-
-        :param group_set: In which group set should this group be placed.
-        :param members: The initial members should this group have.
-        :param name: The name of the group. If not given a random name is
-            generated.
-        :returns: The newly created group.
-        """
-        if members and db.session.query(
-            cls.contains_users(members).filter_by(group_set=group_set).exists()
-        ).scalar():
-            raise APIException(
-                'Member already in a group',
-                'One of the members is already in a group for this group set',
-                APICodes.INVALID_PARAM, 400
-            )
-        virt = user_models.User.create_virtual_user('GROUP_')
-        name = name or ' '.join(coolname.generate(3))
-        self = cls(
-            group_set=group_set, members=members, virtual_user=virt, name=name
-        )
-        db.session.flush()
-        virt.name += str(self.id)
-        return self
-
-    @classmethod
-    def contains_users(
-        cls: t.Type['Group'],
-        users: t.Sequence['user_models.User'],
-        *,
-        include_empty: bool = False,
-    ) -> _MyQuery['Group']:
-        """Get a query that for all groups that include the given users.
-
-        :param users: Filter groups so that at least one of their members is
-            one of these users.
-        :param include_empty: Also include empty groups, so without users, in
-            the query.
-        :returns: The query as described above.
-        """
-        res = db.session.query(Group)
-        cond = t.cast(DbColumn[int], Group.id).in_(
-            db.session.query(users_groups.c.group_id).filter(
-                t.cast(DbColumn[int],
-                       users_groups.c.user_id).in_([m.id for m in users])
-            )
-        )
-        if include_empty:
-            cond = sql_or(cond, ~t.cast(DbColumn[object], Group.members).any())
-
-        return res.filter(cond)
-
-    def get_member_lti_states(
-        self,
-        assignment: 'assignment_models.Assignment',
-    ) -> t.Mapping[int, bool]:
-        """Get the lti state of all members in the group.
-
-        Check if it is possible to passback the grade for all members in this
-        group. This is done by checking if there is a row for each user,
-        assignment combination in the `.assignment_models.AssignmentResult`
-        table.
-
-        :param assignment: The assignment to get the states for.
-        :returns: A mapping between user id and if we can passback the grade
-            for this user for every member in this group.
-        """
-        assert assignment.id in {a.id for a in self.group_set.assignments}
-
-        if assignment.is_lti and self.members:
-            assig_results: t.Set[int] = set(
-                user_id for user_id, in db.session.query(
-                    assignment_models.AssignmentResult
-                ).filter_by(assignment_id=assignment.id).filter(
-                    t.cast(
-                        DbColumn[int],
-                        user_models.User.id,
-                    ).in_([member.id for member in self.members])
-                ).with_entities(
-                    t.cast(
-                        DbColumn[int],
-                        assignment_models.AssignmentResult.user_id,
-                    )
-                )
-            )
-            return {
-                member.id: member.id in assig_results
-                for member in self.members
-            }
-        else:
-            return {member.id: True for member in self.members}
-
-    def __to_json__(self) -> t.Mapping[str, t.Any]:
-        return {
-            'id': self.id,
-            'members': self.members,
-            'name': self.name,
-            'group_set_id': self.group_set_id,
-            'created_at': self.created_at.isoformat(),
-        }
-
-    def __extended_to_json__(self) -> t.Mapping[str, t.Any]:
-        virt_user = self.virtual_user.__to_json__()
-        del virt_user['group']
-
-        return {
-            **self.__to_json__(),
-            'virtual_user': virt_user,
-        }

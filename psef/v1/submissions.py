@@ -133,7 +133,9 @@ def get_feedback(work: models.Work) -> t.Mapping[str, str]:
     else:
         linter_comments = work.get_linter_feedback()
 
-    filename = f'{work.assignment.name}-{work.user.name}-feedback.txt'
+    filename = f'{work.assignment.name}-{work.user.name}-feedback.txt'.replace(
+        '/', '_'
+    )
 
     path, name = psef.files.random_file_path(True)
 
@@ -175,7 +177,10 @@ def get_zip(work: models.Work,
 
     return {
         'name': work.create_zip(exclude_owner),
-        'output_name': f'{work.assignment.name}-{work.user.name}-archive.zip'
+        'output_name':
+            f'{work.assignment.name}-{work.user.name}-archive.zip'.replace(
+                '/', '_'
+            )
     }
 
 
@@ -294,10 +299,10 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
         res['authors'] = authors if can_view_authors else None
 
         comments = models.Comment.query.filter(
-            t.cast(DbColumn[models.File], models.Comment.file).has(work=work),
+            models.Comment.file.has(work=work),
         ).order_by(
-            t.cast(DbColumn[int], models.Comment.file_id).asc(),
-            t.cast(DbColumn[int], models.Comment.line).asc(),
+            models.Comment.file_id.asc(),
+            models.Comment.line.asc(),
         )
 
         for comment in comments:
@@ -311,11 +316,10 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
         pass
     else:
         linter_comments = models.LinterComment.query.filter(
-            t.cast(DbColumn[models.File],
-                   models.LinterComment.file).has(work=work)
+            models.LinterComment.file.has(work=work)
         ).order_by(
-            t.cast(DbColumn[int], models.LinterComment.file_id).asc(),
-            t.cast(DbColumn[int], models.LinterComment.line).asc(),
+            models.LinterComment.file_id.asc(),
+            models.LinterComment.line.asc(),
         )
         for lcomment in linter_comments:
             res['linter'][lcomment.file_id][lcomment.line].append(
@@ -435,7 +439,7 @@ def select_rubric_items(submission_id: int
             RowType(row_id=item.rubricrow_id, item_id=item.id, multiplier=1.0)
             for item in helpers.get_in_or_error(
                 models.RubricItem,
-                t.cast(DbColumn[int], models.RubricItem.id),
+                models.RubricItem.id,
                 t.cast(t.List[int], json_input),
             )
         ]
@@ -454,7 +458,7 @@ def select_rubric_items(submission_id: int
 
     rows = helpers.get_in_or_error(
         models.RubricRow,
-        t.cast(DbColumn[int], models.RubricRow.id),
+        models.RubricRow.id,
         [item.row_id for item in sanitized_input],
         options=[selectinload(models.RubricRow.items)],
         as_map=True,
@@ -779,9 +783,9 @@ def get_grade_history(submission_id: int
 
     hist: t.MutableSequence[models.GradeHistory]
     hist = db.session.query(
-        models.GradeHistory
+        models.GradeHistory,
     ).filter_by(work_id=work.id).order_by(
-        models.GradeHistory.changed_at.desc(),  # type: ignore
+        models.GradeHistory.changed_at.desc(),
     ).all()
 
     return jsonify(hist)
@@ -843,7 +847,7 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
         models.File.work_id == submission_id,
         models.File.fileowner != exclude_owner,
         models.File.name == patharr[0],
-        t.cast(DbColumn[int], models.File.parent_id).is_(None),
+        models.File.parent_id.is_(None),
     )
 
     code = None
@@ -976,7 +980,7 @@ def get_dir_contents(
     else:
         file = helpers.filter_single_or_404(
             models.File, models.File.work_id == submission_id,
-            t.cast(DbColumn[int], models.File.parent_id).is_(None),
+            models.File.parent_id.is_(None),
             models.File.fileowner != exclude_owner
         )
 
@@ -988,3 +992,56 @@ def get_dir_contents(
         )
 
     return jsonify(file.list_contents(exclude_owner))
+
+
+@api.route('/submissions/<int:submission_id>/proxy', methods=['POST'])
+@features.feature_required(features.Feature.RENDER_HTML)
+def create_proxy(submission_id: int) -> JSONResponse[models.Proxy]:
+    """Create a proxy to view the files of the given submission through.
+
+    .. :quickref: Submission; Create a proxy to view the files of a submission
+
+    This allows you to view files of a submission without authentication for a
+    limited time.
+
+    :param submission_id: The submission for which the proxy should be created.
+    :<json bool allow_remote_resources: Allow the proxy to load remote
+        resources.
+    :<json bool allow_remote_scripts: Allow the proxy to load remote scripts,
+        and allow to usage of 'eval'.
+    :<json teacher_revision: Create a proxy for the teacher revision of the
+        submission.
+    :returns: The created proxy.
+    """
+    submission = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
+
+    with helpers.get_from_map_transaction(
+        helpers.get_json_dict_from_request()
+    ) as [get, _]:
+        allow_remote_resources = get('allow_remote_resources', bool)
+        allow_remote_scripts = get('allow_remote_scripts', bool)
+        teacher_revision = get('teacher_revision', bool)
+
+    auth.ensure_can_view_files(submission, teacher_revision)
+
+    exclude_owner = (
+        models.FileOwner.student
+        if teacher_revision else models.FileOwner.teacher
+    )
+    base_file = models.File.query.filter(
+        models.File.work == submission,
+        models.File.fileowner != exclude_owner,
+        models.File.parent_id.is_(None),
+    ).one()
+
+    proxy = models.Proxy(
+        base_work_file=base_file,
+        excluding_fileowner=exclude_owner,
+        allow_remote_resources=allow_remote_resources,
+        allow_remote_scripts=allow_remote_scripts,
+    )
+    db.session.add(proxy)
+    db.session.commit()
+    return jsonify(proxy)

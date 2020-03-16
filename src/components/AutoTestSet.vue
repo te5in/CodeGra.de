@@ -25,7 +25,7 @@
             </template>
         </span>
 
-        <masonry :gutter="30" :cols="{default: (result ? 1 : 2), [$root.largeWidth]: 1 }">
+        <masonry :gutter="30" :cols="{default: (result ? 1 : 2), [$root.xlargeWidth]: 1 }">
             <auto-test-suite v-for="suite, j in value.suites"
                              class="mb-3"
                              :editable="editable"
@@ -52,8 +52,11 @@
                     <b-alert show
                              v-if="setResult.finished"
                              :variant="setResult.passed ? 'success' : 'danger'">
-                        You scored <code class="percentage">{{ $utils.toMaxNDecimals(setResult.percentage, 2) }}%</code> of the
-                        <code class="percentage">{{ stopPoints }}%</code> required to continue.
+                        You scored
+                        <code class="percentage">{{ $utils.toMaxNDecimals(setResult.percentage, 2) }}%</code>
+                        of the
+                        <code class="percentage">{{ stopPoints }}%</code>
+                        required to continue.
 
                         <template v-if="!previousSetPassed && setResult.percentage >= stopPoints">
                             However, you failed a previous level.
@@ -284,7 +287,11 @@ export default {
     overflow: hidden;
 
     .input-group {
-        width: 14rem;
+        width: 18rem;
+    }
+
+    input {
+        min-width: 4rem;
     }
 }
 
@@ -317,7 +324,9 @@ export default {
     }
 }
 
-#app.dark .alert.alert-danger code.percentage {
-    color: @text-color-dark;
+.alert.alert-danger code.percentage {
+    @{dark-mode} {
+        color: @text-color-dark;
+    }
 }
 </style>

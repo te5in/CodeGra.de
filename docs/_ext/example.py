@@ -79,7 +79,8 @@ def visit_example_node(self, node):
         )
     )
 
-    self.set_first_last(node)
+    self.set_class_on_child(node, 'first', 0)
+    self.set_class_on_child(node, 'last', -1)
 
 
 def depart_example_node(self, node):

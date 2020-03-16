@@ -4,13 +4,14 @@ import json
 import uuid
 import tempfile
 import urllib.parse
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
 import psef as p
 import helpers
 from psef import models as m
+from cg_dt_utils import DatetimeWithTimezone
 
 _GITHUB_CLONE_URL = 'git@github.com:libre-man/TestRepo.git'
 
@@ -34,7 +35,7 @@ def basic(logged_in, admin_user, test_client, session):
         assig_id = helpers.create_assignment(
             test_client,
             course,
-            deadline=datetime.utcnow() + timedelta(days=30),
+            deadline=DatetimeWithTimezone.utcnow() + timedelta(days=30),
             state='open',
         )['id']
         assig = m.Assignment.query.get(assig_id)
@@ -400,7 +401,7 @@ def test_clone_git_repo(
             )['id']
             webhook = m.WebhookBase.query.get(webhook_id)
 
-            now = datetime.utcnow()
+            now = DatetimeWithTimezone.utcnow()
             stamp = now.timestamp()
 
             monkeypatch.setitem(app.config, 'MAX_NORMAL_UPLOAD_SIZE', 90000)

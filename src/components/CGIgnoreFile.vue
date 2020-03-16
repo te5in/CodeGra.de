@@ -23,25 +23,33 @@
          class="font-italic text-muted">
         No validation set.
     </div>
-    <b-form-group
-        v-else-if="!summaryMode"
-        class="policy-form"
-        :class="policy ? '' : 'policy-form-only'"
-        label-class="font-weight-bold pt-0 policy-form-label"
-        label-cols="9"
-        horizontal>
+    <b-form-group v-else-if="!summaryMode"
+                  class="policy-form"
+                  :class="policy ? '' : 'policy-form-only'"
+                  label-class="font-weight-bold pt-0 policy-form-label"
+                  label-cols="9"
+                  horizontal>
         <template slot="label">
             By default
-            <description-popover
-                hug-text
-                description="This determines what happens to files by
-                             default. 'Deny all files' denies all files by
-                             default, which determines exactly which files a
-                             student is allowed to upload. 'Allow all files'
-                             allows all files by default, which allows you to
-                             specify which files a student is not allowed to
-                             upload. With both options you can specify required
-                             files, that students must upload."/>
+            <description-popover hug-text>
+                <p class="mb-1">
+                    This determines what happens to files by default.  With
+                    both options you can specify required files, that students
+                    must upload.
+                </p>
+
+                <p class="mb-1">
+                    <b>Deny all files</b> denies all files by default, which
+                    determines exactly which files a student is allowed to
+                    upload.
+                </p>
+
+                <p class="mb-1">
+                    <b>Allow all files</b> allows all files by default, which
+                    allows you to specify which files a student is not allowed
+                    to upload.
+                </p>
+            </description-popover>
         </template>
         <b-form-radio-group
             class="option-button"
@@ -53,6 +61,7 @@
             button-variant="primary"
             buttons />
     </b-form-group>
+
     <transition :name="disabledAnimations ? '' : 'collapse'">
         <div v-if="policy" class="collapse-entry">
             <table v-if="!summaryMode" class="table table-striped">
@@ -68,44 +77,40 @@
                         </td>
                         <td>
                             <b-form-group horizontal
-                                          style="margin: 0;"
-                                          label-cols="9"
-                                          :label-for="option.id"
-                                          >
+                                          class="mb-0">
                                 <b-form-radio-group
-                                    :id="option.id"
                                     class="option-button"
                                     size="sm"
                                     :disabled="!editable"
                                     v-model="option.value"
                                     :options="option.options"
                                     button-variant="primary"
-                                    buttons
-                                    />
+                                    buttons />
                             </b-form-group>
                         </td>
                     </tr>
                 </tbody>
             </table>
             <div>
-                <div class="rules-header">
-                    <b v-if="summaryMode">
+                <div v-if="summaryMode"
+                     class="rules-header p-3">
+                    <b>
                         By default all files are
                         <i>{{ policyOptions.find(x => x.value === policy).shortText }}</i>.
                         Exceptions and requirements:
                     </b>
                 </div>
-                <ul class="rule-list striped-list"
-                    v-if="!loadingRules"
-                    :class="{ 'background-enabled': !disableBackgroundAnimation }"
-                    >
+                <ul v-if="!loadingRules"
+                    class="rules-list striped-list"
+                    :class="{ 'background-enabled': !disableBackgroundAnimation }">
                     <transition-group :name="disabledAnimations ? '' : 'list'">
                         <li v-for="ruleIndex in sortedRuleIndices"
                             v-if="!rules[ruleIndex].removed"
                             class="list-item"
                             :key="ruleIndex">
                             <div class="rule-wrapper">
-                                <file-rule v-model="rules[ruleIndex]" :all-rules="rules"
+                                <file-rule v-model="rules[ruleIndex]"
+                                           :all-rules="rules"
                                            :editing="!!rules[ruleIndex].editing"
                                            :editable="editable"
                                            :policy="policy"
@@ -116,8 +121,8 @@
                                     <submit-button confirm="Are you sure you want to delete this rule?"
                                                    v-b-popover.top.hover="'Delete this rule'"
                                                    :submit="() => deleteRule(ruleIndex)"
-                                                   :duration=0
-                                                   :wait-at-least=0
+                                                   :duration="0"
+                                                   :wait-at-least="0"
                                                    variant="danger">
                                         <icon name="times"/>
                                     </submit-button>
@@ -133,13 +138,15 @@
                     </transition-group>
                     <li class="new-file-rule"
                         v-if="editable">
-                        <file-rule v-model="newRule" editing
+                        <file-rule v-model="newRule"
+                                   editing
                                    :all-rules="rules"
                                    :policy="policy"/>
                     </li>
                 </ul>
             </div>
-            <div class="help-text" v-if="editable">
+            <div v-if="editable"
+                 class="help-text">
                 <p>
                     Add rules by specifying the required, allowed or denied path
                     in the text area above. Use <code>/</code> or <code>\</code>
@@ -150,7 +157,7 @@
                     allowed or denied in the top level directory.
                 </p>
 
-                <p>
+                <p class="mb-0">
                     To match more than one file, you can use a single wildcard
                     for the name of the file, by using a <code>*</code>. For
                     example <code>/src/*.py</code> matches any file ending
@@ -491,10 +498,6 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.rule-list.background-enabled .list-item {
-    transition: all 0.3s;
-}
-
 td {
     vertical-align: middle;
 }
@@ -502,11 +505,6 @@ td {
 .rule-wrapper {
     display: flex;
     justify-content: space-between;
-
-    .submit-button {
-        height: 100%;
-        vertical-align: initial;
-    }
 }
 
 .collapse-enter-active {
@@ -526,30 +524,22 @@ td {
 }
 .list-leave-active {
     transition: opacity 0.6s;
-    background-color: #d9534f !important;
+    background-color: rgb(217, 83, 79) !important;
 }
 
 .list-leave-to {
-    background-color: #d9534f !important;
+    background-color: rgb(217, 83, 79) !important;
 }
 .list-enter,
 .list-leave-to {
     opacity: 0;
 }
 
-.help-text p:last-child {
-    margin-bottom: 0;
-}
-
-.policy-form-only {
-    margin-bottom: 0;
-}
-
 .old-cgignore {
     padding: 1rem;
     margin-top: 1rem;
     border: 1px solid currentColor;
-    border-radius: 0.25rem;
+    border-radius: @border-radius;
 }
 
 pre {
@@ -557,13 +547,8 @@ pre {
     padding: 0;
 }
 
-.rules-header {
-    padding: 0.75rem;
-    border-bottom: 2px solid @color-border-gray-lighter;
-
-    #app.dark & {
-        border-color: @color-primary-darker;
-    }
+.rules-list.background-enabled .list-item {
+    transition: all 0.3s;
 }
 
 .btn.policy-btn {
@@ -589,37 +574,54 @@ pre {
         .btn {
             border-color: @color-primary;
         }
+
         .btn:not(.disabled) {
             cursor: pointer;
             box-shadow: none;
         }
+
         &.btn-group {
             float: right;
         }
+
         .btn.active {
             text-decoration: underline;
             background-color: @color-primary;
-        }
-        .btn:not(.active) {
-            background-color: @background-color;
-            color: @text-color;
-            #app.dark & {
-                color: darken(@text-color-dark, 30%);
+            border-color: @color-primary;
+
+            @{dark-mode} {
+                background-color: @color-primary-darker;
+                border-color: @color-primary-darker;
             }
-            &:hover:not(.disabled) {
-                background-color: darken(@background-color, 10%);
+        }
+
+        .btn:not(.active) {
+            background-color: transparent;
+            color: @text-color;
+
+            &:not(.disabled):hover {
+                background-color: rgba(0, 0, 0, 0.1);
+            }
+
+            @{dark-mode} {
+                border-color: @color-primary-darker;
+                color: @text-color-dark;
             }
         }
     }
 
     .policy-form {
         padding-left: 0.75rem;
-        padding-right: 0.75rem;
         vertical-align: middle;
-        margin-bottom: 0.75rem;
+
+        &-only {
+            margin-bottom: 0;
+        }
+
         .form-row {
             align-items: center;
         }
+
         .policy-form-label {
             padding-bottom: 0;
         }

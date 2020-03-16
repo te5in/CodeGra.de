@@ -54,12 +54,12 @@ context('Manage Assignment', () => {
         it('should use the correct deadline after updating it', () => {
             cy.get('.assignment-deadline')
                 .click({ force: true });
-            cy.get('.flatpickr-calendar .flatpickr-day:not(.prevMonthDay):not(.nextMonthDay).today')
+            cy.get('.flatpickr-calendar:visible .flatpickr-day:not(.prevMonthDay):not(.nextMonthDay).today')
                 .click();
-            cy.get('.flatpickr-calendar input.flatpickr-hour:visible')
+            cy.get('.flatpickr-calendar:visible input.flatpickr-hour:visible')
                 .clear()
                 .type('23');
-            cy.get('.flatpickr-calendar input.flatpickr-minute:visible')
+            cy.get('.flatpickr-calendar:visible input.flatpickr-minute:visible')
                 .clear()
                 .type('59{enter}');
             cy.get('.assignment-deadline ~ .input-group-append .submit-button')
@@ -153,17 +153,23 @@ context('Manage Assignment', () => {
             cy.get('.course-list').contains(course.name).click();
             cy.get('.assignment-list').should('contain', assignment.name);
 
-            cy.get('.danger-zone-wrapper').within(() => {
-                cy.get('.submit-button').contains('Delete assignment').click();
-                cy.get('.modal').contains('Deleting this assignment cannot be reversed').should('be.visible')
+            cy.get('.danger-zone-wrapper')
+                .contains('.submit-button', 'Delete assignment')
+                .submit('success', {
+                    hasConfirm: true,
+                    confirmInModal: true,
+                    doConfirm: false,
+                    confirmMsg: 'Deleting this assignment cannot be reversed',
+                });
 
-                // Cancel should not delete
-                cy.get('.submit-button').contains('Cancel').click();
-                cy.get('.modal').should('not.be.visible')
-
-                cy.get('.submit-button').contains('Delete assignment').click();
-                cy.get('.submit-button').contains('Confirm').click();
-            });
+            cy.get('.danger-zone-wrapper')
+                .contains('.submit-button', 'Delete assignment')
+                .submit('success', {
+                    hasConfirm: true,
+                    confirmInModal: true,
+                    waitForDefault: false,
+                    confirmMsg: 'Deleting this assignment cannot be reversed',
+                });
 
             cy.url().should('eq', Cypress.config().baseUrl + '/');
             cy.get('.assig-list').should('not.contain', assignment.name);

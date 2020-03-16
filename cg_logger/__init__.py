@@ -7,7 +7,6 @@ import sys
 import uuid
 import typing as t
 import logging as system_logging
-import datetime
 import threading
 import contextlib
 import multiprocessing
@@ -16,6 +15,8 @@ import flask
 import structlog
 import flask_jwt_extended as flask_jwt
 from flask import g, request
+
+from cg_dt_utils import DatetimeWithTimezone
 
 logger = structlog.get_logger()
 
@@ -32,7 +33,9 @@ def _find_first_app_frame_and_name() -> t.Tuple[object, str]:
     name = f.f_globals.get('__name__') or '?'
     while any(tuple(name.startswith(i) for i in ignores)):
         if f.f_back is None:
-            name = '?'
+            # Mypy thinks this is unreachable code because of
+            # https://github.com/python/typeshed/pull/3740
+            name = '?'  # type: ignore[misc]
             break
         f = f.f_back
         name = f.f_globals.get('__name__') or '?'
@@ -77,7 +80,7 @@ def init_app(app: flask.Flask, set_user: bool = True) -> None:
 
     @app.before_request
     def __create_logger() -> None:  # pylint: disable=unused-variable
-        g.request_start_time = datetime.datetime.utcnow()
+        g.request_start_time = DatetimeWithTimezone.utcnow()
 
         g.request_id = uuid.uuid4()
         log = logger.new(
@@ -95,7 +98,7 @@ def init_app(app: flask.Flask, set_user: bool = True) -> None:
 
         func = log.info
         try:
-            start = datetime.datetime.utcfromtimestamp(
+            start = DatetimeWithTimezone.utcfromtimestamp(
                 float(request.headers['X-Request-Start-Time'])
             )
             wait_time = (g.request_start_time - start).total_seconds()
@@ -135,7 +138,7 @@ def init_app(app: flask.Flask, set_user: bool = True) -> None:
         cache_hits: int = getattr(g, 'cache_hits', 0)
         cache_misses: int = getattr(g, 'cache_misses', 0)
 
-        end_time = datetime.datetime.utcnow()
+        end_time = DatetimeWithTimezone.utcnow()
         start_time = getattr(g, 'request_start_time', end_time)
         log_msg(
             'Request finished',

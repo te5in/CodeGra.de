@@ -115,6 +115,8 @@ def test_raises_exception():
         pool.start(producer)
 
     assert final_set.is_set() is False
+    assert 'Original traceback:' in str(err.value)
+    assert 'CustomExc' in str(err.value)
 
 
 def test_retry_work(work_done):
@@ -130,7 +132,7 @@ def test_retry_work(work_done):
         Work(result_id=5, student_id=2),
         Work(result_id=6, student_id=3),
     ]
-    pool = WorkerPool(3, worker_fun, 0, 1, initial_work)
+    pool = WorkerPool(3, worker_fun, 0.5, 1, initial_work)
     pool.start(lambda _: [])
 
     all_work = initial_work + initial_work + initial_work
@@ -154,7 +156,7 @@ def test_killing_and_replacing_worker(work_done):
         Work(result_id=5, student_id=2),
         Work(result_id=6, student_id=3),
     ]
-    pool = WorkerPool(3, worker_fun, 0, 1, initial_work)
+    pool = WorkerPool(3, worker_fun, 0.5, 1, initial_work)
     pool.start(lambda _: [])
 
     all_work = initial_work
@@ -163,3 +165,41 @@ def test_killing_and_replacing_worker(work_done):
 
     assert work_done.empty()
     assert not all_work
+
+
+def test_producer_producing_work_twice(work_done):
+    def worker_fun(opts):
+        work1 = opts.get_work()
+        assert work1 is not None
+        work_done.put(work1)
+        time.sleep(1)
+
+        # There should be no work left in the queue, so it should quickly
+        # return `None`.
+        work2 = opts.get_work(block=False)
+        assert work2 is None
+        work_done.put(work2)
+
+        opts.mark_work_as_finished(work1)
+        time.sleep(1)
+
+        # As the work1 was marked as finished, and it is produced again, it
+        # should be added to the queue again.
+        work3 = opts.get_work(block=False)
+        assert work3 is not None
+        assert work1 == work3
+        work_done.put(work3)
+
+        # There should be no more work left, and it should return `None` after
+        # the bonus rounds are done.
+        assert opts.get_work(block=True) is None
+
+    main_work = Work(result_id=1, student_id=2)
+
+    pool = WorkerPool(1, worker_fun, 0.5, 1, [main_work])
+    pool.start(lambda _: [main_work])
+
+    assert work_done.get(False) == main_work
+    assert work_done.get(False) is None
+    assert work_done.get(False) == main_work
+    assert work_done.empty()

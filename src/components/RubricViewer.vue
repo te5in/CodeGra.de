@@ -6,14 +6,45 @@
     <b-tabs no-fade
             v-model="currentCategory">
         <b-tab v-for="row, i in rubric.rows"
-               :head-html="tabTitleHTML(row)"
                :key="`rubric-${row.id}`">
+            <template #title>
+                <template v-if="row.header">
+                    {{ row.header }}
+                </template>
+
+                <span v-else
+                      class="text-muted font-italic">
+                    Unnamed
+                </span>
+
+                <template v-if="Object.hasOwnProperty.call(selectedItems, row.id)">
+                    - <sup>{{
+                        $utils.toMaxNDecimals(selectedItems[row.id], 2)
+                    }}</sup>&frasl;<sub>{{
+                        row.maxPoints
+                    }}</sub>
+                </template>
+
+                <template v-else-if="!editable">
+                    - <sup>Nothing</sup>&frasl;<sub>{{
+                        row.maxPoints
+                    }}</sub>
+                </template>
+
+                <b-badge v-if="row.locked === 'auto_test'"
+                         title="This is an AutoTest category"
+                         variant="primary"
+                         class="ml-1">
+                    AT
+                </b-badge>
+            </template>
+
             <component
                 v-if="row.type === 'normal' || row.type === 'continuous'"
                 :is="`rubric-viewer-${row.type}-row`"
                 class="border border-top-0 rounded rounded-top-0"
                 :value="internalResult"
-                @input="resultUpdated"
+                @input="resultUpdated(row.id, $event)"
                 @submit="$emit('submit')"
                 :rubric-row="row"
                 :assignment="assignment"
@@ -37,6 +68,7 @@ import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/lock';
 
 import * as constants from '@/constants';
+import { RubricResult } from '@/models';
 
 import Loader from './Loader';
 import RubricViewerNormalRow from './RubricViewerNormalRow';
@@ -64,7 +96,7 @@ export default {
         return {
             id: this.$utils.getUniqueId(),
             currentCategory: 0,
-            internalResult: null,
+            changedItems: {},
         };
     },
 
@@ -88,12 +120,36 @@ export default {
             return this.storeRubricResults[this.submissionId];
         },
 
+        internalResult() {
+            const selected = Object.assign({}, this.result.selected);
+            Object.entries(this.changedItems).forEach(([rowId, item]) => {
+                if (item == null) {
+                    delete selected[rowId];
+                } else {
+                    selected[rowId] = item;
+                }
+            });
+            return new RubricResult(this.submissionId, selected);
+        },
+
         assignmentId() {
             return this.assignment.id;
         },
 
         submissionId() {
             return this.submission.id;
+        },
+
+        selectedItems() {
+            const selected = this.$utils.getProps(this.internalResult, {}, 'selected');
+            return Object.entries(selected).reduce((acc, [rowId, item]) => {
+                const points = parseFloat(item.points);
+                const mult = parseFloat(item.multiplier);
+                if (!Number.isNaN(points) && !Number.isNaN(mult)) {
+                    acc[rowId] = mult * points;
+                }
+                return acc;
+            }, {});
         },
 
         autoTestConfigId() {
@@ -130,6 +186,8 @@ export default {
         submissionId: {
             immediate: true,
             handler() {
+                this.reset();
+
                 this.storeLoadRubricResult({
                     submissionId: this.submissionId,
                     assignmentId: this.assignmentId,
@@ -150,20 +208,19 @@ export default {
         result: {
             immediate: true,
             handler() {
-                this.internalResult = this.result;
-                this.$emit('load', this.result);
+                this.$emit('load', this.internalResult);
             },
         },
     },
 
     mounted() {
-        this.$root.$on('cg::rubric-viewer::open-category', id => {
-            this.currentCategory = this.rubric.rows.findIndex(row => row.id === id);
-        });
+        this.$root.$on('cg::rubric-viewer::open-category', this.gotoCategory);
+        this.$root.$on('cg::rubric-viewer::reset', this.reset);
     },
 
     destroyed() {
-        this.$root.$off('cg::rubric-viewer::open-category');
+        this.$root.$off('cg::rubric-viewer::open-category', this.gotoCategory);
+        this.$root.$off('cg::rubric-viewer::reset', this.reset);
     },
 
     methods: {
@@ -177,45 +234,17 @@ export default {
             storeLoadAutoTestResult: 'loadAutoTestResult',
         }),
 
-        tabTitleHTML(row) {
-            const escape = this.$utils.htmlEscape;
-            const toDec = val => escape(this.$utils.toMaxNDecimals(val, 2));
-            const makeFraction = (upper, lower) =>
-                `<sup>${escape(upper)}</sup>&frasl;<sub>${escape(lower)}</sub>`;
-
-            const parts = [];
-
-            if (row.header) {
-                parts.push(escape(row.header));
-            } else {
-                parts.push('<span class="text-muted font-italic">Unnamed category</span>');
-            }
-
-            const selectedItem = this.$utils.getProps(
-                this.internalResult,
-                null,
-                'selected',
-                row.id,
-            );
-
-            if (selectedItem && !Number.isNaN(Number(selectedItem.multiplier))) {
-                const mul = Math.max(0, Math.min(selectedItem.multiplier, 1));
-                const points = toDec(selectedItem.points * mul);
-                parts.push(`- ${makeFraction(points, row.maxPoints)}`);
-            } else if (!this.editable) {
-                parts.push(`- ${makeFraction('Nothing', row.maxPoints)}`);
-            }
-
-            if (row.locked === 'auto_test') {
-                parts.push(constants.RUBRIC_BADGE_AT);
-            }
-
-            return parts.join(' ');
+        resultUpdated(rowId, item) {
+            this.$set(this.changedItems, rowId, item);
+            this.$emit('input', this.internalResult);
         },
 
-        resultUpdated(result) {
-            this.internalResult = result;
-            this.$emit('input', result);
+        reset() {
+            this.changedItems = {};
+        },
+
+        gotoCategory(rowId) {
+            this.currentCategory = this.rubric.rows.findIndex(row => row.id === rowId);
         },
     },
 
@@ -238,6 +267,10 @@ export default {
         &.active {
             background-color: rgba(0, 0, 0, 0.0625);
             border-bottom-width: 0;
+        }
+
+        .badge {
+            transform: translateY(-2px);
         }
     }
 
@@ -265,7 +298,7 @@ export default {
         color: @color-secondary;
         transition: width @transition-duration;
 
-        #app.dark & {
+        @{dark-mode} {
             background-color: fade(white, 15%);
             border-right: 1px solid fade(white, 25%);
             color: @text-color-dark;
@@ -281,7 +314,7 @@ export default {
                 1px 0 rgba(255, 255, 255, 0.75), 0 -1px rgba(255, 255, 255, 0.75);
             font-weight: bold !important;
 
-            #app.dark & {
+            @{dark-mode} {
                 text-shadow: -1px 0 @color-primary, 0 1px @color-primary, 1px 0 @color-primary,
                     0 -1px @color-primary;
             }

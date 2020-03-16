@@ -17,12 +17,15 @@
             <thead>
                 <tr>
                     <th class="name">Name</th>
-                    <th class="score">Score</th>
-                    <th class="state">State</th>
+                    <th class="score shrink">Score</th>
+                    <th class="state shrink">State</th>
                 </tr>
             </thead>
 
-            <component :is="doTransitions ? 'transition-group' : 'tbody'" v-if="sortedResults.length > 0" tag="tbody" name="result">
+            <component v-if="sortedResults.length > 0"
+                       :is="doTransitions ? 'transition-group' : 'tbody'"
+                       tag="tbody"
+                       name="result">
                 <tr v-for="result in visibleResults"
                     :key="`${result.id}-${result.state}`"
                     @click="openResult(result)">
@@ -30,22 +33,26 @@
                         <div v-if="submissions[result.submissionId]">
                             <user :user="submissions[result.submissionId].user"/>
                         </div>
-                        <div v-else class="name-loader">
-                            <loader :center="false" :scale="1"/>
+                        <div v-else
+                             class="name-loader">
+                            <loader :center="false"
+                                    :scale="1"/>
                         </div>
                     </td>
-                    <td class="score">
+                    <td class="score shrink">
                         <div>
                             <span v-if="submissions[result.submissionId]">
                                 <icon v-if="submissions[result.submissionId].grade_overridden"
-                                    v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
+                                      v-b-popover.top.hover="'This submission\'s calculated grade has been manually overridden'"
+                                    class="mr-2"
                                     name="exclamation-triangle"/>
                             </span>
+
                             {{ $utils.toMaxNDecimals($utils.getProps(result, '-', 'pointsAchieved'), 2) }} /
                             {{ $utils.toMaxNDecimals(autoTest.pointsPossible, 2) }}
                         </div>
                     </td>
-                    <td class="state">
+                    <td class="state shrink">
                         <div>
                             <auto-test-state :result="result" show-icon />
                         </div>
@@ -53,7 +60,7 @@
                 </tr>
             </component>
             <tbody v-else>
-                <tr>
+                <tr class="text-center text-muted font-italic">
                     <td colspan="3">No results</td>
                 </tr>
             </tbody>
@@ -255,24 +262,16 @@ export default {
         border-top: 0;
     }
 
-    .submitted,
-    .score,
-    .state {
-        width: 1px;
-        white-space: nowrap;
-    }
-
     .score {
         text-align: right;
-
-        .fa-icon {
-            transform: translateY(2px);
-            margin-right: 0.5rem;
-        }
     }
 
     .state {
         text-align: center;
+    }
+
+    .fa-icon {
+        transform: translateY(-1px);
     }
 }
 
@@ -316,43 +315,5 @@ export default {
 .result-leave td > div {
     max-height: 3rem;
     opacity: 1;
-}
-</style>
-
-<style lang="less">
-@import '~mixins.less';
-
-.auto-test-run .pagination {
-    display: flex;
-    justify-content: center;
-
-    .page-item {
-        .page-link {
-            &:active,
-            &:focus {
-                box-shadow: none;
-            }
-
-            #app.dark & {
-                border-color: @color-primary-darkest;
-                background-color: @color-primary;
-                color: @text-color-dark;
-
-                &:hover {
-                    background-color: rgba(0, 0, 0, 0.125);
-                }
-            }
-        }
-
-        &.active .page-link {
-            border-color: @color-primary;
-            background-color: @color-primary;
-            color: @text-color-dark;
-
-            #app.dark & {
-                background-color: @color-primary-darkest;
-            }
-        }
-    }
 }
 </style>

@@ -7,27 +7,29 @@ import enum
 import uuid
 import shutil
 import typing as t
-import datetime
+from abc import abstractmethod
 from collections import defaultdict
 
+import structlog
 from flask import current_app
 from sqlalchemy import event
 from sqlalchemy_utils import UUIDType
 
 import psef
+from cg_dt_utils import DatetimeWithTimezone
+from cg_sqlalchemy_helpers import hybrid_property
+from cg_sqlalchemy_helpers.types import ColumnProxy, ImmutableColumnProxy
 from cg_sqlalchemy_helpers.mixins import TimestampMixin
 
-from . import Base, db, _MyQuery
+from . import Base, db
+from . import work as work_models
+from . import _MyQuery
 from .. import auth, helpers
 from ..exceptions import APICodes, APIException
 from ..permissions import CoursePermission
 
-if t.TYPE_CHECKING and getattr(t, 'SPHINX', False):  # pragma: no cover
-    # pylint: disable=unused-import
-    from . import auto_test as auto_test_models
-    from . import work as work_models
-
-T = t.TypeVar('T')
+logger = structlog.get_logger()
+T = t.TypeVar('T', covariant=True)
 
 
 @enum.unique
@@ -55,24 +57,48 @@ class FileMixin(t.Generic[T]):
     """
 
     # The given name of the file.
-    name: str = db.Column('name', db.Unicode, nullable=False)
+    name = db.Column('name', db.Unicode, nullable=False)
 
     # This is the filename for the actual file on the disk. This is probably a
     # randomly generated uuid.
-    filename: t.Optional[str]
     filename = db.Column('filename', db.Unicode, nullable=True)
 
-    @property
-    def id(self) -> T:
-        """Get the id in the database of this file.
+    @abstractmethod
+    def get_id(self) -> T:
+        """Get the id of this file.
         """
         raise NotImplementedError
 
-    @property
-    def is_directory(self) -> bool:
-        """Is this file a directory.
+    is_directory: ImmutableColumnProxy[bool]
+
+    def open(self) -> t.BinaryIO:
+        """Open this file.
+
+        This file checks if this file can be opened.
+
+        :returns: The contents of the file with newlines.
         """
-        raise NotImplementedError
+        if self.is_directory:
+            raise APIException(
+                'Cannot display this file as it is a directory.',
+                f'The selected file with id {self.get_id()} is a directory.',
+                APICodes.OBJECT_WRONG_TYPE, 400
+            )
+
+        filename = self.get_diskname()
+        if os.path.islink(filename):  # pragma: no cover
+            # This should not be possible as we replace symlinks with regular
+            # files on submission.
+            logger.error(
+                'Symlink found in uploads directory',
+                filename=filename,
+            )
+            raise APIException(
+                f'This file is a symlink to `{os.readlink(filename)}`.',
+                f'The file {self.get_id()} is a symlink',
+                APICodes.INVALID_STATE, 410
+            )
+        return open(filename, 'rb')
 
     def delete_from_disk(self) -> None:
         """Delete the file from disk if it is not a directory.
@@ -112,21 +138,23 @@ class FileMixin(t.Generic[T]):
 
     def __to_json__(self) -> t.Mapping[str, object]:
         return {
-            'id': str(self.id),
+            'id': str(self.get_id()),
             'name': self.name,
         }
 
     def _inner_list_contents(
         self,
-        cache: t.Mapping[T, t.Sequence['FileMixin[T]']],
+        cache: t.Mapping[t.Optional[T], t.Sequence['FileMixin[T]']],
     ) -> 'psef.files.FileTree[T]':
         entries = None
         if self.is_directory:
             entries = [
                 c._inner_list_contents(cache)  # pylint: disable=protected-access
-                for c in cache[self.id]
+                for c in cache[self.get_id()]
             ]
-        return psef.files.FileTree(name=self.name, id=self.id, entries=entries)
+        return psef.files.FileTree(
+            name=self.name, id=self.get_id(), entries=entries
+        )
 
 
 NFM_T = t.TypeVar('NFM_T', bound='NestedFileMixin')  # pylint: disable=invalid-name
@@ -140,8 +168,17 @@ class NestedFileMixin(FileMixin[T]):
     representation of a directory.
     """
     modification_date = db.Column(
-        'modification_date', db.DateTime, default=datetime.datetime.utcnow
+        'modification_date',
+        db.TIMESTAMP(timezone=True),
+        default=DatetimeWithTimezone.utcnow,
+        nullable=False,
     )
+
+    @abstractmethod
+    def get_id(self) -> T:
+        """Get the id of this file.
+        """
+        raise NotImplementedError
 
     if t.TYPE_CHECKING:  # pragma: no cover
         # pylint: disable=unused-argument
@@ -155,20 +192,12 @@ class NestedFileMixin(FileMixin[T]):
         ) -> None:
             ...
 
-    @property
-    def parent_id(self) -> T:
-        """The id of the parent.
-        """
-        raise NotImplementedError
+    # The id of the parent.
+    parent_id: ImmutableColumnProxy[t.Optional[T]]
 
-    @property
-    def parent(self) -> t.Optional['NestedFileMixin[T]']:
-        """The parent of this file.
-
-        If ``None`` this file has no parent, i.e. it is a toplevel
-        directory/file.
-        """
-        raise NotImplementedError
+    # The parent of this file. If ``None`` this file has no parent, i.e. it is
+    # a toplevel directory/file.
+    parent: ImmutableColumnProxy[t.Optional['NestedFileMixin[T]']]
 
     @classmethod
     def create_from_extract_directory(
@@ -225,40 +254,41 @@ class File(NestedFileMixin[int], Base):
         query: t.ClassVar[_MyQuery['File']]
     __tablename__ = "File"
 
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    work_id: int = db.Column(
+    id = db.Column('id', db.Integer, primary_key=True)
+
+    def get_id(self) -> int:
+        return self.id
+
+    work_id = db.Column(
         'Work_id',
         db.Integer,
         db.ForeignKey('Work.id', ondelete='CASCADE'),
         nullable=False,
     )
 
-    fileowner: FileOwner = db.Column(
+    fileowner = db.Column(
         'fileowner',
         db.Enum(FileOwner),
         default=FileOwner.both,
         nullable=False
     )
 
-    is_directory: bool = db.Column('is_directory', db.Boolean)
+    is_directory = db.Column('is_directory', db.Boolean, nullable=False)
     parent_id = db.Column('parent_id', db.Integer, db.ForeignKey('File.id'))
 
     # This variable is generated from the backref from the parent
     children: '_MyQuery["File"]'
 
     parent = db.relationship(
-        'File',
+        lambda: File,
         remote_side=[id],
-        backref=db.backref('children', lazy='dynamic')
-    )  # type: 'File'
+        backref=db.backref('children', lazy='dynamic'),
+    )
 
     work = db.relationship(
-        'Work',
+        lambda: work_models.Work,
         foreign_keys=work_id,
-        backref=db.backref(
-            'files', lazy='select', uselist=True, cascade='all,delete'
-        )
-    )  # type: 'work_models.Work'
+    )
 
     @staticmethod
     def get_exclude_owner(owner: t.Optional[str], course_id: int) -> FileOwner:
@@ -380,8 +410,12 @@ class AutoTestFixture(Base, FileMixin[int], TimestampMixin):
         query: t.ClassVar[_MyQuery['AutoTestFixture']]
     __tablename__ = 'AutoTestFixture'
 
-    id: int = db.Column('id', db.Integer, primary_key=True)
-    auto_test_id: int = db.Column(
+    id = db.Column('id', db.Integer, primary_key=True)
+
+    def get_id(self) -> int:
+        return self.id
+
+    auto_test_id = db.Column(
         'auto_test_id',
         db.Integer,
         db.ForeignKey('AutoTest.id', ondelete='CASCADE'),
@@ -397,16 +431,17 @@ class AutoTestFixture(Base, FileMixin[int], TimestampMixin):
         db.session.delete(self)
         psef.helpers.callback_after_this_request(self.delete_from_disk)
 
-    @property
-    def is_directory(self) -> bool:
+    @hybrid_property
+    def is_directory(self) -> bool:  # pylint: disable=no-self-use
+        """An AutoTest fixture is never a directory, as we only allow file
+            uploads.
+        """
         return False
 
-    hidden: bool = db.Column(
-        'hidden', db.Boolean, nullable=False, default=True
-    )
+    hidden = db.Column('hidden', db.Boolean, nullable=False, default=True)
 
-    auto_test: 'auto_test_models.AutoTest' = db.relationship(
-        'AutoTest',
+    auto_test = db.relationship(
+        lambda: psef.models.AutoTest,
         foreign_keys=auto_test_id,
         back_populates='fixtures',
         lazy='joined',
@@ -448,16 +483,19 @@ class AutoTestOutputFile(Base, NestedFileMixin[uuid.UUID], TimestampMixin):
     """This class represents an output file from an AutoTest run.
 
     The output files are connected to both a
-    :class:`.auto_test_models.AutoTestResult` and a
-    :class:`.auto_test_models.AutoTestSuite`.
+    :class:`.psef.models.AutoTestResult` and a
+    :class:`.psef.models.AutoTestSuite`.
     """
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['AutoTestOutputFile']]
 
-    id: uuid.UUID = db.Column(UUIDType, primary_key=True, default=uuid.uuid4)
+    id = db.Column('id', UUIDType, primary_key=True, default=uuid.uuid4)
 
-    is_directory: bool = db.Column('is_directory', db.Boolean, nullable=False)
-    parent_id: uuid.UUID = db.Column(
+    def get_id(self) -> T:
+        return self.id
+
+    is_directory = db.Column('is_directory', db.Boolean, nullable=False)
+    parent_id: ColumnProxy[t.Optional[uuid.UUID]] = db.Column(
         'parent_id', UUIDType, db.ForeignKey('auto_test_output_file.id')
     )
 
@@ -465,24 +503,25 @@ class AutoTestOutputFile(Base, NestedFileMixin[uuid.UUID], TimestampMixin):
         'auto_test_result_id',
         db.Integer,
         db.ForeignKey('AutoTestResult.id'),
+        nullable=False,
     )
 
-    result: 'auto_test_models.AutoTestResult' = db.relationship(
-        'AutoTestResult',
+    result = db.relationship(
+        lambda: psef.models.AutoTestResult,
         foreign_keys=auto_test_result_id,
         innerjoin=True,
         backref=db.backref('files', lazy='dynamic', cascade='all,delete')
     )
 
-    auto_test_suite_id: int = db.Column(
+    auto_test_suite_id = db.Column(
         'auto_test_suite_id',
         db.Integer,
         db.ForeignKey('AutoTestSuite.id'),
         nullable=False
     )
 
-    suite: 'auto_test_models.AutoTestSuite' = db.relationship(
-        'AutoTestSuite',
+    suite = db.relationship(
+        lambda: psef.models.AutoTestSuite,
         foreign_keys=auto_test_suite_id,
         innerjoin=True,
     )
@@ -491,15 +530,15 @@ class AutoTestOutputFile(Base, NestedFileMixin[uuid.UUID], TimestampMixin):
     children: '_MyQuery["AutoTestOutputFile"]'
 
     parent = db.relationship(
-        'AutoTestOutputFile',
+        lambda: psef.models.AutoTestOutputFile,
         remote_side=[id],
         backref=db.backref('children', lazy='dynamic')
-    )  # type: 'AutoTestOutputFile'
+    )
 
     def list_contents(self) -> 'psef.files.FileTree[uuid.UUID]':
         """List the basic file info and the info of its children.
         """
-        cache: t.Mapping[uuid.UUID, t.
+        cache: t.Mapping[t.Optional[uuid.UUID], t.
                          List[AutoTestOutputFile]] = defaultdict(list)
 
         for f in AutoTestOutputFile.query.filter_by(

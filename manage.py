@@ -15,6 +15,7 @@ from flask_migrate import Migrate, MigrateCommand
 from sqlalchemy_utils import PasswordType
 
 import psef
+import cg_dt_utils
 import psef.models as m
 
 
@@ -32,7 +33,9 @@ app = psef.create_app(
     skip_secret_key_check=True,
 )
 
-migrate = Migrate(app, psef.models.db, render_item=render_item)
+migrate = Migrate(
+    app, psef.models.db, render_item=render_item, compare_type=True
+)
 manager = Manager(app)
 
 manager.add_command('db', MigrateCommand)
@@ -166,7 +169,7 @@ def test_data(db=None):
                 db.session.add(
                     m.Assignment(
                         name=c['name'],
-                        deadline=datetime.datetime.utcnow() +
+                        deadline=cg_dt_utils.now() +
                         datetime.timedelta(days=c['deadline']),
                         state=c['state'],
                         description=c['description'],
@@ -239,6 +242,7 @@ def test_data(db=None):
                                     filename=filename
                                 )
                             ]
+                            db.session.add(f)
                             db.session.add(work)
     db.session.commit()
     with open(

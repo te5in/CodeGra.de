@@ -1,14 +1,14 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="sidebar"
-     :class="{ floating, inLTI: $inLTI }"
+     :class="{ floating }"
      id="global-sidebar">
     <div class="main-menu" :class="{ show: mobileVisible }">
         <component :is="$inLTI ? 'div' : 'router-link'"
-                   :style="{ cursor: $inLTI ? 'default' : 'pointer'}"
                    class="sidebar-top-item logo"
+                   :class="{ 'cursor-default': $inLTI, 'no-hover': $inLTI }"
                    :to="$inLTI ? undefined : ({ name: 'home' })"
-                   @click.native="$inLTI && closeSubMenu(true)">
+                   @click="$inLTI && closeSubMenu(true)">
             <cg-logo :small="!mobileVisible"
                      :inverted="!darkMode && $inLTI"
                      show-easter-eggs />
@@ -81,7 +81,7 @@
         </div>
     </div>
 
-    <div class="shadow"/>
+    <div class="shadow-overlay"/>
 
     <div class="submenu-container"
          :class="{ 'use-space': dimmingUseSpace, }"
@@ -618,7 +618,7 @@ export default {
     background-color: @color-primary;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 
-    #app.lti:not(.dark) & {
+    body:not(.cg-dark-mode).cg-in-lti & {
         background-color: white;
         color: @text-color;
     }
@@ -641,7 +641,7 @@ export default {
     // box-shadow property on .main-class, because the z-indices of
     // .main-menu and .submenu must be equal, so that modals spawned in the
     // latter can have a higher z-index than .main-menu.
-    & + .shadow {
+    & + .shadow-overlay {
         position: absolute;
         top: 0;
         left: 0;
@@ -679,6 +679,10 @@ export default {
             display: block;
             padding: 1rem 0.5rem;
 
+            &.no-hover {
+                background-color: transparent !important;
+            }
+
             img {
                 width: 90%;
                 margin: 0 auto;
@@ -715,6 +719,10 @@ export default {
         flex: 1 1 auto;
         padding: 0.5rem 0.25rem 0.25rem;
         text-align: center;
+
+        .fa-icon {
+            transform: translateY(-2px);
+        }
     }
 }
 
@@ -775,7 +783,7 @@ export default {
         background-color: white;
         color: @color-primary;
 
-        #app.dark & {
+        @{dark-mode} {
             background-color: @color-primary;
             color: white;
         }
@@ -817,8 +825,13 @@ export default {
 
 .main-menu .new-tab-link.sidebar-bottom-item {
     padding: 0.5rem;
+
     &.submit-button:not(.state-default) .new-tab-wrapper {
         opacity: 0;
+    }
+
+    .fa-icon {
+        transform: none;
     }
 }
 
@@ -856,14 +869,14 @@ export default {
         background-color: transparent !important;
         color: @text-color;
 
-        #app.dark & {
+        @{dark-mode} {
             color: @text-color-dark;
         }
 
         &:hover {
             background-color: @color-light-gray !important;
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: @color-primary-darker !important;
             }
         }
@@ -872,7 +885,7 @@ export default {
             background-color: @color-primary !important;
             color: white !important;
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: white !important;
                 color: @color-primary !important;
             }
@@ -900,11 +913,6 @@ export default {
         padding: 0 0.75rem 0.25rem;
     }
 
-    & &-list-item {
-        display: flex;
-        flex-direction: row;
-    }
-
     & &-top-item,
     & &-bottom-item {
         cursor: pointer;
@@ -912,7 +920,7 @@ export default {
         &:hover {
             background-color: lighten(@color-primary-darker, 2%);
 
-            #app.lti:not(.dark) & {
+            body:not(.cg-dark-mode).cg-in-lti & {
                 background-color: @color-lighter-gray;
             }
         }
@@ -920,7 +928,7 @@ export default {
         &:not(.light-selected) a:hover {
             background-color: @color-primary-darkest;
 
-            #app.lti:not(.dark) & {
+            body:not(.cg-dark-mode).cg-in-lti & {
                 background-color: @color-light-gray;
             }
         }
@@ -929,14 +937,14 @@ export default {
             background-color: lightgray;
             color: @color-primary;
 
-            #app.lti:not(.dark) & {
+            body:not(.cg-dark-mode).cg-in-lti & {
                 background-color: lighten(@color-primary, 5%);
                 color: white;
             }
 
             a:hover:not(.selected) {
                 background-color: darken(lightgray, 7.9%);
-                #app.lti:not(.dark) & {
+                body:not(.cg-dark-mode).cg-in-lti & {
                     background-color: @color-primary-darkest;
                 }
             }
@@ -947,7 +955,7 @@ export default {
             background-color: white;
             color: @color-primary;
 
-            #app.lti:not(.dark) & {
+            body:not(.cg-dark-mode).cg-in-lti & {
                 color: white;
                 background-color: @color-primary;
             }
@@ -957,7 +965,7 @@ export default {
                 background-color: darken(white, 7.9%);
                 color: @color-primary;
 
-                #app.lti:not(.dark) & {
+                body:not(.cg-dark-mode).cg-in-lti & {
                     background-color: darken(@color-primary, 2%);
                     color: white;
                 }
@@ -966,12 +974,14 @@ export default {
     }
 
     & &-list-item {
+        display: flex;
+        flex-direction: row;
         cursor: pointer;
 
         &:hover {
             background-color: @color-lighter-gray;
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: lighten(@color-primary-darker, 2%);
             }
         }
@@ -979,7 +989,7 @@ export default {
         &:not(.light-selected) a:hover {
             background-color: @color-light-gray;
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: @color-primary-darkest;
             }
         }
@@ -988,7 +998,7 @@ export default {
             background-color: lighten(@color-primary, 5%);
             color: white;
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: lightgray;
                 color: @color-primary;
             }
@@ -996,7 +1006,7 @@ export default {
             a:hover:not(.selected) {
                 background-color: @color-primary-darkest;
 
-                #app.dark & {
+                @{dark-mode} {
                     background-color: darken(lightgray, 7.9%);
                 }
             }
@@ -1007,7 +1017,7 @@ export default {
             color: white;
             background-color: @color-primary;
 
-            #app.dark & {
+            @{dark-mode} {
                 background-color: white;
                 color: @color-primary;
             }
@@ -1017,10 +1027,18 @@ export default {
                 background-color: darken(@color-primary, 2%);
                 color: white;
 
-                #app.dark & {
+                @{dark-mode} {
                     background-color: darken(white, 7.9%);
                     color: @color-primary;
                 }
+            }
+        }
+
+        .fa-icon {
+            transform: translateY(-1px);
+
+            .cg-edge & {
+                transform: translateY(-3px);
             }
         }
     }

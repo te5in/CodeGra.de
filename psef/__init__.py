@@ -125,15 +125,18 @@ def create_app(  # pylint: disable=too-many-statements
                          ] = False
 
     if not resulting_app.debug:
+        resulting_app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+        resulting_app.config['SESSION_COOKIE_SECURE'] = True
+
         assert not resulting_app.config['AUTO_TEST_DISABLE_ORIGIN_CHECK']
 
     if config is not None:  # pragma: no cover
         resulting_app.config.update(config)  # type: ignore
 
     if (
-        not skip_secret_key_check and (
-            resulting_app.config['SECRET_KEY'] is None or
-            resulting_app.config['LTI_SECRET_KEY'] is None
+        not skip_secret_key_check and not (
+            resulting_app.config['SECRET_KEY'] and
+            resulting_app.config['LTI_SECRET_KEY']
         )
     ):  # pragma: no cover
         raise ValueError('The option to generate keys has been removed')
@@ -219,5 +222,8 @@ def create_app(  # pylint: disable=too-many-statements
                 'Celery is not responding! Please check your config',
             )
             raise
+
+    import cg_timers
+    cg_timers.init_app(resulting_app)
 
     return resulting_app

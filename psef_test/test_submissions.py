@@ -13,6 +13,7 @@ from helpers import (
     create_course, create_marker, create_assignment, create_submission,
     create_user_with_role
 )
+from cg_dt_utils import DatetimeWithTimezone
 
 http_error = create_marker(pytest.mark.http_error)
 perm_error = create_marker(pytest.mark.perm_error)
@@ -896,13 +897,16 @@ def test_get_dir_contents(
 )
 def test_get_zip_file(
     test_client, logged_in, assignment_real_works, error_template, named_user,
-    request, user_type, get_own
+    request, user_type, get_own, session
 ):
     assignment, work = assignment_real_works
+    assignment.name += '/hello'
+    session.commit()
+
     if get_own:
-        work_id = m.Work.query.filter_by(user=named_user).order_by(
-            m.Work.created_at.desc()
-        ).first().id
+        work_id = m.Work.query.filter_by(
+            user=named_user, assignment=assignment
+        ).order_by(m.Work.created_at.desc()).first().id
     else:
         work_id = work['id']
 
@@ -921,12 +925,17 @@ def test_get_zip_file(
                 'get',
                 f'/api/v1/submissions/{work_id}',
                 error or 200,
-                result=error_template
-                if error else {'name': str, 'output_name': str},
+                result=(
+                    error_template
+                    if error else {'name': str, 'output_name': str}
+                ),
                 query={'type': 'zip', 'owner': user_type},
             )
 
             if not error:
+                assert '/' not in res['output_name']
+                assert '_hello' in res['output_name']
+
                 file_name = res['name']
                 res = test_client.get(url.format(**res))
 
@@ -1001,7 +1010,7 @@ def test_get_teacher_zip_file(
     m.Assignment.query.filter_by(
         id=m.Work.query.get(work_id).assignment_id,
     ).update({
-        'deadline': datetime.datetime.utcnow() - datetime.timedelta(days=1)
+        'deadline': DatetimeWithTimezone.utcnow() - datetime.timedelta(days=1)
     }, )
     get_files(student_user, 403)
 
@@ -1203,8 +1212,8 @@ def test_add_file(
         session.query(
             m.Assignment
         ).filter_by(id=m.Work.query.get(work_id).assignment_id).update({
-            'deadline': datetime.datetime.utcnow() -
-                        datetime.timedelta(days=1)
+            'deadline':
+                DatetimeWithTimezone.utcnow() - datetime.timedelta(days=1)
         })
 
         test_client.req(
@@ -1243,8 +1252,8 @@ def test_add_file(
         session.query(
             m.Assignment
         ).filter_by(id=m.Work.query.get(work_id).assignment_id).update({
-            'deadline': datetime.datetime.utcnow() +
-                        datetime.timedelta(days=1)
+            'deadline':
+                DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
         })
 
     with logged_in(student_user):
@@ -1356,8 +1365,8 @@ def test_add_file(
         session.query(
             m.Assignment
         ).filter_by(id=m.Work.query.get(work_id).assignment_id).update({
-            'deadline': datetime.datetime.utcnow() +
-                        datetime.timedelta(days=1)
+            'deadline':
+                DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
         })
 
 

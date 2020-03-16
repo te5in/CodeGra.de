@@ -9,6 +9,7 @@ import subprocess
 from configparser import ConfigParser
 
 from mypy_extensions import TypedDict
+from typing_extensions import Literal
 
 config_file = os.getenv('CODEGRADE_CONFIG_FILE', 'config.ini')
 
@@ -68,7 +69,7 @@ FlaskConfig = TypedDict(
         'AUTO_TEST_BDEVTYPE': str,
         'AUTO_TEST_HEARTBEAT_INTERVAL': int,
         'AUTO_TEST_HEARTBEAT_MAX_MISSED': int,
-        'AUTO_TEST_TEMPLATE_CONTAINER': str,
+        'AUTO_TEST_TEMPLATE_CONTAINER': t.Optional[str],
         'AUTO_TEST_BROKER_URL': str,
         'AUTO_TEST_BROKER_PASSWORD': str,
         'AUTO_TEST_CF_SLEEP_TIME': float,
@@ -96,6 +97,7 @@ FlaskConfig = TypedDict(
         'MAX_LARGE_UPLOAD_SIZE': int,
         'DEFAULT_ROLE': str,
         'EXTERNAL_URL': str,
+        'PROXY_BASE_DOMAIN': str,
         'JAVA_PATH': str,
         'JPLAG_JAR': str,
         'JPLAG_SUPPORTED_LANGUAGES': t.Mapping[str, str],
@@ -124,6 +126,8 @@ FlaskConfig = TypedDict(
         '_TRANSIP_USERNAME': str,
         'ADMIN_USER': t.Optional[str],
         'GIT_CLONE_PROGRAM': t.List[str],
+        'SESSION_COOKIE_SAMESITE': Literal['None', 'Strict', 'Lax'],
+        'SESSION_COOKIE_SECURE': bool,
     },
     total=True
 )
@@ -317,6 +321,7 @@ set_str(CONFIG, backend_ops, 'DEFAULT_ROLE', 'Student')
 
 # The external URL the server runs on.
 set_str(CONFIG, backend_ops, 'EXTERNAL_URL', '')
+set_str(CONFIG, backend_ops, 'PROXY_BASE_DOMAIN', '')
 
 set_str(CONFIG, backend_ops, 'JAVA_PATH', 'java')
 
@@ -538,6 +543,8 @@ set_bool(CONFIG['__S_FEATURES'], feature_ops, 'REGISTER', False)
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'GROUPS', False)
 
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'AUTO_TEST', False)
+
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'RENDER_HTML', False)
 
 ############
 # LTI keys #

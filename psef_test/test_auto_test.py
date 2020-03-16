@@ -11,10 +11,12 @@ import shutil
 import getpass
 import tempfile
 import threading
-from datetime import datetime, timedelta
+import multiprocessing
+from datetime import timedelta
 from textwrap import dedent
 
 import lxc
+import flask
 import pytest
 import requests
 import pytest_cov
@@ -25,6 +27,7 @@ import helpers
 import psef.models as m
 import cg_worker_pool
 import requests_stubs
+from cg_dt_utils import DatetimeWithTimezone
 from psef.exceptions import APICodes, APIException
 
 
@@ -38,7 +41,7 @@ def monkeypatch_for_run(
     monkeypatch, lxc_stub, stub_function_class, fail_wget_attach
 ):
     old_run_command = psef.auto_test.StartedContainer._run_command
-    psef.auto_test._STOP_CONTAINERS.clear()
+    psef.auto_test._STOP_RUNNING.clear()
 
     monkeypatch.setattr(
         psef.auto_test, '_SYSTEMD_WAIT_CMD',
@@ -209,7 +212,7 @@ def basic(logged_in, admin_user, test_client, session):
         assig_id = helpers.create_assignment(
             test_client,
             course,
-            deadline=datetime.utcnow() + timedelta(days=30)
+            deadline=DatetimeWithTimezone.utcnow() + timedelta(days=30)
         )['id']
         teacher = helpers.create_user_with_role(session, 'Teacher', [course])
         student = helpers.create_user_with_role(session, 'Student', [course])
@@ -792,6 +795,13 @@ def test_run_auto_test(
 
         monkeypatch_broker()
         live_server_url, stop_server = live_server(get_stop=True)
+        with logged_in(teacher, yield_token=True) as token:
+            response = requests.get(
+                f'{live_server_url}{url}/runs/{run.id}',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+            response.raise_for_status()
+
         thread = threading.Thread(
             target=psef.auto_test.start_polling, args=(app.config, )
         )
@@ -1825,6 +1835,22 @@ def test_output_dir(
             assert response.status_code == 200
             assert 'symbolic link' in response.get_data(as_text=True)
 
+    with describe('It should never have feedback'):
+        with logged_in(teacher):
+            file_url = '/api/v1/code/{file_id}'.format(file_id=sym_link_id)
+            test_client.req('get', f'{file_url}?type=feedback', 200, result={})
+            test_client.req(
+                'get', f'{file_url}?type=linter-feedback', 200, result={}
+            )
+            test_client.req(
+                'get',
+                f'{file_url}?type=file-url',
+                200,
+                result={
+                    'name': re.compile(r'[\-0-9a-fA-F]'),
+                }
+            )
+
     with describe('Students do not see the files by default'):
         with logged_in(student):
             # Students do not have permission to see suite files by default by
@@ -1843,6 +1869,40 @@ def test_output_dir(
             assert test_client.get(
                 '/api/v1/code/{file_id}'.format(file_id=sym_link_id)
             ).status_code == 403
+
+    with describe('Can use proxy to view files'):
+        proxy_url = f'{url}/runs/{run_id}/results/{res}/suites/{suite2}/proxy'
+        with logged_in(teacher):
+            proxy = test_client.req(
+                'post',
+                proxy_url,
+                200,
+                data={
+                    'allow_remote_resources': True,
+                    'allow_remote_scripts': True,
+                }
+            )['id']
+
+        res = test_client.post(
+            f'/api/v1/proxies/{proxy}/bye', follow_redirects=False
+        )
+        assert res.status_code == 303
+        res = test_client.get(res.headers['Location'])
+        assert res.status_code == 200
+
+        assert test_client.get(
+            '/api/v1/proxies/non_existing'
+        ).status_code == 404
+
+    with describe('Students cannot use proxy'), logged_in(student):
+        proxy = test_client.req(
+            'post',
+            proxy_url,
+            403,
+            data={
+                'allow_remote_resources': True, 'allow_remote_scripts': True
+            }
+        )
 
     with describe('After deleting run results are removed from disk'):
         file = m.AutoTestOutputFile.query.get(sym_link_id)
@@ -1867,7 +1927,7 @@ def test_copy_auto_test(
             new_assig_id = helpers.create_assignment(
                 test_client,
                 new_course,
-                deadline=datetime.utcnow() + timedelta(days=30)
+                deadline=DatetimeWithTimezone.utcnow() + timedelta(days=30)
             )['id']
             crole = m.CourseRole.query.filter_by(
                 name='Teacher',
@@ -2202,3 +2262,146 @@ def test_continuous_rubric(
             200,
             result=rubric_result
         )
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+def test_runner_harakiri(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session,
+    stub_function_class, assert_similar, monkeypatch_for_run
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+
+        with logged_in(teacher):
+            test = helpers.create_auto_test(
+                test_client,
+                assig_id,
+                amount_sets=2,
+                amount_suites=2,
+                amount_fixtures=1,
+                stop_points=[0.5, None],
+                grade_calculation='partial',
+            )
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+        with logged_in(teacher):
+            helpers.create_submission(test_client, assig_id, for_user=student)
+
+        runners_in_start = multiprocessing.Queue(1000)
+
+        def start_pool(*_, **__):
+            with app.app_context():
+                runners_in_start.put(len(t.run.runners))
+
+        monkeypatch.setattr(cg_worker_pool.WorkerPool, 'start', start_pool)
+
+    with describe('start_auto_test'):
+        t = LocalProxy(lambda: m.AutoTest.query.get(test['id']))
+        with logged_in(teacher):
+            test_client.req(
+                'post',
+                f'{url}/runs/',
+                200,
+                data={'continuous_feedback_run': False},
+            )
+            session.commit()
+        assert t.run is not None
+
+        monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, )
+        )
+        thread.start()
+        thread.join()
+
+        assert not t.run.runners
+        assert runners_in_start.get()
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+def test_running_old_submission(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session,
+    stub_function_class, assert_similar, monkeypatch_for_run
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+
+        uploaded_once = False
+        # We need to disable debug to register this `before_request` method as
+        # we already processed requests at this point.
+        old_debug = app.debug
+        app.debug = False
+
+        @app.before_request
+        def update_result():
+            nonlocal uploaded_once
+            result = m.AutoTestResult.query.get(
+                flask.request.view_args.get('result_id', -1)
+            )
+            if result and result.work.id == sub1['id'] and not uploaded_once:
+                # Make sure we only upload a new submission once
+                uploaded_once = True
+                with app.app_context(), logged_in(teacher):
+                    helpers.create_submission(
+                        test_client, assig_id, for_user=student
+                    )
+
+        app.debug = old_debug
+
+        with logged_in(teacher):
+            test = helpers.create_auto_test(
+                test_client,
+                assig_id,
+                amount_sets=2,
+                amount_suites=2,
+                amount_fixtures=1,
+                stop_points=[0.5, None],
+                grade_calculation='partial',
+            )
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+        with logged_in(teacher):
+            sub1 = helpers.create_submission(
+                test_client, assig_id, for_user=student
+            )
+
+    with describe('start_auto_test'):
+        t = LocalProxy(lambda: m.AutoTest.query.get(test['id']))
+        with logged_in(teacher):
+            test_client.req(
+                'post',
+                f'{url}/runs/',
+                200,
+                data={'continuous_feedback_run': False},
+            )
+            session.commit()
+
+        monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, )
+        )
+        thread.start()
+        thread.join()
+
+        assert session.query(
+            m.AutoTestResult
+        ).filter_by(work_id=sub1['id']).one().state.name == 'skipped'
+
+        with logged_in(teacher):
+            res = test_client.req(
+                'get',
+                f'{url}/runs/{t.run.id}/users/{student.id}/results/',
+                200,
+                result=[
+                    {'__allow_extra__': True, 'work_id': sub1['id']},
+                    {'__allow_extra__': True, 'work_id': int},
+                ]
+            )
+
+        assert session.query(
+            m.AutoTestResult
+        ).filter_by(work_id=res[-1]['work_id']).one().state.name == 'passed'

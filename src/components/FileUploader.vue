@@ -119,23 +119,3 @@ export default {
     }
 }
 </style>
-
-<style lang="less">
-@import '~mixins.less';
-
-.custom-file-label {
-    border-left: 0;
-}
-
-#app.dark .file-uploader-form {
-    .custom-file-label {
-        background: @color-primary;
-        color: @color-secondary-text-lighter;
-
-        &::after {
-            background: @color-primary-darker;
-            color: white;
-        }
-    }
-}
-</style>

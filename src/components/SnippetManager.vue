@@ -30,7 +30,7 @@
                 :key="snippet.id">
                 <td class="snippet-key">{{ snippet.key }}</td>
                 <td class="snippet-value">{{ snippet.value }}</td>
-                <td class="snippet-actions">
+                <td class="snippet-actions shrink">
                     <b-button-group v-b-popover.top.hover="editable ? '' : 'You are not allowed to edit snippets.'">
                         <submit-button variant="danger"
                                        class="delete-snippet-button"
@@ -54,7 +54,7 @@
             </tr>
 
             <tr v-if="filteredSnippets.length === 0">
-                <td class="no-snippets text-muted" colspan="3">
+                <td class="p-3 text-center font-italic text-muted" colspan="3">
                     <template v-if="this.snippets.length === 0">
                         You have not created any snippets yet!
                     </template>
@@ -69,6 +69,7 @@
     <b-modal :title="modalTitle"
              ref="modal"
              class="edit-snippet-modal"
+             static
              @shown="focusInput">
         <b-form-group v-if="!!editingSnippet">
             <b-input-group>
@@ -83,7 +84,8 @@
             </b-input-group>
         </b-form-group>
 
-        <b-form-group v-if="!!editingSnippet">
+        <b-form-group v-if="!!editingSnippet"
+                      class="mb-0">
             <b-input-group>
                 <textarea rows="10"
                           name="snippet-value"
@@ -97,7 +99,7 @@
 
         <template slot="modal-footer">
             <b-button-toolbar justify
-                              class="modal-buttons">
+                              class="flex-grow-1">
                 <b-button variant="danger"
                           @click="cancelEditSnippet">
                     Cancel
@@ -451,33 +453,9 @@ export default {
         text-overflow: ellipsis;
         overflow: hidden;
     }
-
-    .snippet-actions {
-        width: 0px;
-        white-space: nowrap;
-    }
-
-    .no-snippets {
-        padding: 1.5rem;
-        text-align: center;
-    }
-}
-
-.modal-content {
-    .form-group:last-child {
-        margin-bottom: 0;
-    }
-
-    .modal-buttons {
-        flex: 1 1 auto;
-    }
 }
 
 .add-button {
     width: 100%;
-
-    .fa-icon {
-        transform: translateY(3px) !important;
-    }
 }
 </style>

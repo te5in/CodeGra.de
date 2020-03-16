@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import uuid
 import typing as t
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 from functools import wraps
 
 import structlog
@@ -15,6 +15,7 @@ from flask import Blueprint, g, request
 from flask_expects_json import expects_json
 
 import cg_json
+from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import EmptyResponse, callback_after_this_request
 from cg_sqlalchemy_helpers.types import DbColumn
 
@@ -148,10 +149,6 @@ def remove_runner_of_job(job_id: str) -> EmptyResponse:
 
     runner = db.session.query(models.Runner).filter_by(
         ipaddr=g.data['ipaddr'], job=job
-    ).filter(
-        t.cast(DbColumn[models.RunnerState], models.Runner.state).in_(
-            models.RunnerState.get_active_states()
-        )
     ).with_for_update().one_or_none()
     if runner is None:
         raise NotFoundException
@@ -220,9 +217,7 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
     """
     runner_ip = g.data['runner_ip']
     job = db.session.query(models.Job).filter_by(remote_id=job_id).filter(
-        ~t.cast(DbColumn[models.JobState], models.Job.state).in_(
-            models.JobState.get_finished_states(),
-        )
+        ~models.Job.state.in_(models.JobState.get_finished_states()),
     ).with_for_update().one_or_none()
     if job is None:
         logger.info('Job not found!', job_id=job_id)
@@ -236,7 +231,7 @@ def register_runner_for_job(job_id: str) -> EmptyResponse:
 
     runner = db.session.query(models.Runner).filter(
         t.cast(DbColumn[models.RunnerState], models.Runner.state).in_(
-            models.RunnerState.get_active_states()
+            models.RunnerState.get_before_running_states()
         ),
         models.Runner.ipaddr == runner_ip,
     ).with_for_update().one_or_none()
@@ -279,7 +274,7 @@ def mark_runner_as_alive() -> cg_json.JSONResponse[models.Runner]:
             raise NotFoundException
 
     runner.state = models.RunnerState.started
-    runner.started_at = datetime.utcnow()
+    runner.started_at = DatetimeWithTimezone.utcnow()
     db.session.commit()
 
     return cg_json.jsonify(runner)
@@ -292,6 +287,9 @@ def get_jobs_for_runner(public_runner_id: uuid.UUID
     runner = db.session.query(models.Runner).filter(
         models.Runner.ipaddr == request.remote_addr,
         models.Runner.public_id == public_runner_id,
+        t.cast(DbColumn[models.RunnerState], models.Runner.state).in_(
+            models.RunnerState.get_before_running_states()
+        ),
     ).one_or_none()
     if runner is None:
         raise NotFoundException
@@ -324,19 +322,18 @@ def about() -> cg_json.JSONResponse[t.Mapping[str, object]]:
     health information.
     """
     if request.args.get('health', object()) == app.config['HEALTH_KEY']:
-        now = datetime.utcnow()
+        now = DatetimeWithTimezone.utcnow()
         slow_created_date = now - timedelta(minutes=app.config['OLD_JOB_AGE'])
 
         slow_jobs = db.session.query(models.Job).filter(
             models.Job.created_at < slow_created_date,
-            ~t.cast(DbColumn[models.JobState], models.Job.state).in_(
-                models.JobState.get_finished_states()
-            )
+            ~models.Job.state.in_(models.JobState.get_finished_states())
         ).count()
 
         not_started_created_date = now - timedelta(
             minutes=app.config['SLOW_STARTING_AGE']
         )
+
         not_starting_jobs = db.session.query(models.Job).filter(
             models.Job.created_at < not_started_created_date,
             models.Job.state == models.JobState.waiting_for_runner

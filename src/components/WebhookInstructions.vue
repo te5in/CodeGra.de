@@ -80,7 +80,10 @@
                 get there by moving your cursor over the gear icon in the
                 sidebar on the left (it is the very last item) and then
                 selecting the <i>"Repository"</i> item. Then expand
-                the <i>"Deploy Keys"</i> category. You should see two input
+                the <i>"Deploy Keys"</i> category. If this category is not
+                present go back to the gear icon in the sidebar and
+                select <i>"CI/CD"</i>, and now expand the <i>"Deploy Keys"</i>
+                category. After expanding the category you should see two input
                 fields: <i>"Title"</i> and <i>"Key"</i>.
             </p>
 
@@ -99,9 +102,8 @@
         </p>
 
         <div class="border rounded p-3 copy-wrapper">
-            <code class="public-key">
-                {{ data.public_key }}
-            </code>
+            <code class="public-key">{{ data.public_key }}</code>
+
             <b-btn class="copy-btn m-1 fixed" v-if="copying || copyMsg" disabled>
                 <loader :scale="1" v-if="copying" />
                 <template v-else>
@@ -236,10 +238,9 @@
         <p>
             {{ providerName }} should now be successfully configured. Now, the
             content of your repository will be automatically uploaded for this
-            CodeGrade assignment every time you perform a <code>git push
-            </code>. You can test this by pushing to the
-            {{ data.default_branch }} branch and checking if a new submission
-            was created.
+            CodeGrade assignment every time you perform a <code>git push</code>.
+            You can test this by pushing to the {{ data.default_branch }}
+            branch and checking if a new submission was created.
         </p>
         <p>
             A good practice is to set up the {{ providerName }} CodeGrade
@@ -248,11 +249,11 @@
             to hand in your current repository, you can do this by an empty
             commit.
             You can run
-            <code>git commit --allow-empty -m "Create a CodeGrade submission"
-                &amp;&amp; git push</code> while the {{ data.default_branch }}
-            branch is checked out. If you are using a GUI for Git that does not
-            support empty commits, simply making an arbitrary change in a
-            tracked file will allow you to still do a <code>git push</code>.
+            <code class="d-block p-3">git commit --allow-empty -m "Create a CodeGrade submission" &amp;&amp; git push</code>
+            while the {{ data.default_branch }} branch is checked out. If you
+            are using a GUI for Git that does not support empty commits, simply
+            making an arbitrary change in a tracked file will allow you to
+            still do a <code>git push</code>.
         </p>
         <p>
             You have now successfully setup your {{ providerName }} CodeGrade
@@ -445,7 +446,7 @@ export default {
             // Get the latest submission of the user for the current webhook
             // and check if it is a git submission.
 
-            const latestDate = this.latestSubmission.createdAt;
+            const latestDate = this.$utils.getProps(this.latestSubmission, null, 'createdAt');
 
             return this.storeLoadSubmissionsByUser({
                 assignmentId: this.assignmentId,
@@ -455,7 +456,7 @@ export default {
                 const latestGitSubmission = (subs || []).find(
                     s =>
                         (s.origin === 'github' || s.origin === 'gitlab') &&
-                        s.createdAt.isAfter(latestDate),
+                        (latestDate == null || s.createdAt.isAfter(latestDate)),
                 );
 
                 this.checkLatestResults = {
@@ -485,6 +486,12 @@ export default {
 };
 </script>
 
+<style lang="less" scoped>
+:not(input).form-control {
+    height: auto;
+}
+</style>
+
 <style lang="less">
 @import '~mixins.less';
 
@@ -505,7 +512,7 @@ export default {
         width: 100%;
     }
 
-    #app.dark &.github img {
+    @{dark-mode}.github img {
         filter: invert(1);
     }
 

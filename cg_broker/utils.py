@@ -3,10 +3,11 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import secrets
-from datetime import datetime
 
 import structlog
 from celery import current_task
+
+from cg_dt_utils import DatetimeWithTimezone
 
 logger = structlog.get_logger()
 
@@ -23,5 +24,5 @@ def make_password(nbytes: int = _PASS_LEN) -> str:
     return secrets.token_hex(_PASS_LEN)
 
 
-def maybe_delay_current_task(wanted_time: datetime) -> bool:
+def maybe_delay_current_task(wanted_time: DatetimeWithTimezone) -> bool:
     return current_task.maybe_delay_task(wanted_time)

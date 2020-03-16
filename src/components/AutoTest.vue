@@ -169,7 +169,7 @@
 
                                     <b-input-group>
                                         <b-radio-group stacked
-                                                       class="p-0 form-control"
+                                                       class="p-0 border rounded-left flex-grow-1"
                                                        :class="{
                                                                'rounded-left': configEditable,
                                                                'readably-disabled': !configEditable,
@@ -207,7 +207,7 @@
 
                                     <b-input-group>
                                         <b-radio-group stacked
-                                                       class="p-0 form-control"
+                                                       class="p-0 border rounded-left flex-grow-1"
                                                        :class="{
                                                            'rounded-left': configEditable,
                                                            'readably-disabled': !configEditable,
@@ -236,11 +236,16 @@
                                         Uploaded fixtures
                                     </label>
 
-                                    <transition-group name="fixture-list" tag="ul" class="fixture-list form-control p-0 mb-0">
+                                    <transition-group name="fixture-list"
+                                                      tag="ul"
+                                                      class="fixture-list border rounded p-0 mb-0">
                                         <li v-for="fixture, index in test.fixtures"
                                             class="border-bottom"
                                             :key="fixture.id">
-                                            <div class="px-3 py-1 d-flex align-items-center justify-content-between">
+                                            <!-- We must use an inline-flex here becuase otherwise
+                                                 Edge inexplicably renders another rem of top-padding
+                                                 on each line... -->
+                                            <div class="px-3 py-1 w-100 d-inline-flex align-items-center">
                                                 <a v-if="canViewFixture(fixture)"
                                                    class="flex-grow-1"
                                                    href="#"
@@ -473,9 +478,11 @@
 
     <b-modal v-if="currentResult"
              :id="resultsModalId"
+             size="xl"
              hide-footer
              @hidden="currentResult = null"
-             class="result-modal">
+             body-class="p-0"
+             dialog-class="auto-test-result-modal">
         <loader v-if="resultSubmissionLoading" class="my-3" />
 
         <template slot="modal-title" v-else>
@@ -497,7 +504,9 @@
     <b-modal v-if="currentFixture"
              :id="fixtureModalId"
              @hidden="currentFixture = null"
-             class="fixture-modal">
+             dialog-class="auto-test-fixture-modal"
+             body-class="p-0"
+             size="xl">
         <template slot="modal-title">
             Contents of fixture
             <code>$FIXTURES/{{ currentFixture.name }}</code>
@@ -506,11 +515,12 @@
         <loader v-if="currentFixture.raw_data == null" class="my-3" />
 
         <template v-else>
-            <b-alert v-if="currentFixture.err" show variant="danger" class="mt-3 mx-3">
+            <b-alert v-if="currentFixture.err" show variant="danger" class="rounded-0 mb-0">
                 {{ currentFixture.err }}
             </b-alert>
 
             <inner-code-viewer v-else
+                               class="rounded-0"
                                :assignment="assignment"
                                :code-lines="prepareOutput(currentFixture.data)"
                                :file-id="'-1'"
@@ -1386,25 +1396,12 @@ export default {
 @import '~mixins.less';
 
 .auto-test {
-    .fixture-modal,
-    .result-modal {
-        .modal-dialog {
-            max-width: calc(100vw - 8rem);
-            width: calc(100vw - 8rem);
-            margin-top: 2rem;
-        }
-
-        .modal-body {
-            padding: 0;
-        }
-    }
-
     .custom-control.readably-disabled label,
     .readably-disabled .custom-control label {
         opacity: 1 !important;
         color: @text-color;
 
-        #app.dark & {
+        @{dark-mode} {
             color: @text-color-dark;
         }
     }
@@ -1414,12 +1411,10 @@ export default {
 
         &:not(:last-child) {
             border-bottom: 1px solid rgba(0, 0, 0, 0.125);
-        }
 
-        label::before,
-        label::after {
-            margin-top: 0.25rem;
-            margin-left: 0.75rem;
+            @{dark-mode} {
+                border-bottom-color: @color-primary-darker;
+            }
         }
     }
 
@@ -1445,5 +1440,12 @@ export default {
             border-top-right-radius: 0;
         }
     }
+}
+
+.auto-test-fixture-modal,
+.auto-test-result-modal {
+    max-width: calc(100vw - 8rem);
+    width: calc(100vw - 8rem);
+    margin-top: 2rem;
 }
 </style>

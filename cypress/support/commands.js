@@ -21,6 +21,8 @@ function yesterday() {
     return moment().add(-1, 'day').startOf('day').toISOString();
 }
 
+const ADMIN_USER = { username: 'admin', password: 'admin' };
+
 Cypress.Commands.add('getAll', (aliases) => {
     // Get the value for multiple aliases at once.
 
@@ -41,13 +43,15 @@ Cypress.Commands.add('text', { prevSubject: true }, subject => {
 });
 
 Cypress.Commands.add('login', (username, password) => {
+    Cypress.log({
+        name: 'login',
+        message: username,
+        consoleProps: () => ({ username, password }),
+    });
     return cy.request({
         url:'/api/v1/login',
         method: 'POST',
-        body: {
-            username,
-            password,
-        }
+        body: { username, password }
     }).its('body').then(body => {
         cy.window().its('__app__').then(app => {
             const url = app.$router.getRestoreRoute();
@@ -57,6 +61,7 @@ Cypress.Commands.add('login', (username, password) => {
             } else {
                 cy.reload()
             }
+            cy.get('#app > .loader').should('not.exist');
         });
     });
 });
@@ -68,17 +73,35 @@ Cypress.Commands.add('logout', () => {
     });
 });
 
-function getAuthHeaders() {
-    return cy.window().its('__app__').then(app => {
-        const { jwtToken } = app.$store.state.user;
-        return { Authorization: `Bearer ${jwtToken}` };
-    });
+function getAuthHeaders(user) {
+    // Get the authentication header for the given user, or for the user logged
+    // in in the frontend if no user is given.
+
+    const mkHeader = token => ({ Authorization: `Bearer ${token}` });
+
+    if (user != null) {
+        return cy.request({
+            url: '/api/v1/login',
+            method: 'POST',
+            body: user,
+        }).its('body').then(user => {
+            return mkHeader(user.access_token);
+        });
+    } else {
+        return cy.window().its('__app__').then(app => {
+            const { jwtToken } = app.$store.state.user;
+            return mkHeader(jwtToken);
+        });
+    }
 }
 
 Cypress.Commands.add('authRequest', (options) => {
-    // Do a request as the logged in user.
+    // Do a request as the logged in user, or as the given user
 
-    return getAuthHeaders().then(headers => {
+    const user = options.user;
+    delete options.user;
+
+    return getAuthHeaders(user).then(headers => {
         options.headers = Object.assign(options.headers || {}, headers);
         return cy.request(options);
     });
@@ -90,9 +113,9 @@ Cypress.Commands.add('formRequest', (options) => {
     // files. Use cy.fixtureAsFile to load a fixture as a File object suitable
     // to be used in FormData. The request is sent as the logged in user.
 
-    let { url, method, headers, data } = options;
+    let { url, method, headers, user, data } = options;
 
-    return getAuthHeaders().then(authHeaders => {
+    return getAuthHeaders(user).then(authHeaders => {
         headers = Object.assign(headers || {}, authHeaders)
         return cy
             .server()
@@ -138,40 +161,22 @@ Cypress.Commands.add('uploadFixture', { prevSubject: true }, (subject, fileName,
     });
 });
 
-Cypress.Commands.add('setSitePermission', (perm, role, value) => {
-    let reload = false;
-
-    cy.login('admin', 'admin');
-    cy.visit('/admin');
-
-    cy.get('.permissions-table')
-        .contains('tr', perm)
-        .find(`.custom-checkbox.role-${role}`)
-        .parent()
-        .as('container');
-    cy.get('@container')
-        .find(`.custom-checkbox.role-${role}`)
-        .as('check');
-
-    // If the input does not have the correct value,
-    cy.get('@container')
-        .find(`input`)
-        .then($input => {
-            if ($input.get(0).checked != value) {
-                cy.get('@check').click();
-                reload = true;
-                cy.get('@container').find('.loader');
-                cy.get('@container').find('input');
-            }
-        });
-    cy.get('@container')
-        .find('input')
-        .should(value ? 'be.checked' : 'not.be.checked')
-        .then(() => {
-            if (reload) {
-                cy.reload();
-            }
-        });
+Cypress.Commands.add('setSitePermission', (permission, roleName, value) => {
+    cy.authRequest({
+        url: '/api/v1/roles/',
+        method: 'GET',
+        user: ADMIN_USER,
+    }).its('body').then(roles => {
+        const role = roles.find(r => r.name === roleName);
+        if (role.perms[permission] != value) {
+            return cy.authRequest({
+                url: `/api/v1/roles/${role.id}`,
+                method: 'PATCH',
+                user: ADMIN_USER,
+                body: { permission, value },
+            });
+        }
+    });
 });
 
 Cypress.Commands.add('createUser', (username, password, email = `${username}@example.com`) => {
@@ -183,18 +188,18 @@ Cypress.Commands.add('createUser', (username, password, email = `${username}@exa
 });
 
 Cypress.Commands.add('createCourse', (name, users=[]) => {
-    cy.login('admin', 'admin');
-
     return cy.authRequest({
         url: '/api/v1/courses/',
         method: 'POST',
         body: { name },
+        user: ADMIN_USER,
     }).its('body').then(course => {
         // Get the course roles so we can map a role name
         // to a role id.
         return cy.authRequest({
             url: `/api/v1/courses/${course.id}/roles/`,
             method: 'GET',
+            user: ADMIN_USER,
         }).its('body').then(roles => {
             return [course, roles];
         });
@@ -205,6 +210,7 @@ Cypress.Commands.add('createCourse', (name, users=[]) => {
             cy.authRequest({
                 url: `/api/v1/courses/${course.id}/users/`,
                 method: 'PUT',
+                user: ADMIN_USER,
                 body: {
                     username: user.name,
                     role_id: role.id,
@@ -212,17 +218,15 @@ Cypress.Commands.add('createCourse', (name, users=[]) => {
             });
         })
         course.roles = roles;
-        cy.log('created course', course);
         return cy.wrap(course);
     });
 });
 
 Cypress.Commands.add('createAssignment', (courseId, name, { state, bbZip, deadline } = {}) => {
-    cy.login('admin', 'admin');
-
     return cy.authRequest({
         url: `/api/v1/courses/${courseId}/assignments/`,
         method: 'POST',
+        user: ADMIN_USER,
         body: { name },
     }).its('body').then(assignment => {
         const body = {};
@@ -238,14 +242,6 @@ Cypress.Commands.add('createAssignment', (courseId, name, { state, bbZip, deadli
             body.deadline = deadline;
         }
 
-        if (Object.keys(body).length > 0) {
-            cy.authRequest({
-                url: `/api/v1/assignments/${assignment.id}`,
-                method: 'PATCH',
-                body,
-            });
-        }
-
         if (bbZip) {
             cy.fixtureAsFile('test_blackboard/bb.zip', 'bb.zip', 'application/zip').then(bbZipFile => {
                 const data = new FormData();
@@ -254,14 +250,58 @@ Cypress.Commands.add('createAssignment', (courseId, name, { state, bbZip, deadli
                 return cy.formRequest({
                     url: `/api/v1/assignments/${assignment.id}/submissions/`,
                     method: 'POST',
+                    user: ADMIN_USER,
                     data,
                 });
             });
         }
 
-        cy.log('created assignment', assignment);
-        return cy.wrap(assignment);
+        if (Object.keys(body).length > 0) {
+            return cy.patchAssignment(assignment.id, body);
+        } else {
+            return cy.wrap(assignment);
+        }
     });
+});
+
+Cypress.Commands.add('patchAssignment', (assignmentId, props={}) => {
+    const body = Object.assign({}, props);
+
+    if (body.deadline === 'tomorrow') {
+        body.deadline = tomorrow();
+    } else if (body.deadline === 'yesterday') {
+        body.deadline = yesterday();
+    }
+
+    if (body.state === 'submitting' || body.state === 'grading') {
+        body.state = 'open';
+    }
+
+    cy.authRequest({
+        url: `/api/v1/assignments/${assignmentId}`,
+        method: 'PATCH',
+        user: ADMIN_USER,
+        body,
+    }).its('body');
+});
+
+Cypress.Commands.add('tempPatchAssignment', (assignment, props, callback) => {
+    const oldProps = Object.entries(assignment).reduce(
+        (acc, [key, value]) => {
+            if (Object.hasOwnProperty.call(props, key)) {
+                acc[key] = value;
+            }
+            return acc;
+        },
+        {},
+    );
+
+    return cy.patchAssignment(assignment.id, props)
+        .then(tempAssignment => {
+            cy.reload();
+            return callback(tempAssignment);
+        })
+        .then(() => cy.patchAssignment(assignment.id, oldProps));
 });
 
 Cypress.Commands.add('createSubmission', (assignmentId, fileName, opts={}) => {
@@ -281,6 +321,7 @@ Cypress.Commands.add('createSubmission', (assignmentId, fileName, opts={}) => {
         return cy.formRequest({
             url,
             method: 'POST',
+            user: ADMIN_USER,
             data,
         }).its('response.body');
     });
@@ -290,6 +331,7 @@ Cypress.Commands.add('deleteSubmission', (submissionId) => {
     return cy.authRequest({
         url: `/api/v1/submissions/${submissionId}`,
         method: 'DELETE',
+        user: ADMIN_USER,
     });
 });
 
@@ -297,6 +339,7 @@ Cypress.Commands.add('patchSubmission', (submissionId, body) => {
     return cy.authRequest({
         url: `/api/v1/submissions/${submissionId}`,
         method: 'PATCH',
+        user: ADMIN_USER,
         body,
     }).its('body');
 });
@@ -305,6 +348,7 @@ Cypress.Commands.add('clearRubricResult', (submissionId) => {
     return cy.authRequest({
         url: `/api/v1/submissions/${submissionId}/rubricitems/`,
         method: 'PATCH',
+        user: ADMIN_USER,
         body: {
             items: [],
         },
@@ -315,6 +359,7 @@ Cypress.Commands.add('createRubric', (assignmentId, rubricData, maxPoints = null
     return cy.authRequest({
         url: `/api/v1/assignments/${assignmentId}/rubrics/`,
         method: 'PUT',
+        user: ADMIN_USER,
         body: {
             rows: rubricData,
             max_points: maxPoints,
@@ -326,76 +371,98 @@ Cypress.Commands.add('deleteRubric', (assignmentId, opts={}) => {
     return cy.authRequest({
         url: `/api/v1/assignments/${assignmentId}/rubrics/`,
         method: 'DELETE',
+        user: ADMIN_USER,
         ...opts,
     });
 });
 
-Cypress.Commands.add('createAutoTest', (assignmentId, autoTestConfig) =>
-    cy.authRequest({
+Cypress.Commands.add('createAutoTest', (assignmentId, autoTestConfig) => {
+    const patchProps = Object.entries(autoTestConfig).reduce((acc, [key, val]) => {
+        if (key == 'grade_calculation' || key == 'results_always_visible') {
+            acc[key] = val;
+        }
+        return acc;
+    }, {});
+    return cy.authRequest({
         url: '/api/v1/auto_tests/',
         method: 'POST',
+        user: ADMIN_USER,
         body: {
             assignment_id: assignmentId,
         },
-    }).its('body').then(autoTest =>
-        cy.wrap(autoTestConfig.sets).each(setConfig =>
+    }).its('body').then(autoTest => {
+        if (Object.keys(patchProps).length > 0) {
+            cy.authRequest({
+                url: `/api/v1/auto_tests/${autoTest.id}`,
+                method: 'PATCH',
+                user: ADMIN_USER,
+                body: patchProps,
+            });
+        }
+        return cy.wrap(autoTestConfig.sets).each(setConfig =>
             cy.authRequest({
                 url: `/api/v1/auto_tests/${autoTest.id}/sets/`,
                 method: 'POST',
+                user: ADMIN_USER,
             }).its('body').then(set =>
                 cy.authRequest({
                     url: `/api/v1/auto_tests/${autoTest.id}/sets/${set.id}`,
                     method: 'PATCH',
+                    user: ADMIN_USER,
                     body: { stop_points: setConfig.stop_points },
                 }).then(() =>
                     cy.wrap(setConfig.suites).each(suiteConfig =>
                         cy.authRequest({
                             url: `/api/v1/auto_tests/${autoTest.id}/sets/${set.id}/suites/`,
                             method: 'PATCH',
+                            user: ADMIN_USER,
                             body: suiteConfig,
                         }),
                     ),
                 ),
             ),
         ).then(() =>
+            // Get the object again so we're sure we have the latest.
             cy.authRequest({
                 url: `/api/v1/auto_tests/${autoTest.id}`,
                 method: 'GET',
+                user: ADMIN_USER,
             }).its('body'),
-        ),
-    ),
-);
+        );
+    });
+});
+
+Cypress.Commands.add('createAutoTestFromFixture', (assignmentId, autoTest, rubric) => {
+    // Since AutoTest categories must map to a rubric category, we must know
+    // the rubric row's id in advance before we can submit the AutoTest config.
+    // This function loads a fixture from the test_auto_tests fixture
+    // subdirectory and patches its rubric row ids with the ones in the given
+    // rubric. The rubric row ids in the fixture represent rubric row indices.
+
+    cy.fixture(`test_auto_tests/${autoTest}.json`).then(autoTestConfig => {
+        autoTestConfig.sets.forEach(set => {
+            set.suites.forEach(suite => {
+                const idx = suite.rubric_row_id;
+                suite.rubric_row_id = rubric[idx].id;
+            });
+        });
+        return cy.createAutoTest(assignmentId, autoTestConfig);
+    });
+});
 
 Cypress.Commands.add('deleteAutoTest', (autoTestId) => {
     return cy.authRequest({
         url: `/api/v1/auto_tests/${autoTestId}`,
         method: 'DELETE',
+        user: ADMIN_USER,
     });
-});
-
-Cypress.Commands.add('patchAssignment', (assignmentId, body={}) => {
-    switch (body.deadline) {
-        case 'tomorrow':
-            body.deadline = tomorrow();
-            break;
-        case 'yesterday':
-            body.deadline = yesterday();
-            break;
-        default:
-            break;
-    }
-
-    return cy.authRequest({
-        url: `/api/v1/assignments/${assignmentId}`,
-        method: 'PATCH',
-        body,
-    }).its('body');
 });
 
 Cypress.Commands.add('connectGroupSet', (courseId, assignmentId, minSize=1, maxSize=1) => {
     return cy.authRequest({
         url: `/api/v1/courses/${courseId}/group_sets/`,
         method: 'PUT',
+        user: ADMIN_USER,
         body: {
             minimum_size: minSize,
             maximum_size: maxSize,
@@ -417,11 +484,13 @@ Cypress.Commands.add('joinGroup', (groupSetId, username) => {
     return cy.authRequest({
         url: `/api/v1/group_sets/${groupSetId}/group`,
         method: 'POST',
+        user: ADMIN_USER,
         body: { member_ids: [] },
     }).its('body').then(
         group => cy.authRequest({
             url: `/api/v1/groups/${group.id}/member`,
             method: 'POST',
+            user: ADMIN_USER,
             body: { username },
         }),
     );
@@ -452,6 +521,12 @@ Cypress.Commands.add('shouldNotOverflow', { prevSubject: true }, (subject) => {
                 expect(scrollWidth).to.be.at.most(clientWidth);
             }),
     );
+});
+
+Cypress.Commands.add('setText', { prevSubject: true }, (subject, text) => {
+    // Clear the input and type `text` if it is a nonempty string.
+    const toWrite = `{selectall}{backspace}${text  || ''}`;
+    return cy.wrap(subject).clear().type(toWrite);
 });
 
 // Click a submit button, and optionally wait for its state to return back to
@@ -490,16 +565,21 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
         if (opts.confirmInModal) {
             const id = subject.get(0).id;
             cy.get(`#${id}-modal`)
+                .should('have.class', 'show')
                 .should('be.visible')
                 .containsAll(opts.confirmMsg)
-                .contains('.btn', opts.doConfirm ? 'Confirm' : 'Cancel')
+                .contains('.btn:visible', opts.doConfirm ? 'Confirm' : 'Cancel')
                 .click();
         } else {
             cy.get('.popover .submit-button-confirm')
                 .containsAll(opts.confirmMsg)
                 .should('be.visible')
-                .contains('.btn', opts.doConfirm ? 'Yes' : 'No')
+                .contains('.btn:visible', opts.doConfirm ? 'Yes' : 'No')
                 .click();
+        }
+
+        if (!opts.doConfirm) {
+            return cy.wrap(subject);
         }
     }
 

@@ -1,31 +1,47 @@
 <template>
 <div class="file-viewer"
      :class="dynamicClasses">
-    <b-alert class="error mb-0" variant="danger" show v-if="error">
+    <b-alert v-if="error"
+             show
+             variant="danger"
+             class="error mb-0">
         {{ error }}
     </b-alert>
 
     <loader v-else-if="loading"
             page-loader />
 
-    <div class="wrapper" :class="{ scroller: fileData && fileData.scroller }">
-        <component v-show="!loading"
-                   v-if="fileData"
-                   :is="fileData.component"
-                   class="inner-viewer"
-                   :assignment="assignment"
-                   :submission="submission"
-                   :file="file"
-                   :file-id="fileId"
-                   :revision="revision"
-                   :show-whitespace="showWhitespace"
-                   :show-inline-feedback="showInlineFeedback"
-                   :editable="editable"
-                   @language="$emit('language', $event)"
-                   :language="language"
-                   :can-use-snippets="canUseSnippets"
-                   @load="onLoad"
-                   @error="onError" />
+    <b-alert v-else-if="forcedFileComponent != null"
+             show
+             dismissible
+             variant="warning"
+             class="mb-0 border-bottom rounded-bottom-0">
+        You are viewing the source of a file that can be rendered.
+        <a href="#" @click.capture.prevent.stop="forcedFileComponent = null">Click here</a>
+        to show the rendered version.
+    </b-alert>
+
+    <div class="wrapper"
+         :class="{ scroller: fileData && fileData.scroller }">
+        <template v-if="fileData">
+            <component v-show="!loading"
+                       :is="fileData.component"
+                       class="inner-viewer"
+                       :assignment="assignment"
+                       :submission="submission"
+                       :file="file"
+                       :file-id="fileId"
+                       :revision="revision"
+                       :show-whitespace="showWhitespace"
+                       :show-inline-feedback="showInlineFeedback"
+                       :editable="editable"
+                       @language="$emit('language', $event)"
+                       :language="language"
+                       :can-use-snippets="canUseSnippets"
+                       @force-viewer="setForcedFileComponent"
+                       @load="onLoad"
+                       @error="onError" />
+        </template>
     </div>
 </div>
 </template>
@@ -38,6 +54,7 @@ import {
     IpythonViewer,
     MarkdownViewer,
     PdfViewer,
+    HtmlViewer,
 } from '@/components';
 
 import Loader from './Loader';
@@ -88,15 +105,25 @@ export default {
         return {
             loading: true,
             error: '',
+            forcedFileComponent: null,
             fileTypes: [
                 {
-                    cond: () => this.fileExtension === 'pdf',
+                    cond: () =>
+                        UserConfig.features.render_html &&
+                        this.hasExtension('html', 'htm') &&
+                        this.revision !== 'diff',
+                    component: HtmlViewer,
+                    showLanguage: false,
+                    scroller: false,
+                },
+                {
+                    cond: () => this.hasExtension('pdf'),
                     component: PdfViewer,
                     showLanguage: false,
                     scroller: false,
                 },
                 {
-                    cond: () => /^(?:gif|jpe?g|png|svg)$/.test(this.fileExtension),
+                    cond: () => this.hasExtension('gif', 'jpg', 'jpeg', 'png', 'svg'),
                     component: ImageViewer,
                     showLanguage: false,
                     scroller: false,
@@ -108,13 +135,13 @@ export default {
                     scroller: true,
                 },
                 {
-                    cond: () => this.fileExtension === 'ipynb',
+                    cond: () => this.hasExtension('ipynb'),
                     component: IpythonViewer,
                     showLanguage: false,
                     scroller: true,
                 },
                 {
-                    cond: () => this.fileExtension === 'md' || this.fileExtension === 'markdown',
+                    cond: () => this.hasExtension('md', 'markdown'),
                     component: MarkdownViewer,
                     showLanguage: false,
                     scroller: false,
@@ -145,12 +172,19 @@ export default {
             // eslint-disable-next-line
             const _ = this.fileId;
 
-            return this.file ? this.fileTypes.find(ft => ft.cond(this.file)) : null;
+            if (!this.file) {
+                return null;
+            } else if (this.forcedFileComponent) {
+                return this.fileTypes.find(ft => ft.component === this.forcedFileComponent);
+            }
+            return this.fileTypes.find(ft => ft.cond(this.file));
         },
 
         dynamicClasses() {
             if (this.fileData) {
-                return `${this.fileData.component.name} form-control`;
+                return `${this.fileData.component.name} border rounded ${
+                    this.loading ? 'loading' : ''
+                }`;
             } else {
                 return '';
             }
@@ -172,6 +206,7 @@ export default {
                     return;
                 }
 
+                this.forcedFileComponent = null;
                 // Do not throw an error while the submission page is loading, i.e. the fileId
                 // has not been set yet.
                 if (!this.file && this.$route.params.fileId) {
@@ -194,6 +229,19 @@ export default {
             this.error = this.$utils.getErrorMessage(err);
             this.loading = false;
         },
+
+        async setForcedFileComponent(fc) {
+            this.loading = true;
+            this.error = '';
+            await this.$afterRerender();
+            this.forcedFileComponent = fc;
+        },
+
+        hasExtension(...exts) {
+            return exts.some(
+                ext => this.fileExtension === ext || this.fileExtension === ext.toUpperCase(),
+            );
+        },
     },
 
     components: {
@@ -209,6 +257,9 @@ export default {
     display: flex;
     flex-direction: column;
 
+    &.html-viewer:not(.loading) {
+        height: 100%;
+    }
     &.pdf-viewer {
         height: 100%;
         flex: 1 1 100%;

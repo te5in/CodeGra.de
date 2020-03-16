@@ -66,14 +66,9 @@
             </b-input-group-append>
 
             <b-input-group-append class="delete-button-group"
-                                  v-if="realEditable">
-                <b-popover :triggers="showDeleteButton ? 'hover' : ''"
-                           placement="top"
-                           target="delete-grade-button">
-                    {{ deleteButtonText }}
-                </b-popover>
-                <submit-button id="delete-grade-button"
-                               class="delete-button"
+                                  v-if="realEditable"
+                                  v-b-popover.hover.top="showDeleteButton ? deleteButtonText : ''">
+                <submit-button class="delete-button"
                                variant="danger"
                                :disabled="!showDeleteButton"
                                :submit="deleteGrade"
@@ -301,7 +296,7 @@ export default {
             };
             const points = this.rubricPoints;
             const scored = points ? toFixed(points) : 0;
-            const max = toFixed(this.rubricMaxPoints);
+            const max = this.rubricMaxPoints == null ? '…' : toFixed(this.rubricMaxPoints);
             return `${scored} / ${max}`;
         },
 
@@ -410,7 +405,10 @@ export default {
                 case DeleteButtonState.RUBRIC_OVERRIDDEN:
                     return this.clearSubmissionGrade();
                 case DeleteButtonState.CLEAR_RUBRIC:
-                    return this.clearRubricItems();
+                    return this.clearRubricItems().then(res => {
+                        this.$root.$emit('cg::rubric-viewer::reset');
+                        return res;
+                    });
                 case DeleteButtonState.RUBRIC_CHANGED_AND_OVERRIDDEN:
                     return {
                         data: {
@@ -427,7 +425,7 @@ export default {
             let grade = this.grade;
 
             if (grade != null && !isDecimalNumber(grade)) {
-                throw new Error('Grade must be a number');
+                throw new Error('Grade must be a number.');
             }
 
             grade = parseFloat(grade);

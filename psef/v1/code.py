@@ -11,7 +11,7 @@ import typing as t
 
 import werkzeug
 import sqlalchemy.sql as sql
-from flask import request, make_response
+from flask import Response, request
 from sqlalchemy.orm import make_transient
 
 from . import api
@@ -121,37 +121,13 @@ def remove_comment(code_id: int, line: int) -> EmptyResponse:
 
 
 @api.route('/code/<uuid:file_id>', methods=['GET'])
-def get_auto_test_output_file(
-    file_id: uuid.UUID
-) -> werkzeug.wrappers.Response:
-    """Get data from the :class:`.models.AutoTestOutputFile` with a given id.
-
-    This function is very similar to ``/api/v1/code/<int:file_id>``, however it
-    only supports getting the code (i.e. none of the get parameters).
-
-    :param uuid: The file id of the AutoTest output file.
-    :returns: The content of the file.
-    """
-    f = helpers.get_or_404(models.AutoTestOutputFile, file_id)
-    auth.ensure_can_view_autotest_result(f.result)
-
-    assig = f.suite.auto_test_set.auto_test.assignment
-    if not assig.is_done:
-        auth.ensure_permission(
-            CPerm.can_view_autotest_output_files_before_done, assig.course_id
-        )
-
-    contents = files.get_file_contents(f)
-    res: 'werkzeug.wrappers.Response' = make_response(contents)
-    res.headers['Content-Type'] = 'application/octet-stream'
-    return res
-
-
 @api.route("/code/<int:file_id>", methods=['GET'])
 @auth.login_required
-def get_code(file_id: int) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
-    t.Union[t.Mapping[str, str], models.File, _FeedbackMapping]]]:
-    """Get data from the :class:`.models.File` with the given id.
+def get_code(file_id: t.Union[int, uuid.UUID]
+             ) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
+                 t.Union[t.Mapping[str, str], models.File, _FeedbackMapping]]]:
+    """Get data from a :class:`.models.File` or a
+        :class:`.models.AutoTestOutputFile` with the given id.
 
     .. :quickref: Code; Get code or its metadata.
 
@@ -164,10 +140,13 @@ def get_code(file_id: int) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
       with a single key, `name`, with as value the return values of
       :py:func:`.get_file_url`.
     - If ``type == 'feedback'`` or ``type == 'linter-feedback'`` see
-      :py:func:`.code.get_feedback`
+      :py:func:`.code.get_feedback`. This will always return an empty mapping
+      for :class:`.models.AutoTestOutputFiles` for now.
     - Otherwise the content of the file is returned as plain text.
 
-    :param int file_id: The id of the file
+    :param file_id: The id of the file if you want get the data for a
+        `.models.File` it should be an integer, otherwise a uuid should be
+        given.
     :returns: A response containing a plain text file unless specified
         otherwise.
 
@@ -183,31 +162,49 @@ def get_code(file_id: int) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
                                  user can not view files in the attached
                                  course. (INCORRECT_PERMISSION)
     """
-    file = helpers.filter_single_or_404(
-        models.File,
-        models.File.id == file_id,
-        also_error=lambda f: f.work.deleted
-    )
+    f: t.Union[models.NestedFileMixin[int], models.NestedFileMixin[uuid.UUID]]
 
-    auth.ensure_can_view_files(file.work, file.fileowner == FileOwner.teacher)
-    get_type = request.args.get('type', None)
+    if isinstance(file_id, int):
+        f = helpers.filter_single_or_404(
+            models.File,
+            models.File.id == file_id,
+            also_error=lambda f: f.work.deleted
+        )
 
-    if get_type == 'metadata':
-        return jsonify(file)
-    elif get_type == 'feedback':
-        return jsonify(get_feedback(file, linter=False))
-    elif get_type in ('pdf', 'file-url'):
-        return jsonify({'name': get_file_url(file)})
-    elif get_type == 'linter-feedback':
-        return jsonify(get_feedback(file, linter=True))
+        auth.ensure_can_view_files(f.work, f.fileowner == FileOwner.teacher)
     else:
-        contents = files.get_file_contents(file)
-        res: 'werkzeug.wrappers.Response' = make_response(contents)
+        f = helpers.get_or_404(models.AutoTestOutputFile, file_id)
+        auth.ensure_can_view_autotest_result(f.result)
+
+        assig = f.suite.auto_test_set.auto_test.assignment
+        if not assig.is_done:
+            auth.ensure_permission(
+                CPerm.can_view_autotest_output_files_before_done,
+                assig.course_id
+            )
+
+    get_type = request.args.get('type', None)
+    if get_type == 'metadata':
+        return jsonify(f)
+    elif get_type == 'feedback':
+        feedback = {}
+        if isinstance(f, models.File):
+            feedback = get_feedback(f, linter=False)
+        return jsonify(feedback)
+    elif get_type in ('pdf', 'file-url'):
+        return jsonify({'name': get_file_url(f)})
+    elif get_type == 'linter-feedback':
+        feedback = {}
+        if isinstance(f, models.File):
+            feedback = get_feedback(f, linter=True)
+        return jsonify(feedback)
+    else:
+        res = Response(f.open())
         res.headers['Content-Type'] = 'application/octet-stream'
         return res
 
 
-def get_file_url(file: models.File) -> str:
+def get_file_url(file: models.FileMixin[object]) -> str:
     """Copies the given file to the mirror uploads folder and returns its name.
 
     To get this file, see the :func:`psef.v1.files.get_file` function.

@@ -26,10 +26,11 @@
         v-if="!isCollapsed || depth < 2">
         <li v-for="f in tree.entries"
             class="file"
-            :class="{ directory: f.entries, faded: fadeFile(f), active: fileIsSelected(f) }">
+            :class="{ directory: f.entries, faded: fadeFile(f), active: fileIsSelected(f), 'fade-active': fadeSelected }">
             <file-tree-inner v-if="f.entries"
                              :file-tree="fileTree"
                              :tree="f"
+                             :fade-selected="fadeSelected"
                              :revision="revision"
                              :collapsed="shouldCollapseTree(f)"
                              :collapse-function="collapseFunction"
@@ -60,7 +61,7 @@
                              :title="f.name"
                 ><icon name="file" class="file-icon"/>{{ f.name }}
                 </router-link>
-                <sup v-if="revision && fileTree && fileTree.fileHasRevision(f)"
+                <sup v-if="revision && fileTree && fileTree.hasRevision(f)"
                      v-b-popover.hover.top.window="revisionPopover(f)"
                      class="rev-popover">
                     <router-link :to="revisedFileRoute(f)"
@@ -125,6 +126,10 @@ export default {
         icon: {
             type: String,
             default: '',
+        },
+        fadeSelected: {
+            type: Boolean,
+            default: false,
         },
     },
 
@@ -260,7 +265,7 @@ export default {
         },
 
         fadeFile(f) {
-            return this.fadeUnchanged && !this.fileTree.fileHasRevision(f);
+            return this.fadeUnchanged && !this.fileTree.hasRevision(f);
         },
 
         shouldCollapseTree(dir) {
@@ -279,9 +284,9 @@ export default {
                 } else {
                     return 'changed';
                 }
-            } else if (f.revision !== undefined) {
-                if (f.revision == null) {
-                    return 'deleted';
+            } else if (this.fileTree.hasRevision(f)) {
+                if (this.fileTree.getRevisionId(f) == null) {
+                    return this.revision === 'student' ? 'deleted' : 'added';
                 } else {
                     return 'changed';
                 }
@@ -310,7 +315,7 @@ export default {
     cursor: default;
     color: @color-primary;
 
-    #app.dark & {
+    @{dark-mode} {
         color: @text-color-dark;
     }
 
@@ -320,11 +325,8 @@ export default {
             text-decoration: underline;
         }
 
-        #app.dark & {
-            &,
-            &:hover {
-                color: @text-color-dark;
-            }
+        @{dark-mode} {
+            color: @text-color-dark !important;
         }
     }
 
@@ -362,28 +364,32 @@ export default {
             opacity: 1;
             font-weight: bold;
         }
+
+        &.active.fade-active > .label {
+            opacity: 0.6;
+        }
     }
 
     .caret-icon {
         width: 1em;
-        transform: translateY(3px) rotate(0);
+        transform: translateY(-1px) rotate(0);
         transition: transform @transition-duration;
 
         &.collapsed {
-            transform: translateY(3px) rotate(-90deg);
+            transform: translateY(-1px) rotate(-90deg);
         }
     }
 
     .dir-icon {
         width: 1.5em;
         margin-right: 0.2rem;
-        transform: translateY(2px);
+        transform: translateY(-1px);
     }
 
     .file-icon {
         width: 1em;
         margin-right: 0.5em;
-        transform: translateY(2px);
+        transform: translateY(-1px);
     }
 
     .rev-popover {

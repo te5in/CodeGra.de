@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div id="app" :class="{ dark: hasDarkMode, lti: $inLTI }">
+<div id="app">
     <loader v-if="loading" page-loader/>
     <template v-else>
         <sidebar ref="sidebar" v-if="showSidebar"/>
@@ -18,7 +18,7 @@
             </main>
         </div>
     </template>
-    <div v-if="showFrameBorder" class="frame-border"/>
+    <div v-if="showFrameBorder" class="frame-border border"/>
 </div>
 </template>
 
@@ -34,6 +34,7 @@ export default {
 
     computed: {
         ...mapGetters('user', ['loggedIn']),
+        ...mapGetters('pref', ['darkMode']),
         ...mapGetters('courses', ['assignments']),
 
         canManageLTICourse() {
@@ -44,10 +45,6 @@ export default {
                 'course',
                 'canManage',
             );
-        },
-
-        hasDarkMode() {
-            return this.$store.getters['pref/darkMode'];
         },
 
         showSidebar() {
@@ -74,6 +71,30 @@ export default {
         };
     },
 
+    watch: {
+        darkMode: {
+            immediate: true,
+            handler() {
+                if (this.darkMode) {
+                    document.body.classList.add('cg-dark-mode');
+                } else {
+                    document.body.classList.remove('cg-dark-mode');
+                }
+            },
+        },
+
+        $inLTI: {
+            immediate: true,
+            handler() {
+                if (this.$inLTI) {
+                    document.body.classList.add('cg-in-lti');
+                } else {
+                    document.body.classList.remove('cg-in-lti');
+                }
+            },
+        },
+    },
+
     methods: {
         ...mapActions('user', ['verifyLogin']),
         ...mapActions('courses', ['loadCourses']),
@@ -84,32 +105,19 @@ export default {
             this.$inLTI = true;
         }
 
-        let popoversShown = false;
-
         document.body.addEventListener(
             'click',
             event => {
-                popoversShown = false;
-                if (!event.target.closest('.popover-body')) {
-                    if (!event.target.closest('.sidebar') && this.$refs.sidebar) {
-                        this.$refs.sidebar.$emit('sidebar::close');
-                    }
-
-                    setTimeout(() => {
-                        this.$nextTick(() => {
-                            if (!popoversShown) {
-                                this.$root.$emit('bv::hide::popover');
-                            }
-                        });
-                    }, 10);
+                if (
+                    !event.target.closest('.popover-body') &&
+                    !event.target.closest('.sidebar') &&
+                    this.$refs.sidebar
+                ) {
+                    this.$refs.sidebar.$emit('sidebar::close');
                 }
             },
             true,
         );
-
-        this.$root.$on('bv::popover::show', () => {
-            popoversShown = true;
-        });
 
         document.body.addEventListener(
             'keyup',
@@ -206,9 +214,9 @@ export default {
     right: 0;
     bottom: 0;
     pointer-events: none;
-    border: 1px solid @color-border-gray-lighter;
     z-index: 1000;
-    #app.dark & {
+
+    @{dark-mode} {
         display: none;
     }
 }

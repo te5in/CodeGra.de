@@ -30,28 +30,29 @@
         <table class="range-table table table-striped table-hover">
             <thead>
                 <tr>
-                    <th class="col-student-range">Export</th>
+                    <th class="shrink text-center">Export</th>
                     <th class="col-student-name"><user :user="detail.users[0]"/></th>
-                    <th class="col-student-range">Lines</th>
-                    <th class="col-student-range">Color</th>
+                    <th class="shrink text-center">Lines</th>
+                    <th class="shrink text-center">Color</th>
                     <th class="col-student-name"><user :user="detail.users[1]"/></th>
-                    <th class="col-student-range">Lines</th>
+                    <th class="shrink text-center">Lines</th>
                 </tr>
             </thead>
 
             <tbody>
                 <tr v-for="match in matchesSortedByRange"
                     @click="$set(exportMatches, match.id, !exportMatches[match.id])">
-                    <td><b-form-checkbox v-model="exportMatches[match.id]"/></td>
+                    <td><b-form-checkbox v-model="exportMatches[match.id]"
+                                         @click.native.prevent /></td>
                     <td class="col-student-name">
                         {{ getFromFileTree(tree1, match.files[0]) }}
                     </td>
-                    <td class="col-student-range">{{ match.lines[0][0] + 1 }} - {{ match.lines[0][1] + 1 }}</td>
+                    <td class="shrink text-center">{{ match.lines[0][0] + 1 }} - {{ match.lines[0][1] + 1 }}</td>
                     <td :style="`background: rgba(${getColorForMatch(match).background}, 0.4);`"></td>
                     <td class="col-student-name">
                         {{ getFromFileTree(tree2, match.files[1]) }}
                     </td>
-                    <td class="col-student-range">{{ match.lines[1][0] + 1 }} - {{ match.lines[1][1] + 1 }}</td>
+                    <td class="shrink text-center">{{ match.lines[1][0] + 1 }} - {{ match.lines[1][1] + 1 }}</td>
                 </tr>
             </tbody>
         </table>
@@ -76,9 +77,12 @@
                       @click="$root.$emit('bv::hide::modal', 'plagiarism-export');">
                 Cancel
             </b-button>
-            <submit-button label="Export"
-                           :submit="exportToLatex"
-                           @success="afterExportToLatex"/>
+            <b-button-group v-b-popover.top.hover="exportDisabled ? 'Select at least one case to export' : ''">
+                <submit-button label="Export"
+                               :disabled="exportDisabled"
+                               :submit="exportToLatex"
+                               @success="afterExportToLatex"/>
+            </b-button-group>
         </b-button-toolbar>
     </b-modal>
 
@@ -87,10 +91,10 @@
             <thead>
                 <tr>
                     <th class="col-student-name"><user :user="detail.users[0]"/></th>
-                    <th class="col-student-range">Lines</th>
-                    <th class="col-student-range">Color</th>
+                    <th class="shrink text-center">Lines</th>
+                    <th class="shrink text-center">Color</th>
                     <th class="col-student-name"><user :user="detail.users[1]"/></th>
-                    <th class="col-student-range">Lines</th>
+                    <th class="shrink text-center">Lines</th>
                 </tr>
             </thead>
 
@@ -100,12 +104,12 @@
                     <td class="col-student-name">
                         {{ getFromFileTree(tree1, match.files[0]) }}
                     </td>
-                    <td class="col-student-range">{{ match.lines[0][0] + 1 }} - {{ match.lines[0][1] + 1 }}</td>
+                    <td class="shrink text-center">{{ match.lines[0][0] + 1 }} - {{ match.lines[0][1] + 1 }}</td>
                     <td :style="`background: rgba(${getColorForMatch(match).background}, 0.4);`"></td>
                     <td class="col-student-name">
                         {{ getFromFileTree(tree2, match.files[1]) }}
                     </td>
-                    <td class="col-student-range">{{ match.lines[1][0] + 1 }} - {{ match.lines[1][1] + 1 }}</td>
+                    <td class="shrink text-center">{{ match.lines[1][0] + 1 }} - {{ match.lines[1][1] + 1 }}</td>
                 </tr>
             </tbody>
         </table>
@@ -114,7 +118,7 @@
     <div v-if="!contentLoaded" style="padding-top: 3em;">
         <loader :scale="3"/>
     </div>
-    <div class="code-viewer form-control" v-else>
+    <div class="code-viewer border rounded" v-else>
         <div class="student-files"
                 v-for="key in ['self', 'other']"
                 :ref="`file-comparison-${key}`">
@@ -131,8 +135,8 @@
                 </router-link>
                 <span v-else
                      slot="header"
-                     class="link-disabled"
-                     v-b-popover.hover.bottom="'You can\'t view files from other assignments.'">
+                     class="text-muted cursor-not-allowed"
+                     v-b-popover.window.hover.top="'You can\'t view files from other assignments.'">
                     {{ getFromFileTree(key == 'self' ? tree1 : tree2, file) }}
                 </span>
 
@@ -212,10 +216,6 @@ export default {
     },
 
     watch: {
-        darkMode() {
-            this.highlightAllLines();
-        },
-
         $route(newRoute, oldRoute) {
             if (
                 newRoute.params.assignmentId !== oldRoute.params.assignmentId ||
@@ -277,19 +277,19 @@ export default {
         },
 
         colorPairs() {
-            return ['#00FF00', '#FF0000', '#0000FF', '#FFFB00', '#00FFFF', '#7F00FF'].map(color => {
-                const rgbInt = parseInt(color.slice(1), 16);
-                const r = (rgbInt >> 16) & 0xff;
-                const g = (rgbInt >> 8) & 0xff;
-                const b = rgbInt & 0xff;
-                const background = [r, g, b];
-                return {
-                    background,
-                    textColor: this.darkMode
-                        ? background.map(item => Math.min(255, Math.max(25, item) * 4))
-                        : background.map(item => item / 1.75),
-                };
-            });
+            return [
+                [0, 255, 0],
+                [255, 0, 0],
+                [0, 0, 255],
+                [255, 251, 0],
+                [0, 255, 255],
+                [127, 0, 255],
+            ].map(background => ({
+                background,
+                textColor: this.darkMode
+                    ? background.map(item => Math.min(255, Math.max(25, item) * 4))
+                    : background.map(item => item / 1.75),
+            }));
         },
 
         assignmentId() {
@@ -357,6 +357,10 @@ export default {
                 });
                 return accum;
             }, {});
+        },
+
+        exportDisabled() {
+            return !Object.values(this.exportMatches).some(x => x);
         },
     },
 
@@ -556,6 +560,7 @@ ${right.join('\n')}
                     submissionId: this.detail.submissions[index].id,
                     fileId: file.id,
                 },
+                hash: '#code',
             };
         },
 
@@ -718,7 +723,7 @@ ${right.join('\n')}
     flex: 0 0 auto;
     overflow-y: auto;
     border: 1px solid rgba(0, 0, 0, 0.125);
-    border-radius: 0.25rem;
+    border-radius: @border-radius;
 }
 
 .range-table {
@@ -734,12 +739,6 @@ ${right.join('\n')}
 
     .col-student-name {
         width: 50%;
-    }
-
-    .col-student-range {
-        width: 1px;
-        white-space: nowrap;
-        text-align: center;
     }
 
     #plagiarism-export & {
@@ -811,10 +810,6 @@ ${right.join('\n')}
         z-index: 5;
         background-color: @linum-bg;
         margin-bottom: -1px;
-
-        .link-disabled {
-            color: @color-secondary-text-lighter !important;
-        }
     }
 }
 

@@ -7,25 +7,6 @@
 </div>
 <loader center v-else-if="loadingPage"/>
 <div class="page submission outer-container" id="submission-page" v-else>
-    <b-modal id="modal_delete" title="Are you sure?" hide-footer v-if="canDeleteSubmission">
-        <p style="text-align: center;">
-            By deleting all information about this submission,
-            including files, will be lost forever! So are you
-            really sure?
-        </p>
-        <b-button-toolbar justify>
-            <submit-button label="Yes"
-                           variant="outline-danger"
-                           :submit="deleteSubmission"
-                           @after-success="afterDeleteSubmission"/>
-            <b-btn class="text-center"
-                   variant="success"
-                   @click="$root.$emit('bv::hide::modal', `modal_delete`)">
-                No!
-            </b-btn>
-        </b-button-toolbar>
-    </b-modal>
-
     <local-header :back-route="submissionsRoute"
                   back-popover="Go back to submissions list"
                   always-show-extra-slot
@@ -39,54 +20,21 @@
             :assignment="assignment"/>
 
         <b-button-group class="submission-header-buttons">
-            <b-button class="settings-toggle"
-                      v-b-popover.hover.top="'Settings'"
-                      id="codeviewer-settings-toggle">
-                <icon name="cog"/>
+            <preference-manager in-popover
+                                container="#submission-page"
+                                :file-id="prefFileId"
+                                :show-context-amount="selectedCat === 'feedback-overview' || selectedCat === 'teacher-diff'"
+                                :show-language="selectedCat === 'code'"
+                                @whitespace="whitespaceChanged"
+                                @language="languageChanged"
+                                @inline-feedback="inlineFeedbackChanged" />
 
-                <b-popover triggers="click"
-                           class="settings-popover"
-                           target="codeviewer-settings-toggle"
-                           @show="beforeShowPopover"
-                           container="#submission-page"
-                           placement="bottom">
-                    <div class="settings-content"
-                         id="codeviewer-settings-content"
-                         ref="settingsContent">
-                        <preference-manager :file-id="prefFileId"
-                                            :show-context-amount="selectedCat === 'feedback-overview' || selectedCat === 'teacher-diff'"
-                                            :show-language="selectedCat === 'code'"
-                                            @whitespace="whitespaceChanged"
-                                            @language="languageChanged"
-                                            @inline-feedback="inlineFeedbackChanged"/>
-                    </div>
-                </b-popover>
-            </b-button>
-
-            <b-button v-if="editable"
-                      id="codeviewer-general-feedback"
-                      v-b-popover.hover.top="`Edit general feedback`">
-                <icon name="edit"/>
-
-                <b-popover target="codeviewer-general-feedback"
-                           triggers="click"
-                           container="#submission-page"
-                           @show="beforeShowPopover"
-                           placement="bottom">
-                    <template slot="title">
-                        <span v-if="submission && submission.comment_author">
-                            General feedback by <user :user="submission.comment_author"/>
-                        </span>
-                        <span v-else>
-                            General feedback
-                        </span>
-                    </template>
-                    <general-feedback-area style="width: 35em;"
-                                           :assignment="assignment"
-                                           :submission="submission"
-                                           :editable="true"/>
-                </b-popover>
-            </b-button>
+            <general-feedback-area v-if="editable"
+                                   in-popover
+                                   container="#submission-page"
+                                   :assignment="assignment"
+                                   :submission="submission"
+                                   :editable="true" />
 
             <b-button v-if="canSeeGradeHistory"
                       id="codeviewer-grade-history"
@@ -95,12 +43,12 @@
 
                 <b-popover target="codeviewer-grade-history"
                            title="Grade history"
-                           triggers="click"
-                           container="#submission-page"
-                           boundary="viewport"
-                           @show="beforeShowPopover(); $refs.gradeHistory.updateHistory()"
-                           placement="bottom">
-                    <grade-history ref="gradeHistory"
+                           triggers="click blur"
+                           container="submission-page"
+                           placement="bottom"
+                           custom-class="p-0"
+                           @show="$root.$emit('bv::hide::popover')">
+                    <grade-history style="width: 30rem;"
                                    :submission-id="submission && submission.id"
                                    :isLTI="assignment && assignment.course.is_lti"/>
                 </b-popover>
@@ -111,10 +59,13 @@
                 <icon name="download"/>
 
                 <b-popover target="codeviewer-download-toggle"
-                           triggers="click"
-                           @show="beforeShowPopover"
-                           placement="bottom">
-                    <table class="table table-hover">
+                           triggers="click blur"
+                           placement="bottom"
+                           container="submission-page"
+                           custom-class="p-0"
+                           @show="$root.$emit('bv::hide::popover')">
+                    <table style="width: 10rem;"
+                           class="table table-hover mb-0 text-left">
                         <tbody>
                             <tr @click="downloadType('zip')">
                                 <td><b>Archive</b></td>
@@ -128,18 +79,18 @@
                 </b-popover>
             </b-button>
 
-            <b-btn v-if="canDeleteSubmission"
-                   variant="danger"
-                   v-b-popover.hover.top="'Delete submission'"
-                   id="codeviewer-delete-submission"
-                   @click="$root.$emit('bv::show::modal',`modal_delete`)">
+            <submit-button v-if="canDeleteSubmission"
+                           variant="danger"
+                           confirm="By deleting all information about this submission, including files, will be lost forever! So are you really sure?"
+                           confirm-in-modal
+                           v-b-popover.hover.top="'Delete submission'"
+                           :submit="deleteSubmission"
+                           @after-success="afterDeleteSubmission">
                 <icon name="times"/>
-            </b-btn>
+            </submit-button>
         </b-button-group>
 
         <template slot="extra" v-if="!loadingInner">
-            <hr class="mt-2 mb-1" />
-
             <category-selector slot="extra"
                                 :default="defaultCat"
                                 v-model="selectedCat"
@@ -174,11 +125,10 @@
                              :language="selectedLanguage"
                              @language="languageChanged" />
 
-                <div class="file-tree-container form-control p-0 mt-3 mt-lg-0" slot="secondPane">
+                <div class="file-tree-container border rounded p-0 mt-3 mt-lg-0" slot="secondPane">
                     <file-tree :assignment="assignment"
                                :submission="submission"
-                               :revision="revision"
-                               :can-see-revision="canSeeRevision" />
+                               :revision="revision" />
                 </div>
             </component>
         </div>
@@ -356,18 +306,6 @@ export default {
             return this.coursePerms.can_view_autotest_before_done;
         },
 
-        canSeeRevision() {
-            if (
-                this.submission &&
-                this.userId === this.submission.user.id &&
-                this.canSeeUserFeedback
-            ) {
-                return this.coursePerms.can_view_own_teacher_files;
-            } else {
-                return this.coursePerms.can_edit_others_work;
-            }
-        },
-
         canGiveLineFeedback() {
             return this.editable && this.revision === 'student';
         },
@@ -479,13 +417,13 @@ export default {
                     id: 'feedback-overview',
                     name: () => {
                         let title = 'Feedback overview';
-                        if (!this.feedback) {
+                        if (!this.feedback || !this.submission) {
                             return title;
                         }
 
                         const nitems = Object.values(this.feedback.user).reduce(
                             (acc, file) => acc + Object.values(file).filter(x => x.msg).length,
-                            this.feedback.general ? 1 : 0,
+                            this.submission.comment ? 1 : 0,
                         );
                         if (nitems) {
                             title += ` <div class="ml-1 badge badge-primary">${nitems}</div>`;
@@ -582,6 +520,7 @@ export default {
                     latest: this.$route.query.latest || false,
                     sortBy: this.$route.query.sortBy,
                     sortAsc: this.$route.query.sortAsc,
+                    page: this.$route.query.page || undefined,
                 },
             };
         },
@@ -800,10 +739,6 @@ export default {
             this.currentFile = this.fileTree && this.fileTree.search(this.revision, this.fileId);
         },
 
-        beforeShowPopover() {
-            this.$root.$emit('bv::hide::popover');
-        },
-
         deleteSubmission() {
             const sub = this.submission;
             return this.$http.delete(`/api/v1/submissions/${this.submissionId}`).then(() => sub);
@@ -829,9 +764,10 @@ export default {
                 .then(({ data }) => {
                     const params = new URLSearchParams();
                     params.append('not_as_attachment', '');
-                    window.open(
-                        `/api/v1/files/${data.name}/${data.output_name}?${params.toString()}`,
-                    );
+                    const url = `/api/v1/files/${data.name}/${encodeURIComponent(
+                        data.output_name,
+                    )}?${params.toString()}`;
+                    window.open(url);
                 });
         },
 
@@ -881,6 +817,7 @@ export default {
     height: 100vh;
     max-height: 100%;
     margin-bottom: 0 !important;
+    overflow: hidden;
 }
 
 .submission-nav-bar {
@@ -950,12 +887,6 @@ export default {
 
 .grade-viewer {
     flex: 0 0 auto;
-}
-
-.popover .table {
-    margin: -0.5rem -0.75rem;
-    min-width: 10rem;
-    text-align: left;
 }
 </style>
 

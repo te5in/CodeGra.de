@@ -45,27 +45,25 @@ pytest --cov cg_worker_pool \
        -vvvv
 res1="$?"
 
-pytest --cov psef \
-       --cov-append \
-       --postgresql="${BASE_DATABASE_URI}gw5" \
-       --cov-report term-missing \
-       --timeout=300 \
-       --timeout-method=thread \
-       "$(pwd)/psef_test/test_auto_test.py" \
-       -vvvv
+timeout -k 600 600 \
+        pytest --cov psef \
+        --cov-append \
+        --postgresql="${BASE_DATABASE_URI}gw5" \
+        --cov-report term-missing \
+        "$(pwd)/psef_test/test_auto_test.py" \
+       -s -vvvv
 res2="$?"
 
 rm "$(pwd)/psef_test/test_auto_test.py"
 
-pytest --cov psef \
-       --cov-append \
-       --postgresql="$BASE_DATABASE_URI" \
-       --cov-report term-missing \
-       "$(pwd)/psef_test/" \
-       -n 4 \
-       --timeout=300 \
-       --timeout-method=thread \
-       -vvvv
+timeout -k 900 900 \
+        pytest --cov psef \
+        --cov-append \
+        --postgresql="$BASE_DATABASE_URI" \
+        --cov-report term-missing \
+        "$(pwd)/psef_test/" \
+        -n 4 \
+        -vvvv
 res3="$?"
 
 make doctest

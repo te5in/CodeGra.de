@@ -43,13 +43,13 @@
                 Current Password
                 <description-popover hug-text
                                      placement="right"
-                                     triggers="click"
                                      title="What is my current password?">
                     <p slot="description"
-                       style="text-align: left; margin-bottom: 0.25rem;">
+                       class="text-left mb-1">
                         If your account was created by using an
                         <span title="Learning Management System, e.g. Canvas or Blackboard"
-                              style="cursor: help; border-bottom: 1px dotted currentColor;">
+                              class="cursor-help"
+                              style="border-bottom: 1px dotted currentColor;">
                             LMS</span>
                         it can happen that you don't know this password. In
                         this case you should use the

@@ -15,10 +15,10 @@
                 :key="grader.id"
                 class="grader">
                 <td><user :user="grader"/></td>
-                <td>
+                <td class="shrink">
                     <b-popover placement="top"
-                                :show="!!(warningGraders[grader.id] || errorGraders[grader.id])"
-                                :target="`grader-icon-${assignment.id}-${grader.id}`">
+                               :show="!!(warningGraders[grader.id] || errorGraders[grader.id])"
+                               :target="`grader-icon-${assignment.id}-${grader.id}`">
                         <span v-if="errorGraders[grader.id]">
                             {{ errorGraders[grader.id] }}
                         </span>
@@ -28,16 +28,16 @@
                     </b-popover>
 
                     <icon :name="iconStyle(grader.id)"
-                            :spin="!(errorGraders[grader.id] || warningGraders[grader.id])"
-                            :id="`grader-icon-${assignment.id}-${grader.id}`"
-                            :class="iconClass(grader.id)"
-                            :style="{
-                                    opacity: warningGraders[grader.id] ||
-                                            loadingGraders[grader.id] ||
-                                            errorGraders[grader.id] ? 1 : 0,
-                                    }"/>
+                          :spin="!(errorGraders[grader.id] || warningGraders[grader.id])"
+                          :id="`grader-icon-${assignment.id}-${grader.id}`"
+                          :class="iconClass(grader.id)"
+                          :style="{
+                              opacity: warningGraders[grader.id] ||
+                                           loadingGraders[grader.id] ||
+                                           errorGraders[grader.id] ? 1 : 0,
+                          }"/>
                 </td>
-                <td>
+                <td class="shrink">
                     <toggle label-on="Done"
                             label-off="Grading"
                             :disabled="!others && $store.getters['user/id'] != grader.id"
@@ -192,12 +192,5 @@ export default {
 
 .table td:nth-child(2) {
     padding-top: 0.75rem;
-}
-
-.table td:nth-child(2),
-.table td:last-child {
-    // Fit content
-    width: 1px;
-    white-space: nowrap;
 }
 </style>

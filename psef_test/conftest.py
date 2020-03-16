@@ -32,6 +32,7 @@ import psef.auth as a
 import psef.models as m
 from helpers import create_error_template, create_user_with_perms
 from lxc_stubs import lxc_stub
+from cg_dt_utils import DatetimeWithTimezone
 from psef.permissions import CoursePermission as CPerm
 
 TESTDB = 'test_project.db'
@@ -167,6 +168,9 @@ def app(request):
 
     app.config['__S_FEATURES']['COURSE_REGISTER'] = True
     app.config['FEATURES'][psef.features.Feature.COURSE_REGISTER] = True
+
+    app.config['__S_FEATURES']['RENDER_HTML'] = True
+    app.config['FEATURES'][psef.features.Feature.RENDER_HTML] = True
 
     psef.tasks.celery.conf.update({
         'task_always_eager': False,
@@ -572,7 +576,7 @@ def assignment(course_name, state_is_hidden, session, request, with_works):
         name='TEST COURSE',
         state=state,
         course=course,
-        deadline=datetime.datetime.utcnow() +
+        deadline=DatetimeWithTimezone.utcnow() +
         datetime.timedelta(days=1 if request.param == 'new' else -1)
     )
     session.add(assig)
@@ -620,7 +624,7 @@ def stub_function_class():
         def __call__(self, *args, **kwargs):
             self.args.append(args)
             self.kwargs.append(kwargs)
-            self.call_dates.append(datetime.datetime.utcnow())
+            self.call_dates.append(DatetimeWithTimezone.utcnow())
 
             if self.with_args:
                 self.rets.append(self.ret_func(*args, **kwargs))
@@ -683,10 +687,18 @@ def live_server(app, live_server_url):
         if p is None:
             return
 
-        os.kill(p.pid, signal.SIGINT)
-        try:
-            p.join(4)
-        except:
+        from pytest_cov.embed import cleanup
+        cleanup()
+
+        for sig in [signal.SIGTERM, signal.SIGINT]:
+            os.kill(p.pid, sig)
+            try:
+                p.join(4)
+            except:
+                pass
+            else:
+                break
+        else:
             p.terminate()
             p.join()
 
@@ -694,9 +706,12 @@ def live_server(app, live_server_url):
         nonlocal p
 
         def _inner():
+            from pytest_cov.embed import cleanup_on_sigterm
+            cleanup_on_sigterm()
             app.run(
                 host='localhost',
                 port=LIVE_SERVER_PORT,
+                debug=False,
                 use_reloader=False,
                 threaded=False
             )
@@ -758,9 +773,9 @@ def stubmailer(monkeypatch):
 
 @pytest.fixture
 def tomorrow():
-    yield datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    yield DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
 
 
 @pytest.fixture
 def yesterday():
-    yield datetime.datetime.utcnow() - datetime.timedelta(days=1)
+    yield DatetimeWithTimezone.utcnow() - datetime.timedelta(days=1)

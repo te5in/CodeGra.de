@@ -9,7 +9,6 @@ import copy
 import enum
 import typing as t
 import numbers
-import datetime
 
 import regex as re
 import structlog
@@ -17,6 +16,8 @@ from sqlalchemy.types import JSON
 
 import psef
 import cg_logger
+from cg_dt_utils import DatetimeWithTimezone
+from cg_sqlalchemy_helpers.types import DbType, ColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import Base, db, _MyQuery
@@ -36,7 +37,6 @@ TT = t.TypeVar('TT', bound='AutoTestStepBase')
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     # pylint: disable=unused-import
-    from . import auto_test as auto_test_models
     from .. import auto_test as auto_test_module
 
 _ALL_AUTO_TEST_HANDLERS = sorted(
@@ -48,6 +48,7 @@ _registered_test_handlers: t.Set[str] = set()
 def _register(cls: T) -> T:
     name = cls.__mapper_args__['polymorphic_identity']
 
+    assert isinstance(name, str)
     assert name in _ALL_AUTO_TEST_HANDLERS
     assert name not in _registered_test_handlers
     _registered_test_handlers.add(name)
@@ -101,39 +102,42 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
 
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['AutoTestStepBase']]
-    id: int = db.Column('id', db.Integer, primary_key=True)
+    id = db.Column('id', db.Integer, primary_key=True)
 
     order = db.Column('order', db.Integer, nullable=False)
 
-    name: str = db.Column('name', db.Unicode, nullable=False)
-    _weight: float = db.Column('weight', db.Float, nullable=False)
+    name = db.Column('name', db.Unicode, nullable=False)
+    _weight = db.Column('weight', db.Float, nullable=False)
 
-    hidden: bool = db.Column('hidden', db.Boolean, nullable=False)
+    hidden = db.Column('hidden', db.Boolean, nullable=False)
 
-    auto_test_suite_id: int = db.Column(
+    auto_test_suite_id = db.Column(
         'auto_test_suite_id',
         db.Integer,
-        db.ForeignKey('AutoTestSuite.id'),
+        db.ForeignKey('AutoTestSuite.id', ondelete='CASCADE'),
         nullable=False
     )
 
-    suite: 'auto_test_models.AutoTestSuite' = db.relationship(
-        'AutoTestSuite',
+    suite = db.relationship(
+        lambda: psef.models.AutoTestSuite,
         foreign_keys=auto_test_suite_id,
         back_populates='steps',
         lazy='joined',
         innerjoin=True,
     )
 
-    _test_type: str = db.Column(
+    _test_type = db.Column(
         'test_type',
         db.Enum(*_ALL_AUTO_TEST_HANDLERS, name='autoteststeptesttype'),
         nullable=False,
     )
 
     # TODO: Improve data typing
-    _data: 'psef.helpers.JSONType' = db.Column(
-        'data', JSON, nullable=False, default={}
+    _data = db.Column(
+        'data',
+        t.cast(DbType['psef.helpers.JSONType'], JSON),
+        nullable=False,
+        default=t.cast('psef.helpers.JSONType', {}),
     )
 
     __mapper_args__ = {
@@ -480,7 +484,7 @@ class _IoTest(AutoTestStepBase):
         opts: 'auto_test_module.ExecuteOptions',
     ) -> float:
         def now() -> str:
-            return datetime.datetime.utcnow().isoformat()
+            return DatetimeWithTimezone.utcnow().isoformat()
 
         data = opts.test_instructions['data']
         assert isinstance(data, dict)
@@ -871,15 +875,15 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['AutoTestStepResult']]
 
-    auto_test_step_id: int = db.Column(
+    auto_test_step_id = db.Column(
         'auto_test_step_id',
         db.Integer,
-        db.ForeignKey('AutoTestStep.id'),
+        db.ForeignKey('AutoTestStep.id', ondelete='CASCADE'),
         nullable=False
     )
 
-    step: AutoTestStepBase = db.relationship(
-        'AutoTestStepBase',
+    step = db.relationship(
+        lambda: AutoTestStepBase,
         foreign_keys=auto_test_step_id,
         lazy='joined',
         innerjoin=True,
@@ -888,11 +892,11 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
     auto_test_result_id = db.Column(
         'auto_test_result_id',
         db.Integer,
-        db.ForeignKey('AutoTestResult.id'),
+        db.ForeignKey('AutoTestResult.id', ondelete='CASCADE'),
     )
 
-    result: 'auto_test_models.AutoTestResult' = db.relationship(
-        'AutoTestResult',
+    result = db.relationship(
+        lambda: psef.models.AutoTestResult,
         foreign_keys=auto_test_result_id,
         innerjoin=True,
         back_populates='step_results',
@@ -905,15 +909,12 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         nullable=False,
     )
 
-    started_at: t.Optional[datetime.datetime] = db.Column(
-        'started_at', db.DateTime, default=None, nullable=True
+    started_at = db.Column(
+        'started_at', db.TIMESTAMP(timezone=True), default=None, nullable=True
     )
 
-    log: 'psef.helpers.JSONType' = db.Column(
-        'log',
-        JSON,
-        nullable=True,
-        default=None,
+    log: ColumnProxy[JSONType] = db.Column(
+        'log', JSON, nullable=True, default=None
     )
 
     @property
@@ -930,7 +931,7 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
 
         self._state = new_state
         if new_state == AutoTestStepResultState.running:
-            self.started_at = datetime.datetime.utcnow()
+            self.started_at = DatetimeWithTimezone.utcnow()
         else:
             self.started_at = None
 
