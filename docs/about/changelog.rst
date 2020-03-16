@@ -7,7 +7,7 @@ Version Knoet.3
 **Released**: March 16th, 2020
 
 You can now render HTML pages submitted by students right inside CodeGrade,
-allowing you to preview webpages or testing Javascript more easily than ever.
+allowing you to preview webpages or test Javascript more easily than ever.
 
 **Features**
 
