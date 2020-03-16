@@ -1837,17 +1837,16 @@ def test_output_dir(
 
     with describe('It should never have feedback'):
         with logged_in(teacher):
-            file_url = '/api/v1/code/{file_id}'.format(
-                    file_id=sym_link_id
-                )
-            test_client.req(
-                'get', f'{file_url}?type=feedback', 200, result={}
-            )
+            file_url = '/api/v1/code/{file_id}'.format(file_id=sym_link_id)
+            test_client.req('get', f'{file_url}?type=feedback', 200, result={})
             test_client.req(
                 'get', f'{file_url}?type=linter-feedback', 200, result={}
             )
             test_client.req(
-                'get', f'{file_url}?type=file-url', 200, result={
+                'get',
+                f'{file_url}?type=file-url',
+                200,
+                result={
                     'name': re.compile(r'[\-0-9a-fA-F]'),
                 }
             )
