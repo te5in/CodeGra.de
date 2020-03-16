@@ -29,7 +29,7 @@ from ..exceptions import APICodes, APIException
 from ..permissions import CoursePermission
 
 logger = structlog.get_logger()
-T = t.TypeVar('T', covariant=True)
+T = t.TypeVar('T')
 
 
 @enum.unique

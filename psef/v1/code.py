@@ -28,8 +28,6 @@ _HumanFeedback = models.Comment
 _LinterFeedback = t.MutableSequence[t.Tuple[str, models.LinterComment]]  # pylint: disable=invalid-name
 _FeedbackMapping = t.Dict[str, t.Union[_HumanFeedback, _LinterFeedback]]  # pylint: disable=invalid-name
 
-T = t.TypeVar('T')
-
 
 @api.route("/code/<int:code_id>/comments/<int:line>", methods=['PUT'])
 def put_comment(code_id: int, line: int) -> EmptyResponse:
@@ -122,6 +120,7 @@ def remove_comment(code_id: int, line: int) -> EmptyResponse:
     return make_empty_response()
 
 
+@api.route('/code/<uuid:file_id>', methods=['GET'])
 def get_auto_test_output_file(
     file_id: uuid.UUID
 ) -> werkzeug.wrappers.Response:
@@ -147,13 +146,11 @@ def get_auto_test_output_file(
     return res
 
 
-@api.route('/code/<uuid:file_id>', methods=['GET'])
 @api.route("/code/<int:file_id>", methods=['GET'])
 @auth.login_required
-def get_code(file_id: t.Union[int, uuid.UUID]) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
+def get_code(file_id: int) -> t.Union[werkzeug.wrappers.Response, JSONResponse[
     t.Union[t.Mapping[str, str], models.File, _FeedbackMapping]]]:
-    """Get data from a :class:`.models.File` or a
-        :class:`.models.AutoTestOutputFile` with the given id.
+    """Get data from the :class:`.models.File` with the given id.
 
     .. :quickref: Code; Get code or its metadata.
 
@@ -166,13 +163,10 @@ def get_code(file_id: t.Union[int, uuid.UUID]) -> t.Union[werkzeug.wrappers.Resp
       with a single key, `name`, with as value the return values of
       :py:func:`.get_file_url`.
     - If ``type == 'feedback'`` or ``type == 'linter-feedback'`` see
-      :py:func:`.code.get_feedback`. This will always return an empty mapping
-      for :class:`.models.AutoTestOutputFiles` for now.
+      :py:func:`.code.get_feedback`
     - Otherwise the content of the file is returned as plain text.
 
-    :param file_id: The id of the file if you want get the data for a
-        `.models.File` it should be an integer, otherwise a uuid should be
-        given.
+    :param int file_id: The id of the file
     :returns: A response containing a plain text file unless specified
         otherwise.
 
@@ -188,46 +182,30 @@ def get_code(file_id: t.Union[int, uuid.UUID]) -> t.Union[werkzeug.wrappers.Resp
                                  user can not view files in the attached
                                  course. (INCORRECT_PERMISSION)
     """
-    f: t.Union[models.NestedFileMixin[int], models.NestedFileMixin[uuid.UUID]]
+    file = helpers.filter_single_or_404(
+        models.File,
+        models.File.id == file_id,
+        also_error=lambda f: f.work.deleted
+    )
 
-    if isinstance(file_id, int):
-        f = helpers.filter_single_or_404(
-            models.File,
-            models.File.id == file_id,
-            also_error=lambda f: f.work.deleted
-        )
-
-        auth.ensure_can_view_files(f.work, f.fileowner == FileOwner.teacher)
-    else:
-        f = helpers.get_or_404(models.AutoTestOutputFile, file_id)
-        auth.ensure_can_view_autotest_result(f.result)
-
-        assig = f.suite.auto_test_set.auto_test.assignment
-        if not assig.is_done:
-            auth.ensure_permission(
-                CPerm.can_view_autotest_output_files_before_done, assig.course_id
-            )
-
+    auth.ensure_can_view_files(file.work, file.fileowner == FileOwner.teacher)
     get_type = request.args.get('type', None)
+
     if get_type == 'metadata':
-        return jsonify(f)
+        return jsonify(file)
     elif get_type == 'feedback':
-        if not isinstance(f, models.File):
-            return jsonify({})
-        return jsonify(get_feedback(f, linter=False))
+        return jsonify(get_feedback(file, linter=False))
     elif get_type in ('pdf', 'file-url'):
-        return jsonify({'name': get_file_url(f)})
+        return jsonify({'name': get_file_url(file)})
     elif get_type == 'linter-feedback':
-        if not isinstance(f, models.File):
-            return jsonify({})
-        return jsonify(get_feedback(f, linter=True))
+        return jsonify(get_feedback(file, linter=True))
     else:
-        res = Response(f.open())
+        res = Response(file.open())
         res.headers['Content-Type'] = 'application/octet-stream'
         return res
 
 
-def get_file_url(file: models.FileMixin[object]) -> str:
+def get_file_url(file: models.File) -> str:
     """Copies the given file to the mirror uploads folder and returns its name.
 
     To get this file, see the :func:`psef.v1.files.get_file` function.
