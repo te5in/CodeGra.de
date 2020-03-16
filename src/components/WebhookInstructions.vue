@@ -486,6 +486,12 @@ export default {
 };
 </script>
 
+<style lang="less" scoped>
+:not(input).form-control {
+    height: auto;
+}
+</style>
+
 <style lang="less">
 @import '~mixins.less';
 
