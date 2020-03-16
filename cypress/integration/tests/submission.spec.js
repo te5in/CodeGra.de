@@ -9,6 +9,7 @@ context('Submission page', () => {
     const otherMsg = 'Other feedback message';
 
     function waitUntilLoaded() {
+        cy.wait('@getPermissionsRoute');
         cy.get('.page.submission').should('be.visible');
     }
 
@@ -74,7 +75,9 @@ context('Submission page', () => {
         cy.get('.file-tree')
             .contains('.file a', filename)
             .click({ force: true });
+
         getFileViewer(viewer).should('be.visible');
+        cy.get(`.file-viewer${viewer} .loader`).should('not.exist');
     }
 
     function getLine(line, viewer='.code-viewer') {
@@ -114,7 +117,7 @@ context('Submission page', () => {
             .find('.feedback-area.edit')
             .should('be.visible');
         getLine(line, viewer)
-            .find('.feedback-area.edit textarea')
+            .find('.feedback-area.edit textarea:focus')
             .setText(feedback);
         getLine(line, viewer)
             .find('.feedback-area.edit .submit-feedback .submit-button')
@@ -140,7 +143,7 @@ context('Submission page', () => {
             .find('.feedback-area.edit')
             .should('be.visible');
         getLine(line, viewer)
-            .find('.feedback-area.edit textarea')
+            .find('.feedback-area.edit textarea:focus')
             .setText(feedback);
         getLine(line, viewer)
             .find('.feedback-area.edit .submit-button.delete-feedback')
@@ -191,7 +194,7 @@ context('Submission page', () => {
     function giveSingleFeedback(feedback, viewer) {
         editSingleFeedback(viewer);
         getSingleFeedbackArea('edit', viewer)
-            .find('textarea')
+            .find('textarea:focus')
             .clear()
             .setText(feedback);
         getSingleFeedbackArea('edit', viewer)
@@ -322,6 +325,8 @@ context('Submission page', () => {
     });
 
     beforeEach(() => {
+        cy.server();
+        cy.route('/api/v1/login?type=extended&with_permissions').as('getPermissionsRoute');
         login('admin', 'admin');
     });
 
@@ -382,7 +387,7 @@ context('Submission page', () => {
 
         it('should ask to save feedback when closing the popover', () => {
             showGeneralFeedbackArea()
-                .find('textarea')
+                .find('textarea:focus')
                 .type('abc');
             toggleGeneralFeedbackArea();
             cy.get('[id^="submit-button-"][id$="-confirm-popover"]')
@@ -418,7 +423,7 @@ context('Submission page', () => {
 
             showGeneralFeedbackArea()
                 .as('gfArea')
-                .find('textarea')
+                .find('textarea:focus')
                 .type(generalMsg);
             cy.get('@gfArea')
                 .find('.submit-button')
@@ -456,7 +461,7 @@ context('Submission page', () => {
                     .find('.feedback-area.edit')
                     .should('be.visible');
                 getLine(0)
-                    .find('.feedback-area.edit textarea')
+                    .find('.feedback-area.edit textarea:focus')
                     .setText(`${inlineMsg}{ctrl}{enter}`);
                 checkInlineFeedback(0, inlineMsg);
             });
@@ -478,13 +483,9 @@ context('Submission page', () => {
             });
 
             context('Deleting without submitting first', () => {
-                before(() => {
-                    login('admin', 'admin');
+                beforeEach(() => {
                     cy.openCategory('Code');
-                    deleteInlineFeedback(0, null, { hasConfirm: false });
-                });
-
-                afterEach(() => {
+                    openFile(filename, '.code-viewer');
                     deleteInlineFeedback(0, null, { hasConfirm: false });
                 });
 
@@ -514,13 +515,12 @@ context('Submission page', () => {
             });
 
             context('Deleting after submitting', () => {
-                before(() => {
-                    login('admin', 'admin');
+                beforeEach(() => {
                     cy.openCategory('Code');
                     deleteInlineFeedback(0, null, { hasConfirm: false });
                 });
 
-                afterEach(() => {
+                after(() => {
                     deleteInlineFeedback(0, null, { hasConfirm: false });
                 });
 

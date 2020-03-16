@@ -194,7 +194,8 @@ export default {
     height: 100%;
     overflow: auto;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    flex: 1 1 100%;
 }
 
 .feedback-area-wrapper {

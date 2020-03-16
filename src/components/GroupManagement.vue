@@ -40,7 +40,7 @@
                  class="user-box"
                  :key="`assignment-group-${group.id}-member-${user.id}`">
                 <div style="display: flex">
-                    <span>{{ user.name }} ({{ user.username }})</span>
+                    <span style="word-break: break-all;">{{ user.name }} ({{ user.username }})</span>
                     <span class="lti-progress" v-if="showLtiProgress"
                           :class="canRemoveUser(user) ? 'pr-3' : ''">
                         <div v-b-popover.top.hover.html="ltiTexts.done(user)"

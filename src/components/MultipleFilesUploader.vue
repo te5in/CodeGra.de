@@ -192,7 +192,6 @@ export default {
         border-top-right-radius: @border-radius;
 
         &.dropzone-amount-files-0 .dz-custom-message:hover,
-        .dz-message + .dz-preview,
         .dz-hover-overlay {
             border-top-left-radius: @border-radius;
             border-top-right-radius: @border-radius;
@@ -304,6 +303,11 @@ export default {
             padding: 0.75rem;
             background-color: @color-lighter-gray;
             border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+
+            &:nth-child(2) {
+                border-top-right-radius: 0.25rem;
+                border-top-left-radius: 0.25rem;
+            }
 
             &:nth-child(2n) {
                 background-color: white;

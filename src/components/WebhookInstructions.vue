@@ -80,7 +80,10 @@
                 get there by moving your cursor over the gear icon in the
                 sidebar on the left (it is the very last item) and then
                 selecting the <i>"Repository"</i> item. Then expand
-                the <i>"Deploy Keys"</i> category. You should see two input
+                the <i>"Deploy Keys"</i> category. If this category is not
+                present go back to the gear icon in the sidebar and
+                select <i>"CI/CD"</i>, and now expand the <i>"Deploy Keys"</i>
+                category. After expanding the category you should see two input
                 fields: <i>"Title"</i> and <i>"Key"</i>.
             </p>
 
@@ -482,6 +485,12 @@ export default {
     },
 };
 </script>
+
+<style lang="less" scoped>
+:not(input).form-control {
+    height: auto;
+}
+</style>
 
 <style lang="less">
 @import '~mixins.less';

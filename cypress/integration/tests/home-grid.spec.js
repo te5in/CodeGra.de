@@ -36,11 +36,9 @@ context('HomeGrid', () => {
     });
 
     it('should show the entire date for courses with the same name', () => {
-        const now = new Date();
+        const now = new Date().toISOString().slice(0, 10);
         const name1 = `Duplicate course - ${Math.random()}`;
         const name2 = `Unique course - ${Math.random()}`;
-        const fullName1 = `${name1} (${now.toISOString().slice(0, 10)})`;
-        const fullName2 = `${name2} (${now.toISOString().slice(0, 10)})`;
 
         cy.login('admin', 'admin');
         cy.createCourse(name1).then(() => {
@@ -51,14 +49,14 @@ context('HomeGrid', () => {
             cy.visit('/');
 
             cy.get(`.course-name:contains(${name1})`).should('have.length', 2);
-            cy.get(`.course-name:contains(${fullName1})`).should('have.length', 2);
+            cy.get(`.course-name:contains(${name1})`).should('contain', now);
 
             // There should be a course with name2
             cy.get(`.course-name:contains(${name2})`).should('have.length', 1);
 
             // But it should not include the date in any way
-            cy.get(`.course-name:contains(${name2} ()`).should('have.length', 0);
-            cy.get(`.course-name:contains(${fullName2})`).should('have.length', 0);
+            cy.get(`.course-name:contains(${name2})`).should('not.contain', '()');
+            cy.get(`.course-name:contains(${name2})`).should('not.contain', now);
         });
     });
 });

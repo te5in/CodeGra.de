@@ -46,7 +46,12 @@
                 <b-card-header :class="`text-${getColorPair(course.name).color}`"
                                :style="{ backgroundColor: `${getColorPair(course.name).background} !important` }">
                     <div style="display: flex">
-                        <b class="course-name">{{ courseNamesToDisplay[course.id] }}</b>
+                        <div class="course-name">
+                            <b>{{ course.name }}</b>
+                            <i v-if="courseExtraDataToDisplay[course.id]">
+                                ({{ courseExtraDataToDisplay[course.id] }})
+                            </i>
+                        </div>
                         <router-link v-if="course.canManage"
                                      :to="manageCourseRoute(course)"
                                      v-b-popover.window.top.hover="'Manage course'"
@@ -104,7 +109,8 @@
     <b-btn class="extra-load-btn"
            v-if="moreCoursesAvailable && !loadingCourses"
            @click="showMoreCourses()">
-        <span>
+        <loader v-if="renderingMoreCourses > 0" :scale="1" class="py-1"/>
+        <span v-else>
             Load more courses
         </span>
         <infinite-loading @infinite="showMoreCourses" :distance="150">
@@ -145,11 +151,11 @@ const COLOR_PAIRS = [
     { background: 'rgb(167, 174, 145)', color: 'dark' },
     { background: 'rgb(215, 206, 166)', color: 'dark' },
     { background: 'rgb(204,  58,  40)', color: 'light' },
-    { background: 'rgb( 89, 141, 134)', color: 'dark' },
+    { background: 'rgb( 89, 141, 134)', color: 'light' },
     { background: 'rgb(230, 220, 205)', color: 'dark' },
     { background: 'rgb(214, 206,  91)', color: 'dark' },
     { background: 'rgb(217, 126, 113)', color: 'dark' },
-    { background: 'rgb( 93, 141, 125)', color: 'dark' },
+    { background: 'rgb( 93, 141, 125)', color: 'light' },
     { background: 'rgb(210, 207, 159)', color: 'dark' },
     { background: 'rgb(234, 219, 147)', color: 'dark' },
     { background: 'rgb(203,  84,  82)', color: 'light' },
@@ -163,7 +169,7 @@ const COLOR_PAIRS = [
 // the infinite scroll list. This is a multiple of 3 and of 2 (and 1 ofc) as
 // those are the amount of columns we use in our masonry. So by using a multiple
 // we increase the chance that we fill the masonry nice and even.
-const INITIAL_COURSES_AMOUNT = 12;
+const EXTRA_COURSES_AMOUNT = 12;
 
 export default {
     name: 'home-grid',
@@ -172,8 +178,9 @@ export default {
         return {
             loadingCourses: true,
             UserConfig,
-            amountCoursesToShow: INITIAL_COURSES_AMOUNT,
+            amountCoursesToShow: EXTRA_COURSES_AMOUNT,
             searchString: '',
+            renderingMoreCourses: 0,
         };
     },
 
@@ -188,7 +195,7 @@ export default {
             );
         },
 
-        courseNamesToDisplay() {
+        courseExtraDataToDisplay() {
             const getNameAndYear = c => `${c.name} (${c.created_at.slice(0, 4)})`;
 
             const courseName = new Counter(this.courses.map(c => c.name));
@@ -197,12 +204,12 @@ export default {
             return this.courses.reduce((acc, course) => {
                 if (courseName.getCount(course.name) > 1) {
                     if (courseNameAndYear.getCount(getNameAndYear(course)) > 1) {
-                        acc[course.id] = `${course.name} (${course.created_at.slice(0, 10)})`;
+                        acc[course.id] = course.created_at.slice(0, 10);
                     } else {
-                        acc[course.id] = getNameAndYear(course);
+                        acc[course.id] = course.created_at.slice(0, 4);
                     }
                 } else {
-                    acc[course.id] = course.name;
+                    acc[course.id] = null;
                 }
                 return acc;
             }, {});
@@ -314,12 +321,16 @@ export default {
         // vue-infinite-loader plugin, and should have two callable props:
         // `loaded` and `complete`.
         async showMoreCourses($state = null) {
-            this.amountCoursesToShow += INITIAL_COURSES_AMOUNT;
+            this.renderingMoreCourses += 1;
+            await this.$afterRerender();
+            this.amountCoursesToShow += EXTRA_COURSES_AMOUNT;
+            this.renderingMoreCourses -= 1;
+
             if ($state) {
-                await this.$afterRerender();
                 if (this.moreCoursesAvailable) {
                     $state.loaded();
                 } else {
+                    this.renderingMoreCourses = 0;
                     $state.complete();
                 }
             }
@@ -412,7 +423,6 @@ export default {
             padding: 0.75rem;
 
             .course-name {
-                display: flex;
                 flex: 1 1 auto;
             }
 
@@ -436,7 +446,7 @@ export default {
         }
 
         .card-header.text-light {
-            color: @text-color-dark !important;
+            color: @color-lighter-gray !important;
 
             .fa-icon {
                 fill: @text-color-dark;
@@ -475,5 +485,9 @@ a {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
+}
+
+.extra-load-btn {
+    margin: 0 auto;
 }
 </style>

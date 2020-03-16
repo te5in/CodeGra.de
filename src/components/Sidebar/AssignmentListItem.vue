@@ -34,7 +34,7 @@
                  v-if="assignment.canManage && !small"
                  :class="{ selected: manageSelected }"
                  :to="manageRoute(assignment)">
-        <icon name="gear"/>
+        <icon name="gear" />
     </router-link>
 </li>
 </template>
@@ -137,7 +137,11 @@ export default {
 
 .manage-link {
     flex: 0 0 auto;
-    padding-top: 6px;
+    padding-top: 4px;
+
+    body.cg-edge & .fa-icon {
+        transform: translateY(-3px);
+    }
 }
 
 a {
