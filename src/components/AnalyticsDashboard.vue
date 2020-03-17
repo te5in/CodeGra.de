@@ -68,10 +68,15 @@ import { BarChart, ScatterPlot } from '@/components/Charts';
 import { COLOR_PAIRS, UNSET_SENTINEL } from '@/constants';
 
 function zip(...lists) {
+    if (lists.length === 0) {
+        return [];
+    }
+
     const acc = [];
-    const ls = lists.map(l => [...l]);
-    while (ls.every(l => l.length)) {
-        acc.push(ls.map(l => l.shift()));
+    const end = Math.max(...lists.map(l => l.length));
+    for (let i = 0; i < end; i++) {
+        // eslint-disable-next-line no-loop-func
+        acc.push(lists.map(l => l[i]));
     }
     return acc;
 }
@@ -104,7 +109,7 @@ function stddev(xs, mu = mean(xs)) {
 
 // https://en.wikipedia.org/wiki/Pearson_correlation_coefficient#For_a_sample
 function pearson(xs, ys) {
-    if (xs.length < 10 || ys.length < 10) {
+    if (!xs || xs.length < 10 || !ys || ys.length < 10) {
         return 'Not enough data.';
     }
 
@@ -186,7 +191,13 @@ class RubricResults {
 
     get meanPerCat() {
         if (this._cache.meanPerCat === UNSET_SENTINEL) {
-            this._cache.meanPerCat = mapObj(this.scoresPerCat, scores => mean(dropNull(scores)));
+            this._cache.meanPerCat = mapObj(
+                this.scoresPerCat,
+                scores => {
+                    const mu = mean(dropNull(scores));
+                    return Number.isNaN(mu) ? 0 : mu;
+                },
+            );
         }
         return this._cache.meanPerCat;
     }
@@ -207,6 +218,16 @@ class RubricResults {
         return this._cache.ritItemsPerCat;
     }
 
+    get ritPerCat() {
+        if (this._cache.ritPerCat === UNSET_SENTINEL) {
+            this._cache.ritPerCat = mapObj(
+                this.ritItemsPerCat,
+                catScores => pearson(...zip(...catScores)),
+            );
+        }
+        return this._cache.ritPerCat;
+    }
+
     get rirItemsPerCat() {
         if (this._cache.rirItemsPerCat === UNSET_SENTINEL) {
             this._cache.rirItemsPerCat = mapObj(
@@ -217,16 +238,6 @@ class RubricResults {
             );
         }
         return this._cache.rirItemsPerCat;
-    }
-
-    get ritPerCat() {
-        if (this._cache.ritPerCat === UNSET_SENTINEL) {
-            this._cache.ritPerCat = mapObj(
-                this.ritItemsPerCat,
-                catScores => pearson(...zip(...catScores)),
-            );
-        }
-        return this._cache.ritPerCat;
     }
 
     get rirPerCat() {
@@ -376,7 +387,6 @@ export default {
                 const {
                     rowIds, ritPerCat, rirPerCat, nTimesFilledPerCat,
                 } = this.rubricResults;
-
                 const rowId = rowIds[tooltipItem.index];
                 const nTimes = nTimesFilledPerCat[rowId];
                 const rit = ritPerCat[rowId];
