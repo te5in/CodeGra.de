@@ -1216,7 +1216,7 @@ def call_external(
             # typeshed they are annotated as optional:
             # https://github.com/python/typeshed/issues/3831
             # https://github.com/python/typeshed/pull/3652
-            if proc.stdout is None: # pragma: no cover
+            if proc.stdout is None:  # pragma: no cover
                 # We use an `if` here so `mypy` will start complaining about
                 # unreachable code if this issue is resolved.
                 assert False
