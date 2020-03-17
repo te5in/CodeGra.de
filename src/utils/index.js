@@ -444,8 +444,8 @@ export function deepExtend(target, ...sources) {
     sources.forEach(source => {
         Object.entries(source).forEach(([key, val]) => {
             if (typeof val === 'object' && !Array.isArray(val)) {
-                if (!target[key]) {
-                    target[key] = {};
+                if (!Object.hasOwnProperty.call(target, key)) {
+                    target[key] = Array.isArray(val) ? [] : {};
                 }
                 deepExtend(target[key], val);
             } else {

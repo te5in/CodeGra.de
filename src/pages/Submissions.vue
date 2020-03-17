@@ -246,7 +246,7 @@
             <div v-if="selectedCat === 'hand-in-instructions'"
                  class="flex-grow-1">
                 <c-g-ignore-file class="border rounded mb-3"
-                                 :assignmentId="assignment.id"
+                                 :assignment-id="assignment.id"
                                  :editable="false"
                                  summary-mode/>
             </div>
@@ -271,6 +271,11 @@
                 <submissions-exporter :get-submissions="filter => filter ? filteredSubmissions : submissions"
                                       :assignment-id="assignment.id"
                                       :filename="exportFilename" />
+            </div>
+
+            <div v-show="selectedCat === 'analytics'"
+                 class="flex-grow-1">
+                <analytics-dashboard :assignment-id="assignmentId" />
             </div>
         </template>
     </div>
@@ -299,6 +304,7 @@ import GroupsManagement from '@/components/GroupsManagement';
 import {
     CgLogo,
     Loader,
+    AnalyticsDashboard,
     Collapse,
     LocalHeader,
     CGIgnoreFile,
@@ -374,6 +380,11 @@ export default {
                     id: 'export',
                     name: 'Export',
                     enabled: !this.isStudent,
+                },
+                {
+                    id: 'analytics',
+                    name: 'Analytics',
+                    enabled: true,
                 },
             ];
         },
@@ -760,6 +771,7 @@ export default {
         Icon,
         CgLogo,
         Loader,
+        AnalyticsDashboard,
         Collapse,
         LocalHeader,
         CGIgnoreFile,

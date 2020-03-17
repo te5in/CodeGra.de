@@ -135,35 +135,13 @@ import InfiniteLoading from 'vue-infinite-loading';
 
 import { hashString, cmpNoCaseMany } from '@/utils';
 import { Counter } from '@/utils/counter';
+import { COLOR_PAIRS } from '@/constants';
 
 import AssignmentState from './AssignmentState';
 import UserInfo from './UserInfo';
 import Loader from './Loader';
 import LocalHeader from './LocalHeader';
 import CgLogo from './CgLogo';
-
-const COLOR_PAIRS = [
-    { background: 'rgb(112, 163, 162)', color: 'dark' },
-    { background: 'rgb(223, 211, 170)', color: 'dark' },
-    { background: 'rgb(223, 184, 121)', color: 'dark' },
-    { background: 'rgb(149, 111,  72)', color: 'light' },
-    { background: 'rgb( 79,  95,  86)', color: 'light' },
-    { background: 'rgb(167, 174, 145)', color: 'dark' },
-    { background: 'rgb(215, 206, 166)', color: 'dark' },
-    { background: 'rgb(204,  58,  40)', color: 'light' },
-    { background: 'rgb( 89, 141, 134)', color: 'light' },
-    { background: 'rgb(230, 220, 205)', color: 'dark' },
-    { background: 'rgb(214, 206,  91)', color: 'dark' },
-    { background: 'rgb(217, 126, 113)', color: 'dark' },
-    { background: 'rgb( 93, 141, 125)', color: 'light' },
-    { background: 'rgb(210, 207, 159)', color: 'dark' },
-    { background: 'rgb(234, 219, 147)', color: 'dark' },
-    { background: 'rgb(203,  84,  82)', color: 'light' },
-    { background: 'rgb(101, 104, 108)', color: 'light' },
-    { background: 'rgb(180, 174, 164)', color: 'dark' },
-    { background: 'rgb(231, 238, 233)', color: 'dark' },
-    { background: 'rgb(234, 182, 108)', color: 'dark' },
-];
 
 // The amount of extra courses that should be loaded when we reach the end of
 // the infinite scroll list. This is a multiple of 3 and of 2 (and 1 ofc) as
