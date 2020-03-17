@@ -346,7 +346,12 @@ export default {
         },
 
         groupOfCurrentUser() {
-            return this.storeGetGroupSubmissionOfUser(this.assignmentId, this.submissionId);
+            const curSub = this.submission;
+            if (curSub == null) {
+                return null;
+            }
+            const groupSub = this.storeGetGroupSubmissionOfUser(this.assignmentId, curSub.userId);
+            return this.$utils.getProps(groupSub, null, 'user');
         },
 
         fileTree() {
