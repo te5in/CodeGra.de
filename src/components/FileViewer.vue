@@ -30,8 +30,8 @@
          :class="{ scroller: fileData && fileData.scroller }"
          v-if="!showError">
         <div v-if="showEmptyFileMessage"
-             class="wrapper px-3 py-1 text-muted">
-            <small>This file is empty.</small>
+             class="px-3 py-2 font-italic text-muted">
+            This file is empty.
         </div>
         <template v-else-if="fileData">
             <component v-show="dataAvailable"
@@ -212,7 +212,7 @@ export default {
 
         dynamicClasses() {
             if (this.showEmptyFileMessage) {
-                return 'empty-file-wrapper form-control';
+                return 'empty-file-wrapper border rounded';
             } else if (this.fileData) {
                 return `${this.fileData.component.name} border rounded ${
                     this.fileContent ? '' : 'no-data'
