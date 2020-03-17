@@ -795,6 +795,13 @@ def test_run_auto_test(
 
         monkeypatch_broker()
         live_server_url, stop_server = live_server(get_stop=True)
+        with logged_in(teacher, yield_token=True) as token:
+            response = requests.get(
+                f'{live_server_url}{url}/runs/{run.id}',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+            response.raise_for_status()
+
         thread = threading.Thread(
             target=psef.auto_test.start_polling, args=(app.config, )
         )
@@ -1827,6 +1834,22 @@ def test_output_dir(
             )
             assert response.status_code == 200
             assert 'symbolic link' in response.get_data(as_text=True)
+
+    with describe('It should never have feedback'):
+        with logged_in(teacher):
+            file_url = '/api/v1/code/{file_id}'.format(file_id=sym_link_id)
+            test_client.req('get', f'{file_url}?type=feedback', 200, result={})
+            test_client.req(
+                'get', f'{file_url}?type=linter-feedback', 200, result={}
+            )
+            test_client.req(
+                'get',
+                f'{file_url}?type=file-url',
+                200,
+                result={
+                    'name': re.compile(r'[\-0-9a-fA-F]'),
+                }
+            )
 
     with describe('Students do not see the files by default'):
         with logged_in(student):

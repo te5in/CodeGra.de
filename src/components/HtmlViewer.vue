@@ -1,6 +1,9 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<b-alert show v-if="!proxyId && !isMyFile" variant="light" style="overflow: auto;"
+<b-alert show
+         v-if="!proxyId && !isMyFile"
+         variant="light"
+         style="overflow: auto;"
          class="html-viewer">
     <div>
         <p>
@@ -347,6 +350,10 @@ export default {
 </script>
 
 <style lang="less">
+.html-viewer {
+    flex: 1 1 auto;
+}
+
 .html-viewer .d-flex-non-important {
     display: flex;
 }

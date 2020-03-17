@@ -49,8 +49,10 @@
             <b-popover :target="addButtonId"
                        :id="popoverId"
                        triggers="click"
-                       placement="top">
-                <submit-input placeholder="New assignment name"
+                       placement="top"
+                       custom-class="no-max-width">
+                <submit-input style="width: 18rem;"
+                              placeholder="New assignment name"
                               @create="createNewAssignment"
                               @cancel="closePopover"/>
             </b-popover>

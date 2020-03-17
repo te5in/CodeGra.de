@@ -10,7 +10,6 @@ import typing as t
 import datetime
 import dataclasses
 from random import shuffle
-from operator import itemgetter
 from itertools import cycle
 from collections import Counter, defaultdict
 
@@ -710,12 +709,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         :returns: The ids of the all the graders that have work assigned within
             this assignnment.
         """
-        return map(
-            itemgetter(0),
-            self.get_from_latest_submissions(
-                work_models.Work.assigned_to,
-            ).distinct(),
-        )
+        query = self.get_from_latest_submissions(
+            work_models.Work.assigned_to,
+        ).distinct().filter(work_models.Work.assigned_to.isnot(None))
+
+        # The last check (`user_id is not None`) is only needed for mypy to let
+        # it know that this generator will never yield `None`.
+        return (user_id for user_id, in query if user_id is not None)
 
     def set_graders_to_not_done(
         self,

@@ -14,10 +14,12 @@
                :placement="placement"
                :boundary="boundary"
                :container="container"
+               :disabled="popoverDisabled"
                @show="$root.$emit('bv::hide::popover')">
         <loader v-if="loading"/>
         <table v-else
-               class="table mb-0 settings-content" >
+               style="width: 24rem;"
+               class="table mb-0 settings-content">
             <tbody>
                 <tr v-if="showWhitespace">
                     <td>
@@ -37,7 +39,9 @@
                                      :hide-selected="selectedLanguage === 'Default'"
                                      deselect-label="Reset language"
                                      select-label="Select language"
-                                     :options="languages"/>
+                                     :options="languages"
+                                     @open="disablePopover"
+                                     @close="enablePopover"/>
                     </td>
                 </tr>
                 <tr v-if="showFontSize">
@@ -48,11 +52,11 @@
                     <td>
                         <b-input-group right="px">
                             <input :value="fontSize"
-                                    @input="fontSizeChanged($event.target.value)"
-                                    class="form-control"
-                                    type="number"
-                                    step="1"
-                                    min="1"/>
+                                   @input="fontSizeChanged($event.target.value)"
+                                   class="form-control"
+                                   type="number"
+                                   step="1"
+                                   min="1"/>
                         </b-input-group>
                     </td>
                 </tr>
@@ -182,6 +186,8 @@ export default {
             whiteLoading: false,
             selectedLanguage: -1,
             inlineFeedback: true,
+            minLoadTime: 200,
+            popoverDisabled: false,
         };
     },
 
@@ -195,7 +201,7 @@ export default {
         contextAmountChanged(val) {
             this.contextAmountLoading += 1;
             const contextAmount = Math.max(Number(val), 0);
-            waitAtLeast(200, this.setContextAmount(contextAmount)).then(() => {
+            waitAtLeast(this.minLoadTime, this.setContextAmount(contextAmount)).then(() => {
                 this.contextAmountLoading -= 1;
                 this.$emit('context-amount', contextAmount);
             });
@@ -204,7 +210,7 @@ export default {
         fontSizeChanged(val) {
             this.fontSizeLoading += 1;
             const fontSize = Math.max(Number(val), 1);
-            waitAtLeast(200, this.setFontSize(fontSize)).then(() => {
+            waitAtLeast(this.minLoadTime, this.setFontSize(fontSize)).then(() => {
                 this.fontSizeLoading -= 1;
                 this.$emit('font-size', fontSize);
             });
@@ -248,6 +254,23 @@ export default {
                 return null;
             }
         },
+
+        // Disable the popover so a blur event on an element in it will not
+        // cause it to close.
+        disablePopover() {
+            this.popoverDisabled = true;
+        },
+
+        // Enable the popover again. Make sure this happens _after_ the blur
+        // event on elements inside it. We focus the button before enabling
+        // the popover again to make sure that at least something is focused
+        // that, when blurred, will cause the popover to close.
+        enablePopover() {
+            this.$el.focus();
+            this.$afterRerender().then(() => {
+                this.popoverDisabled = false;
+            });
+        },
     },
 
     mounted() {
@@ -280,20 +303,29 @@ export default {
         selectedLanguage(lang, old) {
             if (old === -1) return;
 
+            this.langLoading = true;
+
+            let promise;
             if (lang == null) {
-                this.selectedLanguage = 'Default';
+                promise = Promise.resolve((this.selectedLanguage = 'Default'));
             } else {
-                this.langLoading = true;
-                this.$hlanguageStore.setItem(`${this.fileId}`, lang).then(() => {
-                    this.langLoading = false;
-                    this.$emit('language', lang);
-                });
+                promise = this.$hlanguageStore.setItem(`${this.fileId}`, lang);
             }
+
+            waitAtLeast(this.minLoadTime, promise).then(() => {
+                this.langLoading = false;
+                if (lang) {
+                    this.$emit('language', lang);
+                }
+            });
         },
 
         whitespace(val) {
             this.whiteLoading = true;
-            waitAtLeast(200, this.$whitespaceStore.setItem(`${this.fileId}`, val)).then(() => {
+            waitAtLeast(
+                this.minLoadTime,
+                this.$whitespaceStore.setItem(`${this.fileId}`, val),
+            ).then(() => {
                 this.whiteLoading = false;
                 this.$emit('whitespace', val);
             });

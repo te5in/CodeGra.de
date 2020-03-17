@@ -86,4 +86,8 @@ a {
     text-decoration: none;
     color: inherit;
 }
+
+body.cg-edge .manage-link .fa-icon {
+    transform: translateY(-3px);
+}
 </style>

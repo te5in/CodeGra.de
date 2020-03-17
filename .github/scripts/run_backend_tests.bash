@@ -51,7 +51,7 @@ timeout -k 600 600 \
         --postgresql="${BASE_DATABASE_URI}gw5" \
         --cov-report term-missing \
         "$(pwd)/psef_test/test_auto_test.py" \
-       -vvvv
+       -s -vvvv
 res2="$?"
 
 rm "$(pwd)/psef_test/test_auto_test.py"

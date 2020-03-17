@@ -109,6 +109,8 @@ def _passback_grades_1(
     for sub in subs:
         sub.passback_grade(initial=initial)
 
+    p.models.db.session.commit()
+
 
 @celery.task
 def _delete_submission_1(work_id: int, assignment_id: int) -> None:
@@ -382,18 +384,21 @@ def _run_autotest_batch_runs_1() -> None:
     retry_kwargs={'max_retries': 15}
 )
 def _notify_broker_of_new_job_1(
-    run_id: t.Union[int, p.models.AutoTestRun], wanted_runners: int = 1
+    run_id: t.Union[int, p.models.AutoTestRun],
+    wanted_runners: t.Optional[int] = 1
 ) -> None:
     if isinstance(run_id, int):
         run = p.models.AutoTestRun.query.filter_by(
             id=run_id
         ).with_for_update().one_or_none()
-
         if run is None:
             logger.warning('Trying to start run that does not exist')
             return
     else:
         run = run_id
+
+    if wanted_runners is None:
+        wanted_runners = run.get_amount_needed_runners()
 
     with p.helpers.BrokerSession() as ses:
         req = ses.put(

@@ -45,13 +45,14 @@ export class Directory extends BaseFile {
         Object.freeze(this);
     }
 
-    static fromServerData(serverData, parent = null) {
-        const self = new Directory(serverData.id, serverData.name, parent);
+    static fromServerData(serverData, parent = null, dirCls = Directory, fileCls = File) {
+        // eslint-disable-next-line
+        const self = new dirCls(serverData.id, serverData.name, parent);
         const entries = serverData.entries.map(entry => {
             if (Object.hasOwnProperty.call(entry, 'entries')) {
-                return Directory.fromServerData(entry, self);
+                return dirCls.fromServerData(entry, self);
             } else {
-                return File.fromServerData(entry, self);
+                return fileCls.fromServerData(entry, self);
             }
         });
 
@@ -64,6 +65,28 @@ export class Directory extends BaseFile {
         const self = new Directory(id, name, parent);
         // eslint-disable-next-line
         self._setEntries([]);
+        return self;
+    }
+}
+
+export class AutoTestDirectory extends Directory {
+    _setEntries(entries) {
+        // We don't freeze the object here because we may need to set an
+        // additional key later on in _setSuiteId().
+        this.entries = Object.freeze(entries);
+    }
+
+    _setSuiteId(suiteId) {
+        if (suiteId != null) {
+            this.autoTestSuiteId = suiteId;
+        }
+        Object.freeze(this);
+    }
+
+    static fromServerData(serverData, parent = null) {
+        const self = Directory.fromServerData(serverData, parent, AutoTestDirectory);
+        // eslint-disable-next-line
+        self._setSuiteId(serverData.autoTestSuiteId);
         return self;
     }
 }
@@ -200,7 +223,7 @@ export class FileTree {
             this.diff,
             this.flattened,
             this._revisions,
-            Directory.fromServerData(autoTestTree),
+            AutoTestDirectory.fromServerData(autoTestTree),
         );
     }
 

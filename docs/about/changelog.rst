@@ -1,6 +1,57 @@
 Changelog
 ==========
 
+Version Knoet.3
+-----------------
+
+**Released**: March 16th, 2020
+
+You can now render HTML pages submitted by students right inside CodeGrade,
+allowing you to preview webpages or test Javascript more easily than ever.
+
+**Features**
+
+- Make it possible to render html pages `(#1246)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1246>`__: It is now possible to
+  render HTML pages inside CodeGrade.
+- Make the HomeGrid easier and faster to use `(#1292)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1292>`__: We now sort the
+  courses on the HomeGrid based on the creation date of the courses, and courses
+  with duplicate names can now be more easily identified as the creation date of
+  the course will be appended to the name.
+
+
+**Updates**
+
+- Upgrade bootstrap-vue `(#1259)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1259>`__.
+- Show confirmation when rubric has rows without item with 0 points `(#1287)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1287>`__.
+- Update threshold when relative time starts using days `(#1290)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1290>`__.
+- Disable plagiarism export button when no cases selected `(#1288)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1288>`__.
+- Give a better indication when an AutoTest step is hidden `(#1286)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1286>`__.
+- Various performance improvements `(#1278)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1278>`__: We've increased
+  performance of various API routes, and added pagination and infinite scrollers
+  to the HomeGrid, Submissions list and users manager to improve the first
+  render speed.
+- Start using timezones everywhere when dealing with datetimes `(#1257)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1257>`__.
+
+**Fixes**
+
+- Do not discard changed rubric viewer when saving general feedback `(#1283)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1283>`__: The previous version
+  contained a bug that when you saved the general feedback while you had a
+  changed rubric the changes in the rubric were discarded.
+- Fix downloading submissions with reserved chars in their name `(#1289)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1289>`__.
+- Fix student count in submission list `(#1282)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1282>`__.
+
 Version 1.19.0 (Knoet.2)
 -------------------------
 
