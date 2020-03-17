@@ -33,9 +33,7 @@ def _find_first_app_frame_and_name() -> t.Tuple[object, str]:
     name = f.f_globals.get('__name__') or '?'
     while any(tuple(name.startswith(i) for i in ignores)):
         if f.f_back is None:
-            # Mypy thinks this is unreachable code because of
-            # https://github.com/python/typeshed/pull/3740
-            name = '?'  # type: ignore[misc]
+            name = '?'
             break
         f = f.f_back
         name = f.f_globals.get('__name__') or '?'
