@@ -112,6 +112,7 @@ import 'vue-awesome/icons/times';
 import { NONEXISTENT } from '@/constants';
 import { ValidationError } from '@/models/errors';
 import { formatGrade, isDecimalNumber } from '@/utils';
+import { User } from '@/models';
 
 import RubricViewer from './RubricViewer';
 import SubmitButton from './SubmitButton';
@@ -151,7 +152,7 @@ export default {
         },
 
         groupOfUser: {
-            type: Object,
+            type: User,
             default: null,
         },
     },
