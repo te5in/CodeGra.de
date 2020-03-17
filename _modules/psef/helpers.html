@@ -1411,6 +1411,15 @@
             <span class="n">preexec_fn</span><span class="o">=</span><span class="n">preexec_fn</span><span class="p">,</span>
             <span class="n">env</span><span class="o">=</span><span class="n">child_env</span><span class="p">,</span>
         <span class="p">)</span> <span class="k">as</span> <span class="n">proc</span><span class="p">:</span>
+            <span class="c1"># `stdout` is never `None` as we pass in values for them, but in</span>
+            <span class="c1"># typeshed they are annotated as optional:</span>
+            <span class="c1"># https://github.com/python/typeshed/issues/3831</span>
+            <span class="c1"># https://github.com/python/typeshed/pull/3652</span>
+            <span class="k">if</span> <span class="n">proc</span><span class="o">.</span><span class="n">stdout</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+                <span class="c1"># We use an `if` here so `mypy` will start complaining about</span>
+                <span class="c1"># unreachable code if this issue is resolved.</span>
+                <span class="k">assert</span> <span class="kc">False</span>
+
             <span class="k">while</span> <span class="n">proc</span><span class="o">.</span><span class="n">poll</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">process_line</span><span class="p">(</span>
                     <span class="n">proc</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf8&#39;</span><span class="p">,</span> <span class="s1">&#39;backslashreplace&#39;</span><span class="p">)</span>
