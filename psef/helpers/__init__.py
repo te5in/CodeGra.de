@@ -1212,6 +1212,15 @@ def call_external(
             preexec_fn=preexec_fn,
             env=child_env,
         ) as proc:
+            # `stdout` is never `None` as we pass in values for them, but in
+            # typeshed they are annotated as optional:
+            # https://github.com/python/typeshed/issues/3831
+            # https://github.com/python/typeshed/pull/3652
+            if proc.stdout is None: # pragma: no cover
+                # We use an `if` here so `mypy` will start complaining about
+                # unreachable code if this issue is resolved.
+                assert False
+
             while proc.poll() is None:
                 process_line(
                     proc.stdout.readline().decode('utf8', 'backslashreplace')
