@@ -365,7 +365,7 @@ export default {
     display: flex;
     flex-direction: column;
 
-    &.html-viewer:not(.no-data) {
+    &.html-viewer {
         height: 100%;
     }
     &.pdf-viewer:not(.no-data) {
