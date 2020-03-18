@@ -147,7 +147,7 @@ export default {
             immediate: true,
             handler() {
                 this.setDefaultOptions();
-                this.$emit('load');
+                this.$emit('load', this.fileId);
                 if (this.isMyFile) {
                     this.getIframeSrc().then(
                         data => {
