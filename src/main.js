@@ -66,6 +66,11 @@ axios.defaults.transformResponse = [
     function defaultTransformResponse(data, headers) {
         switch (headers['content-type']) {
             case 'application/json':
+                if (data instanceof ArrayBuffer) {
+                    const view = new Int8Array(data);
+                    const dataStr = String.fromCharCode.apply(null, view);
+                    return JSON.parse(dataStr);
+                }
                 return JSON.parse(data);
             default:
                 return data;
