@@ -291,6 +291,9 @@ export default {
                         this.storeLoadCode(fileId),
                         this.$afterRerender(),
                     ]);
+                    // We have to call `onLoad` manually when the content is
+                    // empty, because no viewer component will be loaded to
+                    // emit a `load` event.
                     if (content.byteLength === 0) {
                         callback = () => this.onLoad(fileId);
                     }
