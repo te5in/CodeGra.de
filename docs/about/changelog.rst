@@ -1,6 +1,20 @@
 Changelog
 ==========
 
+Version *Next*
+-----------------
+
+**Released**: Unreleased
+
+**Updates**
+- Various internal improvements (`#1244
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1244>`__). This makes it easier
+  to improve CodeGrade in the future.
+
+**Fixes**
+- Make sure that empty markdown files show a useful errors `(#1244)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1244>`__.
+
 Version Knoet.3
 -----------------
 
