@@ -56,7 +56,6 @@ describe('IPythonViewer.vue', () => {
         mockIPython = (new util.TextEncoder()).encode(str);
         wrapper.setProps({ fileContent: mockIPython });
 
-        await comp.loadCode();
         await comp.$afterRerender();
     };
 
