@@ -213,6 +213,8 @@ export default {
         dynamicClasses() {
             if (this.showEmptyFileMessage) {
                 return 'empty-file-wrapper border rounded';
+            } else if (this.showError) {
+                return 'rounded';
             } else if (this.fileData) {
                 return `${this.fileData.component.name} border rounded ${
                     this.fileContent ? '' : 'no-data'
