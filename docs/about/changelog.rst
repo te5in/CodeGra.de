@@ -4,7 +4,7 @@ Changelog
 Version *Next*
 -----------------
 
-**Released**: Unreleased
+**Released**: *Unreleased*
 
 **Updates**
 - Various internal improvements (`#1244
