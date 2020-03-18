@@ -188,9 +188,6 @@ export default {
                 return;
             }
             this.selectedLanguage = lang;
-            if (!this.isLargeFile) {
-                this.highlightCode(lang);
-            }
         },
     },
 
