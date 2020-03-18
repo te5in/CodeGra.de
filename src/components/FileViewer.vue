@@ -255,7 +255,7 @@ export default {
     watch: {
         fileId: {
             immediate: true,
-            async handler(newVal, oldVal) {
+            handler(newVal, oldVal) {
                 if (!newVal || oldVal === newVal) {
                     return;
                 }
@@ -268,36 +268,7 @@ export default {
                     return;
                 }
 
-                this.fileContent = null;
-                this.error = '';
-                this.loading = true;
-                if (this.fileData.needsContent) {
-                    let callback = () => {};
-                    let content = null;
-
-                    try {
-                        [content] = await Promise.all([
-                            this.storeLoadCode(newVal),
-                            this.$afterRerender(),
-                        ]);
-                        if (content.byteLength === 0) {
-                            callback = () => this.onLoad(newVal);
-                        }
-                    } catch (e) {
-                        callback = () =>
-                            this.onError({
-                                error: e,
-                                fileId: newVal,
-                            });
-                    }
-
-                    if (newVal === this.fileId) {
-                        if (content) {
-                            this.fileContent = content;
-                        }
-                        callback();
-                    }
-                }
+                this.loadFileContent(newVal);
             },
         },
     },
@@ -306,6 +277,39 @@ export default {
         ...mapActions('code', {
             storeLoadCode: 'loadCode',
         }),
+
+        async loadFileContent(fileId) {
+            this.fileContent = null;
+            this.error = '';
+            this.loading = true;
+            if (this.fileData.needsContent) {
+                let callback = () => {};
+                let content = null;
+
+                try {
+                    [content] = await Promise.all([
+                        this.storeLoadCode(fileId),
+                        this.$afterRerender(),
+                    ]);
+                    if (content.byteLength === 0) {
+                        callback = () => this.onLoad(fileId);
+                    }
+                } catch (e) {
+                    callback = () =>
+                        this.onError({
+                            error: e,
+                            fileId,
+                        });
+                }
+
+                if (fileId === this.fileId) {
+                    if (content) {
+                        this.fileContent = content;
+                    }
+                    callback();
+                }
+            }
+        },
 
         onLoad(fileId) {
             if (this.fileId !== fileId) {
@@ -332,6 +336,9 @@ export default {
             this.error = '';
             await this.$afterRerender();
             this.forcedFileComponent = fc;
+            if (this.fileContent == null) {
+                this.loadFileContent(this.fileId);
+            }
         },
 
         hasExtension(...exts) {
