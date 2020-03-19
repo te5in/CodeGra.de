@@ -1055,6 +1055,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             'done_type': None,
             'done_email': None,
             'division_parent_id': None,
+            'analytics_workspace_ids': [],
         }
 
         if self.course.lti_provider is not None:
@@ -1074,6 +1075,14 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             CPerm.can_see_assignee, self.course_id
         ):
             res['division_parent_id'] = self.division_parent_id
+
+        for workspace in self.analytics_workspaces:
+            try:
+                auth.ensure_can_see_analytics_workspace(workspace)
+            except PermissionException:
+                pass
+            else:
+                res['analytics_workspace_ids'].append(workspace.id)
 
         return res
 

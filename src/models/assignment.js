@@ -25,6 +25,7 @@ const SERVER_PROPS = new Set([
     'max_submissions',
     'amount_in_cool_off_period',
     'lms_name',
+    'analytics_workspace_ids',
 ]);
 
 const ALLOWED_UPDATE_PROPS = new Set([

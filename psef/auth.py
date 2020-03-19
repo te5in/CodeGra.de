@@ -816,6 +816,8 @@ def ensure_can_see_analytics_workspace(
     if not assignment.is_done:
         ensure_permission(CPerm.can_see_grade_before_open, course_id)
 
+    # TODO: Add permission that checks if users can see analytics
+
 
 @login_required
 def ensure_any_of_permissions(
