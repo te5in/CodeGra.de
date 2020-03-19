@@ -27,6 +27,7 @@ def _array_agg_and_order(to_select: DbColumn[Y],
 class _SubmissionData(TypedDict, total=True):
     id: int
     created_at: str
+    grade: t.Optional[float]
 
 
 class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
@@ -51,6 +52,18 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
     @property
     def submissions_per_student(self
                                 ) -> t.Mapping[int, t.List[_SubmissionData]]:
+        grades_per_sub = dict(
+            work_models.Work.get_rubric_grade_per_work(self.assignment)
+        )
+        grades_per_sub.update(
+            db.session.query(
+                work_models.Work.id, work_models.Work._grade
+            ).filter(
+                work_models.Work.assignment == self.assignment,
+                work_models.Work._grade.isnot(None),
+            )
+        )
+
         query = db.session.query(
             work_models.Work.user_id,
             _array_agg_and_order(
@@ -71,7 +84,8 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
             user_id: [
                 {
                     'id': sub_id,
-                    'created_at': created_at.isoformat()
+                    'created_at': created_at.isoformat(),
+                    'grade': grades_per_sub.get(sub_id),
                 } for sub_id, created_at in zip(sub_ids, created_ats)
             ]
             for user_id, sub_ids, created_ats in query

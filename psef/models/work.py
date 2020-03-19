@@ -10,6 +10,7 @@ import zipfile
 import tempfile
 from collections import defaultdict
 
+import sqlalchemy
 import sqlalchemy.sql as sql
 from sqlalchemy import orm, select
 from sqlalchemy.orm import undefer, selectinload
@@ -301,6 +302,46 @@ class Work(Base):
                 )
             else:
                 instance.state = LinterState.done
+
+    @classmethod
+    def get_rubric_grade_per_work(
+        cls, assignment: 'assignment_models.Assignment'
+    ) -> _MyQuery[t.Tuple[int, float]]:
+        if assignment.max_rubric_points is None:
+            # The assignment doesn't have a rubric, so simply return an empty
+            # query result. We filter it with `false` so it will never return
+            # rows.
+            return db.session.query(cls.id, sqlalchemy.sql.null).filter(
+                sqlalchemy.sql.false()
+            )
+
+        max_rubric_points = 10 * assignment.max_rubric_points
+        min_grade = assignment.min_grade
+        max_grade = assignment.max_grade
+        least = sqlalchemy.func.least
+        greatest = sqlalchemy.func.greatest
+
+        return db.session.query(
+            cls.id,
+            least(
+                max_grade,
+                greatest(
+                    min_grade, (
+                        sqlalchemy.func.sum(WorkRubricItem.points) /
+                        max_rubric_points
+                    )
+                )
+            )
+        ).join(
+            # We want an inner join here as we want to filter out any Work that
+            # doesn't have a work rubric item associated with it.
+            WorkRubricItem,
+            WorkRubricItem.work_id == cls.id,
+            isouter=False
+        ).filter(
+            cls.assignment == assignment,
+            cls._grade.is_(None),
+        ).group_by(cls.id)
 
     @property
     def grade(self) -> t.Optional[float]:
