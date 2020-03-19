@@ -5,6 +5,14 @@ import { mapObject } from '@/utils';
 
 export const BaseChart = {
     props: {
+        options: {
+            type: Object,
+            default: () => ({}),
+        },
+        padding: {
+            type: Number,
+            default: 0.2,
+        },
         redToGreen: {
             type: Boolean,
             default: false,
@@ -14,6 +22,14 @@ export const BaseChart = {
     computed: {
         datasets() {
             return this.chartData.datasets;
+        },
+
+        renderData() {
+            return this.chartData;
+        },
+
+        renderOpts() {
+            return this.options;
         },
     },
 
@@ -64,23 +80,16 @@ export const BaseChart = {
             };
         },
     },
+
+    mounted() {
+        this.renderChart(this.renderData, this.renderOpts);
+    },
 };
 
 export const BarChart = {
     name: 'bar-chart',
     extends: Bar,
     mixins: [mixins.reactiveProp, BaseChart],
-
-    props: {
-        options: {
-            type: Object,
-            default: () => ({}),
-        },
-        padding: {
-            type: Number,
-            default: 0.2,
-        },
-    },
 
     computed: {
         renderData() {
@@ -117,27 +126,12 @@ export const BarChart = {
             return factor * Math.max(...maxPerCat);
         },
     },
-
-    mounted() {
-        this.renderChart(this.renderData, this.renderOpts);
-    },
 };
 
 export const ScatterPlot = {
     name: 'scatter-plot',
     extends: Scatter,
     mixins: [mixins.reactiveProp, BaseChart],
-
-    props: {
-        options: {
-            type: Object,
-            default: () => ({}),
-        },
-        padding: {
-            type: Number,
-            default: 0.2,
-        },
-    },
 
     computed: {
         renderData() {
@@ -189,9 +183,5 @@ export const ScatterPlot = {
                 suggestedMax: maxX + this.padding * dX || 1,
             };
         },
-    },
-
-    mounted() {
-        this.renderChart(this.renderData, this.renderOpts);
     },
 };
