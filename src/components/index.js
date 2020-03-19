@@ -70,3 +70,4 @@ export { default as WebhookInstructions } from './WebhookInstructions';
 export { default as LateSubmissionIcon } from './LateSubmissionIcon';
 export { default as SubmissionLimits } from './SubmissionLimits';
 export { default as LtiDeepLink } from './LTIDeepLink';
+export { default as HtmlViewer } from './HtmlViewer';

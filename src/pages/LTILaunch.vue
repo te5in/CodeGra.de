@@ -63,10 +63,12 @@ export default {
 
     computed: {
         ...mapGetters('pref', ['darkMode']),
+        ...mapGetters('courses', ['assignments']),
     },
 
     methods: {
         ...mapActions('user', ['logout', 'updateAccessToken']),
+        ...mapActions('courses', ['reloadCourses']),
         ...mapActions('plagiarism', { clearPlagiarismCases: 'clear' }),
 
         secondStep(first) {
@@ -134,9 +136,12 @@ export default {
             this.deepLinkData = data;
         },
 
-        handleLTI1p1(data) {
+        async handleLTI1p1(data) {
             if (data.type !== 'normal_result') {
                 throw new Error(`Unknown LTI1.1 type: ${data.type}.`);
+            }
+            if (!this.assignments[data.assignment.id]) {
+                await this.reloadCourses();
             }
             this.$LTIAssignmentId = data.assignment.id;
 

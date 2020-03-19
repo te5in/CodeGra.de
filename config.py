@@ -98,6 +98,7 @@ FlaskConfig = TypedDict(
         'MAX_LARGE_UPLOAD_SIZE': int,
         'DEFAULT_ROLE': str,
         'EXTERNAL_URL': str,
+        'PROXY_BASE_DOMAIN': str,
         'JAVA_PATH': str,
         'JPLAG_JAR': str,
         'JPLAG_SUPPORTED_LANGUAGES': t.Mapping[str, str],
@@ -126,9 +127,8 @@ FlaskConfig = TypedDict(
         '_TRANSIP_USERNAME': str,
         'ADMIN_USER': t.Optional[str],
         'GIT_CLONE_PROGRAM': t.List[str],
-
+        'SESSION_COOKIE_SAMESITE': Literal['None', 'Strict', 'Lax'],
         'SESSION_COOKIE_SECURE': bool,
-        'SESSION_COOKIE_SAMESITE': Literal['None', 'Lax', 'Secure'],
     },
     total=True
 )
@@ -326,6 +326,7 @@ set_str(CONFIG, backend_ops, 'DEFAULT_ROLE', 'Student')
 
 # The external URL the server runs on.
 set_str(CONFIG, backend_ops, 'EXTERNAL_URL', '')
+set_str(CONFIG, backend_ops, 'PROXY_BASE_DOMAIN', '')
 
 set_str(CONFIG, backend_ops, 'JAVA_PATH', 'java')
 
@@ -547,6 +548,8 @@ set_bool(CONFIG['__S_FEATURES'], feature_ops, 'REGISTER', False)
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'GROUPS', False)
 
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'AUTO_TEST', False)
+
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'RENDER_HTML', False)
 
 ############
 # LTI keys #

@@ -112,7 +112,7 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
     auto_test_suite_id = db.Column(
         'auto_test_suite_id',
         db.Integer,
-        db.ForeignKey('AutoTestSuite.id'),
+        db.ForeignKey('AutoTestSuite.id', ondelete='CASCADE'),
         nullable=False
     )
 
@@ -873,7 +873,7 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
     auto_test_step_id = db.Column(
         'auto_test_step_id',
         db.Integer,
-        db.ForeignKey('AutoTestStep.id'),
+        db.ForeignKey('AutoTestStep.id', ondelete='CASCADE'),
         nullable=False
     )
 

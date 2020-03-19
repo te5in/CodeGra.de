@@ -9,6 +9,7 @@ context('Submission page', () => {
     const otherMsg = 'Other feedback message';
 
     function waitUntilLoaded() {
+        cy.wait('@getPermissionsRoute');
         cy.get('.page.submission').should('be.visible');
     }
 
@@ -23,26 +24,29 @@ context('Submission page', () => {
     }
 
     function toggleGeneralFeedbackArea() {
-        cy.get('#codeviewer-general-feedback').click();
-        return cy.get('.general-feedback-area');
+        cy.get('[id^="general-feedback-toggle"]').click();
+        return cy.get('[id^="general-feedback-popover"]');
     }
 
     function showGeneralFeedbackArea() {
-        return toggleGeneralFeedbackArea().should('be.visible');
+        return toggleGeneralFeedbackArea()
+            .should('not.have.class', 'fade')
+            .should('be.visible');
     }
 
     function hideGeneralFeedbackArea() {
-        return toggleGeneralFeedbackArea().should('not.be.visible');
+        return toggleGeneralFeedbackArea()
+            .should('not.be.visible');
     }
 
     function giveGeneralFeedback(feedback) {
         showGeneralFeedbackArea()
+            .as('gfArea')
             .find('textarea')
-            .maybeType(feedback)
-            .parent()
+            .setText(feedback)
+        cy.get('@gfArea')
             .find('.submit-button')
             .submit('success');
-        return hideGeneralFeedbackArea();
     }
 
     function checkGeneralFeedbackArea(feedback) {
@@ -71,7 +75,9 @@ context('Submission page', () => {
         cy.get('.file-tree')
             .contains('.file a', filename)
             .click({ force: true });
+
         getFileViewer(viewer).should('be.visible');
+        cy.get(`.file-viewer${viewer} .loader`).should('not.exist');
     }
 
     function getLine(line, viewer='.code-viewer') {
@@ -111,8 +117,8 @@ context('Submission page', () => {
             .find('.feedback-area.edit')
             .should('be.visible');
         getLine(line, viewer)
-            .find('.feedback-area.edit textarea')
-            .maybeType(feedback);
+            .find('.feedback-area.edit textarea:focus')
+            .setText(feedback);
         getLine(line, viewer)
             .find('.feedback-area.edit .submit-feedback .submit-button')
             .submit('success', opts);
@@ -137,8 +143,8 @@ context('Submission page', () => {
             .find('.feedback-area.edit')
             .should('be.visible');
         getLine(line, viewer)
-            .find('.feedback-area.edit textarea')
-            .maybeType(feedback);
+            .find('.feedback-area.edit textarea:focus')
+            .setText(feedback);
         getLine(line, viewer)
             .find('.feedback-area.edit .submit-button.delete-feedback')
             .submit('success', opts);
@@ -188,9 +194,9 @@ context('Submission page', () => {
     function giveSingleFeedback(feedback, viewer) {
         editSingleFeedback(viewer);
         getSingleFeedbackArea('edit', viewer)
-            .find('textarea')
+            .find('textarea:focus')
             .clear()
-            .maybeType(feedback);
+            .setText(feedback);
         getSingleFeedbackArea('edit', viewer)
             .find('.submit-feedback .submit-button')
             .submit('success', { waitForDefault: false });
@@ -204,7 +210,7 @@ context('Submission page', () => {
     }
 
     function scrollToBottom() {
-        cy.get('.file-viewer .floating-feedback-button .content')
+        cy.get('.file-viewer .floating-feedback-button .content-wrapper')
             .scrollTo('bottom');
     }
 
@@ -272,7 +278,7 @@ context('Submission page', () => {
     function typeGrade(grade, opts={}) {
         getGradeInput()
             .clear()
-            .maybeType(grade.toString());
+            .setText(grade.toString());
     }
 
     function giveGrade(grade) {
@@ -319,6 +325,8 @@ context('Submission page', () => {
     });
 
     beforeEach(() => {
+        cy.server();
+        cy.route('/api/v1/login?type=extended&with_permissions').as('getPermissionsRoute');
         login('admin', 'admin');
     });
 
@@ -329,7 +337,7 @@ context('Submission page', () => {
 
         after(() => {
             login('admin', 'admin');
-            giveGeneralFeedback('');
+            cy.patchSubmission(submission.id, { feedback: '' });
         });
 
         it('should be possible to give general feedback', () => {
@@ -376,6 +384,57 @@ context('Submission page', () => {
                 checkGeneralFeedbackOverview(generalMsg);
             });
         });
+
+        it('should ask to save feedback when closing the popover', () => {
+            showGeneralFeedbackArea()
+                .find('textarea:focus')
+                .type('abc');
+            toggleGeneralFeedbackArea();
+            cy.get('[id^="submit-button-"][id$="-confirm-popover"]')
+                .should('be.visible');
+        });
+
+        it('should not ask to save feedback when there are no changes', () => {
+            showGeneralFeedbackArea();
+            toggleGeneralFeedbackArea();
+            cy.get('[id^="submit-button-"][id$="-confirm-popover"]')
+                .should('not.exist');
+        });
+
+        it('should not clear the rubric upon saving general feedback', () => {
+            cy.createRubric(assignment.id, [
+                {
+                    header: 'Category 1',
+                    description: 'Category 1',
+                    items: [
+                        { points: 0, header: '0 points', description: '0 points' },
+                        { points: 1, header: '1 points', description: '1 points' },
+                        { points: 2, header: '2 points', description: '2 points' },
+                        { points: 3, header: '3 points', description: '3 points' },
+                    ],
+                },
+            ]);
+            reload();
+
+            cy.get('.grade-viewer .rubric-save-warning').should('not.exist');
+            cy.get('.rubric-viewer .rubric-item:first').click();
+            cy.get('.rubric-viewer .rubric-item:first').should('have.class', 'selected');
+            cy.get('.grade-viewer .rubric-save-warning').should('be.visible');
+
+            showGeneralFeedbackArea()
+                .as('gfArea')
+                .find('textarea:focus')
+                .type(generalMsg);
+            cy.get('@gfArea')
+                .find('.submit-button')
+                .submit('success', { waitForDefault: false });
+
+            cy.get('.rubric-viewer .rubric-item:first').should('have.class', 'selected');
+            cy.get('.grade-viewer .rubric-save-warning').should('be.visible');
+
+            cy.patchSubmission(submission.id, { feedback: '' });
+            cy.deleteRubric(assignment.id);
+        });
     });
 
     context('Inline feedback', () => {
@@ -402,8 +461,8 @@ context('Submission page', () => {
                     .find('.feedback-area.edit')
                     .should('be.visible');
                 getLine(0)
-                    .find('.feedback-area.edit textarea')
-                    .maybeType(`${inlineMsg}{ctrl}{enter}`);
+                    .find('.feedback-area.edit textarea:focus')
+                    .setText(`${inlineMsg}{ctrl}{enter}`);
                 checkInlineFeedback(0, inlineMsg);
             });
 
@@ -424,13 +483,9 @@ context('Submission page', () => {
             });
 
             context('Deleting without submitting first', () => {
-                before(() => {
-                    login('admin', 'admin');
+                beforeEach(() => {
                     cy.openCategory('Code');
-                    deleteInlineFeedback(0, null, { hasConfirm: false });
-                });
-
-                afterEach(() => {
+                    openFile(filename, '.code-viewer');
                     deleteInlineFeedback(0, null, { hasConfirm: false });
                 });
 
@@ -460,13 +515,12 @@ context('Submission page', () => {
             });
 
             context('Deleting after submitting', () => {
-                before(() => {
-                    login('admin', 'admin');
+                beforeEach(() => {
                     cy.openCategory('Code');
                     deleteInlineFeedback(0, null, { hasConfirm: false });
                 });
 
-                afterEach(() => {
+                after(() => {
                     deleteInlineFeedback(0, null, { hasConfirm: false });
                 });
 

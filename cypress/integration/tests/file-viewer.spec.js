@@ -41,6 +41,7 @@ context('FileViewer', () => {
     function openFile(filename) {
         cy.get('.file-tree').contains('li', filename).click();
         cy.url().should('match', /\/files\/\d+/);
+        cy.get('.file-viewer .loader').should('not.exist');
     }
 
     function addComment(selector, comment = 'comment') {
@@ -56,28 +57,47 @@ context('FileViewer', () => {
 
     context('Inline feedback preference', () => {
         function openSettings() {
-            cy.get('.local-header .settings-toggle').click();
-            return cy.get('.settings-table').should('be.visible');
+            cy.get('.local-header .settings-toggle')
+                .click();
+            cy.get('[id^="settings-popover"]')
+                .should('not.have.class', 'fade')
+                .should('be.visible');
+            return cy.get('.settings-content')
+                .should('be.visible');
         }
 
         function closeSettings() {
-            cy.get('.local-header .settings-toggle').click();
-            return cy.get('.settings-table').should('not.be.visible');
+            cy.get('.local-header .settings-toggle')
+                .click();
+            cy.get('[id^="settings-popover"]')
+                .should('not.be.visible');
+            return cy.get('.settings-content')
+                .should('not.be.visible');
         }
 
-        function getOptionTR(name) {
-            return openSettings().contains('tr', name);
+        function getSettingsToggle(name) {
+            return openSettings()
+                .contains('tr', name)
+                .find('.toggle-container');
         }
 
         function hideComments() {
-            getOptionTR('Inline feedback')
-                .find('.toggle-container .label-off').click();
+            getSettingsToggle('Inline feedback')
+                .as('toggle')
+                .find('.label-off')
+                .click();
+            cy.get('@toggle')
+                .should('not.have.attr', 'checked');
             closeSettings();
         }
 
         function showComments() {
-            getOptionTR('Inline feedback')
-                .find('.toggle-container .label-on').click();
+            getSettingsToggle('Inline feedback')
+                .as('toggle')
+                .find('.label-on')
+                .click();
+            cy.get('@toggle')
+                .should('have.attr', 'checked');
             closeSettings();
         }
 
@@ -95,8 +115,8 @@ context('FileViewer', () => {
 
             openFile('Graaf vinden');
             addComment('.inner-code-viewer .line');
-            addComment('.inner-result-cell + .feedback-button');
-            addComment('.inner-markdown-viewer + .feedback-button');
+            addComment('.result-cell .feedback-button');
+            addComment('.markdown-wrapper .feedback-button');
             hideCommentsCheck();
 
             openFile('venn1.png');
@@ -116,7 +136,7 @@ context('FileViewer', () => {
             openFile('timer.c');
             hideComments();
             openFile('lemon.c');
-            getOptionTR('Inline feedback').find('.toggle-container')
+            getSettingsToggle('Inline feedback')
                 .should('have.attr', 'checked')
                 .should('eq', 'checked');
         });

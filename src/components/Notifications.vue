@@ -5,6 +5,7 @@
         <b-form-checkbox v-model="graders">
             <b>Graders</b>
             <description-popover
+                hug-text
                 description="Toggle this checkbox to send a reminder to the
                              graders that are causing the grading to not be done
                              at the given time."
@@ -22,6 +23,7 @@
         <b-form-checkbox v-model="finished">
             <b>Finished</b>
             <description-popover
+                hug-text
                 description="Toggle this checkbox to send the given email
                              address a reminder when the grading is done. You
                              can select multiple address in the same as in your

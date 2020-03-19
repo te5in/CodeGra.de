@@ -1140,3 +1140,103 @@ def test_add_test_student_to_group(
                     'username': test_student['username'],
                 },
             )
+
+
+@pytest.mark.parametrize('assignment', ['new'], indirect=True)
+def test_seeing_teacher_revision_in_group(
+    test_client, session, logged_in, teacher_user, course, error_template,
+    assignment, describe
+):
+    with describe('setup'):
+        user_other_group = create_user_with_perms(
+            session,
+            [CPerm.can_submit_own_work, CPerm.can_view_own_teacher_files],
+            course
+        )
+        user_with_perm = create_user_with_perms(
+            session,
+            [CPerm.can_submit_own_work, CPerm.can_view_own_teacher_files],
+            course
+        )
+        user_without_perm = create_user_with_perms(
+            session, [CPerm.can_submit_own_work], course
+        )
+
+        with logged_in(teacher_user):
+            g_set = create_group_set(test_client, course.id, 1, 2)
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{assignment.id}',
+                200,
+                data={'group_set_id': g_set['id']}
+            )
+            g1 = create_group(
+                test_client,
+                g_set['id'],
+                [user_with_perm, user_without_perm],
+            )
+
+        with logged_in(user_with_perm):
+            sub = create_submission(test_client, assignment.id)
+            # Submission is by the group
+            assert sub['user']['group']['id'] == g1['id']
+
+            student_files = test_client.req(
+                'get', f'/api/v1/submissions/{sub["id"]}/files/', 200
+            )
+
+    with describe('Cannot view teacher files while assig is open'
+                  ), logged_in(user_with_perm):
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{sub["id"]}/files/?owner=teacher',
+            403,
+            result=error_template,
+        )
+
+    with describe('Can see teacher files after assig is done'
+                  ), logged_in(user_with_perm):
+        assignment.set_state('done')
+        session.commit()
+
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{sub["id"]}/files/?owner=teacher',
+            200,
+            result=student_files,
+        )
+
+        # This marks all files as from the student revision, i.e. there are no
+        # teacher files.
+        m.File.query.filter(
+            m.File.work_id == sub['id'], m.File.parent_id.isnot(None)
+        ).update({'fileowner': m.FileOwner.student})
+
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{sub["id"]}/files/?owner=teacher',
+            200,
+            result={
+                **student_files,
+                'entries': [],
+            }
+        )
+
+    with describe(
+        'User without permission to see own teacher files gets an error'
+    ), logged_in(user_without_perm):
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{sub["id"]}/files/?owner=teacher',
+            403,
+            result=error_template,
+        )
+
+    with describe('User from other group cannot see teacher files'
+                  ), logged_in(user_other_group):
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{sub["id"]}/files/?owner=teacher',
+            403,
+            result=error_template,
+        )

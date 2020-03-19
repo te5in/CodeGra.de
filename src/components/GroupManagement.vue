@@ -28,8 +28,7 @@
                 <div class="pencil"
                      v-if="canEdit"
                      @click="startEditTitle"
-                     v-b-popover.top.hover="'Edit or delete group'"
-                     >
+                     v-b-popover.top.hover="'Edit or delete group'">
                     <icon name="pencil"/>
                 </div>
             </div>
@@ -41,7 +40,7 @@
                  class="user-box"
                  :key="`assignment-group-${group.id}-member-${user.id}`">
                 <div style="display: flex">
-                    <span>{{ user.name }} ({{ user.username }})</span>
+                    <span style="word-break: break-all;">{{ user.name }} ({{ user.username }})</span>
                     <span class="lti-progress" v-if="showLtiProgress"
                           :class="canRemoveUser(user) ? 'pr-3' : ''">
                         <div v-b-popover.top.hover.html="ltiTexts.done(user)"
@@ -63,7 +62,7 @@
                 </submit-button>
             </div>
         </masonry>
-        <span class="outer-block no-user-placeholder"
+        <span class="outer-block no-user-placeholder font-italic text-muted"
               v-if="group.members.length === 0">
             No members
         </span>
@@ -85,6 +84,7 @@
             <b-input-group class="new-user-wrapper"
                            v-if="canEditOthers">
                 <user-selector placeholder="Type to add a member"
+                               :use-selector="canListUsers"
                                :filter-students="filterMembers"
                                :disabled="groupFull"
                                v-model="newAuthor"
@@ -129,37 +129,30 @@ export default {
             type: Object,
             required: true,
         },
-
         selectedMembers: {
             type: Set,
             required: true,
         },
-
         groupSet: {
             type: Object,
             required: true,
         },
-
         course: {
             type: Object,
             required: true,
         },
-
         assignment: {
             type: Object,
             default: null,
         },
-
         showLtiProgress: {
             type: Boolean,
             default: false,
         },
-
         canEditOwn: {
             type: Boolean,
             required: true,
         },
-
         canEditOthers: {
             type: Boolean,
             required: true,
@@ -236,6 +229,10 @@ action is required.${divEnd}`;
                 own = this.canEditOwn;
             }
             return own || this.canEditOthers;
+        },
+
+        canListUsers() {
+            return this.$utils.getProps(this.course, false, 'permissions', 'can_list_course_users');
         },
 
         deleteGroupDisabled() {
@@ -378,21 +375,19 @@ action is required.${divEnd}`;
     padding: 5px 10px;
     background: @color-secondary;
     color: white;
-    #app.dark & .delete,
-    #app.dark & {
-        color: @color-lighter-gray;
-    }
 
-    border-radius: 0.25rem;
+    border-radius: @border-radius;
     border: 1px solid @color-secondary;
     display: flex;
     justify-content: space-between;
     vertical-align: center;
+
     .delete {
         border: 0 !important;
         box-shadow: none !important;
         background: none !important;
         padding: 0;
+
         &.btn-danger {
             color: @alert-danger-color;
         }
@@ -403,10 +398,6 @@ action is required.${divEnd}`;
     display: block;
     text-align: center;
     margin-bottom: 1rem;
-    color: gray;
-    #app.dark & {
-        color: @color-light-gray;
-    }
 }
 
 .lti-progress {
@@ -424,6 +415,8 @@ action is required.${divEnd}`;
 </style>
 
 <style lang="less">
+@import '~mixins.less';
+
 .group-management .user-selector.multiselect .multiselect__tags {
     border-left: 0;
     border-bottom: 0;
@@ -431,6 +424,6 @@ action is required.${divEnd}`;
 }
 
 .group-management .user-selector.multiselect--active .multiselect__tags {
-    border-bottom-left-radius: 0.25rem;
+    border-bottom-left-radius: @border-radius;
 }
 </style>

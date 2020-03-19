@@ -31,7 +31,7 @@
             </span>
             <div v-else-if="cell.cell_type === 'code'">
                 <inner-code-viewer
-                    class="code form-control p-0"
+                    class="code border rounded p-0"
                     :assignment="assignment"
                     :submission="submission"
                     :code-lines="cell.source"
@@ -180,12 +180,17 @@ export default {
         overflow-x: hidden;
     }
 
+    .inner-markdown-viewer,
+    .inner-result-cell {
+        width: 100%;
+    }
+
     .inner-result-cell pre {
         padding: 0.6em 2rem;
         border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: 0.25rem;
+        border-radius: @border-radius;
 
-        #app.dark & {
+        @{dark-mode} {
             background: @color-primary-darkest;
             color: @color-secondary-text-lighter;
         }
@@ -194,7 +199,7 @@ export default {
     .input-data-prompt,
     .output-data-prompt {
         font-family: monospace;
-        color: #999;
+        color: rgb(153, 153, 153);
         width: 7em;
         margin-left: -10px;
         overflow-x: visible;

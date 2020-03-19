@@ -705,8 +705,9 @@ def ensure_can_view_files(
     :raises PermissionException: If the user should not be able te see these
         files.
     """
+    cur_user = _get_cur_user()
     try:
-        if not work.has_as_author(_get_cur_user()):
+        if not work.has_as_author(cur_user):
             try:
                 ensure_permission(
                     CPerm.can_see_others_work, work.assignment.course_id
@@ -717,9 +718,7 @@ def ensure_can_view_files(
                 )
 
         if teacher_files:
-            if (
-                work.user_id == _get_cur_user().id and work.assignment.is_done
-            ):
+            if work.has_as_author(cur_user) and work.assignment.is_done:
                 ensure_permission(
                     CPerm.can_view_own_teacher_files, work.assignment.course_id
                 )
@@ -742,7 +741,7 @@ def ensure_can_view_files(
             | (psef.models.PlagiarismCase.work2_id == work.id)
         ):
             other_work = case.work1 if case.work2_id == work.id else case.work2
-            if _get_cur_user().has_permission(
+            if cur_user.has_permission(
                 CPerm.can_view_plagiarism,
                 course_id=other_work.assignment.course_id,
             ):

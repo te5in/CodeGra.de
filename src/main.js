@@ -31,6 +31,8 @@ Vue.use(VueClipboard);
 
 Vue.config.productionTip = false;
 
+moment.relativeTimeThreshold('h', 48);
+
 Icon.register({
     tilde: {
         width: 24,
@@ -64,6 +66,16 @@ axios.defaults.transformResponse = [
     function defaultTransformResponse(data, headers) {
         switch (headers['content-type']) {
             case 'application/json':
+                // Somehow axios gives us an ArrayBuffer sometimes, even though
+                // the Content-Type header is application/json. JSON.parse does
+                // not work on ArrayBuffers (they're silently converted to the
+                // string "[object ArrayBuffer]", which is invalid JSON), so we
+                // must do that ourselves.
+                if (data instanceof ArrayBuffer) {
+                    const view = new Int8Array(data);
+                    const dataStr = String.fromCharCode.apply(null, view);
+                    return JSON.parse(dataStr);
+                }
                 return JSON.parse(data);
             default:
                 return data;
@@ -267,6 +279,7 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 smallWidth: 628,
                 mediumWidth: 768,
                 largeWidth: 992,
+                xlargeWidth: 1200,
                 // `Now` and `epoch` both contain the current time. They are
                 // the same, except that `epoch` is recalculated every second
                 // while `now` is set only every minute. We do not want `now`
@@ -330,6 +343,17 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
 
             $epoch() {
                 return this.epoch;
+            },
+        },
+
+        watch: {
+            isEdge: {
+                immediate: true,
+                handler() {
+                    if (this.isEdge) {
+                        document.body.classList.add('cg-edge');
+                    }
+                },
             },
         },
     });

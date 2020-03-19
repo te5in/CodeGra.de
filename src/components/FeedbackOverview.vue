@@ -58,7 +58,7 @@
                      :key="`file-${id}-line-${part[0]}`">
                     <hr v-if="i !== 0">
 
-                    <inner-code-viewer class="form-control p-0"
+                    <inner-code-viewer class="border rounded p-0"
                                        :assignment="assignment"
                                        :submission="submission"
                                        :code-lines="codeLines[id]"
@@ -372,8 +372,10 @@ export default {
     overflow: hidden;
 }
 
-#app.dark .general-feedback {
-    color: @text-color-dark;
+.general-feedback pre {
+    @{dark-mode} {
+        color: @text-color-dark;
+    }
 }
 </style>
 
@@ -413,7 +415,7 @@ export default {
         border-radius: 0;
         margin-top: -1px;
         z-index: 100;
-        background-color: #f7f7f7;
+        background-color: rgb(247, 247, 247);
     }
 }
 </style>

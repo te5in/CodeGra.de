@@ -153,17 +153,23 @@ context('Manage Assignment', () => {
             cy.get('.course-list').contains(course.name).click();
             cy.get('.assignment-list').should('contain', assignment.name);
 
-            cy.get('.danger-zone-wrapper').within(() => {
-                cy.get('.submit-button').contains('Delete assignment').click();
-                cy.get('.modal').contains('Deleting this assignment cannot be reversed').should('be.visible')
+            cy.get('.danger-zone-wrapper')
+                .contains('.submit-button', 'Delete assignment')
+                .submit('success', {
+                    hasConfirm: true,
+                    confirmInModal: true,
+                    doConfirm: false,
+                    confirmMsg: 'Deleting this assignment cannot be reversed',
+                });
 
-                // Cancel should not delete
-                cy.get('.submit-button').contains('Cancel').click();
-                cy.get('.modal').should('not.be.visible')
-
-                cy.get('.submit-button').contains('Delete assignment').click();
-                cy.get('.submit-button').contains('Confirm').click();
-            });
+            cy.get('.danger-zone-wrapper')
+                .contains('.submit-button', 'Delete assignment')
+                .submit('success', {
+                    hasConfirm: true,
+                    confirmInModal: true,
+                    waitForDefault: false,
+                    confirmMsg: 'Deleting this assignment cannot be reversed',
+                });
 
             cy.url().should('eq', Cypress.config().baseUrl + '/');
             cy.get('.assig-list').should('not.contain', assignment.name);

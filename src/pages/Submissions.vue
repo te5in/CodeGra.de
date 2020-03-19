@@ -2,7 +2,9 @@
 <template>
 <loader center v-if="loading"/>
 
-<div class="submissions d-flex flex-column" v-else>
+<div class="submissions d-flex flex-column"
+     :class="{ 'is-student': isStudent }"
+     v-else>
     <local-header always-show-extra-slot
                   :back-route="headerBackRoute">
         <template slot="title" v-if="assignment && Object.keys(assignment).length">
@@ -13,8 +15,6 @@
         </template>
 
         <div slot="extra" v-show="!isStudent">
-            <hr class="separator top-separator"/>
-
             <category-selector slot="extra"
                                default=""
                                v-model="selectedCat"
@@ -32,13 +32,14 @@
                     <icon name="gear"/>
                 </b-button>
 
-                <submit-button :wait-at-least="500"
-                               name="refresh-button"
-                               :submit="submitForceLoadSubmissions"
-                               v-b-popover.bottom.hover="'Reload submissions'">
-                    <icon name="refresh"/>
-                    <icon name="refresh" spin slot="pending-label"/>
-                </submit-button>
+                <b-button-group v-b-popover.bottom.hover="'Reload submissions'">
+                    <submit-button :wait-at-least="500"
+                                   name="refresh-button"
+                                   :submit="submitForceLoadSubmissions">
+                        <icon name="refresh"/>
+                        <icon name="refresh" spin slot="pending-label"/>
+                    </submit-button>
+                </b-button-group>
             </b-button-group>
         </b-input-group>
 
@@ -173,8 +174,12 @@
 
                 <b-alert show
                          variant="warning"
-                         class="no-deadline-alert"
+                         class="no-deadline-alert mb-0"
                          v-if="uploaderDisabled">
+                    <p v-if="!canUploadForSomeone">
+                        You do not have permission to upload work to this assignment.
+                    </p>
+
                     <p v-if="!assignment.hasDeadline">
                         The deadline for this assignment has not yet been set.
 
@@ -480,7 +485,11 @@ export default {
         },
 
         uploaderDisabled() {
-            return !!(this.ltiUploadDisabledMessage || !this.assignment.hasDeadline);
+            return !!(
+                this.ltiUploadDisabledMessage ||
+                !this.assignment.hasDeadline ||
+                !this.canUploadForSomeone
+            );
         },
 
         deadlineEditable() {
@@ -576,6 +585,10 @@ export default {
 
         canUploadForOthers() {
             return this.coursePermissions.can_submit_others_work;
+        },
+
+        canUploadForSomeone() {
+            return this.canUploadForSelf || this.canUploadForOthers;
         },
 
         canListUsers() {
@@ -782,12 +795,13 @@ export default {
     background-color: white;
     flex: 1 1 auto;
 
-    #app.dark & {
+    @{dark-mode} {
         background-color: @color-primary;
     }
 }
 
-.cat-wrapper {
+.cat-wrapper,
+.submission-list {
     flex: 1 1 auto;
 }
 
@@ -800,10 +814,6 @@ export default {
     .x-collapsed & {
         transform: rotate(-90deg);
     }
-}
-
-.alert p:last-child {
-    margin-bottom: 0;
 }
 
 .action-buttons {
@@ -878,6 +888,17 @@ export default {
         .submit-button {
             box-shadow: none !important;
         }
+    }
+}
+</style>
+
+<style lang="less">
+.page.submissions.is-student {
+    // Hide the "extra" slot in the LocalHeader when a student is logged in
+    // because we need to render the CategorySelector so it responds to
+    // changes in the URL.
+    .local-header .always-extra-header {
+        display: none;
     }
 }
 </style>

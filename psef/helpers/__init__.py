@@ -1073,18 +1073,25 @@ def extended_requested() -> bool:
 
 
 @contextlib.contextmanager
-def defer(function: t.Callable[[], object]) -> t.Generator[None, None, None]:
+def defer(*functions: t.Callable[[], object]) -> t.Generator[None, None, None]:
     """Defer a function call to the end of the context manager.
 
-    :param: The function to call.
-    :returns: A context manager that can be used to execute the given function
+    :param functions: The functions to call, they will be called in order, so
+        the first function first, and the last. This means that
+        ``with defer(f1, f2)`` is equivalent to ``with defer(f2), defer(f1)``.
+    :returns: A context manager that can be used to execute the given functions
         at the end of the block.
     """
-    try:
+    if not functions:
         yield
-    finally:
-        logger.info('Calling defer', defer_function=function)
-        function()
+    else:
+        *rest, function = functions
+        try:
+            with defer(*rest):
+                yield
+        finally:
+            logger.info('Calling defer', defer_function=function)
+            function()
 
 
 class StoppableThread(abc.ABC):
@@ -1149,8 +1156,7 @@ class RepeatedTimer(StoppableThread):
 
         self.__cleanup = cleanup
         self.__setup = setup
-        self.__background: t.Union[None, threading.Thread, multiprocessing.
-                                   Process]
+        self.__background: t.Optional[multiprocessing.Process] = None
 
     def cancel(self) -> None:
         if not self.__finish.is_set():
@@ -1164,24 +1170,15 @@ class RepeatedTimer(StoppableThread):
         self.__started.clear()
 
         def fun() -> None:
-            self.__started.set()
-            logger.info(
-                'Started repeating timer', function=self.__function_name
-            )
-            self.__setup()
-            try:
-                while True:
+            with defer(self.__function, self.__cleanup, self.__finished.set):
+                self.__started.set()
+                logger.info(
+                    'Started repeating timer', function=self.__function_name
+                )
+                self.__setup()
+                while not self.__finish.is_set():
                     self.__function()
-                    if self.__finish.wait(self.__interval):
-                        break
-            finally:
-                try:
-                    self.__function()
-                finally:
-                    try:
-                        self.__cleanup()
-                    finally:
-                        self.__finished.set()
+                    self.__finish.wait(self.__interval)
 
         back = multiprocessing.Process(target=fun)
         back.start()
@@ -1242,6 +1239,15 @@ def call_external(
             preexec_fn=preexec_fn,
             env=child_env,
         ) as proc:
+            # `stdout` is never `None` as we pass in values for them, but in
+            # typeshed they are annotated as optional:
+            # https://github.com/python/typeshed/issues/3831
+            # https://github.com/python/typeshed/pull/3652
+            if proc.stdout is None:  # pragma: no cover
+                # We use an `if` here so `mypy` will start complaining about
+                # unreachable code if this issue is resolved.
+                assert False
+
             while proc.poll() is None:
                 process_line(
                     proc.stdout.readline().decode('utf8', 'backslashreplace')

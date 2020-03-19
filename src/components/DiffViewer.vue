@@ -3,12 +3,13 @@
 <div class="diff-viewer" v-if="diffOnly">
     <div v-for="(part, i) in changedParts"
          :key="`part-${i}-line-${part[0]}`">
-        <hr v-if="i !== 0">
+        <hr v-if="i !== 0"
+            class="m-0">
         <ol :class="{ 'show-whitespace': showWhitespace }"
             class="diff-part rounded"
             :start="part[0] + 1"
             :style="{
-                paddingLeft: `${3 + Math.log10(part[1]) * 2/3}em`,
+                paddingLeft: `${3 + Math.log10(lines.length) * 2/3}em`,
                 fontSize: `${fontSize}px`,
             }">
             <li v-for="line in range(part[0], part[1])"
@@ -21,7 +22,7 @@
 </div>
 <div class="diff-viewer" v-else>
     <ol :class="{ 'show-whitespace': showWhitespace }"
-        class="scroller rounded"
+        class="diff-part only scroller rounded"
         :style="{
             paddingLeft: `${3 + Math.log10(lines.length) * 2/3}em`,
             fontSize: `${fontSize}px`,
@@ -61,6 +62,10 @@ export default {
             type: Object,
             required: true,
         },
+        fileId: {
+            type: String,
+            required: true,
+        },
         showWhitespace: {
             type: Boolean,
             default: true,
@@ -80,13 +85,14 @@ export default {
         };
     },
 
-    mounted() {
-        this.getCode();
-    },
-
     watch: {
-        file(f) {
-            if (f) this.getCode();
+        fileId: {
+            immediate: true,
+            handler(id) {
+                if (id) {
+                    this.getCode(this.fileId);
+                }
+            },
         },
     },
 
@@ -95,7 +101,7 @@ export default {
             storeLoadCode: 'loadCode',
         }),
 
-        getCode() {
+        getCode(fileId) {
             let error = '';
 
             const promises = this.file.ids.map(id => {
@@ -119,7 +125,9 @@ export default {
                             return;
                         }
 
-                        this.diffCode(origCode, revCode);
+                        if (fileId === this.fileId) {
+                            this.diffCode(origCode, revCode);
+                        }
                     },
                     err => {
                         error = err;
@@ -127,9 +135,12 @@ export default {
                 )
                 .then(() => {
                     if (error) {
-                        this.$emit('error', error);
+                        this.$emit('error', {
+                            error,
+                            fileId,
+                        });
                     } else {
-                        this.$emit('load');
+                        this.$emit('load', fileId);
                     }
                 });
         },
@@ -240,15 +251,14 @@ export default {
 .diff-viewer {
     position: relative;
     padding: 0;
-    background: #f8f8f8;
+    background: rgb(248, 248, 248);
 
-    #app.dark & {
+    @{dark-mode} {
         background: @color-primary-darker;
     }
 }
 
 ol {
-    min-height: 5em;
     overflow-x: visible;
     background: @linum-bg;
     margin: 0;
@@ -256,7 +266,11 @@ ol {
     font-family: monospace;
     font-size: small;
 
-    #app.dark & {
+    .diff-part only & {
+        min-height: 5em;
+    }
+
+    @{dark-mode} {
         background: @color-primary-darkest;
         color: @color-secondary-text-lighter;
     }
@@ -268,11 +282,17 @@ li {
     padding-right: 0.75em;
     background-color: lighten(@linum-bg, 1%);
     border-left: 1px solid darken(@linum-bg, 5%);
+    cursor: text;
+
+    @{dark-mode} {
+        background: @color-primary-darker;
+        border-left: 1px solid darken(@color-primary-darkest, 5%);
+    }
 
     &.added {
         background-color: @color-diff-added-light !important;
 
-        #app.dark & {
+        @{dark-mode} {
             background-color: @color-diff-added-dark !important;
         }
     }
@@ -280,18 +300,9 @@ li {
     &.removed {
         background-color: @color-diff-removed-light !important;
 
-        #app.dark & {
+        @{dark-mode} {
             background-color: @color-diff-removed-dark !important;
         }
-    }
-
-    &:hover {
-        cursor: text;
-    }
-
-    #app.dark & {
-        background: @color-primary-darker;
-        border-left: 1px solid darken(@color-primary-darkest, 5%);
     }
 }
 
@@ -301,8 +312,8 @@ code {
     white-space: pre-wrap;
     font-size: 100%;
 
-    #app.dark & {
-        color: #839496;
+    @{dark-mode} {
+        color: rgb(131, 148, 150);
     }
 
     li.added & {
@@ -330,7 +341,8 @@ code {
 .diff-viewer {
     .whitespace {
         opacity: 0;
-        #app.dark & {
+
+        @{dark-mode} {
             color: @color-secondary-text;
         }
     }

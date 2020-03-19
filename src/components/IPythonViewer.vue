@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="ipython-viewer p-3">
+<div class="ipython-viewer">
     <inner-ipython-viewer
         :assignment="assignment"
         :editable="editable"
@@ -14,7 +14,7 @@
 </template>
 
 <script>
-import { mapGetters, mapActions } from 'vuex';
+import { mapGetters } from 'vuex';
 
 import decodeBuffer from '@/utils/decode';
 import { getOutputCells } from '@/utils/ipython';
@@ -65,27 +65,55 @@ export default {
             type: String,
             default: 'The file is not a valid IPython notebook.',
         },
-    },
-
-    data() {
-        return {
-            outputCells: this.cells,
-        };
+        fileContent: {
+            required: true,
+        },
     },
 
     computed: {
         ...mapGetters('pref', ['fontSize']),
-
         feedback() {
             return this.$utils.getProps(this.submission, {}, 'feedback', 'user', this.fileId);
+        },
+
+        outputCells() {
+            if (this.fileId == null || this.fileContent == null) {
+                return [];
+            }
+
+            const error = err => {
+                this.$emit('error', {
+                    error: err,
+                    fileId: this.fileId,
+                });
+                return [];
+            };
+
+            let jsonString;
+            try {
+                jsonString = decodeBuffer(this.fileContent);
+            } catch (e) {
+                return error(e);
+            }
+
+            let data;
+            try {
+                data = JSON.parse(jsonString);
+            } catch (e) {
+                return error(this.invalidJsonMessage);
+            }
+
+            try {
+                const res = Object.freeze(getOutputCells(data));
+                this.$emit('load', this.fileId);
+                return res;
+            } catch (e) {
+                return error(e);
+            }
         },
     },
 
     methods: {
-        ...mapActions('code', {
-            storeLoadCode: 'loadCode',
-        }),
-
         outputData(output, types) {
             for (let i = 0; i < types.length; ++i) {
                 if (output.data[types[i]]) {
@@ -93,43 +121,6 @@ export default {
                 }
             }
             return null;
-        },
-
-        async loadCode() {
-            this.outputCells = this.cells;
-            if (this.fileId == null) {
-                return;
-            }
-
-            let jsonString;
-            await this.$afterRerender();
-
-            try {
-                const code = await this.storeLoadCode(this.fileId);
-                jsonString = decodeBuffer(code);
-            } catch (e) {
-                this.outputCells = [];
-                this.$emit('error', e);
-                return;
-            }
-
-            try {
-                const data = JSON.parse(jsonString);
-                this.outputCells = Object.freeze(getOutputCells(data));
-                this.$emit('load');
-            } catch (e) {
-                this.outputCells = [];
-                this.$emit('error', this.invalidJsonMessage);
-            }
-        },
-    },
-
-    watch: {
-        fileId: {
-            immediate: true,
-            handler() {
-                this.loadCode();
-            },
         },
     },
 

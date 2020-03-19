@@ -84,6 +84,7 @@ const actions = {
                     id: null,
                     name: suite.rubricRow.header,
                     entries: autoTestTree[suite.id],
+                    autoTestSuiteId: suite.id,
                 });
             });
         });

@@ -164,7 +164,7 @@ export default {
     &.colors .toggle {
         background-color: @color-primary;
 
-        #app.dark & {
+        @{dark-mode} {
             background-color: @color-primary-darkest;
         }
     }

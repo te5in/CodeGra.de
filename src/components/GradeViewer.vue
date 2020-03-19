@@ -66,14 +66,9 @@
             </b-input-group-append>
 
             <b-input-group-append class="delete-button-group"
-                                  v-if="realEditable">
-                <b-popover :triggers="showDeleteButton ? 'hover' : ''"
-                           placement="top"
-                           target="delete-grade-button">
-                    {{ deleteButtonText }}
-                </b-popover>
-                <submit-button id="delete-grade-button"
-                               class="delete-button"
+                                  v-if="realEditable"
+                                  v-b-popover.hover.top="showDeleteButton ? deleteButtonText : ''">
+                <submit-button class="delete-button"
                                variant="danger"
                                :disabled="!showDeleteButton"
                                :submit="deleteGrade"
@@ -117,6 +112,7 @@ import 'vue-awesome/icons/times';
 import { NONEXISTENT } from '@/constants';
 import { ValidationError } from '@/models/errors';
 import { formatGrade, isDecimalNumber } from '@/utils';
+import { User } from '@/models';
 
 import RubricViewer from './RubricViewer';
 import SubmitButton from './SubmitButton';
@@ -156,7 +152,7 @@ export default {
         },
 
         groupOfUser: {
-            type: Object,
+            type: User,
             default: null,
         },
     },
@@ -410,7 +406,10 @@ export default {
                 case DeleteButtonState.RUBRIC_OVERRIDDEN:
                     return this.clearSubmissionGrade();
                 case DeleteButtonState.CLEAR_RUBRIC:
-                    return this.clearRubricItems();
+                    return this.clearRubricItems().then(res => {
+                        this.$root.$emit('cg::rubric-viewer::reset');
+                        return res;
+                    });
                 case DeleteButtonState.RUBRIC_CHANGED_AND_OVERRIDDEN:
                     return {
                         data: {

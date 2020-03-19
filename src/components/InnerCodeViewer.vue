@@ -24,7 +24,6 @@
 
 <div v-else class="inner-code-viewer">
     <ol :class="{
-            editable: canGiveFeedback,
             'lint-whitespace': lintWhitespace,
             'show-whitespace': showWhitespace,
          }"
@@ -44,6 +43,7 @@
             :key="i"
             class="line"
             :class="{
+                'hover': canGiveFeedback,
                 'linter-feedback-outer': $userConfig.features.linters && linterFeedback[i - 1 + lineFeedbackOffset],
                 'feedback-outer': showFeedback && $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset, 'msg') != null
             }"
@@ -76,7 +76,7 @@
         </li>
         <li class="missing-newline"
             v-if="showMissingNewline">
-            <icon name="level-up" style="transform: rotate(90deg)"/> Missing newline at the end of file.
+            <icon name="level-up" class="missing-newline-icon"/> Missing newline at the end of file.
         </li>
     </ol>
 
@@ -347,12 +347,20 @@ export default {
             }
             this.$set(this.editing, line, true);
 
-            this.$nextTick(() => {
-                const feedbackArea = el.querySelector('.feedback-area textarea');
-                if (feedbackArea) {
-                    feedbackArea.focus();
-                }
-            });
+            await this.$nextTick();
+            const feedbackArea = el.querySelector('.feedback-area textarea');
+
+            if (feedbackArea) {
+                feedbackArea.focus();
+
+                // Put the cursor at the end of the text (Safari puts it at the
+                // start for some reason...
+                await this.$afterRerender();
+                feedbackArea.setSelectionRange(
+                    feedbackArea.value.length,
+                    feedbackArea.value.length,
+                );
+            }
         },
 
         feedbackChange(line) {
@@ -418,16 +426,22 @@ export default {
 <style lang="less" scoped>
 @import '~mixins.less';
 
+.inner-code-viewer {
+    background-color: @linum-bg;
+
+    @{dark-mode} {
+        background-color: @color-primary-darkest;
+    }
+}
+
 ol {
     margin: 0;
     padding: 0;
     overflow-x: visible;
-    background: @linum-bg;
+    background: transparent;
     font-family: monospace;
-    font-size: small;
 
-    #app.dark & {
-        background: @color-primary-darkest !important;
+    @{dark-mode} {
         color: @color-secondary-text-lighter !important;
     }
 }
@@ -440,15 +454,34 @@ li {
     background-color: lighten(@linum-bg, 1%);
     border-left: 1px solid darken(@linum-bg, 5%);
 
-    #app.dark & {
-        background: @color-primary-darker;
-        border-left: 1px solid darken(@color-primary-darkest, 5%);
+    @{dark-mode} {
+        background-color: @color-primary-darker;
+        border-color: darken(@color-primary-darkest, 5%);
     }
 
-    ol.lines.editable &,
-    #app.dark ol.lines.editable & {
-        &.line:hover {
-            background-color: rgba(0, 0, 0, 0.025);
+    &.hover:hover {
+        background-color: rgba(0, 0, 0, 0.025);
+    }
+
+    &.linter-feedback-outer {
+        background-color: rgba(255, 0, 0, 0.025) !important;
+        color: red;
+        font-weight: bold;
+
+        &.hover:hover {
+            background-color: rgba(255, 0, 0, 0.075) !important;
+        }
+
+        @{dark-mode} {
+            background-color: rgba(255, 0, 0, 0.075) !important;
+
+            &.hover:hover {
+                background-color: rgba(255, 0, 0, 0.15) !important;
+            }
+        }
+
+        > * {
+            font-weight: normal;
         }
     }
 
@@ -458,8 +491,12 @@ li {
         cursor: default;
         user-select: none;
 
-        svg {
-            margin-bottom: -0.125em;
+        .fa-icon {
+            transform: rotate(90deg);
+
+            &.missing-newline-icon {
+                transform: translateY(-2px) rotate(90deg);
+            }
         }
     }
 }
@@ -478,8 +515,8 @@ code {
     -ms-hyphens: auto;
     hyphens: auto;
 
-    #app.dark & {
-        color: #839496;
+    @{dark-mode} {
+        color: rgb(131, 148, 150);
     }
 }
 
@@ -497,7 +534,7 @@ code {
         flex: 1 1 auto;
         border-top: 1px solid darken(@linum-bg, 5%);
 
-        #app.dark & {
+        @{dark-mode} {
             border-top: 1px solid darken(@color-primary-darkest, 5%);
         }
     }
@@ -507,19 +544,21 @@ code {
 <style lang="less">
 @import '~mixins.less';
 
-#app.dark ol.lines .btn:not(.btn-success):not(.btn-danger):not(.btn-warning) {
-    background: @color-secondary;
-
-    &.btn-secondary {
-        background-color: @color-primary-darker;
+ol.lines .btn:not(.btn-success):not(.btn-danger):not(.btn-warning) {
+    @{dark-mode} {
+        background: @color-secondary;
 
         &:hover {
-            background: @color-primary-darker;
+            background: darken(@color-secondary, 10%);
         }
-    }
 
-    &:hover {
-        background: darken(@color-secondary, 10%);
+        &.btn-secondary {
+            background-color: @color-primary-darker;
+
+            &:hover {
+                background: @color-primary-darker;
+            }
+        }
     }
 }
 </style>

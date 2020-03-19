@@ -6,7 +6,7 @@
                  :class="{ selected: submissionsSelected || (small && selected) }"
                  :to="submissionsRoute(assignment)">
         <div class="assignment-wrapper">
-            <span :title="assignment.name" class="assignment">{{ assignment.name }}</span>
+            <span :title="assignment.name" class="assignment flex-grow-1 text-truncate">{{ assignment.name }}</span>
 
             <assignment-state :assignment="assignment"
                               :editable="false"
@@ -21,9 +21,9 @@
             </small>
         </div>
 
-        <small v-if="!small" class="course" :title="assignment.course.name">{{ assignment.course.name }}</small>
+        <small v-if="!small" class="course text-truncate" :title="assignment.course.name">{{ assignment.course.name }}</small>
 
-        <small v-if="!small && assignment.deadline" class="deadline">
+        <small v-if="!small && assignment.hasDeadline" class="deadline">
             Due {{ readableDeadline }}
         </small>
         <small v-else-if="!small" class="deadline text-muted">
@@ -34,7 +34,7 @@
                  v-if="assignment.canManage && !small"
                  :class="{ selected: manageSelected }"
                  :to="manageRoute(assignment)">
-        <icon name="gear"/>
+        <icon name="gear" />
     </router-link>
 </li>
 </template>
@@ -137,7 +137,11 @@ export default {
 
 .manage-link {
     flex: 0 0 auto;
-    padding-top: 6px;
+    padding-top: 4px;
+
+    body.cg-edge & .fa-icon {
+        transform: translateY(-3px);
+    }
 }
 
 a {
@@ -158,9 +162,6 @@ a {
 
     .assignment {
         line-height: 1.1;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        flex: 1 1 auto;
     }
 }
 </style>

@@ -170,6 +170,9 @@ def app(request):
     app.config['__S_FEATURES']['COURSE_REGISTER'] = True
     app.config['FEATURES'][psef.features.Feature.COURSE_REGISTER] = True
 
+    app.config['__S_FEATURES']['RENDER_HTML'] = True
+    app.config['FEATURES'][psef.features.Feature.RENDER_HTML] = True
+
     psef.tasks.celery.conf.update({
         'task_always_eager': False,
         'task_eager_propagates': False,

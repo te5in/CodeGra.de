@@ -3,16 +3,19 @@
     <b-input-group class="d-flex">
         <b-input-group-prepend is-text>
             Allowed upload types
+
             <description-popover hug-text>
                 Select how you want your student to hand in their
                 submissions. You can either select a file uploader, via a
                 GitHub/GitLab webhook, or both.
             </description-popover>
         </b-input-group-prepend>
+
         <b-input-group-prepend class="flex-grow-1">
-            <b-input-group-text style="background: unset" class="flex-grow-1">
+            <b-input-group-text class="flex-grow-1 no-bg">
                 <b-form-checkbox v-model="files">
                     File uploader
+
                     <description-popover hug-text>
                         Your students will be able to upload files via a file
                         uploader, they can submit archives which are
@@ -23,10 +26,12 @@
                 </b-form-checkbox>
             </b-input-group-text>
         </b-input-group-prepend>
+
         <b-input-group-prepend class="flex-grow-1">
-            <b-input-group-text style="background: unset" class="flex-grow-1">
+            <b-input-group-text class="flex-grow-1 no-bg">
                 <b-form-checkbox v-model="webhook">
                     GitHub/GitLab
+
                     <description-popover hug-text>
                         Your students will be able to hand in via a GitHub or
                         GitLab webhook. Instructions on how to set this up will

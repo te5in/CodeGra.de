@@ -126,6 +126,9 @@ def create_app(  # pylint: disable=too-many-statements
     resulting_app.config['SESSION_COOKIE_SECURE'] = True
 
     if not resulting_app.debug:
+        resulting_app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+        resulting_app.config['SESSION_COOKIE_SECURE'] = True
+
         assert not resulting_app.config['AUTO_TEST_DISABLE_ORIGIN_CHECK']
 
     if config is not None:  # pragma: no cover

@@ -128,4 +128,8 @@ export default {
 .auto-test-state.btn {
     pointer-events: none;
 }
+
+.fa-icon {
+    transform: translateY(-2px);
+}
 </style>

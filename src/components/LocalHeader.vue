@@ -39,13 +39,14 @@
         </b-input-group-append>
     </b-button-toolbar>
 
-    <b-collapse id="local-header-extra" v-if="hasExtraSlot && !alwaysShowExtraSlot">
+    <div class="always-extra-header" v-if="alwaysShowExtraSlot">
+        <hr class="separator narrow">
+        <slot name="extra"/>
+    </div>
+    <b-collapse id="local-header-extra" v-else-if="hasExtraSlot">
         <hr class="separator">
         <slot name="extra"/>
     </b-collapse>
-    <div class="always-extra-header" v-if="alwaysShowExtraSlot">
-        <slot name="extra"/>
-    </div>
 </div>
 </template>
 
@@ -117,6 +118,7 @@ export default {
 @import '~mixins.less';
 
 .local-header {
+    .default-footer-colors;
     position: relative;
     position: sticky;
     top: 0;
@@ -124,11 +126,10 @@ export default {
     margin: 0 -15px 1rem;
     border: 0;
     padding: 1rem;
-    .default-footer-colors;
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.75);
     color: @text-color;
 
-    #app.dark & {
+    @{dark-mode} {
         color: @text-color-dark;
     }
 }
@@ -152,8 +153,8 @@ export default {
     }
 
     .back-button {
-        border-top-left-radius: 0.25rem !important;
-        border-bottom-left-radius: 0.25rem !important;
+        border-top-left-radius: @border-radius !important;
+        border-bottom-left-radius: @border-radius !important;
     }
 }
 
@@ -171,10 +172,14 @@ export default {
 }
 
 .separator {
-    margin: 1em 0;
-    border-color: @color-border-gray;
+    margin: 1rem 0;
+    border-color: @border-color;
 
-    #app.dark & {
+    &.narrow {
+        margin: 0.5rem 0 0.25rem;
+    }
+
+    @{dark-mode} {
         border-color: @color-primary-darkest;
     }
 }
@@ -191,18 +196,6 @@ export default {
         & > *:last-child {
             margin-right: 0;
         }
-    }
-
-    #app.dark & .btn.btn-primary {
-        background-color: @color-primary-darkest;
-
-        &:hover {
-            background-color: darken(@color-primary-darkest, 2%);
-        }
-    }
-
-    #app.dark & .btn.btn-secondary:hover {
-        background-color: darken(@color-primary, 2.5%) !important;
     }
 }
 </style>

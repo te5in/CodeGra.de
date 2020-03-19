@@ -5164,3 +5164,61 @@ def test_cool_off_period_larger_amount(
             403,
             data={'amount_in_cool_off_period': 1}
         )
+
+
+def test_get_assigned_grader_ids(
+    describe, session, test_client, logged_in, admin_user
+):
+    with describe('Setup'), logged_in(admin_user):
+        course = create_course(test_client)
+        assig_id = create_assignment(
+            test_client,
+            course,
+            state='open',
+            deadline=(
+                DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
+            )
+        )['id']
+
+        students = [
+            create_user_with_perms(
+                session,
+                [
+                    CPerm.can_submit_own_work, CPerm.can_see_assignments,
+                    CPerm.can_upload_after_deadline
+                ],
+                courses=[course],
+            ) for _ in range(10)
+        ]
+        tas = [
+            create_user_with_perms(
+                session, [
+                    CPerm.can_submit_own_work, CPerm.can_see_assignments,
+                    CPerm.can_upload_after_deadline, CPerm.can_grade_work
+                ],
+                courses=[course]
+            ) for _ in range(15)
+        ]
+
+        subs = []
+        for student in students:
+            with logged_in(student):
+                subs.append(create_submission(test_client, assig_id))
+
+        # Don't assign one submission. We do this to make sure that even when
+        # there are unassigned submissions `get_assigned_grader_ids` never
+        # returns `None`.
+        subs_to_assign = subs[:-1]
+
+        for sub, ta in zip(subs_to_assign, tas):
+            m.Work.query.get(sub['id']).assigned_to = ta.id
+
+        session.commit()
+
+    with describe('All assigned graders should be returned'):
+        assig = m.Assignment.query.get(assig_id)
+        grader_ids = list(assig.get_assigned_grader_ids())
+        assert None not in grader_ids
+        assert sorted(grader_ids) == sorted(
+            ta.id for ta in tas[:len(subs_to_assign)]
+        )

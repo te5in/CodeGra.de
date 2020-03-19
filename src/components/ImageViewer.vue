@@ -18,12 +18,12 @@
     <img :src="imgURL"
          class="img"
          :title="name"
+         @error="imgError"
          @load="imgLoaded"/>
 </floating-feedback-button>
 </template>
 
 <script>
-import { mapActions } from 'vuex';
 import FloatingFeedbackButton from './FloatingFeedbackButton';
 
 export default {
@@ -42,6 +42,10 @@ export default {
             type: Object,
             default: null,
         },
+        fileId: {
+            type: String,
+            required: true,
+        },
         editable: {
             type: Boolean,
             default: false,
@@ -58,24 +62,8 @@ export default {
             type: Boolean,
             default: true,
         },
-    },
-
-    data() {
-        return {
-            imgURL: '',
-        };
-    },
-
-    watch: {
-        id: {
-            immediate: true,
-            handler() {
-                this.embedImg();
-            },
-        },
-
-        name() {
-            this.embedImg();
+        fileContent: {
+            required: true,
         },
     },
 
@@ -102,39 +90,17 @@ export default {
                 this.line,
             );
         },
+
+        imgURL() {
+            if (this.fileContent == null) {
+                return '';
+            }
+            const blob = new Blob([this.fileContent], { type: this.getMimeType() });
+            return URL.createObjectURL(blob);
+        },
     },
 
     methods: {
-        ...mapActions('code', {
-            storeLoadCode: 'loadCode',
-        }),
-
-        async embedImg() {
-            this.imgURL = '';
-            await this.$afterRerender();
-
-            if (this.revision === 'diff') {
-                this.$emit('error', 'The image viewer is not available in diff mode');
-                return;
-            }
-
-            this.storeLoadCode(this.id).then(
-                buffer => {
-                    const blob = new Blob([buffer], { type: this.getMimeType() });
-                    this.imgURL = URL.createObjectURL(blob);
-                    // The image viewer itself emits a loaded event.
-                },
-                err => {
-                    this.$emit(
-                        'error',
-                        `An error occured while loading the image: ${this.$utils.getErrorMessage(
-                            err,
-                        )}.`,
-                    );
-                },
-            );
-        },
-
         getMimeType() {
             const ext = this.name.split('.').reverse()[0];
             const types = {
@@ -148,7 +114,14 @@ export default {
         },
 
         imgLoaded() {
-            this.$emit('load');
+            this.$emit('load', this.id);
+        },
+
+        imgError() {
+            this.$emit('error', {
+                error: 'The image can not be displayed.',
+                fileId: this.fileId,
+            });
         },
     },
 
@@ -160,23 +133,20 @@ export default {
 
 <style lang="less" scoped>
 .image-viewer {
-    min-height: 10rem;
     padding: 0;
 
     .img {
-        display: block;
+        display: inline-block;
         max-width: 100%;
         max-height: 100%;
-        flex: 1 1 auto;
-        object-fit: contain;
     }
 }
 </style>
 
 <style lang="less">
-.image-viewer.floating-feedback-button .content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+.image-viewer.floating-feedback-button .content-wrapper {
+    display: block;
+    min-height: 5rem;
+    text-align: center;
 }
 </style>

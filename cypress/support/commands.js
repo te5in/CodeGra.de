@@ -161,40 +161,22 @@ Cypress.Commands.add('uploadFixture', { prevSubject: true }, (subject, fileName,
     });
 });
 
-Cypress.Commands.add('setSitePermission', (perm, role, value) => {
-    let reload = false;
-
-    cy.login('admin', 'admin');
-    cy.visit('/admin');
-
-    cy.get('.permissions-table')
-        .contains('tr', perm)
-        .find(`.custom-checkbox.role-${role}`)
-        .parent()
-        .as('container');
-    cy.get('@container')
-        .find(`.custom-checkbox.role-${role}`)
-        .as('check');
-
-    // If the input does not have the correct value,
-    cy.get('@container')
-        .find(`input`)
-        .then($input => {
-            if ($input.get(0).checked != value) {
-                cy.get('@check').click();
-                reload = true;
-                cy.get('@container').find('.loader');
-                cy.get('@container').find('input');
-            }
-        });
-    cy.get('@container')
-        .find('input')
-        .should(value ? 'be.checked' : 'not.be.checked')
-        .then(() => {
-            if (reload) {
-                cy.reload();
-            }
-        });
+Cypress.Commands.add('setSitePermission', (permission, roleName, value) => {
+    cy.authRequest({
+        url: '/api/v1/roles/',
+        method: 'GET',
+        user: ADMIN_USER,
+    }).its('body').then(roles => {
+        const role = roles.find(r => r.name === roleName);
+        if (role.perms[permission] != value) {
+            return cy.authRequest({
+                url: `/api/v1/roles/${role.id}`,
+                method: 'PATCH',
+                user: ADMIN_USER,
+                body: { permission, value },
+            });
+        }
+    });
 });
 
 Cypress.Commands.add('createUser', (username, password, email = `${username}@example.com`) => {
@@ -541,11 +523,10 @@ Cypress.Commands.add('shouldNotOverflow', { prevSubject: true }, (subject) => {
     );
 });
 
-Cypress.Commands.add('maybeType', { prevSubject: true }, (subject, text) => {
+Cypress.Commands.add('setText', { prevSubject: true }, (subject, text) => {
     // Clear the input and type `text` if it is a nonempty string.
-    return cy.wrap(subject)
-        .clear()
-        .then($el => typeof text === 'string' && text ? cy.wrap($el).type(text) : cy.wrap($el));
+    const toWrite = `{selectall}{backspace}${text  || ''}`;
+    return cy.wrap(subject).clear().type(toWrite);
 });
 
 // Click a submit button, and optionally wait for its state to return back to
@@ -584,16 +565,21 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
         if (opts.confirmInModal) {
             const id = subject.get(0).id;
             cy.get(`#${id}-modal`)
+                .should('have.class', 'show')
                 .should('be.visible')
                 .containsAll(opts.confirmMsg)
-                .contains('.btn', opts.doConfirm ? 'Confirm' : 'Cancel')
+                .contains('.btn:visible', opts.doConfirm ? 'Confirm' : 'Cancel')
                 .click();
         } else {
             cy.get('.popover .submit-button-confirm')
                 .containsAll(opts.confirmMsg)
                 .should('be.visible')
-                .contains('.btn', opts.doConfirm ? 'Yes' : 'No')
+                .contains('.btn:visible', opts.doConfirm ? 'Yes' : 'No')
                 .click();
+        }
+
+        if (!opts.doConfirm) {
+            return cy.wrap(subject);
         }
     }
 

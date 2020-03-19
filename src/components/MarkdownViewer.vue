@@ -16,14 +16,14 @@
     always-show-button
     add-space>
     <inner-markdown-viewer v-if="data"
-                           class="py-2 px-3"
+                           class="w-100 py-2 px-3"
                            :markdown="data"
                            :show-code-whitespace="showWhitespace"/>
 </floating-feedback-button>
 </template>
 
 <script>
-import { mapGetters, mapActions } from 'vuex';
+import { mapGetters } from 'vuex';
 import decodeBuffer from '@/utils/decode';
 
 import InnerMarkdownViewer from './InnerMarkdownViewer';
@@ -46,6 +46,10 @@ export default {
             type: Object,
             default: null,
         },
+        fileId: {
+            type: String,
+            required: true,
+        },
         editable: {
             type: Boolean,
             default: false,
@@ -62,20 +66,13 @@ export default {
             type: Boolean,
             required: true,
         },
-    },
-
-    data() {
-        return {
-            data: null,
-        };
+        fileContent: {
+            required: true,
+        },
     },
 
     computed: {
         ...mapGetters('pref', ['fontSize']),
-
-        fileId() {
-            return this.file.id || this.file.ids[0] || this.file.ids[1];
-        },
 
         line() {
             return 0;
@@ -91,32 +88,23 @@ export default {
                 this.line,
             );
         },
-    },
 
-    methods: {
-        ...mapActions('code', {
-            storeLoadCode: 'loadCode',
-        }),
-
-        async loadCode() {
-            this.data = '';
-            await this.$afterRerender();
+        data() {
+            if (this.fileContent == null) {
+                return '';
+            }
 
             try {
-                this.data = decodeBuffer(await this.storeLoadCode(this.fileId));
-                this.$emit('load');
-            } catch (e) {
-                this.$emit('error', e);
+                const res = decodeBuffer(this.fileContent);
+                this.$emit('load', this.fileId);
+                return res;
+            } catch (error) {
+                this.$emit('error', {
+                    error,
+                    fileId: this.fileId,
+                });
+                return '';
             }
-        },
-    },
-
-    watch: {
-        fileId: {
-            immediate: true,
-            handler() {
-                this.loadCode();
-            },
         },
     },
 
