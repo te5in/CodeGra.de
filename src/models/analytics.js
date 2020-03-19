@@ -1,7 +1,36 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import jStat from 'jstat';
 
 import { UNSET_SENTINEL } from '@/constants';
 import { mapObject } from '@/utils';
+
+const WORKSPACE_SERVER_PROPS = new Set([
+    'id',
+    'assignment_id',
+    'student_submissions',
+]);
+
+export class Workspace {
+    static fromServerData(workspace, sources) {
+        const props = {};
+
+        WORKSPACE_SERVER_PROPS.forEach(prop => {
+            props[prop] = workspace[prop];
+        });
+
+        props.dataSources = workspace.data_sources.reduce((acc, src, i) => {
+            acc[src] = sources[i];
+            return acc;
+        }, {});
+
+        return new Workspace(props);
+    }
+
+    constructor(props) {
+        Object.assign(this, props);
+        Object.freeze(this);
+    }
+}
 
 function zip(...lists) {
     if (lists.length === 0) {

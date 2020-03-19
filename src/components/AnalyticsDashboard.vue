@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 <template>
 <div class="analytics-dashboard row">
     <div class="col-12">
@@ -62,7 +63,7 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex';
+import { mapActions, mapGetters } from 'vuex';
 import jStat from 'jstat';
 
 import { RubricResults } from '@/models';
@@ -82,9 +83,23 @@ export default {
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('submissions', ['getLatestSubmissions']),
         ...mapGetters('rubrics', { allRubricResults: 'results' }),
+        ...mapGetters('analytics', ['getWorkspace']),
 
         assignment() {
             return this.assignments[this.assignmentId];
+        },
+
+        workspaceIds() {
+            return this.$utils.getProps(this.assignment, null, 'analytics_workspace_ids');
+        },
+
+        currentWorkspaceId() {
+            return this.$utils.getProps(this.workspaceIds, null, 0);
+        },
+
+        currentWorkspace() {
+            const id = this.currentWorkspaceId;
+            return id == null ? null : this.getWorkspace(id);
         },
 
         rubric() {
@@ -256,6 +271,8 @@ export default {
     },
 
     methods: {
+        ...mapActions('analytics', ['loadWorkspace']),
+
         binSubmissionsBy(bins, f) {
             return this.latestSubmissions.reduce((acc, sub) => {
                 const idx = bins.findIndex((bin, i) => f(sub, bin, i));
@@ -294,6 +311,16 @@ export default {
             } else {
                 return 'The rir value is very close to zero, which means...';
             }
+        },
+    },
+
+    watch: {
+        currentWorkspaceId: {
+            immediate: true,
+            handler(newId) {
+                console.log(newId);
+                this.loadWorkspace({ workspaceId: newId });
+            },
         },
     },
 

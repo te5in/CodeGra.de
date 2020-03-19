@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import { Bar, Scatter, mixins } from 'vue-chartjs';
 
 import { COLOR_PAIRS } from '@/constants';

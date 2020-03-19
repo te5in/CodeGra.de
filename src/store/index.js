@@ -9,6 +9,7 @@ import pref from './modules/preference';
 import courses from './modules/courses';
 import rubrics from './modules/rubrics';
 import autotest from './modules/autotest';
+import analytics from './modules/analytics';
 import plagiarism from './modules/plagiarism';
 import submissions from './modules/submissions';
 import code from './modules/code';
@@ -69,6 +70,7 @@ export const store = new Vuex.Store({
         courses,
         rubrics,
         autotest,
+        analytics,
         plagiarism,
         submissions,
         code,
