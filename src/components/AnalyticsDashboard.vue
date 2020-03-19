@@ -63,177 +63,10 @@
 
 <script>
 import { mapGetters } from 'vuex';
+import jStat from 'jstat';
 
+import { RubricResults } from '@/models';
 import { BarChart, ScatterPlot } from '@/components/Charts';
-import { UNSET_SENTINEL } from '@/constants';
-import { mapObject } from '@/utils';
-
-function zip(...lists) {
-    if (lists.length === 0) {
-        return [];
-    }
-
-    const acc = [];
-    const end = Math.max(...lists.map(l => l.length));
-    for (let i = 0; i < end; i++) {
-        // eslint-disable-next-line no-loop-func
-        acc.push(lists.map(l => l[i]));
-    }
-    return acc;
-}
-
-function dropNull(xs) {
-    return xs.filter(x => x != null);
-}
-
-function sum(xs) {
-    return xs.reduce((x, y) => x + y, 0);
-}
-
-function normalize(xs) {
-    const total = sum(xs);
-    return xs.map(x => x / total);
-}
-
-function normalizePerc(xs) {
-    return normalize(xs).map(x => 100 * x);
-}
-
-function mean(xs) {
-    return sum(xs) / xs.length;
-}
-
-function stddev(xs, mu = mean(xs)) {
-    const n = xs.length;
-    return Math.sqrt(1 / (n - 1) * sum(xs.map(x => (x - mu) ** 2)));
-}
-
-// https://en.wikipedia.org/wiki/Pearson_correlation_coefficient#For_a_sample
-function pearson(xs, ys) {
-    if (!xs || xs.length < 10 || !ys || ys.length < 10) {
-        return null;
-    }
-
-    const n = xs.length;
-    const muX = mean(xs);
-    const muY = mean(ys);
-    const sX = stddev(xs, muX);
-    const sY = stddev(ys, muY);
-
-    return (sum(zip(xs, ys).map(sum)) - n * muX * muY) / ((n - 1) * sX * sY);
-}
-
-function objFromKeys(keys, value) {
-    const v = () => (typeof value === 'function' ? value() : value);
-    return Object.fromEntries(keys.map(k => [k, v()]));
-}
-
-class RubricResults {
-    constructor(rubric, results) {
-        this.rubric = rubric;
-        this.rowIds = rubric.rows.map(row => row.id);
-        this.results = results;
-
-        this._cache = Object.seal({
-            totalScorePerStudent: UNSET_SENTINEL,
-            nTimesFilledPerCat: UNSET_SENTINEL,
-            scoresPerStudent: UNSET_SENTINEL,
-            ritItemsPerCat: UNSET_SENTINEL,
-            rirItemsPerCat: UNSET_SENTINEL,
-            scoresPerCat: UNSET_SENTINEL,
-            meanPerCat: UNSET_SENTINEL,
-            ritPerCat: UNSET_SENTINEL,
-            rirPerCat: UNSET_SENTINEL,
-        });
-    }
-
-    get scoresPerStudent() {
-        if (this._cache.scoresPerStudent === UNSET_SENTINEL) {
-            this._cache.scoresPerStudent = this.results.map(result =>
-                mapObject(result.selected, item => item.achieved_points),
-            );
-        }
-        return this._cache.scoresPerStudent;
-    }
-
-    get totalScorePerStudent() {
-        if (this._cache.totalScorePerStudent === UNSET_SENTINEL) {
-            this._cache.totalScorePerStudent = this.scoresPerStudent.map(result =>
-                sum(dropNull(Object.values(result))),
-            );
-        }
-        return this._cache.totalScorePerStudent;
-    }
-
-    get scoresPerCat() {
-        if (this._cache.scoresPerCat === UNSET_SENTINEL) {
-            this._cache.scoresPerCat = this.scoresPerStudent.reduce((acc, result) => {
-                this.rowIds.forEach(rowId => acc[rowId].push(result[rowId]));
-                return acc;
-            }, objFromKeys(this.rowIds, () => []));
-        }
-        return this._cache.scoresPerCat;
-    }
-
-    get meanPerCat() {
-        if (this._cache.meanPerCat === UNSET_SENTINEL) {
-            this._cache.meanPerCat = mapObject(this.scoresPerCat, scores => {
-                const mu = mean(dropNull(scores));
-                return Number.isNaN(mu) ? 0 : mu;
-            });
-        }
-        return this._cache.meanPerCat;
-    }
-
-    get ritItemsPerCat() {
-        if (this._cache.ritItemsPerCat === UNSET_SENTINEL) {
-            this._cache.ritItemsPerCat = this.rowIds.reduce((acc, rowId) => {
-                acc[rowId] = zip(this.scoresPerCat[rowId], this.totalScorePerStudent).filter(
-                    ([s]) => s != null,
-                );
-                return acc;
-            }, {});
-        }
-        return this._cache.ritItemsPerCat;
-    }
-
-    get ritPerCat() {
-        if (this._cache.ritPerCat === UNSET_SENTINEL) {
-            this._cache.ritPerCat = mapObject(this.ritItemsPerCat, catScores =>
-                pearson(...zip(...catScores)),
-            );
-        }
-        return this._cache.ritPerCat;
-    }
-
-    get rirItemsPerCat() {
-        if (this._cache.rirItemsPerCat === UNSET_SENTINEL) {
-            this._cache.rirItemsPerCat = mapObject(this.ritItemsPerCat, catScores =>
-                catScores.map(([itemScore, totalScore]) => [itemScore, totalScore - itemScore]),
-            );
-        }
-        return this._cache.rirItemsPerCat;
-    }
-
-    get rirPerCat() {
-        if (this._cache.rirPerCat === UNSET_SENTINEL) {
-            this._cache.rirPerCat = mapObject(this.rirItemsPerCat, catScores =>
-                pearson(...zip(...catScores)),
-            );
-        }
-        return this._cache.rirPerCat;
-    }
-
-    get nTimesFilledPerCat() {
-        if (this._cache.nTimesFilledPerCat === UNSET_SENTINEL) {
-            this._cache.nTimesFilledPerCat = mapObject(
-                this.scoresPerCat,
-                scores => dropNull(scores).length,
-            );
-        }
-        return this._cache.nTimesFilledPerCat;
-    }
-}
 
 export default {
     name: 'analytics-dashboard',
@@ -282,18 +115,19 @@ export default {
         },
 
         averageGrade() {
-            return mean(this.submissionGrades);
+            return jStat.mean(this.submissionGrades);
         },
 
         gradeHistogram() {
             const bins = [...Array(10).keys()].map(x => [x, x + 1]);
-            const binned = this.binSubmissionsByGrade(bins);
             const labels = bins.map(([start, end]) => `${10 * start}% - ${10 * end}%`);
+            const binned = this.binSubmissionsByGrade(bins)
+                .map(subs => subs.length / this.latestSubmissions.length);
 
             const datasets = [
                 {
                     label: 'Percentage of students',
-                    data: normalizePerc(binned.map(subs => subs.length)),
+                    data: binned,
                 },
             ];
 
@@ -331,9 +165,9 @@ export default {
         },
 
         rubricMeanHistOpts() {
-            const toNDec = x => (Number.isFinite(x) ? this.$utils.toMaxNDecimals : '-');
+            const to2Dec = x => (Number.isFinite(x) ? this.$utils.toMaxNDecimals(x, 2) : '-');
 
-            // const label = tooltipItem => `Mean score: ${toNDec(tooltipItem.yLabel, 2)}`;
+            // const label = tooltipItem => `Mean score: ${to2Dec(tooltipItem.yLabel)}`;
             const label = () => '';
 
             const afterLabel = tooltipItem => {
@@ -355,8 +189,8 @@ export default {
                 return [
                     `Mean score: ${mu}`,
                     `Times filled: ${nTimes}`,
-                    `Rit: ${toNDec(rit, 2)}`,
-                    `Rir: ${toNDec(rir, 2)}`,
+                    `Rit: ${to2Dec(rit)}`,
+                    `Rir: ${to2Dec(rir)}`,
                     this.rirMessage(rir),
                 ];
             };
