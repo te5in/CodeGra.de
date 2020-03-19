@@ -8,9 +8,11 @@ from sqlalchemy.dialects.postgresql import aggregate_order_by
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import Base, MyQuery, DbColumn, db
+from . import file as file_models
 from . import work as work_models
 from . import rubric as rubric_models
 from . import assignment as assignment_models
+from .comment import Comment
 from ..registry import analytics_data_sources
 
 Y = t.TypeVar('Y')
@@ -144,6 +146,7 @@ class _RubricDataSource(BaseDataSource[t.List[_RubricDataSourceModel]]):
                 self.workspace.work_query.with_entities(work_models.Work.id)
             )
         ).group_by(rubric_models.WorkRubricItem.work_id)
+
         return {
             work_id: [
                 {
@@ -153,3 +156,24 @@ class _RubricDataSource(BaseDataSource[t.List[_RubricDataSourceModel]]):
             ]
             for work_id, item_ids, mults in query
         }
+
+
+class _InlineFeedbackModel(TypedDict, total=True):
+    total_amount: int
+
+
+@analytics_data_sources.register('inline_feedback')
+class _InlineFeedbackDataSource(BaseDataSource[_InlineFeedbackModel]):
+    def get_data(self) -> t.Mapping[int, _InlineFeedbackModel]:
+        # We want outer joins here as we want to also get the count of
+        # submissions without files or without comments.
+        query = self.workspace.work_query.join(
+            file_models.File, isouter=True
+        ).join(
+            Comment, isouter=True
+        ).with_entities(
+            work_models.Work.id,
+            sqlalchemy.func.count(Comment.file_id),
+        ).group_by(work_models.Work.id)
+
+        return dict(query)
