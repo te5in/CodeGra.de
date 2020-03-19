@@ -30,6 +30,7 @@ class _SubmissionData(TypedDict, total=True):
     id: int
     created_at: str
     grade: t.Optional[float]
+    assignee_id: t.Optional[int]
 
 
 class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
@@ -76,6 +77,10 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
                 work_models.Work.created_at,
                 work_models.Work.created_at,
             ),
+            _array_agg_and_order(
+                work_models.Work.assigned_to,
+                work_models.Work.created_at,
+            )
         ).filter(
             work_models.Work.assignment == self.assignment,
         ).group_by(
@@ -88,9 +93,14 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
                     'id': sub_id,
                     'created_at': created_at.isoformat(),
                     'grade': grades_per_sub.get(sub_id),
-                } for sub_id, created_at in zip(sub_ids, created_ats)
+                    'assignee_id': assignee_id,
+                } for sub_id, created_at, assignee_id in zip(
+                    sub_ids,
+                    created_ats,
+                    assignee_ids,
+                )
             ]
-            for user_id, sub_ids, created_ats in query
+            for user_id, sub_ids, created_ats, assignee_ids in query
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:
