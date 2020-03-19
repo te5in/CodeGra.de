@@ -123,9 +123,7 @@ function pearson(xs, ys) {
 }
 
 function mapObj(obj, f) {
-    return Object.fromEntries(
-        Object.entries(obj).map(([key, val]) => [key, f(val, key)]),
-    );
+    return Object.fromEntries(Object.entries(obj).map(([key, val]) => [key, f(val, key)]));
 }
 
 function objFromKeys(keys, value) {
@@ -158,8 +156,8 @@ class RubricResults {
 
     get scoresPerStudent() {
         if (this._cache.scoresPerStudent === UNSET_SENTINEL) {
-            this._cache.scoresPerStudent = this.results.map(
-                result => mapObj(result.selected, item => item.achieved_points),
+            this._cache.scoresPerStudent = this.results.map(result =>
+                mapObj(result.selected, item => item.achieved_points),
             );
         }
         return this._cache.scoresPerStudent;
@@ -167,8 +165,8 @@ class RubricResults {
 
     get totalScorePerStudent() {
         if (this._cache.totalScorePerStudent === UNSET_SENTINEL) {
-            this._cache.totalScorePerStudent = this.scoresPerStudent.map(
-                result => sum(dropNull(Object.values(result))),
+            this._cache.totalScorePerStudent = this.scoresPerStudent.map(result =>
+                sum(dropNull(Object.values(result))),
             );
         }
         return this._cache.totalScorePerStudent;
@@ -176,53 +174,40 @@ class RubricResults {
 
     get scoresPerCat() {
         if (this._cache.scoresPerCat === UNSET_SENTINEL) {
-            this._cache.scoresPerCat = this.scoresPerStudent.reduce(
-                (acc, result) => {
-                    this.rowIds.forEach(
-                        rowId => acc[rowId].push(result[rowId]),
-                    );
-                    return acc;
-                },
-                objFromKeys(this.rowIds, () => []),
-            );
+            this._cache.scoresPerCat = this.scoresPerStudent.reduce((acc, result) => {
+                this.rowIds.forEach(rowId => acc[rowId].push(result[rowId]));
+                return acc;
+            }, objFromKeys(this.rowIds, () => []));
         }
         return this._cache.scoresPerCat;
     }
 
     get meanPerCat() {
         if (this._cache.meanPerCat === UNSET_SENTINEL) {
-            this._cache.meanPerCat = mapObj(
-                this.scoresPerCat,
-                scores => {
-                    const mu = mean(dropNull(scores));
-                    return Number.isNaN(mu) ? 0 : mu;
-                },
-            );
+            this._cache.meanPerCat = mapObj(this.scoresPerCat, scores => {
+                const mu = mean(dropNull(scores));
+                return Number.isNaN(mu) ? 0 : mu;
+            });
         }
         return this._cache.meanPerCat;
     }
 
     get ritItemsPerCat() {
         if (this._cache.ritItemsPerCat === UNSET_SENTINEL) {
-            this._cache.ritItemsPerCat = this.rowIds.reduce(
-                (acc, rowId) => {
-                    acc[rowId] = zip(
-                        this.scoresPerCat[rowId],
-                        this.totalScorePerStudent,
-                    ).filter(([s]) => s != null);
-                    return acc;
-                },
-                {},
-            );
+            this._cache.ritItemsPerCat = this.rowIds.reduce((acc, rowId) => {
+                acc[rowId] = zip(this.scoresPerCat[rowId], this.totalScorePerStudent).filter(
+                    ([s]) => s != null,
+                );
+                return acc;
+            }, {});
         }
         return this._cache.ritItemsPerCat;
     }
 
     get ritPerCat() {
         if (this._cache.ritPerCat === UNSET_SENTINEL) {
-            this._cache.ritPerCat = mapObj(
-                this.ritItemsPerCat,
-                catScores => pearson(...zip(...catScores)),
+            this._cache.ritPerCat = mapObj(this.ritItemsPerCat, catScores =>
+                pearson(...zip(...catScores)),
             );
         }
         return this._cache.ritPerCat;
@@ -230,11 +215,8 @@ class RubricResults {
 
     get rirItemsPerCat() {
         if (this._cache.rirItemsPerCat === UNSET_SENTINEL) {
-            this._cache.rirItemsPerCat = mapObj(
-                this.ritItemsPerCat,
-                catScores => catScores.map(
-                    ([itemScore, totalScore]) => [itemScore, totalScore - itemScore],
-                ),
+            this._cache.rirItemsPerCat = mapObj(this.ritItemsPerCat, catScores =>
+                catScores.map(([itemScore, totalScore]) => [itemScore, totalScore - itemScore]),
             );
         }
         return this._cache.rirItemsPerCat;
@@ -242,9 +224,8 @@ class RubricResults {
 
     get rirPerCat() {
         if (this._cache.rirPerCat === UNSET_SENTINEL) {
-            this._cache.rirPerCat = mapObj(
-                this.rirItemsPerCat,
-                catScores => pearson(...zip(...catScores)),
+            this._cache.rirPerCat = mapObj(this.rirItemsPerCat, catScores =>
+                pearson(...zip(...catScores)),
             );
         }
         return this._cache.rirPerCat;
@@ -253,7 +234,8 @@ class RubricResults {
     get nTimesFilledPerCat() {
         if (this._cache.nTimesFilledPerCat === UNSET_SENTINEL) {
             this._cache.nTimesFilledPerCat = mapObj(
-                this.scoresPerCat, scores => dropNull(scores).length,
+                this.scoresPerCat,
+                scores => dropNull(scores).length,
             );
         }
         return this._cache.nTimesFilledPerCat;
@@ -326,11 +308,13 @@ export default {
             const labels = bins.map(([start, end]) => `${10 * start}% - ${10 * end}%`);
             const colors = this.redToGreen(bins.length);
 
-            const datasets = [{
-                label: 'Percentage of students',
-                data: normalizePerc(binned.map(subs => subs.length)),
-                ...colors,
-            }];
+            const datasets = [
+                {
+                    label: 'Percentage of students',
+                    data: normalizePerc(binned.map(subs => subs.length)),
+                    ...colors,
+                },
+            ];
 
             return { labels, datasets };
         },
@@ -338,12 +322,14 @@ export default {
         gradeHistOpts() {
             return {
                 scales: {
-                    yAxes: [{
-                        ticks: {
-                            beginAtZero: true,
-                            suggestedMax: this.histMax(this.gradeHistogram),
+                    yAxes: [
+                        {
+                            ticks: {
+                                beginAtZero: true,
+                                suggestedMax: this.histMax(this.gradeHistogram),
+                            },
                         },
-                    }],
+                    ],
                 },
             };
         },
@@ -369,11 +355,13 @@ export default {
                 rowId => this.rubricResults.meanPerCat[rowId],
             );
 
-            const datasets = [{
-                label: 'Mean score',
-                data: means,
-                ...colors,
-            }];
+            const datasets = [
+                {
+                    label: 'Mean score',
+                    data: means,
+                    ...colors,
+                },
+            ];
 
             return { labels, datasets };
         },
@@ -384,9 +372,7 @@ export default {
             const label = tooltipItem => `Mean score: ${toNDec(tooltipItem.yLabel, 2)}`;
 
             const afterLabel = tooltipItem => {
-                const {
-                    rowIds, ritPerCat, rirPerCat, nTimesFilledPerCat,
-                } = this.rubricResults;
+                const { rowIds, ritPerCat, rirPerCat, nTimesFilledPerCat } = this.rubricResults;
                 const rowId = rowIds[tooltipItem.index];
                 const nTimes = nTimesFilledPerCat[rowId];
                 const rit = ritPerCat[rowId];
@@ -403,12 +389,14 @@ export default {
 
             return {
                 scales: {
-                    yAxes: [{
-                        ticks: {
-                            beginAtZero: true,
-                            suggestedMax: this.histMax(this.rubricMeanHistogram),
+                    yAxes: [
+                        {
+                            ticks: {
+                                beginAtZero: true,
+                                suggestedMax: this.histMax(this.rubricMeanHistogram),
+                            },
                         },
-                    }],
+                    ],
                 },
                 tooltips: {
                     callbacks: {
@@ -455,26 +443,30 @@ export default {
 
                 acc[rowId] = {
                     scales: {
-                        xAxes: [{
-                            scaleLabel: {
-                                display: true,
-                                labelString: 'Item score',
+                        xAxes: [
+                            {
+                                scaleLabel: {
+                                    display: true,
+                                    labelString: 'Item score',
+                                },
+                                ticks: {
+                                    suggestedMin: minX,
+                                    suggestedMax: maxX,
+                                },
                             },
-                            ticks: {
-                                suggestedMin: minX,
-                                suggestedMax: maxX,
+                        ],
+                        yAxes: [
+                            {
+                                scaleLabel: {
+                                    display: true,
+                                    labelString: 'Total score (minus item score for rir)',
+                                },
+                                ticks: {
+                                    suggestedMin: minY,
+                                    suggestedMax: maxY,
+                                },
                             },
-                        }],
-                        yAxes: [{
-                            scaleLabel: {
-                                display: true,
-                                labelString: 'Total score (minus item score for rir)',
-                            },
-                            ticks: {
-                                suggestedMin: minY,
-                                suggestedMax: maxY,
-                            },
-                        }],
+                        ],
                     },
                 };
                 return acc;
@@ -483,40 +475,36 @@ export default {
     },
 
     methods: {
-        range(...args) { return this.$utils.range(...args); },
+        range(...args) {
+            return this.$utils.range(...args);
+        },
 
         binSubmissionsBy(bins, f) {
-            return this.latestSubmissions.reduce(
-                (acc, sub) => {
-                    const idx = bins.findIndex((bin, i) => f(sub, bin, i));
-                    if (idx !== -1) {
-                        acc[idx].push(sub);
-                    }
-                    return acc;
-                },
-                bins.map(() => []),
-            );
+            return this.latestSubmissions.reduce((acc, sub) => {
+                const idx = bins.findIndex((bin, i) => f(sub, bin, i));
+                if (idx !== -1) {
+                    acc[idx].push(sub);
+                }
+                return acc;
+            }, bins.map(() => []));
         },
 
         binSubmissionsByGrade(bins) {
-            return this.binSubmissionsBy(
-                bins,
-                (sub, bin, i) => {
-                    const [low, high] = bin;
-                    const { grade } = sub;
+            return this.binSubmissionsBy(bins, (sub, bin, i) => {
+                const [low, high] = bin;
+                const { grade } = sub;
 
-                    if (grade == null) {
-                        return false;
-                    } else if (i === bins.length - 1) {
-                        // Because we check the upper bound exclusively submissions
-                        // with the highest possible grade will not be put in the last
-                        // bin.
-                        return true;
-                    } else {
-                        return low <= grade && grade < high;
-                    }
-                },
-            );
+                if (grade == null) {
+                    return false;
+                } else if (i === bins.length - 1) {
+                    // Because we check the upper bound exclusively submissions
+                    // with the highest possible grade will not be put in the last
+                    // bin.
+                    return true;
+                } else {
+                    return low <= grade && grade < high;
+                }
+            });
         },
 
         getColors(n_) {
@@ -540,16 +528,14 @@ export default {
 
             const reds = [].concat(
                 this.range(nRed).map(() => 255),
-                this.range(nGreen).map(i => ((nGreen - i) / nGreen) * 255),
+                this.range(nGreen).map(i => (nGreen - i) / nGreen * 255),
             );
             const greens = [].concat(
-                this.range(nRed).map(i => ((i) / nRed) * 255),
+                this.range(nRed).map(i => i / nRed * 255),
                 this.range(nGreen).map(() => 255),
             );
 
-            return this.processColors(this.range(n).map(
-                i => `rgb(${reds[i]}, ${greens[i]}, 0)`,
-            ));
+            return this.processColors(this.range(n).map(i => `rgb(${reds[i]}, ${greens[i]}, 0)`));
         },
 
         processColors(colors) {
@@ -568,10 +554,7 @@ export default {
         },
 
         scatterRange(scatter) {
-            return [
-                this.scatterRange1D(scatter, 'x'),
-                this.scatterRange1D(scatter, 'y'),
-            ];
+            return [this.scatterRange1D(scatter, 'x'), this.scatterRange1D(scatter, 'y')];
         },
 
         scatterRange1D(scatter, dim) {
