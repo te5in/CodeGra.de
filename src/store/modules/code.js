@@ -47,14 +47,20 @@ const actions = {
             .get(`/api/v1/code/${codeId}`, {
                 responseType: 'arraybuffer',
             })
-            .then(code => {
-                context.commit(types.SET_CODE_CACHE, {
-                    codeId,
-                    code: code.data,
-                });
-                clearLoader();
-                return code.data;
-            }, clearLoader);
+            .then(
+                code => {
+                    context.commit(types.SET_CODE_CACHE, {
+                        codeId,
+                        code: code.data,
+                    });
+                    clearLoader();
+                    return code.data;
+                },
+                err => {
+                    clearLoader();
+                    throw err;
+                },
+            );
 
         Vue.set(loaders.codeLoaders, codeId, promise);
         return promise;

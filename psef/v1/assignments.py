@@ -721,13 +721,13 @@ def add_assignment_rubric(assignment_id: int
             rows = t.cast(t.List[JSONType], content['rows'])
             new_rubric_rows = [process_rubric_row(r) for r in rows]
             new_row_ids = set(
-                row.id for row in new_rubric_rows  # d
-                # primary keys can be `None`, but only while they are not yet
+                row.id for row in new_rubric_rows
+                # Primary keys can be `None`, but only while they are not yet
                 # added to the database. It is not possible to explain this to
                 # mypy, so it thinks that all primary keys can never be
                 # `None`. So it will complain that it thinks that this
                 # condition is always `True`.
-                if row.id is not None  # type: ignore[misc]
+                if row.id is not None  # type: ignore[unreachable]
             )
 
             if any(
