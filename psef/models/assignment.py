@@ -582,7 +582,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             deadline=deadline,
         )
         self.analytics_workspaces = [
-            analytics_models.AnalticsWorkspace(assignment=self)
+            analytics_models.AnalyticsWorkspace(assignment=self)
         ]
 
     def __eq__(self, other: object) -> bool:

@@ -807,7 +807,7 @@ def ensure_can_edit_members_of_group(
 
 @login_required
 def ensure_can_see_analytics_workspace(
-    analytics_workspace: 'psef.models.AnalticsWorkspace'
+    analytics_workspace: 'psef.models.AnalyticsWorkspace'
 ) -> None:
     assignment = analytics_workspace.assignment
     course_id = assignment.course_id
