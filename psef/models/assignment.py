@@ -32,6 +32,7 @@ from . import work as work_models
 from . import course as course_models
 from . import linter as linter_models
 from . import rubric as rubric_models
+from . import analytics as analytics_models
 from . import auto_test as auto_test_models
 from .. import auth, ignore, helpers
 from .role import CourseRole
@@ -471,6 +472,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         uselist=True,
     )
 
+    analytics_workspaces = db.relationship(
+        lambda: analytics_models.AnalyticsWorkspace,
+        back_populates='assignment',
+        cascade='delete-orphan, delete, save-update',
+        uselist=True,
+    )
+
     group_set_id = db.Column(
         'group_set_id',
         db.Integer,
@@ -554,6 +562,28 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             name='amount_in_cool_off_period_check'
         )
     )
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        lti_assignment_id: str = None,
+        description: str = '',
+        course: 'course_models.Course',
+        state: _AssignmentStateEnum = None,
+        deadline: DatetimeWithTimezone = None,
+    ) -> None:
+        super().__init__(
+            name=name,
+            lti_assignment_id=lti_assignment_id,
+            description=description,
+            course=course,
+            state=state,
+            deadline=deadline,
+        )
+        self.analytics_workspaces = [
+            analytics_models.AnalticsWorkspace(assignment=self)
+        ]
 
     def __eq__(self, other: object) -> bool:
         """Check if two Assignments are equal.

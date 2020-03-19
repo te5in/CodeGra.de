@@ -806,6 +806,18 @@ def ensure_can_edit_members_of_group(
 
 
 @login_required
+def ensure_can_see_analytics_workspace(
+    analytics_workspace: 'psef.models.AnalticsWorkspace'
+) -> None:
+    assignment = analytics_workspace.assignment
+    course_id = assignment.course_id
+    ensure_permission(CPerm.can_see_others_work, course_id)
+
+    if not assignment.is_done:
+        ensure_permission(CPerm.can_see_grade_before_open, course_id)
+
+
+@login_required
 def ensure_any_of_permissions(
     permissions: t.List[CPerm],
     course_id: int,
