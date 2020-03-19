@@ -315,7 +315,7 @@ class Work(Base):
                 sqlalchemy.sql.false()
             )
 
-        max_rubric_points = 10 * assignment.max_rubric_points
+        max_rubric_points = assignment.max_rubric_points
         min_grade = assignment.min_grade
         max_grade = assignment.max_grade
         least = sqlalchemy.func.least
@@ -327,7 +327,7 @@ class Work(Base):
                 max_grade,
                 greatest(
                     min_grade, (
-                        sqlalchemy.func.sum(WorkRubricItem.points) /
+                        (sqlalchemy.func.sum(WorkRubricItem.points) * 10) /
                         max_rubric_points
                     )
                 )
