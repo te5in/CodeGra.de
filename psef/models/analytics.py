@@ -24,6 +24,11 @@ def _array_agg_and_order(to_select: DbColumn[Y],
     )
 
 
+class _SubmissionData(TypedDict, total=True):
+    id: int
+    created_at: str
+
+
 class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
     assignment_id = db.Column(
         'assignment_id',
@@ -44,25 +49,39 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
         ).filter(work_models.Work.assignment == self.assignment)
 
     @property
-    def submission_ids_per_student(self) -> t.Mapping[int, t.List[int]]:
-        return dict(
-            db.session.query(
-                work_models.Work.user_id,
-                _array_agg_and_order(
-                    work_models.Work.id, work_models.Work.created_at
-                )
-            ).filter(
-                work_models.Work.assignment == self.assignment,
-            ).group_by(
-                work_models.Work.user_id,
-            )
+    def submissions_per_student(self
+                                ) -> t.Mapping[int, t.List[_SubmissionData]]:
+        query = db.session.query(
+            work_models.Work.user_id,
+            _array_agg_and_order(
+                work_models.Work.id,
+                work_models.Work.created_at,
+            ),
+            _array_agg_and_order(
+                work_models.Work.created_at,
+                work_models.Work.created_at,
+            ),
+        ).filter(
+            work_models.Work.assignment == self.assignment,
+        ).group_by(
+            work_models.Work.user_id,
         )
+
+        return {
+            user_id: [
+                {
+                    'id': sub_id,
+                    'created_at': created_at.isoformat()
+                } for sub_id, created_at in zip(sub_ids, created_ats)
+            ]
+            for user_id, sub_ids, created_ats in query
+        }
 
     def __to_json__(self) -> t.Mapping[str, object]:
         return {
             'id': self.id,
             'assignment_id': self.assignment_id,
-            'student_submission_ids': self.submission_ids_per_student,
+            'student_submissions': self.submissions_per_student,
             'data_sources': list(analytics_data_sources.keys())
         }
 
