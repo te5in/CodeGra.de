@@ -92,6 +92,7 @@ class _RubricDataSourceModel(TypedDict, total=True):
     item_id: int
     multiplier: float
 
+
 @analytics_data_sources.register('rubric_data')
 class _RubricDataSource(BaseDataSource[t.List[_RubricDataSourceModel]]):
     def get_data(self) -> t.Mapping[int, t.List[_RubricDataSourceModel]]:

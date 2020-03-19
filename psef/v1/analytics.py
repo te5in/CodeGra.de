@@ -11,7 +11,9 @@ def get_analytics(ana_id: int) -> JSONResponse[models.AnalyticsWorkspace]:
     return JSONResponse.make(workspace)
 
 
-@api.route('/analytics/<int:ana_id>/data_sources/<data_source_name>', methods=['GET'])
+@api.route(
+    '/analytics/<int:ana_id>/data_sources/<data_source_name>', methods=['GET']
+)
 def get_data_source(
     ana_id: int,
     data_source_name: str,
