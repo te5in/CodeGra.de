@@ -30,7 +30,7 @@
          :class="{ 'col-lg-12': largeGradeHistogram }">
         <b-card header="Histogram of grades">
             <bar-chart :chart-data="gradeHistogram"
-                       :options="gradeHistOpts"
+                       red-to-green
                        :width="300"
                        :height="largeGradeHistogram ? 100 : 200"/>
         </b-card>
@@ -65,7 +65,8 @@
 import { mapGetters } from 'vuex';
 
 import { BarChart, ScatterPlot } from '@/components/Charts';
-import { COLOR_PAIRS, UNSET_SENTINEL } from '@/constants';
+import { UNSET_SENTINEL } from '@/constants';
+import { mapObject } from '@/utils';
 
 function zip(...lists) {
     if (lists.length === 0) {
@@ -110,7 +111,7 @@ function stddev(xs, mu = mean(xs)) {
 // https://en.wikipedia.org/wiki/Pearson_correlation_coefficient#For_a_sample
 function pearson(xs, ys) {
     if (!xs || xs.length < 10 || !ys || ys.length < 10) {
-        return 'Not enough data.';
+        return null;
     }
 
     const n = xs.length;
@@ -122,17 +123,9 @@ function pearson(xs, ys) {
     return (sum(zip(xs, ys).map(sum)) - n * muX * muY) / ((n - 1) * sX * sY);
 }
 
-function mapObj(obj, f) {
-    return Object.fromEntries(Object.entries(obj).map(([key, val]) => [key, f(val, key)]));
-}
-
 function objFromKeys(keys, value) {
     const v = () => (typeof value === 'function' ? value() : value);
     return Object.fromEntries(keys.map(k => [k, v()]));
-}
-
-function repeat(n, el) {
-    return [...Array(n)].map(() => el);
 }
 
 class RubricResults {
@@ -157,7 +150,7 @@ class RubricResults {
     get scoresPerStudent() {
         if (this._cache.scoresPerStudent === UNSET_SENTINEL) {
             this._cache.scoresPerStudent = this.results.map(result =>
-                mapObj(result.selected, item => item.achieved_points),
+                mapObject(result.selected, item => item.achieved_points),
             );
         }
         return this._cache.scoresPerStudent;
@@ -184,7 +177,7 @@ class RubricResults {
 
     get meanPerCat() {
         if (this._cache.meanPerCat === UNSET_SENTINEL) {
-            this._cache.meanPerCat = mapObj(this.scoresPerCat, scores => {
+            this._cache.meanPerCat = mapObject(this.scoresPerCat, scores => {
                 const mu = mean(dropNull(scores));
                 return Number.isNaN(mu) ? 0 : mu;
             });
@@ -206,7 +199,7 @@ class RubricResults {
 
     get ritPerCat() {
         if (this._cache.ritPerCat === UNSET_SENTINEL) {
-            this._cache.ritPerCat = mapObj(this.ritItemsPerCat, catScores =>
+            this._cache.ritPerCat = mapObject(this.ritItemsPerCat, catScores =>
                 pearson(...zip(...catScores)),
             );
         }
@@ -215,7 +208,7 @@ class RubricResults {
 
     get rirItemsPerCat() {
         if (this._cache.rirItemsPerCat === UNSET_SENTINEL) {
-            this._cache.rirItemsPerCat = mapObj(this.ritItemsPerCat, catScores =>
+            this._cache.rirItemsPerCat = mapObject(this.ritItemsPerCat, catScores =>
                 catScores.map(([itemScore, totalScore]) => [itemScore, totalScore - itemScore]),
             );
         }
@@ -224,7 +217,7 @@ class RubricResults {
 
     get rirPerCat() {
         if (this._cache.rirPerCat === UNSET_SENTINEL) {
-            this._cache.rirPerCat = mapObj(this.rirItemsPerCat, catScores =>
+            this._cache.rirPerCat = mapObject(this.rirItemsPerCat, catScores =>
                 pearson(...zip(...catScores)),
             );
         }
@@ -233,7 +226,7 @@ class RubricResults {
 
     get nTimesFilledPerCat() {
         if (this._cache.nTimesFilledPerCat === UNSET_SENTINEL) {
-            this._cache.nTimesFilledPerCat = mapObj(
+            this._cache.nTimesFilledPerCat = mapObject(
                 this.scoresPerCat,
                 scores => dropNull(scores).length,
             );
@@ -250,16 +243,6 @@ export default {
             type: Number,
             required: true,
         },
-    },
-
-    data() {
-        return {
-            // Factor that determines the padding between extreme values in
-            // the graph and the graph boundary. For bar charts this is multiplied
-            // by the maximum value, for scatter plots by the difference between
-            // the min and max values, etc.
-            chartPaddingFactor: 0.2,
-        };
     },
 
     computed: {
@@ -306,32 +289,15 @@ export default {
             const bins = [...Array(10).keys()].map(x => [x, x + 1]);
             const binned = this.binSubmissionsByGrade(bins);
             const labels = bins.map(([start, end]) => `${10 * start}% - ${10 * end}%`);
-            const colors = this.redToGreen(bins.length);
 
             const datasets = [
                 {
                     label: 'Percentage of students',
                     data: normalizePerc(binned.map(subs => subs.length)),
-                    ...colors,
                 },
             ];
 
             return { labels, datasets };
-        },
-
-        gradeHistOpts() {
-            return {
-                scales: {
-                    yAxes: [
-                        {
-                            ticks: {
-                                beginAtZero: true,
-                                suggestedMax: this.histMax(this.gradeHistogram),
-                            },
-                        },
-                    ],
-                },
-            };
         },
 
         rubricResults() {
@@ -350,7 +316,6 @@ export default {
             }
 
             const labels = this.rubric.rows.map(row => row.header);
-            const colors = this.getColors(labels.length);
             const means = this.rubricResults.rowIds.map(
                 rowId => this.rubricResults.meanPerCat[rowId],
             );
@@ -359,7 +324,6 @@ export default {
                 {
                     label: 'Mean score',
                     data: means,
-                    ...colors,
                 },
             ];
 
@@ -367,19 +331,29 @@ export default {
         },
 
         rubricMeanHistOpts() {
-            const toNDec = this.$utils.toMaxNDecimals;
+            const toNDec = x => (Number.isFinite(x) ? this.$utils.toMaxNDecimals : '-');
 
-            const label = tooltipItem => `Mean score: ${toNDec(tooltipItem.yLabel, 2)}`;
+            // const label = tooltipItem => `Mean score: ${toNDec(tooltipItem.yLabel, 2)}`;
+            const label = () => '';
 
             const afterLabel = tooltipItem => {
-                const { rowIds, ritPerCat, rirPerCat, nTimesFilledPerCat } = this.rubricResults;
+                const {
+                    rowIds,
+                    meanPerCat,
+                    ritPerCat,
+                    rirPerCat,
+                    nTimesFilledPerCat,
+                } = this.rubricResults;
+
                 const rowId = rowIds[tooltipItem.index];
+                const mu = meanPerCat[rowId];
                 const nTimes = nTimesFilledPerCat[rowId];
                 const rit = ritPerCat[rowId];
                 const rir = rirPerCat[rowId];
 
                 // Do not escape, chart.js does its own escaping.
                 return [
+                    `Mean score: ${mu}`,
                     `Times filled: ${nTimes}`,
                     `Rit: ${toNDec(rit, 2)}`,
                     `Rir: ${toNDec(rir, 2)}`,
@@ -388,16 +362,6 @@ export default {
             };
 
             return {
-                scales: {
-                    yAxes: [
-                        {
-                            ticks: {
-                                beginAtZero: true,
-                                suggestedMax: this.histMax(this.rubricMeanHistogram),
-                            },
-                        },
-                    ],
-                },
                 tooltips: {
                     callbacks: {
                         label,
@@ -408,27 +372,21 @@ export default {
         },
 
         rubricCatScatter() {
-            const ritColor = COLOR_PAIRS[0].background;
-            const rirColor = COLOR_PAIRS[7].background;
             const results = this.rubricResults;
 
             return results.rowIds.reduce((acc, rowId) => {
                 const ritItems = results.ritItemsPerCat[rowId].map(([x, y]) => ({ x, y }));
                 const rirItems = results.rirItemsPerCat[rowId].map(([x, y]) => ({ x, y }));
-                const ritColors = this.processColors(repeat(ritItems.length, ritColor));
-                const rirColors = this.processColors(repeat(rirItems.length, rirColor));
 
                 acc[rowId] = {
                     datasets: [
                         {
                             label: 'Rit',
                             data: ritItems,
-                            ...ritColors,
                         },
                         {
                             label: 'Rir',
                             data: rirItems,
-                            ...rirColors,
                         },
                     ],
                 };
@@ -438,9 +396,6 @@ export default {
 
         rubricCatScatterOpts() {
             return this.rubricResults.rowIds.reduce((acc, rowId) => {
-                const scatter = this.rubricCatScatter[rowId];
-                const [[minX, maxX], [minY, maxY]] = this.scatterRange(scatter);
-
                 acc[rowId] = {
                     scales: {
                         xAxes: [
@@ -449,10 +404,6 @@ export default {
                                     display: true,
                                     labelString: 'Item score',
                                 },
-                                ticks: {
-                                    suggestedMin: minX,
-                                    suggestedMax: maxX,
-                                },
                             },
                         ],
                         yAxes: [
@@ -460,10 +411,6 @@ export default {
                                 scaleLabel: {
                                     display: true,
                                     labelString: 'Total score (minus item score for rir)',
-                                },
-                                ticks: {
-                                    suggestedMin: minY,
-                                    suggestedMax: maxY,
                                 },
                             },
                         ],
@@ -475,10 +422,6 @@ export default {
     },
 
     methods: {
-        range(...args) {
-            return this.$utils.range(...args);
-        },
-
         binSubmissionsBy(bins, f) {
             return this.latestSubmissions.reduce((acc, sub) => {
                 const idx = bins.findIndex((bin, i) => f(sub, bin, i));
@@ -507,69 +450,10 @@ export default {
             });
         },
 
-        getColors(n_) {
-            // TODO: get colors based on a hash
-            const colors = COLOR_PAIRS.map(c => c.background);
-            const ret = [];
-
-            let n = n_;
-            while (n > 0) {
-                const add = colors.slice(0, n);
-                ret.push(...add);
-                n -= add.length;
-            }
-
-            return this.processColors(ret);
-        },
-
-        redToGreen(n) {
-            const nRed = Math.floor(n / 2);
-            const nGreen = n - nRed;
-
-            const reds = [].concat(
-                this.range(nRed).map(() => 255),
-                this.range(nGreen).map(i => (nGreen - i) / nGreen * 255),
-            );
-            const greens = [].concat(
-                this.range(nRed).map(i => i / nRed * 255),
-                this.range(nGreen).map(() => 255),
-            );
-
-            return this.processColors(this.range(n).map(i => `rgb(${reds[i]}, ${greens[i]}, 0)`));
-        },
-
-        processColors(colors) {
-            return {
-                backgroundColor: colors.map(clr => clr.replace(')', ', 0.6)')),
-                hoverBackgroundColor: colors.map(clr => clr.replace(')', ', 0.8)')),
-                borderColor: colors,
-                borderWidth: 2,
-            };
-        },
-
-        histMax(histogram) {
-            const factor = 1 + this.chartPaddingFactor;
-            const maxPerCat = histogram.datasets.map(ds => Math.max(...ds.data));
-            return factor * Math.max(...maxPerCat);
-        },
-
-        scatterRange(scatter) {
-            return [this.scatterRange1D(scatter, 'x'), this.scatterRange1D(scatter, 'y')];
-        },
-
-        scatterRange1D(scatter, dim) {
-            // 1-dimensional range.
-            const xsPerDataset = scatter.datasets.map(ds => ds.data.map(el => el[dim]));
-            const xs = [].concat(...xsPerDataset);
-            const minX = Math.min(...xs);
-            const maxX = Math.max(...xs);
-            const dX = maxX - minX;
-            const padding = this.chartPaddingFactor;
-            return [minX - padding * dX, maxX + padding * dX];
-        },
-
         rirMessage(rir) {
-            if (rir < 0) {
+            if (rir == null) {
+                return 'There was not enough data to calculate a meaningful Rir value.';
+            } else if (rir < 0) {
                 return 'The rir value is negative, which means ...';
             } else if (rir > 0.25) {
                 return 'The rir value is very high, which means...';

@@ -445,6 +445,22 @@ export function deepExtend(target, ...sources) {
         Object.entries(source).forEach(([key, val]) => {
             if (typeof val === 'object' && !Array.isArray(val)) {
                 if (!Object.hasOwnProperty.call(target, key)) {
+                    target[key] = {};
+                }
+                deepExtend(target[key], val);
+            } else {
+                target[key] = val;
+            }
+        });
+    });
+    return target;
+}
+
+export function deepExtendArray(target, ...sources) {
+    sources.forEach(source => {
+        Object.entries(source).forEach(([key, val]) => {
+            if (typeof val === 'object') {
+                if (!Object.hasOwnProperty.call(target, key)) {
                     target[key] = Array.isArray(val) ? [] : {};
                 }
                 deepExtend(target[key], val);
@@ -535,4 +551,8 @@ export function numberToTimes(number) {
 
 export function ensureArray(obj) {
     return Array.isArray(obj) ? obj : [obj];
+}
+
+export function mapObject(obj, f) {
+    return Object.fromEntries(Object.entries(obj).map(([key, val]) => [key, f(val, key)]));
 }
