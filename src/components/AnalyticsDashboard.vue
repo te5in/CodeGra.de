@@ -357,7 +357,7 @@ export default {
                         {
                             scaleLabel: {
                                 display: true,
-                                labelString: 'Total score (minus item score for rir)',
+                                labelString: 'Total score',
                             },
                         },
                     ],
