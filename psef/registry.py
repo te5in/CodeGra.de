@@ -13,16 +13,19 @@ if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     from .models.rubric import RubricRowBase
     from .models.auto_test import GradeCalculator
     from .models.lti_provider import LTIProviderBase
+    from .lti.v1_3.lms_capabilities import LMSCapabilities
 
 Register = register.Register
 TableRegister = register.TableRegister
 
-auto_test_handlers: Register[str, t.Type['AutoTestStepBase']] = Register()
+auto_test_handlers = Register[str, t.Type['AutoTestStepBase']]()
 
-auto_test_grade_calculators: Register[str, 'GradeCalculator'] = Register()
+auto_test_grade_calculators = Register[str, 'GradeCalculator']()
 
-webhook_handlers: TableRegister[str, t.Type['WebhookBase']] = TableRegister()
+webhook_handlers = TableRegister[str, t.Type['WebhookBase']]()
 
-rubric_row_types: Register[str, t.Type['RubricRowBase']] = Register()
+rubric_row_types = Register[str, t.Type['RubricRowBase']]()
 
 lti_provider_handlers = TableRegister[str, t.Type['LTIProviderBase']]()
+
+lti_1_3_lms_capabilities = Register[str, 'LMSCapabilities']()

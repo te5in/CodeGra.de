@@ -390,7 +390,7 @@ def ensure_can_submit_work(
     # be present in the assignment_results
     if author.is_test_student:
         pass
-    elif not assig.is_lti:
+    elif (not assig.is_lti) or assig.course.lti_provider is None:
         pass
     elif assig.course.lti_provider.member_sourcedid_required:
         if author.group is not None:

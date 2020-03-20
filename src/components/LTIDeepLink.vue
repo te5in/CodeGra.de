@@ -10,36 +10,54 @@
     </template>
 
     <template v-else>
-        <b-form-fieldset>
-            <b-input-group prepend="Name">
-                <input class="form-control"
-                    v-model="name"
-                    placeholder="The name of the new assignment" />
-            </b-input-group>
-        </b-form-fieldset>
+        <div class="clearfix">
+            <h4>Create a new assignment</h4>
+            <b-form-fieldset v-if="course.lti1p3_lms_capabilities.deeplink_set_name">
+                <b-input-group prepend="Name">
+                    <input class="form-control"
+                        v-model="name"
+                        placeholder="The name of the new assignment" />
+                </b-input-group>
+            </b-form-fieldset>
 
-        <b-form-fieldset>
-            <b-input-group prepend="Deadline">
-                <datetime-picker v-model="deadline"
-                                placeholder="The deadline of the new assignment"/>
-            </b-input-group>
-        </b-form-fieldset>
+            <b-form-fieldset v-if="course.lti1p3_lms_capabilities.set_deadline">
+                <b-input-group prepend="Deadline">
+                    <datetime-picker v-model="deadline"
+                                    placeholder="The deadline of the new assignment"/>
+                </b-input-group>
+            </b-form-fieldset>
 
-        <b-form-fieldset>
-            <assignment-submit-types
-                :assignment-id="null"
-                v-model="submitTypes" />
-        </b-form-fieldset>
+            <b-form-fieldset>
+                <assignment-submit-types
+                    :assignment-id="null"
+                    v-model="submitTypes" />
+            </b-form-fieldset>
 
-        <submission-limits v-model="submissionLimits" />
+            <submission-limits v-model="submissionLimits" />
 
-        <div class="float-right"
-            v-b-popover.top.hover="submitPopover">
-            <submit-button :disabled="!!submitPopover"
-                        :submit="() => submitDeepLinkRequest()"
-                        @after-success="afterSubmitDeepLinkRequest"
-                        label="Create assignment" />
+            <div class="float-right"
+                v-b-popover.top.hover="submitPopover">
+                <submit-button :disabled="!!submitPopover"
+                            :submit="() => submitDeepLinkRequest()"
+                            @after-success="afterSubmitDeepLinkRequest"
+                            label="Create assignment" />
+            </div>
         </div>
+
+        <div v-if="existingAssignments.length > 0">
+            <h4>Select existing assignment</h4>
+            <ul class="existing-assignments pl-0 pt-3">
+                <li v-for="existingAssignment in existingAssignments">
+                    <submit-button :submit="() => submitDeepLinkRequestExistingAssignment(existingAssignment)"
+                                   variant="secondary"
+                                   class="rounded-0 text-left"
+                                   @success="afterSubmitDeepLinkRequest">
+                        {{ existingAssignment.name }}
+                    </submit-button>
+                </li>
+            </ul>
+        </div>
+
     </template>
 </div>
 </template>
@@ -65,13 +83,18 @@ export default {
             required: true,
         },
 
-        autoCreate: {
-            type: Boolean,
+        existingAssignments: {
+            type: Array,
             required: true,
         },
 
         deepLinkId: {
             type: String,
+            required: true,
+        },
+
+        course: {
+            type: Object,
             required: true,
         },
     },
@@ -94,7 +117,7 @@ export default {
 
     computed: {
         submitPopover() {
-            if (!this.deadline) {
+            if (!this.deadline && this.course.lti1p3_lms_capabilities.set_deadline) {
                 return 'A deadline is required';
             }
             return '';
@@ -102,6 +125,12 @@ export default {
     },
 
     methods: {
+        submitDeepLinkRequestExistingAssignment(assig) {
+            return this.$http.post(`/api/v1/lti1.3/deep_link/${this.deepLinkId}/assignment`, {
+                id: assig.id,
+            });
+        },
+
         submitDeepLinkRequest() {
             return this.$http.post(`/api/v1/lti1.3/deep_link/${this.deepLinkId}/assignment`, {
                 name: this.name,
@@ -130,3 +159,16 @@ export default {
     },
 };
 </script>
+
+
+<style lang="less" scoped>
+ul.existing-assignments {
+    li {
+        list-style: none;
+    }
+
+    .submit-button {
+        width: 100%;
+    }
+}
+</style>

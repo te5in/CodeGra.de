@@ -368,7 +368,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.name = new_name
 
     if new_deadline is not MISSING:
-        if lti_provider is not None and lti_provider.supports_deadline():
+        if lti_provider is not None and lti_provider.supports_setting_deadline():
             raise APIException(
                 (
                     'The deadline of this assignment should be set in '

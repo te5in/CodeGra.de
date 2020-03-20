@@ -659,11 +659,14 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         return group_set
 
     @property
-    def is_deep_linked(self) -> bool:
+    def is_being_deep_linked(self) -> bool:
         # This is a normal property and not a hybrid_property by design, as
         # this will prevent us from using it in a query, where you should use
         # `is_visible`.
         return self.visibility_state == AssignmentVisibilityState.deep_linked
+
+    def complete_deep_link(self) -> None:
+        self.visibility_state = AssignmentVisibilityState.visible
 
     @hybrid_property
     def is_visible(self) -> bool:

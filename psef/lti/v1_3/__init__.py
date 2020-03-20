@@ -1,13 +1,15 @@
 import copy
 import typing as t
 import dataclasses
+import urllib.parse
 
 import requests
 import werkzeug
 import structlog
 import sqlalchemy.sql
+from pylti1p3.actions import Action as PyLTI1p3Action
 from pylti1p3.lineitem import LineItem
-from typing_extensions import Final
+from typing_extensions import Final, Literal
 from pylti1p3.deployment import Deployment
 from pylti1p3.oidc_login import OIDCLogin
 from pylti1p3.tool_config import ToolConfAbstract
@@ -27,7 +29,7 @@ from .flask import (
 )
 from .roles import SystemRole
 from ...cache import cache_within_request_make_key
-from ...models import AssignmentVisibilityState, db
+from ...models import db
 from ..abstract import AbstractLTIConnector
 from ...exceptions import APICodes, APIException
 
@@ -38,50 +40,27 @@ T = t.TypeVar('T')
 if t.TYPE_CHECKING:
     from pylti1p3.message_launch import _JwtData, _LaunchData
 
+NEEDED_AGS_SCOPES = [
+    'https://purl.imsglobal.org/spec/lti-ags/scope/score',
+    'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
+]
+
+NEEDED_SCOPES = [
+    *NEEDED_AGS_SCOPES,
+    'https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly',
+]
+
 
 class CGAssignmentsGradesService(AssignmentsGradesService):
     def __init__(
         self, service_connector: ServiceConnector,
-        assignment: models.Assignment
+        assignment: 'models.Assignment'
     ):
         assert assignment.is_lti
         assert isinstance(assignment.lti_grade_service_data, dict)
 
         super().__init__(service_connector, assignment.lti_grade_service_data)
         self._assignment = assignment
-
-    def _make_cache_key(self) -> t.Tuple[int]:
-        return (self._assignment.id, )
-
-    @cache_within_request_make_key(_make_cache_key)
-    def get_default_line_item(self) -> LineItem:
-        return self.find_lineitem_by_tag(str(self._assignment.id))
-
-    @cache_within_request_make_key(_make_cache_key)
-    def get_lineitems(self: 'CGAssignmentsGradesService') -> list:
-        return super().get_lineitems()
-
-    def update_line_item(self, line_item: 'LineItem') -> 'LineItem':
-        access_token = self._service_connector.get_access_token(
-            self._service_data['scope']
-        )
-        url = line_item.get_id()
-        json = {
-            'label': line_item.get_label(),
-            'scoreMaximum': line_item.get_score_maximum(),
-            'submission': {
-                'endDateTime': line_item.get_end_date_time(),
-            }
-        }
-
-        headers = {
-            'Authorization': f'Bearer {access_token}',
-            'Accept': 'application/vnd.ims.lis.v2.lineitem+json',
-            'Content-Type': 'application/vnd.ims.lis.v2.lineitem+json',
-        }
-        res = requests.put(url, headers=headers, json=json, verify=False)
-        #res.raise_for_status()
-        return LineItem(res.json())
 
 
 class CGCustomClaims:
@@ -118,9 +97,6 @@ class CGCustomClaims:
         def get_key(self, idx: int) -> str:
             return f'{self.name}_{idx}'
 
-    def __init__(self, assignment: models.Assignment) -> None:
-        self._assig = assignment
-
     _WANTED_VARS: Final = [
         _Var(
             'cg_username', [
@@ -155,24 +131,18 @@ class CGCustomClaims:
 
     _VAR_LOOKUP: Final = {var.name: var for var in _WANTED_VARS}
 
-    _WANTED_PERMA: t.List[
-        t.Tuple[str, t.Callable[['CGCustomClaims'], str]]] = [
-            ('cg_assig_id', lambda self: str(self._assig.id))
-        ]
-
-    def get_claims_config(self) -> t.Mapping[str, str]:
+    @classmethod
+    def get_variable_claims_config(cls) -> t.Mapping[str, str]:
         res: t.Dict[str, str] = {}
-        return {}
-        for key, producer in self._WANTED_PERMA:
-            res[key] = producer(self)
+        for var in cls._WANTED_VARS:
+            for idx, opt in enumerate(var.get_replacement_opts()):
+                res[var.get_key(idx)] = opt.name
 
         return res
 
     @classmethod
     def get_claim_keys(cls) -> t.Iterable[str]:
-        for var in cls._WANTED_VARS:
-            for idx, _ in enumerate(var.get_replacement_opts()):
-                yield var.get_key(idx)
+        yield from cls.get_variable_claims_config().keys()
 
     @classmethod
     def _get_claim(
@@ -185,12 +155,14 @@ class CGCustomClaims:
         var = cls._VAR_LOOKUP[var_name]
 
         for idx, opt in enumerate(var.opts):
+            found_val: object
+
             if isinstance(opt, cls._ReplacementVar):
                 found_val = custom_data.get(var.get_key(idx), opt.name)
             else:
                 found_val = base_data.get(opt.name, opt.name)
 
-            if found_val != opt.name:
+            if isinstance(found_val, str) and found_val != opt.name:
                 logger.info(
                     'Trying to parse claim',
                     found_value=found_val,
@@ -209,73 +181,78 @@ class CGCustomClaims:
     @classmethod
     def get_custom_claim_data(
         cls,
-        launch_data: '_LaunchData',
-        *,
-        base_data: t.Mapping[str, object] = None,
+        custom_claims: t.Mapping[str, str],
+        base_data: t.Mapping[str, object],
     ) -> 'CGCustomClaims.ClaimResult':
-        data = launch_data[claims.CUSTOM]
-        if base_data is None:
-            base_data = launch_data
-
-        username = cls._get_claim('cg_username', data, base_data, str)
+        username = cls._get_claim('cg_username', custom_claims, base_data, str)
         # Username is a required var
-        assert username is not None
+        # TODO: Use an actual exception here
+        assert username is not None, 'Required data not found'
 
-        resource_id = cls._get_claim('cg_resource_id', data, base_data, str)
+        resource_id = cls._get_claim('cg_resource_id', custom_claims, base_data, str)
 
         deadline = cls._get_claim(
-            'cg_deadline', data, base_data,
+            'cg_deadline', custom_claims, base_data,
             DatetimeWithTimezone.parse_isoformat
         )
 
         available_at = cls._get_claim(
-            'cg_available_at', data, base_data,
+            'cg_available_at', custom_claims, base_data,
             DatetimeWithTimezone.parse_isoformat
         )
         if available_at is None:
             is_available = cls._get_claim(
-                'cg_is_published', data, base_data, lambda x: x == 'true'
+                'cg_is_published', custom_claims, base_data, lambda x: x == 'true'
             )
         else:
             is_available = DatetimeWithTimezone.utcnow() >= available_at
 
-        # The default value we set in the LMS for the cg_assignment_id is also
-        # 'NONE'. So if it is 'NONE' the variable was not expanded.
-        assignment_id_str = data.get('cg_assig_id', 'NONE')
-        if assignment_id_str == 'NONE':
+        assignment_id: t.Optional[int]
+        try:
+            assignment_id = int(custom_claims['cg_assignment_id'])
+        except (TypeError, ValueError, KeyError):
             assignment_id = None
-        else:
-            assignment_id = int(assignment_id_str)
 
         return CGCustomClaims.ClaimResult(
             username=username,
             deadline=deadline,
             is_available=is_available,
-            assignment_id=assignment_id,
             resource_id=resource_id,
+            assignment_id=assignment_id,
         )
 
 
 class CGDeepLinkResource(DeepLinkResource):
-    def __init__(self, *, assignment: 'models.Assignment') -> None:
+    def __init__(
+        self, *, assignment: 'models.Assignment', add_params_to_url: bool
+    ) -> None:
         super().__init__()
+        self._assig = assignment
 
         self.set_type('ltiResourceLink')
         self.set_title(assignment.name)
-        self.set_custom_params(
-            CGCustomClaims(assignment=assignment).get_claims_config()
-        )
-        self._assig = assignment
+
+        custom_params = {'cg_assignment_id': str(assignment.id)}
+        self.set_custom_params(custom_params)
+
+        url = current_app.config['EXTERNAL_URL'] + '/api/v1/lti1.3/launch'
+        if add_params_to_url:
+            url += '?' + urllib.parse.urlencode(custom_params)
+
         self.set_lineitem(
-            LineItem().set_tag(str(assignment.id)).set_score_maximum(10)
+            LineItem().set_resource_id(str(assignment.id)
+                                       ).set_score_maximum(10)
         )
+
+        self.set_url(url)
 
     def to_dict(self) -> t.Dict[str, object]:
         res = super().to_dict()
-        assert self._assig.deadline is not None
-        res['submission'] = {
-            'endDateTime': self._assig.deadline.isoformat(),
-        }
+        if self._assig.deadline is not None:
+            res['submission'] = {
+                'endDateTime': self._assig.deadline.isoformat(),
+            }
+            res['endDateTime'] = self._assig.deadline.isoformat()
         return res
 
 
@@ -283,29 +260,39 @@ def init_app(app: PsefFlask) -> None:
     pass
 
 
-class LTIConfig(ToolConfAbstract):
-    def find_registration_by_issuer_and_client(
-        self, iss: str, client_id: t.Optional[str]
+class LTIConfig(ToolConfAbstract[FlaskRequest]):
+    def find_registration_by_issuer(
+        self, iss: str, *args: None,
+        **kwargs: t.Union[Literal['message_launch', 'oidc_login'],
+                          FlaskRequest, '_LaunchData']
     ) -> t.Optional[Registration]:
-        if client_id is None:
-            return self.find_registration_by_issuer(iss)
+        filters = [models.LTI1p3Provider.iss == iss]
+
+        client_id: object = None
+        action = kwargs.get('action')
+        if action == 'message_launch':
+            jwt_body = kwargs['jwt_body']
+            assert isinstance(jwt_body, dict)
+            aud = jwt_body['aud']
+            client_id = aud[0] if isinstance(aud, list) else aud
+        elif action == 'oidc_login':
+            request = kwargs['request']
+            assert isinstance(request, FlaskRequest)
+            client_id = request.get_param('client_id')
+
+        if isinstance(client_id, str):
+            filters.append(models.LTI1p3Provider.client_id == client_id)
 
         return helpers.filter_single_or_404(
             models.LTI1p3Provider,
-            models.LTI1p3Provider.iss == iss,
-            models.LTI1p3Provider.client_id == client_id,
-        ).get_registration()
-
-    def find_registration_by_issuer(self, iss: str) -> Registration:
-        return helpers.filter_single_or_404(
-            models.LTI1p3Provider,
-            models.LTI1p3Provider.iss == iss,
+            *filters,
         ).get_registration()
 
     def find_deployment(
         self,
         iss: str,
         deployment_id: str,
+        get_param: t.Callable[[str], object],
     ) -> t.Optional[Deployment]:
         return None
 
@@ -315,12 +302,12 @@ class FlaskMessageLaunch(
     MessageLaunch[FlaskRequest, LTIConfig, FlaskSessionService,
                   FlaskCookieService]
 ):
-    _provider: t.Optional[models.LTI1p3Provider] = None
+    _provider: t.Optional['models.LTI1p3Provider'] = None
 
     def get_lms_name(self) -> str:
         return self.get_lti_provider().lms_name
 
-    def set_user_role(self, user: models.User) -> None:
+    def set_user_role(self, user: 'models.User') -> None:
         """Set the role of the given user if the user has no role.
 
         If the role could not be matched the ``DEFAULT_ROLE`` configured in the
@@ -347,81 +334,67 @@ class FlaskMessageLaunch(
             models.Role.name == role_name,
         ).one()
 
-    def get_create_deep_link_assignment(self, course: models.Course
-                                        ) -> t.Tuple[models.Assignment, bool]:
-        assignment = self.find_assignment(course).one_or_none()
-        if assignment is not None:
-            return assignment, False
-
-        return (
-            models.Assignment(
-                course=course,
-                visibility_state=AssignmentVisibilityState.deep_linked,
-                is_lti=True,
-            ),
-            True,
-        )
-
     def find_assignment(
         self,
-        course: models.Course,
-    ) -> models.MyQuery[models.Assignment]:
+        course: 'models.Course',
+    ) -> 'models.MyQuery[models.Assignment]':
+
         query = course.get_assignments()
         custom_claim = self.get_custom_claims()
-        if custom_claim.resource_id is None:
+
+        if custom_claim.assignment_id is not None:
+            return query.filter(
+                models.Assignment.id == custom_claim.assignment_id
+            )
+
+        resource_id = custom_claim.resource_id
+        if resource_id is None:
             launch_data = self.get_launch_data()
             resource_claim = launch_data.get(claims.RESOURCE, {})
-            resource_id = resource_claim.get('id', -1)
-        else:
-            resource_id = custom_claim.resource_id
+            resource_id = resource_claim.get('id', None)
 
-        # For some reason some lmssen (looking at you blackboard) forget our
-        # custom parameters after editing the assignment. In that case we want
-        # to search using the `resource_id` as that should be available in that
-        # case.
-        if custom_claim.assignment_id is None:
-            logger.info(
-                (
-                    'Custom cg_assig_id claim was not available, using'
-                    ' resource_id'
-                ),
-                custom_claim=custom_claim,
-                resource_id=resource_id,
-                launch_data=self.get_launch_data(),
-            )
-            if resource_id is None:
-                return query.filter(sqlalchemy.sql.false())
-            return query.filter(
-                models.Assignment.is_visible,
-                models.Assignment.lti_assignment_id == resource_id,
-            )
-        else:
-            return query.filter(
-                models.Assignment.id == custom_claim.assignment_id,
-            )
+        if resource_id is None:
+            return query.filter(sqlalchemy.sql.false())
+
+        return query.filter(
+            models.Assignment.is_visible,
+            models.Assignment.lti_assignment_id == resource_id,
+        )
 
     def get_assignment(
-        self, user: models.User, course: models.Course
-    ) -> models.Assignment:
+        self, user: 'models.User', course: 'models.Course'
+    ) -> 'models.Assignment':
         launch_data = self.get_launch_data()
         resource_claim = launch_data[claims.RESOURCE]
-        custom_claim = self.get_custom_claims()
-
         resource_id = resource_claim['id']
+        custom_claim = self.get_custom_claims()
 
         assignment = self.find_assignment(course).one_or_none()
         logger.bind(assignment=assignment)
 
-        if assignment is not None and assignment.is_deep_linked:
-            assignment.visibility_state = AssignmentVisibilityState.visible
-            assignment.lti_assignment_id = resource_id
-        elif assignment is None or assignment.lti_assignment_id != resource_id:
+        if assignment is None:
             raise APIException(
                 (
                     'The assignment was not found on CodeGrade, please'
-                    ' initiate a DeepLink when creating an LTI Assignment'
+                    ' initiate a DeepLink when creating an LTI Assignment.'
                 ), f'The assignment "{resource_id}" was not found',
                 APICodes.OBJECT_NOT_FOUND, 404
+            )
+        elif assignment.is_being_deep_linked:
+            assignment.complete_deep_link()
+            assignment.lti_assignment_id = resource_id
+        elif assignment.lti_assignment_id != resource_id:
+            raise APIException(
+                (
+                    'This LTI assignment is already connected to a different'
+                    ' assignment on the LMS. When deep linking please only'
+                    ' select an existing assignment if this assignment is not'
+                    ' already connected to a different assignment in your LMS.'
+                ), (
+                    f'The assignment "{assignment.id}" is already connected to'
+                    f' the resource id {assignment.lti_assignment_id}, however'
+                    f' the launch was for the resource with id {resource_id}.'
+                ), APICodes.OBJECT_NOT_FOUND, 404
             )
 
         assignment.lti_grade_service_data = launch_data[claims.GRADES]
@@ -442,8 +415,9 @@ class FlaskMessageLaunch(
 
         return assignment
 
-    def set_user_course_role(self, user: models.User,
-                             course: models.Course) -> t.Optional[str]:
+    def set_user_course_role(
+        self, user: 'models.User', course: 'models.Course'
+    ) -> t.Optional[str]:
         assert course.course_lti_provider
         return course.course_lti_provider.maybe_add_user_to_course(
             user,
@@ -455,14 +429,15 @@ class FlaskMessageLaunch(
 
     @classmethod
     def from_request(cls, request: flask.Request) -> 'FlaskMessageLaunch':
-        return cls(
+        self = cls(
             FlaskRequest(request, force_post=True),
             LTIConfig(),
             FlaskSessionService(request),
             FlaskCookieService(request),
         )
+        return self
 
-    def get_lti_provider(self) -> models.LTI1p3Provider:
+    def get_lti_provider(self) -> 'models.LTI1p3Provider':
         if self._provider is None:
             assert self._registration is not None
 
@@ -490,7 +465,7 @@ class FlaskMessageLaunch(
         def get_exc(
             msg: str,
             claim: t.Union[None, t.Mapping, t.Sequence[str]],
-            missing: t.List[str],
+            missing: t.Iterable[str],
         ) -> APIException:
             return APIException(
                 msg,
@@ -503,10 +478,11 @@ class FlaskMessageLaunch(
             mapping: t.Optional[t.Mapping[str, object]],
             *keys: str,
         ) -> None:
+            missing: t.Iterable[str]
             if mapping:
                 missing = [key for key in keys if key not in mapping]
             else:
-                missing = ['__ALL__']
+                missing = keys
 
             if missing:
                 raise get_exc(msg, mapping, missing)
@@ -532,31 +508,32 @@ class FlaskMessageLaunch(
             ), custom, *CGCustomClaims.get_claim_keys()
         )
 
-        if not self.has_nrps():
+        if not self.is_deep_link_launch() and not self.has_nrps():
             raise get_exc(
                 (
                     'It looks like the NamesRoles Provisioning service is not'
                     ' enabled for this LTI deployment, please check your'
-                    ' configuration'
+                    ' configuration.'
                 ),
-                launch_data.get(claims.NAMESROLES),
-                [],
+                launch_data,
+                claims.NAMESROLES,
             )
 
+        # TODO: Check how handle these checks for deep linking
+        # (i.e. brightspace)
         ags = launch_data.get(claims.GRADES, {})
         check_and_raise(
             (
                 'It looks like the Assignments and Grades service is not'
                 ' enabled for this LTI deployment, please check your'
                 ' configuration'
-            ), ags, 'scope'
+            ),
+            ags,
+            'scope',
         )
 
         scopes = ags.get('scope', [])
-        needed_scopes = [
-            'https://purl.imsglobal.org/spec/lti-ags/scope/score',
-            'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
-        ]
+
         check_and_raise(
             (
                 'We do not have the required permissions for passing back'
@@ -565,7 +542,7 @@ class FlaskMessageLaunch(
             ),
             {s: True
              for s in scopes},
-            *needed_scopes,
+            *NEEDED_AGS_SCOPES,
         )
 
         # We don't need to check the roles claim, as that is required by spec
@@ -584,11 +561,12 @@ class FlaskMessageLaunch(
             raise
 
     def get_custom_claims(self) -> CGCustomClaims.ClaimResult:
-        return CGCustomClaims.get_custom_claim_data(self.get_launch_data())
+        launch_data = self.get_launch_data()
+        return CGCustomClaims.get_custom_claim_data(launch_data[claims.CUSTOM], launch_data)
 
     def ensure_lti_user(
         self
-    ) -> t.Tuple[models.User, t.Optional[str], t.Optional[str]]:
+    ) -> t.Tuple['models.User', t.Optional[str], t.Optional[str]]:
         launch_data = self.get_launch_data()
         custom_claims = self.get_custom_claims()
 
@@ -608,7 +586,7 @@ class FlaskMessageLaunch(
 
         return user, token, updated_email
 
-    def get_course(self) -> models.Course:
+    def get_course(self) -> 'models.Course':
         launch_data = self.get_launch_data()
         deployment_id = self._get_deployment_id()
         context_claim = launch_data[claims.CONTEXT]
@@ -633,7 +611,9 @@ class FlaskMessageLaunch(
             course = course_lti_provider.course
 
         course.name = context_claim['title']
-        course_lti_provider.names_roles_claim = launch_data[claims.NAMESROLES]
+        if claims.NAMESROLES in launch_data:
+            course_lti_provider.names_roles_claim = launch_data[
+                claims.NAMESROLES]
 
         return course
 

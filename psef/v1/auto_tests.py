@@ -848,7 +848,7 @@ def get_auto_test_result_proxy(
     test = get_or_404(
         models.AutoTest,
         auto_test_id,
-        also_error=lambda at: at.assignment.deleted
+        also_error=lambda at: not at.assignment.is_visible
     )
     auth.ensure_can_view_autotest(test)
     if not test.assignment.is_done:

@@ -24,6 +24,9 @@ class FlaskRequest(Request):
     def set_request(self, request: flask.Request) -> None:
         self._request = request
 
+    def get_request(self) -> flask.Request:
+        return self._request
+
     def get_param(self, key: str) -> object:
         if self._force_post or self._request.method == 'POST':
             return self._request.form.get(key, None)
@@ -103,8 +106,7 @@ class FlaskCookieService(CookieService):
     ) -> werkzeug.wrappers.Response:
         for cookie_data in self._cookie_data_to_set:
             logger.info('Setting cookie', cookie=cookie_data)
-            # mypy doesn't know the argument `samesite`
-            response.set_cookie(  # type: ignore[call-arg]
+            response.set_cookie(
                 key=cookie_data.key,
                 value=cookie_data.value,
                 expires=cookie_data.exp,

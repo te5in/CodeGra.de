@@ -16,10 +16,11 @@
         <cg-logo :inverted="!darkMode" />
     </local-header>
     <lti-deep-link
-        :initial-assignment-name="deepLinkData.assignment_name"
+        :initial-assignment-name="deepLinkData.new_assignment_name"
+        :existing-assignments="deepLinkData.existing_assignments"
+        :course="deepLinkData.course"
         initial-assignment-deadline=""
-        :deep-link-id="deepLinkData.id"
-        :auto-create="deepLinkData.auto_create"/>
+        :deep-link-id="deepLinkData.id"/>
 </div>
 <loader v-else/>
 </template>

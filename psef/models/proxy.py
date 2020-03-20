@@ -60,8 +60,6 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         this proxy. This is never ``None`` if ``base_work_file_id`` is not
         ``None``, and always ``None`` otherwise.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[MyQuery['Proxy']]
     __tablename__ = 'proxy'
 
     state = db.Column(

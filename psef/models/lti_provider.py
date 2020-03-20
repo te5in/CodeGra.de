@@ -4,10 +4,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import abc
 import sys
+import copy
+import json
 import uuid
 import typing as t
 
 import structlog
+import jwcrypto.jwk
 import pylti1p3.grade
 import flask_jwt_extended as flask_jwt
 import pylti1p3.exception
@@ -34,7 +37,9 @@ from . import course as course_models
 from . import assignment as assignment_models
 from .. import auth, signals, current_app
 from ..signals import WORK_CREATED
-from ..registry import lti_provider_handlers
+from ..lti.v1_3 import claims as ltiv1_3_claims
+from ..registry import lti_provider_handlers, lti_1_3_lms_capabilities
+from ..lti.v1_3.lms_capabilities import LMSCapabilities
 
 logger = structlog.get_logger()
 
@@ -113,6 +118,10 @@ class LTIProviderBase(Base):
     @property
     def member_sourcedid_required(self) -> bool:
         raise NotImplementedError
+
+    @property
+    def lms_capabilities(self) -> LMSCapabilities:
+        return lti_1_3_lms_capabilities[self.lms_name]
 
     @classmethod
     def _get_self_from_assignment_id(
@@ -194,7 +203,7 @@ class LTIProviderBase(Base):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def supports_deadline(self) -> bool:
+    def supports_setting_deadline(self) -> bool:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -392,8 +401,8 @@ class LTI1p1Provider(LTIProviderBase):
             )
         return cls
 
-    def supports_deadline(self) -> bool:
-        return self.lti_class.supports_deadline()
+    def supports_setting_deadline(self) -> bool:
+        return not self.lti_class.supports_deadline()
 
     def supports_max_points(self) -> bool:
         return self.lti_class.supports_max_points()
@@ -471,7 +480,10 @@ class LTI1p3Provider(LTIProviderBase):
     if t.TYPE_CHECKING:
         client_id = db.Column('client_id', db.Unicode)
 
-    _lms_name = db.Column('lms_name', db.Unicode)
+    _lms_name = db.Column(
+        'lms_name',
+        db.Enum(*lti_1_3_lms_capabilities.keys(), name='ltip1_3lmsnames'),
+    )
     _auth_login_url = db.Column('auth_login_url', db.Unicode)
     _auth_token_url = db.Column('auth_token_url', db.Unicode)
     _key_set_url = db.Column('key_set_url', db.Unicode)
@@ -486,6 +498,10 @@ class LTI1p3Provider(LTIProviderBase):
     def lms_name(self) -> str:
         assert self._lms_name is not None
         return self._lms_name
+
+    @property
+    def lms_capabilities(self) -> LMSCapabilities:
+        return lti_1_3_lms_capabilities[self.lms_name]
 
     def finalize_registration(
         self,
@@ -542,6 +558,13 @@ class LTI1p3Provider(LTIProviderBase):
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo,
         ).decode('utf8')
+
+    def get_public_jwk(self) -> t.Mapping[str, str]:
+        pub_key = self.get_public_key().encode('utf8')
+        jwk = jwcrypto.jwk.JWK.from_pem(pub_key)
+        assert not jwk.has_private
+
+        return json.loads(jwk.export_public())
 
     @hybrid_property
     def iss(self) -> str:
@@ -738,7 +761,6 @@ class LTI1p3Provider(LTIProviderBase):
         grades_service = psef.lti.v1_3.CGAssignmentsGradesService(
             service_connector, assignment
         )
-        line_item = grades_service.get_default_line_item()
 
         if sub is None:
             # This is assured by the mypy overloads
@@ -771,7 +793,7 @@ class LTI1p3Provider(LTIProviderBase):
 
             grade.set_user_id(lti_user_id)
             try:
-                res = grades_service.put_grade(grade, line_item=line_item)
+                res = grades_service.put_grade(grade)
             except pylti1p3.exception.LtiException:
                 logger.info('Passing back grade failed', exc_info=True)
             else:
@@ -812,9 +834,20 @@ class LTI1p3Provider(LTIProviderBase):
             messages = member.get('message', None)
             if messages is None:
                 continue
-            custom_claim = psef.lti.v1_3.CGCustomClaims.get_custom_claim_data(
-                messages, base_data=member
-            )
+
+            get_claim_data = psef.lti.v1_3.CGCustomClaims.get_custom_claim_data
+            for message in messages:
+                try:
+                    custom_claim = get_claim_data(
+                        t.cast(dict, message[ltiv1_3_claims.CUSTOM]),
+                        base_data=member
+                    )
+                except:
+                    pass
+                else:
+                    break
+            else:
+                continue
 
             assert status in {
                 'Active', 'Inactive'
@@ -834,25 +867,51 @@ class LTI1p3Provider(LTIProviderBase):
 
         db.session.commit()
 
-    @classmethod
-    def _update_deadline_in_lms(cls, assignment_id: int) -> None:
-        assignment, self = cls._get_self_from_assignment_id(
-            assignment_id, lock=False
-        )
+    def supports_setting_deadline(self) -> bool:
+        return self.lms_capabilities.set_deadline
 
-        if self is None or assignment is None:
-            return
+    def get_json_config(self) -> t.Mapping[str, object]:
+        def get_url(ext: str = '') -> str:
+            return f'{current_app.config["EXTERNAL_URL"]}{ext}'
 
-        service_connector = self.get_service_connector()
-        grades_service = psef.lti.v1_3.CGAssignmentsGradesService(
-            service_connector, assignment
-        )
-        line_item = grades_service.get_default_line_item()
-        line_item.set_end_date_time(assignment.deadline.isoformat())
-        grades_service.update_line_item(line_item)
-
-    def supports_deadline(self) -> bool:
-        return False
+        return {
+            'title': 'CodeGrade',
+            'description': 'Programming education made intuitive!',
+            'privacy_level': 'public',
+            'oidc_initiation_url': get_url('/api/v1/lti1.3/login'),
+            'target_link_uri': get_url('/api/v1/lti1.3/launch'),
+            'scopes': psef.lti.v1_3.NEEDED_SCOPES,
+            'extensions':
+                [
+                    {
+                        'domain': get_url(),
+                        'tool_id': str(self.id),
+                        'platform': self.iss,
+                        'settings':
+                            {
+                                'text': 'CodeGrade',
+                                'icon_url':
+                                    get_url(
+                                        '/static/favicon/'
+                                        'android-chrome-512x512.png'
+                                    ),
+                                'placements':
+                                    [
+                                        {
+                                            'text': 'Add CodeGrade assignment',
+                                            'enabled': True,
+                                            'placement': 'assignment_selection',
+                                            'message_type':
+                                                'LtiDeepLinkingRequest',
+                                        }
+                                    ]
+                            }
+                    }
+                ],
+            'public_jwk': self.get_public_jwk(),
+            'custom_fields':
+                psef.lti.v1_3.CGCustomClaims.get_variable_claims_config(),
+        }
 
     @classmethod
     def setup_signals(cls) -> None:
@@ -886,12 +945,6 @@ class LTI1p3Provider(LTIProviderBase):
             task_args=_PASSBACK_CELERY_OPTS,
             prevent_recursion=True,
         )(cls._retrieve_users_in_course)
-
-        signals.ASSIGNMENT_DEADLINE_CHANGED.connect_celery(
-            converter=lambda a: a.id,
-            pre_check=lambda a: a.is_lti,
-            task_args=_PASSBACK_CELERY_OPTS,
-        )(cls._update_deadline_in_lms)
 
 
 LTI1p3Provider.setup_signals()
@@ -1149,7 +1202,7 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
             return []
 
         assert isinstance(self.names_roles_claim, dict)
-        claim = {**self.names_roles_claim}
+        claim = copy.copy(self.names_roles_claim)
         rlid = db.session.query(
             assignment_models.Assignment.lti_assignment_id
         ).filter(
@@ -1157,10 +1210,12 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
             assignment_models.Assignment.lti_assignment_id.isnot(None),
             assignment_models.Assignment.is_visible,
         ).limit(1).scalar()
-        if rlid is None:
-            return []
-        else:
+        if rlid is not None and isinstance(
+            claim['context_memberships_url'], str
+        ):
             claim['context_memberships_url'] += f'&rlid={rlid}'
+        else:
+            return []
 
         res = pylti1p3.names_roles.NamesRolesProvisioningService(
             service_connector, claim
