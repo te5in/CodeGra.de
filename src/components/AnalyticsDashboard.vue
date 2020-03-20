@@ -23,7 +23,7 @@
                     </div>
 
                     <div class="col-3 metric">
-                        <h1 title="Not yet implemented">?</h1>
+                        <h1>{{ to2Dec(inlineFeedbackSource.averageEntries) }}</h1>
                         <label>Average number of feedback entries</label>
                     </div>
                 </div>
@@ -118,6 +118,10 @@ export default {
 
         rubricSource() {
             return this.workspace.getSource('rubric_data');
+        },
+
+        inlineFeedbackSource() {
+            return this.workspace.getSource('inline_feedback');
         },
 
         hasRubric() {

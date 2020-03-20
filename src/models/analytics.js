@@ -258,6 +258,18 @@ export class InlineFeedbackSource extends DataSource {
         this.checkType(dataSource);
         return new InlineFeedbackSource(dataSource.data, workspace);
     }
+
+    constructor(data, workspace) {
+        super(data, workspace);
+        this._cache = makeCache('averageEntries');
+        Object.freeze(this);
+    }
+
+    get averageEntries() {
+        const totalEntries = jStat.sum(Object.values(this.data));
+        const totalSubs = Object.keys(this.data).length;
+        return totalEntries / totalSubs;
+    }
 }
 
 function createDataSource(data, workspace) {
@@ -366,8 +378,8 @@ export class Workspace {
 
     get averageSubmissions() {
         return this._cache.get('averageSubmissions', () => {
-            const totalStudents = Object.keys(this.student_submissions).length;
             const totalSubs = this.allSubmissions.length;
+            const totalStudents = Object.keys(this.student_submissions).length;
             return totalSubs / totalStudents;
         });
     }
