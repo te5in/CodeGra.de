@@ -45,8 +45,24 @@
                 :class="{ 'col-lg-12': largeGradeHistogram }">
                 <b-card header="Mean score per rubric category">
                     <bar-chart :chart-data="rubricMeanHistogram"
+                               :options="rubricMeanHistOpts"
+                               :relative-to="rubricNormalizeFactors"
                                :width="300"
                                :height="largeGradeHistogram ? 100 : 200"/>
+
+                    <b-input-group prepend="Metric">
+                        <b-form-select v-model="currentRubricStat"
+                                       :options="rubricStatOptions"/>
+                    </b-input-group>
+
+                    <b-input-group prepend="Relative"
+                                   v-if="showRubricRelative">
+                        <div class="form-control pl-2">
+                            <b-form-checkbox v-model="currentRubricRelative"
+                                             class="d-inline-block" />
+                            Relative to max item score in category
+                        </div>
+                    </b-input-group>
                 </b-card>
             </div>
 
@@ -55,6 +71,7 @@
                 <div class="col-12 col-lg-6">
                     <b-card :header="`${row.header}: Correlation of item score with total score`">
                         <scatter-plot :chart-data="rubricCatScatter[row.id]"
+                                      :options="rubricCatScatterOpts"
                                       :width="300"
                                       :height="200"/>
                     </b-card>
@@ -87,6 +104,7 @@ export default {
             loading: true,
             currentWorkspace: null,
             currentRubricStat: 'mean',
+            currentRubricRelative: true,
         };
     },
 
@@ -166,22 +184,49 @@ export default {
             return {
                 labels,
                 datasets,
-                options: this.gradeHistOpts,
             };
         },
 
         gradeHistOpts() {
             return {
+                legend: {
+                    display: false,
+                },
                 scales: {
                     yAxes: [
                         {
                             ticks: {
                                 stepSize: 1,
                             },
+                            scaleLabel: {
+                                display: true,
+                                labelString: 'Number of students',
+                            },
                         },
                     ],
                 },
             };
+        },
+
+        rubricStatOptions() {
+            return [
+                'mean',
+                'median',
+                'mode',
+                'rit',
+                'rir',
+            ];
+        },
+
+        showRubricRelative() {
+            return ['mean', 'median', 'mode'].indexOf(this.currentRubricStat) !== -1;
+        },
+
+        rubricNormalizeFactors() {
+            if (!this.currentRubricRelative) {
+                return null;
+            }
+            return this.rubric.rows.map(row => row.maxPoints);
         },
 
         rubricMeanHistogram() {
@@ -196,13 +241,13 @@ export default {
 
             this.rubric.rows.forEach(row => {
                 const stat = {
-                    rowId: row.id,
                     mean: source.meanPerCat[row.id],
                     mode: source.modePerCat[row.id],
                     median: source.medianPerCat[row.id],
                     rit: source.ritPerCat[row.id],
                     rir: source.rirPerCat[row.id],
                     nTimesFilled: source.nTimesFilledPerCat[row.id],
+                    rowId: row.id,
                 };
                 stats.push(stat);
                 data.push(stat[this.currentRubricStat]);
@@ -212,12 +257,10 @@ export default {
                 labels: this.rubric.rows.map(row => row.header),
                 datasets: [
                     {
-                        label: 'Mean score',
                         data,
                         stats,
                     },
                 ],
-                options: this.rubricMeanHistOpts,
             };
         },
 
@@ -246,6 +289,19 @@ export default {
             };
 
             return {
+                legend: {
+                    display: false,
+                },
+                scales: {
+                    yAxes: [
+                        {
+                            scaleLabel: {
+                                display: true,
+                                labelString: this.$utils.capitalize(this.currentRubricStat),
+                            },
+                        },
+                    ],
+                },
                 tooltips: {
                     callbacks: {
                         label,
@@ -279,7 +335,6 @@ export default {
                                 data: rirItem,
                             },
                         ],
-                        options: this.rubricScatterOpts,
                     };
                     return acc;
                 },
@@ -348,7 +403,7 @@ export default {
                 this.loading = true;
                 const ws = await this.loadWorkspace({ workspaceId: newId });
                 if (ws.id === newId) {
-                    this.currentWorkspace = this.getWorkspace(newId);
+                    this.currentWorkspace = ws;
                     this.loading = false;
                 }
             },
@@ -366,6 +421,10 @@ export default {
 <style lang="less" scoped>
 .card {
     margin-bottom: 1rem;
+
+    .input-group:not(:last-child) {
+        margin-bottom: 1rem;
+    }
 }
 
 .metric {

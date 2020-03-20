@@ -6,6 +6,10 @@ import { mapObject } from '@/utils';
 
 export const BaseChart = {
     props: {
+        options: {
+            type: Object,
+            default: () => ({}),
+        },
         padding: {
             type: Number,
             default: 0.2,
@@ -21,10 +25,6 @@ export const BaseChart = {
             return this.chartData.datasets;
         },
 
-        options() {
-            return this.chartData.options || {};
-        },
-
         renderData() {
             return this.chartData;
         },
@@ -35,6 +35,10 @@ export const BaseChart = {
     },
 
     methods: {
+        rerender() {
+            this.renderChart(this.renderData, this.renderOpts);
+        },
+
         getColors(n_) {
             if (this.redToGreen) {
                 return this.redToGreenGradient(n_);
@@ -82,8 +86,18 @@ export const BaseChart = {
         },
     },
 
+    watch: {
+        options() {
+            this.rerender();
+        },
+
+        renderOptions() {
+            this.rerender();
+        },
+    },
+
     mounted() {
-        this.renderChart(this.renderData, this.renderOpts);
+        this.rerender();
     },
 };
 
@@ -92,12 +106,22 @@ export const BarChart = {
     extends: Bar,
     mixins: [mixins.reactiveProp, BaseChart],
 
+    props: {
+        relativeTo: {
+            type: [Array, Number],
+            default: null,
+        },
+    },
+
     computed: {
         renderData() {
             return Object.assign({}, this.chartData, {
                 datasets: this.datasets.map(ds => {
-                    const n = ds.data.length;
-                    return Object.assign({}, ds, this.getColors(n));
+                    let data = ds.data;
+                    if (this.relativeTo != null) {
+                        data = this.normalize(data);
+                    }
+                    return Object.assign({}, ds, { data }, this.getColors(data.length));
                 }),
             });
         },
@@ -121,6 +145,25 @@ export const BarChart = {
             const factor = 1 + this.padding;
             const maxPerCat = this.datasets.map(ds => Math.max(...ds.data));
             return factor * Math.max(...maxPerCat);
+        },
+    },
+
+    watch: {
+        relativeTo() {
+            this.rerender();
+        },
+    },
+
+    methods: {
+        normalize(xs) {
+            const rel = this.relativeTo;
+            if (typeof rel === 'number') {
+                return xs.map(x => 100 * x / rel);
+            } else if (Array.isArray(rel)) {
+                return xs.map((x, i) => 100 * x / rel[i]);
+            } else {
+                return xs;
+            }
         },
     },
 };
