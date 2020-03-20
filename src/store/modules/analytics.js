@@ -6,7 +6,7 @@ import { Workspace } from '@/models';
 import * as types from '../mutation-types';
 
 const getters = {
-    getWorkspace: state => workspaceId => state.data[workspaceId],
+    getWorkspace: state => workspaceId => state.workspaces[workspaceId],
 };
 
 const loaders = {
@@ -15,15 +15,16 @@ const loaders = {
 
 async function loadWorkspace(workspaceId) {
     const res = await axios.get(`/api/v1/analytics/${workspaceId}`);
-    const workspace = res.data;
 
     const sources = await Promise.all(
-        workspace.data_sources.map(source =>
-            axios.get(`/api/v1/analytics/${workspaceId}/data_sources/${source}`),
+        res.data.data_sources.map(source =>
+            axios
+                .get(`/api/v1/analytics/${workspaceId}/data_sources/${source}`)
+                .then(({ data }) => data),
         ),
     );
 
-    return Workspace.fromServerData(workspace, sources);
+    return Workspace.fromServerData(res.data, sources);
 }
 
 const actions = {

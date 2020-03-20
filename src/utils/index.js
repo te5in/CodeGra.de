@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import moment from 'moment';
+import jStat from 'jstat';
+
 import { getLanguage, highlight } from 'highlightjs';
 import { visualizeWhitespace } from './visualize';
 
@@ -459,14 +461,14 @@ export function deepExtend(target, ...sources) {
 export function deepExtendArray(target, ...sources) {
     sources.forEach(source => {
         Object.entries(source).forEach(([key, val]) => {
-            if (typeof val === 'object') {
-                if (!Object.hasOwnProperty.call(target, key)) {
-                    target[key] = Array.isArray(val) ? [] : {};
-                }
-                deepExtend(target[key], val);
-            } else {
+            if (typeof val !== 'object') {
                 target[key] = val;
+                return;
             }
+            if (typeof target[key] !== 'object' || !Object.hasOwnProperty.call(target, key)) {
+                target[key] = Array.isArray(val) ? [] : {};
+            }
+            deepExtendArray(target[key], val);
         });
     });
     return target;
@@ -531,6 +533,7 @@ export function getNoNull(prop, ...objs) {
     return null;
 }
 
+// Get all items that are either in set A or in set B, but not in both.
 export function setXor(A, B) {
     return new Set([...A, ...B].filter(el => A.has(el) ^ B.has(el)));
 }
@@ -555,4 +558,22 @@ export function ensureArray(obj) {
 
 export function mapObject(obj, f) {
     return Object.fromEntries(Object.entries(obj).map(([key, val]) => [key, f(val, key)]));
+}
+
+export function filterObject(obj, f) {
+    return Object.fromEntries(Object.entries(obj).filter(([key, val]) => f(val, key)));
+}
+
+export function zip(...lists) {
+    if (lists.length === 0) {
+        return [];
+    }
+
+    const acc = [];
+    const end = jStat.min(lists.map(l => l.length));
+    for (let i = 0; i < end; i++) {
+        // eslint-disable-next-line no-loop-func
+        acc.push(lists.map(l => l[i]));
+    }
+    return acc;
 }

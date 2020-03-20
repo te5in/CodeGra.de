@@ -1,62 +1,65 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 <template>
 <div class="analytics-dashboard row">
-    <div class="col-12">
-        <b-card header="General statistics">
-            <div class="row">
-                <div class="col-3 border-right metric">
-                    <h1>{{ latestSubmissions.length }}</h1>
-                    <label>Number of students</label>
+    <loader page-loader v-if="loading" />
+
+    <template v-else>
+        <div class="col-12">
+            <b-card header="General statistics">
+                <div class="row">
+                    <div class="col-3 border-right metric">
+                        <h1>{{ latestSubmissions.length }}</h1>
+                        <label>Number of students</label>
+                    </div>
+
+                    <div class="col-3 border-right metric">
+                        <h1>{{ to2Dec(workspace.averageGrade) }}</h1>
+                        <label>Average grade</label>
+                    </div>
+
+                    <div class="col-3 border-right metric">
+                        <h1>{{ to2Dec(workspace.averageSubmissions) }}</h1>
+                        <label>Average number of submissions</label>
+                    </div>
+
+                    <div class="col-3 metric">
+                        <h1 title="Not yet implemented">?</h1>
+                        <label>Average number of feedback entries</label>
+                    </div>
                 </div>
+            </b-card>
+        </div>
 
-                <div class="col-3 border-right metric">
-                    <h1>{{ $utils.toMaxNDecimals(averageGrade, 2) }}</h1>
-                    <label>Average grade</label>
-                </div>
-
-                <div class="col-3 border-right metric">
-                    <h1 title="Not yet implemented">?</h1>
-                    <label>Average Number of submissions</label>
-                </div>
-
-                <div class="col-3 metric">
-                    <h1 title="Not yet implemented">?</h1>
-                    <label>Average Number of feedback entries</label>
-                </div>
-            </div>
-        </b-card>
-    </div>
-
-    <div class="col-12 col-lg-6"
-         :class="{ 'col-lg-12': largeGradeHistogram }">
-        <b-card header="Histogram of grades">
-            <bar-chart :chart-data="gradeHistogram"
-                       red-to-green
-                       :width="300"
-                       :height="largeGradeHistogram ? 100 : 200"/>
-        </b-card>
-    </div>
-
-    <template v-if="hasRubric && rubricResults != null">
         <div class="col-12 col-lg-6"
-             :class="{ 'col-lg-12': hasManyRubricRows }">
-            <b-card header="Mean score per rubric category">
-                <bar-chart :chart-data="rubricMeanHistogram"
-                           :options="rubricMeanHistOpts"
+            :class="{ 'col-lg-12': largeGradeHistogram }">
+            <b-card header="Histogram of grades">
+                <bar-chart :chart-data="gradeHistogram"
+                           red-to-green
                            :width="300"
                            :height="largeGradeHistogram ? 100 : 200"/>
             </b-card>
         </div>
 
-        <template v-for="row in rubric.rows">
-            <div class="col-12 col-lg-6">
-                <b-card :header="`${row.header}: Correlation of item score vs. total score`">
-                    <scatter-plot :chart-data="rubricCatScatter[row.id]"
-                                  :options="rubricCatScatterOpts[row.id]"
-                                  :width="300"
-                                  :height="200"/>
+        <template v-if="hasRubric">
+            <div class="col-12 col-lg-6"
+                :class="{ 'col-lg-12': largeGradeHistogram }">
+                <b-card header="Mean score per rubric category">
+                    <bar-chart :chart-data="rubricMeanHistogram"
+                               :width="300"
+                               :height="largeGradeHistogram ? 100 : 200"/>
                 </b-card>
             </div>
+
+            <template v-for="row in rubric.rows"
+                      v-if="rubricCatScatter[row.id]">
+                <div class="col-12 col-lg-6">
+                    <b-card :header="`${row.header}: Correlation of item score with total score`">
+                        <scatter-plot :chart-data="rubricCatScatter[row.id]"
+                                      :width="300"
+                                      :height="200"/>
+                    </b-card>
+                </div>
+            </template>
         </template>
     </template>
 </div>
@@ -64,10 +67,10 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
-import jStat from 'jstat';
 
-import { RubricResults } from '@/models';
+import { WorkspaceFilter } from '@/models';
 import { BarChart, ScatterPlot } from '@/components/Charts';
+import Loader from '@/components/Loader';
 
 export default {
     name: 'analytics-dashboard',
@@ -77,6 +80,14 @@ export default {
             type: Number,
             required: true,
         },
+    },
+
+    data() {
+        return {
+            loading: true,
+            currentWorkspace: null,
+            currentRubricStat: 'mean',
+        };
     },
 
     computed: {
@@ -97,116 +108,136 @@ export default {
             return this.$utils.getProps(this.workspaceIds, null, 0);
         },
 
-        currentWorkspace() {
-            const id = this.currentWorkspaceId;
-            return id == null ? null : this.getWorkspace(id);
-        },
-
         rubric() {
             return this.$utils.getProps(this.assignment, null, 'rubric');
         },
 
+        workspace() {
+            return this.currentWorkspace.filter(this.filter);
+        },
+
+        rubricSource() {
+            return this.workspace.getSource('rubric_data');
+        },
+
         hasRubric() {
-            return this.rubric != null;
+            return this.rubricSource != null;
         },
 
         hasManyRubricRows() {
-            return this.$utils.getProps(this.rubric, 0, 'rows', 'length') > 8;
-        },
-
-        largeGradeHistogram() {
-            return !this.hasRubric || this.hasManyRubricRows;
+            return this.$utils.getProps(this.rubricSource, 0, 'rowIds', 'length');
         },
 
         latestSubmissions() {
             return this.getLatestSubmissions(this.assignmentId);
         },
 
-        submissionGrades() {
-            return this.latestSubmissions
-                .map(sub => sub.grade)
-                .filter(grade => grade != null)
-                .map(grade => Number(grade));
+        allSubmissionData() {
+            return this.currentWorkspace.student_submissions;
         },
 
-        averageGrade() {
-            return jStat.mean(this.submissionGrades);
+        filter() {
+            return new WorkspaceFilter();
+        },
+
+        largeGradeHistogram() {
+            return (
+                this.$root.isLargeWindow &&
+                (!this.hasRubric || this.hasManyRubricRows)
+            );
         },
 
         gradeHistogram() {
             const bins = [...Array(10).keys()].map(x => [x, x + 1]);
             const labels = bins.map(([start, end]) => `${10 * start}% - ${10 * end}%`);
-            const binned = this.binSubmissionsByGrade(bins)
-                .map(subs => subs.length / this.latestSubmissions.length);
+            const data = this.currentWorkspace.gradeHistogram(bins);
 
             const datasets = [
                 {
-                    label: 'Percentage of students',
-                    data: binned,
+                    label: 'Number of students',
+                    data,
                 },
             ];
 
-            return { labels, datasets };
+            return {
+                labels,
+                datasets,
+                options: this.gradeHistOpts,
+            };
         },
 
-        rubricResults() {
-            if (this.rubric == null) {
-                return null;
-            }
-            const results = this.latestSubmissions
-                .map(sub => this.allRubricResults[sub.id])
-                .filter(result => result != null);
-            return new RubricResults(this.rubric, results);
+        gradeHistOpts() {
+            return {
+                scales: {
+                    yAxes: [
+                        {
+                            ticks: {
+                                stepSize: 1,
+                            },
+                        },
+                    ],
+                },
+            };
         },
 
         rubricMeanHistogram() {
-            if (this.rubric == null) {
+            const source = this.rubricSource;
+
+            if (source == null) {
                 return null;
             }
 
-            const labels = this.rubric.rows.map(row => row.header);
-            const means = this.rubricResults.rowIds.map(
-                rowId => this.rubricResults.meanPerCat[rowId],
-            );
+            const data = [];
+            const stats = [];
 
-            const datasets = [
-                {
-                    label: 'Mean score',
-                    data: means,
-                },
-            ];
+            this.rubric.rows.forEach(row => {
+                const stat = {
+                    rowId: row.id,
+                    mean: source.meanPerCat[row.id],
+                    mode: source.modePerCat[row.id],
+                    median: source.medianPerCat[row.id],
+                    rit: source.ritPerCat[row.id],
+                    rir: source.rirPerCat[row.id],
+                    nTimesFilled: source.nTimesFilledPerCat[row.id],
+                };
+                stats.push(stat);
+                data.push(stat[this.currentRubricStat]);
+            });
 
-            return { labels, datasets };
+            return {
+                labels: this.rubric.rows.map(row => row.header),
+                datasets: [
+                    {
+                        label: 'Mean score',
+                        data,
+                        stats,
+                    },
+                ],
+                options: this.rubricMeanHistOpts,
+            };
         },
 
         rubricMeanHistOpts() {
-            const to2Dec = x => (Number.isFinite(x) ? this.$utils.toMaxNDecimals(x, 2) : '-');
+            const getStats = (tooltipItem, data) => {
+                const dataset = data.datasets[tooltipItem.datasetIndex];
+                return dataset.stats[tooltipItem.index];
+            };
 
-            // const label = tooltipItem => `Mean score: ${to2Dec(tooltipItem.yLabel)}`;
-            const label = () => '';
+            const label = (tooltipItem, data) => {
+                const stats = getStats(tooltipItem, data);
+                return this.rirMessage(stats.rir);
+            };
 
-            const afterLabel = tooltipItem => {
-                const {
-                    rowIds,
-                    meanPerCat,
-                    ritPerCat,
-                    rirPerCat,
-                    nTimesFilledPerCat,
-                } = this.rubricResults;
-
-                const rowId = rowIds[tooltipItem.index];
-                const mu = meanPerCat[rowId];
-                const nTimes = nTimesFilledPerCat[rowId];
-                const rit = ritPerCat[rowId];
-                const rir = rirPerCat[rowId];
-
+            const afterLabel = (tooltipItem, data) => {
+                const stats = getStats(tooltipItem, data);
                 // Do not escape, chart.js does its own escaping.
                 return [
-                    `Mean score: ${mu}`,
-                    `Times filled: ${nTimes}`,
-                    `Rit: ${to2Dec(rit)}`,
-                    `Rir: ${to2Dec(rir)}`,
-                    this.rirMessage(rir),
+                    `Times filled: ${stats.nTimesFilled}`,
+                    `Mean: ${this.to2Dec(stats.mean)}`,
+                    `Median: ${this.to2Dec(stats.median)}`,
+                    `Mode: ${this.modeToString(stats.mode)}`,
+                    `Rit: ${this.to2Dec(stats.rit)}`,
+                    `Rir: ${this.to2Dec(stats.rir)}`,
                 ];
             };
 
@@ -221,84 +252,76 @@ export default {
         },
 
         rubricCatScatter() {
-            const results = this.rubricResults;
+            const ritItems = this.rubricSource.ritItemsPerCat;
+            const rirItems = this.rubricSource.rirItemsPerCat;
 
-            return results.rowIds.reduce((acc, rowId) => {
-                const ritItems = results.ritItemsPerCat[rowId].map(([x, y]) => ({ x, y }));
-                const rirItems = results.rirItemsPerCat[rowId].map(([x, y]) => ({ x, y }));
+            return this.rubric.rows.reduce(
+                (acc, row) => {
+                    const ritItem = ritItems[row.id].map(([x, y]) => ({ x, y }));
+                    const rirItem = rirItems[row.id].map(([x, y]) => ({ x, y }));
 
-                acc[rowId] = {
-                    datasets: [
-                        {
-                            label: 'Rit',
-                            data: ritItems,
-                        },
-                        {
-                            label: 'Rir',
-                            data: rirItems,
-                        },
-                    ],
-                };
-                return acc;
-            }, {});
+                    if (ritItem.length === 0 && rirItem.length === 0) {
+                        return acc;
+                    }
+
+                    acc[row.id] = {
+                        datasets: [
+                            {
+                                label: 'vs. Total',
+                                data: ritItem,
+                            },
+                            {
+                                label: 'vs. Total - Item',
+                                data: rirItem,
+                            },
+                        ],
+                        options: this.rubricScatterOpts,
+                    };
+                    return acc;
+                },
+                {},
+            );
         },
 
         rubricCatScatterOpts() {
-            return this.rubricResults.rowIds.reduce((acc, rowId) => {
-                acc[rowId] = {
-                    scales: {
-                        xAxes: [
-                            {
-                                scaleLabel: {
-                                    display: true,
-                                    labelString: 'Item score',
-                                },
+            return {
+                scales: {
+                    xAxes: [
+                        {
+                            scaleLabel: {
+                                display: true,
+                                labelString: 'Item score',
                             },
-                        ],
-                        yAxes: [
-                            {
-                                scaleLabel: {
-                                    display: true,
-                                    labelString: 'Total score (minus item score for rir)',
-                                },
+                        },
+                    ],
+                    yAxes: [
+                        {
+                            scaleLabel: {
+                                display: true,
+                                labelString: 'Total score (minus item score for rir)',
                             },
-                        ],
-                    },
-                };
-                return acc;
-            }, {});
+                        },
+                    ],
+                },
+            };
         },
     },
 
     methods: {
         ...mapActions('analytics', ['loadWorkspace']),
 
-        binSubmissionsBy(bins, f) {
-            return this.latestSubmissions.reduce((acc, sub) => {
-                const idx = bins.findIndex((bin, i) => f(sub, bin, i));
-                if (idx !== -1) {
-                    acc[idx].push(sub);
-                }
-                return acc;
-            }, bins.map(() => []));
+        to2Dec(x) {
+            return this.$utils.toMaxNDecimals(x, 2);
         },
 
-        binSubmissionsByGrade(bins) {
-            return this.binSubmissionsBy(bins, (sub, bin, i) => {
-                const [low, high] = bin;
-                const { grade } = sub;
-
-                if (grade == null) {
-                    return false;
-                } else if (i === bins.length - 1) {
-                    // Because we check the upper bound exclusively submissions
-                    // with the highest possible grade will not be put in the last
-                    // bin.
-                    return true;
-                } else {
-                    return low <= grade && grade < high;
-                }
-            });
+        modeToString(mode) {
+            // The mode is usually a number, but it can also be a list when multiple
+            // values were the most common.
+            if (Array.isArray(mode)) {
+                return mode.map(this.to2Dec).join(', ');
+            } else {
+                return this.to2Dec(mode);
+            }
         },
 
         rirMessage(rir) {
@@ -317,14 +340,19 @@ export default {
     watch: {
         currentWorkspaceId: {
             immediate: true,
-            handler(newId) {
-                console.log(newId);
-                this.loadWorkspace({ workspaceId: newId });
+            async handler(newId) {
+                this.loading = true;
+                const ws = await this.loadWorkspace({ workspaceId: newId });
+                if (ws.id === newId) {
+                    this.currentWorkspace = this.getWorkspace(newId);
+                    this.loading = false;
+                }
             },
         },
     },
 
     components: {
+        Loader,
         BarChart,
         ScatterPlot,
     },

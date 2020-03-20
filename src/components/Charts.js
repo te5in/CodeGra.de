@@ -6,10 +6,6 @@ import { mapObject } from '@/utils';
 
 export const BaseChart = {
     props: {
-        options: {
-            type: Object,
-            default: () => ({}),
-        },
         padding: {
             type: Number,
             default: 0.2,
@@ -23,6 +19,10 @@ export const BaseChart = {
     computed: {
         datasets() {
             return this.chartData.datasets;
+        },
+
+        options() {
+            return this.chartData.options || {};
         },
 
         renderData() {
@@ -103,14 +103,10 @@ export const BarChart = {
         },
 
         renderOpts() {
-            return this.$utils.deepExtendArray(this.options, {
+            return this.$utils.deepExtendArray({
                 scales: {
                     yAxes: [
                         {
-                            scaleLabel: {
-                                display: true,
-                                labelString: this.datasets[0].label || '',
-                            },
                             ticks: {
                                 beginAtZero: true,
                                 suggestedMax: this.suggestedMax,
@@ -118,7 +114,7 @@ export const BarChart = {
                         },
                     ],
                 },
-            });
+            }, this.options);
         },
 
         suggestedMax() {
@@ -145,7 +141,7 @@ export const ScatterPlot = {
         },
 
         renderOpts() {
-            return this.$utils.deepExtendArray(this.options, {
+            return this.$utils.deepExtendArray({
                 scales: {
                     xAxes: [
                         {
@@ -158,7 +154,7 @@ export const ScatterPlot = {
                         },
                     ],
                 },
-            });
+            }, this.options);
         },
 
         suggestedXRange() {

@@ -384,7 +384,7 @@ export default {
                 {
                     id: 'analytics',
                     name: 'Analytics',
-                    enabled: true,
+                    enabled: this.assignment.analytics_workspace_ids.length > 0,
                 },
             ];
         },
