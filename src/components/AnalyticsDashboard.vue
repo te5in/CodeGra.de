@@ -236,8 +236,8 @@ export default {
                     `Mean: ${this.to2Dec(stats.mean)}`,
                     `Median: ${this.to2Dec(stats.median)}`,
                     `Mode: ${this.modeToString(stats.mode)}`,
-                    `Rit: ${this.to2Dec(stats.rit)}`,
-                    `Rir: ${this.to2Dec(stats.rir)}`,
+                    `Rit: ${this.to2Dec(stats.rit) || '-'}`,
+                    `Rir: ${this.to2Dec(stats.rir) || '-'}`,
                 ];
             };
 
@@ -267,11 +267,11 @@ export default {
                     acc[row.id] = {
                         datasets: [
                             {
-                                label: 'vs. Total',
+                                label: 'Total',
                                 data: ritItem,
                             },
                             {
-                                label: 'vs. Total - Item',
+                                label: 'Total - Item',
                                 data: rirItem,
                             },
                         ],
