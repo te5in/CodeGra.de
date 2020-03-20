@@ -341,11 +341,12 @@ context('Rubric Editor', () => {
 
         function deleteRow(name) {
             showRow(name);
-            return cy.get('.rubric-editor .submit-button.delete-category:visible')
+            cy.get('.rubric-editor .submit-button.delete-category:visible')
                 .submit('success', {
                     hasConfirm: true,
                     waitForDefault: false,
                 });
+            getRow(name).should('not.exist');
         }
 
         function submit(...args) {
@@ -664,18 +665,14 @@ context('Rubric Editor', () => {
         });
 
         it('should be possible to reset the rubric to the state on the server', () => {
-            function openCat(i) {
-                cy.get(`.rubric-editor .nav-tabs .nav-item:nth-child(${i + 1})`).click();
-            }
-
-            openCat(0);
+            showRow('rubric row 0');
             cy.get('.rubric-editor .tab-pane:visible .rubric-editor-row').within(() => {
                 cy.get('.category-name').clear().type('XXX');
                 cy.get('.category-description').clear().type('XXX');
                 cy.get('.points').clear().type('10');
             });
 
-            openCat(1);
+            showRow('rubric row 1');
             cy.get('.rubric-editor .tab-pane:visible .rubric-editor-row').within(() => {
                 cy.get('.category-name').clear().type('XXX');
                 cy.get('.category-description').clear().type('XXX');
@@ -684,19 +681,9 @@ context('Rubric Editor', () => {
                 cy.get('.rubric-item:first-child .description').clear().type('XXX');
             });
 
-            openCat(3);
-            cy.get('.rubric-editor .tab-pane:visible .rubric-editor-row .submit-button.delete-category')
-                .submit('success', {
-                    hasConfirm: true,
-                    waitForDefault: false,
-                });
+            deleteRow('rubric row 2');
 
-            openCat(2);
-            cy.get('.rubric-editor .tab-pane:visible .rubric-editor-row .submit-button.delete-category')
-                .submit('success', {
-                    hasConfirm: true,
-                    waitForDefault: false,
-                });
+            deleteRow('rubric row 3');
 
             addRow();
 

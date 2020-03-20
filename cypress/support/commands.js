@@ -570,12 +570,16 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
                 .containsAll(opts.confirmMsg)
                 .contains('.btn:visible', opts.doConfirm ? 'Confirm' : 'Cancel')
                 .click();
+            cy.get(`#${id}-modal`)
+                .should('not.exist');
         } else {
             cy.get('.popover .submit-button-confirm')
                 .containsAll(opts.confirmMsg)
                 .should('be.visible')
                 .contains('.btn:visible', opts.doConfirm ? 'Yes' : 'No')
                 .click();
+            cy.get('.popover .submit-button-confirm').should('not.be.visible');
+            cy.get('.popover .submit-button-confirm').should('not.exist');
         }
 
         if (!opts.doConfirm) {
@@ -599,6 +603,8 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
             .containsAll(opts.popoverMsg)
             .find('.hide-button')
             .click();
+        cy.get(`.popover .submit-button-${state}`).should('not.be.visible')
+        cy.get(`.popover .submit-button-${state}`).should('not.exist');
     }
 
     if (opts.waitForDefault) {
