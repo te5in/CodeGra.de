@@ -9,7 +9,10 @@ module.exports = {
     env: {
         browser: true,
     },
-    extends: 'airbnb-base',
+    extends: [
+        'plugin:prettier-vue/recommended',
+        'airbnb-base',
+    ],
     // required to lint *.vue files
     plugins: [
         '@typescript-eslint',
@@ -21,7 +24,19 @@ module.exports = {
             'webpack': {
                 'config': 'build/webpack.base.conf.js'
             }
-        }
+        },
+
+        'prettier-vue': {
+            // Settings for how to process Vue SFC Blocks
+            SFCBlocks: {
+                /**
+                 * Use prettier to process `<template>` blocks or not
+                 *
+                 * If set to `false`, remember not to `extends: ['prettier/vue']`, as you need the rules from `eslint-plugin-vue` to lint `<template>` blocks
+                 */
+                template: false,
+            },
+        },
     },
     // add your custom rules here
     'rules': {
@@ -36,7 +51,7 @@ module.exports = {
         }],
         // allow debugger during development
         'no-debugger': process.env.NODE_ENV === 'production' ? 2 : 0,
-        'indent': ["error", 4, { 'SwitchCase': 1 }],
+        'indent': 'off',
         'no-else-return': 'off',
         'no-plusplus': 'off',
         'function-paren-newline': 'off',
@@ -68,6 +83,17 @@ module.exports = {
         'no-param-reassign': ["error", { 'props': false }],
 
         'no-underscore-dangle': ['error', { 'allowAfterThis': true, 'allowAfterSuper': true }],
+
+        'prettier-vue/prettier': ['error', {
+            'singleQuote': true,
+            'parser': 'typescript',
+            'useTabs': false,
+            'tabWidth': 4,
+            'trailingComma': 'all',
+            'printWidth': 100,
+            'allowParans': 'avoid',
+            'endOfLine': 'auto',
+        }],
     },
     globals: {
         'UserConfig': true,

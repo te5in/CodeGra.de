@@ -6,6 +6,9 @@ export const GRADING = 'grading';
 export const OPEN = 'open';
 export const DONE = 'done';
 
-export type AssignmentStates = (
-    typeof HIDDEN | typeof SUBMITTING | typeof GRADING | typeof OPEN | typeof DONE
-);
+export type AssignmentStates =
+    | typeof HIDDEN
+    | typeof SUBMITTING
+    | typeof GRADING
+    | typeof OPEN
+    | typeof DONE;

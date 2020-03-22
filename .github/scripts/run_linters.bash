@@ -24,22 +24,16 @@ fi
 make yapf_check
 res5=$?
 
-out="$(npm run check-format)"
-res6=$?
-if [[ "$res6" -ne 0 ]]; then
-    echo "$out"
-fi
-
 ( cd docs && make html )
-res7="$?"
+res6="$?"
 
 wait "$NPM_PID"
-res8="$?"
+res7="$?"
 
 wait "$PYLINT_PID"
 res1="$?"
 
-[[ $(( res1 + res2 + res3 + res4 + res5 + res6 + res7 + res8 )) = 0 ]]
+[[ $(( res1 + res2 + res3 + res4 + res5 + res6 + res7 )) = 0 ]]
 exit_code="$?"
 
 exit "$exit_code"

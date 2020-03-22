@@ -141,27 +141,24 @@ export class Assignment extends AssignmentData {
     }
 
     static fromServerData(serverData: AssignmentServerProps, courseId: number, canManage: boolean) {
-        const props = keys<AssignmentServerProps>().reduce(
-            (acc, prop) => {
-                switch (prop) {
-                    case 'deadline':
-                    case 'created_at':
-                    case 'reminder_time':
-                    case 'cool_off_period': {
-                        break;
-                    }
-                    default: {
-                        const value = serverData[prop];
-                        // Just to make sure this property is found in acc.
-                        noop(acc[prop]);
-                        // @ts-ignore
-                        acc[prop] = value;
-                    }
+        const props = keys<AssignmentServerProps>().reduce((acc, prop) => {
+            switch (prop) {
+                case 'deadline':
+                case 'created_at':
+                case 'reminder_time':
+                case 'cool_off_period': {
+                    break;
                 }
-                return acc;
-            },
-            ({} as Mutable<AssignmentData, keyof AssignmentData>),
-        );
+                default: {
+                    const value = serverData[prop];
+                    // Just to make sure this property is found in acc.
+                    noop(acc[prop]);
+                    // @ts-ignore
+                    acc[prop] = value;
+                }
+            }
+            return acc;
+        }, {} as Mutable<AssignmentData, keyof AssignmentData>);
 
         props.courseId = courseId;
         props.canManage = canManage;
@@ -286,51 +283,48 @@ export class Assignment extends AssignmentData {
             Object.assign(
                 {},
                 this,
-                Object.keys(newProps).reduce(
-                    (acc, key) => {
+                Object.keys(newProps).reduce((acc, key) => {
+                    // @ts-ignore
+                    if (!ALLOWED_UPDATE_PROPS.has(key)) {
                         // @ts-ignore
-                        if (!ALLOWED_UPDATE_PROPS.has(key)) {
-                            // @ts-ignore
-                            const value: object = newProps[key];
-                            throw TypeError(`Cannot set assignment property: ${key} to ${value}`);
-                        }
+                        const value: object = newProps[key];
+                        throw TypeError(`Cannot set assignment property: ${key} to ${value}`);
+                    }
 
-                        if (key === 'graders') {
-                            const value = newProps[key];
-                            if (value == null) {
-                                acc.graderIds = null;
-                            } else {
-                                value.forEach(grader =>
-                                    store.dispatch(
-                                        'users/addOrUpdateUser',
-                                        {
-                                            user: grader,
-                                        },
-                                        { root: true },
-                                    ),
-                                );
-                                acc.graderIds = value.map(g => g.id);
-                            }
-                        } else if (key === 'deadline' || key === 'reminderTime') {
-                            const value = newProps[key];
-                            if (!moment.isMoment(value)) {
-                                throw new Error(`${key} can only be set as moment`);
-                            }
-                            acc[key] = value;
-                        } else if (key === 'cool_off_period') {
-                            const value = newProps[key];
-                            acc.coolOffPeriod = moment.duration(value, 'seconds');
+                    if (key === 'graders') {
+                        const value = newProps[key];
+                        if (value == null) {
+                            acc.graderIds = null;
                         } else {
-                            // @ts-ignore
-                            const value: any = newProps[key];
-                            // @ts-ignore
-                            acc[key] = value;
+                            value.forEach(grader =>
+                                store.dispatch(
+                                    'users/addOrUpdateUser',
+                                    {
+                                        user: grader,
+                                    },
+                                    { root: true },
+                                ),
+                            );
+                            acc.graderIds = value.map(g => g.id);
                         }
+                    } else if (key === 'deadline' || key === 'reminderTime') {
+                        const value = newProps[key];
+                        if (!moment.isMoment(value)) {
+                            throw new Error(`${key} can only be set as moment`);
+                        }
+                        acc[key] = value;
+                    } else if (key === 'cool_off_period') {
+                        const value = newProps[key];
+                        acc.coolOffPeriod = moment.duration(value, 'seconds');
+                    } else {
+                        // @ts-ignore
+                        const value: any = newProps[key];
+                        // @ts-ignore
+                        acc[key] = value;
+                    }
 
-                        return acc;
-                    },
-                    {} as Mutable<AssignmentData, keyof AssignmentData>,
-                ),
+                    return acc;
+                }, {} as Mutable<AssignmentData, keyof AssignmentData>),
             ),
         );
     }

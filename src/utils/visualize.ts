@@ -20,6 +20,7 @@ const tabsCache = [1, 2, 3, 4].map(nTabs);
 export function visualizeWhitespace(line: string): string {
     const newLine = [];
 
+    // eslint-disable-next-line
     for (let i = 0; i < line.length;) {
         const start = i;
         if (line[i] === '<') {
