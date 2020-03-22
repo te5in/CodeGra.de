@@ -2,6 +2,16 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+# TODO: As soon as the `SomeArguments` proposal from
+# https://github.com/python/mypy/issues/3157 is fixed we should create a
+# `PermissionChecker` class here that wraps each of these `ensure_*`
+# functions. It would have two methods: `PermissionChecker.ensure` and
+# `PermissionChecker.check` where the first one would raise an exception (just
+# like the functions do now) and the second one would return a boolean
+# (indicating if the function raised or not). The `__call__` of the
+# `PermissionChecker` should probably call the `ensure` method to be backwards
+# compatible.
+
 import typing as t
 from functools import wraps
 

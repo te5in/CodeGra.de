@@ -117,9 +117,7 @@ const actions = {
         });
     },
 
-    updateUserInfo({ commit, dispatch }, {
-        name, email, oldPw, newPw,
-    }) {
+    updateUserInfo({ commit, dispatch }, { name, email, oldPw, newPw }) {
         return axios
             .patch('/api/v1/login', {
                 name,

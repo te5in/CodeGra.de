@@ -30,7 +30,7 @@ from . import assignment as assignment_models
 from .. import auth, helpers, features
 from .linter import LinterState, LinterComment, LinterInstance
 from .rubric import RubricItem, WorkRubricItem
-from .comment import Comment
+from .comment import CommentBase, CommentReply
 from ..helpers import JSONType
 from ..exceptions import PermissionException
 from ..permissions import CoursePermission
@@ -661,11 +661,12 @@ class Work(Base):
         :returns: An iterator producing human readable representations of the
             feedback given by a person.
         """
-        comments = Comment.query.filter(
-            Comment.file.has(work=self),
+        # TODO: Figure out replies
+        comments = CommentBase.query.filter(
+            CommentBase.file.has(work=self),
         ).order_by(
-            Comment.file_id.asc(),
-            Comment.line.asc(),
+            CommentBase.file_id.asc(),
+            CommentBase.line.asc(),
         )
         for com in comments:
             yield f'{com.file.get_path()}:{com.line + 1}:1: {com.comment}'

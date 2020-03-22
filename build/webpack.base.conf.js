@@ -5,12 +5,16 @@ var config = require('../config')
 var vueLoaderConfig = require('./vue-loader.conf')
 var userConfig = require('./userConfig')
 var permissions = require('../seed_data/permissions.json')
+const { VueLoaderPlugin } = require('vue-loader')
+const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
+const keysTransformer = require('ts-transformer-keys/transformer').default;
 
 function resolve (dir) {
   return path.join(__dirname, '..', dir)
 }
 
 module.exports = {
+  mode: process.env.NODE_ENV,
   entry: {
     app: './src/main.js'
   },
@@ -22,17 +26,18 @@ module.exports = {
       : config.dev.assetsPublicPath
   },
   resolve: {
-    extensions: ['.js', '.vue', '.json'],
+    extensions: ['.js', '.vue', '.json', '.ts'],
     alias: {
       'vue$': 'vue/dist/vue.esm.js',
       '@': resolve('src'),
-      'mixins': path.resolve(__dirname, '../src/mixins.less')
+      'mixins': path.resolve(__dirname, '../src/mixins.less'),
+      'mixins.less': path.resolve(__dirname, '../src/mixins.less')
     }
   },
   module: {
     rules: [
       {
-        test: /\.(js|vue)$/,
+        test: /\.(js|vue|ts)$/,
         loader: 'eslint-loader',
         enforce: 'pre',
           include: [
@@ -47,6 +52,25 @@ module.exports = {
         test: /\.vue$/,
         loader: 'vue-loader',
         options: vueLoaderConfig
+      },
+      {
+        test: /\.tsx?$/,
+        exclude: /node_modules/,
+        use: [
+          {
+            loader: "ts-loader",
+            options: {
+              appendTsSuffixTo: [/\.vue$/],
+              transpileOnly: false,
+              experimentalWatchApi: true,
+              getCustomTransformers: program => ({
+                before: [
+                    keysTransformer(program),
+                ],
+              }),
+            },
+          },
+        ]
       },
       {
         test: /\.js$/,
@@ -78,6 +102,7 @@ module.exports = {
     buffer: false,
   },
   plugins: [
+    new VueLoaderPlugin(),
     new webpack.DefinePlugin({
         'UserConfig': JSON.stringify(userConfig),
         'Permissions': JSON.stringify(permissions),

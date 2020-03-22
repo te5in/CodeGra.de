@@ -201,7 +201,7 @@ class MyDb:  # pragma: no cover
 
     def ForeignKey(
         self,
-        _name: str,
+        _name: t.Union[str, 'DbColumn[T]'],
         *,
         ondelete: t.Union[None, Literal['SET NULL', 'CASCADE']] = None,
     ) -> _ForeignKey:
@@ -248,7 +248,8 @@ class MyDb:  # pragma: no cover
         unique: bool = False,
         primary_key: Literal[True],
         default: t.Callable[[], T] = ...,
-        index: bool = False
+        index: bool = False,
+        nullable: Literal[False] = False,
     ) -> 'ColumnProxy[T]':
         ...
 
@@ -402,6 +403,7 @@ class MyDb:  # pragma: no cover
         order_by: t.Union[t.Callable[[], 'DbColumn'], t.
                           Callable[[], 'ColumnOrder']] = None,
         lazy: Literal['select', 'joined', 'selectin'] = 'select',
+        primaryjoin: object = None,
     ) -> 'ColumnProxy[t.List[T]]':
         ...
 
@@ -552,7 +554,7 @@ class MyNonOrderableQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     one: t.Callable[[QuerySelf], T]
     __iter__: t.Callable[[QuerySelf], t.Iterator[T]]
 
-    def distinct(self: QuerySelf, on: t.Any = None) -> 'QuerySelf':
+    def distinct(self: QuerySelf, on: DbColumn = None) -> 'QuerySelf':
         pass
 
     def all(self) -> t.List[T]:

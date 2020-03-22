@@ -149,6 +149,18 @@ def add_deprecate_warning(warning: str) -> None:
     )
 
 
+def mark_as_deprecated_route(warning: str) -> t.Callable[[T_CAL], T_CAL]:
+    def __wrapper(fun: T_CAL) -> t.Any:
+        @wraps(fun)
+        def __inner(*args: object, **kwargs: object) -> object:
+            add_deprecate_warning(warning)
+            return fun(*args, **kwargs)
+
+        return t.cast(T_CAL, __inner)
+
+    return __wrapper
+
+
 class Dividable(Protocol):  # pragma: no cover
     """A protocol that for dividable variables.
     """
@@ -1590,3 +1602,12 @@ def contains_duplicate(it_to_check: t.Iterator[T_Hashable]) -> bool:
         seen.add(item)
 
     return False
+
+
+def did_raise(fun: t.Callable[[], None], exc: t.Type[Exception]) -> bool:
+    try:
+        fun()
+    except exc:
+        return True
+    else:
+        return False

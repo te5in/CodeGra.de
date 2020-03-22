@@ -1,8 +1,6 @@
-export class ValidationError {
+export abstract class ValidationError {
     // eslint-disable-next-line class-methods-use-this
-    get hasErrors() {
-        return false;
-    }
+    abstract get hasErrors(): boolean;
 
     throwOnError() {
         if (this.hasErrors) {
@@ -13,6 +11,18 @@ export class ValidationError {
 }
 
 export class RubricRowValidationError extends ValidationError {
+    categories: string[];
+
+    continuous: string[];
+
+    itemHeader: string[];
+
+    itemPoints: string[];
+
+    unnamed: boolean;
+
+    maxPoints: boolean;
+
     constructor() {
         super();
 
@@ -25,7 +35,7 @@ export class RubricRowValidationError extends ValidationError {
         Object.seal(this);
     }
 
-    get hasErrors() {
+    get hasErrors(): boolean {
         return (
             this.categories.length > 0 ||
             this.continuous.length > 0 ||
@@ -38,6 +48,8 @@ export class RubricRowValidationError extends ValidationError {
 }
 
 export class RubricResultValidationError extends ValidationError {
+    multipliers: string[];
+
     constructor() {
         super();
 
@@ -45,7 +57,7 @@ export class RubricResultValidationError extends ValidationError {
         Object.seal(this);
     }
 
-    get hasErrors() {
+    get hasErrors(): boolean {
         return this.multipliers.length > 0;
     }
 }

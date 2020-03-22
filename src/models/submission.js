@@ -1,13 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import {
-    getProps,
-    setProps,
-    cmpNoCase,
-    formatGrade,
-    snakeToCamelCase,
-    readableFormatDate,
-    coerceToString,
-} from '@/utils';
+import { cmpNoCase, formatGrade, snakeToCamelCase, readableFormatDate } from '@/utils';
 import { NONEXISTENT } from '@/constants';
 import moment from 'moment';
 import { store } from '@/store';
@@ -356,101 +348,6 @@ export class FileTree {
             }
         }
         return null;
-    }
-}
-
-export class FeedbackLine {
-    constructor(fileId, line, message, author) {
-        // a fileId should never be a number.
-        this.fileId = coerceToString(fileId);
-        // A lineNumber should always be a number.
-        this.line = Number(line);
-        this.lineNumber = this.line;
-
-        this.msg = message;
-        this.authorId = null;
-
-        if (author) {
-            this.authorId = author.id;
-            store.commit(`users/${mutationTypes.ADD_OR_UPDATE_USER}`, author);
-        }
-
-        Object.freeze(this);
-    }
-
-    get author() {
-        return store.getters['users/getUser'](this.authorId);
-    }
-}
-
-export class Feedback {
-    constructor(general, linter, userLines) {
-        this.general = general;
-        this.linter = linter;
-        this.userLines = Object.freeze(userLines);
-        this.user = Object.freeze(
-            this.userLines.reduce((acc, line) => {
-                setProps(acc, line, line.fileId, line.lineNumber);
-                return acc;
-            }, {}),
-        );
-
-        Object.freeze(this);
-    }
-
-    static fromServerData(feedback) {
-        const authors = feedback.authors;
-
-        const general = getProps(feedback, null, 'general');
-        const linter = getProps(feedback, {}, 'linter');
-
-        const userLines = Object.entries(getProps(feedback, {}, 'user')).reduce(
-            (lines, [fileId, fileFeedback]) => {
-                lines.push(
-                    ...Object.entries(fileFeedback).map(([line, lineFeedback]) => {
-                        if (line instanceof FeedbackLine) {
-                            return line;
-                        } else {
-                            return new FeedbackLine(
-                                fileId,
-                                line,
-                                lineFeedback,
-                                getProps(authors, null, fileId, line),
-                            );
-                        }
-                    }),
-                );
-                return lines;
-            },
-            [],
-        );
-        return new Feedback(general, linter, userLines);
-    }
-
-    addFeedbackLine(line) {
-        if (!(line instanceof FeedbackLine)) {
-            throw new Error('The given line is not the correct class');
-        }
-
-        const newLines = [...this.userLines];
-        const oldLineIndex = this.userLines.findIndex(
-            l => l.lineNumber === line.lineNumber && l.fileId === line.fileId,
-        );
-        if (oldLineIndex < 0) {
-            newLines.push(line);
-        } else {
-            newLines[oldLineIndex] = line;
-        }
-
-        return new Feedback(this.general, this.linter, newLines);
-    }
-
-    removeFeedbackLine(fileId, lineNumber) {
-        return new Feedback(
-            this.general,
-            this.linter,
-            this.userLines.filter(l => !(l.lineNumber === lineNumber && l.fileId === fileId)),
-        );
     }
 }
 

@@ -7,6 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 import numbers
+import itertools
 from collections import Counter, defaultdict
 
 import structlog
@@ -14,9 +15,11 @@ import sqlalchemy.sql as sql
 from flask import request
 from sqlalchemy.orm import selectinload, contains_eager
 from mypy_extensions import TypedDict
+from typing_extensions import Final, Protocol
 
 import psef.files
 from psef import app, tasks, current_user
+from cg_sqlalchemy_helpers.types import ColumnProxy
 
 from . import api
 from .. import auth, models, helpers, features
@@ -32,20 +35,25 @@ from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
 
-Feedback = TypedDict(  # pylint: disable=invalid-name
-    'Feedback', {
-        'user': t.MutableMapping[int, t.MutableMapping[int, str]],
-        'linter': t.MutableMapping[
-            int,
-            t.MutableMapping[int, t.List[t.Tuple[str, models.LinterComment]]],
-        ],
-        'general': str,
-        'authors': t.Optional[t.MutableMapping[
-            int,
-            t.MutableMapping[int, models.User]
-        ]],
-    }
-)
+LinterComments = t.Dict[int,
+                        t.Dict[int, t.List[t.Tuple[str, models.
+                                                   LinterComment]]],
+                        ]
+
+
+class FeedbackBase(TypedDict, total=True):
+    general: str
+    linter: LinterComments
+
+
+class FeedbackWithReplies(FeedbackBase, total=True):
+    user: t.List[models.CommentBase]
+    authors: t.List[models.User]
+
+
+class FeedbackWithoutReplies(FeedbackBase, total=True):
+    user: t.Dict[int, t.Dict[int, str]]
+    authors: t.Optional[t.Dict[int, t.Dict[int, models.User]]]
 
 
 @api.route("/submissions/<int:submission_id>", methods=['GET'])
@@ -253,9 +261,85 @@ def delete_submission(submission_id: int) -> EmptyResponse:
     return make_empty_response()
 
 
+class _WithFileId(Protocol):
+    file_id: ColumnProxy[int]
+
+
+TCom = t.TypeVar('TCom', bound=_WithFileId)
+
+
+def _group_by_file_id(comms: t.List[TCom]
+                      ) -> t.Iterator[t.Tuple[int, t.Iterator[TCom]]]:
+    return itertools.groupby(comms, lambda c: c.file_id)
+
+
+def _get_feedback_without_replies(
+    comments: t.List[models.CommentBase],
+    can_view_authors: bool,
+    can_view_feedback: bool,
+    linter_comments: LinterComments,
+) -> FeedbackWithoutReplies:
+    user = {}
+    if can_view_feedback:
+        user = {
+            file_id: {
+                c.line: c.first_reply.comment
+                for c in comms if c.first_reply is not None
+            }
+            for file_id, comms in _group_by_file_id(comments)
+        }
+
+    authors = {}
+    if can_view_feedback and can_view_authors:
+        authors = {
+            file_id: {
+                c.line: c.first_reply.author
+                for c in comms if c.first_reply is not None
+            }
+            for file_id, comms in _group_by_file_id(comments)
+        }
+
+    return {
+        'general': '',
+        'user': user,
+        'authors': authors,
+        'linter': linter_comments,
+    }
+
+
+def _get_feedback_with_replies(
+    comments: t.List[models.CommentBase],
+    can_view_authors: bool,
+    can_view_feedback: bool,
+    linter_comments: LinterComments,
+) -> FeedbackWithReplies:
+    user = []
+    if can_view_feedback:
+        user = comments
+
+    authors = []
+    if can_view_feedback and can_view_authors:
+        authors = db.session.query(models.User).filter(
+            models.User.id.in_(
+                db.session.query(models.CommentReply.author_id).filter(
+                    models.CommentReply.id.in_([c.id for c in comments])
+                ).distinct(models.CommentReply.author_id)
+            )
+        ).all()
+
+    return {
+        'general': '',
+        'user': user,
+        'authors': authors,
+        'linter': linter_comments,
+    }
+
+
 @api.route('/submissions/<int:submission_id>/feedbacks/', methods=['GET'])
 @auth.login_required
-def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
+def get_feedback_from_submission(
+    submission_id: int
+) -> JSONResponse[t.Union[FeedbackWithoutReplies, FeedbackWithReplies]]:
     """Get all feedback for a submission
 
     .. :quickref: Submission; Get all (linter, user and general) feedback.
@@ -275,58 +359,61 @@ def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
     course_id = work.assignment.course_id
-    can_view_authors = current_user.has_permission(
+    can_view_authors: Final = current_user.has_permission(
         CPerm.can_see_assignee,
         course_id,
     )
-
-    res: Feedback = {
-        'general': '',
-        'user': defaultdict(dict),
-        'authors': None,
-        'linter': defaultdict(lambda: defaultdict(list)),
-    }
-
-    try:
-        auth.ensure_can_see_user_feedback(work)
-    except PermissionException:
-        pass
-    else:
-        authors: t.MutableMapping[int, t.MutableMapping[int, models.User]
-                                  ] = defaultdict(dict)
-
-        res['general'] = work.comment or ''
-        res['authors'] = authors if can_view_authors else None
-
-        comments = models.Comment.query.filter(
-            models.Comment.file.has(work=work),
-        ).order_by(
-            models.Comment.file_id.asc(),
-            models.Comment.line.asc(),
-        )
-
-        for comment in comments:
-            res['user'][comment.file_id][comment.line] = comment.comment
-            if can_view_authors:
-                authors[comment.file_id][comment.line] = comment.user
+    can_view_feedback = not helpers.did_raise(
+        lambda: auth.ensure_can_see_user_feedback(work), PermissionException
+    )
 
     try:
         auth.ensure_can_see_linter_feedback(work)
     except PermissionException:
         pass
     else:
-        linter_comments = models.LinterComment.query.filter(
+        all_linter_comments = models.LinterComment.query.filter(
             models.LinterComment.file.has(work=work)
         ).order_by(
             models.LinterComment.file_id.asc(),
             models.LinterComment.line.asc(),
-        )
-        for lcomment in linter_comments:
-            res['linter'][lcomment.file_id][lcomment.line].append(
-                (lcomment.linter_code, lcomment)
-            )
+        ).all()
 
-    return jsonify(res)
+        def group_by_line(
+            comms: t.Iterator[models.LinterComment]
+        ) -> t.Iterator[t.Tuple[int, t.Iterator[models.LinterComment]]]:
+            return itertools.groupby(comms, lambda lc: lc.line)
+
+        linter_comments = {
+            file_id: {
+                line: [(com.linter_code, com) for com in comms]
+                for line, comms in group_by_line(lcomms)
+            }
+            for file_id, lcomms in _group_by_file_id(all_linter_comments)
+        }
+
+    comments = models.CommentBase.query.filter(
+        models.CommentBase.file.has(work=work),
+        # We join the replies using an innerload to make sure we only get
+        # commentbases that have atleast one reply.
+    ).join(
+        models.CommentBase.replies, isouter=False
+    ).order_by(
+        # This order is really important for the `itertools.groupby` call.
+        models.CommentBase.file_id.asc(),
+        models.CommentBase.line.asc(),
+    ).options(contains_eager(models.CommentBase.replies)).all()
+
+    fun: t.Callable[[t.List[models.CommentBase], bool, bool, LinterComments], t
+                    .Union[FeedbackWithoutReplies, FeedbackWithReplies]]
+    if helpers.request_arg_true('with_replies'):
+        fun = _get_feedback_with_replies
+    else:
+        fun = _get_feedback_without_replies
+
+    return jsonify(
+        fun(comments, can_view_authors, can_view_feedback, linter_comments)
+    )
 
 
 @api.route("/submissions/<int:submission_id>/rubrics/", methods=['GET'])

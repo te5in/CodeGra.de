@@ -2,7 +2,7 @@
 
 module.exports = {
     root: true,
-    parser: 'babel-eslint',
+    parser: '@typescript-eslint/parser',
     parserOptions: {
         sourceType: 'module'
     },
@@ -12,7 +12,8 @@ module.exports = {
     extends: 'airbnb-base',
     // required to lint *.vue files
     plugins: [
-        'html'
+        '@typescript-eslint',
+        'html',
     ],
     // check if imports actually resolve
     'settings': {
@@ -44,6 +45,24 @@ module.exports = {
         'arrow-parens': ['error', 'as-needed'],
         'prefer-destructuring': 'off',
         'import/prefer-default-export': 'off',
+        'operator-linebreak': 'off',
+        'import/no-cycle': 'off',
+        'import/extensions': 'off',
+        'object-curly-newline': 'off',
+        'implicit-arrow-linebreak': 'off',
+        'comma-style': 'off',
+
+        'no-unused-vars': 'off',
+        '@typescript-eslint/no-unused-vars': ['error', {
+            'vars': 'all',
+            'args': 'after-used',
+            'ignoreRestSiblings': false,
+            'argsIgnorePattern': '^_+$',
+        }],
+
+        "no-use-before-define": 'off',
+        "@typescript-eslint/no-use-before-define": ["error", { "functions": true, "classes": true }],
+
 
         // allow vuex
         'no-param-reassign': ["error", { 'props': false }],

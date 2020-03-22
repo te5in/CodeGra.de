@@ -349,5 +349,11 @@
     "course_permission": true,
     "short_description": "See feedback before done",
     "long_description": "Users with this permission can see feedback before an assignment is set to \"done\""
+  },
+  "can_edit_others_comments": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Edit inline comments by others",
+    "long_description": "Users with this permission can edit inline comments left by other users"
   }
 }

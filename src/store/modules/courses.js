@@ -111,9 +111,7 @@ export const actions = {
 
     async updateAssignmentReminder(
         { commit, state, dispatch },
-        {
-            assignmentId, reminderTime, doneType, doneEmail,
-        },
+        { assignmentId, reminderTime, doneType, doneEmail },
     ) {
         await dispatch('loadCourses');
 

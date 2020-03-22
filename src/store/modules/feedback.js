@@ -3,7 +3,7 @@ import Vue from 'vue';
 import axios from 'axios';
 
 import * as utils from '@/utils';
-import { Feedback, FeedbackLine } from '@/models/submission';
+import { Feedback, FeedbackLine } from '@/models/feedback';
 import * as types from '../mutation-types';
 
 const getters = {
@@ -30,16 +30,18 @@ const actions = {
                         root: true,
                     },
                 ),
-                axios.get(`/api/v1/submissions/${submissionId}/feedbacks/`).catch(err => {
-                    delete loaders.feedback[submissionId];
+                axios
+                    .get(`/api/v1/submissions/${submissionId}/feedbacks/?with_replies`)
+                    .catch(err => {
+                        delete loaders.feedback[submissionId];
 
-                    switch (utils.getProps(err, null, 'response', 'status')) {
-                        case 403:
-                            return {};
-                        default:
-                            throw err;
-                    }
-                }),
+                        switch (utils.getProps(err, null, 'response', 'status')) {
+                            case 403:
+                                return {};
+                            default:
+                                throw err;
+                        }
+                    }),
             ]).then(([, { data }]) => {
                 delete loaders.feedback[submissionId];
                 if (data != null) {
@@ -59,9 +61,7 @@ const actions = {
 
     async addFeedbackLine(
         { commit, dispatch },
-        {
-            assignmentId, submissionId, fileId, line, author,
-        },
+        { assignmentId, submissionId, fileId, line, author },
     ) {
         await dispatch('loadFeedback', { assignmentId, submissionId });
 
@@ -77,9 +77,7 @@ const actions = {
 
     async submitFeedbackLine(
         { commit, dispatch },
-        {
-            assignmentId, submissionId, fileId, line, data, author,
-        },
+        { assignmentId, submissionId, fileId, line, data, author },
     ) {
         return Promise.all([
             dispatch('loadFeedback', { assignmentId, submissionId }),
@@ -100,9 +98,7 @@ const actions = {
 
     async deleteFeedbackLine(
         { commit, dispatch },
-        {
-            assignmentId, submissionId, fileId, line, onServer,
-        },
+        { assignmentId, submissionId, fileId, line, onServer },
     ) {
         await dispatch('loadFeedback', { assignmentId, submissionId });
 
@@ -147,9 +143,7 @@ const mutations = {
         loaders.feedbacks = {};
     },
 
-    [types.UPDATE_FEEDBACK](state, {
-        assignmentId, submissionId, fileId, line, data, author,
-    }) {
+    [types.UPDATE_FEEDBACK](state, { assignmentId, submissionId, fileId, line, data, author }) {
         const feedback = utils.getProps(state.feedbacks, null, assignmentId, submissionId);
         let newFeedback;
 
