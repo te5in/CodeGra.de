@@ -3,6 +3,12 @@
 <div class="analytics-dashboard row">
     <loader page-loader v-if="loading" />
 
+    <b-alert v-else-if="error"
+             variant="danger"
+             show>
+        {{ $utils.getErrorMessage(error) }}
+    </b-alert>
+
     <template v-else>
         <div class="col-12">
             <b-card header="General statistics">
@@ -418,6 +424,7 @@ export default {
                     const ws = res.data;
                     if (ws.id === this.currentWorkspaceId) {
                         this.currentWorkspace = ws;
+                        this.error = null;
                         this.loading = false;
                     }
                     return res;
