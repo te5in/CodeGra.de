@@ -10,21 +10,22 @@
     </b-alert>
 
     <template v-else>
-        <div class="col-12">
+        <div class="col-12"
+             v-if="filteredWorkspace.submissionCount > 0">
             <b-card header="General statistics">
                 <div class="row">
                     <div class="col-3 border-right metric">
-                        <h1>{{ workspace.studentCount }}</h1>
+                        <h1>{{ filteredWorkspace.studentCount }}</h1>
                         <label>Number of students</label>
                     </div>
 
                     <div class="col-3 border-right metric">
-                        <h1>{{ to2Dec(workspace.averageGrade) }}</h1>
+                        <h1>{{ to2Dec(filteredWorkspace.averageGrade) }}</h1>
                         <label>Average grade</label>
                     </div>
 
                     <div class="col-3 border-right metric">
-                        <h1>{{ to2Dec(workspace.averageSubmissions) }}</h1>
+                        <h1>{{ to2Dec(filteredWorkspace.averageSubmissions) }}</h1>
                         <label>Average number of submissions</label>
                     </div>
 
@@ -52,7 +53,16 @@
                            type="number"
                            placeholder="0"
                            min="0"
-                           :max="filter.maxGrade" />
+                           :max="filter.maxGrade"
+                           step="1" />
+
+                    <template #append>
+                        <b-button variant="warning"
+                                  :disabled="filter.minGrade == ''"
+                                  @click="filter.minGrade = ''">
+                            <icon name="reply" />
+                        </b-button>
+                    </template>
                 </b-input-group>
 
                 <b-input-group prepend="Max. grade">
@@ -61,67 +71,108 @@
                            type="number"
                            placeholder="10"
                            :min="filter.minGrade"
-                           max="10" />
+                           max="10"
+                           step="1" />
+
+                    <template #append>
+                        <b-button variant="warning"
+                                  :disabled="filter.maxGrade == ''"
+                                  @click="filter.maxGrade = ''">
+                            <icon name="reply" />
+                        </b-button>
+                    </template>
                 </b-input-group>
 
                 <b-input-group prepend="Submitted after">
                     <datetime-picker v-model="filter.submittedAfter"
                                      :placeholder="`${assignment.getFormattedCreatedAt()} (Assignment created)`"/>
+
+                    <template #append>
+                        <b-button variant="warning"
+                                  :disabled="filter.submittedAfter == ''"
+                                  @click="filter.submittedAfter = ''">
+                            <icon name="reply" />
+                        </b-button>
+                    </template>
                 </b-input-group>
 
                 <b-input-group prepend="Submitted before">
                     <datetime-picker v-model="filter.submittedBefore"
                                      :placeholder="`${assignment.getFormattedDeadline()} (Assignment deadline)`"/>
+
+                    <template #append>
+                        <b-button variant="warning"
+                                  :disabled="filter.submittedBefore == ''"
+                                  @click="filter.submittedBefore = ''">
+                            <icon name="reply" />
+                        </b-button>
+                    </template>
                 </b-input-group>
             </b-card>
         </div>
 
-        <div class="col-12 col-lg-6"
-            :class="{ 'col-lg-12': largeGradeHistogram }">
-            <b-card header="Histogram of grades">
-                <bar-chart :chart-data="gradeHistogram"
-                           red-to-green
-                           :width="300"
-                           :height="largeGradeHistogram ? 100 : 200"/>
-            </b-card>
+        <div v-if="filteredWorkspace.submissionCount === 0"
+            class="col-12">
+            <h3 class="border rounded p-5 text-center text-muted font-italic">
+                No submissions within the specified filter parameters.
+            </h3>
         </div>
 
-        <template v-if="hasRubric">
+        <template v-else>
             <div class="col-12 col-lg-6"
                 :class="{ 'col-lg-12': largeGradeHistogram }">
-                <b-card header="Mean score per rubric category">
-                    <bar-chart :chart-data="rubricMeanHistogram"
-                               :options="rubricMeanHistOpts"
-                               :relative-to="rubricNormalizeFactors"
-                               :width="300"
-                               :height="largeGradeHistogram ? 100 : 200"/>
-
-                    <b-input-group prepend="Metric">
-                        <b-form-select v-model="currentRubricStat"
-                                       :options="rubricStatOptions"/>
-                    </b-input-group>
-
-                    <b-input-group prepend="Relative"
-                                   v-if="showRubricRelative">
-                        <div class="form-control pl-2">
-                            <b-form-checkbox v-model="currentRubricRelative"
-                                             class="d-inline-block" />
-                            Relative to max score in category
-                        </div>
-                    </b-input-group>
+                <b-card header="Histogram of grades">
+                    <bar-chart :chart-data="gradeHistogram"
+                            red-to-green
+                            :width="300"
+                            :height="largeGradeHistogram ? 100 : 200"/>
                 </b-card>
             </div>
 
-            <template v-for="row in rubric.rows"
-                      v-if="rubricCatScatter[row.id]">
-                <div class="col-12 col-lg-6">
-                    <b-card :header="`${row.header}: Correlation of item score with total score`">
-                        <scatter-plot :chart-data="rubricCatScatter[row.id]"
-                                      :options="rubricCatScatterOpts"
-                                      :width="300"
-                                      :height="200"/>
+            <template v-if="hasRubric">
+                <div class="col-12 col-lg-6"
+                    :class="{ 'col-lg-12': largeGradeHistogram }">
+                    <b-card header="Mean score per rubric category">
+                        <bar-chart :chart-data="rubricMeanHistogram"
+                                :options="rubricMeanHistOpts"
+                                :relative-to="rubricNormalizeFactors"
+                                :width="300"
+                                :height="largeGradeHistogram ? 100 : 200"/>
+
+                        <hr>
+
+                        <b-input-group prepend="Metric">
+                            <b-form-select v-model="rubricStatistic"
+                                        :options="rubricStatOptions"/>
+                        </b-input-group>
+
+                        <b-input-group prepend="Relative"
+                                    v-if="showRubricRelative">
+                            <div class="form-control pl-2">
+                                <b-form-checkbox v-model="rubricRelative"
+                                                 :id="`rubric-relative-${id}`"
+                                                 class="d-inline-block cursor-pointer" />
+
+                                <label :for="`rubric-relative-${id}`"
+                                       class="cursor-pointer">
+                                    Relative to extreme score in category
+                                </label>
+                            </div>
+                        </b-input-group>
                     </b-card>
                 </div>
+
+                <template v-for="row in rubric.rows"
+                        v-if="rubricCatScatter[row.id]">
+                    <div class="col-12 col-lg-6">
+                        <b-card :header="`${row.header}: Correlation of item score with total score`">
+                            <scatter-plot :chart-data="rubricCatScatter[row.id]"
+                                        :options="rubricCatScatterOpts"
+                                        :width="300"
+                                        :height="200"/>
+                        </b-card>
+                    </div>
+                </template>
             </template>
         </template>
     </template>
@@ -130,6 +181,9 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
+
+import Icon from 'vue-awesome/components/Icon';
+import 'vue-awesome/icons/reply';
 
 import { WorkspaceFilter } from '@/models';
 import { BarChart, ScatterPlot } from '@/components/Charts';
@@ -148,16 +202,18 @@ export default {
 
     data() {
         return {
+            id: this.$utils.getUniqueId(),
             loading: true,
-            currentWorkspace: null,
-            currentRubricStat: 'mean',
-            currentRubricRelative: true,
+            error: null,
+            baseWorkspace: null,
+            rubricStatistic: 'mean',
+            rubricRelative: true,
             filter: {
                 onlyLatestSubs: true,
-                minGrade: null,
-                maxGrade: null,
-                submittedBefore: null,
-                submittedAfter: null,
+                minGrade: '',
+                maxGrade: '',
+                submittedBefore: '',
+                submittedAfter: '',
             },
         };
     },
@@ -182,8 +238,8 @@ export default {
             return this.$utils.getProps(this.assignment, null, 'rubric');
         },
 
-        workspace() {
-            return this.currentWorkspace.filter(this.filters);
+        filteredWorkspace() {
+            return this.baseWorkspace.filter(this.filters);
         },
 
         filters() {
@@ -191,11 +247,11 @@ export default {
         },
 
         rubricSource() {
-            return this.workspace.getSource('rubric_data');
+            return this.filteredWorkspace.getSource('rubric_data');
         },
 
         inlineFeedbackSource() {
-            return this.workspace.getSource('inline_feedback');
+            return this.filteredWorkspace.getSource('inline_feedback');
         },
 
         hasRubric() {
@@ -216,7 +272,7 @@ export default {
         gradeHistogram() {
             const bins = [...Array(10).keys()].map(x => [x, x + 1]);
             const labels = bins.map(([start, end]) => `${10 * start}% - ${10 * end}%`);
-            const data = this.workspace.gradeHistogram(bins);
+            const data = this.filteredWorkspace.gradeHistogram(bins);
 
             const datasets = [
                 {
@@ -264,11 +320,11 @@ export default {
         },
 
         showRubricRelative() {
-            return ['mean', 'median', 'mode'].indexOf(this.currentRubricStat) !== -1;
+            return ['mean', 'median', 'mode'].indexOf(this.rubricStatistic) !== -1;
         },
 
         rubricNormalizeFactors() {
-            if (!this.showRubricRelative || !this.currentRubricRelative) {
+            if (!this.showRubricRelative || !this.rubricRelative) {
                 return null;
             }
             return this.rubric.rows.map(row => [row.minPoints, row.maxPoints]);
@@ -295,7 +351,7 @@ export default {
                     rowId: row.id,
                 };
                 stats.push(stat);
-                data.push(stat[this.currentRubricStat]);
+                data.push(stat[this.rubricStatistic]);
             });
 
             return {
@@ -336,16 +392,6 @@ export default {
             return {
                 legend: {
                     display: false,
-                },
-                scales: {
-                    yAxes: [
-                        {
-                            scaleLabel: {
-                                display: true,
-                                labelString: this.$utils.capitalize(this.currentRubricStat),
-                            },
-                        },
-                    ],
                 },
                 tooltips: {
                     callbacks: {
@@ -416,14 +462,14 @@ export default {
 
         loadWorkspaceData() {
             this.loading = true;
-            this.currentWorkspace = null;
+            this.baseWorkspace = null;
             return this.loadWorkspace({
                 workspaceId: this.currentWorkspaceId,
             }).then(
                 res => {
                     const ws = res.data;
                     if (ws.id === this.currentWorkspaceId) {
-                        this.currentWorkspace = ws;
+                        this.baseWorkspace = ws;
                         this.error = null;
                         this.loading = false;
                     }
@@ -496,6 +542,7 @@ export default {
     },
 
     components: {
+        Icon,
         Loader,
         BarChart,
         ScatterPlot,

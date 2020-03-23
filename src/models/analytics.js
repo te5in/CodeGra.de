@@ -40,7 +40,7 @@ export class DataSource {
     }
 
     filter(subIds, workspace) {
-        const data = filterObject(this.data, (_, id) => subIds.has(Number(id)));
+        const data = filterObject(this.data, (_, id) => subIds.has(parseInt(id, 10)));
         return new this.constructor(data, workspace);
     }
 }
@@ -299,6 +299,17 @@ export class WorkspaceFilter {
             }
             this[key] = props[key];
         });
+
+        const floatOrNull = x => {
+            const f = parseFloat(x);
+            return Number.isNaN(f) ? null : f;
+        };
+
+        this.minGrade = floatOrNull(this.minGrade);
+        this.maxGrade = floatOrNull(this.maxGrade);
+        this.submittedAfter = moment.utc(this.submittedAfter, moment.ISO_8601);
+        this.submittedBefore = moment.utc(this.submittedBefore, moment.ISO_8601);
+
         Object.freeze(this);
     }
 
@@ -309,24 +320,48 @@ export class WorkspaceFilter {
             subs = WorkspaceFilter.getLatestSubs(subs);
         }
 
+        const {
+            minGrade,
+            maxGrade,
+            submittedAfter,
+            submittedBefore,
+        } = this;
+
         subs = mapObject(subs, ss =>
             ss.filter(s => {
-                console.log(s);
-                if (this.minGrade != null && s.grade < this.minGrade) {
+                // We do not want a submission to be in both filter A and
+                // filter B if A has maxGrade=6 and B has minGrade=6, so we
+                // need to check exclusively at one end. However, we need to be
+                // inclusive at either 0 or the max grade for this assignment,
+                // because otherwise we would drop some submissions. I chose
+                // to be inclusive at the minGrade bound and exclusive at the
+                // maxGrade bound because that feels more intuitive. This means
+                // that a maxGrade of 9 will not contain submissions graded
+                // exactly 9, but that a maxGrade of 10 _will_ include
+                // submissions graded exactly 10.
+                // TODO: use the assignment's max grade instead of hardcoded
+                // value 10.
+                if (minGrade != null && s.grade < minGrade) {
                     return false;
                 }
-                if (this.maxGrade != null && s.grade > this.maxGrade) {
+                if (maxGrade != null) {
+                    if (maxGrade === 10 && s.grade === 10) {
+                        return true;
+                    }
+                    if (s.grade >= maxGrade) {
+                        return false;
+                    }
+                }
+                if (submittedAfter != null && s.createdAt.isBefore(submittedAfter)) {
                     return false;
                 }
-                if (this.submittedAfter != null && s.createdAt.isBefore(this.submittedAfter)) {
-                    return false;
-                }
-                if (this.submittedBefore != null && s.createdAt.isAfter(this.submittedBefore)) {
+                if (submittedBefore != null && s.createdAt.isAfter(submittedBefore)) {
                     return false;
                 }
                 return true;
             }),
         );
+        subs = filterObject(subs, ss => ss.length > 0);
 
         return subs;
     }
@@ -475,6 +510,10 @@ export class Workspace {
         });
     }
 
+    get submissionCount() {
+        return this.allSubmissions.length;
+    }
+
     get studentCount() {
         return Object.keys(this.studentSubmissions).length;
     }
@@ -486,11 +525,9 @@ export class Workspace {
     }
 
     get averageSubmissions() {
-        return this._cache.get('averageSubmissions', () => {
-            const totalSubs = this.allSubmissions.length;
-            const totalStudents = this.studentCount;
-            return totalSubs / totalStudents;
-        });
+        return this._cache.get('averageSubmissions', () =>
+            this.submissionCount / this.studentCount,
+        );
     }
 
     gradeHistogram(bins) {
