@@ -2,6 +2,8 @@
 import { Bar, Scatter, mixins } from 'vue-chartjs';
 import * as stat from 'simple-statistics';
 
+import { mapGetters } from 'vuex';
+
 import { COLOR_PAIRS } from '@/constants';
 import { mapObject } from '@/utils';
 
@@ -22,6 +24,8 @@ export const BaseChart = {
     },
 
     computed: {
+        ...mapGetters('pref', ['darkMode']),
+
         datasets() {
             return this.chartData.datasets;
         },
@@ -32,6 +36,65 @@ export const BaseChart = {
 
         renderOpts() {
             return this.options;
+        },
+
+        baseOptions() {
+            const baseOpts = {
+                tooltips: {
+                    cornerRadius: 4,
+                    xPadding: 12,
+                    yPadding: 8,
+                },
+            };
+
+            if (this.darkMode) {
+                Object.assign(baseOpts, this.darkModeOpts);
+            }
+
+            return baseOpts;
+        },
+
+        darkModeOpts() {
+            // This is @text-color-dark from mixins.less.
+            const color = alpha => `rgb(210, 212, 213, ${alpha})`;
+
+            return {
+                legend: {
+                    labels: {
+                        fontColor: color(1),
+                    },
+                },
+                scales: {
+                    xAxes: [
+                        {
+                            gridLines: {
+                                color: color(0.2),
+                                zeroLineColor: color(0.6),
+                            },
+                            scaleLabel: {
+                                fontColor: color(0.8),
+                            },
+                            ticks: {
+                                fontColor: color(0.8),
+                            },
+                        },
+                    ],
+                    yAxes: [
+                        {
+                            gridLines: {
+                                color: color(0.2),
+                                zeroLineColor: color(0.6),
+                            },
+                            scaleLabel: {
+                                fontColor: color(0.8),
+                            },
+                            ticks: {
+                                fontColor: color(0.8),
+                            },
+                        },
+                    ],
+                },
+            };
         },
     },
 
@@ -132,7 +195,7 @@ export const BarChart = {
 
         renderOpts() {
             const [min, max] = this.suggestedRange;
-            return this.$utils.deepExtendArray({
+            return this.$utils.deepExtendArray(this.baseOptions, {
                 scales: {
                     yAxes: [
                         {
@@ -198,7 +261,7 @@ export const ScatterPlot = {
         },
 
         renderOpts() {
-            return this.$utils.deepExtendArray({
+            return this.$utils.deepExtendArray(this.baseOptions, {
                 scales: {
                     xAxes: [
                         {
