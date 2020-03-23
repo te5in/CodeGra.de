@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import moment from 'moment';
-import jStat from 'jstat';
 
 import { getLanguage, highlight } from 'highlightjs';
 import { visualizeWhitespace } from './visualize';
@@ -570,7 +569,7 @@ export function zip(...lists) {
     }
 
     const acc = [];
-    const end = jStat.min(lists.map(l => l.length));
+    const end = Math.min(...lists.map(l => l.length));
     for (let i = 0; i < end; i++) {
         // eslint-disable-next-line no-loop-func
         acc.push(lists.map(l => l[i]));

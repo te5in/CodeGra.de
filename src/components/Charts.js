@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { Bar, Scatter, mixins } from 'vue-chartjs';
+import * as stat from 'simple-statistics';
 
 import { COLOR_PAIRS } from '@/constants';
 import { mapObject } from '@/utils';
@@ -121,19 +122,23 @@ export const BarChart = {
                     if (this.relativeTo != null) {
                         data = this.normalize(data);
                     }
-                    return Object.assign({}, ds, { data }, this.getColors(data.length));
+                    return Object.assign({}, ds, {
+                        data,
+                        minBarLength: 3,
+                    }, this.getColors(data.length));
                 }),
             });
         },
 
         renderOpts() {
+            const [min, max] = this.suggestedRange;
             return this.$utils.deepExtendArray({
                 scales: {
                     yAxes: [
                         {
                             ticks: {
-                                beginAtZero: true,
-                                suggestedMax: this.suggestedMax,
+                                suggestedMin: min,
+                                suggestedMax: max,
                             },
                         },
                     ],
@@ -141,10 +146,14 @@ export const BarChart = {
             }, this.options);
         },
 
-        suggestedMax() {
+        suggestedRange() {
             const factor = 1 + this.padding;
-            const maxPerCat = this.datasets.map(ds => Math.max(...ds.data));
-            return factor * Math.max(...maxPerCat);
+            const minPerCat = this.datasets.map(ds => stat.min(ds.data));
+            const maxPerCat = this.datasets.map(ds => stat.max(ds.data));
+            return [
+                factor * stat.min(minPerCat),
+                factor * stat.max(maxPerCat),
+            ];
         },
     },
 
@@ -157,13 +166,18 @@ export const BarChart = {
     methods: {
         normalize(xs) {
             const rel = this.relativeTo;
+
             if (typeof rel === 'number') {
                 return xs.map(x => 100 * x / rel);
             } else if (Array.isArray(rel)) {
-                return xs.map((x, i) => 100 * x / rel[i]);
+                return xs.map((x, i) => 100 * this.normalize1(x, rel[i]));
             } else {
                 return xs;
             }
+        },
+
+        normalize1(x, [lower, upper]) {
+            return x <= 0 ? -x / lower : x / upper;
         },
     },
 };
@@ -214,8 +228,8 @@ export const ScatterPlot = {
             const xsPerDataset = this.datasets.map(ds => ds.data.map(el => el[dim]));
             const xs = [].concat(...xsPerDataset);
 
-            const minX = Math.min(...xs);
-            const maxX = Math.max(...xs);
+            const minX = stat.min(xs);
+            const maxX = stat.max(xs);
             const dX = maxX - minX;
 
             return {

@@ -60,7 +60,7 @@
                         <div class="form-control pl-2">
                             <b-form-checkbox v-model="currentRubricRelative"
                                              class="d-inline-block" />
-                            Relative to max item score in category
+                            Relative to max score in category
                         </div>
                     </b-input-group>
                 </b-card>
@@ -112,7 +112,6 @@ export default {
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('submissions', ['getLatestSubmissions']),
         ...mapGetters('rubrics', { allRubricResults: 'results' }),
-        ...mapGetters('analytics', ['getWorkspace']),
 
         assignment() {
             return this.assignments[this.assignmentId];
@@ -196,6 +195,7 @@ export default {
                     yAxes: [
                         {
                             ticks: {
+                                beginAtZero: true,
                                 stepSize: 1,
                             },
                             scaleLabel: {
@@ -223,10 +223,10 @@ export default {
         },
 
         rubricNormalizeFactors() {
-            if (!this.currentRubricRelative) {
+            if (!this.showRubricRelative || !this.currentRubricRelative) {
                 return null;
             }
-            return this.rubric.rows.map(row => row.maxPoints);
+            return this.rubric.rows.map(row => [row.minPoints, row.maxPoints]);
         },
 
         rubricMeanHistogram() {
@@ -367,7 +367,33 @@ export default {
     },
 
     methods: {
-        ...mapActions('analytics', ['loadWorkspace']),
+        ...mapActions('analytics', ['loadWorkspace', 'clearAssignmentWorkspaces']),
+
+        loadWorkspaceData() {
+            this.loading = true;
+            this.currentWorkspace = null;
+            return this.loadWorkspace({
+                workspaceId: this.currentWorkspaceId,
+            }).then(
+                res => {
+                    const ws = res.data;
+                    if (ws.id === this.currentWorkspaceId) {
+                        this.currentWorkspace = ws;
+                        this.loading = false;
+                    }
+                    return res;
+                },
+                err => {
+                    this.loading = false;
+                    this.error = err;
+                    throw err;
+                },
+            );
+        },
+
+        reloadWorkspace() {
+            this.clearAssignmentWorkspaces().then(this.loadWorkspaceData);
+        },
 
         to2Dec(x) {
             return this.$utils.toMaxNDecimals(x, 2);
@@ -399,15 +425,18 @@ export default {
     watch: {
         currentWorkspaceId: {
             immediate: true,
-            async handler(newId) {
-                this.loading = true;
-                const ws = await this.loadWorkspace({ workspaceId: newId });
-                if (ws.id === newId) {
-                    this.currentWorkspace = ws;
-                    this.loading = false;
-                }
+            handler() {
+                this.loadWorkspaceData();
             },
         },
+    },
+
+    mounted() {
+        this.$root.$on('cg::submissions-page::reload', this.reloadWorkspace);
+    },
+
+    destroyed() {
+        this.$root.$off('cg::submissions-page::reload', this.reloadWorkspace);
     },
 
     components: {

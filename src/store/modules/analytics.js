@@ -6,7 +6,10 @@ import { Workspace } from '@/models';
 import * as types from '../mutation-types';
 
 const getters = {
-    getWorkspace: state => workspaceId => state.workspaces[workspaceId],
+    getWorkspace: state =>
+        (assignmentId, workspaceId) => state.workspaces[assignmentId][workspaceId],
+    getAssignmentWorkspaces: state =>
+        assignmentId => state.workspaces[assignmentId],
 };
 
 const loaders = {
@@ -24,7 +27,8 @@ async function loadWorkspace(workspaceId) {
         ),
     );
 
-    return Workspace.fromServerData(res.data, sources);
+    res.data = Workspace.fromServerData(res.data, sources);
+    return res;
 }
 
 const actions = {
@@ -49,11 +53,22 @@ const actions = {
 
         return loaders.workspaces[workspaceId];
     },
+
+    clearAssignmentWorkspaces({ commit }, assignmentId) {
+        commit(types.CLEAR_ASSIGNMENT_WORKSPACES, assignmentId);
+    },
 };
 
 const mutations = {
     [types.SET_WORKSPACE](state, { workspaceId, workspace }) {
-        Vue.set(state.workspaces, workspaceId, workspace);
+        const assignmentId = workspace.assignment_id;
+        const workspaces = state.workspaces[assignmentId] || {};
+        Vue.set(workspaces, workspaceId, workspace);
+        Vue.set(state.workspaces, assignmentId, workspaces);
+    },
+
+    [types.CLEAR_ASSIGNMENT_WORKSPACES](state, assignmentId) {
+        Vue.set(state.workspaces, assignmentId, {});
     },
 };
 

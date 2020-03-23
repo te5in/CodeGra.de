@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import jStat from 'jstat';
+import * as stat from 'simple-statistics';
 
 import { store } from '@/store';
 // eslint-ignore-next-line
@@ -162,19 +162,19 @@ export class RubricSource extends DataSource {
 
     get meanPerCat() {
         return this._cache.get('meanPerCat', () =>
-            this.mapItemsPerCat(items => jStat.mean(items.map(item => item.points)), true),
+            this.mapItemsPerCat(items => stat.mean(items.map(item => item.points)), true),
         );
     }
 
     get modePerCat() {
         return this._cache.get('modePerCat', () =>
-            this.mapItemsPerCat(items => jStat.mode(items.map(item => item.points)), true),
+            this.mapItemsPerCat(items => stat.mode(items.map(item => item.points)), true),
         );
     }
 
     get medianPerCat() {
         return this._cache.get('medianPerCat', () =>
-            this.mapItemsPerCat(items => jStat.median(items.map(item => item.points)), true),
+            this.mapItemsPerCat(items => stat.median(items.map(item => item.points)), true),
         );
     }
 
@@ -194,7 +194,7 @@ export class RubricSource extends DataSource {
     get totalScorePerSubmission() {
         return this._cache.get('totalScorePerSubmission', () =>
             mapObject(this.scorePerCatPerSubmission, scorePerCat =>
-                jStat.sum(Object.values(scorePerCat)),
+                stat.sum(Object.values(scorePerCat)),
             ),
         );
     }
@@ -232,7 +232,7 @@ export class RubricSource extends DataSource {
                 if (filtered.length < 10) {
                     return null;
                 }
-                return jStat.corrcoeff(...zip(...filtered));
+                return stat.sampleCorrelation(...zip(...filtered));
             }),
         );
     }
@@ -245,7 +245,7 @@ export class RubricSource extends DataSource {
                 if (filtered.length < 10) {
                     return null;
                 }
-                return jStat.corrcoeff(...zip(...filtered));
+                return stat.sampleCorrelation(...zip(...filtered));
             }),
         );
     }
@@ -266,7 +266,7 @@ export class InlineFeedbackSource extends DataSource {
     }
 
     get averageEntries() {
-        const totalEntries = jStat.sum(Object.values(this.data));
+        const totalEntries = stat.sum(Object.values(this.data));
         const totalSubs = Object.keys(this.data).length;
         return totalEntries / totalSubs;
     }
@@ -372,7 +372,7 @@ export class Workspace {
 
     get averageGrade() {
         return this._cache.get('averageGrade', () =>
-            jStat.mean(dropNull(this.allSubmissions.map(sub => sub.grade))),
+            stat.mean(dropNull(this.allSubmissions.map(sub => sub.grade))),
         );
     }
 

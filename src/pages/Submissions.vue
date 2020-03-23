@@ -648,6 +648,7 @@ export default {
     },
 
     methods: {
+
         ...mapActions('courses', {
             loadCourses: 'loadCourses',
         }),
@@ -733,6 +734,7 @@ export default {
         },
 
         submitForceLoadSubmissions() {
+            this.$root.$emit('cg::submissions-page::reload');
             return this.forceLoadSubmissions(this.assignment.id);
         },
 
