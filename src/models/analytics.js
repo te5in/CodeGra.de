@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import moment from 'moment';
 import * as stat from 'simple-statistics';
 
 import { store } from '@/store';
@@ -286,6 +287,8 @@ const WORKSPACE_FILTER_PROPS = Object.freeze([
     'onlyLatestSubs',
     'minGrade',
     'maxGrade',
+    'submittedAfter',
+    'submittedBefore',
 ]);
 
 export class WorkspaceFilter {
@@ -298,12 +301,71 @@ export class WorkspaceFilter {
         });
         Object.freeze(this);
     }
+
+    apply(studentSubs) {
+        let subs = studentSubs;
+
+        if (this.onlyLatestSubs) {
+            subs = WorkspaceFilter.getLatestSubs(subs);
+        }
+
+        subs = mapObject(subs, ss =>
+            ss.filter(s => {
+                console.log(s);
+                if (this.minGrade != null && s.grade < this.minGrade) {
+                    return false;
+                }
+                if (this.maxGrade != null && s.grade > this.maxGrade) {
+                    return false;
+                }
+                if (this.submittedAfter != null && s.createdAt.isBefore(this.submittedAfter)) {
+                    return false;
+                }
+                if (this.submittedBefore != null && s.createdAt.isAfter(this.submittedBefore)) {
+                    return false;
+                }
+                return true;
+            }),
+        );
+
+        return subs;
+    }
+
+    static getLatestSubs(studentSubs) {
+        return mapObject(studentSubs, subs =>
+            subs.sort((a, b) => cmpNoCase(b.created_at, a.created_at)).slice(0, 1),
+        );
+    }
+}
+
+const WORKSPACE_SUBMISSION_SERVER_PROPS = Object.freeze([
+    'id',
+    'assignee_id',
+    'created_at',
+    'grade',
+]);
+
+class WorkspaceSubmission {
+    static fromServerData(data) {
+        const props = WORKSPACE_SUBMISSION_SERVER_PROPS.reduce((acc, prop) => {
+            acc[prop] = data[prop];
+            return acc;
+        }, {});
+
+        props.createdAt = moment.utc(data.created_at, moment.ISO_8601);
+
+        return new WorkspaceSubmission(props);
+    }
+
+    constructor(props) {
+        Object.assign(this, props);
+        Object.freeze(this);
+    }
 }
 
 const WORKSPACE_SERVER_PROPS = Object.freeze([
     'id',
     'assignment_id',
-    'student_submissions',
 ]);
 
 export class Workspace {
@@ -312,6 +374,11 @@ export class Workspace {
             acc[prop] = workspace[prop];
             return acc;
         }, {});
+
+        props.studentSubmissions = mapObject(workspace.student_submissions, subs =>
+            subs.map(WorkspaceSubmission.fromServerData),
+        );
+
         const self = new Workspace(props);
 
         const dataSources = workspace.data_sources.reduce((acc, src, i) => {
@@ -346,7 +413,7 @@ export class Workspace {
 
     get allSubmissions() {
         return this._cache.get('allSubmissions', () =>
-            Object.values(this.student_submissions).reduce(
+            Object.values(this.studentSubmissions).reduce(
                 (acc, subs) => acc.concat(subs),
                 [],
             ),
@@ -362,15 +429,11 @@ export class Workspace {
             return this;
         }
 
-        const { onlyLatestSubs, minGrade, maxGrade } = filters[0];
+        const filter = filters[0];
 
-        let subs = onlyLatestSubs ? this.latestSubmissions : this.student_submissions;
-        subs = mapObject(subs, ss =>
-            ss.filter(s => s.grade >= minGrade && s.grade <= maxGrade),
-        );
-
+        const subs = filter.apply(this.studentSubmissions);
         const props = Object.assign({}, this, {
-            student_submissions: subs,
+            studentSubmissions: subs,
         });
         const workspace = new Workspace(props);
 
@@ -382,12 +445,6 @@ export class Workspace {
         workspace._setSources(sources);
 
         return workspace;
-    }
-
-    get latestSubmissions() {
-        return mapObject(this.student_submissions, subs =>
-            subs.sort((a, b) => cmpNoCase(b.created_at, a.created_at)).slice(0, 1),
-        );
     }
 
     binSubmissionsBy(bins, f) {
@@ -419,7 +476,7 @@ export class Workspace {
     }
 
     get studentCount() {
-        return Object.keys(this.student_submissions).length;
+        return Object.keys(this.studentSubmissions).length;
     }
 
     get averageGrade() {

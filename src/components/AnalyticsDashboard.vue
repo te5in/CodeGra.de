@@ -44,6 +44,7 @@
                     <input v-model="filter.minGrade"
                            class="form-control"
                            type="number"
+                           placeholder="0"
                            min="0"
                            :max="filter.maxGrade" />
                 </b-input-group>
@@ -52,8 +53,19 @@
                     <input v-model="filter.maxGrade"
                            class="form-control"
                            type="number"
+                           placeholder="10"
                            :min="filter.minGrade"
                            max="10" />
+                </b-input-group>
+
+                <b-input-group prepend="Submitted after">
+                    <datetime-picker v-model="filter.submittedAfter"
+                                     :placeholder="`${assignment.getFormattedCreatedAt()} (Assignment created)`"/>
+                </b-input-group>
+
+                <b-input-group prepend="Submitted before">
+                    <datetime-picker v-model="filter.submittedBefore"
+                                     :placeholder="`${assignment.getFormattedDeadline()} (Assignment deadline)`"/>
                 </b-input-group>
             </b-card>
         </div>
@@ -116,6 +128,7 @@ import { mapActions, mapGetters } from 'vuex';
 import { WorkspaceFilter } from '@/models';
 import { BarChart, ScatterPlot } from '@/components/Charts';
 import Loader from '@/components/Loader';
+import DatetimePicker from '@/components/DatetimePicker';
 
 export default {
     name: 'analytics-dashboard',
@@ -135,8 +148,10 @@ export default {
             currentRubricRelative: true,
             filter: {
                 onlyLatestSubs: true,
-                minGrade: 0,
-                maxGrade: 10,
+                minGrade: null,
+                maxGrade: null,
+                submittedBefore: null,
+                submittedAfter: null,
             },
         };
     },
@@ -453,6 +468,16 @@ export default {
                 this.loadWorkspaceData();
             },
         },
+
+        filters() {
+            this.$router.replace({
+                query: {
+                    ...this.$route.query,
+                    'analytics-filters': JSON.stringify(this.filters),
+                },
+                hash: this.$route.hash,
+            });
+        },
     },
 
     mounted() {
@@ -467,6 +492,7 @@ export default {
         Loader,
         BarChart,
         ScatterPlot,
+        DatetimePicker,
     },
 };
 </script>

@@ -125,6 +125,10 @@ export class Assignment {
         return null;
     }
 
+    getFormattedCreatedAt() {
+        return utils.readableFormatDate(this.createdAt);
+    }
+
     deadlinePassed(now = moment(), dflt = false) {
         if (this.deadline == null) {
             return dflt;
