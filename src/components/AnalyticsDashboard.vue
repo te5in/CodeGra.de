@@ -8,7 +8,7 @@
             <b-card header="General statistics">
                 <div class="row">
                     <div class="col-3 border-right metric">
-                        <h1>{{ latestSubmissions.length }}</h1>
+                        <h1>{{ workspace.studentCount }}</h1>
                         <label>Number of students</label>
                     </div>
 
@@ -27,6 +27,18 @@
                         <label>Average number of feedback entries</label>
                     </div>
                 </div>
+            </b-card>
+        </div>
+
+        <div class="col-12">
+            <b-card header="Filters">
+                <b-input-group prepend="Latest">
+                    <div class="form-control pl-2">
+                        <b-form-checkbox v-model="onlyLatestSubs"
+                                         class="d-inline-block" />
+                        Only use latest submissions
+                    </div>
+                </b-input-group>
             </b-card>
         </div>
 
@@ -105,12 +117,12 @@ export default {
             currentWorkspace: null,
             currentRubricStat: 'mean',
             currentRubricRelative: true,
+            onlyLatestSubs: true,
         };
     },
 
     computed: {
         ...mapGetters('courses', ['assignments']),
-        ...mapGetters('submissions', ['getLatestSubmissions']),
         ...mapGetters('rubrics', { allRubricResults: 'results' }),
 
         assignment() {
@@ -133,6 +145,12 @@ export default {
             return this.currentWorkspace.filter(this.filter);
         },
 
+        filter() {
+            return new WorkspaceFilter({
+                onlyLatestSubs: this.onlyLatestSubs,
+            });
+        },
+
         rubricSource() {
             return this.workspace.getSource('rubric_data');
         },
@@ -146,24 +164,12 @@ export default {
         },
 
         hasManyRubricRows() {
-            return this.$utils.getProps(this.rubricSource, 0, 'rowIds', 'length');
-        },
-
-        latestSubmissions() {
-            return this.getLatestSubmissions(this.assignmentId);
-        },
-
-        allSubmissionData() {
-            return this.currentWorkspace.student_submissions;
-        },
-
-        filter() {
-            return new WorkspaceFilter();
+            return this.$utils.getProps(this.rubricSource, 0, 'rowIds', 'length') > 8;
         },
 
         largeGradeHistogram() {
             return (
-                this.$root.isLargeWindow &&
+                this.$root.$isLargeWindow &&
                 (!this.hasRubric || this.hasManyRubricRows)
             );
         },
@@ -171,7 +177,7 @@ export default {
         gradeHistogram() {
             const bins = [...Array(10).keys()].map(x => [x, x + 1]);
             const labels = bins.map(([start, end]) => `${10 * start}% - ${10 * end}%`);
-            const data = this.currentWorkspace.gradeHistogram(bins);
+            const data = this.workspace.gradeHistogram(bins);
 
             const datasets = [
                 {

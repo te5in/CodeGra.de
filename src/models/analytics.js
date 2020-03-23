@@ -3,20 +3,17 @@ import * as stat from 'simple-statistics';
 
 import { store } from '@/store';
 // eslint-ignore-next-line
-import { getProps, mapObject, filterObject, zip } from '@/utils';
+import {
+    cmpNoCase,
+    getProps,
+    mapObject,
+    filterObject,
+    zip,
+} from '@/utils';
 import { makeCache } from '@/utils/cache';
-
-const WORKSPACE_SERVER_PROPS = [
-    'id',
-    'assignment_id',
-    'student_submissions',
-];
 
 function dropNull(xs) {
     return xs.filter(x => x != null);
-}
-
-export class WorkspaceFilter {
 }
 
 export class DataSource {
@@ -41,9 +38,9 @@ export class DataSource {
         return getProps(this.workspace, null, 'assignment');
     }
 
-    filter(keys) {
-        const data = filterObject(this.data, (_, key) => keys.has(key));
-        return new this.constructor(data, this.workspace);
+    filter(subIds, workspace) {
+        const data = filterObject(this.data, (_, id) => subIds.has(Number(id)));
+        return new this.constructor(data, workspace);
     }
 }
 
@@ -87,9 +84,11 @@ export class RubricSource extends DataSource {
     updateItemPoints() {
         Object.values(this.data).forEach(items => {
             items.forEach(item => {
-                const rubricItem = this.rubricItems[item.item_id];
-                item.points = item.multiplier * rubricItem.points;
-                Object.freeze(item);
+                if (!Object.hasOwnProperty.call(item, 'points')) {
+                    const rubricItem = this.rubricItems[item.item_id];
+                    item.points = item.multiplier * rubricItem.points;
+                    Object.freeze(item);
+                }
             });
             Object.freeze(items);
         });
@@ -283,6 +282,44 @@ function createDataSource(data, workspace) {
     }
 }
 
+const WORKSPACE_FILTER_PROPS = Object.freeze([
+    'onlyLatestSubs',
+]);
+
+export class WorkspaceFilter {
+    constructor(props) {
+        WORKSPACE_FILTER_PROPS.forEach(key => {
+            if (!Object.hasOwnProperty.call(props, key)) {
+                throw new Error('Filter prop not passed');
+            }
+            this[key] = props[key];
+        });
+        Object.freeze(this);
+    }
+
+    update(props) {
+        return new WorkspaceFilter(Object.assign({}, this, props));
+    }
+
+    filter(studentSubmissions) {
+        let allSubs = studentSubmissions;
+
+        if (this.onlyLatestSubs) {
+            allSubs = mapObject(allSubs, subs =>
+                subs.sort((a, b) => cmpNoCase(b.created_at, a.created_at)).slice(0, 1),
+            );
+        }
+
+        return allSubs;
+    }
+}
+
+const WORKSPACE_SERVER_PROPS = Object.freeze([
+    'id',
+    'assignment_id',
+    'student_submissions',
+]);
+
 export class Workspace {
     static fromServerData(workspace, sources) {
         const props = WORKSPACE_SERVER_PROPS.reduce((acc, prop) => {
@@ -334,12 +371,21 @@ export class Workspace {
         return this.dataSources[sourceName];
     }
 
-    filter() {
-        // TODO: implement filter
-        const newWs = Object.assign({}, this, {
-            student_submissions: this.student_submissions,
+    filter(filter) {
+        const subs = filter.filter(this.student_submissions);
+        const props = Object.assign({}, this, {
+            student_submissions: subs,
         });
-        return new Workspace(newWs, this.dataSources);
+        const workspace = new Workspace(props);
+
+        const allSubs = [].concat(...Object.values(subs));
+        const subIds = new Set(Object.values(allSubs).map(sub => sub.id));
+        const sources = mapObject(this.dataSources, ds => ds.filter(subIds, workspace));
+
+        // eslint-disable-next-line
+        workspace._setSources(sources);
+
+        return workspace;
     }
 
     binSubmissionsBy(bins, f) {
@@ -370,6 +416,10 @@ export class Workspace {
         });
     }
 
+    get studentCount() {
+        return Object.keys(this.student_submissions).length;
+    }
+
     get averageGrade() {
         return this._cache.get('averageGrade', () =>
             stat.mean(dropNull(this.allSubmissions.map(sub => sub.grade))),
@@ -379,7 +429,7 @@ export class Workspace {
     get averageSubmissions() {
         return this._cache.get('averageSubmissions', () => {
             const totalSubs = this.allSubmissions.length;
-            const totalStudents = Object.keys(this.student_submissions).length;
+            const totalStudents = this.studentCount;
             return totalSubs / totalStudents;
         });
     }
