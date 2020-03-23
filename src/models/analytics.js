@@ -284,6 +284,8 @@ function createDataSource(data, workspace) {
 
 const WORKSPACE_FILTER_PROPS = Object.freeze([
     'onlyLatestSubs',
+    'minGrade',
+    'maxGrade',
 ]);
 
 export class WorkspaceFilter {
@@ -295,22 +297,6 @@ export class WorkspaceFilter {
             this[key] = props[key];
         });
         Object.freeze(this);
-    }
-
-    update(props) {
-        return new WorkspaceFilter(Object.assign({}, this, props));
-    }
-
-    filter(studentSubmissions) {
-        let allSubs = studentSubmissions;
-
-        if (this.onlyLatestSubs) {
-            allSubs = mapObject(allSubs, subs =>
-                subs.sort((a, b) => cmpNoCase(b.created_at, a.created_at)).slice(0, 1),
-            );
-        }
-
-        return allSubs;
     }
 }
 
@@ -371,8 +357,18 @@ export class Workspace {
         return this.dataSources[sourceName];
     }
 
-    filter(filter) {
-        const subs = filter.filter(this.student_submissions);
+    filter(filters) {
+        if (filters.length === 0) {
+            return this;
+        }
+
+        const { onlyLatestSubs, minGrade, maxGrade } = filters[0];
+
+        let subs = onlyLatestSubs ? this.latestSubmissions : this.student_submissions;
+        subs = mapObject(subs, ss =>
+            ss.filter(s => s.grade >= minGrade && s.grade <= maxGrade),
+        );
+
         const props = Object.assign({}, this, {
             student_submissions: subs,
         });
@@ -386,6 +382,12 @@ export class Workspace {
         workspace._setSources(sources);
 
         return workspace;
+    }
+
+    get latestSubmissions() {
+        return mapObject(this.student_submissions, subs =>
+            subs.sort((a, b) => cmpNoCase(b.created_at, a.created_at)).slice(0, 1),
+        );
     }
 
     binSubmissionsBy(bins, f) {

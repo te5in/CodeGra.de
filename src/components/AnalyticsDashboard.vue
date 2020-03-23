@@ -34,10 +34,26 @@
             <b-card header="Filters">
                 <b-input-group prepend="Latest">
                     <div class="form-control pl-2">
-                        <b-form-checkbox v-model="onlyLatestSubs"
+                        <b-form-checkbox v-model="filter.onlyLatestSubs"
                                          class="d-inline-block" />
                         Only use latest submissions
                     </div>
+                </b-input-group>
+
+                <b-input-group prepend="Min. grade">
+                    <input v-model="filter.minGrade"
+                           class="form-control"
+                           type="number"
+                           min="0"
+                           :max="filter.maxGrade" />
+                </b-input-group>
+
+                <b-input-group prepend="Max. grade">
+                    <input v-model="filter.maxGrade"
+                           class="form-control"
+                           type="number"
+                           :min="filter.minGrade"
+                           max="10" />
                 </b-input-group>
             </b-card>
         </div>
@@ -117,7 +133,11 @@ export default {
             currentWorkspace: null,
             currentRubricStat: 'mean',
             currentRubricRelative: true,
-            onlyLatestSubs: true,
+            filter: {
+                onlyLatestSubs: true,
+                minGrade: 0,
+                maxGrade: 10,
+            },
         };
     },
 
@@ -142,13 +162,11 @@ export default {
         },
 
         workspace() {
-            return this.currentWorkspace.filter(this.filter);
+            return this.currentWorkspace.filter(this.filters);
         },
 
-        filter() {
-            return new WorkspaceFilter({
-                onlyLatestSubs: this.onlyLatestSubs,
-            });
+        filters() {
+            return [new WorkspaceFilter({ ...this.filter })];
         },
 
         rubricSource() {
