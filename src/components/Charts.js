@@ -158,6 +158,10 @@ export const BaseChart = {
         renderOptions() {
             this.rerender();
         },
+
+        darkMode() {
+            this.rerender();
+        },
     },
 
     mounted() {
