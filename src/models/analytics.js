@@ -282,6 +282,120 @@ function createDataSource(data, workspace) {
     }
 }
 
+const WORKSPACE_SUBMISSION_SERVER_PROPS = Object.freeze([
+    'id',
+    'assignee_id',
+    'created_at',
+    'grade',
+]);
+
+class WorkspaceSubmission {
+    static fromServerData(data) {
+        const props = WORKSPACE_SUBMISSION_SERVER_PROPS.reduce((acc, prop) => {
+            acc[prop] = data[prop];
+            return acc;
+        }, {});
+
+        props.createdAt = moment.utc(data.created_at, moment.ISO_8601);
+
+        return new WorkspaceSubmission(props);
+    }
+
+    constructor(props) {
+        Object.assign(this, props);
+        Object.freeze(this);
+    }
+}
+
+class WorkspaceSubmissionSet {
+    static fromServerData(data) {
+        const subs = mapObject(data, ss =>
+            ss.map(WorkspaceSubmission.fromServerData),
+        );
+        return new WorkspaceSubmissionSet(subs);
+    }
+
+    constructor(subs) {
+        this.submissions = mapObject(subs, Object.freeze);
+        this._cache = makeCache(
+            'allSubmissions',
+            'averageGrade',
+            'averageSubmissions',
+            'submissionIds',
+        );
+        Object.freeze(this.subs);
+    }
+
+    get allSubmissions() {
+        return this._cache.get('allSubmissions', () =>
+            [].concat(...Object.values(this.submissions)),
+        );
+    }
+
+    get submissionIds() {
+        return new Set(this.allSubmissions.map(s => s.id));
+    }
+
+    binSubmissionsBy(bins, f) {
+        return this.allSubmissions.reduce((acc, sub) => {
+            const idx = bins.findIndex((bin, i) => f(sub, bin, i));
+            if (idx !== -1) {
+                acc[idx].push(sub);
+            }
+            return acc;
+        }, bins.map(() => []));
+    }
+
+    binSubmissionsByGrade(bins) {
+        return this.binSubmissionsBy(bins, (sub, bin, i) => {
+            const [low, high] = bin;
+            const { grade } = sub;
+
+            if (grade == null) {
+                return false;
+            } else if (i === bins.length - 1) {
+                // Because we check the upper bound exclusively submissions
+                // with the highest possible grade will not be put in the last
+                // bin.
+                return true;
+            } else {
+                return low <= grade && grade < high;
+            }
+        });
+    }
+
+    get submissionCount() {
+        return this.allSubmissions.length;
+    }
+
+    get studentCount() {
+        return Object.keys(this.submissions).length;
+    }
+
+    get averageGrade() {
+        return this._cache.get('averageGrade', () =>
+            stat.mean(dropNull(this.allSubmissions.map(sub => sub.grade))),
+        );
+    }
+
+    get averageSubmissions() {
+        return this._cache.get('averageSubmissions', () =>
+            this.submissionCount / this.studentCount,
+        );
+    }
+
+    getLatestSubmissions() {
+        return mapObject(this.submissions, subs => {
+            const [first, ...rest] = subs;
+            const latest = rest.reduce(
+                (a, b) => (a.createdAt.isAfter(b.createdAt) ? a : b),
+                first,
+            );
+            return latest == null ? [] : [latest];
+        });
+    }
+}
+
 const WORKSPACE_FILTER_PROPS = Object.freeze([
     'onlyLatestSubs',
     'minGrade',
@@ -319,15 +433,16 @@ export class WorkspaceFilter {
 
     apply(studentSubs) {
         let filtered = this.onlyLatestSubs ?
-            WorkspaceFilter.getLatestSubs(studentSubs) :
-            studentSubs;
+            studentSubs.getLatestSubmissions() :
+            studentSubs.submissions;
 
         filtered = mapObject(filtered, subs =>
             subs.filter(s => this.satisfiesGrade(s) && this.satisfiesDate(s)),
         );
+
         filtered = filterObject(filtered, subs => subs.length > 0);
 
-        return filtered;
+        return new WorkspaceSubmissionSet(filtered);
     }
 
     satisfiesGrade(sub) {
@@ -371,42 +486,6 @@ export class WorkspaceFilter {
         }
         return true;
     }
-
-    static getLatestSubs(studentSubs) {
-        return mapObject(studentSubs, subs => {
-            const [first, ...rest] = subs;
-            const latest = rest.reduce(
-                (a, b) => (a.createdAt.isAfter(b.createdAt) ? a : b),
-                first,
-            );
-            return latest == null ? [] : [latest];
-        });
-    }
-}
-
-const WORKSPACE_SUBMISSION_SERVER_PROPS = Object.freeze([
-    'id',
-    'assignee_id',
-    'created_at',
-    'grade',
-]);
-
-class WorkspaceSubmission {
-    static fromServerData(data) {
-        const props = WORKSPACE_SUBMISSION_SERVER_PROPS.reduce((acc, prop) => {
-            acc[prop] = data[prop];
-            return acc;
-        }, {});
-
-        props.createdAt = moment.utc(data.created_at, moment.ISO_8601);
-
-        return new WorkspaceSubmission(props);
-    }
-
-    constructor(props) {
-        Object.assign(this, props);
-        Object.freeze(this);
-    }
 }
 
 const WORKSPACE_SERVER_PROPS = Object.freeze([
@@ -421,8 +500,8 @@ export class Workspace {
             return acc;
         }, {});
 
-        props.studentSubmissions = mapObject(workspace.student_submissions, subs =>
-            subs.map(WorkspaceSubmission.fromServerData),
+        props.submissions = WorkspaceSubmissionSet.fromServerData(
+            workspace.student_submissions,
         );
 
         const self = new Workspace(props);
@@ -440,8 +519,9 @@ export class Workspace {
     constructor(props, sources = null) {
         Object.assign(this, props);
         this.dataSources = {};
-        this._cache = makeCache('allSubmissions', 'averageGrade', 'averageSubmissions');
         Object.freeze(this);
+
+        console.log('xxx', this.submissions);
 
         if (sources != null) {
             this._setSources(sources);
@@ -457,15 +537,6 @@ export class Workspace {
         return store.getters['courses/assignments'][this.assignment_id];
     }
 
-    get allSubmissions() {
-        return this._cache.get('allSubmissions', () =>
-            Object.values(this.studentSubmissions).reduce(
-                (acc, subs) => acc.concat(subs),
-                [],
-            ),
-        );
-    }
-
     getSource(sourceName) {
         return this.dataSources[sourceName];
     }
@@ -477,72 +548,18 @@ export class Workspace {
 
         const filter = filters[0];
 
-        const subs = filter.apply(this.studentSubmissions);
+        const subs = filter.apply(this.submissions);
         const props = Object.assign({}, this, {
-            studentSubmissions: subs,
+            submissions: subs,
         });
         const workspace = new Workspace(props);
 
-        const allSubs = [].concat(...Object.values(subs));
-        const subIds = new Set(Object.values(allSubs).map(sub => sub.id));
+        const subIds = subs.submissionIds;
         const sources = mapObject(this.dataSources, ds => ds.filter(subIds, workspace));
 
         // eslint-disable-next-line
         workspace._setSources(sources);
 
         return workspace;
-    }
-
-    binSubmissionsBy(bins, f) {
-        return this.allSubmissions.reduce((acc, sub) => {
-            const idx = bins.findIndex((bin, i) => f(sub, bin, i));
-            if (idx !== -1) {
-                acc[idx].push(sub);
-            }
-            return acc;
-        }, bins.map(() => []));
-    }
-
-    binSubmissionsByGrade(bins) {
-        return this.binSubmissionsBy(bins, (sub, bin, i) => {
-            const [low, high] = bin;
-            const { grade } = sub;
-
-            if (grade == null) {
-                return false;
-            } else if (i === bins.length - 1) {
-                // Because we check the upper bound exclusively submissions
-                // with the highest possible grade will not be put in the last
-                // bin.
-                return true;
-            } else {
-                return low <= grade && grade < high;
-            }
-        });
-    }
-
-    get submissionCount() {
-        return this.allSubmissions.length;
-    }
-
-    get studentCount() {
-        return Object.keys(this.studentSubmissions).length;
-    }
-
-    get averageGrade() {
-        return this._cache.get('averageGrade', () =>
-            stat.mean(dropNull(this.allSubmissions.map(sub => sub.grade))),
-        );
-    }
-
-    get averageSubmissions() {
-        return this._cache.get('averageSubmissions', () =>
-            this.submissionCount / this.studentCount,
-        );
-    }
-
-    gradeHistogram(bins) {
-        return this.binSubmissionsByGrade(bins)
-            .map(subs => subs.length);
     }
 }

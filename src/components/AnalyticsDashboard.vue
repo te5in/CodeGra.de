@@ -11,21 +11,21 @@
 
     <template v-else>
         <div class="col-12"
-             v-if="filteredWorkspace.submissionCount > 0">
+             v-if="submissionData.submissionCount > 0">
             <b-card header="General statistics">
                 <div class="row">
                     <div class="col-3 border-right metric">
-                        <h1>{{ filteredWorkspace.studentCount }}</h1>
+                        <h1>{{ submissionData.studentCount }}</h1>
                         <label>Number of students</label>
                     </div>
 
                     <div class="col-3 border-right metric">
-                        <h1>{{ to2Dec(filteredWorkspace.averageGrade) }}</h1>
+                        <h1>{{ to2Dec(submissionData.averageGrade) }}</h1>
                         <label>Average grade</label>
                     </div>
 
                     <div class="col-3 border-right metric">
-                        <h1>{{ to2Dec(filteredWorkspace.averageSubmissions) }}</h1>
+                        <h1>{{ to2Dec(submissionData.averageSubmissions) }}</h1>
                         <label>Average number of submissions</label>
                     </div>
 
@@ -116,7 +116,7 @@
             </b-card>
         </div>
 
-        <div v-if="filteredWorkspace.submissionCount === 0"
+        <div v-if="submissionData.submissionCount === 0"
             class="col-12">
             <h3 class="border rounded p-5 text-center text-muted font-italic">
                 No submissions within the specified filter parameters.
@@ -259,6 +259,10 @@ export default {
             return [new WorkspaceFilter({ ...this.filter })];
         },
 
+        submissionData() {
+            return this.filteredWorkspace.submissions;
+        },
+
         rubricSource() {
             return this.filteredWorkspace.getSource('rubric_data');
         },
@@ -285,7 +289,9 @@ export default {
         gradeHistogram() {
             const bins = [...Array(10).keys()].map(x => [x, x + 1]);
             const labels = bins.map(([start, end]) => `${10 * start}% - ${10 * end}%`);
-            const data = this.filteredWorkspace.gradeHistogram(bins);
+            const data = this.submissionData
+                .binSubmissionsByGrade(bins)
+                .map(subs => subs.length);
 
             const datasets = [
                 {
