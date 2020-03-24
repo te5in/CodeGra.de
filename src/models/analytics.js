@@ -305,11 +305,8 @@ export class WorkspaceFilter {
         };
 
         const maybeMoment = x => {
-            if (x != null && x.length) {
-                return moment.utc(x, moment.ISO_8601);
-            } else {
-                return null;
-            }
+            const m = moment.utc(x, moment.ISO_8601);
+            return m.isValid() ? m : null;
         };
 
         this.minGrade = maybeFloat(this.minGrade);
@@ -377,8 +374,8 @@ export class WorkspaceFilter {
 
     static getLatestSubs(studentSubs) {
         return mapObject(studentSubs, subs => {
-            const first = subs.pop();
-            const latest = subs.reduce(
+            const [first, ...rest] = subs;
+            const latest = rest.reduce(
                 (a, b) => (a.createdAt.isAfter(b.createdAt) ? a : b),
                 first,
             );

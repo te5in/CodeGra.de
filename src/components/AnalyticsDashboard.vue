@@ -41,14 +41,16 @@
             <b-card header="Filters">
                 <b-input-group prepend="Latest">
                     <div class="form-control pl-2">
-                        <b-form-checkbox v-model="filter.onlyLatestSubs"
+                        <b-form-checkbox :checked="filter.onlyLatestSubs"
+                                         @input="updateFilter('onlyLatestSubs', $event)"
                                          class="d-inline-block" />
                         Only use latest submissions
                     </div>
                 </b-input-group>
 
                 <b-input-group prepend="Min. grade">
-                    <input v-model="filter.minGrade"
+                    <input :value="filter.minGrade"
+                           @input="updateFilter('minGrade', $event.target.value)"
                            class="form-control"
                            type="number"
                            placeholder="0"
@@ -58,15 +60,16 @@
 
                     <template #append>
                         <b-button variant="warning"
-                                  :disabled="filter.minGrade == ''"
-                                  @click="filter.minGrade = ''">
+                                  :disabled="filter.minGrade == null"
+                                  @click="updateFilter('minGrade', null)">
                             <icon name="reply" />
                         </b-button>
                     </template>
                 </b-input-group>
 
                 <b-input-group prepend="Max. grade">
-                    <input v-model="filter.maxGrade"
+                    <input :value="filter.maxGrade"
+                           @input="updateFilter('maxGrade', $event.target.value)"
                            class="form-control"
                            type="number"
                            placeholder="10"
@@ -76,34 +79,36 @@
 
                     <template #append>
                         <b-button variant="warning"
-                                  :disabled="filter.maxGrade == ''"
-                                  @click="filter.maxGrade = ''">
+                                  :disabled="filter.maxGrade == null"
+                                  @click="updateFilter('maxGrade', null)">
                             <icon name="reply" />
                         </b-button>
                     </template>
                 </b-input-group>
 
                 <b-input-group prepend="Submitted after">
-                    <datetime-picker v-model="filter.submittedAfter"
-                                     :placeholder="`${assignment.getFormattedCreatedAt()} (Assignment created)`"/>
+                    <datetime-picker :value="filter.submittedAfter"
+                                     @input="updateFilter('submittedAfter', $event)"
+                                     :placeholder="`${assignmentCreated} (Assignment created)`"/>
 
                     <template #append>
                         <b-button variant="warning"
-                                  :disabled="filter.submittedAfter == ''"
-                                  @click="filter.submittedAfter = ''">
+                                  :disabled="filter.submittedAfter == null"
+                                  @click="updateFilter('submittedAfter', null)">
                             <icon name="reply" />
                         </b-button>
                     </template>
                 </b-input-group>
 
                 <b-input-group prepend="Submitted before">
-                    <datetime-picker v-model="filter.submittedBefore"
-                                     :placeholder="`${assignment.getFormattedDeadline()} (Assignment deadline)`"/>
+                    <datetime-picker :value="filter.submittedBefore"
+                                     @input="updateFilter('submittedBefore', $event)"
+                                     :placeholder="`${assignmentDeadline} (Assignment deadline)`"/>
 
                     <template #append>
                         <b-button variant="warning"
-                                  :disabled="filter.submittedBefore == ''"
-                                  @click="filter.submittedBefore = ''">
+                                  :disabled="filter.submittedBefore == null"
+                                  @click="updateFilter('submittedAfter', null)">
                             <icon name="reply" />
                         </b-button>
                     </template>
@@ -210,10 +215,10 @@ export default {
             rubricRelative: true,
             filter: {
                 onlyLatestSubs: true,
-                minGrade: '',
-                maxGrade: '',
-                submittedBefore: '',
-                submittedAfter: '',
+                minGrade: null,
+                maxGrade: null,
+                submittedBefore: null,
+                submittedAfter: null,
             },
         };
     },
@@ -224,6 +229,14 @@ export default {
 
         assignment() {
             return this.assignments[this.assignmentId];
+        },
+
+        assignmentCreated() {
+            return this.assignment.getFormattedCreatedAt();
+        },
+
+        assignmentDeadline() {
+            return this.assignment.getFormattedDeadline();
         },
 
         workspaceIds() {
@@ -485,6 +498,14 @@ export default {
 
         reloadWorkspace() {
             this.clearAssignmentWorkspaces().then(this.loadWorkspaceData);
+        },
+
+        updateFilter(key, value) {
+            if (value == null || value === '') {
+                this.$set(this.filter, key, null);
+            } else {
+                this.$set(this.filter, key, value);
+            }
         },
 
         to2Dec(x) {
