@@ -452,7 +452,7 @@ class WorkspaceSubmissionSet {
     }
 }
 
-const WORKSPACE_FILTER_PROPS = Object.freeze([
+const WORKSPACE_FILTER_PROPS = new Set([
     'onlyLatestSubs',
     'minGrade',
     'maxGrade',
@@ -462,9 +462,9 @@ const WORKSPACE_FILTER_PROPS = Object.freeze([
 
 export class WorkspaceFilter {
     constructor(props) {
-        WORKSPACE_FILTER_PROPS.forEach(key => {
-            if (!Object.hasOwnProperty.call(props, key)) {
-                throw new Error('Filter prop not passed');
+        Object.keys(props).forEach(key => {
+            if (!WORKSPACE_FILTER_PROPS.has(key)) {
+                throw new Error(`Invalid filter: ${key}`);
             }
             this[key] = props[key];
         });

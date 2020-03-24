@@ -21,26 +21,24 @@
             <b-card header="General statistics">
                 <div class="row">
                     <div class="col-3 border-right metric">
-                        <!-- TODO: Use only latest submission data? -->
                         <h1>{{ baseSubmissionData.studentCount }}</h1>
                         <label>Number of students</label>
                     </div>
 
                     <div class="col-3 border-right metric">
-                        <!-- TODO: Use only latest submission data? -->
-                        <h1>{{ to2Dec(baseSubmissionData.averageGrade) }}</h1>
-                        <label>Average grade</label>
+                        <h1>{{ to2Dec(latestSubmissionData.averageGrade) }}</h1>
+                        <label>
+                            Average grade
+                        </label>
                     </div>
 
                     <div class="col-3 border-right metric">
-                        <!-- TODO: Use only latest submission data? -->
                         <h1>{{ to2Dec(baseSubmissionData.averageSubmissions) }}</h1>
                         <label>Average number of submissions</label>
                     </div>
 
                     <div class="col-3 metric">
-                        <!-- TODO: Use only latest submission data? -->
-                        <h1>{{ to2Dec(baseInlineFeedbackSource.averageEntries) }}</h1>
+                        <h1>{{ to2Dec(latestInlineFeedbackSource.averageEntries) }}</h1>
                         <label>Average number of feedback entries</label>
                     </div>
                 </div>
@@ -273,8 +271,22 @@ export default {
             return this.baseWorkspace.submissions;
         },
 
-        baseInlineFeedbackSource() {
-            return this.baseWorkspace.getSource('inline_feedback');
+        latestSubmissions() {
+            return this.baseWorkspace.filter([
+                new WorkspaceFilter({ onlyLatestSubs: true }),
+            ])[0];
+        },
+
+        latestSubmissionData() {
+            console.log(
+                this.baseWorkspace.submissions,
+                this.latestSubmissions.submissions,
+            );
+            return this.latestSubmissions.submissions;
+        },
+
+        latestInlineFeedbackSource() {
+            return this.latestSubmissions.getSource('inline_feedback');
         },
 
         submissionSources() {
