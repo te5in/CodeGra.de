@@ -20,26 +20,39 @@
         <div class="col-12">
             <b-card header="General statistics">
                 <div class="row">
-                    <div class="col-3 border-right metric">
+                    <div class="col-6 col-md-3 border-right metric">
                         <h1>{{ baseSubmissionData.studentCount }}</h1>
                         <label>Number of students</label>
                     </div>
 
-                    <div class="col-3 border-right metric">
+                    <div class="col-6 col-md-3 border-right metric">
                         <h1>{{ to2Dec(latestSubmissionData.averageGrade) }}</h1>
-                        <label>
-                            Average grade
-                        </label>
+                        <label>Average grade</label>
+
+                        <description-popover triggers="hover"
+                                             placement="top">
+                            The average grade over the latest submissions.
+                        </description-popover>
                     </div>
 
-                    <div class="col-3 border-right metric">
+                    <div class="col-6 col-md-3 border-right metric">
                         <h1>{{ to2Dec(baseSubmissionData.averageSubmissions) }}</h1>
                         <label>Average number of submissions</label>
+
+                        <description-popover triggers="hover"
+                                             placement="top">
+                            The average number of submissions per student.
+                        </description-popover>
                     </div>
 
-                    <div class="col-3 metric">
+                    <div class="col-6 col-md-3 metric">
                         <h1>{{ to2Dec(latestInlineFeedbackSource.averageEntries) }}</h1>
                         <label>Average number of feedback entries</label>
+
+                        <description-popover triggers="hover"
+                                             placement="top">
+                            The average number of feedback entries over the latest submissions.
+                        </description-popover>
                     </div>
                 </div>
             </b-card>
@@ -202,6 +215,7 @@ import { WorkspaceFilter } from '@/models';
 import { BarChart, ScatterPlot } from '@/components/Charts';
 import Loader from '@/components/Loader';
 import DatetimePicker from '@/components/DatetimePicker';
+import DescriptionPopover from '@/components/DescriptionPopover';
 
 export default {
     name: 'analytics-dashboard',
@@ -590,6 +604,7 @@ export default {
         BarChart,
         ScatterPlot,
         DatetimePicker,
+        DescriptionPopover,
     },
 };
 </script>
@@ -604,11 +619,18 @@ export default {
 }
 
 .metric {
+    position: relative;
     text-align: center;
 
     label {
         padding: 0 1rem;
         margin-bottom: 0;
+    }
+
+    .description-popover {
+        position: absolute;
+        top: 0;
+        right: 0.5rem;
     }
 }
 </style>
