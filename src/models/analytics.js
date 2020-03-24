@@ -5,7 +5,6 @@ import * as stat from 'simple-statistics';
 import { store } from '@/store';
 // eslint-ignore-next-line
 import {
-    cmpNoCase,
     getProps,
     mapObject,
     filterObject,
@@ -300,77 +299,91 @@ export class WorkspaceFilter {
             this[key] = props[key];
         });
 
-        const floatOrNull = x => {
+        const maybeFloat = x => {
             const f = parseFloat(x);
             return Number.isNaN(f) ? null : f;
         };
 
-        this.minGrade = floatOrNull(this.minGrade);
-        this.maxGrade = floatOrNull(this.maxGrade);
-        this.submittedAfter = moment.utc(this.submittedAfter, moment.ISO_8601);
-        this.submittedBefore = moment.utc(this.submittedBefore, moment.ISO_8601);
+        const maybeMoment = x => {
+            if (x != null && x.length) {
+                return moment.utc(x, moment.ISO_8601);
+            } else {
+                return null;
+            }
+        };
+
+        this.minGrade = maybeFloat(this.minGrade);
+        this.maxGrade = maybeFloat(this.maxGrade);
+        this.submittedAfter = maybeMoment(this.submittedAfter);
+        this.submittedBefore = maybeMoment(this.submittedBefore);
 
         Object.freeze(this);
     }
 
     apply(studentSubs) {
-        let subs = studentSubs;
+        let filtered = this.onlyLatestSubs ?
+            WorkspaceFilter.getLatestSubs(studentSubs) :
+            studentSubs;
 
-        if (this.onlyLatestSubs) {
-            subs = WorkspaceFilter.getLatestSubs(subs);
-        }
-
-        const {
-            minGrade,
-            maxGrade,
-            submittedAfter,
-            submittedBefore,
-        } = this;
-
-        subs = mapObject(subs, ss =>
-            ss.filter(s => {
-                // We do not want a submission to be in both filter A and
-                // filter B if A has maxGrade=6 and B has minGrade=6, so we
-                // need to check exclusively at one end. However, we need to be
-                // inclusive at either 0 or the max grade for this assignment,
-                // because otherwise we would drop some submissions. I chose
-                // to be inclusive at the minGrade bound and exclusive at the
-                // maxGrade bound because that feels more intuitive. This means
-                // that a maxGrade of 9 will not contain submissions graded
-                // exactly 9, but that a maxGrade of 10 _will_ include
-                // submissions graded exactly 10.
-                // TODO: use the assignment's max grade instead of hardcoded
-                // value 10.
-                if (minGrade != null && s.grade < minGrade) {
-                    return false;
-                }
-                if (maxGrade != null) {
-                    if (maxGrade === 10 && s.grade === 10) {
-                        return true;
-                    }
-                    if (s.grade >= maxGrade) {
-                        return false;
-                    }
-                }
-                // Same as with the grade, but we do not have a maximum value to check for.
-                if (submittedAfter != null && !s.createdAt.isAfter(submittedBefore)) {
-                    return false;
-                }
-                if (submittedBefore != null && s.createdAt.isAfter(submittedBefore)) {
-                    return false;
-                }
-                return true;
-            }),
+        filtered = mapObject(filtered, subs =>
+            subs.filter(s => this.satisfiesGrade(s) && this.satisfiesDate(s)),
         );
-        subs = filterObject(subs, ss => ss.length > 0);
+        filtered = filterObject(filtered, subs => subs.length > 0);
 
-        return subs;
+        return filtered;
+    }
+
+    satisfiesGrade(sub) {
+        // We do not want a submission to be in both filter A and
+        // filter B if A has maxGrade=6 and B has minGrade=6, so we
+        // need to check exclusively at one end. However, we need to be
+        // inclusive at either 0 or the max grade for this assignment,
+        // because otherwise we would drop some submissions. I chose
+        // to be inclusive at the minGrade bound and exclusive at the
+        // maxGrade bound because that feels more intuitive. This means
+        // that a maxGrade of 9 will not contain submissions graded
+        // exactly 9, but that a maxGrade of 10 _will_ include
+        // submissions graded exactly 10.
+        // TODO: use the assignment's max grade instead of hardcoded
+        // value 10.
+        const { minGrade, maxGrade } = this;
+
+        if (minGrade != null && sub.grade < minGrade) {
+            return false;
+        }
+        if (maxGrade != null) {
+            if (maxGrade === 10 && sub.grade === 10) {
+                return true;
+            }
+            if (sub.grade >= maxGrade) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    satisfiesDate(sub) {
+        // Same as with the grade, but we do not have a maximum value to check for.
+        const { submittedAfter, submittedBefore } = this;
+
+        if (submittedAfter != null && sub.createdAt.isBefore(submittedAfter)) {
+            return false;
+        }
+        if (submittedBefore != null && !sub.createdAt.isBefore(submittedBefore)) {
+            return false;
+        }
+        return true;
     }
 
     static getLatestSubs(studentSubs) {
-        return mapObject(studentSubs, subs =>
-            subs.sort((a, b) => cmpNoCase(b.created_at, a.created_at)).slice(0, 1),
-        );
+        return mapObject(studentSubs, subs => {
+            const first = subs.pop();
+            const latest = subs.reduce(
+                (a, b) => (a.createdAt.isAfter(b.createdAt) ? a : b),
+                first,
+            );
+            return latest == null ? [] : [latest];
+        });
     }
 }
 
