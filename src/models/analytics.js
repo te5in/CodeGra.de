@@ -352,7 +352,8 @@ export class WorkspaceFilter {
                         return false;
                     }
                 }
-                if (submittedAfter != null && s.createdAt.isBefore(submittedAfter)) {
+                // Same as with the grade, but we do not have a maximum value to check for.
+                if (submittedAfter != null && !s.createdAt.isAfter(submittedBefore)) {
                     return false;
                 }
                 if (submittedBefore != null && s.createdAt.isAfter(submittedBefore)) {
