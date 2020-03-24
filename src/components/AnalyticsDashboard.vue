@@ -18,14 +18,16 @@
 
     <template v-else>
         <div class="col-12">
-            <b-card header="General statistics">
+            <b-card header="General statistics"
+                    body-class="pb-0">
                 <div class="row">
-                    <div class="col-6 col-md-3 border-right metric">
+                    <div class="col-6 col-md-3 mb-3 border-right metric">
                         <h1>{{ baseSubmissionData.studentCount }}</h1>
                         <label>Number of students</label>
                     </div>
 
-                    <div class="col-6 col-md-3 border-right metric">
+                    <div class="col-6 col-md-3 mb-3 metric"
+                         :class="{ 'border-right': $root.$isMediumWindow }">
                         <h1>{{ to2Dec(latestSubmissionData.averageGrade) }}</h1>
                         <label>Average grade</label>
 
@@ -35,7 +37,10 @@
                         </description-popover>
                     </div>
 
-                    <div class="col-6 col-md-3 border-right metric">
+                    <hr v-if="!$root.$isMediumWindow"
+                        class="w-100 mt-0 mx-3"/>
+
+                    <div class="col-6 col-md-3 mb-3 border-right metric">
                         <h1>{{ to2Dec(baseSubmissionData.averageSubmissions) }}</h1>
                         <label>Average number of submissions</label>
 
@@ -45,7 +50,7 @@
                         </description-popover>
                     </div>
 
-                    <div class="col-6 col-md-3 metric">
+                    <div class="col-6 col-md-3 mb-3 metric">
                         <h1>{{ to2Dec(latestInlineFeedbackSource.averageEntries) }}</h1>
                         <label>Average number of feedback entries</label>
 
