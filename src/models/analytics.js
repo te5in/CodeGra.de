@@ -38,9 +38,9 @@ export class DataSource {
         return getProps(this.workspace, null, 'assignment');
     }
 
-    filter(subIds, workspace) {
+    filter(subIds) {
         const data = filterObject(this.data, (_, id) => subIds.has(parseInt(id, 10)));
-        return new this.constructor(data, workspace);
+        return new this.constructor(data, this.workspace);
     }
 }
 
@@ -305,6 +305,48 @@ class WorkspaceSubmission {
         Object.assign(this, props);
         Object.freeze(this);
     }
+
+    satisfiesGrade(filter) {
+        // We do not want a submission to be in both filter A and
+        // filter B if A has maxGrade=6 and B has minGrade=6, so we
+        // need to check exclusively at one end. However, we need to be
+        // inclusive at either 0 or the max grade for this assignment,
+        // because otherwise we would drop some submissions. I chose
+        // to be inclusive at the minGrade bound and exclusive at the
+        // maxGrade bound because that feels more intuitive. This means
+        // that a maxGrade of 9 will not contain submissions graded
+        // exactly 9, but that a maxGrade of 10 _will_ include
+        // submissions graded exactly 10.
+        // TODO: use the assignment's max grade instead of hardcoded
+        // value 10.
+        const { minGrade, maxGrade } = filter;
+
+        if (minGrade != null && this.grade < minGrade) {
+            return false;
+        }
+        if (maxGrade != null) {
+            if (maxGrade === 10 && this.grade === 10) {
+                return true;
+            }
+            if (this.grade >= maxGrade) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    satisfiesDate(filter) {
+        // Same as with the grade, but we do not have a maximum value to check for.
+        const { submittedAfter, submittedBefore } = filter;
+
+        if (submittedAfter != null && this.createdAt.isBefore(submittedAfter)) {
+            return false;
+        }
+        if (submittedBefore != null && !this.createdAt.isBefore(submittedBefore)) {
+            return false;
+        }
+        return true;
+    }
 }
 
 class WorkspaceSubmissionSet {
@@ -384,6 +426,20 @@ class WorkspaceSubmissionSet {
         );
     }
 
+    filter(filter) {
+        let filtered = filter.onlyLatestSubs ?
+            this.getLatestSubmissions() :
+            this.submissions;
+
+        filtered = mapObject(filtered, subs =>
+            subs.filter(s => s.satisfiesGrade(filter) && s.satisfiesDate(filter)),
+        );
+
+        filtered = filterObject(filtered, subs => subs.length > 0);
+
+        return new WorkspaceSubmissionSet(filtered);
+    }
+
     getLatestSubmissions() {
         return mapObject(this.submissions, subs => {
             const [first, ...rest] = subs;
@@ -430,61 +486,23 @@ export class WorkspaceFilter {
 
         Object.freeze(this);
     }
+}
 
-    apply(studentSubs) {
-        let filtered = this.onlyLatestSubs ?
-            studentSubs.getLatestSubmissions() :
-            studentSubs.submissions;
+class WorkspaceFilterResult {
+    constructor(workspace, filter) {
+        this.submissions = workspace.submissions.filter(filter);
 
-        filtered = mapObject(filtered, subs =>
-            subs.filter(s => this.satisfiesGrade(s) && this.satisfiesDate(s)),
-        );
+        const subIds = this.submissions.submissionIds;
+        this.dataSources = Object.freeze(mapObject(
+            workspace.dataSources,
+            ds => ds.filter(subIds),
+        ));
 
-        filtered = filterObject(filtered, subs => subs.length > 0);
-
-        return new WorkspaceSubmissionSet(filtered);
+        Object.freeze(this);
     }
 
-    satisfiesGrade(sub) {
-        // We do not want a submission to be in both filter A and
-        // filter B if A has maxGrade=6 and B has minGrade=6, so we
-        // need to check exclusively at one end. However, we need to be
-        // inclusive at either 0 or the max grade for this assignment,
-        // because otherwise we would drop some submissions. I chose
-        // to be inclusive at the minGrade bound and exclusive at the
-        // maxGrade bound because that feels more intuitive. This means
-        // that a maxGrade of 9 will not contain submissions graded
-        // exactly 9, but that a maxGrade of 10 _will_ include
-        // submissions graded exactly 10.
-        // TODO: use the assignment's max grade instead of hardcoded
-        // value 10.
-        const { minGrade, maxGrade } = this;
-
-        if (minGrade != null && sub.grade < minGrade) {
-            return false;
-        }
-        if (maxGrade != null) {
-            if (maxGrade === 10 && sub.grade === 10) {
-                return true;
-            }
-            if (sub.grade >= maxGrade) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    satisfiesDate(sub) {
-        // Same as with the grade, but we do not have a maximum value to check for.
-        const { submittedAfter, submittedBefore } = this;
-
-        if (submittedAfter != null && sub.createdAt.isBefore(submittedAfter)) {
-            return false;
-        }
-        if (submittedBefore != null && !sub.createdAt.isBefore(submittedBefore)) {
-            return false;
-        }
-        return true;
+    getSource(sourceName) {
+        return this.dataSources[sourceName];
     }
 }
 
@@ -521,8 +539,6 @@ export class Workspace {
         this.dataSources = {};
         Object.freeze(this);
 
-        console.log('xxx', this.submissions);
-
         if (sources != null) {
             this._setSources(sources);
         }
@@ -533,33 +549,19 @@ export class Workspace {
         Object.freeze(this.dataSources);
     }
 
-    get assignment() {
-        return store.getters['courses/assignments'][this.assignment_id];
+    hasSource(sourceName) {
+        return Object.hasOwnProperty.call(this.dataSources, sourceName);
     }
 
     getSource(sourceName) {
         return this.dataSources[sourceName];
     }
 
+    get assignment() {
+        return store.getters['courses/assignments'][this.assignment_id];
+    }
+
     filter(filters) {
-        if (filters.length === 0) {
-            return this;
-        }
-
-        const filter = filters[0];
-
-        const subs = filter.apply(this.submissions);
-        const props = Object.assign({}, this, {
-            submissions: subs,
-        });
-        const workspace = new Workspace(props);
-
-        const subIds = subs.submissionIds;
-        const sources = mapObject(this.dataSources, ds => ds.filter(subIds, workspace));
-
-        // eslint-disable-next-line
-        workspace._setSources(sources);
-
-        return workspace;
+        return filters.map(filter => new WorkspaceFilterResult(this, filter));
     }
 }

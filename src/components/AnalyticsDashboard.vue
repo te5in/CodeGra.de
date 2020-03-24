@@ -9,28 +9,38 @@
         {{ $utils.getErrorMessage(error) }}
     </b-alert>
 
+    <div v-else-if="baseSubmissionData.submissionCount === 0"
+         class="col-12">
+        <h3 class="border rounded p-5 text-center text-muted font-italic">
+            There are no submissions yet.
+        </h3>
+    </div>
+
     <template v-else>
-        <div class="col-12"
-             v-if="submissionData.submissionCount > 0">
+        <div class="col-12">
             <b-card header="General statistics">
                 <div class="row">
                     <div class="col-3 border-right metric">
-                        <h1>{{ submissionData.studentCount }}</h1>
+                        <!-- TODO: Use only latest submission data? -->
+                        <h1>{{ baseSubmissionData.studentCount }}</h1>
                         <label>Number of students</label>
                     </div>
 
                     <div class="col-3 border-right metric">
-                        <h1>{{ to2Dec(submissionData.averageGrade) }}</h1>
+                        <!-- TODO: Use only latest submission data? -->
+                        <h1>{{ to2Dec(baseSubmissionData.averageGrade) }}</h1>
                         <label>Average grade</label>
                     </div>
 
                     <div class="col-3 border-right metric">
-                        <h1>{{ to2Dec(submissionData.averageSubmissions) }}</h1>
+                        <!-- TODO: Use only latest submission data? -->
+                        <h1>{{ to2Dec(baseSubmissionData.averageSubmissions) }}</h1>
                         <label>Average number of submissions</label>
                     </div>
 
                     <div class="col-3 metric">
-                        <h1>{{ to2Dec(inlineFeedbackSource.averageEntries) }}</h1>
+                        <!-- TODO: Use only latest submission data? -->
+                        <h1>{{ to2Dec(baseInlineFeedbackSource.averageEntries) }}</h1>
                         <label>Average number of feedback entries</label>
                     </div>
                 </div>
@@ -116,7 +126,7 @@
             </b-card>
         </div>
 
-        <div v-if="submissionData.submissionCount === 0"
+        <div v-if="baseSubmissionData.submissionCount === 0"
             class="col-12">
             <h3 class="border rounded p-5 text-center text-muted font-italic">
                 No submissions within the specified filter parameters.
@@ -125,34 +135,34 @@
 
         <template v-else>
             <div class="col-12 col-lg-6"
-                :class="{ 'col-lg-12': largeGradeHistogram }">
+                 :class="{ 'col-lg-12': largeGradeHistogram }">
                 <b-card header="Histogram of grades">
                     <bar-chart :chart-data="gradeHistogram"
-                            red-to-green
-                            :width="300"
-                            :height="largeGradeHistogram ? 100 : 200"/>
+                               red-to-green
+                               :width="300"
+                               :height="largeGradeHistogram ? 100 : 200"/>
                 </b-card>
             </div>
 
-            <template v-if="hasRubric">
+            <template v-if="hasRubricSource">
                 <div class="col-12 col-lg-6"
-                    :class="{ 'col-lg-12': largeGradeHistogram }">
+                     :class="{ 'col-lg-12': largeGradeHistogram }">
                     <b-card header="Mean score per rubric category">
                         <bar-chart :chart-data="rubricMeanHistogram"
-                                :options="rubricMeanHistOpts"
-                                :relative-to="rubricNormalizeFactors"
-                                :width="300"
-                                :height="largeGradeHistogram ? 100 : 200"/>
+                                   :options="rubricMeanHistOpts"
+                                   :relative-to="rubricNormalizeFactors"
+                                   :width="300"
+                                   :height="largeGradeHistogram ? 100 : 200"/>
 
                         <hr>
 
                         <b-input-group prepend="Metric">
                             <b-form-select v-model="rubricStatistic"
-                                        :options="rubricStatOptions"/>
+                                           :options="rubricStatOptions"/>
                         </b-input-group>
 
                         <b-input-group prepend="Relative"
-                                    v-if="showRubricRelative">
+                                       v-if="showRubricRelative">
                             <div class="form-control pl-2">
                                 <b-form-checkbox v-model="rubricRelative"
                                                  :id="`rubric-relative-${id}`"
@@ -168,13 +178,13 @@
                 </div>
 
                 <template v-for="row in rubric.rows"
-                        v-if="rubricCatScatter[row.id]">
+                          v-if="rubricCatScatter[row.id]">
                     <div class="col-12 col-lg-6">
                         <b-card :header="`${row.header}: Correlation of item score with total score`">
                             <scatter-plot :chart-data="rubricCatScatter[row.id]"
-                                        :options="rubricCatScatterOpts"
-                                        :width="300"
-                                        :height="200"/>
+                                          :options="rubricCatScatterOpts"
+                                          :width="300"
+                                          :height="200"/>
                         </b-card>
                     </div>
                 </template>
@@ -251,28 +261,35 @@ export default {
             return this.$utils.getProps(this.assignment, null, 'rubric');
         },
 
-        filteredWorkspace() {
-            return this.baseWorkspace.filter(this.filters);
-        },
-
         filters() {
             return [new WorkspaceFilter({ ...this.filter })];
         },
 
-        submissionData() {
-            return this.filteredWorkspace.submissions;
+        filterResults() {
+            return this.baseWorkspace.filter(this.filters);
         },
 
-        rubricSource() {
-            return this.filteredWorkspace.getSource('rubric_data');
+        baseSubmissionData() {
+            return this.baseWorkspace.submissions;
         },
 
-        inlineFeedbackSource() {
-            return this.filteredWorkspace.getSource('inline_feedback');
+        baseInlineFeedbackSource() {
+            return this.baseWorkspace.getSource('inline_feedback');
         },
 
-        hasRubric() {
-            return this.rubricSource != null;
+        submissionSources() {
+            return this.filterResults.map(r => r.submissions);
+        },
+
+        hasRubricSource() {
+            return this.baseWorkspace.hasSource('rubric_data');
+        },
+
+        rubricSources() {
+            if (!this.hasRubricSource) {
+                return [];
+            }
+            return this.filterResults.map(r => r.getSource('rubric_data'));
         },
 
         hasManyRubricRows() {
@@ -282,23 +299,17 @@ export default {
         largeGradeHistogram() {
             return (
                 this.$root.$isLargeWindow &&
-                (!this.hasRubric || this.hasManyRubricRows)
+                (!this.hasRubricSource || this.hasManyRubricRows)
             );
         },
 
         gradeHistogram() {
             const bins = [...Array(10).keys()].map(x => [x, x + 1]);
             const labels = bins.map(([start, end]) => `${10 * start}% - ${10 * end}%`);
-            const data = this.submissionData
-                .binSubmissionsByGrade(bins)
-                .map(subs => subs.length);
 
-            const datasets = [
-                {
-                    label: 'Number of students',
-                    data,
-                },
-            ];
+            const datasets = this.submissionSources.map(source =>
+                ({ data: source.binSubmissionsByGrade(bins).map(subs => subs.length) }),
+            );
 
             return {
                 labels,
@@ -350,37 +361,30 @@ export default {
         },
 
         rubricMeanHistogram() {
-            const source = this.rubricSource;
+            const datasets = this.rubricSources.map(source => {
+                const data = [];
+                const stats = [];
 
-            if (source == null) {
-                return null;
-            }
+                this.rubric.rows.forEach(row => {
+                    const stat = {
+                        mean: source.meanPerCat[row.id],
+                        mode: source.modePerCat[row.id],
+                        median: source.medianPerCat[row.id],
+                        rit: source.ritPerCat[row.id],
+                        rir: source.rirPerCat[row.id],
+                        nTimesFilled: source.nTimesFilledPerCat[row.id],
+                        rowId: row.id,
+                    };
+                    stats.push(stat);
+                    data.push(stat[this.rubricStatistic]);
+                });
 
-            const data = [];
-            const stats = [];
-
-            this.rubric.rows.forEach(row => {
-                const stat = {
-                    mean: source.meanPerCat[row.id],
-                    mode: source.modePerCat[row.id],
-                    median: source.medianPerCat[row.id],
-                    rit: source.ritPerCat[row.id],
-                    rir: source.rirPerCat[row.id],
-                    nTimesFilled: source.nTimesFilledPerCat[row.id],
-                    rowId: row.id,
-                };
-                stats.push(stat);
-                data.push(stat[this.rubricStatistic]);
+                return { data, stats };
             });
 
             return {
                 labels: this.rubric.rows.map(row => row.header),
-                datasets: [
-                    {
-                        data,
-                        stats,
-                    },
-                ],
+                datasets,
             };
         },
 
@@ -422,30 +426,30 @@ export default {
         },
 
         rubricCatScatter() {
-            const ritItems = this.rubricSource.ritItemsPerCat;
-            const rirItems = this.rubricSource.rirItemsPerCat;
-
             return this.rubric.rows.reduce(
                 (acc, row) => {
-                    const ritItem = ritItems[row.id].map(([x, y]) => ({ x, y }));
-                    const rirItem = rirItems[row.id].map(([x, y]) => ({ x, y }));
+                    const datasets = [].concat(...this.rubricSources.map(source => {
+                        const { ritItemsPerCat, rirItemsPerCat } = source;
+                        const ritItems = ritItemsPerCat[row.id];
+                        const rirItems = rirItemsPerCat[row.id];
 
-                    if (ritItem.length === 0 && rirItem.length === 0) {
-                        return acc;
-                    }
+                        if (ritItems.length === 0 && rirItems.length === 0) {
+                            return [];
+                        }
 
-                    acc[row.id] = {
-                        datasets: [
+                        return [
                             {
                                 label: 'Total',
-                                data: ritItem,
+                                data: ritItems.map(([x, y]) => ({ x, y })),
                             },
                             {
                                 label: 'Total - Item',
-                                data: rirItem,
+                                data: rirItems.map(([x, y]) => ({ x, y })),
                             },
-                        ],
-                    };
+                        ];
+                    }));
+
+                    acc[row.id] = { datasets };
                     return acc;
                 },
                 {},
