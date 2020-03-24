@@ -42,7 +42,7 @@ LinterComments = t.Dict[int,
 
 
 class FeedbackBase(TypedDict, total=True):
-    general: str
+    general: t.Optional[str]
     linter: LinterComments
 
 
@@ -322,7 +322,7 @@ def _get_feedback_with_replies(
         authors = db.session.query(models.User).filter(
             models.User.id.in_(
                 db.session.query(models.CommentReply.author_id).filter(
-                    models.CommentReply.id.in_([c.id for c in comments])
+                    models.CommentReply.comment_base_id.in_([c.id for c in comments])
                 ).distinct(models.CommentReply.author_id)
             )
         ).all()
@@ -395,13 +395,14 @@ def get_feedback_from_submission(
     comments = models.CommentBase.query.filter(
         models.CommentBase.file.has(work=work),
         # We join the replies using an innerload to make sure we only get
-        # commentbases that have atleast one reply.
+        # commentbases that have at least one reply.
     ).join(
         models.CommentBase.replies, isouter=False
     ).order_by(
         # This order is really important for the `itertools.groupby` call.
         models.CommentBase.file_id.asc(),
         models.CommentBase.line.asc(),
+        models.CommentReply.created_at.asc(),
     ).options(contains_eager(models.CommentBase.replies)).all()
 
     fun: t.Callable[[t.List[models.CommentBase], bool, bool, LinterComments], t

@@ -6,50 +6,41 @@
             <slot/>
         </div>
 
-        <b-button class="feedback-button"
-                  :class="buttonClasses"
-                  @click="startEditingFeedback"
-                  v-b-popover.window.top.hover="`Edit feedback for this ${slotDescription}`"
-                  v-if="editable && !disabled">
+        <submit-button class="feedback-button"
+                       :class="buttonClasses"
+                       :submit="addFeedback"
+                       @success="afterAddFeedback"
+                       variant="secondary"
+                       v-b-popover.window.top.hover="`Edit feedback for this ${slotDescription}`"
+                       v-if="editable && !disabled && !hasFeedback">
             <icon name="edit"/>
-        </b-button>
+        </submit-button>
     </div>
     <feedback-area
         :class="{ 'feedback-editable': editable }"
         ref="feedbackArea"
-        :editing="editingFeedback"
         :editable="editable"
-        :feedback="feedback.msg"
-        :author="feedback && feedback.author"
-        :line="line"
-        :file-id="fileId"
+        :feedback="feedback"
         :total-amount-lines="line + 1000"
         :forceSnippetsAbove="snippetFieldAbove"
         :can-use-snippets="canUseSnippets"
-        :assignment="assignment"
         :submission="submission"
-        @editFeedback="editingFeedback = true"
-        @feedbackChange="feedbackChange"
         v-if="hasFeedback && !disabled"/>
 </div>
 </template>
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
+import { FeedbackLine } from '@/models';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/edit';
 
 import FeedbackArea from './FeedbackArea';
+import SubmitButton from './SubmitButton';
 
 export default {
     name: 'floating-feedback-button',
-
-    data() {
-        return {
-            editingFeedback: false,
-        };
-    },
 
     props: {
         fileId: {
@@ -61,8 +52,8 @@ export default {
             required: true,
         },
         feedback: {
-            type: Object,
-            default: () => ({}),
+            type: FeedbackLine,
+            default: null,
         },
         editable: {
             type: Boolean,
@@ -116,7 +107,7 @@ export default {
         }),
 
         hasFeedback() {
-            return this.feedback && this.feedback.msg != null;
+            return this.feedback != null && !this.feedback.isEmpty;
         },
 
         buttonClasses() {
@@ -133,29 +124,19 @@ export default {
             storeAddFeedbackLine: 'addFeedbackLine',
         }),
 
-        feedbackChange() {
-            this.editingFeedback = false;
+        addFeedback() {
+            return FeedbackLine.createFeedbackLine(
+                parseInt(this.fileId, 10),
+                this.line,
+                this.myId,
+            );
         },
 
-        async startEditingFeedback() {
-            this.editingFeedback = true;
-            if (!this.hasFeedback) {
-                await this.storeAddFeedbackLine({
-                    assignmentId: this.assignment.id,
-                    submissionId: this.submission.id,
-                    fileId: this.fileId,
-                    line: this.line,
-                    author: { id: this.myId },
-                });
-            }
-            this.$nextTick(() => {
-                const ref = this.$refs.feedbackArea;
-                if (ref) {
-                    const el = ref.$el.querySelector('textarea');
-                    if (el) {
-                        el.focus();
-                    }
-                }
+        afterAddFeedback({ cgResult }) {
+            this.storeAddFeedbackLine({
+                assignmentId: this.assignment.id,
+                submissionId: this.submission.id,
+                line: cgResult,
             });
         },
     },
@@ -163,6 +144,7 @@ export default {
     components: {
         Icon,
         FeedbackArea,
+        SubmitButton,
     },
 };
 </script>
@@ -171,9 +153,6 @@ export default {
 @import '~mixins.less';
 
 .floating-feedback-button {
-    display: flex;
-    flex-direction: column;
-    max-height: 100%;
     overflow: hidden;
 
     @media @media-no-large {
@@ -183,8 +162,7 @@ export default {
 
 .content {
     position: relative;
-    flex: 1 1 auto;
-    min-height: 0;
+    height: 70%;
     display: flex;
     flex-direction: column;
 }
@@ -198,12 +176,10 @@ export default {
     flex: 1 1 100%;
 }
 
-.feedback-area-wrapper {
-    flex: 0 0 auto;
-}
-
 .feedback-area {
     padding-top: 0 !important;
+    overflow: auto;
+    flex: 1 1 30%;
 }
 
 .feedback-button.btn {
@@ -249,12 +225,6 @@ export default {
 }
 
 .floating-feedback-button.add-space {
-    .feedback-area-wrapper {
-        margin: 0 -1px -1px;
-        border-top-left-radius: 0 !important;
-        border-top-right-radius: 0 !important;
-    }
-
     .feedback-area {
         margin: 0 -1px -1px;
 

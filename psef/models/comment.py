@@ -3,6 +3,7 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 
+import enum
 import typing as t
 
 import sqlalchemy
@@ -20,6 +21,12 @@ from . import user as user_models
 from . import _MyQuery
 from .. import current_user
 from ..permissions import CoursePermission
+
+
+@enum.unique
+class CommentReplyType(enum.Enum):
+    plain_text = enum.auto()
+    markdown = enum.auto()
 
 
 class CommentReply(IdMixin, TimestampMixin, Base):
@@ -66,6 +73,21 @@ class CommentReply(IdMixin, TimestampMixin, Base):
 
     comment = db.Column('comment', db.Unicode, nullable=False)
 
+    edits = db.relationship(
+        lambda: CommentReplyEdit,
+        back_populates='comment_reply',
+        uselist=True,
+        lazy='dynamic',
+        order_by=lambda: CommentReplyEdit.created_at.asc(),
+    )
+
+    reply_type = db.Column(
+        'reply_type',
+        db.Enum(CommentReplyType),
+        nullable=False,
+        server_default="'plain_text'"
+    )
+
     # We set this property later on
     has_edits: ImmutableColumnProxy[bool]
 
@@ -77,9 +99,12 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         return edit
 
     def delete(self) -> 'CommentReplyEdit':
-        edit = CommentReplyEdit(self, current_user, was_deleted=True)
+        edit = CommentReplyEdit(self, current_user, is_deletion=True)
         self.deleted = True
         return edit
+
+    def __repr__(self) -> str:
+        return f'<CommentReply id={self.id} deleted={self.deleted}>'
 
     def __to_json__(self) -> t.Mapping[str, t.Union[str, int, None]]:
         res: t.Dict[str, t.Union[str, int, None]] = {
@@ -88,6 +113,9 @@ class CommentReply(IdMixin, TimestampMixin, Base):
             'author_id': None,
             'in_reply_to_id': self.in_reply_to_id,
             'has_edits': self.has_edits,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+            'reply_type': self.reply_type.name,
         }
 
         if self.comment_base.can_see_author:
@@ -100,7 +128,7 @@ class CommentReplyEdit(IdMixin, TimestampMixin, Base):
     @t.overload
     def __init__(
         self, comment_reply: CommentReply, editor: 'user_models.User', *,
-        was_deleted: Literal[True]
+        is_deletion: Literal[True]
     ) -> None:
         ...
 
@@ -120,14 +148,14 @@ class CommentReplyEdit(IdMixin, TimestampMixin, Base):
         editor: 'user_models.User',
         *,
         new_comment_text: str = None,
-        was_deleted: bool = False,
+        is_deletion: bool = False,
     ) -> None:
         ...
         assert comment_reply.id is not None, 'CommentReply should be in db'
         super().__init__(
             comment_reply_id=comment_reply.id,
             new_comment=new_comment_text,
-            was_deleted=was_deleted,
+            is_deletion=is_deletion,
             old_comment=comment_reply.comment,
             editor_id=editor.id,
         )
@@ -137,6 +165,13 @@ class CommentReplyEdit(IdMixin, TimestampMixin, Base):
         db.Integer,
         db.ForeignKey(CommentReply.id),
         nullable=False,
+    )
+
+    comment_reply = db.relationship(
+        lambda: CommentReply,
+        foreign_keys=comment_reply_id,
+        innerjoin=True,
+        back_populates='edits',
     )
 
     editor_id = db.Column(
@@ -209,19 +244,50 @@ class CommentBase(IdMixin, Base):
         )
     )
 
-    def add_reply(self, user: 'user_models.User', comment: str) -> None:
-        self.replies.append(
-            CommentReply(deleted=False, comment=comment, author_id=user.id)
+    def add_reply(
+        self,
+        user: 'user_models.User',
+        comment: str,
+        reply_type: CommentReplyType,
+        in_reply_to: t.Optional[CommentReply],
+    ) -> CommentReply:
+        reply = CommentReply(
+            deleted=False,
+            comment=comment,
+            author_id=user.id,
+            reply_type=reply_type
         )
+        self.replies.append(reply)
+        return reply
+
+    @classmethod
+    def create(cls, file: 'file_models.File', line: int) -> 'CommentBase':
+        return cls(file=file, file_id=file.id, line=line, replies=[])
+
+    @classmethod
+    def create_if_not_exists(
+        cls, file: 'file_models.File', line: int
+    ) -> 'CommentBase':
+        self = cls.query.filter(
+            cls.file_id == file.id,
+            cls.line == line,
+        ).one_or_none()
+        if self is None:
+            self = cls.create(file, line)
+        return self
 
     @classmethod
     def create_and_add_reply(
-        cls, file: 'file_models.File', line: int, user: 'user_models.User',
-        comment: str
-    ) -> 'CommentBase':
-        self = cls(file_id=file.id, line=line, replies=[])
-        self.add_reply(user, comment)
-        return self
+        cls,
+        file: 'file_models.File',
+        line: int,
+        user: 'user_models.User',
+        comment: str,
+        reply_type: CommentReplyType,
+    ) -> t.Tuple['CommentBase', CommentReply]:
+        self = cls.create(file, line)
+        reply = self.add_reply(user, comment, reply_type, None)
+        return self, reply
 
     @property
     def first_reply(self) -> t.Optional['CommentReply']:
@@ -264,6 +330,7 @@ class CommentBase(IdMixin, Base):
         """
         res: t.Dict[str, t.Union[int, str, t.Optional[user_models.User], t.
                                  List[CommentReply]]]
+        print(self.replies)
         res = {
             'id': self.id,
             'line': self.line,

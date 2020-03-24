@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
-<template>
+</template>
 <div class="groups-management">
     <b-alert variant="error" show v-if="error != null">
         {{ $utils.getErrorMessage(error) }}

@@ -43,9 +43,10 @@
             :key="i"
             class="line"
             :class="{
-                'hover': canGiveFeedback,
+                'normal-cursor': hasFeedback(i - 1),
+                'hover': canGiveFeedback && !hasFeedback(i - 1),
                 'linter-feedback-outer': $userConfig.features.linters && linterFeedback[i - 1 + lineFeedbackOffset],
-                'feedback-outer': showFeedback && $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset, 'msg') != null
+                'pb-1': hasFeedback(i - 1),
             }"
             :data-line="i">
 
@@ -55,18 +56,14 @@
                                   v-if="$userConfig.features.linters && linterFeedback[i - 1] != null"/>
 
             <feedback-area
+                class="border-top border-bottom py-1 px-3 bg-white mt-1"
                 :key="i"
-                :editing="editing[i - 1]"
                 :feedback="feedback[i - 1 + lineFeedbackOffset]"
                 :editable="editable"
-                :line="i - 1 + lineFeedbackOffset"
                 :total-amount-lines="computedEndLine"
-                :file-id="fileId"
                 :can-use-snippets="canUseSnippets"
                 :submission="submission"
-                @editFeedback="editFeedback"
-                @feedbackChange="feedbackChange"
-                v-if="showFeedback && $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset) != null"/>
+                v-if="hasFeedback(i - 1)"/>
         </li>
         <li class="empty-file"
             v-if="innerCodeLines.length === 1 && innerCodeLines[0] === ''">
@@ -109,6 +106,7 @@ import { mapActions, mapGetters } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/level-up';
+import { FeedbackLine } from '@/models';
 
 import Loader from './Loader';
 import FeedbackArea from './FeedbackArea';
@@ -190,7 +188,6 @@ export default {
 
     data() {
         return {
-            editing: {},
             dragEvent: null,
             confirmedLines: false,
             showLinesLoader: false,
@@ -321,52 +318,20 @@ export default {
             }
 
             const line = Number(el.getAttribute('data-line')) - 1;
-            const feedbackLine = line + this.lineFeedbackOffset;
-
-            // We can never be editing this line when there is no feedback to
-            // edit. So this mapping is simply outdated. This happens because we
-            // do not reset the editing back to `false` when deleting
-            // feedback. We do not do this because when deleting a line of
-            // feedback, the line is deleted from the store. This means the
-            // component will stop existing, so it is impossible for it to emit
-            // a `deleted` event.
-            if (this.editing[line] && this.feedback[feedbackLine] != null) {
-                return;
-            }
-
-            if (!this.feedback[feedbackLine] || !this.feedback[feedbackLine].msg) {
-                await this.storeAddFeedbackLine({
-                    assignmentId: this.assignment.id,
-                    submissionId: this.submission.id,
-                    fileId: this.fileId,
-                    line: feedbackLine,
-                    author: { id: this.myId },
+            if (!this.hasFeedback(line)) {
+                FeedbackLine.createFeedbackLine(
+                    parseInt(this.fileId, 10),
+                    line,
+                    this.myId,
+                ).then(({ cgResult }) => {
+                    const args = {
+                        assignmentId: this.assignment.id,
+                        submissionId: this.submission.id,
+                        line: cgResult,
+                    };
+                    this.storeAddFeedbackLine(args);
                 });
             }
-            this.$set(this.editing, line, true);
-
-            await this.$nextTick();
-            const feedbackArea = el.querySelector('.feedback-area textarea');
-
-            if (feedbackArea) {
-                feedbackArea.focus();
-
-                // Put the cursor at the end of the text (Safari puts it at the
-                // start for some reason...
-                await this.$afterRerender();
-                feedbackArea.setSelectionRange(
-                    feedbackArea.value.length,
-                    feedbackArea.value.length,
-                );
-            }
-        },
-
-        feedbackChange(line) {
-            this.$delete(this.editing, line - this.lineFeedbackOffset);
-        },
-
-        editFeedback(line) {
-            this.$set(this.editing, line - this.lineFeedbackOffset, true);
         },
 
         dragStart(event) {
@@ -417,6 +382,13 @@ export default {
             this.confirmedLines += nLines;
             this.showLinesLoader = false;
         },
+
+        hasFeedback(i) {
+            return (
+                this.showFeedback &&
+                this.$utils.getProps(this.feedback, null, i + this.lineFeedbackOffset) != null
+            );
+        },
     },
 };
 </script>
@@ -437,7 +409,6 @@ ol {
     padding: 0;
     overflow-x: visible;
     background: transparent;
-    font-family: monospace;
 
     @{dark-mode} {
         color: @color-secondary-text-lighter !important;
@@ -446,11 +417,15 @@ ol {
 
 li {
     position: relative;
-    padding-left: 0.75em;
-    padding-right: 0.75em;
 
     background-color: lighten(@linum-bg, 1%);
     border-left: 1px solid darken(@linum-bg, 5%);
+
+    code, &.empty-file, &.missing-newline {
+        padding-left: 0.75em;
+        padding-right: 0.75em;
+        font-family: monospace;
+    }
 
     @{dark-mode} {
         background-color: @color-primary-darker;
@@ -459,6 +434,10 @@ li {
 
     &.hover:hover {
         background-color: rgba(0, 0, 0, 0.025);
+    }
+
+    &.normal-cursor {
+        cursor: initial;
     }
 
     &.linter-feedback-outer {
@@ -536,6 +515,10 @@ code {
             border-top: 1px solid darken(@color-primary-darkest, 5%);
         }
     }
+}
+
+.feedback-area {
+    font-size: 110%;
 }
 </style>
 

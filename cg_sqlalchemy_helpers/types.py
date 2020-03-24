@@ -410,6 +410,23 @@ class MyDb:  # pragma: no cover
     @t.overload  # NOQA
     def relationship(
         self,
+        name: Union[t.Callable[[], t.Type[T]], t.Type[T]],
+        *,
+        uselist: Literal[True],
+        passive_deletes: bool = False,
+        cascade: str = '',
+        back_populates: str = None,
+        backref: _Backref = None,
+        order_by: t.Union[t.Callable[[], 'DbColumn'], t.
+                          Callable[[], 'ColumnOrder']] = None,
+        lazy: Literal['dynamic'],
+        primaryjoin: object = None,
+    ) -> '_ImmutableColumnProxy[MyQuery[T], DbColumn[T]]':
+        ...
+
+    @t.overload  # NOQA
+    def relationship(
+        self,
         name: t.Callable[[], t.Type[_T_BASE]],
         *,
         uselist: Literal[True],

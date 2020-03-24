@@ -3,7 +3,7 @@ import Vue from 'vue';
 import axios from 'axios';
 
 import * as utils from '@/utils';
-import { Feedback, FeedbackLine } from '@/models/feedback';
+import { Feedback } from '@/models/feedback';
 import * as types from '../mutation-types';
 
 const getters = {
@@ -59,67 +59,14 @@ const actions = {
         return loaders.feedback[submissionId];
     },
 
-    async addFeedbackLine(
-        { commit, dispatch },
-        { assignmentId, submissionId, fileId, line, author },
-    ) {
+    async addFeedbackLine({ commit, dispatch }, { assignmentId, submissionId, line }) {
         await dispatch('loadFeedback', { assignmentId, submissionId });
 
         commit(types.UPDATE_FEEDBACK, {
             assignmentId,
             submissionId,
-            fileId,
             line,
-            data: '',
-            author,
         });
-    },
-
-    async submitFeedbackLine(
-        { commit, dispatch },
-        { assignmentId, submissionId, fileId, line, data, author },
-    ) {
-        return Promise.all([
-            dispatch('loadFeedback', { assignmentId, submissionId }),
-            axios.put(`/api/v1/code/${fileId}/comments/${line}`, { comment: data }),
-        ]).then(([, response]) => {
-            response.onAfterSuccess = () =>
-                commit(types.UPDATE_FEEDBACK, {
-                    assignmentId,
-                    submissionId,
-                    fileId,
-                    line,
-                    data,
-                    author,
-                });
-            return response;
-        });
-    },
-
-    async deleteFeedbackLine(
-        { commit, dispatch },
-        { assignmentId, submissionId, fileId, line, onServer },
-    ) {
-        await dispatch('loadFeedback', { assignmentId, submissionId });
-
-        function cont() {
-            commit(types.UPDATE_FEEDBACK, {
-                assignmentId,
-                submissionId,
-                fileId,
-                line,
-                data: null,
-            });
-        }
-
-        if (onServer) {
-            return axios.delete(`/api/v1/code/${fileId}/comments/${line}`).then(response => {
-                response.onAfterSuccess = cont;
-                return response;
-            });
-        } else {
-            return Promise.resolve({ onSuccess: cont });
-        }
     },
 
     deleteFeedback({ commit }, { assignmentId }) {
@@ -143,15 +90,14 @@ const mutations = {
         loaders.feedbacks = {};
     },
 
-    [types.UPDATE_FEEDBACK](state, { assignmentId, submissionId, fileId, line, data, author }) {
+    [types.UPDATE_FEEDBACK](state, { assignmentId, submissionId, line }) {
         const feedback = utils.getProps(state.feedbacks, null, assignmentId, submissionId);
         let newFeedback;
 
-        if (data == null) {
-            newFeedback = feedback.removeFeedbackLine(fileId, line);
+        if (line.isEmpty) {
+            newFeedback = feedback.removeFeedbackLine(line);
         } else {
-            const newLine = new FeedbackLine(fileId, line, data, author);
-            newFeedback = feedback.addFeedbackLine(newLine);
+            newFeedback = feedback.addFeedbackLine(line);
         }
 
         Vue.set(state.feedbacks[assignmentId], submissionId, newFeedback);

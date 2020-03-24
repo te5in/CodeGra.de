@@ -20,6 +20,6 @@ def init_app(app: t.Any) -> None:
     from . import (  # pylint: disable=unused-import, import-outside-toplevel
         code, login, courses, linters, snippets, assignments, permissions,
         submissions, files, about, roles, lti, users, plagiarism, groups,
-        group_sets, auto_tests, webhooks, proxies
+        group_sets, auto_tests, webhooks, proxies, comments
     )
     app.register_blueprint(api, url_prefix='/api/v1')

@@ -23,6 +23,7 @@ import router, { setRestoreRoute } from '@/router';
 import * as utils from '@/utils';
 import { store } from './store';
 import * as mutationTypes from './store/mutation-types';
+import './my-vue';
 
 Vue.use(BootstrapVue);
 Vue.use(Toasted);

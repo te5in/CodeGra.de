@@ -1,11 +1,11 @@
 <template>
 <b-input-group
-    class="editable-area"
+    class="snippetable-input"
     :style="{ 'margin-bottom': notSnippetsAbsoluteBelow && !showSnippetsAbove ?
             '11em' :
             undefined }">
     <div style="flex: 1; position: relative;">
-        <b-card class="snippet-list-wrapper"
+        <b-card class="snippet-list-wrapper rounded"
                 :class="{ 'snippets-above': showSnippetsAbove }"
                 v-if="possibleSnippets.length > 0">
             <span slot="header"
@@ -26,7 +26,7 @@
         </b-card>
         <textarea ref="field"
                   v-model="valueCopy"
-                  class="form-control editable-feedback-area rounded-right-0"
+                  class="form-control editable-feedback-area"
                   :disabled="feedbackDisabled"
                   @keydown.esc.prevent="stopSnippets"
                   @keydown.exact.tab.prevent="maybeSelectNextSnippet(false)"
@@ -41,6 +41,10 @@
 
 
 <script>
+import Icon from 'vue-awesome/components/Icon';
+import 'vue-awesome/icons/user-circle-o';
+import 'vue-awesome/icons/book';
+
 import { mapActions, mapGetters } from 'vuex';
 
 function lastWhiteSpace(str, start) {
@@ -68,6 +72,11 @@ export default {
             required: true,
         },
 
+        line: {
+            type: Number,
+            required: true,
+        },
+
         totalAmountLines: {
             type: Number,
             required: true,
@@ -82,6 +91,21 @@ export default {
             type: Boolean,
             required: true,
         },
+
+        canUseSnippets: {
+            type: Boolean,
+            required: true,
+        },
+
+        minInitialHeight: {
+            type: Number,
+            default: null,
+        },
+
+        maxInitialHeight: {
+            type: Number,
+            default: null,
+        },
     },
 
     data() {
@@ -89,18 +113,101 @@ export default {
             possibleSnippets: [],
             valueCopy: this.value,
             ignoreSnippets: null,
-            emitTimer: null,
+            snippetIndexSelected: null,
         };
+    },
+
+    mounted() {
+        this.$nextTick(() => {
+            let wantedHeight = this.$refs.field.scrollHeight + 5;
+            if (this.maxInitialHeight != null && this.maxInitialHeight < wantedHeight) {
+                wantedHeight = this.maxInitialHeight;
+            }
+
+            if (this.minInitialHeight != null && this.minInitialHeight > wantedHeight) {
+                wantedHeight = this.minInitialHeight;
+            }
+            this.$refs.field.setAttribute(
+                'style',
+                `height: ${wantedHeight}px;`,
+            );
+        });
     },
 
     watch: {
         valueCopy() {
-            this.emitLater();
+            this.emitInut();
+        },
+
+        canUseSnippets: {
+            immediate: true,
+            async handler() {
+                if (this.canUseSnippets) {
+                    this.loadedSnippets = false;
+                    await this.maybeRefreshSnippets();
+                }
+                this.loadedSnippets = true;
+            },
         },
 
         value() {
             this.valueCopy = this.value;
         },
+
+        snippetIndexSelected(_, oldVal) {
+            // eslint-disable-next-line
+            let [start, end] = this.snippetBound;
+            let value;
+
+            if (this.snippetIndexSelected === null) {
+                if (this.selectedSnippet === null) {
+                    return;
+                }
+                this.selectedSnippet = null;
+                value = this.snippetOldKey;
+                const oldSnip = this.possibleSnippets[oldVal];
+                if (oldSnip != null) {
+                    start = end - oldSnip.value.length;
+                }
+                const el = this.$refs.snippets[oldVal === 0 ? this.$refs.snippets.length - 1 : 0];
+                if (el && el.scrollIntoView && !(this.$root.isEdge || this.$root.isSafari)) {
+                    el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+                }
+            } else {
+                const newSnip = this.possibleSnippets[this.snippetIndexSelected];
+                if (
+                    !newSnip ||
+                    (this.selectedSnippet != null &&
+                        newSnip.key === this.selectedSnippet.key &&
+                        newSnip.course === this.selectedSnippet.course)
+                ) {
+                    return;
+                }
+
+                [1, 0].forEach(i => {
+                    const el = this.$refs.snippets[this.snippetIndexSelected + i];
+                    if (el && el.scrollIntoView && !(this.$root.isEdge || this.$root.isSafari)) {
+                        el.scrollIntoView({
+                            block: 'nearest',
+                            inline: 'nearest',
+                            behavior: 'smooth',
+                        });
+                    }
+                });
+
+                this.selectedSnippet = newSnip;
+                if (oldVal === null) {
+                    this.snippetOldKey = this.valueCopy.slice(start, end) || '';
+                } else {
+                    const oldSnip = this.possibleSnippets[oldVal];
+                    start = end - oldSnip.value.length;
+                }
+                ({ value } = newSnip);
+            }
+            this.valueCopy =
+                this.valueCopy.slice(0, start) + value + this.valueCopy.slice(end);
+        },
+
     },
 
     computed: {
@@ -136,6 +243,17 @@ export default {
         ...mapActions('user', {
             maybeRefreshSnippets: 'maybeRefreshSnippets',
         }),
+
+        async focus() {
+            const el = this.$refs.field;
+            if (el) {
+                el.focus();
+                // Put the cursor at the end of the text (Safari puts it at the
+                // start for some reason...
+                await this.$afterRerender();
+                el.setSelectionRange(el.value.length, el.value.length);
+            }
+        },
 
         beforeKeyPress(event) {
             if (
@@ -200,7 +318,8 @@ export default {
             ) {
                 this.selectedSnippet = null;
             }
-            if (!this.editing || !this.loadedSnippets || !this.valueCopy) {
+
+            if (!this.loadedSnippets || !this.valueCopy) {
                 this.possibleSnippets = [];
                 return;
             }
@@ -228,27 +347,11 @@ export default {
             ];
         },
 
-        maybeClearEmitTimeout() {
-            if (this.emitTimer != null) {
-                clearTimeout(this.emitTimer);
-            }
-        },
-
-        emitLater() {
-            this.maybeClearEmitTimeout();
-            this.emitTimer = setTimeout(() => {
-                this.$emit('input', this.valueCopy);
-                this.emitTimer = null;
-            }, this.bounceTime);
-        },
-
-        emitNow() {
-            this.maybeClearEmitTimeout();
+        emitInut() {
             this.$emit('input', this.valueCopy);
         },
 
         onCtrlEnter() {
-            this.emitNow();
             this.$emit('ctrlEnter');
         },
 
@@ -278,9 +381,6 @@ export default {
         },
 
         maybeSelectNextSnippet(reverse) {
-            if (!this.canUseSnippets) {
-                return;
-            }
             this.ignoreSnippets = null;
 
             const { selectionStart, selectionEnd } = this.$refs.field;
@@ -308,5 +408,121 @@ export default {
             }
         },
     },
+
+    components: {
+        Icon,
+    },
 };
 </script>
+
+<style lang="less">
+@import '~mixins.less';
+
+.snippet-list-wrapper {
+    .default-text-colors;
+    position: absolute;
+    width: 100%;
+    top: 100%;
+    z-index: 2;
+    margin: 0;
+
+    &.snippets-above {
+        position: absolute;
+        top: -10.3em;
+        height: 10.3em;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        box-shadow: 0.2em -0.1em 0.5em 0 rgb(206, 212, 218);
+
+        @{dark-mode} {
+            box-shadow: 0.2em -0.1em 0.5em 0 @color-primary;
+        }
+
+        .snippet-header {
+            height: 2em;
+        }
+
+        ~ .form-control {
+            border-top-left-radius: 0;
+        }
+    }
+    &:not(.snippets-above) {
+        box-shadow: 0.2em 0.1em 0.5em 0 rgb(206, 212, 218);
+
+        @{dark-mode} {
+            box-shadow: 0.2em 0.1em 0.5em 0 @color-primary;
+        }
+
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+        border-top: 0;
+
+        ~ .form-control {
+            border-bottom-left-radius: 0;
+        }
+    }
+
+    .card-header {
+        padding: 5px 15px;
+        max-height: 2.3em;
+    }
+    .card-body {
+        padding: 0;
+        height: 100%;
+    }
+}
+
+textarea {
+    .default-text-colors;
+
+    font-size: 1em;
+}
+
+.snippet-list {
+    margin: 0;
+    max-height: 8em;
+    padding: 0px;
+    overflow-y: auto;
+
+    .snippet-list-wrapper:not(.snippets-above) & {
+        border-bottom-left-radius: @border-radius;
+        border-bottom-right-radius: @border-radius;
+    }
+    &.inline {
+        height: 8em;
+    }
+
+    .snippet-item {
+        background: white;
+
+        @{dark-mode} {
+            background: @color-primary;
+            color: white;
+        }
+
+        padding: 5px 15px;
+        width: 100%;
+        list-style: none;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+
+        &:hover,
+        &.selected {
+            color: white;
+        }
+        &.selected {
+            background: @color-secondary !important;
+        }
+        &:hover {
+            background: lighten(@color-secondary, 20%) !important;
+        }
+        .snippet-list-wrapper.snippets-above &:first-child {
+            border-top: 0;
+        }
+        .snippet-list-wrapper:not(.snippets-above) &:last-child {
+            border-bottom: 0;
+            padding-bottom: 5px;
+        }
+    }
+}
+
+</style>

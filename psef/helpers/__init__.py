@@ -833,7 +833,13 @@ def get_from_map_transaction(
     def get(key: T, typ: t.Union[t.Type, t.Tuple[t.Type, ...]]) -> TT:
         all_keys_requested.append(key)
         keys.append((key, typ))
-        return t.cast(TT, mapping.get(key, MISSING))
+        value: t.Union[TT, MissingType] = mapping.get(key, MISSING)
+        if (
+            isinstance(typ, type) and issubclass(typ, enum.Enum) and
+            isinstance(value, str)
+        ):
+            return t.cast(TT, typ.__members__.get(value, MISSING))
+        return t.cast(TT, value)
 
     def optional_get(
         key: T, typ: t.Union[t.Type, t.Tuple[t.Type, ...]], default: ZZ
@@ -862,6 +868,14 @@ def get_from_map_transaction(
             )
 
 
+def get_from_request_transaction(
+    *,
+    ensure_empty: bool = False,
+) -> t.ContextManager[t.Tuple[TransactionGet[str], TransactionOptionalGet[str]]
+                      ]:
+    return get_from_map_transaction(get_json_dict_from_request())
+
+
 def ensure_keys_in_dict(
     mapping: t.Mapping[T, object], keys: t.Sequence[t.Tuple[T, IsInstanceType]]
 ) -> None:
@@ -880,10 +894,25 @@ def ensure_keys_in_dict(
     missing: t.List[t.Union[T, str]] = []
     type_wrong = False
     for key, check_type in keys:
-        if key not in mapping:
+        value = mapping.get(key, MISSING)
+        if value is MISSING:
             missing.append(key)
-        elif (not isinstance(mapping[key], check_type)
-              ) or (check_type == int and isinstance(mapping[key], bool)):
+        elif (
+            isinstance(check_type, type) and
+            issubclass(check_type, enum.Enum) and isinstance(value, str)
+        ):
+            if value not in check_type.__members__:
+                missing.append(
+                    f'{key} was of wrong type'
+                    f' (should be a member of "{_get_type_name(check_type)}"'
+                    f' (= {", ".join(it.name for it in check_type)})'
+                    f', was "{mapping[key]}")'
+                )
+                type_wrong = True
+        elif (
+            (not isinstance(value, check_type)) or
+            (check_type == int and isinstance(value, bool))
+        ):
             missing.append(
                 f'{str(key)} was of wrong type'
                 f' (should be a "{_get_type_name(check_type)}"'

@@ -62,7 +62,7 @@ module.exports = {
             options: {
               appendTsSuffixTo: [/\.vue$/],
               transpileOnly: false,
-              experimentalWatchApi: true,
+              experimentalWatchApi: false,
               getCustomTransformers: program => ({
                 before: [
                     keysTransformer(program),

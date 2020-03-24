@@ -14,7 +14,8 @@ export class CgMarkdownIt {
             html: true,
             typographer: false,
             highlight(str, lang) {
-                return highlightCode(str.split('\n'), lang).join('<br>');
+                const inner = highlightCode(str.split('\n'), lang).join('<br>');
+                return `<pre class="code-block"><code>${inner}</code></pre>`;
             },
         });
 

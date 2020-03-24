@@ -361,6 +361,7 @@ const USER_PROPERTIES = ['user', 'assignee', 'comment_author'].reduce((acc, cur)
 export class Submission {
     constructor(props) {
         Object.assign(this, props);
+        this.id = props.id;
         this.grade = formatGrade(this.fullGrade);
         this.formattedCreatedAt = readableFormatDate(this.createdAt);
         Object.freeze(this);

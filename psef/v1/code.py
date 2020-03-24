@@ -62,23 +62,17 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
         return t.cast(str, content['comment']).replace('\0', '')
 
     if comment_base:
-        course_id = comment_base.file.work.assignment.course_id
-        if comment_base.replies:
-            # You can always update your own comments, as long as you are enrolled
-            # in the course.
-            auth.ensure_enrolled(course_id)
-            if comment_base.replies[0].author != current_user:
-                auth.ensure_permission(
-                    CPerm.can_edit_others_comments, course_id
-                )
+        reply = comment_base.first_reply
+        if reply is not None:
+            auth.FeedbackReplyPermissions(reply).ensure_may_edit()
 
-            db.session.add(comment_base.replies[0].update(__get_comment()))
+            db.session.add(reply.update(__get_comment()))
         else:
-            auth.ensure_permission(
-                CPerm.can_grade_work,
-                comment_base.file.work.assignment.course_id
+            reply = comment_base.add_reply(
+                current_user, __get_comment(),
+                models.CommentReplyType.plain_text, None
             )
-            comment_base.add_reply(current_user, __get_comment())
+            auth.FeedbackReplyPermissions(reply).ensure_may_add()
     else:
         file = helpers.filter_single_or_404(
             models.File,
@@ -86,18 +80,16 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
             also_error=lambda f: f.work.deleted,
             with_for_update=True,
         )
-        auth.ensure_permission(
-            CPerm.can_grade_work, file.work.assignment.course_id
+        base, reply = models.CommentBase.create_and_add_reply(
+            file=file,
+            user=current_user,
+            line=line,
+            comment=__get_comment(),
+            reply_type=models.CommentReplyType.plain_text,
         )
-
-        db.session.add(
-            models.CommentBase.create_and_add_reply(
-                file=file,
-                user=current_user,
-                line=line,
-                comment=__get_comment(),
-            )
-        )
+        auth.FeedbackBasePermissions(base).ensure_may_add()
+        auth.FeedbackReplyPermissions(reply).ensure_may_add()
+        db.session.add(base)
 
     db.session.commit()
 
@@ -132,11 +124,11 @@ def remove_comment(code_id: int, line: int) -> EmptyResponse:
         also_error=lambda c: c.first_reply is None or c.file.work.deleted,
     )
 
-    assert comment_base.first_reply is not None
-    auth.ensure_permission(
-        CPerm.can_grade_work, comment_base.file.work.assignment.course_id
-    )
-    comment_base.first_reply.delete()
+    reply = comment_base.first_reply
+    assert reply is not None
+    auth.FeedbackReplyPermissions(reply).ensure_may_delete()
+    reply.delete()
+
     db.session.commit()
 
     return make_empty_response()

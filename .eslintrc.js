@@ -13,6 +13,7 @@ module.exports = {
         'plugin:prettier-vue/recommended',
         'airbnb-base',
     ],
+
     // required to lint *.vue files
     plugins: [
         '@typescript-eslint',

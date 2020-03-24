@@ -42,6 +42,8 @@
                     to see the entire file.
 
                     <feedback-area v-if="disabledFileType(id).singleLine"
+                                   :editable="false"
+                                   :can-use-snippets="false"
                                    :line="0"
                                    :feedback="feedback.user[id][0].msg"
                                    :total-amount-lines="0"

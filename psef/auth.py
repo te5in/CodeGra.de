@@ -12,6 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 # `PermissionChecker` should probably call the `ensure` method to be backwards
 # compatible.
 
+import abc
 import typing as t
 from functools import wraps
 
@@ -24,7 +25,7 @@ from flask import _app_ctx_stack  # type: ignore
 from sqlalchemy import sql
 from werkzeug.local import LocalProxy
 from mypy_extensions import NoReturn
-from typing_extensions import Literal
+from typing_extensions import Final, Literal
 
 import psef
 from psef import features
@@ -80,6 +81,20 @@ def _handle_jwt_errors(reason: str = 'No user was logged in.') -> t.NoReturn:
 jwt.user_loader_error_loader(
     lambda id: _handle_jwt_errors(f'No user with id "{id}" was found.')
 )
+
+
+class PermissionChecker(abc.ABC):
+    if t.TYPE_CHECKING:
+        @property
+        def course_id(self) -> int:
+            raise NotImplementedError
+
+    @property
+    def user(self) -> 'psef.models.User':
+        return _get_cur_user()
+
+    def _ensure(self, perm: CPerm) -> None:
+        ensure_permission(perm, self.course_id, user=self.user)
 
 
 @jwt.user_loader_callback_loader
@@ -813,6 +828,44 @@ def ensure_can_edit_members_of_group(
                 " submission."
             )
         )
+
+
+class FeedbackBasePermissions(PermissionChecker):
+    def __init__(self, base: 'psef.models.CommentBase'):
+        self.base: Final = base
+        self.course_id: Final = self.base.file.work.assignment.course_id
+
+    def ensure_may_add(self) -> None:
+        self._ensure(CPerm.can_grade_work)
+
+
+class FeedbackReplyPermissions(PermissionChecker):
+    def __init__(self, reply: 'psef.models.CommentReply'):
+        self.reply: Final = reply
+        self.course_id: Final = self.reply.comment_base.file.work.assignment.course_id
+
+    def ensure_may_edit(self) -> None:
+        # You can always update your own comments, as long as you are enrolled
+        # in the course.
+        ensure_enrolled(self.course_id)
+
+        if self.user != self.reply.author:
+            self._ensure(CPerm.can_edit_others_comments)
+
+    def ensure_may_see_edits(self) -> None:
+        ensure_enrolled(self.course_id)
+        # TODO: Fix this function
+        return
+
+    def ensure_may_add(self) -> None:
+        # TODO: Check for more here
+        if self.reply.comment_base.first_reply is None:
+            self._ensure(CPerm.can_grade_work)
+        return
+
+    def ensure_may_delete(self) -> None:
+        # TODO: This should check for some different perms
+        self._ensure(CPerm.can_grade_work)
 
 
 @login_required
