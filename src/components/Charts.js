@@ -5,7 +5,6 @@ import * as stat from 'simple-statistics';
 import { mapGetters } from 'vuex';
 
 import { COLOR_PAIRS } from '@/constants';
-import { mapObject } from '@/utils';
 
 export const BaseChart = {
     props: {
@@ -16,10 +15,6 @@ export const BaseChart = {
         padding: {
             type: Number,
             default: 0.2,
-        },
-        redToGreen: {
-            type: Boolean,
-            default: false,
         },
     },
 
@@ -103,55 +98,37 @@ export const BaseChart = {
             this.renderChart(this.renderData, this.renderOpts);
         },
 
-        getColors(n_) {
-            if (this.redToGreen) {
-                return this.redToGreenGradient(n_);
-            }
-
+        getColors() {
             // TODO: get colors based on a hash
-            const colors = COLOR_PAIRS.map(c => c.background);
+            const colors = COLOR_PAIRS.map(c => this.processColor(c.background));
             const ret = [];
 
-            let n = n_;
+            let n = this.datasets.length;
             while (n > 0) {
                 const add = colors.slice(0, n);
                 ret.push(...add);
                 n -= add.length;
             }
 
-            return this.processColors(ret);
+            return ret;
         },
 
-        redToGreenGradient(n) {
-            const range = this.$utils.range;
-
-            const nRed = Math.floor(n / 2);
-            const nGreen = n - nRed;
-
-            const reds = [].concat(
-                range(nRed).map(() => 255),
-                range(nGreen).map(i => (nGreen - i) / nGreen * 255),
-            );
-            const greens = [].concat(
-                range(nRed).map(i => i / nRed * 255),
-                range(nGreen).map(() => 255),
-            );
-
-            return this.processColors(range(n).map(i => `rgb(${reds[i]}, ${greens[i]}, 0)`));
-        },
-
-        processColors(colors) {
+        processColor(color) {
             return {
-                backgroundColor: colors.map(clr => clr.replace(')', ', 0.6)')),
-                hoverBackgroundColor: colors.map(clr => clr.replace(')', ', 0.8)')),
-                borderColor: colors,
-                borderWidth: colors.map(() => 2),
+                backgroundColor: color.replace(')', ', 0.6)'),
+                hoverBackgroundColor: color.replace(')', ', 0.8)'),
+                borderColor: color,
+                borderWidth: 2,
             };
         },
     },
 
     watch: {
         options() {
+            this.rerender();
+        },
+
+        renderData() {
             this.rerender();
         },
 
@@ -174,27 +151,17 @@ export const BarChart = {
     extends: Bar,
     mixins: [mixins.reactiveProp, BaseChart],
 
-    props: {
-        relativeTo: {
-            type: [Array, Number],
-            default: null,
-        },
-    },
-
     computed: {
         renderData() {
-            return Object.assign({}, this.chartData, {
-                datasets: this.datasets.map(ds => {
-                    let data = ds.data;
-                    if (this.relativeTo != null) {
-                        data = this.normalize(data);
-                    }
-                    return Object.assign({}, ds, {
-                        data,
-                        minBarLength: 3,
-                    }, this.getColors(data.length));
+            const colors = this.getColors(this.datasets.length);
+            const datasets = this.datasets.map((ds, i) =>
+                Object.assign({}, ds, {
+                    minBarLength: 3,
+                    ...colors[i],
                 }),
-            });
+            );
+
+            return Object.assign({}, this.chartData, { datasets });
         },
 
         renderOpts() {
@@ -223,30 +190,6 @@ export const BarChart = {
             ];
         },
     },
-
-    watch: {
-        relativeTo() {
-            this.rerender();
-        },
-    },
-
-    methods: {
-        normalize(xs) {
-            const rel = this.relativeTo;
-
-            if (typeof rel === 'number') {
-                return xs.map(x => 100 * x / rel);
-            } else if (Array.isArray(rel)) {
-                return xs.map((x, i) => 100 * this.normalize1(x, rel[i]));
-            } else {
-                return xs;
-            }
-        },
-
-        normalize1(x, [lower, upper]) {
-            return x <= 0 ? -x / lower : x / upper;
-        },
-    },
 };
 
 export const ScatterPlot = {
@@ -259,7 +202,7 @@ export const ScatterPlot = {
             const colors = this.getColors(this.datasets.length);
             return Object.assign({}, this.chartData, {
                 datasets: this.datasets.map((ds, i) =>
-                    Object.assign({}, ds, mapObject(colors, l => l[i])),
+                    Object.assign({}, ds, colors[i]),
                 ),
             });
         },

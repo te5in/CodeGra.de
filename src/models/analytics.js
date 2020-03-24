@@ -375,7 +375,9 @@ class WorkspaceSubmissionSet {
     }
 
     get submissionIds() {
-        return new Set(this.allSubmissions.map(s => s.id));
+        return this._cache.get('submissionIds', () =>
+            new Set(this.allSubmissions.map(s => s.id)),
+        );
     }
 
     binSubmissionsBy(bins, f) {
@@ -485,6 +487,24 @@ export class WorkspaceFilter {
         this.submittedBefore = maybeMoment(this.submittedBefore);
 
         Object.freeze(this);
+    }
+
+    static get emptyFilter() {
+        return new WorkspaceFilter({
+            onlyLatestSubs: true,
+            minGrade: null,
+            maxGrade: null,
+            submittedBefore: null,
+            submittedAfter: null,
+        });
+    }
+
+    update(key, value) {
+        return new WorkspaceFilter(Object.assign({}, this, {
+            // Convert empty string to null because <input>s return the empty
+            // string if they're empty.
+            [key]: value === '' ? null : value,
+        }));
     }
 }
 

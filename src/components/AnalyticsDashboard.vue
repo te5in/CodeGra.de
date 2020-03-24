@@ -23,7 +23,13 @@
                 <div class="row">
                     <div class="col-6 col-md-3 mb-3 border-right metric">
                         <h1>{{ baseSubmissionData.studentCount }}</h1>
-                        <label>Number of students</label>
+                        <label>Students</label>
+
+                        <description-popover triggers="hover"
+                                             placement="top">
+                            Submitted a total of
+                            {{ baseSubmissionData.submissionCount }} submissions!
+                        </description-popover>
                     </div>
 
                     <div class="col-6 col-md-3 mb-3 metric"
@@ -64,81 +70,96 @@
         </div>
 
         <div class="col-12">
-            <b-card header="Filters">
-                <b-input-group prepend="Latest">
-                    <div class="form-control pl-2">
-                        <b-form-checkbox :checked="filter.onlyLatestSubs"
-                                         @input="updateFilter('onlyLatestSubs', $event)"
-                                         class="d-inline-block" />
-                        Only use latest submissions
+            <b-card header="Filter sets">
+                <div class="row">
+                <div v-for="filter, i in filters"
+                     :key="i"
+                     class="mb-3"
+                     :class="filters.length === 1 ? 'col-12' : 'col-6'">
+                    <div class="p-3 border rounded">
+                    <b-input-group prepend="Latest">
+                        <div class="form-control pl-2">
+                            <b-form-checkbox :checked="filter.onlyLatestSubs"
+                                             @input="updateFilter(i, 'onlyLatestSubs', $event)"
+                                             class="d-inline-block" />
+                            Only use latest submissions
+                        </div>
+                    </b-input-group>
+
+                    <b-input-group prepend="Min. grade">
+                        <input :value="filter.minGrade"
+                               @input="updateFilter(i, 'minGrade', $event.target.value)"
+                               class="form-control"
+                               type="number"
+                               placeholder="0"
+                               min="0"
+                               :max="filter.maxGrade"
+                               step="1" />
+
+                        <template #append>
+                            <b-button variant="warning"
+                                      :disabled="filter.minGrade == null"
+                                      @click="updateFilter(i, 'minGrade', null)">
+                                <icon name="reply" />
+                            </b-button>
+                        </template>
+                    </b-input-group>
+
+                    <b-input-group prepend="Max. grade">
+                        <input :value="filter.maxGrade"
+                               @input="updateFilter(i, 'maxGrade', $event.target.value)"
+                               class="form-control"
+                               type="number"
+                               placeholder="10"
+                               :min="filter.minGrade"
+                               max="10"
+                               step="1" />
+
+                        <template #append>
+                            <b-button variant="warning"
+                                      :disabled="filter.maxGrade == null"
+                                      @click="updateFilter(i, 'maxGrade', null)">
+                                <icon name="reply" />
+                            </b-button>
+                        </template>
+                    </b-input-group>
+
+                    <b-input-group prepend="Submitted after">
+                        <datetime-picker :value="filter.submittedAfter"
+                                         @input="updateFilter(i, 'submittedAfter', $event)"
+                                         :placeholder="`${assignmentCreated} (Assignment created)`"/>
+
+                        <template #append>
+                            <b-button variant="warning"
+                                      :disabled="filter.submittedAfter == null"
+                                      @click="updateFilter(i, 'submittedAfter', null)">
+                                <icon name="reply" />
+                            </b-button>
+                        </template>
+                    </b-input-group>
+
+                    <b-input-group prepend="Submitted before">
+                        <datetime-picker :value="filter.submittedBefore"
+                                         @input="updateFilter(i, 'submittedBefore', $event)"
+                                         :placeholder="`${assignmentDeadline} (Assignment deadline)`"/>
+
+                        <template #append>
+                            <b-button variant="warning"
+                                      :disabled="filter.submittedBefore == null"
+                                      @click="updateFilter(i, 'submittedAfter', null)">
+                                <icon name="reply" />
+                            </b-button>
+                        </template>
+                    </b-input-group>
                     </div>
-                </b-input-group>
+                </div>
+                </div>
 
-                <b-input-group prepend="Min. grade">
-                    <input :value="filter.minGrade"
-                           @input="updateFilter('minGrade', $event.target.value)"
-                           class="form-control"
-                           type="number"
-                           placeholder="0"
-                           min="0"
-                           :max="filter.maxGrade"
-                           step="1" />
-
-                    <template #append>
-                        <b-button variant="warning"
-                                  :disabled="filter.minGrade == null"
-                                  @click="updateFilter('minGrade', null)">
-                            <icon name="reply" />
-                        </b-button>
-                    </template>
-                </b-input-group>
-
-                <b-input-group prepend="Max. grade">
-                    <input :value="filter.maxGrade"
-                           @input="updateFilter('maxGrade', $event.target.value)"
-                           class="form-control"
-                           type="number"
-                           placeholder="10"
-                           :min="filter.minGrade"
-                           max="10"
-                           step="1" />
-
-                    <template #append>
-                        <b-button variant="warning"
-                                  :disabled="filter.maxGrade == null"
-                                  @click="updateFilter('maxGrade', null)">
-                            <icon name="reply" />
-                        </b-button>
-                    </template>
-                </b-input-group>
-
-                <b-input-group prepend="Submitted after">
-                    <datetime-picker :value="filter.submittedAfter"
-                                     @input="updateFilter('submittedAfter', $event)"
-                                     :placeholder="`${assignmentCreated} (Assignment created)`"/>
-
-                    <template #append>
-                        <b-button variant="warning"
-                                  :disabled="filter.submittedAfter == null"
-                                  @click="updateFilter('submittedAfter', null)">
-                            <icon name="reply" />
-                        </b-button>
-                    </template>
-                </b-input-group>
-
-                <b-input-group prepend="Submitted before">
-                    <datetime-picker :value="filter.submittedBefore"
-                                     @input="updateFilter('submittedBefore', $event)"
-                                     :placeholder="`${assignmentDeadline} (Assignment deadline)`"/>
-
-                    <template #append>
-                        <b-button variant="warning"
-                                  :disabled="filter.submittedBefore == null"
-                                  @click="updateFilter('submittedAfter', null)">
-                            <icon name="reply" />
-                        </b-button>
-                    </template>
-                </b-input-group>
+                <b-button variant="primary"
+                            class="float-right"
+                            @click="addFilter">
+                    Add filter set
+                </b-button>
             </b-card>
         </div>
 
@@ -154,7 +175,6 @@
                  :class="{ 'col-lg-12': largeGradeHistogram }">
                 <b-card header="Histogram of grades">
                     <bar-chart :chart-data="gradeHistogram"
-                               red-to-green
                                :width="300"
                                :height="largeGradeHistogram ? 100 : 200"/>
                 </b-card>
@@ -240,13 +260,7 @@ export default {
             baseWorkspace: null,
             rubricStatistic: 'mean',
             rubricRelative: true,
-            filter: {
-                onlyLatestSubs: true,
-                minGrade: null,
-                maxGrade: null,
-                submittedBefore: null,
-                submittedAfter: null,
-            },
+            filters: [WorkspaceFilter.emptyFilter],
         };
     },
 
@@ -278,10 +292,6 @@ export default {
             return this.$utils.getProps(this.assignment, null, 'rubric');
         },
 
-        filters() {
-            return [new WorkspaceFilter({ ...this.filter })];
-        },
-
         filterResults() {
             return this.baseWorkspace.filter(this.filters);
         },
@@ -297,10 +307,6 @@ export default {
         },
 
         latestSubmissionData() {
-            console.log(
-                this.baseWorkspace.submissions,
-                this.latestSubmissions.submissions,
-            );
             return this.latestSubmissions.submissions;
         },
 
@@ -330,6 +336,7 @@ export default {
         largeGradeHistogram() {
             return (
                 this.$root.$isLargeWindow &&
+                this.filters.length > 1 &&
                 (!this.hasRubricSource || this.hasManyRubricRows)
             );
         },
@@ -338,9 +345,15 @@ export default {
             const bins = [...Array(10).keys()].map(x => [x, x + 1]);
             const labels = bins.map(([start, end]) => `${10 * start}% - ${10 * end}%`);
 
-            const datasets = this.submissionSources.map(source =>
-                ({ data: source.binSubmissionsByGrade(bins).map(subs => subs.length) }),
-            );
+            const datasets = this.submissionSources.map((source, i) => {
+                const data = source.binSubmissionsByGrade(bins);
+                const nSubs = data.reduce((acc, arr) => acc + arr.length, 0);
+
+                return {
+                    label: `Filter ${i}`,
+                    data: data.map(subs => 100 * subs.length / nSubs),
+                };
+            });
 
             return {
                 labels,
@@ -350,9 +363,6 @@ export default {
 
         gradeHistOpts() {
             return {
-                legend: {
-                    display: false,
-                },
                 scales: {
                     yAxes: [
                         {
@@ -392,8 +402,8 @@ export default {
         },
 
         rubricMeanHistogram() {
-            const datasets = this.rubricSources.map(source => {
-                const data = [];
+            const datasets = this.rubricSources.map((source, i) => {
+                let data = [];
                 const stats = [];
 
                 this.rubric.rows.forEach(row => {
@@ -408,9 +418,17 @@ export default {
                     };
                     stats.push(stat);
                     data.push(stat[this.rubricStatistic]);
+
+                    if (this.rubricNormalizeFactors != null) {
+                        data = this.normalize(data);
+                    }
                 });
 
-                return { data, stats };
+                return {
+                    label: `Filter ${i}`,
+                    data,
+                    stats,
+                };
             });
 
             return {
@@ -444,9 +462,6 @@ export default {
             };
 
             return {
-                legend: {
-                    display: false,
-                },
                 tooltips: {
                     callbacks: {
                         label,
@@ -459,7 +474,7 @@ export default {
         rubricCatScatter() {
             return this.rubric.rows.reduce(
                 (acc, row) => {
-                    const datasets = [].concat(...this.rubricSources.map(source => {
+                    const datasets = [].concat(...this.rubricSources.map((source, i) => {
                         const { ritItemsPerCat, rirItemsPerCat } = source;
                         const ritItems = ritItemsPerCat[row.id];
                         const rirItems = rirItemsPerCat[row.id];
@@ -470,11 +485,11 @@ export default {
 
                         return [
                             {
-                                label: 'Total',
+                                label: `Total (Filter ${i})`,
                                 data: ritItems.map(([x, y]) => ({ x, y })),
                             },
                             {
-                                label: 'Total - Item',
+                                label: `Total - Item (Filter ${i})`,
                                 data: rirItems.map(([x, y]) => ({ x, y })),
                             },
                         ];
@@ -541,12 +556,13 @@ export default {
             this.clearAssignmentWorkspaces().then(this.loadWorkspaceData);
         },
 
-        updateFilter(key, value) {
-            if (value == null || value === '') {
-                this.$set(this.filter, key, null);
-            } else {
-                this.$set(this.filter, key, value);
-            }
+        updateFilter(idx, key, value) {
+            const filter = this.filters[idx].update(key, value);
+            this.$set(this.filters, idx, filter);
+        },
+
+        addFilter() {
+            this.filters = [...this.filters, WorkspaceFilter.emptyFilter];
         },
 
         to2Dec(x) {
@@ -573,6 +589,22 @@ export default {
             } else {
                 return 'The rir value is very close to zero, which means...';
             }
+        },
+
+        normalize(xs) {
+            const rel = this.relativeTo;
+
+            if (typeof rel === 'number') {
+                return xs.map(x => 100 * x / rel);
+            } else if (Array.isArray(rel)) {
+                return xs.map((x, i) => 100 * this.normalize1(x, rel[i]));
+            } else {
+                return xs;
+            }
+        },
+
+        normalize1(x, [lower, upper]) {
+            return x <= 0 ? -x / lower : x / upper;
         },
     },
 
