@@ -1,23 +1,33 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="feedback-area ">
-    <div class="reply-wrapper pb-2">
+    <div class="replies-wrapper pb-2">
         <transition-group name="fade"
                           tag="div">
-            <feedback-reply
-                class="d-block"
-                :key="reply.trackingId"
-                v-if="!reply.deleted"
-                v-for="reply in replies"
-                :editable="editable"
-                :can-use-snippets="canUseSnippets"
-                :reply="reply"
-                :feedback-line="feedback"
-                :force-snippets-above="false"
-                :total-amount-lines="10000"
-                @updated="replyUpdated"
-                @deleted="replyDeleted"
-                :submission="submission" />
+            <div :key="reply.trackingId"
+                 class="reply-wrapper"
+                 v-if="!reply.deleted"
+                 @click="() => unCollapse(reply)"
+                 :class="{ collapsed: isCollapsed(reply), editing: isEditing(reply) }"
+                 v-for="reply in replies">
+                <div v-if="!isFirstNonDeletedReply(reply)"
+                     @click.stop="toggleCollapse(reply)"
+                     class="pr-1 reply-gutter">
+                    <icon name="reply" class="reply-icon" />
+                </div>
+                <feedback-reply
+                    @editing="(event) => onEditingEvent(reply, event)"
+                    :is-collapsed="isCollapsed(reply)"
+                    class="d-block"
+                    :can-use-snippets="canUseSnippets"
+                    :reply="reply"
+                    :feedback-line="feedback"
+                    :force-snippets-above="false"
+                    :total-amount-lines="10000"
+                    @updated="replyUpdated"
+                    @deleted="replyDeleted"
+                    :submission="submission" />
+            </div>
         </transition-group>
     </div>
     <div @click.prevent="addReply"
@@ -29,8 +39,13 @@
 </template>
 
 <script lang="ts">
-    import { Vue, Component, Prop } from 'vue-property-decorator';
+
+import { Vue, Component, Prop } from 'vue-property-decorator';
 import { Getter, Action } from 'vuex-class';
+
+// @ts-ignore
+import Icon from 'vue-awesome/components/Icon';
+import 'vue-awesome/icons/reply';
 
 import { FeedbackLine, FeedbackReply as FeedbackReplyModel } from '@/models/feedback';
 
@@ -43,6 +58,7 @@ import FeedbackReply from './FeedbackReply';
 @Component({
     components: {
         FeedbackReply,
+        Icon,
     },
 })
 export default class FeedbackArea extends Vue {
@@ -52,19 +68,29 @@ export default class FeedbackArea extends Vue {
 
     @Prop({ required: true }) feedback!: FeedbackLine;
 
-    @Prop({ required: true }) editable!: boolean;
-
     @Prop({ required: true }) canUseSnippets!: boolean;
 
     @Prop({ required: true }) submission!: Submission;
+
+    collapsedReplies: Record<string, boolean> = {};
+
+    editingReplies: Record<string, boolean> = {};
 
     get nonDeletedReplies(): FeedbackReplyModel[] {
         return this.feedback.replies.filter(r => !r.deleted);
     }
 
+    isFirstNonDeletedReply(r: FeedbackReplyModel): boolean {
+        const replies = this.nonDeletedReplies;
+        return !r.deleted && replies.length > 0 && replies[0].trackingId === r.trackingId;
+    }
+
     get showReply(): boolean {
         const replies = this.nonDeletedReplies;
-        return replies.length > 0 && !replies[replies.length - 1].isEmpty;
+        return (
+            FeedbackLine.canAddReply(this.submission) &&
+            replies.length > 0 && !replies[replies.length - 1].isEmpty
+        );
     }
 
     get assignment(): Assignment {
@@ -73,6 +99,27 @@ export default class FeedbackArea extends Vue {
 
     get replies(): ReadonlyArray<FeedbackReplyModel> {
         return this.feedback.replies;
+    }
+
+    unCollapse(reply: FeedbackReplyModel): void {
+        this.$delete(this.collapsedReplies, reply.trackingId);
+    }
+
+    toggleCollapse(reply: FeedbackReplyModel): void {
+        const key = reply.trackingId;
+        if (this.collapsedReplies[key]) {
+            this.$delete(this.collapsedReplies, key);
+        } else {
+            this.$set(this.collapsedReplies, key, true);
+        }
+    }
+
+    isCollapsed(reply: FeedbackReplyModel): boolean {
+        return this.collapsedReplies[reply.trackingId] || false;
+    }
+
+    isEditing(reply: FeedbackReplyModel): boolean {
+        return this.editingReplies[reply.trackingId] || false;
     }
 
     updateLine(newLine: FeedbackLine) {
@@ -101,24 +148,50 @@ export default class FeedbackArea extends Vue {
         );
         this.updateLine(line);
     }
+
+    onEditingEvent(reply: FeedbackReplyModel, event: any): void {
+        this.$set(this.editingReplies, reply.trackingId, event.isEditing);
+    }
 }
 </script>
 
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.feedback-reply:first-child {
-    margin-top: 0.5rem;
-}
-
-.feedback-reply:not(:first-child) {
+.reply-wrapper {
+    transition: margin @transition-duration;
     margin-top: 1rem;
+
+    &:not(:last-child) {
+        margin-bottom: 1rem;
+    }
+
+    &:first-child {
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    &.collapsed {
+        cursor: pointer;
+        margin-top: 0;
+
+        &:not(:last-child) {
+            margin-bottom: 0.5rem;
+        }
+    }
+
+    .reply-gutter {
+        cursor: pointer;
+    }
+
+    &.editing .reply-gutter {
+        cursor: unset;
+        opacity: 0;
+    }
 }
 
 .add-reply {
     cursor: text;
-    box-shadow: inset 0 1px 1px rgba(0,0,0,.075),0 0 8px rgba(102,175,233,.6);
-
 }
 
 .fade-enter-active,
@@ -128,5 +201,19 @@ export default class FeedbackArea extends Vue {
 .fade-enter,
 .fade-leave-to {
     opacity: 0;
+}
+
+.reply-wrapper {
+    display: flex;
+    flex-direction: row;
+
+    .feedback-reply {
+        flex: 1 1 auto;
+    }
+}
+
+.reply-icon {
+    transform: rotate(180deg);
+
 }
 </style>

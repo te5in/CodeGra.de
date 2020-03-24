@@ -91,6 +91,33 @@ class CommentReply(IdMixin, TimestampMixin, Base):
     # We set this property later on
     has_edits: ImmutableColumnProxy[bool]
 
+    @property
+    def can_see_author(self) -> bool:
+        print(self.author, psef.current_user)
+        return (
+            self.comment_base.can_see_author or
+            self.author.contains_user(psef.current_user)
+        )
+
+    def __init__(
+        self,
+        author: 'user_models.User',
+        comment: str,
+        reply_type: CommentReplyType,
+        in_reply_to: t.Optional['CommentReply'],
+        comment_base: 'CommentBase',
+    ) -> None:
+        assert author.group is None, 'Only normal users can place comments'
+
+        super().__init__(
+            deleted=False,
+            author=author,
+            comment=comment,
+            reply_type=reply_type,
+            in_reply_to_id=None if in_reply_to is None else in_reply_to.id,
+            comment_base=comment_base,
+        )
+
     def update(self, new_comment_text: str) -> 'CommentReplyEdit':
         edit = CommentReplyEdit(
             self, current_user, new_comment_text=new_comment_text
@@ -118,7 +145,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
             'reply_type': self.reply_type.name,
         }
 
-        if self.comment_base.can_see_author:
+        if self.can_see_author:
             res['author_id'] = self.author_id
 
         return res
@@ -228,7 +255,7 @@ class CommentBase(IdMixin, Base):
     @cached_property
     def can_see_author(self) -> bool:
         return psef.current_user.has_permission(
-            CoursePermission.can_see_assignee,
+            CoursePermission.can_view_feedback_author,
             self.file.work.assignment.course_id
         )
 
@@ -244,6 +271,10 @@ class CommentBase(IdMixin, Base):
         )
     )
 
+    @property
+    def work(self) -> 'psef.models.Work':
+        return self.file.work
+
     def add_reply(
         self,
         user: 'user_models.User',
@@ -252,12 +283,12 @@ class CommentBase(IdMixin, Base):
         in_reply_to: t.Optional[CommentReply],
     ) -> CommentReply:
         reply = CommentReply(
-            deleted=False,
             comment=comment,
-            author_id=user.id,
-            reply_type=reply_type
+            author=user,
+            reply_type=reply_type,
+            in_reply_to=in_reply_to,
+            comment_base=self,
         )
-        self.replies.append(reply)
         return reply
 
     @classmethod
@@ -303,6 +334,15 @@ class CommentBase(IdMixin, Base):
         fr = self.first_reply
         return fr.author if fr else None
 
+    def get_outdated_json(self) -> t.Mapping[str, object]:
+        return {
+            'id': self.id,
+            'line': self.line,
+            'file_id': self.file_id,
+            'msg': self.comment,
+            'author': self.user if self.can_see_author else None,
+        }
+
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
 
@@ -313,34 +353,16 @@ class CommentBase(IdMixin, Base):
 
             {
                 'line': int, # The line of this comment.
-                'msg': str,  # The message of this comment.
-                             # DEPRECATED: use the replies property.
-                'author': t.Optional[user_models.User], # The author of this
-                                                        # comment. This is
-                                                        # ``None`` if the user
-                                                        # does not have
-                                                        # permission to see it.
-                                                        # DEPRECATED, use the
-                                                        # replies property.
+                'file_id': str, # The file this feedback was given on.
                 'replies': t.List[CommentReply] # All the replies on this
                                                 # comment base.
             }
 
         :returns: A object as described above.
         """
-        res: t.Dict[str, t.Union[int, str, t.Optional[user_models.User], t.
-                                 List[CommentReply]]]
-        print(self.replies)
-        res = {
+        return {
             'id': self.id,
             'line': self.line,
-            'file_id': self.file_id,
-            'msg': self.comment,
+            'file_id': str(self.file_id),
             'replies': self.replies,
-            'author': None,
         }
-
-        if self.can_see_author:
-            res['author'] = self.user
-
-        return res

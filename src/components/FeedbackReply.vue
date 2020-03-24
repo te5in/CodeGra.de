@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="feedback-reply">
-    <b-card no-body v-if="editing">
+    <b-card no-body v-if="editing" class="mt-0">
         <b-tabs card>
             <b-tab title="Edit" active>
                 <b-collapse class="collapsep"
@@ -69,26 +69,38 @@
                 </div>
             </b-tab>
             <b-tab title="Preview"
-               lazy
-               :disabled="internalReply.replyType !== 'markdown' || internalReply.isEmpty">
-            <div class="p-2">
-                <inner-markdown-viewer
-                    :markdown="internalReply.message"
-                    class="markdown-message" />
-            </div>
-        </b-tab>
-    </b-tabs>
+                   lazy
+                   :disabled="internalReply.replyType !== 'markdown' || internalReply.isEmpty">
+                <div class="p-2">
+                    <inner-markdown-viewer
+                        :markdown="internalReply.message"
+                        class="markdown-message" />
+                </div>
+            </b-tab>
+        </b-tabs>
     </b-card>
 
-    <template v-else>
-        <div class="d-flex justify-content-between">
-            <div>
-                <user :user="reply.author" :show-you="true" />
-                <span class="text-muted">{{ reply.createdAt.from($root.$now) }}</span>
+    <div v-else>
+        <div class="d-flex justify-content-between header-line">
+            <div class="info-text-wrapper">
+                <span>
+                    <user :user="reply.author" :show-you="true"
+                        v-if="reply.author"/>
+                    <i v-else
+                       title="You do not have the permission to see the authors of feedback">
+                        A grader
+                    </i>
+
+                    <relative-time
+                        :date="reply.createdAt" :now="$root.$now"
+                        class="text-muted"/>
+                </span>
             </div>
             <div>
+                <transition name="fade">
                 <b-dropdown toggle-class="feedback-reply-settings-toggle p-0 border-0 bg-transparent"
-                            dropup
+                            v-if="!isCollapsed && editable"
+                            dropleft
                             @hide="onDropDownHide">
                     <template v-slot:button-content>
                         <icon class="cursor-pointer" name="gear" :id="gearId"/>
@@ -111,21 +123,25 @@
                         Edit
                     </b-dropdown-item>
                 </b-dropdown>
+                </transition>
             </div>
         </div>
-        <b-card :style="{'min-height': '1em'}"
-                class="feedback-reply-message p-2">
+        <transition name="fade">
+            <b-card :style="{'min-height': '1em'}"
+                    v-if="!isCollapsed"
+                    class="feedback-reply-message p-2">
 
-            <div v-html="newlines($utils.htmlEscape(internalReply.message))"
-                 class="plain-text-message"
-                 v-if="internalReply.replyType === 'plain_text'"  />
-            <inner-markdown-viewer
-                :markdown="internalReply.message"
-                class="markdown-message"
-                v-else />
+                <div v-html="newlines($utils.htmlEscape(internalReply.message))"
+                     class="plain-text-message"
+                     v-if="internalReply.replyType === 'plain_text'"  />
+                <inner-markdown-viewer
+                    :markdown="internalReply.message"
+                    class="markdown-message"
+                    v-else />
 
-        </b-card>
-    </template>
+            </b-card>
+        </transition>
+    </div>
 </div>
 </template>
 
@@ -154,6 +170,8 @@ import InnerMarkdownViewer from './InnerMarkdownViewer';
 // @ts-ignore
 import SnippetableInput from './SnippetableInput';
 
+import RelativeTime from './RelativeTime';
+
 @Component({
     computed: {
         ...mapGetters({
@@ -173,6 +191,7 @@ import SnippetableInput from './SnippetableInput';
         SnippetableInput,
         InnerMarkdownViewer,
         User,
+        RelativeTime,
     },
 })
 
@@ -183,12 +202,11 @@ export default class FeedbackReply extends Vue {
 
     updateSnippetInStore!: any;
 
-    // @ts-ignore
-    @Prop({ required: true }) reply: FeedbackReplyModel
+    @Prop({ default: false }) isCollapsed!: boolean;
+
+    @Prop({ required: true }) reply!: FeedbackReplyModel
 
     @Prop({ required: true }) feedbackLine!: FeedbackLine
-
-    @Prop({ default: false }) editable!: boolean
 
     @Prop({ default: false }) forceSnippetsAbove!: boolean
 
@@ -223,12 +241,17 @@ export default class FeedbackReply extends Vue {
         this.wasClicked = true;
     }
 
+    get editable(): boolean {
+        return this.reply.canEdit(this.assignment);
+    }
+
     get editing(): boolean {
         return this.editable && (this.reply.id == null || this.wasClicked);
     }
 
     @Watch('editing', { immediate: true })
     onEditingChange(): void {
+        this.$emit('editing', { reply: this.reply, isEditing: this.editing });
         if (this.editing) {
             this.focusInput();
         }
@@ -433,6 +456,7 @@ Do you want to overwrite it?`;
         }
 
         .plain-text-message {
+            font-family: monospace;
             white-space: pre-wrap;
             word-break: break-word;
         }
@@ -515,6 +539,16 @@ button {
 .save-button-wrapper {
     text-align: right;
 }
+
+.snippetable-input {
+    font-family: monospace;
+}
+
+.info-text-wrapper {
+    line-height: 1.5rem;
+    display: flex;
+    align-items: center;
+}
 </style>
 
 <style lang="less">
@@ -523,9 +557,6 @@ button {
 .feedback-reply .user .group-user,
 .feedback-reply .user .name-user {
     font-weight: bold;
-}
-
-.feedback-reply .feedback-reply-settings-toggle {
 }
 
 .feedback-reply .markdown-message {
@@ -549,7 +580,15 @@ button {
     }
 }
 
-.snippetable-input {
-    font-family: monospace;
+.feedback-reply {
+    .fade-leave-active,
+    .fade-enter-active {
+        transition: opacity @transition-duration;
+    }
+
+    .fade-leave-to,
+    .fade-enter {
+        opacity: 0;
+    }
 }
 </style>

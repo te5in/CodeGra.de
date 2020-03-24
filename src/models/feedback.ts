@@ -3,13 +3,16 @@ import axios from 'axios';
 
 // @ts-ignore
 import { setProps, coerceToString, getUniqueId } from '@/utils';
+import { Assignment, Submission } from '@/models';
+
+import { CoursePermission as CPerm } from '@/permissions';
 
 import { store } from '@/store';
-import { SubmitButtonResult } from '../interfaces.ts';
+import { SubmitButtonResult } from '../interfaces';
 
 // @ts-ignore
 
-import { User, AnyUser, UserServerData } from './user';
+import { User, AnyUser, UserServerData, NormalUser } from './user';
 
 type ReplyTypes = 'plain_text' | 'markdown';
 
@@ -76,6 +79,14 @@ export class FeedbackReply {
             moment.utc(serverData.updated_at, moment.ISO_8601),
             feedbackLineId,
         );
+    }
+
+    canEdit(assignment: Assignment): boolean {
+        const author = this.author;
+        if (author?.isEqualOrMemberOf(NormalUser.getCurrentUser())) {
+            return true;
+        }
+        return assignment.hasPermission(CPerm.canEditOthersComments);
     }
 
     updateFromServerData(serverData: FeedbackReplyServerData): FeedbackReply {
@@ -203,6 +214,19 @@ export class FeedbackLine {
         return new FeedbackLine(this.id, this.fileId, this.line, Object.freeze(replies));
     }
 
+    static canAddReply(submission: Submission) {
+        const assignment: Assignment = submission.assignment;
+
+        // @ts-ignore
+        const author: AnyUser = submission.user;
+        const perms = [CPerm.canGradeWork];
+
+        if (author.isEqualOrMemberOf(NormalUser.getCurrentUser())) {
+            perms.push(CPerm.canAddOwnInlineComments);
+        }
+        return perms.some(x => assignment.hasPermission(x));
+    }
+
     addReply(newReply: FeedbackReply): FeedbackLine {
         return new FeedbackLine(
             this.id,
@@ -212,25 +236,21 @@ export class FeedbackLine {
         );
     }
 
-    static createFeedbackLine(
+    static async createFeedbackLine(
         fileId: number,
         line: number,
         userId: number,
     ): Promise<SubmitButtonResult<FeedbackLine>> {
-        return axios
-            .post('/api/v1/comments/', {
-                file_id: fileId,
-                line,
-            })
-            .then(response => {
-                const feedbackLine = FeedbackLine.fromServerData(response.data);
-                return {
-                    ...response,
-                    cgResult: feedbackLine.addReply(
-                        FeedbackReply.createEmpty(userId, feedbackLine.id),
-                    ),
-                };
-            });
+        const response = await axios.post('/api/v1/comments/', {
+            file_id: fileId,
+            line,
+        });
+        const feedbackLine = FeedbackLine.fromServerData(response.data);
+
+        return {
+            ...response,
+            cgResult: feedbackLine.addReply(FeedbackReply.createEmpty(userId, feedbackLine.id)),
+        };
     }
 }
 

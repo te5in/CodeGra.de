@@ -317,15 +317,13 @@ def _get_feedback_with_replies(
     if can_view_feedback:
         user = comments
 
-    authors = []
-    if can_view_feedback and can_view_authors:
-        authors = db.session.query(models.User).filter(
-            models.User.id.in_(
-                db.session.query(models.CommentReply.author_id).filter(
-                    models.CommentReply.comment_base_id.in_([c.id for c in comments])
-                ).distinct(models.CommentReply.author_id)
-            )
-        ).all()
+    authors = list(
+        set(
+            r.author for c in comments for r in c.replies
+                if r.can_see_author
+        )
+    )
+    print(authors)
 
     return {
         'general': '',
@@ -370,7 +368,7 @@ def get_feedback_from_submission(
     try:
         auth.ensure_can_see_linter_feedback(work)
     except PermissionException:
-        pass
+        linter_comments = {}
     else:
         all_linter_comments = models.LinterComment.query.filter(
             models.LinterComment.file.has(work=work)

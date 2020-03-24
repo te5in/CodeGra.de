@@ -85,6 +85,7 @@ jwt.user_loader_error_loader(
 
 class PermissionChecker(abc.ABC):
     if t.TYPE_CHECKING:
+
         @property
         def course_id(self) -> int:
             raise NotImplementedError
@@ -93,8 +94,14 @@ class PermissionChecker(abc.ABC):
     def user(self) -> 'psef.models.User':
         return _get_cur_user()
 
+    def _ensure_enrolled(self) -> None:
+        ensure_enrolled(self.course_id)
+
     def _ensure(self, perm: CPerm) -> None:
         ensure_permission(perm, self.course_id, user=self.user)
+
+    def _ensure_any(self, perms: t.List[CPerm]) -> None:
+        ensure_any_of_permissions(perms, self.course_id, user=self.user)
 
 
 @jwt.user_loader_callback_loader
@@ -833,45 +840,50 @@ def ensure_can_edit_members_of_group(
 class FeedbackBasePermissions(PermissionChecker):
     def __init__(self, base: 'psef.models.CommentBase'):
         self.base: Final = base
-        self.course_id: Final = self.base.file.work.assignment.course_id
+        self.course_id: Final = self.base.work.assignment.course_id
 
     def ensure_may_add(self) -> None:
-        self._ensure(CPerm.can_grade_work)
+        perms = [CPerm.can_grade_work]
+        if self.base.work.has_as_author(self.user):
+            perms.append(CPerm.can_add_own_inline_comments)
+        self._ensure_any(perms)
 
 
 class FeedbackReplyPermissions(PermissionChecker):
     def __init__(self, reply: 'psef.models.CommentReply'):
         self.reply: Final = reply
-        self.course_id: Final = self.reply.comment_base.file.work.assignment.course_id
+        self.course_id: Final = reply.comment_base.work.assignment.course_id
+
+    @property
+    def is_own_reply(self) -> bool:
+        return self.reply.author.contains_user(self.user)
 
     def ensure_may_edit(self) -> None:
         # You can always update your own comments, as long as you are enrolled
         # in the course.
-        ensure_enrolled(self.course_id)
+        self._ensure_enrolled()
 
-        if self.user != self.reply.author:
+        if not self.is_own_reply:
             self._ensure(CPerm.can_edit_others_comments)
 
     def ensure_may_see_edits(self) -> None:
-        ensure_enrolled(self.course_id)
-        # TODO: Fix this function
-        return
+        self._ensure_enrolled()
+
+        if not self.is_own_reply:
+            self._ensure(CPerm.can_view_others_comment_edits)
 
     def ensure_may_add(self) -> None:
-        # TODO: Check for more here
-        if self.reply.comment_base.first_reply is None:
-            self._ensure(CPerm.can_grade_work)
-        return
+        FeedbackBasePermissions(self.reply.comment_base).ensure_may_add()
 
     def ensure_may_delete(self) -> None:
-        # TODO: This should check for some different perms
-        self._ensure(CPerm.can_grade_work)
+        self.ensure_may_edit()
 
 
 @login_required
 def ensure_any_of_permissions(
     permissions: t.List[CPerm],
     course_id: int,
+    user: t.Optional['psef.models.User'] = None,
 ) -> None:
     """Make sure that the current user has at least one of the given
         permissions.
@@ -879,6 +891,8 @@ def ensure_any_of_permissions(
     :param permissions: The permissions to check for.
     :param course_id: The course id of the course that should be used to check
         for the given permissions.
+    :param user: The user param that will be passed to
+        :func:`ensure_permission`.
     :returns: Nothing.
     :raises PermissionException: If the current user has none of the given
         permissions. This will always happen if the list of given permissions
@@ -886,7 +900,7 @@ def ensure_any_of_permissions(
     """
     for perm in permissions:
         try:
-            ensure_permission(perm, course_id)
+            ensure_permission(perm, course_id, user=user)
         except PermissionException:
             continue
         else:

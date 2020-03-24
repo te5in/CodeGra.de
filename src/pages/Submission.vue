@@ -121,7 +121,7 @@
                              :editable="canSeeUserFeedback && canGiveLineFeedback"
                              :can-use-snippets="canUseSnippets"
                              :show-whitespace="showWhitespace"
-                             :show-inline-feedback="showInlineFeedback"
+                             :show-inline-feedback="showInlineFeedback && revision === 'student'"
                              :language="selectedLanguage"
                              @language="languageChanged" />
 

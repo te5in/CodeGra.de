@@ -59,7 +59,6 @@
                 class="border-top border-bottom py-1 px-3 bg-white mt-1"
                 :key="i"
                 :feedback="feedback[i - 1 + lineFeedbackOffset]"
-                :editable="editable"
                 :total-amount-lines="computedEndLine"
                 :can-use-snippets="canUseSnippets"
                 :submission="submission"
@@ -135,10 +134,6 @@ export default {
         linterFeedback: {
             type: Object,
             default: () => ({}),
-        },
-        editable: {
-            type: Boolean,
-            default: false,
         },
         showWhitespace: {
             type: Boolean,
@@ -247,7 +242,11 @@ export default {
         },
 
         canGiveFeedback() {
-            return this.editable && this.showInlineFeedback;
+            return (
+                this.showInlineFeedback &&
+                this.submission &&
+                FeedbackLine.canAddReply(this.submission)
+            );
         },
 
         showFeedback() {
@@ -318,7 +317,7 @@ export default {
             }
 
             const line = Number(el.getAttribute('data-line')) - 1;
-            if (!this.hasFeedback(line)) {
+            if (!this.hasFeedback(line) && this.canGiveFeedback) {
                 FeedbackLine.createFeedbackLine(
                     parseInt(this.fileId, 10),
                     line,

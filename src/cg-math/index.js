@@ -19,6 +19,21 @@ export class CgMarkdownIt {
             },
         });
 
+        // Remember old renderer, if overridden, or proxy to default renderer
+        const defaultRender =
+            this.md.renderer.rules.link_open ||
+            ((tokens, idx, options, env, self) => self.renderToken(tokens, idx, options));
+
+        this.md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+            const token = tokens[idx];
+            token.attrSet('target', '_blank');
+
+            const classes = token.attrGet('class') || '';
+            token.attrSet('class', `${classes} inline-link`);
+
+            return defaultRender(tokens, idx, options, env, self);
+        };
+
         this.mathBlocks = [];
     }
 

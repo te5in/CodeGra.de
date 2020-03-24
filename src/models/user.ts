@@ -154,6 +154,15 @@ export class NormalUser extends User implements NormalUserServerData {
         return [];
     }
 
+    static getCurrentUser(): NormalUser {
+        const myId = store.getters['user/id'];
+        const res = User.findUserById(myId);
+        if (res == null || res.isGroup) {
+            throw new Error(`Could not find currently logged in user, found: ${res}`);
+        }
+        return res;
+    }
+
     readonly isGroup: false = false;
 }
 

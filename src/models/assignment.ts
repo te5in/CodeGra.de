@@ -2,6 +2,8 @@ import * as moment from 'moment';
 
 import { keys } from 'ts-transformer-keys';
 
+import { CoursePermission as CPerm, CoursePermissionOptions as CPermOpts } from '@/permissions';
+
 // @ts-ignore
 import { store } from '@/store';
 // @ts-ignore
@@ -10,7 +12,7 @@ import * as utils from '@/utils';
 import * as assignmentState from '@/store/assignment-states';
 import { NormalUserServerData } from './user';
 
-function noop(_: object): void {}
+const noop = (_: object): void => undefined as void;
 
 /* eslint-disable camelcase */
 interface AssignmentServerProps {
@@ -71,6 +73,7 @@ interface AssignmentUpdateableProps {
 const ALLOWED_UPDATE_PROPS = new Set(keys<AssignmentUpdateableProps>());
 
 type Mutable<T extends { [x: string]: any }, K extends string> = { [P in K]: T[P] };
+type ValueOf<T> = T[keyof T];
 
 abstract class AssignmentData {
     constructor(props: AssignmentData) {
@@ -173,7 +176,7 @@ export class Assignment extends AssignmentData {
         return new Assignment(props);
     }
 
-    get course(): any {
+    get course(): Record<string, any> {
         return store.getters['courses/courses'][this.courseId];
     }
 
@@ -231,7 +234,7 @@ export class Assignment extends AssignmentData {
             return false;
         } else if (this.state === assignmentState.HIDDEN) {
             return false;
-        } else if (!perms.can_upload_after_deadline && this.deadlinePassed(now)) {
+        } else if (!this.hasPermission(CPerm.canUploadAfterDeadline) && this.deadlinePassed(now)) {
             return false;
         } else {
             return true;
@@ -245,21 +248,31 @@ export class Assignment extends AssignmentData {
         return this.graderIds.map(store.getters['users/getUser']);
     }
 
-    _canSeeFeedbackType(type: 'grade' | 'linter' | 'user'): boolean {
+    hasPermission(permission: CPerm | CPermOpts): boolean {
+        let permName;
+        if (typeof permission === 'string') {
+            permName = permission;
+        } else {
+            permName = permission.value;
+        }
+        return !!(this.course?.permissions ?? {})[permName];
+    }
+
+    _canSeeFeedbackType(typ: 'grade' | 'linter' | 'user'): boolean {
         if (this.state === assignmentState.DONE) {
             return true;
         }
         const perm = {
-            grade: 'can_see_grade_before_open',
-            linter: 'can_see_linter_feedback_before_done',
-            user: 'can_see_user_feedback_before_done',
-        }[type];
+            grade: CPerm.canSeeGradeBeforeOpen,
+            linter: CPerm.canSeeLinterFeedbackBeforeDone,
+            user: CPerm.canSeeUserFeedbackBeforeDone,
+        }[typ];
 
         if (perm == null) {
-            throw new Error(`Requested feedback type "${type}" is not known.`);
+            throw new Error(`Requested feedback type "${typ}" is not known.`);
         }
 
-        return utils.getProps(this.course, false, 'permissions', perm);
+        return this.hasPermission(perm);
     }
 
     canSeeGrade() {

@@ -578,7 +578,8 @@ class Work(Base):
         else:
             res['comment'] = self.comment
             if psef.current_user.has_permission(
-                CoursePermission.can_see_assignee, self.assignment.course_id
+                CoursePermission.can_view_feedback_author,
+                self.assignment.course_id
             ):
                 res['comment_author'] = self.comment_author
 

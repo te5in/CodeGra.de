@@ -24,7 +24,7 @@ from ..helpers import (
 )
 from ..permissions import CoursePermission as CPerm
 
-_HumanFeedback = models.CommentBase
+_HumanFeedback = t.Mapping[str, dict]
 _LinterFeedback = t.MutableSequence[t.Tuple[str, models.LinterComment]]  # pylint: disable=invalid-name
 _FeedbackMapping = t.Dict[str, t.Union[_HumanFeedback, _LinterFeedback]]  # pylint: disable=invalid-name
 
@@ -266,7 +266,8 @@ def get_feedback(file: models.File, linter: bool = False) -> _FeedbackMapping:
             for human_comment in db.session.query(
                 models.CommentBase,
             ).filter_by(file_id=file.id):
-                res[str(human_comment.line)] = human_comment
+                res[str(human_comment.line)
+                    ] = human_comment.get_outdated_json()
         return res
 
     except auth.PermissionException:

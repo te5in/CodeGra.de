@@ -58,7 +58,7 @@
     "uglifyjs-webpack-plugin": "^2.2.0",
     "url-search-params": "^0.10.0",
     "vue": "^2.6.11",
-    "vue-awesome": "^2.3.4",
+    "vue-awesome": "^2.3.8",
     "vue-class-component": "^7.2.3",
     "vue-clipboard2": "^0.3.1",
     "vue-flatpickr-component": "^8.1.1",

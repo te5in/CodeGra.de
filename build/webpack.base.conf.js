@@ -4,7 +4,6 @@ var webpack = require('webpack')
 var config = require('../config')
 var vueLoaderConfig = require('./vue-loader.conf')
 var userConfig = require('./userConfig')
-var permissions = require('../seed_data/permissions.json')
 const { VueLoaderPlugin } = require('vue-loader')
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const keysTransformer = require('ts-transformer-keys/transformer').default;
@@ -105,7 +104,6 @@ module.exports = {
     new VueLoaderPlugin(),
     new webpack.DefinePlugin({
         'UserConfig': JSON.stringify(userConfig),
-        'Permissions': JSON.stringify(permissions),
     }),
   ],
 }

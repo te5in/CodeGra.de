@@ -30507,9 +30507,9 @@
       "integrity": "sha512-VfPwgcGABbGAue9+sfrD4PuwFar7gPb1yl1UK1MwXoQPAw0BKSqWfoYCT/ThFrdEVWoI51dBuyCoiNU9bZDZxQ=="
     },
     "vue-awesome": {
-      "version": "2.3.4",
-      "resolved": "https://registry.npmjs.org/vue-awesome/-/vue-awesome-2.3.4.tgz",
-      "integrity": "sha512-xj8qoByIyDUpLafW2G7eXpm1DW+VaFPc2Yli71QNADNqMgzd3aeHzPzU4XzHUlLMcu4Fj+GAA1q+0SNpU+GmTA=="
+      "version": "2.3.8",
+      "resolved": "https://registry.npmjs.org/vue-awesome/-/vue-awesome-2.3.8.tgz",
+      "integrity": "sha512-X7ttcOJerhqA6iK/UK8/DbFiBrEAFY1abGVWBqGx0kGLwPU1CjG73YfBffvIs14GiqmlNZDR5gGVsiTEc+GLhg=="
     },
     "vue-class-component": {
       "version": "7.2.3",
