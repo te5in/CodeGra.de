@@ -17,7 +17,8 @@ from flask_expects_json import expects_json
 import cg_json
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import EmptyResponse, callback_after_this_request
-from cg_sqlalchemy_helpers.types import DbColumn
+from cg_sqlalchemy_helpers import TIMESTAMP
+from cg_sqlalchemy_helpers.types import DbColumn, IndexedJSONColumn
 
 from . import BrokerFlask, app, tasks, models
 from .models import db
@@ -324,24 +325,43 @@ def about() -> cg_json.JSONResponse[t.Mapping[str, object]]:
     if request.args.get('health', object()) == app.config['HEALTH_KEY']:
         now = DatetimeWithTimezone.utcnow()
         slow_created_date = now - timedelta(minutes=app.config['OLD_JOB_AGE'])
-
-        slow_jobs = db.session.query(models.Job).filter(
-            models.Job.created_at < slow_created_date,
-            ~models.Job.state.in_(models.JobState.get_finished_states())
-        ).count()
-
         not_started_created_date = now - timedelta(
             minutes=app.config['SLOW_STARTING_AGE']
         )
+        not_started_task_date = now - timedelta(
+            minutes=app.config['SLOW_STARTING_TASK_AGE']
+        )
+        slow_task_date = now - timedelta(minutes=app.config['SLOW_TASK_AGE'])
 
-        not_starting_jobs = db.session.query(models.Job).filter(
+        def get_count(*cols: DbColumn[bool]) -> int:
+            return db.session.query(models.Job).filter(
+                models.Job.state.notin_(models.JobState.get_finished_states()),
+                *cols,
+            ).count()
+
+        slow_jobs = get_count(models.Job.created_at < slow_created_date)
+
+        not_starting_jobs = get_count(
             models.Job.created_at < not_started_created_date,
-            models.Job.state == models.JobState.waiting_for_runner
-        ).count()
+            models.Job.state == models.JobState.waiting_for_runner,
+        )
+
+        def as_dt(col: IndexedJSONColumn) -> DbColumn[DatetimeWithTimezone]:
+            return col.as_string().cast(TIMESTAMP(timezone=True))
+
+        not_started_task = models.Job.job_metadata['results']['not_started']
+        jobs_not_starting_tasks = get_count(
+            as_dt(not_started_task) < not_started_task_date
+        )
+
+        slow_task = models.Job.job_metadata['results']['running']
+        jobs_with_slow_tasks = get_count(as_dt(slow_task) < slow_task_date)
 
         health = {
             'not_starting_jobs': not_starting_jobs,
             'slow_jobs': slow_jobs,
+            'jobs_with_not_starting_tasks': jobs_not_starting_tasks,
+            'jobs_with_slow_tasks': jobs_with_slow_tasks,
         }
     else:
         health = {}
