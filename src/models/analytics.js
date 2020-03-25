@@ -11,6 +11,7 @@ import {
     zip,
 } from '@/utils';
 import { makeCache } from '@/utils/cache';
+import { defaultdict } from '@/utils/defaultdict';
 
 function dropNull(xs) {
     return xs.filter(x => x != null);
@@ -380,32 +381,27 @@ class WorkspaceSubmissionSet {
         );
     }
 
-    binSubmissionsBy(bins, f) {
-        return this.allSubmissions.reduce((acc, sub) => {
-            const idx = bins.findIndex((bin, i) => f(sub, bin, i));
-            if (idx !== -1) {
-                acc[idx].push(sub);
-            }
-            return acc;
-        }, bins.map(() => []));
+    binSubmissionsBy(f) {
+        return this.allSubmissions.reduce(
+            (acc, sub) => {
+                acc[f(sub)].push(sub);
+                return acc;
+            },
+            defaultdict(() => []),
+        );
     }
 
-    binSubmissionsByGrade(bins) {
-        return this.binSubmissionsBy(bins, (sub, bin, i) => {
-            const [low, high] = bin;
+    binSubmissionsByGrade(binSize = 1) {
+        return this.binSubmissionsBy(sub => {
             const { grade } = sub;
-
-            if (grade == null) {
-                return false;
-            } else if (i === bins.length - 1) {
-                // Because we check the upper bound exclusively submissions
-                // with the highest possible grade will not be put in the last
-                // bin.
-                return true;
-            } else {
-                return low <= grade && grade < high;
-            }
+            return grade == null ? -1 : Math.floor(grade / binSize);
         });
+    }
+
+    binSubmissionsByDate() {
+        return this.binSubmissionsBy(sub =>
+            sub.createdAt.local().format('YYYY-MM-DD'),
+        );
     }
 
     get submissionCount() {
@@ -548,7 +544,7 @@ export class Workspace {
             acc[src] = createDataSource(sources[i], self);
             return acc;
         }, {});
-        // eslint-disable-next-line
+        // eslint-disable-next-line no-underscore-dangle
         self._setSources(dataSources);
 
         return self;

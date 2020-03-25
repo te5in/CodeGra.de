@@ -67,97 +67,102 @@
                     </div>
                 </div>
             </b-card>
+
+            <b-card header="Students submitted on">
+                <bar-chart :chart-data="submissionDateHistogram"
+                            :width="300"
+                            :height="50"/>
+            </b-card>
         </div>
 
         <div class="col-12">
             <b-card header="Filter sets">
                 <div class="row">
-                <div v-for="filter, i in filters"
-                     :key="i"
-                     class="mb-3"
-                     :class="filters.length === 1 ? 'col-12' : 'col-6'">
-                    <div class="p-3 border rounded">
-                    <b-input-group prepend="Latest">
-                        <div class="form-control pl-2">
-                            <b-form-checkbox :checked="filter.onlyLatestSubs"
-                                             @input="updateFilter(i, 'onlyLatestSubs', $event)"
-                                             class="d-inline-block" />
-                            Only use latest submissions
+                    <div v-for="filter, i in filters"
+                         :key="i"
+                         class="mb-3 col-6">
+                        <div class="p-3 border rounded">
+                            <b-input-group prepend="Latest">
+                                <div class="form-control pl-2">
+                                    <b-form-checkbox :checked="filter.onlyLatestSubs"
+                                                     @input="updateFilter(i, 'onlyLatestSubs', $event)"
+                                                     class="d-inline-block" />
+                                    Only use latest submissions
+                                </div>
+                            </b-input-group>
+
+                            <b-input-group prepend="Min. grade">
+                                <input :value="filter.minGrade"
+                                       @input="updateFilter(i, 'minGrade', $event.target.value)"
+                                       class="form-control"
+                                       type="number"
+                                       placeholder="0"
+                                       min="0"
+                                       :max="filter.maxGrade"
+                                       step="1" />
+
+                                <template #append>
+                                    <b-button variant="warning"
+                                              :disabled="filter.minGrade == null"
+                                              @click="updateFilter(i, 'minGrade', null)">
+                                        <icon name="reply" />
+                                    </b-button>
+                                </template>
+                            </b-input-group>
+
+                            <b-input-group prepend="Max. grade">
+                                <input :value="filter.maxGrade"
+                                       @input="updateFilter(i, 'maxGrade', $event.target.value)"
+                                       class="form-control"
+                                       type="number"
+                                       placeholder="10"
+                                       :min="filter.minGrade"
+                                       max="10"
+                                       step="1" />
+
+                                <template #append>
+                                    <b-button variant="warning"
+                                              :disabled="filter.maxGrade == null"
+                                              @click="updateFilter(i, 'maxGrade', null)">
+                                        <icon name="reply" />
+                                    </b-button>
+                                </template>
+                            </b-input-group>
+
+                            <b-input-group prepend="Submitted after">
+                                <datetime-picker :value="filter.submittedAfter"
+                                                 @input="updateFilter(i, 'submittedAfter', $event)"
+                                                 :placeholder="`${assignmentCreated} (Assignment created)`"/>
+
+                                <template #append>
+                                    <b-button variant="warning"
+                                              :disabled="filter.submittedAfter == null"
+                                              @click="updateFilter(i, 'submittedAfter', null)">
+                                        <icon name="reply" />
+                                    </b-button>
+                                </template>
+                            </b-input-group>
+
+                            <b-input-group prepend="Submitted before">
+                                <datetime-picker :value="filter.submittedBefore"
+                                                 @input="updateFilter(i, 'submittedBefore', $event)"
+                                                 :placeholder="`${assignmentDeadline} (Assignment deadline)`"/>
+
+                                <template #append>
+                                    <b-button variant="warning"
+                                              :disabled="filter.submittedBefore == null"
+                                              @click="updateFilter(i, 'submittedAfter', null)">
+                                        <icon name="reply" />
+                                    </b-button>
+                                </template>
+                            </b-input-group>
                         </div>
-                    </b-input-group>
-
-                    <b-input-group prepend="Min. grade">
-                        <input :value="filter.minGrade"
-                               @input="updateFilter(i, 'minGrade', $event.target.value)"
-                               class="form-control"
-                               type="number"
-                               placeholder="0"
-                               min="0"
-                               :max="filter.maxGrade"
-                               step="1" />
-
-                        <template #append>
-                            <b-button variant="warning"
-                                      :disabled="filter.minGrade == null"
-                                      @click="updateFilter(i, 'minGrade', null)">
-                                <icon name="reply" />
-                            </b-button>
-                        </template>
-                    </b-input-group>
-
-                    <b-input-group prepend="Max. grade">
-                        <input :value="filter.maxGrade"
-                               @input="updateFilter(i, 'maxGrade', $event.target.value)"
-                               class="form-control"
-                               type="number"
-                               placeholder="10"
-                               :min="filter.minGrade"
-                               max="10"
-                               step="1" />
-
-                        <template #append>
-                            <b-button variant="warning"
-                                      :disabled="filter.maxGrade == null"
-                                      @click="updateFilter(i, 'maxGrade', null)">
-                                <icon name="reply" />
-                            </b-button>
-                        </template>
-                    </b-input-group>
-
-                    <b-input-group prepend="Submitted after">
-                        <datetime-picker :value="filter.submittedAfter"
-                                         @input="updateFilter(i, 'submittedAfter', $event)"
-                                         :placeholder="`${assignmentCreated} (Assignment created)`"/>
-
-                        <template #append>
-                            <b-button variant="warning"
-                                      :disabled="filter.submittedAfter == null"
-                                      @click="updateFilter(i, 'submittedAfter', null)">
-                                <icon name="reply" />
-                            </b-button>
-                        </template>
-                    </b-input-group>
-
-                    <b-input-group prepend="Submitted before">
-                        <datetime-picker :value="filter.submittedBefore"
-                                         @input="updateFilter(i, 'submittedBefore', $event)"
-                                         :placeholder="`${assignmentDeadline} (Assignment deadline)`"/>
-
-                        <template #append>
-                            <b-button variant="warning"
-                                      :disabled="filter.submittedBefore == null"
-                                      @click="updateFilter(i, 'submittedAfter', null)">
-                                <icon name="reply" />
-                            </b-button>
-                        </template>
-                    </b-input-group>
                     </div>
-                </div>
                 </div>
 
                 <b-button variant="primary"
-                            class="float-right"
-                            @click="addFilter">
+                          class="float-right"
+                          @click="addFilter">
                     Add filter set
                 </b-button>
             </b-card>
@@ -232,6 +237,7 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
+import * as stat from 'simple-statistics';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/reply';
@@ -333,6 +339,26 @@ export default {
             return this.$utils.getProps(this.rubricSource, 0, 'rowIds', 'length') > 8;
         },
 
+        submissionDateHistogram() {
+            // TODO: gray out dates outside of the filtered range.
+            const base = this.baseSubmissionData.binSubmissionsByDate();
+            const latest = this.latestSubmissionData.binSubmissionsByDate();
+            const allDates = [...new Set([...Object.keys(base), ...Object.keys(latest)])].sort();
+
+            const datasets = [
+                {
+                    label: 'All submissions',
+                    data: allDates.map(d => base[d].length),
+                },
+                {
+                    label: 'Latest submissions',
+                    data: allDates.map(d => latest[d].length),
+                },
+            ];
+
+            return { labels: allDates, datasets };
+        },
+
         largeGradeHistogram() {
             return (
                 this.$root.$isLargeWindow &&
@@ -342,23 +368,29 @@ export default {
         },
 
         gradeHistogram() {
-            const bins = [...Array(10).keys()].map(x => [x, x + 1]);
-            const labels = bins.map(([start, end]) => `${10 * start}% - ${10 * end}%`);
+            let maxGrade = this.assignment.max_grade;
+            if (maxGrade == null) {
+                maxGrade = 10;
+            }
+
+            const bins = this.$utils.range(Math.ceil(maxGrade));
+            const labels = bins.map(start => `${10 * start}% - ${10 * (start + 1)}%`);
 
             const datasets = this.submissionSources.map((source, i) => {
-                const data = source.binSubmissionsByGrade(bins);
-                const nSubs = data.reduce((acc, arr) => acc + arr.length, 0);
+                const data = source.binSubmissionsByGrade();
+
+                // We can't use source.submissionCount here, because some submissions
+                // may have been filtered out, e.g. submissions without a grade.
+                // TODO: Should we make a separate bin for ungraded subs?
+                const nSubs = stat.sum(bins.map(bin => data[bin].length));
 
                 return {
                     label: `Filter ${i}`,
-                    data: data.map(subs => 100 * subs.length / nSubs),
+                    data: bins.map(bin => 100 * data[bin].length / nSubs),
                 };
             });
 
-            return {
-                labels,
-                datasets,
-            };
+            return { labels, datasets };
         },
 
         gradeHistOpts() {
@@ -372,7 +404,7 @@ export default {
                             },
                             scaleLabel: {
                                 display: true,
-                                labelString: 'Number of students',
+                                labelString: 'Percentage of students',
                             },
                         },
                     ],
@@ -407,7 +439,7 @@ export default {
                 const stats = [];
 
                 this.rubric.rows.forEach(row => {
-                    const stat = {
+                    const rowStats = {
                         mean: source.meanPerCat[row.id],
                         mode: source.modePerCat[row.id],
                         median: source.medianPerCat[row.id],
@@ -416,8 +448,8 @@ export default {
                         nTimesFilled: source.nTimesFilledPerCat[row.id],
                         rowId: row.id,
                     };
-                    stats.push(stat);
-                    data.push(stat[this.rubricStatistic]);
+                    stats.push(rowStats);
+                    data.push(rowStats[this.rubricStatistic]);
 
                     if (this.rubricNormalizeFactors != null) {
                         data = this.normalize(data);

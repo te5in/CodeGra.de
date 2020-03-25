@@ -243,7 +243,7 @@ export function last(arr) {
     return arr[arr.length - 1];
 }
 
-export function range(start, end) {
+export function range(start, end, step = 1) {
     if (end == null) {
         // eslint-disable-next-line
         end = start;
@@ -252,7 +252,7 @@ export function range(start, end) {
     }
     const len = end - start;
     const res = Array(len);
-    for (let i = 0; i < len; ++i) {
+    for (let i = 0; i < len; i += step) {
         res[i] = start + i;
     }
     return res;
