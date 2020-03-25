@@ -496,11 +496,12 @@ export class WorkspaceFilter {
     }
 
     update(key, value) {
-        return new WorkspaceFilter(Object.assign({}, this, {
+        const x = new WorkspaceFilter(Object.assign({}, this, {
             // Convert empty string to null because <input>s return the empty
             // string if they're empty.
             [key]: value === '' ? null : value,
         }));
+        return x;
     }
 }
 

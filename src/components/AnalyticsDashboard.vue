@@ -76,18 +76,82 @@
         </div>
 
         <div class="col-12">
-            <b-card header="Filter sets">
+            <b-card header="Filters">
                 <div class="row">
                     <div v-for="filter, i in filters"
                          :key="i"
-                         class="mb-3 col-6">
-                        <div class="p-3 border rounded">
+                         class="col-6">
+                        <b-card header-class="d-flex flex-row">
+                            <template #header>
+                                <div class="flex-grow-1">Filter {{ i }}</div>
+
+                                <div class="d-flex flex-row flex-grow-0">
+                                    <div class="icon-button"
+                                         @click="copyFilter(i)"
+                                         v-b-popover.hover.top="'Copy filter'">
+                                        <icon name="copy" />
+                                    </div>
+
+                                    <div :id="`analytics-filter-split-${id}-${i}`"
+                                         class="icon-button"
+                                         v-b-popover.hover.top="'Split filter'">
+                                        <icon name="scissors" />
+                                    </div>
+
+                                    <div class="icon-button"
+                                         :class="{ 'text-muted': deleteDisabled }"
+                                         @click="deleteFilter(i)"
+                                         v-b-popover.hover.top="deleteDisabled ?
+                                             'You cannot delete the last filter' :
+                                             'Delete filter'">
+                                        <icon name="times" />
+                                    </div>
+                                </div>
+
+                                <b-popover :target="`analytics-filter-split-${id}-${i}`"
+                                           triggers="click"
+                                           placement="left">
+                                    <table class="table table-hover"
+                                           style="width: auto; margin: -0.5rem -0.75rem;">
+                                        <tbody>
+                                            <tr>
+                                                <td class="text-left">
+                                                    <b-checkbox v-model="splitSubs">
+                                                        Latest
+                                                    </b-checkbox>
+                                                </td>
+                                            </tr>
+
+                                            <b-input-group class="">
+                                                <input v-model="splitGrade"
+                                                       class="form-control"
+                                                       type="number"
+                                                       placeholder="Grade" />
+                                            </b-input-group>
+
+                                            <b-input-group>
+                                                <datetime-picker v-model="splitDate"
+                                                                 class="rounded-0" />
+                                            </b-input-group>
+                                        </tbody>
+                                    </table>
+
+                                    <submit-button class="float-right"
+                                                   variant="primary"
+                                                   :submit="() => splitFilter(i)"
+                                                   @after-success="afterSplitFilter">
+                                        <icon name="check" />
+                                    </submit-button>
+                                </b-popover>
+                            </template>
+
                             <b-input-group prepend="Latest">
                                 <div class="form-control pl-2">
                                     <b-form-checkbox :checked="filter.onlyLatestSubs"
                                                      @input="updateFilter(i, 'onlyLatestSubs', $event)"
-                                                     class="d-inline-block" />
-                                    Only use latest submissions
+                                                     class="d-inline-block">
+                                        Only use latest submissions
+                                    </b-form-checkbox>
                                 </div>
                             </b-input-group>
 
@@ -130,7 +194,7 @@
                             </b-input-group>
 
                             <b-input-group prepend="Submitted after">
-                                <datetime-picker :value="filter.submittedAfter"
+                                <datetime-picker :value="formatDate(filter.submittedAfter)"
                                                  @input="updateFilter(i, 'submittedAfter', $event)"
                                                  :placeholder="`${assignmentCreated} (Assignment created)`"/>
 
@@ -144,7 +208,7 @@
                             </b-input-group>
 
                             <b-input-group prepend="Submitted before">
-                                <datetime-picker :value="filter.submittedBefore"
+                                <datetime-picker :value="formatDate(filter.submittedBefore)"
                                                  @input="updateFilter(i, 'submittedBefore', $event)"
                                                  :placeholder="`${assignmentDeadline} (Assignment deadline)`"/>
 
@@ -156,14 +220,14 @@
                                     </b-button>
                                 </template>
                             </b-input-group>
-                        </div>
+                        </b-card>
                     </div>
                 </div>
 
                 <b-button variant="primary"
                           class="float-right"
                           @click="addFilter">
-                    Add filter set
+                    Add filter
                 </b-button>
             </b-card>
         </div>
@@ -241,10 +305,14 @@ import * as stat from 'simple-statistics';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/reply';
+import 'vue-awesome/icons/unlink';
+import 'vue-awesome/icons/scissors';
+import 'vue-awesome/icons/copy';
 
 import { WorkspaceFilter } from '@/models';
 import { BarChart, ScatterPlot } from '@/components/Charts';
 import Loader from '@/components/Loader';
+import SubmitButton from '@/components/SubmitButton';
 import DatetimePicker from '@/components/DatetimePicker';
 import DescriptionPopover from '@/components/DescriptionPopover';
 
@@ -267,6 +335,10 @@ export default {
             rubricStatistic: 'mean',
             rubricRelative: true,
             filters: [WorkspaceFilter.emptyFilter],
+
+            splitSubs: false,
+            splitGrade: '',
+            splitDate: '',
         };
     },
 
@@ -337,6 +409,10 @@ export default {
 
         hasManyRubricRows() {
             return this.$utils.getProps(this.rubricSource, 0, 'rowIds', 'length') > 8;
+        },
+
+        deleteDisabled() {
+            return this.filters.length === 1;
         },
 
         submissionDateHistogram() {
@@ -597,6 +673,86 @@ export default {
             this.filters = [...this.filters, WorkspaceFilter.emptyFilter];
         },
 
+        replaceFilter(idx, ...filters) {
+            const fs = this.filters;
+            console.log(fs, idx, fs.slice(0, idx), filters, fs.slice(idx + 1));
+            return [...fs.slice(0, idx), ...filters, ...fs.slice(idx + 1)];
+        },
+
+        deleteFilter(idx) {
+            if (!this.deleteDisabled) {
+                this.filters = this.replaceFilter(idx);
+            }
+        },
+
+        copyFilter(idx) {
+            const f = this.filters[idx];
+            this.filters = this.replaceFilter(idx, f, f);
+        },
+
+        async splitFilter(idx) {
+            const filter = this.filters[idx];
+            const {
+                minGrade,
+                maxGrade,
+                submittedAfter,
+                submittedBefore,
+            } = filter;
+
+            const {
+                splitSubs,
+                splitDate,
+            } = this;
+            const splitGrade = parseFloat(this.splitGrade);
+
+            let left = filter;
+            let right = filter;
+
+            if (!Number.isNaN(splitGrade)) {
+                console.log(splitGrade, minGrade, maxGrade);
+                if (minGrade != null && minGrade >= splitGrade) {
+                    throw new Error('Selected grade is less than or equal to the old "Min grade".');
+                }
+                if (maxGrade != null && maxGrade <= splitGrade) {
+                    throw new Error('Selected grade is less than or equal to the old "Min grade".');
+                }
+                left = left.update('maxGrade', splitGrade);
+                right = right.update('minGrade', splitGrade);
+            }
+
+            if (splitDate !== '') {
+                if (submittedAfter != null && !submittedAfter.isBefore(splitDate)) {
+                    throw new Error('Selected date is before the old "Submitted after".');
+                }
+                if (submittedBefore != null && !submittedBefore.isAfter(splitDate)) {
+                    throw new Error('Selected date is after the old "Submitted before".');
+                }
+                left = left.update('submittedBefore', splitDate);
+                right = right.update('submittedAfter', splitDate);
+            }
+
+            if (splitSubs) {
+                left = left.update('onlyLatestSubs', false);
+                right = right.update('onlyLatestSubs', true);
+            }
+
+            return this.replaceFilter(idx, left, right);
+        },
+
+        afterSplitFilter(filters) {
+            this.filters = filters;
+            this.resetSplitParams();
+            this.$afterRerender(() => {
+                this.$root.$emit('bv::hide::popover');
+            });
+        },
+
+        resetSplitParams() {
+            this.splitSubs = false;
+            this.splitGrade = '';
+            this.splitDate = '';
+        },
+
         to2Dec(x) {
             return this.$utils.toMaxNDecimals(x, 2);
         },
@@ -638,6 +794,10 @@ export default {
         normalize1(x, [lower, upper]) {
             return x <= 0 ? -x / lower : x / upper;
         },
+
+        formatDate(d) {
+            return d == null ? null : this.$utils.readableFormatDate(d);
+        },
     },
 
     watch: {
@@ -672,6 +832,7 @@ export default {
         Loader,
         BarChart,
         ScatterPlot,
+        SubmitButton,
         DatetimePicker,
         DescriptionPopover,
     },
@@ -679,6 +840,8 @@ export default {
 </script>
 
 <style lang="less" scoped>
+@import '~mixins.less';
+
 .card {
     margin-bottom: 1rem;
 
@@ -700,6 +863,20 @@ export default {
         position: absolute;
         top: 0;
         right: 0.5rem;
+    }
+}
+
+.icon-button {
+    margin: -0.5rem -0.5rem -0.5rem 0.5rem;
+    padding: 0.5rem;
+    cursor: pointer;
+
+    &.text-muted {
+        cursor: not-allowed;
+    }
+
+    &:not(.text-muted):hover {
+        color: @color-secondary;
     }
 }
 </style>
