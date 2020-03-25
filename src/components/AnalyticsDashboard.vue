@@ -77,7 +77,9 @@
                          class="col-6">
                         <b-card header-class="d-flex flex-row">
                             <template #header>
-                                <div class="flex-grow-1">Filter {{ i }}</div>
+                                <div class="flex-grow-1">
+                                    Filter {{ i }}
+                                </div>
 
                                 <div class="d-flex flex-row flex-grow-0">
                                     <div class="icon-button"
@@ -92,7 +94,7 @@
                                         <icon name="scissors" />
                                     </div>
 
-                                    <div class="icon-button"
+                                    <div class="icon-button danger"
                                          :class="{ 'text-muted': deleteDisabled }"
                                          @click="deleteFilter(i)"
                                          v-b-popover.hover.top="deleteDisabled ?
@@ -104,33 +106,27 @@
 
                                 <b-popover :target="`analytics-filter-split-${id}-${i}`"
                                            triggers="click"
-                                           placement="left">
-                                    <table class="table table-hover"
-                                           style="width: auto; margin: -0.5rem -0.75rem;">
-                                        <tbody>
-                                            <tr>
-                                                <td class="text-left">
-                                                    <b-checkbox v-model="splitSubs">
-                                                        Latest
-                                                    </b-checkbox>
-                                                </td>
-                                            </tr>
+                                           placement="leftbottom"
+                                           title="Split on">
+                                    <b-input-group class="mb-2 p-2 border rounded text-left">
+                                        <b-checkbox v-model="splitSubs">
+                                            Split on latest
+                                        </b-checkbox>
+                                    </b-input-group>
 
-                                            <b-input-group class="">
-                                                <input v-model="splitGrade"
-                                                       class="form-control"
-                                                       type="number"
-                                                       placeholder="Grade" />
-                                            </b-input-group>
+                                    <b-input-group class="mb-2">
+                                        <input v-model="splitGrade"
+                                                class="form-control"
+                                                type="number"
+                                                placeholder="Grade" />
+                                    </b-input-group>
 
-                                            <b-input-group>
-                                                <datetime-picker v-model="splitDate"
-                                                                 class="rounded-0" />
-                                            </b-input-group>
-                                        </tbody>
-                                    </table>
+                                    <b-input-group class="mb-2">
+                                        <datetime-picker v-model="splitDate"
+                                                            placeholder="Date"/>
+                                    </b-input-group>
 
-                                    <submit-button class="float-right"
+                                    <submit-button class="float-right mb-2"
                                                    variant="primary"
                                                    :submit="() => splitFilter(i)"
                                                    @after-success="afterSplitFilter">
@@ -255,33 +251,32 @@
             <template v-if="rubricStatistic != null">
                 <div class="col-12 col-lg-6"
                      :class="{ 'col-lg-12': largeGradeHistogram }">
-                    <b-card header="Rubric statistics">
+                    <b-card header-class="d-flex flex-row">
+                        <template #header>
+                            <div class="flex-grow-1">
+                                Rubric statistics
+                            </div>
+
+                            <div class="d-flex flex-row flex-grow-0">
+                                <div class="icon-button"
+                                     :class="{ 'active': rubricRelative }"
+                                     @click="rubricRelative = !rubricRelative"
+                                     v-b-popover.top.hover="'Relative to max score in category'">
+                                    <icon name="arrows-v" />
+                                </div>
+
+                                <b-form-select v-model="selectedRubricStatistic"
+                                               :options="rubricStatOptions"
+                                               class="ml-3 pt-1"
+                                               style="height: 2rem; width: 7.5rem; margin: -0.25rem -0.75rem;"/>
+                            </div>
+                        </template>
+
                         <component :is="rubricStatistic.chartComponent"
                                    :chart-data="rubricStatistic.data"
                                    :options="rubricStatistic.options"
                                    :width="300"
                                    :height="largeGradeHistogram ? 100 : 200"/>
-
-                        <hr>
-
-                        <b-input-group prepend="Metric">
-                            <b-form-select v-model="selectedRubricStatistic"
-                                           :options="rubricStatOptions"/>
-                        </b-input-group>
-
-                        <b-input-group prepend="Relative"
-                                       v-if="showRubricRelative">
-                            <div class="form-control pl-2">
-                                <b-form-checkbox v-model="rubricRelative"
-                                                 :id="`rubric-relative-${id}`"
-                                                 class="d-inline-block cursor-pointer" />
-
-                                <label :for="`rubric-relative-${id}`"
-                                       class="cursor-pointer">
-                                    Relative to extreme score in category
-                                </label>
-                            </div>
-                        </b-input-group>
                     </b-card>
                 </div>
             </template>
@@ -299,6 +294,7 @@ import 'vue-awesome/icons/reply';
 import 'vue-awesome/icons/unlink';
 import 'vue-awesome/icons/scissors';
 import 'vue-awesome/icons/copy';
+import 'vue-awesome/icons/arrows-v';
 
 import { WorkspaceFilter } from '@/models';
 import { BarChart, ScatterPlot } from '@/components/Charts';
@@ -407,8 +403,8 @@ export default {
         },
 
         submissionDateHistogram() {
-            const binsPerFilter = this.submissionSources.map(
-                source => source.binSubmissionsByDate(),
+            const binsPerFilter = this.submissionSources.map(source =>
+                source.binSubmissionsByDate(),
             );
             const allDates = [...new Set([].concat(...binsPerFilter.map(Object.keys)))].sort();
 
@@ -927,13 +923,26 @@ export default {
     margin: -0.5rem -0.5rem -0.5rem 0.5rem;
     padding: 0.5rem;
     cursor: pointer;
+    transition: background-color @transition-duration;
+
+    &.active {
+        color: @color-secondary;
+
+        &.danger {
+            color: @color-danger;
+        }
+    }
 
     &.text-muted {
         cursor: not-allowed;
     }
 
     &:not(.text-muted):hover {
-        color: @color-secondary;
+        color: lighten(@color-secondary, 15%);
+
+        &.danger {
+            color: @color-danger;
+        }
     }
 }
 </style>
