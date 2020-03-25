@@ -9,6 +9,7 @@ from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import Base, MyQuery, DbColumn, db
 from . import file as file_models
+from . import user as user_models
 from . import work as work_models
 from . import rubric as rubric_models
 from . import assignment as assignment_models
@@ -48,9 +49,12 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
 
     @property
     def work_query(self) -> MyQuery['work_models.Work']:
-        return db.session.query(
-            work_models.Work
-        ).filter(work_models.Work.assignment == self.assignment)
+        return db.session.query(work_models.Work).filter(
+            ~db.session.query(user_models.User).filter(
+                user_models.User.is_test_student,
+                user_models.User.id == work_models.Work.user_id,
+            ).exists(), work_models.Work.assignment == self.assignment
+        )
 
     @property
     def submissions_per_student(self
@@ -67,7 +71,7 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
             )
         )
 
-        query = db.session.query(
+        query = self.work_query.with_entities(
             work_models.Work.user_id,
             _array_agg_and_order(
                 work_models.Work.id,
@@ -81,8 +85,6 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
                 work_models.Work.assigned_to,
                 work_models.Work.created_at,
             )
-        ).filter(
-            work_models.Work.assignment == self.assignment,
         ).group_by(
             work_models.Work.user_id,
         )

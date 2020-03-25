@@ -1082,7 +1082,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             except PermissionException:
                 pass
             else:
-                res['analytics_workspace_ids'].append(workspace.id)
+                t.cast(t.List[int],
+                       res['analytics_workspace_ids']).append(workspace.id)
 
         return res
 

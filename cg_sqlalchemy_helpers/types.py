@@ -17,6 +17,7 @@ from typing_extensions import Literal
 import cg_dt_utils
 
 T = t.TypeVar('T')
+ZZ = t.TypeVar('ZZ')
 Z = t.TypeVar('Z')
 Y = t.TypeVar('Y')
 U = t.TypeVar('U')
@@ -629,7 +630,14 @@ class MyNonOrderableQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     @t.overload
     def with_entities(
         self, __arg1: DbColumn[Z], __arg2: DbColumn[Y], __arg3: DbColumn[U]
-    ) -> 'MyQuery[t.Tuple[Z, Y,U]]':
+    ) -> 'MyQuery[t.Tuple[Z, Y, U]]':
+        ...
+
+    @t.overload
+    def with_entities(
+        self, __arg1: DbColumn[Z], __arg2: DbColumn[Y], __arg3: DbColumn[U],
+        __arg4: DbColumn[ZZ]
+    ) -> 'MyQuery[t.Tuple[Z, Y, U, ZZ]]':
         ...
 
     def with_entities(self, *args: t.Any) -> 'MyQuery[t.Any]':
