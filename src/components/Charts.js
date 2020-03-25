@@ -166,7 +166,7 @@ export const BarChart = {
 
         renderOpts() {
             const [min, max] = this.suggestedRange;
-            return this.$utils.deepExtendArray(this.baseOptions, {
+            const ro = this.$utils.deepExtendArray(this.baseOptions, {
                 scales: {
                     yAxes: [
                         {
@@ -178,6 +178,8 @@ export const BarChart = {
                     ],
                 },
             }, this.options);
+            console.log(ro, this.options);
+            return ro;
         },
 
         suggestedRange() {

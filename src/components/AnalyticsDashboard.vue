@@ -67,12 +67,6 @@
                     </div>
                 </div>
             </b-card>
-
-            <b-card header="Students submitted on">
-                <bar-chart :chart-data="submissionDateHistogram"
-                            :width="300"
-                            :height="50"/>
-            </b-card>
         </div>
 
         <div class="col-12">
@@ -240,29 +234,38 @@
         </div>
 
         <template v-else>
+            <div class="col-12">
+                <b-card header="Students submitted on">
+                    <bar-chart :chart-data="submissionDateHistogram"
+                                :width="300"
+                                :height="50"/>
+                </b-card>
+            </div>
+
             <div class="col-12 col-lg-6"
                  :class="{ 'col-lg-12': largeGradeHistogram }">
-                <b-card header="Histogram of grades">
+                <b-card header="Grade statistics">
                     <bar-chart :chart-data="gradeHistogram"
+                               :options="gradeHistOpts"
                                :width="300"
                                :height="largeGradeHistogram ? 100 : 200"/>
                 </b-card>
             </div>
 
-            <template v-if="hasRubricSource">
+            <template v-if="rubricStatistic != null">
                 <div class="col-12 col-lg-6"
                      :class="{ 'col-lg-12': largeGradeHistogram }">
-                    <b-card header="Mean score per rubric category">
-                        <bar-chart :chart-data="rubricMeanHistogram"
-                                   :options="rubricMeanHistOpts"
-                                   :relative-to="rubricNormalizeFactors"
+                    <b-card header="Rubric statistics">
+                        <component :is="rubricStatistic.chartComponent"
+                                   :chart-data="rubricStatistic.data"
+                                   :options="rubricStatistic.options"
                                    :width="300"
                                    :height="largeGradeHistogram ? 100 : 200"/>
 
                         <hr>
 
                         <b-input-group prepend="Metric">
-                            <b-form-select v-model="rubricStatistic"
+                            <b-form-select v-model="selectedRubricStatistic"
                                            :options="rubricStatOptions"/>
                         </b-input-group>
 
@@ -281,18 +284,6 @@
                         </b-input-group>
                     </b-card>
                 </div>
-
-                <template v-for="row in rubric.rows"
-                          v-if="rubricCatScatter[row.id]">
-                    <div class="col-12 col-lg-6">
-                        <b-card :header="`${row.header}: Correlation of item score with total score`">
-                            <scatter-plot :chart-data="rubricCatScatter[row.id]"
-                                          :options="rubricCatScatterOpts"
-                                          :width="300"
-                                          :height="200"/>
-                        </b-card>
-                    </div>
-                </template>
             </template>
         </template>
     </template>
@@ -332,8 +323,8 @@ export default {
             loading: true,
             error: null,
             baseWorkspace: null,
-            rubricStatistic: 'mean',
             rubricRelative: true,
+            selectedRubricStatistic: null,
             filters: [WorkspaceFilter.emptyFilter],
 
             splitSubs: false,
@@ -397,7 +388,7 @@ export default {
         },
 
         hasRubricSource() {
-            return this.baseWorkspace.hasSource('rubric_data');
+            return this.baseWorkspace && this.baseWorkspace.hasSource('rubric_data');
         },
 
         rubricSources() {
@@ -416,21 +407,17 @@ export default {
         },
 
         submissionDateHistogram() {
-            // TODO: gray out dates outside of the filtered range.
-            const base = this.baseSubmissionData.binSubmissionsByDate();
-            const latest = this.latestSubmissionData.binSubmissionsByDate();
-            const allDates = [...new Set([...Object.keys(base), ...Object.keys(latest)])].sort();
+            const binsPerFilter = this.submissionSources.map(
+                source => source.binSubmissionsByDate(),
+            );
+            const allDates = [...new Set([].concat(...binsPerFilter.map(Object.keys)))].sort();
 
-            const datasets = [
-                {
-                    label: 'All submissions',
-                    data: allDates.map(d => base[d].length),
-                },
-                {
-                    label: 'Latest submissions',
-                    data: allDates.map(d => latest[d].length),
-                },
-            ];
+            const datasets = binsPerFilter.map((bins, i) =>
+                ({
+                    label: `Filter ${i}`,
+                    data: allDates.map(d => bins[d].length),
+                }),
+            );
 
             return { labels: allDates, datasets };
         },
@@ -489,74 +476,97 @@ export default {
         },
 
         rubricStatOptions() {
-            return [
-                'mean',
-                'median',
-                'mode',
-                'rit',
-                'rir',
+            const baseOpts = [
+                { value: 'mean', text: 'Mean' },
+                { value: 'median', text: 'Median' },
+                { value: 'mode', text: 'Mode' },
+                { value: 'rit', text: 'RIT' },
+                { value: 'rir', text: 'RIR' },
             ];
+
+            this.rubric.rows.forEach(row => {
+                baseOpts.push({
+                    text: `Correlation: ${row.header}`,
+                    value: row.id,
+                });
+            });
+
+            return baseOpts;
+        },
+
+        rubricStatistics() {
+            const baseStats = {
+                mean: {
+                    chartComponent: 'bar-chart',
+                    data: this.getRubricHistogramData('mean', this.rubricRelative),
+                    options: this.rubricHistogramOpts,
+                    hasRelative: true,
+                },
+                median: {
+                    chartComponent: 'bar-chart',
+                    data: this.getRubricHistogramData('median', this.rubricRelative),
+                    options: this.rubricHistogramOpts,
+                    hasRelative: true,
+                },
+                mode: {
+                    chartComponent: 'bar-chart',
+                    data: this.getRubricHistogramData('mode', this.rubricRelative),
+                    options: this.rubricHistogramOpts,
+                    hasRelative: true,
+                },
+                rit: {
+                    chartComponent: 'bar-chart',
+                    data: this.getRubricHistogramData('rit'),
+                    options: this.rubricHistogramOpts,
+                },
+                rir: {
+                    chartComponent: 'bar-chart',
+                    data: this.getRubricHistogramData('rir'),
+                    options: this.rubricHistogramOpts,
+                },
+            };
+
+            this.rubric.rows.forEach(row => {
+                baseStats[row.id] = {
+                    chartComponent: 'scatter-plot',
+                    data: this.getRubricScatterData(row),
+                    options: this.rubricScatterOpts,
+                };
+            });
+
+            return baseStats;
+        },
+
+        rubricStatistic() {
+            if (this.selectedRubricStatistic == null) {
+                return null;
+            }
+            return this.rubricStatistics[this.selectedRubricStatistic];
         },
 
         showRubricRelative() {
-            return ['mean', 'median', 'mode'].indexOf(this.rubricStatistic) !== -1;
+            return this.rubricStatistic.hasRelative;
         },
 
         rubricNormalizeFactors() {
-            if (!this.showRubricRelative || !this.rubricRelative) {
+            if (!this.rubricRelative) {
                 return null;
             }
             return this.rubric.rows.map(row => [row.minPoints, row.maxPoints]);
         },
 
-        rubricMeanHistogram() {
-            const datasets = this.rubricSources.map((source, i) => {
-                let data = [];
-                const stats = [];
-
-                this.rubric.rows.forEach(row => {
-                    const rowStats = {
-                        mean: source.meanPerCat[row.id],
-                        mode: source.modePerCat[row.id],
-                        median: source.medianPerCat[row.id],
-                        rit: source.ritPerCat[row.id],
-                        rir: source.rirPerCat[row.id],
-                        nTimesFilled: source.nTimesFilledPerCat[row.id],
-                        rowId: row.id,
-                    };
-                    stats.push(rowStats);
-                    data.push(rowStats[this.rubricStatistic]);
-
-                    if (this.rubricNormalizeFactors != null) {
-                        data = this.normalize(data);
-                    }
-                });
-
-                return {
-                    label: `Filter ${i}`,
-                    data,
-                    stats,
-                };
-            });
-
-            return {
-                labels: this.rubric.rows.map(row => row.header),
-                datasets,
-            };
-        },
-
-        rubricMeanHistOpts() {
+        rubricHistogramOpts() {
             const getStats = (tooltipItem, data) => {
                 const dataset = data.datasets[tooltipItem.datasetIndex];
                 return dataset.stats[tooltipItem.index];
             };
 
-            const label = (tooltipItem, data) => {
+            const labelCb = (tooltipItem, data) => {
                 const stats = getStats(tooltipItem, data);
                 return this.rirMessage(stats.rir);
             };
 
-            const afterLabel = (tooltipItem, data) => {
+            const afterLabelCb = (tooltipItem, data) => {
                 const stats = getStats(tooltipItem, data);
                 // Do not escape, chart.js does its own escaping.
                 return [
@@ -569,48 +579,31 @@ export default {
                 ];
             };
 
+            const label = this.rubricStatOptions.find(so =>
+                so.value === this.selectedRubricStatistic,
+            ).text;
+
             return {
+                scales: {
+                    yAxes: [
+                        {
+                            scaleLabel: {
+                                display: true,
+                                labelString: label,
+                            },
+                        },
+                    ],
+                },
                 tooltips: {
                     callbacks: {
-                        label,
-                        afterLabel,
+                        label: labelCb,
+                        afterLabel: afterLabelCb,
                     },
                 },
             };
         },
 
-        rubricCatScatter() {
-            return this.rubric.rows.reduce(
-                (acc, row) => {
-                    const datasets = [].concat(...this.rubricSources.map((source, i) => {
-                        const { ritItemsPerCat, rirItemsPerCat } = source;
-                        const ritItems = ritItemsPerCat[row.id];
-                        const rirItems = rirItemsPerCat[row.id];
-
-                        if (ritItems.length === 0 && rirItems.length === 0) {
-                            return [];
-                        }
-
-                        return [
-                            {
-                                label: `Total (Filter ${i})`,
-                                data: ritItems.map(([x, y]) => ({ x, y })),
-                            },
-                            {
-                                label: `Total - Item (Filter ${i})`,
-                                data: rirItems.map(([x, y]) => ({ x, y })),
-                            },
-                        ];
-                    }));
-
-                    acc[row.id] = { datasets };
-                    return acc;
-                },
-                {},
-            );
-        },
-
-        rubricCatScatterOpts() {
+        rubricScatterOpts() {
             return {
                 scales: {
                     xAxes: [
@@ -637,6 +630,12 @@ export default {
     methods: {
         ...mapActions('analytics', ['loadWorkspace', 'clearAssignmentWorkspaces']),
 
+        reset() {
+            this.filters = [WorkspaceFilter.emptyFilter];
+            this.selectedRubricStatistic = 'mean';
+            this.rubricRelative = true;
+        },
+
         loadWorkspaceData() {
             this.loading = true;
             this.baseWorkspace = null;
@@ -646,6 +645,7 @@ export default {
                 res => {
                     const ws = res.data;
                     if (ws.id === this.currentWorkspaceId) {
+                        this.reset();
                         this.baseWorkspace = ws;
                         this.error = null;
                         this.loading = false;
@@ -675,7 +675,6 @@ export default {
 
         replaceFilter(idx, ...filters) {
             const fs = this.filters;
-            console.log(fs, idx, fs.slice(0, idx), filters, fs.slice(idx + 1));
             return [...fs.slice(0, idx), ...filters, ...fs.slice(idx + 1)];
         },
 
@@ -709,7 +708,6 @@ export default {
             let right = filter;
 
             if (!Number.isNaN(splitGrade)) {
-                console.log(splitGrade, minGrade, maxGrade);
                 if (minGrade != null && minGrade >= splitGrade) {
                     throw new Error('Selected grade is less than or equal to the old "Min grade".');
                 }
@@ -753,6 +751,67 @@ export default {
             this.splitDate = '';
         },
 
+        getRubricHistogramData(key, normalize) {
+            const datasets = this.rubricSources.map((source, i) => {
+                let data = [];
+                const stats = [];
+
+                this.rubric.rows.forEach(row => {
+                    const rowStats = {
+                        mean: source.meanPerCat[row.id],
+                        mode: source.modePerCat[row.id],
+                        median: source.medianPerCat[row.id],
+                        rit: source.ritPerCat[row.id],
+                        rir: source.rirPerCat[row.id],
+                        nTimesFilled: source.nTimesFilledPerCat[row.id],
+                        rowId: row.id,
+                    };
+                    stats.push(rowStats);
+                    data.push(rowStats[key]);
+                });
+
+                if (normalize && this.rubricNormalizeFactors != null) {
+                    data = this.normalize(data, this.rubricNormalizeFactors);
+                }
+
+                return {
+                    label: `Filter ${i}`,
+                    data,
+                    stats,
+                };
+            });
+
+            return {
+                labels: this.rubric.rows.map(row => row.header),
+                datasets,
+            };
+        },
+
+        getRubricScatterData(row) {
+            const datasets = [].concat(...this.rubricSources.map((source, i) => {
+                const { ritItemsPerCat, rirItemsPerCat } = source;
+                const ritItems = ritItemsPerCat[row.id];
+                const rirItems = rirItemsPerCat[row.id];
+
+                if (ritItems.length === 0 && rirItems.length === 0) {
+                    return [];
+                }
+
+                return [
+                    {
+                        label: `Total (Filter ${i})`,
+                        data: ritItems.map(([x, y]) => ({ x, y })),
+                    },
+                    {
+                        label: `Total - Item (Filter ${i})`,
+                        data: rirItems.map(([x, y]) => ({ x, y })),
+                    },
+                ];
+            }));
+
+            return { datasets };
+        },
+
         to2Dec(x) {
             return this.$utils.toMaxNDecimals(x, 2);
         },
@@ -779,13 +838,11 @@ export default {
             }
         },
 
-        normalize(xs) {
-            const rel = this.relativeTo;
-
-            if (typeof rel === 'number') {
-                return xs.map(x => 100 * x / rel);
-            } else if (Array.isArray(rel)) {
-                return xs.map((x, i) => 100 * this.normalize1(x, rel[i]));
+        normalize(xs, factors) {
+            if (typeof factors === 'number') {
+                return xs.map(x => 100 * x / factors);
+            } else if (Array.isArray(factors)) {
+                return xs.map((x, i) => 100 * this.normalize1(x, factors[i]));
             } else {
                 return xs;
             }
