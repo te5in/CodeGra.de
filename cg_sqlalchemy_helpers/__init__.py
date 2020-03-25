@@ -29,7 +29,6 @@ T = t.TypeVar('T')
 deferred: t.Callable[[T], T] = _deferred
 
 
-
 def make_db() -> types.MyDb:
     return t.cast(
         types.MyDb,

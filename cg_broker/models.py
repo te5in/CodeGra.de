@@ -544,7 +544,7 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
     job_metadata = db.Column('job_metadata', JSONB, nullable=True, default={})
 
     def update_metadata(self, new_values: t.Dict[str, object]) -> None:
-        self._job_metadata = {**(self.job_metadata or {}), **new_values}
+        self.job_metadata = {**(self.job_metadata or {}), **new_values}
 
     _wanted_runners = db.Column(
         'wanted_runners',
