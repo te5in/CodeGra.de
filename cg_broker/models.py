@@ -28,9 +28,6 @@ from cg_sqlalchemy_helpers import JSONB, types, mixins, hybrid_property
 
 from . import BrokerFlask, app, utils
 
-# from cg_sqlalchemy_helpers.types import OptionalJSONColumnProxy
-
-
 logger = structlog.get_logger()
 
 db: cgs.types.MyDb = cgs.make_db()
@@ -544,9 +541,7 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
     )
     runners = db.relationship(Runner, back_populates='job', uselist=True)
 
-    job_metadata = db.Column(
-        'job_metadata', JSONB, nullable=True, default={}
-    )
+    job_metadata = db.Column('job_metadata', JSONB, nullable=True, default={})
 
     def update_metadata(self, new_values: t.Dict[str, object]) -> None:
         self._job_metadata = {**(self.job_metadata or {}), **new_values}
