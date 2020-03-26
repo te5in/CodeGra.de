@@ -385,7 +385,10 @@ class WorkspaceSubmissionSet {
     binSubmissionsBy(f) {
         return this.allSubmissions.reduce(
             (acc, sub) => {
-                acc[f(sub)].push(sub);
+                const bin = f(sub);
+                if (bin != null) {
+                    acc[f(sub)].push(sub);
+                }
                 return acc;
             },
             defaultdict(() => []),
@@ -395,13 +398,79 @@ class WorkspaceSubmissionSet {
     binSubmissionsByGrade(binSize = 1) {
         return this.binSubmissionsBy(sub => {
             const { grade } = sub;
-            return grade == null ? -1 : Math.floor(grade / binSize);
+            return grade == null ? null : Math.floor(grade / binSize);
         });
     }
 
-    binSubmissionsByDate() {
-        return this.binSubmissionsBy(sub =>
-            sub.createdAt.local().format('YYYY-MM-DD'),
+    binSubmissionsByDate(dateRange, binSize, binUnit) {
+        let start = null;
+        let end = null;
+
+        const sortedSubs = this.allSubmissions.sort((a, b) =>
+            (a.createdAt.isBefore(b.createdAt) ? -1 : 1),
+        );
+
+        const setTime = (d, h, m, s) => d.clone().hour(h).minute(m).second(s);
+
+        if (dateRange == null || dateRange.length === 0) {
+            start = setTime(sortedSubs[0].createdAt, 0, 0, 0);
+            end = setTime(sortedSubs[sortedSubs.length - 1].createdAt, 23, 59, 59);
+        } else if (dateRange.length === 2) {
+            [start, end] = dateRange.map(x => moment(x));
+        } else {
+            const [d] = moment(dateRange[0]);
+            start = setTime(d, 0, 0, 0);
+            end = setTime(d, 23, 59, 59);
+        }
+
+        const bin = moment.duration(binSize, binUnit);
+        let binStart = start.clone();
+        let binEnd = binStart.clone().add(bin);
+
+        let fmt;
+        switch (binUnit) {
+            case 'minutes':
+                fmt = 'MM-DD HH:MM';
+                break;
+            case 'hours':
+                fmt = 'MM-DD HH:00';
+                break;
+            default:
+                fmt = 'MM-DD';
+                break;
+        }
+
+        const format = (s, e) => {
+            const ss = s.local().format(fmt);
+            const es = e.local().format(fmt);
+
+            if (ss === es) {
+                return ss;
+            } else {
+                return `${ss} — ${es}`;
+            }
+        };
+
+        let binKey = format(binStart, binEnd);
+        return sortedSubs.reduce(
+            (acc, sub) => {
+                if (
+                    (start != null && sub.createdAt.isBefore(start)) ||
+                    (end != null && sub.createdAt.isAfter(end))
+                ) {
+                    return acc;
+                }
+
+                while (!sub.createdAt.isBefore(binEnd)) {
+                    binStart = binEnd;
+                    binEnd = binStart.clone().add(bin);
+                    binKey = format(binStart, binEnd);
+                }
+
+                acc[binKey].push(sub);
+                return acc;
+            },
+            defaultdict(() => []),
         );
     }
 
@@ -591,6 +660,8 @@ export class WorkspaceFilter {
 
 class WorkspaceFilterResult {
     constructor(workspace, filter) {
+        this.workspace = workspace;
+        this.filter = filter;
         this.submissions = workspace.submissions.filter(filter);
 
         const subIds = this.submissions.submissionIds;

@@ -9,7 +9,7 @@
         <div class="d-flex flex-grow-0">
             <div class="icon-button danger"
                  @click="resetFilters()"
-                 v-b-popover.hover.top="'Reset'">
+                 v-b-popover.hover.top="'Clear all'">
                 <icon name="reply" />
             </div>
         </div>
@@ -49,9 +49,10 @@
                     </div>
 
                     <b-popover :target="`analytics-filter-split-${id}-${i}`"
-                               triggers="click"
+                               triggers="click blur"
                                placement="leftbottom"
-                               title="Split on">
+                               title="Split on"
+                               :disabled="popoverDisabled">
                         <b-input-group class="mb-2 p-2 border rounded text-left">
                             <b-checkbox v-model="splitLatest">
                                 Split on latest
@@ -113,9 +114,9 @@
                            @input="updateFilter(i, 'maxGrade', $event.target.value)"
                            class="form-control"
                            type="number"
-                           placeholder="10"
+                           :placeholder="assignmentMaxGrade"
                            :min="filter.minGrade"
-                           max="10"
+                           :max="assignmentMaxGrade"
                            step="1" />
 
                     <template #append>
@@ -154,6 +155,22 @@
                             </b-button>
                         </template>
                 </b-input-group>
+
+                <b-input-group>
+                    <b-input-group-prepend is-text>
+                        # Students
+                    </b-input-group-prepend>
+                    <div class="form-control text-right">
+                        {{ results[i].submissions.studentCount }}
+                    </div>
+
+                    <b-input-group-prepend is-text>
+                        # Submissions
+                    </b-input-group-prepend>
+                    <div class="form-control text-right">
+                        {{ results[i].submissions.submissionCount }}
+                    </div>
+                </b-input-group>
             </b-card>
         </div>
     </div>
@@ -175,7 +192,7 @@ import 'vue-awesome/icons/unlink';
 import 'vue-awesome/icons/scissors';
 import 'vue-awesome/icons/copy';
 
-import { WorkspaceFilter } from '@/models';
+import { Workspace, WorkspaceFilter } from '@/models';
 import SubmitButton from '@/components/SubmitButton';
 import DatetimePicker from '@/components/DatetimePicker';
 
@@ -187,25 +204,20 @@ export default {
             type: Number,
             required: true,
         },
-        filters: {
-            validate(value) {
-                return Array.isArray(value) && value.every(x => x instanceof WorkspaceFilter);
-            },
+        workspace: {
+            type: Workspace,
             required: true,
         },
-    },
-
-    model: {
-        prop: 'filters',
-        event: 'change',
     },
 
     data() {
         return {
             id: this.$utils.getUniqueId(),
+            filters: [WorkspaceFilter.emptyFilter],
             splitLatest: false,
             splitGrade: '',
             splitDate: '',
+            popoverDisabled: false,
         };
     },
 
@@ -216,6 +228,10 @@ export default {
             return this.assignments[this.assignmentId];
         },
 
+        assignmentMaxGrade() {
+            return this.assignment.maxGrade || 10;
+        },
+
         assignmentCreated() {
             return this.assignment.getFormattedCreatedAt();
         },
@@ -224,23 +240,47 @@ export default {
             return this.assignment.getFormattedDeadline();
         },
 
+        results() {
+            return this.workspace.filter(this.filters);
+        },
+
         deleteDisabled() {
             return this.filters.length === 1;
         },
     },
 
     watch: {
-        assignmentId: {
+        workspace: {
             immediate: true,
             handler() {
                 this.resetFilters();
+            },
+        },
+
+        filters: {
+            immediate: true,
+            handler() {
+                this.$router.replace({
+                    query: {
+                        ...this.$route.query,
+                        'analytics-filters': JSON.stringify(this.filters),
+                    },
+                    hash: this.$route.hash,
+                });
+            },
+        },
+
+        results: {
+            immediate: true,
+            handler() {
+                this.$emit('results', this.results);
             },
         },
     },
 
     methods: {
         resetFilters() {
-            this.$emit('change', [WorkspaceFilter.emptyFilter]);
+            this.filters = [WorkspaceFilter.emptyFilter];
         },
 
         resetSplitParams() {
@@ -255,19 +295,16 @@ export default {
         },
 
         addFilter() {
-            this.$emit('change', [
-                ...this.filters,
-                WorkspaceFilter.emptyFilter,
-            ]);
+            this.filters = [...this.filters, WorkspaceFilter.emptyFilter];
         },
 
         replaceFilter(idx, ...newFilters) {
             const fs = this.filters;
-            this.$emit('change', [
+            this.filters = [
                 ...fs.slice(0, idx),
                 ...newFilters,
                 ...fs.slice(idx + 1),
-            ]);
+            ];
         },
 
         deleteFilter(idx) {
@@ -283,6 +320,7 @@ export default {
         },
 
         async splitFilter(idx) {
+            this.popoverDisabled = true;
             // Replace the filter with the result of splitting it.
             const result = this.filters[idx].split({
                 latest: this.splitLatest,
@@ -293,6 +331,7 @@ export default {
         },
 
         afterSplitFilter() {
+            this.popoverDisabled = false;
             this.$afterRerender(() => {
                 this.$root.$emit('bv::hide::popover');
                 this.resetSplitParams();

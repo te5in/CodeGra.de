@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 <template>
 <div class="analytics-dashboard row">
-    <loader page-loader v-if="loading" />
-
-    <b-alert v-else-if="error"
+    <b-alert v-if="error"
              variant="danger"
              show>
         {{ $utils.getErrorMessage(error) }}
     </b-alert>
+
+    <loader page-loader v-else-if="loading" />
 
     <div v-else-if="baseSubmissionData.submissionCount === 0"
          class="col-12">
@@ -70,11 +70,15 @@
         </div>
 
         <div class="col-12">
-            <analytics-filters v-model="filters"
-                               :assignment-id="assignmentId"/>
+            <analytics-filters :assignment-id="assignmentId"
+                               :workspace="baseWorkspace"
+                               @results="filterResults = $event">
+            </analytics-filters>
         </div>
 
-        <div v-if="baseSubmissionData.submissionCount === 0"
+        <loader page-loader :scale="4" v-if="filterResults.length === 0" />
+
+        <div v-else-if="baseSubmissionData.submissionCount === 0"
             class="col-12">
             <h3 class="border rounded p-5 text-center text-muted font-italic">
                 No submissions within the specified filter parameters.
@@ -83,17 +87,59 @@
 
         <template v-else>
             <div class="col-12">
-                <b-card header="Students submitted on">
+                <b-card header-class="d-flex pr-2">
+                    <template #header>
+                        <div class="flex-grow-1">
+                            Students submitted on
+                        </div>
+
+                        <div class="d-flex flex-grow-0">
+                            <div class="icon-button"
+                                 :class="{ 'active': submissionDateRelative }"
+                                 @click="submissionDateRelative = !submissionDateRelative"
+                                 v-b-popover.top.hover="'Relative to filter group'">
+                                <icon name="percent" />
+                            </div>
+
+                            <datetime-picker :value="submissionDateRange"
+                                             @on-close="updateSubmissionDateRange"
+                                             placeholder="Select dates"
+                                             :config="{
+                                                 mode: 'range',
+                                                 defaultHour: undefined,
+                                                 defaultMinute: undefined,
+                                             }"
+                                             class="ml-3 text-center"
+                                             style="min-width: 20rem"/>
+
+                            <b-input-group>
+                                <input :value="submissionDateBinSize"
+                                       @input="updateSubmissionDateBinSize"
+                                       type="number"
+                                       min="1"
+                                       step="1"
+                                       class="form-control ml-2 pt-1"
+                                       style="max-width: 4rem;"/>
+
+                                <b-form-select v-model="submissionDateBinUnit"
+                                               :options="submissionDateBinUnits"
+                                               class="pt-1"
+                                               style="max-width: 5rem"/>
+                            </b-input-group>
+                        </div>
+                    </template>
+
                     <bar-chart :chart-data="submissionDateHistogram"
+                               :options="submissionDateOpts"
                                :width="300"
-                               :height="50"/>
+                               :height="75"/>
                 </b-card>
             </div>
 
             <div class="col-12 col-lg-6"
                  :class="{ 'col-lg-12': largeGradeHistogram }">
                 <b-card header="Grade statistics">
-                    <loader center class="p-3" v-if="changingGradeHistSize" />
+                    <loader center :scale="2" class="p-3" v-if="changingGradeHistSize" />
 
                     <bar-chart v-else
                                :chart-data="gradeHistogram"
@@ -106,7 +152,7 @@
             <template v-if="rubricStatistic != null">
                 <div class="col-12 col-lg-6"
                      :class="{ 'col-lg-12': largeGradeHistogram }">
-                    <b-card header-class="d-flex">
+                    <b-card header-class="d-flex pr-2">
                         <template #header>
                             <div class="flex-grow-1">
                                 Rubric statistics
@@ -124,11 +170,11 @@
                                 <b-form-select v-model="selectedRubricStatistic"
                                                :options="rubricStatOptions"
                                                class="ml-3 pt-1"
-                                               style="height: 2rem; width: 7.5rem; margin: -0.25rem -0.75rem;"/>
+                                               style="max-width: 7.5rem"/>
                             </div>
                         </template>
 
-                        <loader center class="p-3" v-if="changingGradeHistSize" />
+                        <loader center :scale="2" class="p-3" v-if="changingGradeHistSize" />
 
                         <component v-else
                                    :is="rubricStatistic.chartComponent"
@@ -154,6 +200,7 @@ import 'vue-awesome/icons/percent';
 import { WorkspaceFilter } from '@/models';
 import { BarChart, ScatterPlot } from '@/components/Charts';
 import Loader from '@/components/Loader';
+import DatetimePicker from '@/components/DatetimePicker';
 import AnalyticsFilters from '@/components/AnalyticsFilters';
 import DescriptionPopover from '@/components/DescriptionPopover';
 
@@ -172,11 +219,22 @@ export default {
             id: this.$utils.getUniqueId(),
             loading: true,
             error: null,
+
             baseWorkspace: null,
+            filterResults: [],
+
+            submissionDateRelative: true,
+            submissionDateRange: [],
+            submissionDateBinSize: 1,
+            submissionDateBinUnit: 'days',
+
             rubricRelative: true,
             selectedRubricStatistic: null,
-            filters: [WorkspaceFilter.emptyFilter],
 
+            // Changing `largeGradeHistogram` strangely does not trigger a
+            // redraw of the charts that depend on it. So when it changes
+            // we set this to `true` and then after a rerender back to `false`
+            // again so the charts get properly resized.
             changingGradeHistSize: false,
         };
     },
@@ -199,10 +257,6 @@ export default {
 
         rubric() {
             return this.$utils.getProps(this.assignment, null, 'rubric');
-        },
-
-        filterResults() {
-            return this.baseWorkspace.filter(this.filters);
         },
 
         baseSubmissionData() {
@@ -242,27 +296,74 @@ export default {
             return this.$utils.getProps(this.rubricSource, 0, 'rowIds', 'length') > 8;
         },
 
-        submissionDateHistogram() {
-            const binsPerFilter = this.submissionSources.map(source =>
-                source.binSubmissionsByDate(),
+        submissionsByDate() {
+            return this.submissionSources.map(source =>
+                source.binSubmissionsByDate(
+                    this.submissionDateRange,
+                    this.submissionDateBinSize,
+                    this.submissionDateBinUnit,
+                ),
             );
-            const allDates = [...new Set([].concat(...binsPerFilter.map(Object.keys)))].sort();
+        },
 
-            const datasets = binsPerFilter.map((bins, i) =>
-                ({
-                    label: this.filters[i].toString(),
-                    data: allDates.map(d => bins[d].length),
-                }),
-            );
+        allSubmissionDates() {
+            const dates = this.submissionsByDate.flatMap(Object.keys);
+            return [...new Set(dates)].sort();
+        },
+
+        submissionDateBinUnits() {
+            return [
+                'minutes',
+                'hours',
+                'days',
+                'weeks',
+                'years',
+            ];
+        },
+
+        submissionDateHistogram() {
+            const allDates = this.allSubmissionDates;
+            const datasets = this.submissionsByDate.map((bins, i) => {
+                let data = allDates.map(d => bins[d].length);
+                const nSubs = stat.sum(data);
+
+                if (this.submissionDateRelative) {
+                    data = data.map(x => 100 * x / nSubs);
+                }
+
+                return {
+                    label: this.filterResults[i].filter.toString(),
+                    data,
+                };
+            });
 
             return { labels: allDates, datasets };
+        },
+
+        submissionDateOpts() {
+            const label = this.submissionDateRelative ? 'Percentage of students' : 'Number of students';
+            return {
+                scales: {
+                    yAxes: [
+                        {
+                            ticks: {
+                                beginAtZero: true,
+                            },
+                            scaleLabel: {
+                                display: true,
+                                labelString: label,
+                            },
+                        },
+                    ],
+                },
+            };
         },
 
         largeGradeHistogram() {
             return this.$root.$isLargeWindow && (
                 !this.hasRubricSource ||
                 this.hasManyRubricRows ||
-                this.filters.length > 2
+                this.filterResults.length > 2
             );
         },
 
@@ -283,7 +384,7 @@ export default {
                 const nSubs = stat.sum(bins.map(bin => data[bin].length));
 
                 return {
-                    label: this.filters[i].toString(),
+                    label: this.filterResults[i].filter.toString(),
                     data: bins.map(bin => 100 * data[bin].length / nSubs),
                 };
             });
@@ -464,6 +565,7 @@ export default {
         reset() {
             this.selectedRubricStatistic = 'mean';
             this.rubricRelative = true;
+            this.filterResults = [];
         },
 
         loadWorkspaceData() {
@@ -518,7 +620,7 @@ export default {
                 }
 
                 return {
-                    label: this.filters[i].toString(),
+                    label: this.filterResults[i].filter.toString(),
                     data,
                     stats,
                 };
@@ -541,7 +643,7 @@ export default {
                 }
 
                 return {
-                    label: this.filters[i].toString(),
+                    label: this.filterResults[i].filter.toString(),
                     data: rirItems.map(([x, y]) => ({ x, y })),
                 };
             });
@@ -588,6 +690,28 @@ export default {
         normalize1(x, [lower, upper]) {
             return x <= 0 ? -x / lower : x / upper;
         },
+
+        updateSubmissionDateRange(event) {
+            // Somehow this event is sometimes triggered without an array...
+            if (typeof event === 'string') {
+                return;
+            }
+
+            const curRange = this.submissionDateRange;
+            if (
+                event.length !== curRange.length ||
+                !event.every((x, i) => console.log(x) || x.isSame(curRange[i]))
+            ) {
+                this.submissionDateRange = event;
+            }
+        },
+
+        updateSubmissionDateBinSize(event) {
+            const newSize = parseFloat(event.target.value);
+            if (!Number.isNaN(newSize) && newSize !== this.submissionDateBinSize) {
+                this.submissionDateBinSize = Number(newSize);
+            }
+        },
     },
 
     watch: {
@@ -598,17 +722,9 @@ export default {
             },
         },
 
-        filters() {
-            this.$router.replace({
-                query: {
-                    ...this.$route.query,
-                    'analytics-filters': JSON.stringify(this.filters),
-                },
-                hash: this.$route.hash,
-            });
-        },
-
         async largeGradeHistogram() {
+            // We must trigger a rerender when the box containing a chart's canvas
+            // changes size.
             this.changingGradeHistSize = true;
             await this.$afterRerender();
             this.changingGradeHistSize = false;
@@ -629,6 +745,7 @@ export default {
         BarChart,
         ScatterPlot,
         AnalyticsFilters,
+        DatetimePicker,
         DescriptionPopover,
     },
 };
@@ -664,6 +781,15 @@ export default {
         }
     }
 
+    .card-header {
+        .custom-select,
+        .form-control {
+            height: 2rem;
+            margin: -0.25rem 0;
+            /* margin: -0.25rem -0.75rem; */
+        }
+    }
+
     // TODO: Define the .icon-button globally so we can use it
     // in other components as well.
     .icon-button {
@@ -673,7 +799,7 @@ export default {
         transition: background-color @transition-duration;
 
         &.active {
-            color: @color-secondary;
+            color: lighten(@color-secondary, 5%);
 
             &.danger {
                 color: @color-danger;

@@ -150,6 +150,10 @@ export class Assignment {
         }
     }
 
+    get maxGrade() {
+        return this.max_grade == null ? 10 : this.max_grade;
+    }
+
     get graders() {
         if (this.graderIds == null) {
             return null;
