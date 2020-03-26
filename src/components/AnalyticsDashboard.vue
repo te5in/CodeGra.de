@@ -70,170 +70,8 @@
         </div>
 
         <div class="col-12">
-            <b-card header-class="d-flex">
-                <template #header>
-                    <div class="flex-grow-1">
-                        Filters
-                    </div>
-
-                    <div class="d-flex flex-grow-0">
-                        <div class="icon-button danger"
-                             @click="resetFilters()"
-                             v-b-popover.hover.top="'Reset'">
-                            <icon name="reply" />
-                        </div>
-                    </div>
-                </template>
-
-                <div class="row">
-                    <div v-for="filter, i in filters"
-                         :key="i"
-                         class="col-6">
-                        <b-card header-class="d-flex">
-                            <template #header>
-                                <div class="flex-grow-1">
-                                    {{ filter.toString() }}
-                                </div>
-
-                                <div class="d-flex flex-grow-0">
-                                    <div class="icon-button"
-                                         @click="duplicateFilter(i)"
-                                         v-b-popover.hover.top="'Duplicate'">
-                                        <icon name="copy" />
-                                    </div>
-
-                                    <div :id="`analytics-filter-split-${id}-${i}`"
-                                         class="icon-button"
-                                         v-b-popover.hover.top="'Split'">
-                                        <icon name="scissors" />
-                                    </div>
-
-                                    <div class="icon-button danger"
-                                         :class="{ 'text-muted': deleteDisabled }"
-                                         @click="deleteFilter(i)"
-                                         v-b-popover.hover.top="deleteDisabled ?
-                                             'You cannot delete the last filter' :
-                                             'Delete'">
-                                        <icon name="times" />
-                                    </div>
-                                </div>
-
-                                <b-popover :target="`analytics-filter-split-${id}-${i}`"
-                                           triggers="click"
-                                           placement="leftbottom"
-                                           title="Split on">
-                                    <b-input-group class="mb-2 p-2 border rounded text-left">
-                                        <b-checkbox v-model="splitLatest">
-                                            Split on latest
-                                        </b-checkbox>
-                                    </b-input-group>
-
-                                    <b-input-group class="mb-2">
-                                        <input v-model="splitGrade"
-                                                class="form-control"
-                                                type="number"
-                                                placeholder="Grade" />
-                                    </b-input-group>
-
-                                    <b-input-group class="mb-2">
-                                        <datetime-picker v-model="splitDate"
-                                                            placeholder="Date"/>
-                                    </b-input-group>
-
-                                    <submit-button class="float-right mb-2"
-                                                   variant="primary"
-                                                   :submit="() => splitFilter(i)"
-                                                   @after-success="afterSplitFilter">
-                                        <icon name="check" />
-                                    </submit-button>
-                                </b-popover>
-                            </template>
-
-                            <b-input-group prepend="Latest">
-                                <div class="form-control pl-2">
-                                    <b-form-checkbox :checked="filter.onlyLatestSubs"
-                                                     @input="updateFilter(i, 'onlyLatestSubs', $event)"
-                                                     class="d-inline-block">
-                                        Only use latest submissions
-                                    </b-form-checkbox>
-                                </div>
-                            </b-input-group>
-
-                            <b-input-group prepend="Min. grade">
-                                <input :value="filter.minGrade"
-                                       @input="updateFilter(i, 'minGrade', $event.target.value)"
-                                       class="form-control"
-                                       type="number"
-                                       placeholder="0"
-                                       min="0"
-                                       :max="filter.maxGrade"
-                                       step="1" />
-
-                                <template #append>
-                                    <b-button variant="warning"
-                                              :disabled="filter.minGrade == null"
-                                              @click="updateFilter(i, 'minGrade', null)">
-                                        <icon name="reply" />
-                                    </b-button>
-                                </template>
-                            </b-input-group>
-
-                            <b-input-group prepend="Max. grade">
-                                <input :value="filter.maxGrade"
-                                       @input="updateFilter(i, 'maxGrade', $event.target.value)"
-                                       class="form-control"
-                                       type="number"
-                                       placeholder="10"
-                                       :min="filter.minGrade"
-                                       max="10"
-                                       step="1" />
-
-                                <template #append>
-                                    <b-button variant="warning"
-                                              :disabled="filter.maxGrade == null"
-                                              @click="updateFilter(i, 'maxGrade', null)">
-                                        <icon name="reply" />
-                                    </b-button>
-                                </template>
-                            </b-input-group>
-
-                            <b-input-group prepend="Submitted after">
-                                <datetime-picker :value="formatDate(filter.submittedAfter)"
-                                                 @input="updateFilter(i, 'submittedAfter', $event)"
-                                                 :placeholder="`${assignmentCreated} (Assignment created)`"/>
-
-                                <template #append>
-                                    <b-button variant="warning"
-                                              :disabled="filter.submittedAfter == null"
-                                              @click="updateFilter(i, 'submittedAfter', null)">
-                                        <icon name="reply" />
-                                    </b-button>
-                                </template>
-                            </b-input-group>
-
-                            <b-input-group prepend="Submitted before">
-                                <datetime-picker :value="formatDate(filter.submittedBefore)"
-                                                 @input="updateFilter(i, 'submittedBefore', $event)"
-                                                 :placeholder="`${assignmentDeadline} (Assignment deadline)`"/>
-
-                                <template #append>
-                                    <b-button variant="warning"
-                                              :disabled="filter.submittedBefore == null"
-                                              @click="updateFilter(i, 'submittedAfter', null)">
-                                        <icon name="reply" />
-                                    </b-button>
-                                </template>
-                            </b-input-group>
-                        </b-card>
-                    </div>
-                </div>
-
-                <b-button variant="primary"
-                          class="float-right"
-                          @click="addFilter">
-                    Add filter
-                </b-button>
-            </b-card>
+            <analytics-filters v-model="filters"
+                               :assignment-id="assignmentId"/>
         </div>
 
         <div v-if="baseSubmissionData.submissionCount === 0"
@@ -311,17 +149,12 @@ import { mapActions, mapGetters } from 'vuex';
 import * as stat from 'simple-statistics';
 
 import Icon from 'vue-awesome/components/Icon';
-import 'vue-awesome/icons/reply';
-import 'vue-awesome/icons/unlink';
-import 'vue-awesome/icons/scissors';
-import 'vue-awesome/icons/copy';
 import 'vue-awesome/icons/percent';
 
 import { WorkspaceFilter } from '@/models';
 import { BarChart, ScatterPlot } from '@/components/Charts';
 import Loader from '@/components/Loader';
-import SubmitButton from '@/components/SubmitButton';
-import DatetimePicker from '@/components/DatetimePicker';
+import AnalyticsFilters from '@/components/AnalyticsFilters';
 import DescriptionPopover from '@/components/DescriptionPopover';
 
 export default {
@@ -342,11 +175,7 @@ export default {
             baseWorkspace: null,
             rubricRelative: true,
             selectedRubricStatistic: null,
-
-            filters: null,
-            splitLatest: false,
-            splitGrade: '',
-            splitDate: '',
+            filters: [WorkspaceFilter.emptyFilter],
 
             changingGradeHistSize: false,
         };
@@ -358,14 +187,6 @@ export default {
 
         assignment() {
             return this.assignments[this.assignmentId];
-        },
-
-        assignmentCreated() {
-            return this.assignment.getFormattedCreatedAt();
-        },
-
-        assignmentDeadline() {
-            return this.assignment.getFormattedDeadline();
         },
 
         workspaceIds() {
@@ -421,10 +242,6 @@ export default {
             return this.$utils.getProps(this.rubricSource, 0, 'rowIds', 'length') > 8;
         },
 
-        deleteDisabled() {
-            return this.filters.length === 1;
-        },
-
         submissionDateHistogram() {
             const binsPerFilter = this.submissionSources.map(source =>
                 source.binSubmissionsByDate(),
@@ -463,7 +280,6 @@ export default {
 
                 // We can't use source.submissionCount here, because some submissions
                 // may have been filtered out, e.g. submissions without a grade.
-                // TODO: Should we make a separate bin for ungraded subs?
                 const nSubs = stat.sum(bins.map(bin => data[bin].length));
 
                 return {
@@ -648,18 +464,6 @@ export default {
         reset() {
             this.selectedRubricStatistic = 'mean';
             this.rubricRelative = true;
-            this.resetFilters();
-            this.resetSplitParams();
-        },
-
-        resetFilters() {
-            this.filters = [WorkspaceFilter.emptyFilter];
-        },
-
-        resetSplitParams() {
-            this.splitLatest = false;
-            this.splitGrade = '';
-            this.splitDate = '';
         },
 
         loadWorkspaceData() {
@@ -688,50 +492,6 @@ export default {
 
         reloadWorkspace() {
             this.clearAssignmentWorkspaces().then(this.loadWorkspaceData);
-        },
-
-        updateFilter(idx, key, value) {
-            const filter = this.filters[idx].update(key, value);
-            this.$set(this.filters, idx, filter);
-        },
-
-        addFilter() {
-            this.filters = [...this.filters, WorkspaceFilter.emptyFilter];
-        },
-
-        replaceFilter(idx, ...filters) {
-            const fs = this.filters;
-            return [...fs.slice(0, idx), ...filters, ...fs.slice(idx + 1)];
-        },
-
-        deleteFilter(idx) {
-            if (!this.deleteDisabled) {
-                this.filters = this.replaceFilter(idx);
-            }
-        },
-
-        duplicateFilter(idx) {
-            // Replace the filter with two copies of itself.
-            const f = this.filters[idx];
-            this.filters = this.replaceFilter(idx, f, f);
-        },
-
-        async splitFilter(idx) {
-            // Replace the filter with the result of splitting it.
-            const result = this.filters[idx].split({
-                latest: this.splitLatest,
-                grade: this.splitGrade,
-                date: this.splitDate,
-            });
-            return this.replaceFilter(idx, ...result);
-        },
-
-        afterSplitFilter(filters) {
-            this.filters = filters;
-            this.resetSplitParams();
-            this.$afterRerender(() => {
-                this.$root.$emit('bv::hide::popover');
-            });
         },
 
         getRubricHistogramData(key, normalize) {
@@ -828,10 +588,6 @@ export default {
         normalize1(x, [lower, upper]) {
             return x <= 0 ? -x / lower : x / upper;
         },
-
-        formatDate(d) {
-            return d == null ? null : this.$utils.readableFormatDate(d);
-        },
     },
 
     watch: {
@@ -872,24 +628,13 @@ export default {
         Loader,
         BarChart,
         ScatterPlot,
-        SubmitButton,
-        DatetimePicker,
+        AnalyticsFilters,
         DescriptionPopover,
     },
 };
 </script>
 
 <style lang="less" scoped>
-@import '~mixins.less';
-
-.card {
-    margin-bottom: 1rem;
-
-    .input-group:not(:last-child) {
-        margin-bottom: 1rem;
-    }
-}
-
 .metric {
     position: relative;
     text-align: center;
@@ -905,30 +650,46 @@ export default {
         right: 0.5rem;
     }
 }
+</style>
 
-.icon-button {
-    margin: -0.5rem -0.5rem -0.5rem 0.5rem;
-    padding: 0.5rem;
-    cursor: pointer;
-    transition: background-color @transition-duration;
+<style lang="less">
+@import '~mixins.less';
 
-    &.active {
-        color: @color-secondary;
+.analytics-dashboard {
+    .card {
+        margin-bottom: 1rem;
 
-        &.danger {
-            color: @color-danger;
+        .input-group:not(:last-child) {
+            margin-bottom: 1rem;
         }
     }
 
-    &.text-muted {
-        cursor: not-allowed;
-    }
+    // TODO: Define the .icon-button globally so we can use it
+    // in other components as well.
+    .icon-button {
+        margin: -0.5rem -0.5rem -0.5rem 0.5rem;
+        padding: 0.5rem;
+        cursor: pointer;
+        transition: background-color @transition-duration;
 
-    &:not(.text-muted):hover {
-        color: lighten(@color-secondary, 15%);
+        &.active {
+            color: @color-secondary;
 
-        &.danger {
-            color: @color-danger;
+            &.danger {
+                color: @color-danger;
+            }
+        }
+
+        &.text-muted {
+            cursor: not-allowed;
+        }
+
+        &:not(.text-muted):hover {
+            color: lighten(@color-secondary, 15%);
+
+            &.danger {
+                color: @color-danger;
+            }
         }
     }
 }
