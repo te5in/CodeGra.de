@@ -35,6 +35,13 @@ export const BaseChart = {
 
         baseOptions() {
             const baseOpts = {
+                legend: {
+                    fullWidth: true,
+                    align: 'end',
+                    labels: {
+                        boxWidth: 12,
+                    },
+                },
                 tooltips: {
                     cornerRadius: 4,
                     xPadding: 12,

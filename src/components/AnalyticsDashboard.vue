@@ -70,27 +70,41 @@
         </div>
 
         <div class="col-12">
-            <b-card header="Filters">
+            <b-card header-class="d-flex">
+                <template #header>
+                    <div class="flex-grow-1">
+                        Filters
+                    </div>
+
+                    <div class="d-flex flex-grow-0">
+                        <div class="icon-button danger"
+                             @click="resetFilters()"
+                             v-b-popover.hover.top="'Reset'">
+                            <icon name="reply" />
+                        </div>
+                    </div>
+                </template>
+
                 <div class="row">
                     <div v-for="filter, i in filters"
                          :key="i"
                          class="col-6">
-                        <b-card header-class="d-flex flex-row">
+                        <b-card header-class="d-flex">
                             <template #header>
                                 <div class="flex-grow-1">
-                                    Filter {{ i }}
+                                    {{ filter.toString() }}
                                 </div>
 
-                                <div class="d-flex flex-row flex-grow-0">
+                                <div class="d-flex flex-grow-0">
                                     <div class="icon-button"
-                                         @click="copyFilter(i)"
-                                         v-b-popover.hover.top="'Copy filter'">
+                                         @click="duplicateFilter(i)"
+                                         v-b-popover.hover.top="'Duplicate'">
                                         <icon name="copy" />
                                     </div>
 
                                     <div :id="`analytics-filter-split-${id}-${i}`"
                                          class="icon-button"
-                                         v-b-popover.hover.top="'Split filter'">
+                                         v-b-popover.hover.top="'Split'">
                                         <icon name="scissors" />
                                     </div>
 
@@ -99,7 +113,7 @@
                                          @click="deleteFilter(i)"
                                          v-b-popover.hover.top="deleteDisabled ?
                                              'You cannot delete the last filter' :
-                                             'Delete filter'">
+                                             'Delete'">
                                         <icon name="times" />
                                     </div>
                                 </div>
@@ -109,7 +123,7 @@
                                            placement="leftbottom"
                                            title="Split on">
                                     <b-input-group class="mb-2 p-2 border rounded text-left">
-                                        <b-checkbox v-model="splitSubs">
+                                        <b-checkbox v-model="splitLatest">
                                             Split on latest
                                         </b-checkbox>
                                     </b-input-group>
@@ -233,36 +247,40 @@
             <div class="col-12">
                 <b-card header="Students submitted on">
                     <bar-chart :chart-data="submissionDateHistogram"
-                                :width="300"
-                                :height="50"/>
+                               :width="300"
+                               :height="50"/>
                 </b-card>
             </div>
 
             <div class="col-12 col-lg-6"
                  :class="{ 'col-lg-12': largeGradeHistogram }">
                 <b-card header="Grade statistics">
-                    <bar-chart :chart-data="gradeHistogram"
+                    <loader center class="p-3" v-if="changingGradeHistSize" />
+
+                    <bar-chart v-else
+                               :chart-data="gradeHistogram"
                                :options="gradeHistOpts"
                                :width="300"
-                               :height="largeGradeHistogram ? 100 : 200"/>
+                               :height="largeGradeHistogram ? 133 : 200"/>
                 </b-card>
             </div>
 
             <template v-if="rubricStatistic != null">
                 <div class="col-12 col-lg-6"
                      :class="{ 'col-lg-12': largeGradeHistogram }">
-                    <b-card header-class="d-flex flex-row">
+                    <b-card header-class="d-flex">
                         <template #header>
                             <div class="flex-grow-1">
                                 Rubric statistics
                             </div>
 
-                            <div class="d-flex flex-row flex-grow-0">
-                                <div class="icon-button"
+                            <div class="d-flex flex-grow-0">
+                                <div v-if="rubricStatistic.hasRelative"
+                                     class="icon-button"
                                      :class="{ 'active': rubricRelative }"
                                      @click="rubricRelative = !rubricRelative"
                                      v-b-popover.top.hover="'Relative to max score in category'">
-                                    <icon name="arrows-v" />
+                                    <icon name="percent" />
                                 </div>
 
                                 <b-form-select v-model="selectedRubricStatistic"
@@ -272,11 +290,14 @@
                             </div>
                         </template>
 
-                        <component :is="rubricStatistic.chartComponent"
+                        <loader center class="p-3" v-if="changingGradeHistSize" />
+
+                        <component v-else
+                                   :is="rubricStatistic.chartComponent"
                                    :chart-data="rubricStatistic.data"
                                    :options="rubricStatistic.options"
                                    :width="300"
-                                   :height="largeGradeHistogram ? 100 : 200"/>
+                                   :height="largeGradeHistogram ? 133 : 200"/>
                     </b-card>
                 </div>
             </template>
@@ -294,7 +315,7 @@ import 'vue-awesome/icons/reply';
 import 'vue-awesome/icons/unlink';
 import 'vue-awesome/icons/scissors';
 import 'vue-awesome/icons/copy';
-import 'vue-awesome/icons/arrows-v';
+import 'vue-awesome/icons/percent';
 
 import { WorkspaceFilter } from '@/models';
 import { BarChart, ScatterPlot } from '@/components/Charts';
@@ -321,11 +342,13 @@ export default {
             baseWorkspace: null,
             rubricRelative: true,
             selectedRubricStatistic: null,
-            filters: [WorkspaceFilter.emptyFilter],
 
-            splitSubs: false,
+            filters: null,
+            splitLatest: false,
             splitGrade: '',
             splitDate: '',
+
+            changingGradeHistSize: false,
         };
     },
 
@@ -410,7 +433,7 @@ export default {
 
             const datasets = binsPerFilter.map((bins, i) =>
                 ({
-                    label: `Filter ${i}`,
+                    label: this.filters[i].toString(),
                     data: allDates.map(d => bins[d].length),
                 }),
             );
@@ -419,10 +442,10 @@ export default {
         },
 
         largeGradeHistogram() {
-            return (
-                this.$root.$isLargeWindow &&
-                this.filters.length > 1 &&
-                (!this.hasRubricSource || this.hasManyRubricRows)
+            return this.$root.$isLargeWindow && (
+                !this.hasRubricSource ||
+                this.hasManyRubricRows ||
+                this.filters.length > 2
             );
         },
 
@@ -444,7 +467,7 @@ export default {
                 const nSubs = stat.sum(bins.map(bin => data[bin].length));
 
                 return {
-                    label: `Filter ${i}`,
+                    label: this.filters[i].toString(),
                     data: bins.map(bin => 100 * data[bin].length / nSubs),
                 };
             });
@@ -459,7 +482,7 @@ export default {
                         {
                             ticks: {
                                 beginAtZero: true,
-                                stepSize: 1,
+                                stepSize: 5,
                             },
                             scaleLabel: {
                                 display: true,
@@ -540,10 +563,6 @@ export default {
             return this.rubricStatistics[this.selectedRubricStatistic];
         },
 
-        showRubricRelative() {
-            return this.rubricStatistic.hasRelative;
-        },
-
         rubricNormalizeFactors() {
             if (!this.rubricRelative) {
                 return null;
@@ -614,7 +633,7 @@ export default {
                         {
                             scaleLabel: {
                                 display: true,
-                                labelString: 'Total score',
+                                labelString: 'Total score - Item score',
                             },
                         },
                     ],
@@ -627,9 +646,20 @@ export default {
         ...mapActions('analytics', ['loadWorkspace', 'clearAssignmentWorkspaces']),
 
         reset() {
-            this.filters = [WorkspaceFilter.emptyFilter];
             this.selectedRubricStatistic = 'mean';
             this.rubricRelative = true;
+            this.resetFilters();
+            this.resetSplitParams();
+        },
+
+        resetFilters() {
+            this.filters = [WorkspaceFilter.emptyFilter];
+        },
+
+        resetSplitParams() {
+            this.splitLatest = false;
+            this.splitGrade = '';
+            this.splitDate = '';
         },
 
         loadWorkspaceData() {
@@ -680,57 +710,20 @@ export default {
             }
         },
 
-        copyFilter(idx) {
+        duplicateFilter(idx) {
+            // Replace the filter with two copies of itself.
             const f = this.filters[idx];
             this.filters = this.replaceFilter(idx, f, f);
         },
 
         async splitFilter(idx) {
-            const filter = this.filters[idx];
-            const {
-                minGrade,
-                maxGrade,
-                submittedAfter,
-                submittedBefore,
-            } = filter;
-
-            const {
-                splitSubs,
-                splitDate,
-            } = this;
-            const splitGrade = parseFloat(this.splitGrade);
-
-            let left = filter;
-            let right = filter;
-
-            if (!Number.isNaN(splitGrade)) {
-                if (minGrade != null && minGrade >= splitGrade) {
-                    throw new Error('Selected grade is less than or equal to the old "Min grade".');
-                }
-                if (maxGrade != null && maxGrade <= splitGrade) {
-                    throw new Error('Selected grade is less than or equal to the old "Min grade".');
-                }
-                left = left.update('maxGrade', splitGrade);
-                right = right.update('minGrade', splitGrade);
-            }
-
-            if (splitDate !== '') {
-                if (submittedAfter != null && !submittedAfter.isBefore(splitDate)) {
-                    throw new Error('Selected date is before the old "Submitted after".');
-                }
-                if (submittedBefore != null && !submittedBefore.isAfter(splitDate)) {
-                    throw new Error('Selected date is after the old "Submitted before".');
-                }
-                left = left.update('submittedBefore', splitDate);
-                right = right.update('submittedAfter', splitDate);
-            }
-
-            if (splitSubs) {
-                left = left.update('onlyLatestSubs', false);
-                right = right.update('onlyLatestSubs', true);
-            }
-
-            return this.replaceFilter(idx, left, right);
+            // Replace the filter with the result of splitting it.
+            const result = this.filters[idx].split({
+                latest: this.splitLatest,
+                grade: this.splitGrade,
+                date: this.splitDate,
+            });
+            return this.replaceFilter(idx, ...result);
         },
 
         afterSplitFilter(filters) {
@@ -739,12 +732,6 @@ export default {
             this.$afterRerender(() => {
                 this.$root.$emit('bv::hide::popover');
             });
-        },
-
-        resetSplitParams() {
-            this.splitSubs = false;
-            this.splitGrade = '';
-            this.splitDate = '';
         },
 
         getRubricHistogramData(key, normalize) {
@@ -771,7 +758,7 @@ export default {
                 }
 
                 return {
-                    label: `Filter ${i}`,
+                    label: this.filters[i].toString(),
                     data,
                     stats,
                 };
@@ -784,7 +771,7 @@ export default {
         },
 
         getRubricScatterData(row) {
-            const datasets = [].concat(...this.rubricSources.map((source, i) => {
+            const datasets = this.rubricSources.map((source, i) => {
                 const { ritItemsPerCat, rirItemsPerCat } = source;
                 const ritItems = ritItemsPerCat[row.id];
                 const rirItems = rirItemsPerCat[row.id];
@@ -793,17 +780,11 @@ export default {
                     return [];
                 }
 
-                return [
-                    {
-                        label: `Total (Filter ${i})`,
-                        data: ritItems.map(([x, y]) => ({ x, y })),
-                    },
-                    {
-                        label: `Total - Item (Filter ${i})`,
-                        data: rirItems.map(([x, y]) => ({ x, y })),
-                    },
-                ];
-            }));
+                return {
+                    label: this.filters[i].toString(),
+                    data: rirItems.map(([x, y]) => ({ x, y })),
+                };
+            });
 
             return { datasets };
         },
@@ -869,6 +850,12 @@ export default {
                 },
                 hash: this.$route.hash,
             });
+        },
+
+        async largeGradeHistogram() {
+            this.changingGradeHistSize = true;
+            await this.$afterRerender();
+            this.changingGradeHistSize = false;
         },
     },
 

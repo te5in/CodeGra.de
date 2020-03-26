@@ -8,6 +8,7 @@ import {
     getProps,
     mapObject,
     filterObject,
+    readableFormatDate,
     zip,
 } from '@/utils';
 import { makeCache } from '@/utils/cache';
@@ -482,6 +483,10 @@ export class WorkspaceFilter {
         this.submittedAfter = maybeMoment(this.submittedAfter);
         this.submittedBefore = maybeMoment(this.submittedBefore);
 
+        Object.defineProperty(this, '_cache', {
+            value: makeCache('string'),
+        });
+
         Object.freeze(this);
     }
 
@@ -502,6 +507,85 @@ export class WorkspaceFilter {
             [key]: value === '' ? null : value,
         }));
         return x;
+    }
+
+    split(props) {
+        const {
+            minGrade,
+            maxGrade,
+            submittedAfter,
+            submittedBefore,
+        } = this;
+
+        const { latest, date } = props;
+        const grade = parseFloat(props.grade);
+
+        let result = [this];
+
+        if (!Number.isNaN(grade)) {
+            if (minGrade != null && minGrade >= grade) {
+                throw new Error('Selected grade is less than or equal to the old "Min grade".');
+            }
+            if (maxGrade != null && maxGrade <= grade) {
+                throw new Error('Selected grade is less than or equal to the old "Min grade".');
+            }
+            result = result.flatMap(f => [
+                f.update('maxGrade', grade),
+                f.update('minGrade', grade),
+            ]);
+        }
+
+        if (date !== '') {
+            if (submittedAfter != null && !submittedAfter.isBefore(date)) {
+                throw new Error('Selected date is before the old "Submitted after".');
+            }
+            if (submittedBefore != null && !submittedBefore.isAfter(date)) {
+                throw new Error('Selected date is after the old "Submitted before".');
+            }
+            result = result.flatMap(f => [
+                f.update('submittedBefore', date),
+                f.update('submittedAfter', date),
+            ]);
+        }
+
+        if (latest) {
+            result = result.flatMap(f => [
+                f.update('onlyLatestSubs', false),
+                f.update('onlyLatestSubs', true),
+            ]);
+        }
+
+        return result;
+    }
+
+    toString() {
+        return this._cache.get('string', () => {
+            const parts = [];
+
+            if (this.onlyLatestSubs) {
+                parts.push('Latest');
+            } else {
+                parts.push('All');
+            }
+
+            if (this.minGrade != null && this.maxGrade != null) {
+                parts.push(`${this.minGrade} <= Grade < ${this.maxGrade}`);
+            } else if (this.minGrade != null) {
+                parts.push(`Grade >= ${this.minGrade}`);
+            } else if (this.maxGrade != null) {
+                parts.push(`Grade < ${this.maxGrade}`);
+            }
+
+            if (this.submittedAfter != null) {
+                parts.push(`After ${readableFormatDate(this.submittedAfter)}`);
+            }
+
+            if (this.submittedBefore != null) {
+                parts.push(`Before ${readableFormatDate(this.submittedBefore)}`);
+            }
+
+            return parts.join(', ');
+        });
     }
 }
 
