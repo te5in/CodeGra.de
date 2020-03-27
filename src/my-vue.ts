@@ -1,4 +1,5 @@
-import Vue from 'vue';
+import 'vue';
+import { Moment } from 'moment';
 import { AxiosStatic } from 'axios';
 
 // 2. Specify a file with the types you want to augment
@@ -9,5 +10,6 @@ declare module 'vue/types/vue' {
         $afterRerender(): Promise<void>;
         $http: AxiosStatic;
         $utils: any;
+        $now: Moment;
     }
 }

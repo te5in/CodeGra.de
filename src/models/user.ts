@@ -69,8 +69,13 @@ export abstract class User implements BaseUserServerData {
         return !!this.is_test_student;
     }
 
-    isEqualOrMemberOf(other: AnyUser): boolean {
-        if (other.id === this.id) {
+    /* eslint-disable lines-between-class-members */
+    public isEqualOrMemberOf(): false;
+    public isEqualOrMemberOf(other: AnyUser): boolean;
+    public isEqualOrMemberOf(other?: AnyUser): boolean {
+        if (other == null) {
+            return false;
+        } else if (other.id === this.id) {
             return true;
         } else if (other.isGroup) {
             return this.isMemberOf(other.group);
@@ -79,6 +84,7 @@ export abstract class User implements BaseUserServerData {
         }
         return false;
     }
+    /* eslint-enable lines-between-class-members */
 
     isMemberOf(group: Group | null): boolean {
         if (!group) {

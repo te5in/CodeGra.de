@@ -18,25 +18,41 @@ depends_on = None
 
 def upgrade():
     conn = op.get_bind()
-    conn.execute(text("""
+    conn.execute(
+        text(
+            """
     INSERT INTO "Permission" (name, default_value, course_permission)
     SELECT 'can_view_feedback_author', True, True WHERE NOT EXISTS
-        (SELECT 1 FROM "Permission" WHERE name = 'can_view_feedback_author')
-    """))
-    [base_id], = conn.execute("SELECT id from \"Permission\" WHERE name = 'can_see_assignee'").fetchall()
-    [perm_id], = conn.execute("SELECT id FROM \"Permission\" WHERE name = 'can_view_feedback_author'").fetchall()
-    print(base_id, perm_id)
-    conn.execute(text("""
-INSERT INTO "course_roles-permissions" (permission_id,
-                                        course_role_id)
-  (SELECT :perm_id,
-          id
-   from "Course_Role"
-   where id not in
-       (select course_role_id
-        from "course_roles-permissions"
-        where permission_id = :base_id))
-    """), perm_id=perm_id, base_id=base_id)
+        (SELECT 1 FROM "Permission" WHERE name = 'can_view_feedback_author');
+    """
+        )
+    )
+    base_ids = conn.execute(
+        "SELECT id from \"Permission\" WHERE name = 'can_see_assignee';"
+    ).fetchall()
+
+    if base_ids:
+        [base_id], = base_ids
+        [perm_id], = conn.execute(
+            "SELECT id FROM \"Permission\" WHERE name = 'can_view_feedback_author';"
+        ).fetchall()
+        conn.execute(
+            text(
+                """
+    INSERT INTO "course_roles-permissions" (permission_id,
+                                            course_role_id)
+    (SELECT :perm_id,
+            id
+    from "Course_Role"
+    where id not in
+        (select course_role_id
+            from "course_roles-permissions"
+            where permission_id = :base_id))
+        """
+            ),
+            perm_id=perm_id,
+            base_id=base_id
+        )
 
 
 def downgrade():

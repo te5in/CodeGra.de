@@ -32,13 +32,18 @@
 <span v-else
       class="user"
       :title="props.showTitle ? props.getNameOfUser(props.user) : undefined">
-    <span class="name-user">
-        {{ props.user.name || props.user.username }}
+    <span v-if="props.showWhenYou != null && props.user.id == props.getMyId()">
+        {{ props.showWhenYou }}
     </span>
-    <span v-if="props.showYou && props.user.id === props.getMyId()"
-          class="user-you-text">
-        (You)
-    </span>
+    <template v-else>
+        <span class="name-user">
+            {{ props.user.name || props.user.username }}
+        </span>
+        <span v-if="props.showYou && props.user.id === props.getMyId()"
+            class="user-you-text">
+            (You)
+        </span>
+    </template>
     <span v-if="props.user.is_test_student">
         <component
             :is="injections.components.Icon"
@@ -89,6 +94,11 @@ export default {
         getNameOfUser: {
             type: Function,
             default: nameOfUser,
+        },
+
+        showWhenYou: {
+            type: String,
+            default: null,
         },
 
         showYou: {

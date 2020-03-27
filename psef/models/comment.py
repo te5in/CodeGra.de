@@ -5,6 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 import enum
 import typing as t
+from collections import defaultdict
 
 import sqlalchemy
 from sqlalchemy.orm import column_property
@@ -19,6 +20,7 @@ from . import Base, db
 from . import file as file_models
 from . import user as user_models
 from . import _MyQuery
+from . import notification as n_models
 from .. import current_user
 from ..permissions import CoursePermission
 
@@ -42,6 +44,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         foreign_keys=comment_base_id,
         innerjoin=True,
         back_populates='replies',
+        lazy='selectin',
     )
 
     deleted = db.Column(
@@ -88,12 +91,18 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         server_default="'plain_text'"
     )
 
+    notifications = db.relationship(
+        lambda: n_models.Notification,
+        back_populates='comment_reply',
+        uselist=True,
+        lazy='raise',
+    )
+
     # We set this property later on
     has_edits: ImmutableColumnProxy[bool]
 
     @property
     def can_see_author(self) -> bool:
-        print(self.author, psef.current_user)
         return (
             self.comment_base.can_see_author or
             self.author.contains_user(psef.current_user)
@@ -117,6 +126,30 @@ class CommentReply(IdMixin, TimestampMixin, Base):
             in_reply_to_id=None if in_reply_to is None else in_reply_to.id,
             comment_base=comment_base,
         )
+
+        work = self.comment_base.work
+        user_reasons: t.Dict[user_models.User, t.Set[n_models.NotificationReason]]
+        user_reasons = defaultdict(set)
+
+        for reply in self.comment_base.replies:
+            for user in reply.author.get_contained_users():
+                user_reasons[user].add('replied')
+
+        for work_author in work.user.get_contained_users():
+            user_reasons[work_author].add('author')
+
+        if work.assignee:
+            for assignee in work.assignee.get_contained_users():
+                user_reasons[assignee].add('assignee')
+
+
+        for receiver, reasons in user_reasons.items():
+            if receiver != author:
+                n_models.Notification(
+                    receiver=receiver,
+                    comment_reply=self,
+                    reasons=sorted(reasons),
+                )
 
     def update(self, new_comment_text: str) -> 'CommentReplyEdit':
         edit = CommentReplyEdit(
@@ -149,6 +182,15 @@ class CommentReply(IdMixin, TimestampMixin, Base):
             res['author_id'] = self.author_id
 
         return res
+
+    def __extended_to_json__(
+        self
+    ) -> t.Mapping[str, t.Union[str, int, None, 'user_models.User']]:
+        author = self.author if self.can_see_author else None
+        return {
+            **self.__to_json__(),
+            'author': author,
+        }
 
 
 class CommentReplyEdit(IdMixin, TimestampMixin, Base):
@@ -250,6 +292,7 @@ class CommentBase(IdMixin, Base):
         lambda: file_models.File,
         foreign_keys=file_id,
         innerjoin=True,
+        lazy='selectin',
     )
 
     @cached_property

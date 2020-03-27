@@ -1,8 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import Vue from 'vue';
 import Vuex from 'vuex';
+// @ts-ignore
 import createPersistedState from 'vuex-persistedstate';
+// @ts-ignore
 import Toasted from 'vue-toasted';
+
+import { getStoreBuilder } from 'vuex-typex';
 
 import user from './modules/user';
 import pref from './modules/preference';
@@ -16,21 +20,26 @@ import users from './modules/users';
 import fileTrees from './modules/file_trees';
 import feedback from './modules/feedback';
 
+// We import this for the side effect only.
+import './modules/notification';
+
+import { RootState } from './state';
+
 Vue.use(Vuex);
 
 const debug = process.env.NODE_ENV !== 'production';
 const plugins = [];
 
 let disabledPersistance = false;
-let toastMessage = null;
+let toastMessage: any = null;
 
 try {
     plugins.push(
         createPersistedState({
             paths: ['user', 'pref'],
             storage: {
-                getItem: key => window.localStorage.getItem(key),
-                setItem: (key, value) => {
+                getItem: (key: string) => window.localStorage.getItem(key),
+                setItem: (key: string, value: string) => {
                     if (disabledPersistance && key !== '@@') {
                         const cleanedValue = {
                             pref: JSON.parse(value).pref,
@@ -39,13 +48,13 @@ try {
                     }
                     return window.localStorage.setItem(key, value);
                 },
-                removeItem: key => window.localStorage.removeItem(key),
+                removeItem: (key: string) => window.localStorage.removeItem(key),
             },
         }),
     );
 } catch (e) {
     Vue.use(Toasted);
-    toastMessage = Vue.toasted.error(
+    toastMessage = (Vue as any).toasted.error(
         'Unable to persistently store user credentials, please check you browser privacy levels. You will not be logged-in in other tabs or when reloading.',
         {
             position: 'bottom-center',
@@ -54,7 +63,7 @@ try {
             fitToScreen: true,
             action: {
                 text: '✖',
-                onClick(_, toastObject) {
+                onClick(_: Object, toastObject: any) {
                     toastObject.goAway(0);
                 },
             },
@@ -62,20 +71,26 @@ try {
     );
 }
 
-export const store = new Vuex.Store({
-    modules: {
-        user,
-        pref,
-        courses,
-        rubrics,
-        autotest,
-        plagiarism,
-        submissions,
-        code,
-        users,
-        fileTrees,
-        feedback,
-    },
+const rootBuilder = getStoreBuilder<RootState>();
+
+Object.entries({
+    user,
+    pref,
+    courses,
+    rubrics,
+    autotest,
+    plagiarism,
+    submissions,
+    code,
+    users,
+    fileTrees,
+    feedback,
+}).forEach(([key, value]) => {
+    const builder = rootBuilder.module(key);
+    builder.vuexModule = () => value;
+});
+
+export const store = rootBuilder.vuexStore({
     strict: debug,
     plugins,
 });

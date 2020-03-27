@@ -9,6 +9,8 @@ import * as types from '../mutation-types';
 const getters = {
     getFeedback: state => (assignmentId, submissionId) =>
         utils.getProps(state.feedbacks, null, assignmentId, submissionId),
+
+    getReplyById: state => replyId => state.replies.get(replyId),
 };
 
 const loaders = {
@@ -95,9 +97,9 @@ const mutations = {
         let newFeedback;
 
         if (line.isEmpty) {
-            newFeedback = feedback.removeFeedbackLine(line);
+            newFeedback = feedback.removeFeedbackBase(line);
         } else {
-            newFeedback = feedback.addFeedbackLine(line);
+            newFeedback = feedback.addFeedbackBase(line);
         }
 
         Vue.set(state.feedbacks[assignmentId], submissionId, newFeedback);

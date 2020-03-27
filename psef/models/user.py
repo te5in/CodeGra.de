@@ -186,6 +186,11 @@ class User(NotEqualMixin, Base):
         else:
             return self.group.has_as_member(possible_member)
 
+    def get_contained_users(self) -> t.Iterable['User']:
+        if self.group is None:
+            return [self]
+        return self.group.members
+
     @classmethod
     def create_new_test_student(cls) -> 'User':
         """Create a new test student.

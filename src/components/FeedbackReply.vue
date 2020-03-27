@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="feedback-reply">
+<div class="feedback-reply" :id="componentId">
     <b-card no-body v-if="editing" class="mt-0">
         <b-tabs card>
             <b-tab title="Edit" active>
@@ -84,15 +84,15 @@
         <div class="d-flex justify-content-between header-line">
             <div class="info-text-wrapper">
                 <span>
-                    <user :user="reply.author" :show-you="true"
+                    <cg-user :user="reply.author" :show-you="true"
                         v-if="reply.author"/>
                     <i v-else
                        title="You do not have the permission to see the authors of feedback">
                         A grader
                     </i>
 
-                    <relative-time
-                        :date="reply.createdAt" :now="$root.$now"
+                    <cg-relative-time
+                        :date="reply.createdAt"
                         class="text-muted"/>
                 </span>
             </div>
@@ -162,15 +162,11 @@ import { Submission } from '@/models/submission';
 
 import { FeedbackReply as FeedbackReplyModel, FeedbackLine, Assignment, User as UserModel } from '@/models';
 // @ts-ignore
-import User from './User';
-// @ts-ignore
 import SubmitButton from './SubmitButton';
 // @ts-ignore
 import InnerMarkdownViewer from './InnerMarkdownViewer';
 // @ts-ignore
 import SnippetableInput from './SnippetableInput';
-
-import RelativeTime from './RelativeTime';
 
 @Component({
     computed: {
@@ -190,8 +186,6 @@ import RelativeTime from './RelativeTime';
         SubmitButton,
         SnippetableInput,
         InnerMarkdownViewer,
-        User,
-        RelativeTime,
     },
 })
 
@@ -225,6 +219,13 @@ export default class FeedbackReply extends Vue {
     @Watch('reply')
     onReplyUpdate() {
         this.internalReply = this.reply;
+    }
+
+    get componentId(): string {
+        if (this.reply.id == null) {
+            return `feedback-reply-tracking-id-${this.reply.trackingId}`;
+        }
+        return `feedback-reply-id-${this.reply.id}`;
     }
 
     snippetKey: string = '';
@@ -278,11 +279,11 @@ Do you want to overwrite it?`;
         return `feedback-edit-gear-${this.reply.trackingId}`;
     }
 
-    @Ref() readonly inputField: SnippetableInput | null
+    @Ref() readonly inputField: SnippetableInput | null;
 
-    @Ref() readonly submitButton: SubmitButton | null
+    @Ref() readonly submitButton: SubmitButton | null;
 
-    @Ref() readonly deleteButton: SubmitButton | null
+    @Ref() readonly deleteButton: SubmitButton | null;
 
     @Ref() readonly addSnippetButton: SubmitButton | null;
 

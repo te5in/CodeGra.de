@@ -56,7 +56,10 @@
 # email = info@CodeGra.de
 
 # The maximum number of lines the CodeViewer renders at once.
-# max-lines = 2500
+# maxLines = 2500
+
+# The amount of miliseconds there should be between polling of the notifications
+# notificationPollTime = 30000
 
 # This section is for the options of the backend.
 [Back-end]

@@ -23,10 +23,17 @@
                         :enter-active-class="entry.animate || entry.animateAdd ? 'pop-in-enter-active' : ''"
                         :leave-active-class="entry.animate || entry.animateRemove ? 'pop-in-leave-active' : ''">
                 <a @click="openUpperSubMenu(entry, true)"
-                   class="sidebar-top-item sidebar-entry"
+                   class="sidebar-top-item sidebar-entry position-relative"
                    :class="{ selected: currentEntry && entry.name === currentEntry.name, [`sidebar-entry-${entry.name}`]: true }">
                     <icon :name="entry.icon"
                           :scale="mobileVisible ? 1.5 : 2.25"
+                          :label="maybeCall(entry.title || entry.header)"/>
+                    <icon name="bell"
+                          :scale="0.75"
+                          class="notification-bell"
+                          :style="{ opacity: entry.hasNotification() ? 1 : 0 }"
+                          v-b-popover.top.hover.window="'You have unread notifications'"
+                          v-if="entry.canHaveNotification"
                           :label="maybeCall(entry.title || entry.header)"/>
                     <small class="name">{{ maybeCall(entry.title || entry.header) }}</small>
                 </a>
@@ -156,9 +163,12 @@ import 'vue-awesome/icons/files-o';
 import 'vue-awesome/icons/users';
 import 'vue-awesome/icons/share-square-o';
 import 'vue-awesome/icons/sign-in';
+import 'vue-awesome/icons/bell';
 
 import { Loader } from '@/components';
 import SubmitButton from '@/components/SubmitButton';
+
+import { NotificationStore } from '@/store/modules/notification';
 
 import UserInfo from './UserInfo';
 import CourseList from './CourseList';
@@ -191,7 +201,6 @@ export default {
                 {
                     name: 'login',
                     icon: 'sign-in',
-                    iconStyle: 'border: 3px solid; border-radius: 50%;',
                     title: 'Login',
                     condition: () => !this.loggedIn,
                     onClick: () => {
@@ -210,9 +219,17 @@ export default {
                 {
                     name: 'user',
                     icon: 'user-circle-o',
+                    canHaveNotification: true,
+                    hasNotification: () => NotificationStore.getHasUnreadNotifications(),
                     title: () => this.name,
                     header: 'User',
-                    width: '600px',
+                    width: () => {
+                        if (this.$root.$isLargeWindow) {
+                            return 800;
+                        } else {
+                            return Math.min(800, this.$root.screenWidth - 100);
+                        }
+                    },
                     component: 'user-info',
                     condition: () => this.loggedIn,
                     animateAdd: true,
@@ -349,7 +366,7 @@ export default {
             // Make sure all properties are accessed so vue's caching works correctly.
             const isFloating = this.floating;
             const isMenuOpen = this.subMenus.length > 0 || this.mobileVisible;
-            const customWidth = this.currentEntry && this.currentEntry.width;
+            const customWidth = this.currentEntry && this.maybeCall(this.currentEntry.width);
 
             return !!((isFloating && isMenuOpen) || customWidth);
         },
@@ -388,20 +405,27 @@ export default {
             }
         });
 
-        this.$on('sidebar::close', () => {
-            if (this.floating || this.mobileVisible) {
-                this.closeSubMenu(true);
-            }
-        });
+        this.$on('sidebar::close', this.onCloseSidebarEvent);
+        this.$root.$on('cg::sidebar::close', this.onCloseSidebarEvent);
 
         this.setInitialEntry();
         this.loaded = true;
+    },
+
+    destroyed() {
+        this.$root.$off('cg::sidebar::close', this.onCloseSidebarEvent);
     },
 
     methods: {
         ...mapActions('user', {
             logoutUser: 'logout',
         }),
+
+        onCloseSidebarEvent() {
+            if (this.floating || this.mobileVisible) {
+                this.closeSubMenu(true);
+            }
+        },
 
         fixAppMargin() {
             if (
@@ -483,7 +507,10 @@ export default {
                 this.subMenus = [];
                 this.openSubMenu(entry);
 
-                this.dimmingUseSpace = (this.dimPage && hadSubMenuOpen) || !entry.width;
+                this.dimmingUseSpace = (
+                    (this.dimPage && hadSubMenuOpen) ||
+                    !this.maybeCall(entry.width)
+                );
             }
         },
 
@@ -537,10 +564,11 @@ export default {
 
         subMenuStyle(subMenu) {
             const style = {};
+            const width = this.maybeCall(subMenu.width);
 
-            if (subMenu.width) {
+            if (width) {
                 style.width = '100vw';
-                style.maxWidth = subMenu.width;
+                style.maxWidth = `${width}px`;
             }
 
             return style;
@@ -604,6 +632,19 @@ export default {
     a {
         text-decoration: none;
         color: inherit;
+    }
+}
+
+
+.fa-icon.notification-bell {
+    position: absolute;
+    right: 1em;
+    color: @color-warning;
+    transition: opacity @transition-duration;
+    cursor: help;
+
+    .selected & {
+        color: @color-warning-dark;
     }
 }
 

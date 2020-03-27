@@ -42,7 +42,8 @@ def upgrade():
         ),
         sa.ForeignKeyConstraint(['in_reply_to_id'], ['comment_reply.id'],
                                 ondelete='SET NULL'),
-        sa.ForeignKeyConstraint(['author_id'], ['User.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['author_id'], ['User.id'],
+                                ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
 
@@ -60,7 +61,8 @@ def upgrade():
             ['comment_reply_id'],
             ['comment_reply.id'],
         ),
-        sa.ForeignKeyConstraint(['author_id'], ['User.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['editor_id'], ['User.id'],
+                                ondelete='CASCADE'),
         sa.CheckConstraint(
             'new_comment IS NOT NULL OR was_deleted',
             name='either_new_comment_or_deletion'

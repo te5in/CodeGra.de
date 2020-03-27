@@ -7,7 +7,7 @@
           :style="{ opacity: modalVisible ? 1 : undefined }"
           :variant="currentVariant"
           :size="size"
-          @click.stop="onClick">
+          @click.prevent.stop="onClick">
 
     <span class="label success">
         <slot name="success-label">

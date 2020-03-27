@@ -1,0 +1,142 @@
+<template>
+<div class="user-notifications">
+    <cg-loader v-if="loading" :scale="1"/>
+    <div v-else>
+        <div v-if="hasUnreadNotifications"
+             class="text-muted">
+            You are all caught up!
+            <hr v-if="hasReadNotifications"  />
+        </div>
+
+        <div class="border rounded" v-if="notifications.length > 0">
+        <table class="table table-hover table-borderless mb-0">
+            <transition-group name="fade" tag="tbody">
+                <user-notification :notification="notification"
+                                   class="cursor-pointer"
+                                   @click.native="gotoNotification(notification)"
+                                   :class="{ read: notification.read }"
+                                   v-for="notification in notifications"
+                                   :key="notification.id" />
+            </transition-group>
+        </table>
+        </div>
+
+        <div v-if="hasReadNotifications && !showRead"
+             class="d-flex justify-content-center mt-3">
+            <b-btn @click="showRead = true">
+                Show read notifications
+            </b-btn>
+        </div>
+    </div>
+</div>
+</template>
+
+<script lang="ts">
+    import { Vue, Component } from 'vue-property-decorator';
+
+import { NotificationStore } from '@/store/modules/notification';
+
+import * as models from '@/models';
+
+import UserNotification from './UserNotification';
+
+@Component({
+    components: {
+        UserNotification,
+    },
+})
+export default class UserNotifications extends Vue {
+    // eslint-disable-next-line
+    get allNotifications(): ReadonlyArray<models.Notification> {
+        return NotificationStore.getAllNotifications();
+    }
+
+    // eslint-disable-next-line
+    get unreadNotifications(): ReadonlyArray<models.Notification> {
+        return NotificationStore.getAllUnreadNotifications();
+    }
+
+    get hasUnreadNotifications() {
+        return this.unreadNotifications.length === 0;
+    }
+
+    get hasReadNotifications() {
+        return this.allNotifications.length > this.unreadNotifications.length;
+    }
+
+    get notifications() {
+        return this.showRead ? this.allNotifications : this.unreadNotifications;
+    }
+
+    loading: boolean = true;
+
+    showRead: boolean = false;
+
+    async created() {
+        this.loading = true;
+        await NotificationStore.dispatchLoadNotifications();
+        this.loading = false;
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    getNotificationRoute(notification: models.Notification): Object {
+        return {
+            name: 'submission_file',
+            params: {
+                courseId: `${notification.assignment?.courseId}`,
+                assignmentId: `${notification.assignment?.id}`,
+                submissionId: `${notification.submission?.id}`,
+                fileId: notification.fileId,
+            },
+            query: {
+                replyToFocus: `${notification.commentReply?.id}`,
+            },
+            hash: '#code',
+        };
+    }
+
+    async gotoNotification(notification: models.Notification): Promise<void> {
+        const assignmentId = notification.assignment?.id;
+        const submissionId = notification.submission?.id;
+
+        this.$store.dispatch('feedback/loadFeedback', {
+            assignmentId,
+            submissionId,
+            force: true,
+        });
+
+        notification.markAsRead().then(({ cgResult }) => {
+            NotificationStore.commitUpdateNotifications({
+                notifications: [cgResult],
+            });
+        });
+
+        this.$router.push(this.getNotificationRoute(notification));
+        this.$root.$emit('cg::sidebar::close');
+    }
+}
+</script>
+
+<style lang="less">
+@import '~mixins.less';
+
+.list-group-item:hover {
+    background-color: @color-lightest-gray;
+}
+
+.list-group-item.read {
+    background-color: @color-lighter-gray;
+    &:hover {
+        background-color: darken(@color-lighter-gray, 5%);
+    }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity @transition-duration;
+}
+.fade-enter,
+.fade-leave-to {
+    opacity: 0;
+}
+</style>

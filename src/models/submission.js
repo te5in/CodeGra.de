@@ -353,15 +353,17 @@ export class FileTree {
 
 const SUBMISSION_SERVER_PROPS = ['id', 'origin', 'extra_info', 'grade_overridden', 'comment'];
 
-const USER_PROPERTIES = ['user', 'assignee', 'comment_author'].reduce((acc, cur) => {
-    acc[cur] = `${snakeToCamelCase(cur)}Id`;
-    return acc;
-}, {});
+const USER_PROPERTIES = Object.freeze(['user', 'assignee', 'comment_author']);
+const USER_PROPERTIES_CAMELCASE_LOOKUP = Object.freeze(
+    USER_PROPERTIES.reduce((acc, cur) => {
+        acc[cur] = `${snakeToCamelCase(cur)}Id`;
+        return acc;
+    }, {}),
+);
 
 export class Submission {
     constructor(props) {
         Object.assign(this, props);
-        this.id = props.id;
         this.grade = formatGrade(this.fullGrade);
         this.formattedCreatedAt = readableFormatDate(this.createdAt);
         Object.freeze(this);
@@ -377,8 +379,10 @@ export class Submission {
         props.createdAt = moment.utc(serverData.created_at, moment.ISO_8601);
         props.fullGrade = serverData.grade;
 
-        Object.entries(USER_PROPERTIES).forEach(([serverProp, idProp]) => {
+        USER_PROPERTIES.forEach(serverProp => {
             const user = serverData[serverProp];
+            const idProp = USER_PROPERTIES_CAMELCASE_LOOKUP[serverProp];
+
             if (user != null) {
                 props[idProp] = user.id;
                 store.commit(`users/${mutationTypes.ADD_OR_UPDATE_USER}`, user);
@@ -408,8 +412,8 @@ export class Submission {
                         throw TypeError(`Cannot set submission property: ${key}`);
                     } else if (key === 'grade') {
                         acc.fullGrade = val;
-                    } else if (USER_PROPERTIES[key] != null) {
-                        const prop = USER_PROPERTIES[key];
+                    } else if (USER_PROPERTIES_CAMELCASE_LOOKUP[key] != null) {
+                        const prop = USER_PROPERTIES_CAMELCASE_LOOKUP[key];
 
                         if (val) {
                             store.dispatch('users/addOrUpdateUser', { user: val });
@@ -439,8 +443,10 @@ export class Submission {
     }
 }
 
-Object.entries(USER_PROPERTIES).forEach(([serverProp, idProp]) => {
-    Object.defineProperty(Submission.prototype, serverProp, {
+USER_PROPERTIES.forEach(wantedProp => {
+    const idProp = USER_PROPERTIES_CAMELCASE_LOOKUP[wantedProp];
+
+    Object.defineProperty(Submission.prototype, wantedProp, {
         get() {
             return store.getters['users/getUser'](this[idProp]) || { id: null };
         },

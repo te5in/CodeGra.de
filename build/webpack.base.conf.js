@@ -7,6 +7,7 @@ var userConfig = require('./userConfig')
 const { VueLoaderPlugin } = require('vue-loader')
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const keysTransformer = require('ts-transformer-keys/transformer').default;
+const CreateFileWebpack = require('./createFile')
 
 function resolve (dir) {
   return path.join(__dirname, '..', dir)
@@ -19,7 +20,7 @@ module.exports = {
   },
   output: {
     path: config.build.assetsRoot,
-    filename: '[name].js',
+    chunkFilename: '[name].bundle.[chunkhash].js',
     publicPath: process.env.NODE_ENV === 'production'
       ? config.build.assetsPublicPath
       : config.dev.assetsPublicPath
@@ -53,8 +54,12 @@ module.exports = {
         options: vueLoaderConfig
       },
       {
+        test: /\.d\.ts$/,
+        loader: 'ignore-loader',
+      },
+      {
         test: /\.tsx?$/,
-        exclude: /node_modules/,
+        exclude: /node_modules|\.d\.ts$/,
         use: [
           {
             loader: "ts-loader",
@@ -74,9 +79,10 @@ module.exports = {
       {
         test: /\.js$/,
         loader: 'babel-loader',
-          include: [resolve('src'), resolve('test'),
-                    resolve('node_modules/bootstrap-vue')
-                   ]
+          include: [
+              resolve('src'),
+              resolve('test'),
+          ],
       },
       {
         test: /\.(png|jpe?g|gif|svg)(\?.*)?$/,
@@ -101,9 +107,18 @@ module.exports = {
     buffer: false,
   },
   plugins: [
+    new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
     new VueLoaderPlugin(),
-    new webpack.DefinePlugin({
-        'UserConfig': JSON.stringify(userConfig),
+    new CreateFileWebpack({
+        path: resolve('src'),
+        fileName: 'userConfig.js',
+        content: `// eslint-disable-next-line
+const userConfig = Object.freeze(${JSON.stringify(userConfig)});
+export default userConfig;
+`,
     }),
+      new webpack.ProvidePlugin({
+          'UserConfig': [resolve('src/userConfig.js'), 'default'],
+      }),
   ],
 }

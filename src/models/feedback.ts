@@ -17,7 +17,7 @@ import { User, AnyUser, UserServerData, NormalUser } from './user';
 type ReplyTypes = 'plain_text' | 'markdown';
 
 /* eslint-disable camelcase */
-interface FeedbackReplyServerData {
+export interface FeedbackReplyServerData {
     id: number;
     comment: string;
     author_id: number | null;
@@ -26,6 +26,8 @@ interface FeedbackReplyServerData {
     created_at: string;
     updated_at: string;
     reply_type: ReplyTypes;
+
+    author?: UserServerData;
 }
 
 interface FeedbackLineServerData {
@@ -45,9 +47,16 @@ interface FeedbackServerData {
 }
 /* eslint-enable camelcase */
 
+// This should really be kept track of in the store, but that isn't really
+// possible for now without rewriting that entire store unfortunately.
+// This contains a mapping between serverId and trackingId.
+const trackingIdLookup = new Map();
+
 export class FeedbackReply {
+    public readonly trackingId: number;
+
     constructor(
-        public readonly trackingId: number,
+        oldTrackingId: number,
         public readonly id: number | null,
         public readonly inReplyToId: number | null,
         public readonly message: string,
@@ -59,6 +68,15 @@ export class FeedbackReply {
         private readonly feedbackLineId: number,
         public readonly deleted = false,
     ) {
+        const foundTrackingId = trackingIdLookup.get(id ?? -1);
+        if (foundTrackingId) {
+            this.trackingId = foundTrackingId;
+        } else {
+            if (this.id != null) {
+                trackingIdLookup.set(this.id, oldTrackingId);
+            }
+            this.trackingId = oldTrackingId;
+        }
         Object.freeze(this);
     }
 
@@ -67,6 +85,10 @@ export class FeedbackReply {
         feedbackLineId: number,
         trackingId: number = getUniqueId(),
     ): FeedbackReply {
+        if (serverData.author) {
+            store.dispatch('users/addOrUpdateUser', { user: serverData.author });
+        }
+
         return new FeedbackReply(
             trackingId,
             serverData.id,
@@ -298,7 +320,7 @@ export class Feedback {
         return new Feedback(general, linter, userLines);
     }
 
-    addFeedbackLine(line: FeedbackLine): Feedback {
+    addFeedbackBase(line: FeedbackLine): Feedback {
         if (!(line instanceof FeedbackLine)) {
             throw new Error(
                 // @ts-ignore
@@ -310,6 +332,7 @@ export class Feedback {
         const oldLineIndex = this.userLines.findIndex(
             l => l.lineNumber === line.lineNumber && l.fileId === line.fileId,
         );
+
         if (oldLineIndex < 0) {
             newLines.push(line);
         } else {
@@ -319,7 +342,7 @@ export class Feedback {
         return new Feedback(this.general, this.linter, newLines);
     }
 
-    removeFeedbackLine(line: FeedbackLine): Feedback {
+    removeFeedbackBase(line: FeedbackLine): Feedback {
         return new Feedback(
             this.general,
             this.linter,

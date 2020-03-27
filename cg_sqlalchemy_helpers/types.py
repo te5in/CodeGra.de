@@ -17,6 +17,7 @@ from typing_extensions import Literal
 import cg_dt_utils
 
 T = t.TypeVar('T')
+T_CONTRA = t.TypeVar('T_CONTRA', contravariant=True)
 Z = t.TypeVar('Z')
 Y = t.TypeVar('Y')
 U = t.TypeVar('U')
@@ -128,7 +129,7 @@ class MySession:  # pragma: no cover
         ...
 
 
-class DbType(t.Generic[T]):  # pragma: no cover
+class DbType(t.Generic[T_CONTRA]):  # pragma: no cover
     ...
 
 
@@ -168,7 +169,7 @@ class MutableColumnProxy(t.Generic[T, Y], ImmutableColumnProxy[T]):
         ...
 
 
-class ColumnProxy(t.Generic[T], MutableColumnProxy[T, T]):
+class ColumnProxy(t.Generic[T_CONTRA], MutableColumnProxy[T_CONTRA, T_CONTRA]):
     ...
 
 
@@ -257,14 +258,14 @@ class MyDb:  # pragma: no cover
     def Column(
         self,
         name: str,
-        type_: DbType[T],
+        type_: DbType[T_CONTRA],
         _fk: t.Optional[_ForeignKey] = None,
         *,
         unique: bool = False,
         nullable: Literal[False],
-        default: t.Union[T, t.Callable[[], T]] = ...,
+        default: t.Union[None, T_CONTRA, t.Callable[[], T_CONTRA]] = None,
         **rest: t.Any
-    ) -> 'ColumnProxy[T]':
+    ) -> 'ColumnProxy[T_CONTRA]':
         ...
 
     @t.overload  # NOQA
@@ -339,7 +340,7 @@ class MyDb:  # pragma: no cover
         uselist: Literal[True] = True,
         passive_deletes: bool = False,
         innerjoin: bool = None,
-    ) -> 'ColumnProxy[t.List[T]]':
+    ) -> '_MutableColumnProxy[t.List[T], t.List[T], DbColumn[T]]':
         ...
 
     @t.overload
@@ -387,7 +388,7 @@ class MyDb:  # pragma: no cover
         uselist: Literal[True],
         passive_deletes: bool = False,
         lazy: Literal['select', 'join', 'selectin'] = 'select',
-    ) -> 'ColumnProxy[t.List[T]]':
+    ) -> '_MutableColumnProxy[t.List[T], t.List[T], DbColumn[T]]':
         ...
 
     @t.overload  # NOQA
@@ -404,7 +405,7 @@ class MyDb:  # pragma: no cover
                           Callable[[], 'ColumnOrder']] = None,
         lazy: Literal['select', 'joined', 'selectin'] = 'select',
         primaryjoin: object = None,
-    ) -> 'ColumnProxy[t.List[T]]':
+    ) -> '_MutableColumnProxy[t.List[T], t.List[T], DbColumn[T]]':
         ...
 
     @t.overload  # NOQA
@@ -427,6 +428,17 @@ class MyDb:  # pragma: no cover
     @t.overload  # NOQA
     def relationship(
         self,
+        name: Union[t.Callable[[], t.Type[T]], t.Type[T]],
+        *,
+        uselist: Literal[True],
+        back_populates: str,
+        lazy: Literal['raise'],
+    ) -> '_ImmutableColumnProxy[t.NoReturn, t.NoReturn]':
+        ...
+
+    @t.overload  # NOQA
+    def relationship(
+        self,
         name: t.Callable[[], t.Type[_T_BASE]],
         *,
         uselist: Literal[True],
@@ -436,7 +448,7 @@ class MyDb:  # pragma: no cover
         lazy: Literal['select', 'join', 'selectin'] = 'select',
         order_by: t.Union[t.Callable[[], 'DbColumn'], t.
                           Callable[[], 'ColumnOrder']] = None,
-    ) -> 'ColumnProxy[t.List[_T_BASE]]':
+    ) -> '_MutableColumnProxy[t.List[_T_BASE], t.List[_T_BASE], DbColumn[_T_BASE]]':
         ...
 
     @t.overload  # NOQA
@@ -725,9 +737,18 @@ if t.TYPE_CHECKING:
 
         def __clause_element__(self) -> DbColumn[T]:
             ...
+
+    def ARRAY(
+        item_type: DbType[T_CONTRA],
+        *,
+        as_tuple: Literal[True],
+        dimensions: Literal[1],
+    ) -> DbType[t.Tuple[T_CONTRA, ...]]:
+        ...
 else:
     from sqlalchemy.ext.hybrid import hybrid_property
     from sqlalchemy.ext.hybrid import Comparator as _Comparator
+    from sqlalchemy.dialects.postgresql import ARRAY
 
     def hybrid_expression(fun: T) -> T:
         return fun

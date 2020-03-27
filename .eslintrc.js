@@ -84,6 +84,17 @@ module.exports = {
         'no-param-reassign': ["error", { 'props': false }],
 
         'no-underscore-dangle': ['error', { 'allowAfterThis': true, 'allowAfterSuper': true }],
+        "no-inner-declarations": "off",
+
+        'no-dupe-class-members': 'off',
+        '@typescript-eslint/no-dupe-class-members': ['error'],
+        // https://github.com/typescript-eslint/typescript-eslint/pull/1684
+        // 'lines-between-class-members': 'off',
+        // '@typescript-eslint/lines-between-class-members': ['error', 'always'],
+        "import/no-unresolved": [
+            2, { ignore: ['userConfig$']},
+        ],
+
 
         'prettier-vue/prettier': ['error', {
             'singleQuote': true,

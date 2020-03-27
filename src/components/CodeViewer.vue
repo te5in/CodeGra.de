@@ -149,8 +149,13 @@ export default {
             const lang = language === 'Default' ? this.extension : language;
 
             const res = Object.freeze(highlightCode(this.rawCodeLines, lang));
-            this.$emit('load', this.fileId);
+            this.emitLoad(this.fileId);
             return res;
+        },
+
+
+        replyToFocus() {
+            return this.$route.query && this.$route.query.replyToFocus;
         },
     },
 
@@ -180,6 +185,12 @@ export default {
             }
             this.selectedLanguage = lang;
         },
+
+        replyToFocus: 'tryScrollToReplyToFocus',
+        async feedback() {
+            await this.$nextTick();
+            this.tryScrollToReplyToFocus();
+        },
     },
 
     methods: {
@@ -193,6 +204,41 @@ export default {
                     this.selectedLanguage = 'Default';
                 }
             });
+        },
+
+        tryScrollToReplyToFocus() {
+            const replyToFocus = this.replyToFocus;
+
+            if (replyToFocus != null) {
+                const el = document.querySelector(`#feedback-reply-id-${replyToFocus}`);
+
+                if (el) {
+                    this.$router.replace(Object.assign(
+                        {},
+                        this.$route,
+                        {
+                            query: Object.assign(
+                                {}, this.$route.query, { replyToFocus: undefined },
+                            ),
+                        },
+                    ));
+
+                    el.scrollIntoView({
+                        block: 'center',
+                        inline: 'center',
+                        behavior: 'smooth',
+                    });
+                }
+            }
+        },
+
+        async emitLoad(fileId) {
+            if (this.fileId === fileId) {
+                this.$emit('load', fileId);
+
+                await this.$nextTick();
+                this.tryScrollToReplyToFocus();
+            }
         },
     },
 

@@ -17,13 +17,25 @@ import VueMasonry from 'vue-masonry-css';
 import VueClipboard from 'vue-clipboard2';
 import moment from 'moment';
 
-import '@/polyfills';
 import App from '@/App';
 import router, { setRestoreRoute } from '@/router';
 import * as utils from '@/utils';
 import { store } from './store';
+import { NotificationStore } from './store/modules/notification';
 import * as mutationTypes from './store/mutation-types';
 import './my-vue';
+
+import RelativeTime from './components/RelativeTime';
+import User from './components/User';
+import Loader from './components/Loader';
+import SubmitButton from './components/SubmitButton';
+
+const { polyFilled } = import('@/polyfills');
+
+Vue.component('cg-relative-time', RelativeTime);
+Vue.component('cg-user', User);
+Vue.component('cg-loader', Loader);
+Vue.component('cg-submit-button', SubmitButton);
 
 Vue.use(BootstrapVue);
 Vue.use(Toasted);
@@ -33,6 +45,28 @@ Vue.use(VueClipboard);
 Vue.config.productionTip = false;
 
 moment.relativeTimeThreshold('h', 48);
+moment.updateLocale('en', {
+    relativeTime: {
+        past(input) {
+            return input === 'just now' ? input : `${input} ago`;
+        },
+        future(input) {
+            return input === 'just now' ? input : `in ${input}`;
+        },
+        s: 'just now',
+        ss: '%d seconds',
+        m: 'a minute',
+        mm: '%d minutes',
+        h: 'an hour',
+        hh: '%d hours',
+        d: 'a day',
+        dd: '%d days',
+        M: 'a month',
+        MM: '%d months',
+        y: 'a year',
+        yy: '%d years',
+    },
+});
 
 Icon.register({
     tilde: {
@@ -230,7 +264,10 @@ Vue.prototype.$afterRerender = function doubleRequestAnimationFrame(cb) {
 };
 
 // eslint-disable-next-line
-localforage.defineDriver(memoryStorageDriver).then(() => {
+Promise.all([
+    polyFilled,
+    localforage.defineDriver(memoryStorageDriver),
+]).then(() => {
     Vue.prototype.$hlanguageStore = localforage.createInstance({
         name: 'highlightLanguageStore',
         driver: DRIVERS,
@@ -306,6 +343,8 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
             setInterval(() => {
                 this.epoch = getUTCEpoch();
             }, 1000);
+
+            this._loadNotifications();
         },
 
         computed: {
@@ -342,6 +381,25 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
 
             $epoch() {
                 return this.epoch;
+            },
+        },
+
+        methods: {
+            async _loadNotifications() {
+                let sleepTime = UserConfig.sleepTime;
+                try {
+                    if (this.$store.getters['user/loggedIn']) {
+                        NotificationStore.dispatchLoadNotifications();
+                    }
+                } catch (e) {
+                    // eslint-disable-next-line
+                    console.log('Loading notifications went wrong', e);
+                    sleepTime += sleepTime;
+                }
+
+                setTimeout(() => {
+                    this._loadNotifications();
+                }, sleepTime);
             },
         },
 

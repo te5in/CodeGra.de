@@ -24,7 +24,7 @@ from ..helpers import (
 )
 from ..permissions import CoursePermission as CPerm
 
-_HumanFeedback = t.Mapping[str, dict]
+_HumanFeedback = t.Mapping[str, t.Mapping[str, object]]
 _LinterFeedback = t.MutableSequence[t.Tuple[str, models.LinterComment]]  # pylint: disable=invalid-name
 _FeedbackMapping = t.Dict[str, t.Union[_HumanFeedback, _LinterFeedback]]  # pylint: disable=invalid-name
 

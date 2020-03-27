@@ -516,13 +516,15 @@ def ensure_can_see_user_feedback(work: 'psef.models.Work') -> None:
     ):
         return
 
-    if not work.has_as_author(user):
-        ensure_permission(CPerm.can_see_others_work, course_id, user=user)
-
+    # This check is faster than the other one, and more common to fail, so lets
+    # check this one first.
     if not work.assignment.is_done:
         ensure_permission(
             CPerm.can_see_user_feedback_before_done, course_id, user=user
         )
+
+    if not work.has_as_author(user):
+        ensure_permission(CPerm.can_see_others_work, course_id, user=user)
 
 
 @login_required
@@ -877,6 +879,25 @@ class FeedbackReplyPermissions(PermissionChecker):
 
     def ensure_may_delete(self) -> None:
         self.ensure_may_edit()
+
+
+class NotificationPermissions(PermissionChecker):
+    __slots__ = ('notification', 'work', 'course_id')
+
+    def __init__(self, notification: 'psef.models.Notification'):
+        self.notification: Final = notification
+        self.work: Final = notification.comment_reply.comment_base.work
+        self.course_id: Final = self.work.assignment.course_id
+
+    def _ensure_my_notification(self) -> None:
+        if self.notification.receiver != self.user:
+            raise
+
+    def ensure_may_see(self) -> None:
+        ensure_can_see_user_feedback(self.work)
+
+    def ensure_may_edit(self) -> None:
+        self._ensure_my_notification()
 
 
 @login_required

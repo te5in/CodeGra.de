@@ -57,7 +57,7 @@
 
             <feedback-area
                 class="border-top border-bottom py-1 px-3 bg-white mt-1"
-                :key="i"
+                :key="feedback[i - 1 + lineFeedbackOffset].id"
                 :feedback="feedback[i - 1 + lineFeedbackOffset]"
                 :total-amount-lines="computedEndLine"
                 :can-use-snippets="canUseSnippets"
