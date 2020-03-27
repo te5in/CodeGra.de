@@ -11,5 +11,7 @@ declare module 'vue/types/vue' {
         $http: AxiosStatic;
         $utils: any;
         $now: Moment;
+
+        $loadFullNotifications: boolean;
     }
 }

@@ -1,5 +1,3 @@
-/* eslint-disable prefer-arrow-callback */
-
 import Vue from 'vue';
 import { getStoreBuilder } from 'vuex-typex';
 import axios, { AxiosResponse } from 'axios';
@@ -12,65 +10,77 @@ const storeBuilder = getStoreBuilder<RootState>();
 
 export interface NotificationState {
     notifications: Record<string, Notification>;
+    hasUnread: boolean;
 }
 
 const moduleBuilder = storeBuilder.module<NotificationState>('notification', {
     notifications: {},
+    hasUnread: false,
 });
 
+// eslint-disable-next-line camelcase
+type NotificationHasUnreadResponseData = { has_unread: boolean };
 type NotificationResponseData = { notifications: CommentNotificationServerData[] };
 type NotificationResponse = AxiosResponse<NotificationResponseData>;
 
 export namespace NotificationStore {
     export const commitUpdateNotifications = moduleBuilder.commit(
-        function commitUpdateNotifications(state, payload: { notifications: Notification[] }) {
+        (state, payload: { notifications: Notification[] }) => {
             payload.notifications.forEach(n => Vue.set(state.notifications, n.id, n));
+            state.hasUnread = payload.notifications.some(x => !x.read);
         },
         'commitUpdateNotification',
     );
 
-    export const dispatchMarkAllAsRead = moduleBuilder.dispatch(
-        async function dispatchMarkAllAsRead(
-            _,
-            __: void,
-        ): Promise<SubmitButtonResult<Notification[], NotificationResponseData>> {
-            const response: NotificationResponse = await axios.patch('/api/v1/notifications/', {
-                notifications: NotificationStore.getAllUnreadNotifications().map(r => ({
-                    id: r.id,
-                    read: true,
-                })),
-            });
+    export const commitUpdateHasUnread = moduleBuilder.commit(
+        (state, payload: { hasUnread: boolean }) => {
+            state.hasUnread = payload.hasUnread;
+        },
+        'commitUpdateHasUnread',
+    );
 
-            const notifications = response.data.notifications.map(n =>
+    export const dispatchMarkAllAsRead = moduleBuilder.dispatch(async (_, __: void): Promise<
+        SubmitButtonResult<Notification[], NotificationResponseData>
+    > => {
+        const response: NotificationResponse = await axios.patch('/api/v1/notifications/', {
+            notifications: NotificationStore.getAllUnreadNotifications().map(r => ({
+                id: r.id,
+                read: true,
+            })),
+        });
+
+        const notifications = response.data.notifications.map(n =>
+            CommentNotification.fromServerData(n),
+        );
+
+        return {
+            ...response,
+            cgResult: notifications,
+            onAfterSuccess: () => {
+                NotificationStore.commitUpdateNotifications({ notifications });
+            },
+        };
+    }, 'dispatchMarkAllAsRead');
+
+    export const dispatchLoadHasUnread = moduleBuilder.dispatch(async (_, __: void) => {
+        //
+        const response: AxiosResponse<NotificationHasUnreadResponseData> = await axios.get(
+            '/api/v1/notifications/?has_unread',
+        );
+
+        NotificationStore.commitUpdateHasUnread({ hasUnread: response.data.has_unread });
+    }, 'dispatchLoadHasUnread');
+
+    export const dispatchLoadNotifications = moduleBuilder.dispatch(async (_, __: void) => {
+        const response: NotificationResponse = await axios.get('/api/v1/notifications/');
+
+        NotificationStore.commitUpdateNotifications({
+            notifications: response.data.notifications.map(n =>
                 CommentNotification.fromServerData(n),
-            );
-
-            return {
-                ...response,
-                cgResult: notifications,
-                onAfterSuccess: () => {
-                    NotificationStore.commitUpdateNotifications({ notifications });
-                },
-            };
-        },
-        'dispatchMarkAllAsRead',
-    );
-
-    export const dispatchLoadNotifications = moduleBuilder.dispatch(
-        async function dispatchLoadNotifications(_, __: void) {
-            const response: NotificationResponse = await axios.get(
-                '/api/v1/notifications/?unread_only=false',
-            );
-
-            NotificationStore.commitUpdateNotifications({
-                notifications: response.data.notifications.map(n =>
-                    CommentNotification.fromServerData(n),
-                ),
-            });
-            return response;
-        },
-        'dispatchLoadNotifications',
-    );
+            ),
+        });
+        return response;
+    }, 'dispatchLoadNotifications');
 
     // eslint-disable-next-line
     function _getAllNotifications(state: NotificationState): ReadonlyArray<Notification> {
@@ -84,17 +94,13 @@ export namespace NotificationStore {
         'getAllNotifications',
     );
 
-    export const getAllUnreadNotifications = moduleBuilder.read(function getAllUnreadNotifications(
-        state,
-    ) {
-        return _getAllNotifications(state).filter(x => !x.read);
-    },
-    'getAllUnreadNotifications');
+    export const getAllUnreadNotifications = moduleBuilder.read(
+        state => _getAllNotifications(state).filter(x => !x.read),
+        'getAllUnreadNotifications',
+    );
 
-    export const getHasUnreadNotifications = moduleBuilder.read(function getHasUnreadNotifications(
-        state,
-    ) {
-        return Object.values(state.notifications).some(x => !x.read);
-    },
-    'getHasUnreadNotifications');
+    export const getHasUnreadNotifications = moduleBuilder.read(
+        state => state.hasUnread,
+        'getHasUnreadNotifications',
+    );
 }

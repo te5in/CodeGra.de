@@ -3,7 +3,7 @@ import typing as t
 from sqlalchemy.orm import defaultload
 from typing_extensions import TypedDict
 
-from cg_json import ExtendedJSONResponse
+from cg_json import JSONResponse, ExtendedJSONResponse
 
 from . import api
 from .. import auth, models, helpers, current_user
@@ -16,12 +16,18 @@ class NotificationsJSON(TypedDict):
     notifications: t.List[Notification]
 
 
+class HasUnreadNotifcationJSON(TypedDict):
+    has_unread: bool
+
+
 _MAX_NOTIFICATION_AMOUNT = 100
 
 
 @api.route('/notifications/')
 @auth.login_required
-def get_all_notifications() -> ExtendedJSONResponse[NotificationsJSON]:
+def get_all_notifications() -> t.Union[ExtendedJSONResponse[NotificationsJSON],
+                                       JSONResponse[HasUnreadNotifcationJSON],
+                                       ]:
     notifications = db.session.query(Notification).filter(
         Notification.receiver == current_user
     ).order_by(
@@ -39,14 +45,17 @@ def get_all_notifications() -> ExtendedJSONResponse[NotificationsJSON]:
         ),
     )
 
-    if request_arg_true('unread_only'):
-        notifications.filter(~Notification.read)
-
     def can_see(noti: Notification) -> bool:
         return not did_raise(
             auth.NotificationPermissions(noti).ensure_may_see,
             PermissionException,
         )
+
+    if request_arg_true('has_unread'):
+        has_unread = any(
+            map(can_see, notifications.filter(~Notification.read))
+        )
+        return JSONResponse.make({'has_unread': has_unread})
 
     return ExtendedJSONResponse.make(
         {

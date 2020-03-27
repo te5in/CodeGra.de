@@ -323,6 +323,8 @@ Promise.all([
                 // of the sidebar every second.
                 now: moment(),
                 epoch: getUTCEpoch(),
+
+                $loadFullNotifications: false,
             };
         },
 
@@ -386,10 +388,14 @@ Promise.all([
 
         methods: {
             async _loadNotifications() {
-                let sleepTime = UserConfig.sleepTime;
+                let sleepTime = UserConfig.notificationPollTime;
                 try {
                     if (this.$store.getters['user/loggedIn']) {
-                        NotificationStore.dispatchLoadNotifications();
+                        if (this.$loadFullNotifications) {
+                            await NotificationStore.dispatchLoadNotifications();
+                        } else {
+                            await NotificationStore.dispatchLoadHasUnread();
+                        }
                     }
                 } catch (e) {
                     // eslint-disable-next-line

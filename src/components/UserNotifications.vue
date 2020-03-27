@@ -2,23 +2,23 @@
 <div class="user-notifications">
     <cg-loader v-if="loading" :scale="1"/>
     <div v-else>
-        <div v-if="hasUnreadNotifications"
+        <div v-if="!hasUnreadNotifications"
              class="text-muted">
             You are all caught up!
             <hr v-if="hasReadNotifications"  />
         </div>
 
         <div class="border rounded" v-if="notifications.length > 0">
-        <table class="table table-hover table-borderless mb-0">
-            <transition-group name="fade" tag="tbody">
-                <user-notification :notification="notification"
-                                   class="cursor-pointer"
-                                   @click.native="gotoNotification(notification)"
-                                   :class="{ read: notification.read }"
-                                   v-for="notification in notifications"
-                                   :key="notification.id" />
-            </transition-group>
-        </table>
+            <table class="table table-hover table-borderless mb-0">
+                <transition-group name="fade" tag="tbody">
+                    <user-notification :notification="notification"
+                                       class="cursor-pointer"
+                                       @click.native="gotoNotification(notification)"
+                                       :class="{ read: notification.read }"
+                                       v-for="notification in notifications"
+                                       :key="notification.id" />
+                </transition-group>
+            </table>
         </div>
 
         <div v-if="hasReadNotifications && !showRead"
@@ -32,7 +32,7 @@
 </template>
 
 <script lang="ts">
-    import { Vue, Component } from 'vue-property-decorator';
+import { Vue, Component } from 'vue-property-decorator';
 
 import { NotificationStore } from '@/store/modules/notification';
 
@@ -56,8 +56,9 @@ export default class UserNotifications extends Vue {
         return NotificationStore.getAllUnreadNotifications();
     }
 
-    get hasUnreadNotifications() {
-        return this.unreadNotifications.length === 0;
+    // eslint-disable-next-line
+    get hasUnreadNotifications(): boolean {
+        return NotificationStore.getHasUnreadNotifications();
     }
 
     get hasReadNotifications() {
@@ -70,10 +71,20 @@ export default class UserNotifications extends Vue {
 
     loading: boolean = true;
 
+    smallLoading: boolean = false;
+
     showRead: boolean = false;
+
+    isDestroyed: boolean = false;
+
+    destroyed() {
+        this.$root.$loadFullNotifications = false;
+        this.isDestroyed = true;
+    }
 
     async created() {
         this.loading = true;
+        this.$root.$loadFullNotifications = true;
         await NotificationStore.dispatchLoadNotifications();
         this.loading = false;
     }
