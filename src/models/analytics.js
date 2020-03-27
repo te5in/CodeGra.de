@@ -402,76 +402,72 @@ class WorkspaceSubmissionSet {
         });
     }
 
-    binSubmissionsByDate(dateRange, binSize, binUnit) {
-        let start = null;
-        let end = null;
+    binSubmissionsByDate(range, binSize, binUnit) {
+        const [start, end] = this.getDateRange(range);
+        const binStep = moment.duration(binSize, binUnit).asMilliseconds();
 
-        const sortedSubs = this.allSubmissions.sort((a, b) =>
-            (a.createdAt.isBefore(b.createdAt) ? -1 : 1),
-        );
-
-        const setTime = (d, h, m, s) => d.clone().hour(h).minute(m).second(s);
-
-        if (dateRange == null || dateRange.length === 0) {
-            start = setTime(sortedSubs[0].createdAt, 0, 0, 0);
-            end = setTime(sortedSubs[sortedSubs.length - 1].createdAt, 23, 59, 59);
-        } else if (dateRange.length === 2) {
-            [start, end] = dateRange.map(x => moment(x));
-        } else {
-            const [d] = moment(dateRange[0]);
-            start = setTime(d, 0, 0, 0);
-            end = setTime(d, 23, 59, 59);
+        if (binStep === 0) {
+            return {};
         }
 
-        const bin = moment.duration(binSize, binUnit);
-        let binStart = start.clone();
-        let binEnd = binStart.clone().add(bin);
-
-        let fmt;
-        switch (binUnit) {
-            case 'minutes':
-                fmt = 'MM-DD HH:MM';
-                break;
-            case 'hours':
-                fmt = 'MM-DD HH:00';
-                break;
-            default:
-                fmt = 'MM-DD';
-                break;
-        }
-
-        const format = (s, e) => {
-            const ss = s.local().format(fmt);
-            const es = e.local().format(fmt);
-
-            if (ss === es) {
-                return ss;
-            } else {
-                return `${ss} — ${es}`;
-            }
+        const getBin = d => {
+            // Correction term for the timezone offset.
+            // utcOffset() is in seconds but we need milliseconds.
+            const off = 60 * 1000 * d.utcOffset();
+            return Math.floor((d.valueOf() + off) / binStep);
         };
 
-        let binKey = format(binStart, binEnd);
-        return sortedSubs.reduce(
-            (acc, sub) => {
-                if (
-                    (start != null && sub.createdAt.isBefore(start)) ||
-                    (end != null && sub.createdAt.isAfter(end))
-                ) {
-                    return acc;
-                }
+        const binned = this.binSubmissionsBy(sub => {
+            const { createdAt } = sub;
 
-                while (!sub.createdAt.isBefore(binEnd)) {
-                    binStart = binEnd;
-                    binEnd = binStart.clone().add(bin);
-                    binKey = format(binStart, binEnd);
-                }
+            if (
+                (start != null && start.isAfter(createdAt)) ||
+                (end !== null && end.isBefore(createdAt))
+            ) {
+                return null;
+            }
 
-                acc[binKey].push(sub);
-                return acc;
-            },
-            defaultdict(() => []),
-        );
+            return getBin(createdAt);
+        });
+
+        const first = start == null ? Math.min(...Object.keys(binned)) : getBin(start);
+        const last = end == null ? Math.max(...Object.keys(binned)) : getBin(end);
+
+        const result = {};
+
+        for (let i = first; i <= last; i++) {
+            const binStart = i * binStep;
+            result[binStart] = {
+                start: binStart,
+                end: binStart + binStep - 1,
+                data: binned[i],
+            };
+        }
+
+        return result;
+    }
+
+    // eslint-disable-next-line
+    getDateRange(range) {
+        let start;
+        let end;
+
+        if (range.length === 0) {
+            return [null, null];
+        } else {
+            [start, end] = range.map(d => moment(d));
+        }
+
+        if (end == null) {
+            end = start.clone();
+        }
+
+        start = start.local().hours(0).minutes(0).seconds(0)
+            .milliseconds(0);
+        end = end.local().hours(23).minutes(59).seconds(59)
+            .milliseconds(999);
+
+        return [start, end];
     }
 
     get submissionCount() {

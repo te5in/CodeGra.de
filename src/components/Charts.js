@@ -189,8 +189,12 @@ export const BarChart = {
 
         suggestedRange() {
             const factor = 1 + this.padding;
-            const minPerCat = this.datasets.map(ds => stat.min(ds.data));
-            const maxPerCat = this.datasets.map(ds => stat.max(ds.data));
+            const minPerCat = this.datasets.map(ds =>
+                (ds.data.length === 0 ? 0 : stat.min(ds.data)),
+            );
+            const maxPerCat = this.datasets.map(ds =>
+                (ds.data.length === 0 ? 0 : stat.max(ds.data)),
+            );
             return [
                 factor * stat.min(minPerCat),
                 factor * stat.max(maxPerCat),

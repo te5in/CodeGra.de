@@ -87,32 +87,26 @@
 
         <template v-else>
             <div class="col-12">
-                <b-card header-class="d-flex pr-2">
+                <b-card header-class="d-flex">
                     <template #header>
                         <div class="flex-grow-1">
                             Students submitted on
                         </div>
 
                         <div class="d-flex flex-grow-0">
-                            <div class="icon-button"
-                                 :class="{ 'active': submissionDateRelative }"
-                                 @click="submissionDateRelative = !submissionDateRelative"
-                                 v-b-popover.top.hover="'Relative to filter group'">
-                                <icon name="percent" />
-                            </div>
-
                             <datetime-picker :value="submissionDateRange"
                                              @on-close="updateSubmissionDateRange"
                                              placeholder="Select dates"
                                              :config="{
                                                  mode: 'range',
+                                                 enableTime: false,
                                                  defaultHour: undefined,
                                                  defaultMinute: undefined,
                                              }"
                                              class="ml-3 text-center"
                                              style="min-width: 20rem"/>
 
-                            <b-input-group>
+                            <b-input-group class="mb-0">
                                 <input :value="submissionDateBinSize"
                                        @input="updateSubmissionDateBinSize"
                                        type="number"
@@ -124,12 +118,32 @@
                                 <b-form-select v-model="submissionDateBinUnit"
                                                :options="submissionDateBinUnits"
                                                class="pt-1"
-                                               style="max-width: 5rem"/>
+                                               style="max-width: 7.5rem"/>
                             </b-input-group>
+
+                            <div class="icon-button"
+                                 :class="{ 'active': submissionDateRelative }"
+                                 @click="submissionDateRelative = !submissionDateRelative"
+                                 v-b-popover.top.hover="'Relative to filter group'">
+                                <icon name="percent" />
+                            </div>
+
+                            <div class="icon-button danger"
+                                 @click="resetSubmissionDateParams"
+                                 v-b-popover.top.hover="'Reset'">
+                                <icon name="reply" />
+                            </div>
+
                         </div>
                     </template>
 
-                    <bar-chart :chart-data="submissionDateHistogram"
+                    <h3 v-if="submissionDateMessage"
+                        class="p-3 text-center text-muted font-italic">
+                        {{ submissionDateMessage }}
+                    </h3>
+
+                    <bar-chart v-else
+                               :chart-data="submissionDateHistogram"
                                :options="submissionDateOpts"
                                :width="300"
                                :height="75"/>
@@ -152,13 +166,18 @@
             <template v-if="rubricStatistic != null">
                 <div class="col-12 col-lg-6"
                      :class="{ 'col-lg-12': largeGradeHistogram }">
-                    <b-card header-class="d-flex pr-2">
+                    <b-card header-class="d-flex">
                         <template #header>
                             <div class="flex-grow-1">
                                 Rubric statistics
                             </div>
 
                             <div class="d-flex flex-grow-0">
+                                <b-form-select v-model="selectedRubricStatistic"
+                                               :options="rubricStatOptions"
+                                               class="ml-3 pt-1"
+                                               style="max-width: 7.5rem"/>
+
                                 <div v-if="rubricStatistic.hasRelative"
                                      class="icon-button"
                                      :class="{ 'active': rubricRelative }"
@@ -166,11 +185,6 @@
                                      v-b-popover.top.hover="'Relative to max score in category'">
                                     <icon name="percent" />
                                 </div>
-
-                                <b-form-select v-model="selectedRubricStatistic"
-                                               :options="rubricStatOptions"
-                                               class="ml-3 pt-1"
-                                               style="max-width: 7.5rem"/>
                             </div>
                         </template>
 
@@ -193,6 +207,7 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 import * as stat from 'simple-statistics';
+import moment from 'moment';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/percent';
@@ -226,6 +241,7 @@ export default {
             submissionDateRelative: true,
             submissionDateRange: [],
             submissionDateBinSize: 1,
+            submissionDateBinSizeTimer: null,
             submissionDateBinUnit: 'days',
 
             rubricRelative: true,
@@ -296,19 +312,8 @@ export default {
             return this.$utils.getProps(this.rubricSource, 0, 'rowIds', 'length') > 8;
         },
 
-        submissionsByDate() {
-            return this.submissionSources.map(source =>
-                source.binSubmissionsByDate(
-                    this.submissionDateRange,
-                    this.submissionDateBinSize,
-                    this.submissionDateBinUnit,
-                ),
-            );
-        },
-
-        allSubmissionDates() {
-            const dates = this.submissionsByDate.flatMap(Object.keys);
-            return [...new Set(dates)].sort();
+        filterLabels() {
+            return this.filterResults.map(f => f.filter.toString());
         },
 
         submissionDateBinUnits() {
@@ -321,23 +326,79 @@ export default {
             ];
         },
 
+        submissionDateMessage() {
+            if (this.submissionDateHistogram.labels.length === 0) {
+                return 'No submission within this range!';
+            } else if (this.submissionDateHistogram.labels.length > 500) {
+                return 'Please select fewer bins.';
+            }
+            return null;
+        },
+
         submissionDateHistogram() {
-            const allDates = this.allSubmissionDates;
-            const datasets = this.submissionsByDate.map((bins, i) => {
-                let data = allDates.map(d => bins[d].length);
-                const nSubs = stat.sum(data);
+            const subs = this.submissionSources.map(source =>
+                source.binSubmissionsByDate(
+                    this.submissionDateRange,
+                    this.submissionDateBinSize,
+                    this.submissionDateBinUnit,
+                ),
+            );
+
+            const format = this.submissionDateFormatter;
+            const dateLookup = subs.reduce(
+                (acc, bins) => {
+                    Object.values(bins).forEach(bin => {
+                        if (!acc[bin.start]) {
+                            acc[bin.start] = format(bin.start, bin.end);
+                        }
+                    });
+                    return acc;
+                },
+                {},
+            );
+            const allDates = Object.keys(dateLookup).sort();
+
+            const datasets = subs.map((bins, i) => {
+                let data = allDates.map(d =>
+                    (bins[d] == null ? 0 : bins[d].data.length),
+                );
 
                 if (this.submissionDateRelative) {
+                    const nSubs = stat.sum(data);
                     data = data.map(x => 100 * x / nSubs);
                 }
 
                 return {
-                    label: this.filterResults[i].filter.toString(),
+                    label: this.filterLabels[i],
                     data,
                 };
             });
 
-            return { labels: allDates, datasets };
+            return {
+                labels: allDates.map(k => dateLookup[k]),
+                datasets,
+            };
+        },
+
+        submissionDateFormatter() {
+            const unit = this.submissionDateBinUnit;
+
+            const format = (d, fmt) => moment(d).utc().format(fmt);
+
+            switch (unit) {
+                case 'minutes':
+                    return start => format(start, 'ddd MM-DD HH:mm');
+                case 'hours':
+                    return start => format(start, 'ddd MM-DD HH:00');
+                default:
+                    return (start, end) => {
+                        const fmt = 'ddd MM-DD';
+                        // The times reported per bin are UTC UNIX epoch timestamps.
+                        const s = format(start, fmt);
+                        const e = format(end, fmt);
+                        return s === e ? s : `${s} — ${e}`;
+                    };
+            }
         },
 
         submissionDateOpts() {
@@ -384,7 +445,7 @@ export default {
                 const nSubs = stat.sum(bins.map(bin => data[bin].length));
 
                 return {
-                    label: this.filterResults[i].filter.toString(),
+                    label: this.filterLabels[i],
                     data: bins.map(bin => 100 * data[bin].length / nSubs),
                 };
             });
@@ -563,9 +624,22 @@ export default {
         ...mapActions('analytics', ['loadWorkspace', 'clearAssignmentWorkspaces']),
 
         reset() {
+            this.filterResults = [];
+            this.resetRubricParams();
+            this.resetSubmissionDateParams();
+        },
+
+        resetRubricParams() {
             this.selectedRubricStatistic = 'mean';
             this.rubricRelative = true;
-            this.filterResults = [];
+        },
+
+        resetSubmissionDateParams() {
+            this.submissionDateRelative = true;
+            this.submissionDateRange = [];
+            this.submissionDateBinSize = 1;
+            this.submissionDateBinUnit = 'days';
+            clearTimeout(this.submissionDateBinSizeTimer);
         },
 
         loadWorkspaceData() {
@@ -620,7 +694,7 @@ export default {
                 }
 
                 return {
-                    label: this.filterResults[i].filter.toString(),
+                    label: this.filterLabels[i],
                     data,
                     stats,
                 };
@@ -643,7 +717,7 @@ export default {
                 }
 
                 return {
-                    label: this.filterResults[i].filter.toString(),
+                    label: this.filterLabels[i],
                     data: rirItems.map(([x, y]) => ({ x, y })),
                 };
             });
@@ -698,19 +772,28 @@ export default {
             }
 
             const curRange = this.submissionDateRange;
+            const newRange = event.map(d => moment(d));
+
             if (
-                event.length !== curRange.length ||
-                !event.every((x, i) => console.log(x) || x.isSame(curRange[i]))
+                newRange.length !== curRange.length ||
+                // Check if all the dates are the same as the previous to
+                // prevent a rerender, e.g. in case a user just opened the
+                // popover and immediately closes it by clicking somewhere
+                // in the page.
+                !newRange.every((x, i) => x.isSame(curRange[i]))
             ) {
                 this.submissionDateRange = event;
             }
         },
 
         updateSubmissionDateBinSize(event) {
-            const newSize = parseFloat(event.target.value);
-            if (!Number.isNaN(newSize) && newSize !== this.submissionDateBinSize) {
-                this.submissionDateBinSize = Number(newSize);
-            }
+            clearTimeout(this.submissionDateBinSizeTimer);
+            this.submissionDateBinSizeTimer = setTimeout(() => {
+                const newSize = parseFloat(event.target.value);
+                if (!Number.isNaN(newSize) && newSize !== this.submissionDateBinSize) {
+                    this.submissionDateBinSize = Number(newSize);
+                }
+            }, 500);
         },
     },
 
@@ -799,7 +882,7 @@ export default {
         transition: background-color @transition-duration;
 
         &.active {
-            color: lighten(@color-secondary, 5%);
+            color: lighten(@color-secondary, 15%);
 
             &.danger {
                 color: @color-danger;
@@ -811,10 +894,10 @@ export default {
         }
 
         &:not(.text-muted):hover {
-            color: lighten(@color-secondary, 15%);
+            color: lighten(@color-secondary, 5%);
 
             &.danger {
-                color: @color-danger;
+                color: darken(@color-danger, 10%);
             }
         }
     }
