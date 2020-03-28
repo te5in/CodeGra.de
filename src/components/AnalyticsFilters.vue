@@ -7,6 +7,12 @@
         </div>
 
         <div class="d-flex flex-grow-0">
+            <div class="icon-button"
+                 @click="addFilter()"
+                 v-b-popover.hover.top="'Add filter'">
+                <icon name="plus" />
+            </div>
+
             <div class="icon-button danger"
                  @click="resetFilters()"
                  v-b-popover.hover.top="'Clear all'">
@@ -18,7 +24,7 @@
     <div class="row">
         <div v-for="filter, i in filters"
              :key="i"
-             class="col-6">
+             class="col-12 col-xl-6">
             <b-card header-class="d-flex">
                 <template #header>
                     <div class="flex-grow-1">
@@ -32,8 +38,9 @@
                             <icon name="copy" />
                         </div>
 
-                        <div :id="`analytics-filter-split-${id}-${i}`"
-                             class="icon-button"
+                        <div class="icon-button"
+                             :class="{ active: isSplitting[i] }"
+                             @click="toggleSplitFilter(i)"
                              v-b-popover.hover.top="'Split'">
                             <icon name="scissors" />
                         </div>
@@ -47,130 +54,171 @@
                             <icon name="times" />
                         </div>
                     </div>
-
-                    <b-popover :target="`analytics-filter-split-${id}-${i}`"
-                               triggers="click blur"
-                               placement="leftbottom"
-                               title="Split on"
-                               :disabled="popoverDisabled">
-                        <b-input-group class="mb-2 p-2 border rounded text-left">
-                            <b-checkbox v-model="splitLatest">
-                                Split on latest
-                            </b-checkbox>
-                        </b-input-group>
-
-                        <b-input-group class="mb-2">
-                            <input v-model="splitGrade"
-                                   class="form-control"
-                                   type="number"
-                                   placeholder="Grade" />
-                        </b-input-group>
-
-                        <b-input-group class="mb-2">
-                            <datetime-picker v-model="splitDate"
-                                             placeholder="Date"/>
-                        </b-input-group>
-
-                        <submit-button class="float-right mb-2"
-                                       variant="primary"
-                                       :submit="() => splitFilter(i)"
-                                       @after-success="afterSplitFilter">
-                            <icon name="check" />
-                        </submit-button>
-                    </b-popover>
                 </template>
 
-                <b-input-group prepend="Latest">
-                    <div class="form-control pl-2">
-                        <b-form-checkbox :checked="filter.onlyLatestSubs"
-                                         @input="updateFilter(i, 'onlyLatestSubs', $event)"
-                                         class="d-inline-block">
-                            Only use latest submissions
-                        </b-form-checkbox>
+                <div class="controls">
+                    <div class="filter-controls"
+                        :class="{ active: !isSplitting[i] }">
+                        <b-input-group prepend="Latest">
+                            <div class="form-control pl-2">
+                                <b-form-checkbox :checked="filter.onlyLatestSubs"
+                                                @input="updateFilter(i, 'onlyLatestSubs', $event)"
+                                                class="d-inline-block">
+                                    Only use latest submissions
+                                </b-form-checkbox>
+                            </div>
+                        </b-input-group>
+
+                        <b-input-group prepend="Min. grade">
+                            <input :value="filter.minGrade"
+                                @input="updateFilter(i, 'minGrade', $event.target.value)"
+                                class="form-control"
+                                type="number"
+                                placeholder="0"
+                                min="0"
+                                :max="filter.maxGrade"
+                                step="1" />
+
+                            <template #append>
+                                <b-button variant="warning"
+                                        :disabled="filter.minGrade == null"
+                                        @click="updateFilter(i, 'minGrade', null)">
+                                    <icon name="reply" />
+                                </b-button>
+                            </template>
+                        </b-input-group>
+
+                        <b-input-group prepend="Max. grade">
+                            <input :value="filter.maxGrade"
+                                @input="updateFilter(i, 'maxGrade', $event.target.value)"
+                                class="form-control"
+                                type="number"
+                                :placeholder="assignmentMaxGrade"
+                                :min="filter.minGrade"
+                                :max="assignmentMaxGrade"
+                                step="1" />
+
+                            <template #append>
+                                <b-button variant="warning"
+                                        :disabled="filter.maxGrade == null"
+                                        @click="updateFilter(i, 'maxGrade', null)">
+                                    <icon name="reply" />
+                                </b-button>
+                            </template>
+                        </b-input-group>
+
+                        <b-input-group prepend="Submitted after">
+                            <datetime-picker :value="formatDate(filter.submittedAfter)"
+                                            @input="updateFilter(i, 'submittedAfter', $event)"
+                                            :placeholder="`${assignmentCreated} (Assignment created)`"/>
+
+                                <template #append>
+                                    <b-button variant="warning"
+                                            :disabled="filter.submittedAfter == null"
+                                            @click="updateFilter(i, 'submittedAfter', null)">
+                                        <icon name="reply" />
+                                    </b-button>
+                                </template>
+                        </b-input-group>
+
+                        <b-input-group prepend="Submitted before">
+                            <datetime-picker :value="formatDate(filter.submittedBefore)"
+                                            @input="updateFilter(i, 'submittedBefore', $event)"
+                                            :placeholder="`${assignmentDeadline} (Assignment deadline)`"/>
+
+                                <template #append>
+                                    <b-button variant="warning"
+                                            :disabled="filter.submittedBefore == null"
+                                            @click="updateFilter(i, 'submittedAfter', null)">
+                                        <icon name="reply" />
+                                    </b-button>
+                                </template>
+                        </b-input-group>
+
+                        <div class="d-flex flex-row flex-wrap border rounded">
+                            <div class="p-1 border-right metric">
+                                <p>{{ results[i].submissions.studentCount }}</p>
+                                <small>Students</small>
+                            </div>
+
+                            <div class="p-1 border-right metric">
+                                <p>{{ results[i].submissions.submissionCount }}</p>
+                                <small>Submissions</small>
+                            </div>
+
+                            <div class="p-1 border-right metric">
+                                <p>{{ to2Dec(results[i].submissions.averageGrade) }}</p>
+                                <small>Avg. grade</small>
+                            </div>
+
+                            <div class="p-1 border-right metric">
+                                <p>{{ to2Dec(results[i].submissions.averageSubmissions) }}</p>
+                                <small>Avg. subs.</small>
+                            </div>
+
+                            <div class="p-1 metric">
+                                <p>{{ to2Dec(results[i].getSource('inline_feedback').averageEntries) }}</p>
+                                <small>Avg. feedback</small>
+                            </div>
+                        </div>
                     </div>
-                </b-input-group>
 
-                <b-input-group prepend="Min. grade">
-                    <input :value="filter.minGrade"
-                           @input="updateFilter(i, 'minGrade', $event.target.value)"
-                           class="form-control"
-                           type="number"
-                           placeholder="0"
-                           min="0"
-                           :max="filter.maxGrade"
-                           step="1" />
+                    <div class="split-controls"
+                        :class="{ active: isSplitting[i] }">
+                        <b-input-group>
+                            <b-input-group-prepend is-text>
+                                Latest
 
-                    <template #append>
-                        <b-button variant="warning"
-                                  :disabled="filter.minGrade == null"
-                                  @click="updateFilter(i, 'minGrade', null)">
-                            <icon name="reply" />
-                        </b-button>
-                    </template>
-                </b-input-group>
+                                <description-popover hug-text placement="top">
+                                    TODO Split on latest...
+                                </description-popover>
+                            </b-input-group-prepend>
 
-                <b-input-group prepend="Max. grade">
-                    <input :value="filter.maxGrade"
-                           @input="updateFilter(i, 'maxGrade', $event.target.value)"
-                           class="form-control"
-                           type="number"
-                           :placeholder="assignmentMaxGrade"
-                           :min="filter.minGrade"
-                           :max="assignmentMaxGrade"
-                           step="1" />
+                            <b-form-checkbox v-model="splitLatest"
+                                            class="form-control"
+                                            style="padding-left: 2.25rem;">
+                                Split on latest
+                            </b-form-checkbox>
+                        </b-input-group>
 
-                    <template #append>
-                        <b-button variant="warning"
-                                  :disabled="filter.maxGrade == null"
-                                  @click="updateFilter(i, 'maxGrade', null)">
-                            <icon name="reply" />
-                        </b-button>
-                    </template>
-                </b-input-group>
+                        <b-input-group>
+                            <b-input-group-prepend is-text>
+                                Grade
 
-                <b-input-group prepend="Submitted after">
-                    <datetime-picker :value="formatDate(filter.submittedAfter)"
-                                     @input="updateFilter(i, 'submittedAfter', $event)"
-                                     :placeholder="`${assignmentCreated} (Assignment created)`"/>
+                                <description-popover hug-text placement="top">
+                                    TODO Split on the grade...
+                                </description-popover>
+                            </b-input-group-prepend>
 
-                        <template #append>
-                            <b-button variant="warning"
-                                      :disabled="filter.submittedAfter == null"
-                                      @click="updateFilter(i, 'submittedAfter', null)">
-                                <icon name="reply" />
-                            </b-button>
-                        </template>
-                </b-input-group>
+                            <input v-model="splitGrade"
+                                class="form-control placeholder-left"
+                                type="number"
+                                :placeholder="`Avg. of filter = ${filterAvgGrade(filter)}`" />
+                        </b-input-group>
 
-                <b-input-group prepend="Submitted before">
-                    <datetime-picker :value="formatDate(filter.submittedBefore)"
-                                     @input="updateFilter(i, 'submittedBefore', $event)"
-                                     :placeholder="`${assignmentDeadline} (Assignment deadline)`"/>
+                        <b-input-group>
+                            <b-input-group-prepend is-text>
+                                Submitted
 
-                        <template #append>
-                            <b-button variant="warning"
-                                      :disabled="filter.submittedBefore == null"
-                                      @click="updateFilter(i, 'submittedAfter', null)">
-                                <icon name="reply" />
-                            </b-button>
-                        </template>
-                </b-input-group>
+                                <description-popover hug-text placement="top">
+                                    TODO Split on submitted...
+                                </description-popover>
+                            </b-input-group-prepend>
 
-                <b-input-group>
-                    <b-input-group-prepend is-text>
-                        # Students
-                    </b-input-group-prepend>
-                    <div class="form-control text-right">
-                        {{ results[i].submissions.studentCount }}
+                            <datetime-picker v-model="splitDate"
+                                            placeholder="Date" />
+                        </b-input-group>
+
+                        <div>
+                            <submit-button class="float-right"
+                                        variant="primary"
+                                        :submit="() => splitFilter(i)"
+                                        @after-success="afterSplitFilter">
+                                <icon name="check" />
+                            </submit-button>
+                        </div>
                     </div>
-
-                    <b-input-group-prepend is-text>
-                        # Submissions
-                    </b-input-group-prepend>
-                    <div class="form-control text-right">
-                        {{ results[i].submissions.submissionCount }}
-                    </div>
-                </b-input-group>
+                </div>
             </b-card>
         </div>
     </div>
@@ -188,6 +236,7 @@ import { mapGetters } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/reply';
+import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/unlink';
 import 'vue-awesome/icons/scissors';
 import 'vue-awesome/icons/copy';
@@ -195,6 +244,7 @@ import 'vue-awesome/icons/copy';
 import { Workspace, WorkspaceFilter } from '@/models';
 import SubmitButton from '@/components/SubmitButton';
 import DatetimePicker from '@/components/DatetimePicker';
+import DescriptionPopover from '@/components/DescriptionPopover';
 
 export default {
     name: 'analytics-filters',
@@ -212,12 +262,11 @@ export default {
 
     data() {
         return {
-            id: this.$utils.getUniqueId(),
             filters: [WorkspaceFilter.emptyFilter],
+            isSplitting: [false],
             splitLatest: false,
             splitGrade: '',
             splitDate: '',
-            popoverDisabled: false,
         };
     },
 
@@ -260,6 +309,7 @@ export default {
         filters: {
             immediate: true,
             handler() {
+                this.isSplitting = this.filters.map(() => false);
                 this.$router.replace({
                     query: {
                         ...this.$route.query,
@@ -280,6 +330,7 @@ export default {
 
     methods: {
         resetFilters() {
+            this.isSplitting = [false];
             this.filters = [WorkspaceFilter.emptyFilter];
         },
 
@@ -296,6 +347,10 @@ export default {
 
         addFilter() {
             this.filters = [...this.filters, WorkspaceFilter.emptyFilter];
+        },
+
+        toggleSplitFilter(idx) {
+            this.$set(this.isSplitting, idx, !this.isSplitting[idx]);
         },
 
         replaceFilter(idx, ...newFilters) {
@@ -320,7 +375,6 @@ export default {
         },
 
         async splitFilter(idx) {
-            this.popoverDisabled = true;
             // Replace the filter with the result of splitting it.
             const result = this.filters[idx].split({
                 latest: this.splitLatest,
@@ -331,15 +385,30 @@ export default {
         },
 
         afterSplitFilter() {
-            this.popoverDisabled = false;
             this.$afterRerender(() => {
                 this.$root.$emit('bv::hide::popover');
                 this.resetSplitParams();
             });
         },
 
+        filterAvgGrade(filter) {
+            let { minGrade, maxGrade } = filter;
+            if (minGrade == null) {
+                minGrade = 0;
+            }
+            if (maxGrade == null) {
+                const assigMax = this.assignment.maxGrade;
+                maxGrade = assigMax == null ? 10 : assigMax;
+            }
+            return (minGrade + maxGrade) / 2;
+        },
+
         formatDate(d) {
             return d == null ? null : this.$utils.readableFormatDate(d);
+        },
+
+        to2Dec(x) {
+            return this.$utils.toMaxNDecimals(x, 2);
         },
     },
 
@@ -353,9 +422,44 @@ export default {
         Icon,
         SubmitButton,
         DatetimePicker,
+        DescriptionPopover,
     },
 };
 </script>
 
 <style lang="less" scoped>
+@import '~mixins.less';
+
+.metric {
+    flex: 0 0 20%;
+    text-align: center;
+    line-height: 1.1;
+
+    p {
+        font-weight: bold;
+        margin-bottom: 0;
+    }
+}
+
+.controls {
+    overflow: hidden;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+}
+
+.filter-controls,
+.split-controls {
+    flex: 0 0 100%;
+    margin-right: 1rem;
+}
+
+.filter-controls {
+    margin-left: calc(-100% - 1rem);
+    transition: margin-left @transition-duration;
+
+    &.active {
+        margin-left: 0;
+    }
+}
 </style>

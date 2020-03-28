@@ -19,52 +19,53 @@
     <template v-else>
         <div class="col-12">
             <b-card header="General statistics"
-                    body-class="pb-0">
-                <div class="row">
-                    <div class="col-6 col-md-3 mb-3 border-right metric">
-                        <h1>{{ baseSubmissionData.studentCount }}</h1>
-                        <label>Students</label>
+                    body-class="d-flex flex-row flex-wrap">
+                <div class="mb-3 border-right metric">
+                    <h1>{{ baseSubmissionData.studentCount }}</h1>
+                    <label>Students</label>
+                </div>
 
-                        <description-popover triggers="hover"
-                                             placement="top">
-                            Submitted a total of
-                            {{ baseSubmissionData.submissionCount }} submissions!
-                        </description-popover>
-                    </div>
+                <div class="mb-3 metric"
+                     :class="{ 'border-right': $root.$isMediumWindow }">
+                    <h1>{{ baseSubmissionData.submissionCount }}</h1>
+                    <label>Submissions</label>
+                </div>
 
-                    <div class="col-6 col-md-3 mb-3 metric"
-                         :class="{ 'border-right': $root.$isMediumWindow }">
-                        <h1>{{ to2Dec(latestSubmissionData.averageGrade) }}</h1>
-                        <label>Average grade</label>
+                <hr v-if="!$root.$isMediumWindow"
+                    class="w-100 mt-0 mx-3"/>
 
-                        <description-popover triggers="hover"
-                                             placement="top">
-                            The average grade over the latest submissions.
-                        </description-popover>
-                    </div>
+                <div class="mb-3 border-right metric">
+                    <h1>{{ to2Dec(latestSubmissionData.averageGrade) }}</h1>
+                    <label>Average grade</label>
 
-                    <hr v-if="!$root.$isMediumWindow"
-                        class="w-100 mt-0 mx-3"/>
+                    <description-popover triggers="hover"
+                                            placement="top">
+                        The average grade over the latest submissions.
+                    </description-popover>
+                </div>
 
-                    <div class="col-6 col-md-3 mb-3 border-right metric">
-                        <h1>{{ to2Dec(baseSubmissionData.averageSubmissions) }}</h1>
-                        <label>Average number of submissions</label>
+                <div class="mb-3 metric"
+                     :class="{ 'border-right': $root.$isMediumWindow }">
+                    <h1>{{ to2Dec(baseSubmissionData.averageSubmissions) }}</h1>
+                    <label>Average number of submissions</label>
 
-                        <description-popover triggers="hover"
-                                             placement="top">
-                            The average number of submissions per student.
-                        </description-popover>
-                    </div>
+                    <description-popover triggers="hover"
+                                            placement="top">
+                        The average number of submissions per student.
+                    </description-popover>
+                </div>
 
-                    <div class="col-6 col-md-3 mb-3 metric">
-                        <h1>{{ to2Dec(latestInlineFeedbackSource.averageEntries) }}</h1>
-                        <label>Average number of feedback entries</label>
+                <hr v-if="!$root.$isMediumWindow"
+                    class="w-100 mt-0 mx-3"/>
 
-                        <description-popover triggers="hover"
-                                             placement="top">
-                            The average number of feedback entries over the latest submissions.
-                        </description-popover>
-                    </div>
+                <div class="mb-3 metric">
+                    <h1>{{ to2Dec(latestInlineFeedbackSource.averageEntries) }}</h1>
+                    <label>Average number of feedback entries</label>
+
+                    <description-popover triggers="hover"
+                                            placement="top">
+                        The average number of feedback entries over the latest submissions.
+                    </description-popover>
                 </div>
             </b-card>
         </div>
@@ -150,8 +151,8 @@
                 </b-card>
             </div>
 
-            <div class="col-12 col-lg-6"
-                 :class="{ 'col-lg-12': largeGradeHistogram }">
+            <div class="col-12 col-xl-6"
+                 :class="{ 'col-xl-12': largeGradeHistogram }">
                 <b-card header="Grade statistics">
                     <loader center :scale="2" class="p-3" v-if="changingGradeHistSize" />
 
@@ -164,8 +165,8 @@
             </div>
 
             <template v-if="rubricStatistic != null">
-                <div class="col-12 col-lg-6"
-                     :class="{ 'col-lg-12': largeGradeHistogram }">
+                <div class="col-12 col-xl-6"
+                     :class="{ 'col-xl-12': largeGradeHistogram }">
                     <b-card header-class="d-flex">
                         <template #header>
                             <div class="flex-grow-1">
@@ -421,7 +422,7 @@ export default {
         },
 
         largeGradeHistogram() {
-            return this.$root.$isLargeWindow && (
+            return (
                 !this.hasRubricSource ||
                 this.hasManyRubricRows ||
                 this.filterResults.length > 2
@@ -598,6 +599,9 @@ export default {
 
         rubricScatterOpts() {
             return {
+                cgScatter: {
+                    withBestFit: true,
+                },
                 scales: {
                     xAxes: [
                         {
@@ -708,12 +712,11 @@ export default {
 
         getRubricScatterData(row) {
             const datasets = this.rubricSources.map((source, i) => {
-                const { ritItemsPerCat, rirItemsPerCat } = source;
-                const ritItems = ritItemsPerCat[row.id];
+                const { rirItemsPerCat } = source;
                 const rirItems = rirItemsPerCat[row.id];
 
-                if (ritItems.length === 0 && rirItems.length === 0) {
-                    return [];
+                if (rirItems.length === 0) {
+                    return {};
                 }
 
                 return {
@@ -835,9 +838,16 @@ export default {
 </script>
 
 <style lang="less" scoped>
+@import '~mixins.less';
+
 .metric {
+    flex: 0 0 20%;
     position: relative;
     text-align: center;
+
+    @media @media-no-medium {
+        flex-basis: 50%;
+    }
 
     label {
         padding: 0 1rem;

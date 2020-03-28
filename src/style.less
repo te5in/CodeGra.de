@@ -533,6 +533,21 @@ hr {
     cursor: help !important;
 }
 
+.placeholder-left {
+    &::-webkit-input-placeholder {
+        text-align: left;
+    }
+    &:-moz-placeholder { /* Firefox 18- */
+        text-align: left;
+    }
+    &::-moz-placeholder {  /* Firefox 19+ */
+        text-align: left;
+    }
+    &:-ms-input-placeholder {
+        text-align: left;
+    }
+}
+
 .flatpickr-calendar {
     border-radius: @border-radius;
 

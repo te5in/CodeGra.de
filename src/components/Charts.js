@@ -105,12 +105,12 @@ export const BaseChart = {
             this.renderChart(this.renderData, this.renderOpts);
         },
 
-        getColors() {
+        getColors(n_) {
             // TODO: get colors based on a hash
             const colors = COLOR_PAIRS.map(c => this.processColor(c.background));
             const ret = [];
 
-            let n = this.datasets.length;
+            let n = n_;
             while (n > 0) {
                 const add = colors.slice(0, n);
                 ret.push(...add);
@@ -126,6 +126,7 @@ export const BaseChart = {
                 hoverBackgroundColor: color.replace(')', ', 0.8)'),
                 borderColor: color,
                 borderWidth: 2,
+                lineColor: color.replace(')', ', 0.4)'),
             };
         },
     },
@@ -211,11 +212,15 @@ export const ScatterPlot = {
     computed: {
         renderData() {
             const colors = this.getColors(this.datasets.length);
-            return Object.assign({}, this.chartData, {
-                datasets: this.datasets.map((ds, i) =>
-                    Object.assign({}, ds, colors[i]),
-                ),
-            });
+            const datasets = this.datasets.map((ds, i) =>
+                Object.assign({}, ds, colors[i]),
+            );
+
+            if (this.$utils.getProps(this.options, false, 'cgScatter', 'withBestFit')) {
+                datasets.push(...datasets.map(this.fitLine));
+            }
+
+            return Object.assign({}, this.chartData, { datasets });
         },
 
         renderOpts() {
@@ -223,29 +228,29 @@ export const ScatterPlot = {
                 scales: {
                     xAxes: [
                         {
-                            ticks: this.suggestedXRange,
+                            ticks: this.xRange,
                         },
                     ],
                     yAxes: [
                         {
-                            ticks: this.suggestedYRange,
+                            ticks: this.yRange,
                         },
                     ],
                 },
             }, this.options);
         },
 
-        suggestedXRange() {
-            return this.suggestedRange('x');
+        xRange() {
+            return this.range('x');
         },
 
-        suggestedYRange() {
-            return this.suggestedRange('y');
+        yRange() {
+            return this.range('y');
         },
     },
 
     methods: {
-        suggestedRange(dim) {
+        range(dim) {
             const xsPerDataset = this.datasets.map(ds => ds.data.map(el => el[dim]));
             const xs = [].concat(...xsPerDataset);
 
@@ -254,9 +259,34 @@ export const ScatterPlot = {
             const dX = maxX - minX;
 
             return {
-                suggestedMin: minX - this.padding * dX || 0,
-                suggestedMax: maxX + this.padding * dX || 1,
+                min: Math.floor((minX - this.padding * dX) || 0),
+                max: Math.ceil((maxX + this.padding * dX) || 1),
             };
+        },
+
+        fitLine(dataset) {
+            const { data } = dataset;
+            const points = data.map(({ x, y }) => [x, y]);
+            const f = stat.linearRegressionLine(
+                stat.linearRegression(points),
+            );
+
+            let { min, max } = this.xRange;
+            // Make sure the endpoints of the line
+            // are out of view.
+            min -= max - min;
+            max += max - min;
+
+            return Object.assign({}, dataset, {
+                type: 'line',
+                label: `${dataset.label} (Best fit)`,
+                data: [
+                    { x: min, y: f(min) },
+                    { x: max, y: f(max) },
+                ],
+                backgroundColor: 'transparent',
+                borderColor: dataset.lineColor,
+            });
         },
     },
 };
