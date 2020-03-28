@@ -183,3 +183,4 @@ if True:  # pylint: disable=using-constant-test
     from .proxy import Proxy, ProxyState
 
     from .notification import Notification
+    from .user_setting import NotificationsSetting, SettingBase

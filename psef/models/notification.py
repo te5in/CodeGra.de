@@ -4,7 +4,7 @@ import sqlalchemy
 from typing_extensions import Literal, TypedDict
 
 from cg_sqlalchemy_helpers import ARRAY
-from cg_sqlalchemy_helpers.types import ColumnProxy
+from cg_sqlalchemy_helpers.types import DbType, ColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import Base, db
@@ -13,6 +13,16 @@ from . import comment as c_models
 from ..helpers import NotEqualMixin
 
 NotificationReason = Literal['author', 'replied', 'assignee']
+# We cannot use `typing.get_args` as we need to support python 3.7
+ALL_NOTIFICATION_REASONS: t.Set[NotificationReason] = set(
+    NotificationReason.__args__  # type: ignore[misc]
+)
+
+
+def NotificationReasonEnum() -> DbType[NotificationReason]:
+    return db.Enum(
+        *sorted(ALL_NOTIFICATION_REASONS), name='notification_reason'
+    )
 
 
 class BaseNotificationJSON(TypedDict):
@@ -38,9 +48,9 @@ class Notification(Base, IdMixin, TimestampMixin, NotEqualMixin):
         db.ForeignKey('User.id', ondelete='CASCADE'),
         nullable=False,
     )
-    reasons: ColumnProxy[t.Tuple[NotificationReason, ...]] = db.Column(
+    reasons = db.Column(
         'reasons',
-        ARRAY(db.Unicode, as_tuple=True, dimensions=1),
+        ARRAY(NotificationReasonEnum(), as_tuple=True, dimensions=1),
         nullable=False,
     )
 
