@@ -734,7 +734,7 @@ if t.TYPE_CHECKING:
         def __clause_element__(self) -> DbColumn[T]:
             ...
 
-    JSONB: DbType[t.Mapping[str, object]]
+    JSONB = DbType[t.Mapping[str, object]]()
 
     def TIMESTAMP(*, timezone: Literal[True]
                   ) -> DbType[cg_dt_utils.DatetimeWithTimezone]:
