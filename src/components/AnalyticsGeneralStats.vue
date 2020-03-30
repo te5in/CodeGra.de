@@ -77,7 +77,7 @@
 
 <script>
 import DescriptionPopover from '@/components/DescriptionPopover';
-import { Workspace, WorkspaceFilterResult } from '@/models';
+import { Workspace, WorkspaceFilterResult } from '@/models/analytics';
 
 export default {
     name: 'analytics-general-stats',

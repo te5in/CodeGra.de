@@ -2,8 +2,9 @@
 import Vue from 'vue';
 import axios from 'axios';
 
-import { Workspace } from '@/models';
 import * as types from '../mutation-types';
+
+let Workspace = null;
 
 const getters = {
     getWorkspace: state =>
@@ -17,7 +18,15 @@ const loaders = {
 };
 
 async function loadWorkspace(workspaceId) {
-    const res = await axios.get(`/api/v1/analytics/${workspaceId}`);
+    const promises = [axios.get(`/api/v1/analytics/${workspaceId}`)];
+    if (Workspace == null) {
+        promises.push(
+            import('@/models/analytics').then((...args) => {
+                Workspace = args[0].Workspace;
+            }),
+        );
+    }
+    const [res] = await Promise.all(promises);
 
     const sources = await Promise.all(
         res.data.data_sources.map(source =>

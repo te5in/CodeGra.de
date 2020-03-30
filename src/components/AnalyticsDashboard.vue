@@ -168,7 +168,7 @@ import moment from 'moment';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/percent';
 
-import { WorkspaceFilter } from '@/models';
+import { WorkspaceFilter } from '@/models/analytics';
 import { BarChart, ScatterPlot } from '@/components/Charts';
 import Loader from '@/components/Loader';
 import DatetimePicker from '@/components/DatetimePicker';

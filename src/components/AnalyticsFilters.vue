@@ -232,7 +232,7 @@ import 'vue-awesome/icons/unlink';
 import 'vue-awesome/icons/scissors';
 import 'vue-awesome/icons/copy';
 
-import { Workspace, WorkspaceFilter } from '@/models';
+import { Workspace, WorkspaceFilter } from '@/models/analytics';
 import SubmitButton from '@/components/SubmitButton';
 import DatetimePicker from '@/components/DatetimePicker';
 import DescriptionPopover from '@/components/DescriptionPopover';

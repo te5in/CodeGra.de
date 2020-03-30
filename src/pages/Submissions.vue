@@ -304,7 +304,6 @@ import GroupsManagement from '@/components/GroupsManagement';
 import {
     CgLogo,
     Loader,
-    AnalyticsDashboard,
     Collapse,
     LocalHeader,
     CGIgnoreFile,
@@ -773,7 +772,6 @@ export default {
         Icon,
         CgLogo,
         Loader,
-        AnalyticsDashboard,
         Collapse,
         LocalHeader,
         CGIgnoreFile,
@@ -786,6 +784,7 @@ export default {
         SubmissionsExporter,
         WebhookInstructions,
         LateSubmissionIcon,
+        AnalyticsDashboard: () => import('@/components/AnalyticsDashboard'),
     },
 };
 </script>
