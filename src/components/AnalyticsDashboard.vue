@@ -56,8 +56,8 @@
                                              :config="{
                                                  mode: 'range',
                                                  enableTime: false,
-                                                 defaultHour: undefined,
-                                                 defaultMinute: undefined,
+                                                 minDate: minSubmissionDate,
+                                                 maxDate: maxSubmissionDate,
                                              }"
                                              class="ml-3 text-center"
                                              style="min-width: 20rem"/>
@@ -93,10 +93,26 @@
                         </div>
                     </template>
 
-                    <h3 v-if="submissionDateMessage"
-                        class="p-3 text-center text-muted font-italic">
-                        {{ submissionDateMessage }}
-                    </h3>
+                    <template v-if="noSubmissionWithinSelectedDates">
+                        <h3 class="p-3 text-center text-muted font-italic">
+                            No submission within this range!
+                        </h3>
+                    </template>
+
+                    <template v-else-if="tooMuchSubmissionDateBins && !forceRenderSubmissionDates">
+                        <p class="p-3 text-muted font-italic">
+                            The selected range contains a lot of data points and
+                            rendering the graph may freeze your browser.
+                            Please select fewer bins or click the button below to
+                            render the dataset anyway.
+                        </p>
+
+                        <b-button variant="primary"
+                                class="float-right"
+                                @click="forceRenderSubmissionDates = true">
+                            Render anyway
+                        </b-button>
+                    </template>
 
                     <bar-chart v-else
                                :chart-data="submissionDateHistogram"
@@ -199,6 +215,7 @@ export default {
             submissionDateBinSize: 1,
             submissionDateBinSizeTimer: null,
             submissionDateBinUnit: 'days',
+            forceRenderSubmissionDates: false,
 
             rubricRelative: true,
             selectedRubricStatistic: null,
@@ -264,6 +281,24 @@ export default {
             return this.filterResults.map(f => f.filter.toString());
         },
 
+        minSubmissionDate() {
+            const firstPerSource = this.submissionSources.map(source => source.firstSubmissionDate);
+            const first = firstPerSource.reduce(
+                (f, d) => (f == null || f.isAfter(d) ? d : f),
+                null,
+            );
+            return first.toISOString();
+        },
+
+        maxSubmissionDate() {
+            const lastPerSource = this.submissionSources.map(source => source.lastSubmissionDate);
+            const last = lastPerSource.reduce(
+                (l, d) => (l == null || l.isBefore(d) ? d : l),
+                null,
+            );
+            return last.toISOString();
+        },
+
         submissionDateBinUnits() {
             return [
                 'minutes',
@@ -274,13 +309,13 @@ export default {
             ];
         },
 
-        submissionDateMessage() {
-            if (this.submissionDateHistogram.labels.length === 0) {
-                return 'No submission within this range!';
-            } else if (this.submissionDateHistogram.labels.length > 500) {
-                return 'Please select fewer bins.';
-            }
-            return null;
+        noSubmissionWithinSelectedDates() {
+            const datasets = this.submissionDateHistogram.datasets;
+            return stat.sum(datasets.flatMap(ds => ds.data)) === 0;
+        },
+
+        tooMuchSubmissionDateBins() {
+            return this.submissionDateHistogram.labels.length > 100;
         },
 
         submissionDateHistogram() {
@@ -589,6 +624,7 @@ export default {
             this.submissionDateRange = [];
             this.submissionDateBinSize = 1;
             this.submissionDateBinUnit = 'days';
+            this.forceRenderSubmissionDates = false;
             clearTimeout(this.submissionDateBinSizeTimer);
         },
 
@@ -713,7 +749,8 @@ export default {
         },
 
         updateSubmissionDateRange(event) {
-            // Somehow this event is sometimes triggered without an array...
+            // Somehow this event is sometimes triggered with a string
+            // instead of an array...
             if (typeof event === 'string') {
                 return;
             }
@@ -729,6 +766,7 @@ export default {
                 // in the page.
                 !newRange.every((x, i) => x.isSame(curRange[i]))
             ) {
+                this.forceRenderSubmissionDates = false;
                 this.submissionDateRange = event;
             }
         },
@@ -739,8 +777,14 @@ export default {
                 const newSize = parseFloat(event.target.value);
                 if (!Number.isNaN(newSize) && newSize !== this.submissionDateBinSize) {
                     this.submissionDateBinSize = Number(newSize);
+                    this.forceRenderSubmissionDates = false;
                 }
             }, 500);
+        },
+
+        updateSubmissionDateBinUnit(event) {
+            this.forceRenderSubmissionDates = false;
+            this.submissionDateBinUnit = event;
         },
     },
 

@@ -54,7 +54,7 @@
                              :class="{ 'text-muted': deleteDisabled }"
                              @click="deleteFilter(i)"
                              v-b-popover.hover.top="
-                                deleteDisabled ?  'You cannot delete the last filter' : 'Delete'
+                                deleteDisabled ?  'You cannot delete the only filter' : 'Delete'
                              ">
                             <icon name="times" />
                         </div>

@@ -383,6 +383,8 @@ class WorkspaceSubmissionSet {
         this.submissions = mapObject(subs, Object.freeze);
         this._cache = makeCache(
             'allSubmissions',
+            'firstSubmission',
+            'lastSubmission',
             'averageGrade',
             'averageSubmissions',
             'submissionIds',
@@ -393,6 +395,36 @@ class WorkspaceSubmissionSet {
     get allSubmissions() {
         return this._cache.get('allSubmissions', () =>
             [].concat(...Object.values(this.submissions)),
+        );
+    }
+
+    get firstSubmissionDate() {
+        return this._cache.get('firstSubmission', () =>
+            this.allSubmissions.reduce(
+                (first, sub) => {
+                    if (first == null || first.isAfter(sub.createdAt)) {
+                        return sub.createdAt;
+                    } else {
+                        return first;
+                    }
+                },
+                null,
+            ),
+        );
+    }
+
+    get lastSubmissionDate() {
+        return this._cache.get('lastSubmission', () =>
+            this.allSubmissions.reduce(
+                (last, sub) => {
+                    if (last == null || last.isBefore(sub.createdAt)) {
+                        return sub.createdAt;
+                    } else {
+                        return last;
+                    }
+                },
+                null,
+            ),
         );
     }
 
