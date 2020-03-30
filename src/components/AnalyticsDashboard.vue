@@ -50,6 +50,12 @@
                         </div>
 
                         <div class="d-flex flex-grow-0">
+                            <b-button :variant="submissionDateRelative ? 'primary' : 'secondary'"
+                                      @click="submissionDateRelative = !submissionDateRelative"
+                                      v-b-popover.top.hover="'Relative to filter group'">
+                                <icon name="percent" />
+                            </b-button>
+
                             <datetime-picker :value="submissionDateRange"
                                              @on-close="updateSubmissionDateRange"
                                              placeholder="Select dates"
@@ -59,7 +65,7 @@
                                                  minDate: minSubmissionDate,
                                                  maxDate: maxSubmissionDate,
                                              }"
-                                             class="ml-3 text-center"
+                                             class="ml-2 text-center"
                                              style="min-width: 20rem"/>
 
                             <b-input-group class="mb-0">
@@ -71,18 +77,12 @@
                                        class="form-control ml-2 pt-1"
                                        style="max-width: 4rem;"/>
 
-                                <b-form-select v-model="submissionDateBinUnit"
+                                <b-form-select :value="submissionDateBinUnit"
+                                               @input="updateSubmissionDateBinUnit"
                                                :options="submissionDateBinUnits"
                                                class="pt-1"
                                                style="max-width: 7.5rem"/>
                             </b-input-group>
-
-                            <div class="icon-button"
-                                 :class="{ 'active': submissionDateRelative }"
-                                 @click="submissionDateRelative = !submissionDateRelative"
-                                 v-b-popover.top.hover="'Relative to filter group'">
-                                <icon name="percent" />
-                            </div>
 
                             <div class="icon-button danger"
                                  @click="resetSubmissionDateParams"
@@ -145,18 +145,17 @@
                             </div>
 
                             <div class="d-flex flex-grow-0">
+                                <b-button v-if="rubricStatistic.hasRelative"
+                                          :variant="rubricRelative ? 'primary' : 'secondary'"
+                                          @click="rubricRelative = !rubricRelative"
+                                          v-b-popover.top.hover="'Relative to max score in category'">
+                                    <icon name="percent" />
+                                </b-button>
+
                                 <b-form-select v-model="selectedRubricStatistic"
                                                :options="rubricStatOptions"
-                                               class="ml-3 pt-1"
+                                               class="ml-2"
                                                style="max-width: 7.5rem"/>
-
-                                <div v-if="rubricStatistic.hasRelative"
-                                     class="icon-button"
-                                     :class="{ 'active': rubricRelative }"
-                                     @click="rubricRelative = !rubricRelative"
-                                     v-b-popover.top.hover="'Relative to max score in category'">
-                                    <icon name="percent" />
-                                </div>
                             </div>
                         </template>
 
@@ -841,11 +840,17 @@ export default {
     }
 
     .card-header {
+        .btn,
         .custom-select,
         .form-control {
             height: 2rem;
             margin: -0.25rem 0;
-            /* margin: -0.25rem -0.75rem; */
+            padding-top: 0.25rem;
+        }
+
+        .btn {
+            padding: 0.25rem 0.5rem;
+            box-shadow: none !important;
         }
     }
 
