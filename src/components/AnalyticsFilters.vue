@@ -134,7 +134,7 @@
                                 <template #append>
                                     <b-button variant="warning"
                                             :disabled="filter.submittedBefore == null"
-                                            @click="updateFilter(i, 'submittedAfter', null)">
+                                            @click="updateFilter(i, 'submittedBefore', null)">
                                         <icon name="reply" />
                                     </b-button>
                                 </template>
