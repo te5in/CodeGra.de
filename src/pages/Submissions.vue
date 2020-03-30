@@ -275,7 +275,17 @@
 
             <div v-show="selectedCat === 'analytics'"
                  class="flex-grow-1">
-                <analytics-dashboard :assignment-id="assignmentId" />
+                <catch-error>
+                    <div slot-scope="scope">
+                        <b-alert show variant="danger" v-if="scope.error">
+                            An unexpected error occurred:
+                            {{ $utils.getErrorMessage(scope.error) }}
+                        </b-alert>
+
+                        <analytics-dashboard v-else
+                                             :assignment-id="assignmentId" />
+                    </div>
+                </catch-error>
             </div>
         </template>
     </div>
@@ -305,6 +315,7 @@ import {
     CgLogo,
     Loader,
     Collapse,
+    CatchError,
     LocalHeader,
     CGIgnoreFile,
     RubricEditor,
@@ -772,6 +783,7 @@ export default {
         CgLogo,
         Loader,
         Collapse,
+        CatchError,
         LocalHeader,
         CGIgnoreFile,
         RubricEditor,
