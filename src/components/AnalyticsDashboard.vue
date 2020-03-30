@@ -9,7 +9,7 @@
 
     <loader page-loader v-else-if="loading" />
 
-    <div v-else-if="baseSubmissionData.submissionCount === 0"
+    <div v-else-if="totalSubmissionCount === 0"
          class="col-12">
         <h3 class="border rounded p-5 text-center text-muted font-italic">
             There are no submissions yet.
@@ -18,56 +18,11 @@
 
     <template v-else>
         <div class="col-12">
-            <b-card header="General statistics"
-                    body-class="d-flex flex-row flex-wrap">
-                <div class="mb-3 border-right metric">
-                    <h1>{{ baseSubmissionData.studentCount }}</h1>
-                    <label>Students</label>
-                </div>
-
-                <div class="mb-3 metric"
-                     :class="{ 'border-right': $root.$isMediumWindow }">
-                    <h1>{{ baseSubmissionData.submissionCount }}</h1>
-                    <label>Submissions</label>
-                </div>
-
-                <hr v-if="!$root.$isMediumWindow"
-                    class="w-100 mt-0 mx-3"/>
-
-                <div class="mb-3 border-right metric">
-                    <h1>{{ to2Dec(latestSubmissionData.averageGrade) }}</h1>
-                    <label>Average grade</label>
-
-                    <description-popover triggers="hover"
-                                            placement="top">
-                        The average grade over the latest submissions.
-                    </description-popover>
-                </div>
-
-                <div class="mb-3 metric"
-                     :class="{ 'border-right': $root.$isMediumWindow }">
-                    <h1>{{ to2Dec(baseSubmissionData.averageSubmissions) }}</h1>
-                    <label>Average number of submissions</label>
-
-                    <description-popover triggers="hover"
-                                            placement="top">
-                        The average number of submissions per student.
-                    </description-popover>
-                </div>
-
-                <hr v-if="!$root.$isMediumWindow"
-                    class="w-100 mt-0 mx-3"/>
-
-                <div class="mb-3 metric">
-                    <h1>{{ to2Dec(latestInlineFeedbackSource.averageEntries) }}</h1>
-                    <label>Average number of feedback entries</label>
-
-                    <description-popover triggers="hover"
-                                            placement="top">
-                        The average number of feedback entries over the latest submissions.
-                    </description-popover>
-                </div>
-            </b-card>
+            <analytics-general-stats
+                large
+                :base-workspace="baseWorkspace"
+                :grade-workspace="latestSubmissionsWorkspace"
+                :feedback-workspace="latestSubmissionsWorkspace" />
         </div>
 
         <div class="col-12">
@@ -79,7 +34,7 @@
 
         <loader page-loader :scale="4" v-if="filterResults.length === 0" />
 
-        <div v-else-if="baseSubmissionData.submissionCount === 0"
+        <div v-else-if="totalSubmissionCount === 0"
             class="col-12">
             <h3 class="border rounded p-5 text-center text-muted font-italic">
                 No submissions within the specified filter parameters.
@@ -218,7 +173,7 @@ import { BarChart, ScatterPlot } from '@/components/Charts';
 import Loader from '@/components/Loader';
 import DatetimePicker from '@/components/DatetimePicker';
 import AnalyticsFilters from '@/components/AnalyticsFilters';
-import DescriptionPopover from '@/components/DescriptionPopover';
+import AnalyticsGeneralStats from '@/components/AnalyticsGeneralStats';
 
 export default {
     name: 'analytics-dashboard',
@@ -276,22 +231,14 @@ export default {
             return this.$utils.getProps(this.assignment, null, 'rubric');
         },
 
-        baseSubmissionData() {
-            return this.baseWorkspace.submissions;
+        totalSubmissionCount() {
+            return this.baseWorkspace.submissions.submissionCount;
         },
 
-        latestSubmissions() {
+        latestSubmissionsWorkspace() {
             return this.baseWorkspace.filter([
                 new WorkspaceFilter({ onlyLatestSubs: true }),
             ])[0];
-        },
-
-        latestSubmissionData() {
-            return this.latestSubmissions.submissions;
-        },
-
-        latestInlineFeedbackSource() {
-            return this.latestSubmissions.getSource('inline_feedback');
         },
 
         submissionSources() {
@@ -831,35 +778,13 @@ export default {
         BarChart,
         ScatterPlot,
         AnalyticsFilters,
+        AnalyticsGeneralStats,
         DatetimePicker,
-        DescriptionPopover,
     },
 };
 </script>
 
 <style lang="less" scoped>
-@import '~mixins.less';
-
-.metric {
-    flex: 0 0 20%;
-    position: relative;
-    text-align: center;
-
-    @media @media-no-medium {
-        flex-basis: 50%;
-    }
-
-    label {
-        padding: 0 1rem;
-        margin-bottom: 0;
-    }
-
-    .description-popover {
-        position: absolute;
-        top: 0;
-        right: 0.5rem;
-    }
-}
 </style>
 
 <style lang="less">

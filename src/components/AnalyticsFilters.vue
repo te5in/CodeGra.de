@@ -135,32 +135,9 @@
                                 </template>
                         </b-input-group>
 
-                        <div class="d-flex flex-row flex-wrap border rounded">
-                            <div class="p-1 border-right metric">
-                                <p>{{ results[i].submissions.studentCount }}</p>
-                                <small>Students</small>
-                            </div>
-
-                            <div class="p-1 border-right metric">
-                                <p>{{ results[i].submissions.submissionCount }}</p>
-                                <small>Submissions</small>
-                            </div>
-
-                            <div class="p-1 border-right metric">
-                                <p>{{ to2Dec(results[i].submissions.averageGrade) }}</p>
-                                <small>Avg. grade</small>
-                            </div>
-
-                            <div class="p-1 border-right metric">
-                                <p>{{ to2Dec(results[i].submissions.averageSubmissions) }}</p>
-                                <small>Avg. subs.</small>
-                            </div>
-
-                            <div class="p-1 metric">
-                                <p>{{ to2Dec(results[i].getSource('inline_feedback').averageEntries) }}</p>
-                                <small>Avg. feedback</small>
-                            </div>
-                        </div>
+                        <analytics-general-stats
+                            :base-workspace="results[i]"
+                            class="mb-0" />
                     </div>
 
                     <div class="split-controls"
@@ -245,6 +222,7 @@ import { Workspace, WorkspaceFilter } from '@/models';
 import SubmitButton from '@/components/SubmitButton';
 import DatetimePicker from '@/components/DatetimePicker';
 import DescriptionPopover from '@/components/DescriptionPopover';
+import AnalyticsGeneralStats from '@/components/AnalyticsGeneralStats';
 
 export default {
     name: 'analytics-filters',
@@ -423,23 +401,13 @@ export default {
         SubmitButton,
         DatetimePicker,
         DescriptionPopover,
+        AnalyticsGeneralStats,
     },
 };
 </script>
 
 <style lang="less" scoped>
 @import '~mixins.less';
-
-.metric {
-    flex: 0 0 20%;
-    text-align: center;
-    line-height: 1.1;
-
-    p {
-        font-weight: bold;
-        margin-bottom: 0;
-    }
-}
 
 .controls {
     overflow: hidden;

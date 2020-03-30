@@ -14,10 +14,6 @@ import {
 import { makeCache } from '@/utils/cache';
 import { defaultdict } from '@/utils/defaultdict';
 
-function dropNull(xs) {
-    return xs.filter(x => x != null);
-}
-
 export class DataSource {
     static sourceName = '__base_data_source';
 
@@ -163,19 +159,37 @@ export class RubricSource extends DataSource {
 
     get meanPerCat() {
         return this._cache.get('meanPerCat', () =>
-            this.mapItemsPerCat(items => stat.mean(items.map(item => item.points)), true),
+            this.mapItemsPerCat(items => {
+                if (items.length === 0) {
+                    return null;
+                } else {
+                    return stat.mean(items.map(item => item.points));
+                }
+            }, true),
         );
     }
 
     get modePerCat() {
         return this._cache.get('modePerCat', () =>
-            this.mapItemsPerCat(items => stat.mode(items.map(item => item.points)), true),
+            this.mapItemsPerCat(items => {
+                if (items.length === 0) {
+                    return null;
+                } else {
+                    return stat.mode(items.map(item => item.points));
+                }
+            }, true),
         );
     }
 
     get medianPerCat() {
         return this._cache.get('medianPerCat', () =>
-            this.mapItemsPerCat(items => stat.median(items.map(item => item.points)), true),
+            this.mapItemsPerCat(items => {
+                if (items.length === 0) {
+                    return null;
+                } else {
+                    return stat.median(items.map(item => item.points));
+                }
+            }, true),
         );
     }
 
@@ -479,9 +493,14 @@ class WorkspaceSubmissionSet {
     }
 
     get averageGrade() {
-        return this._cache.get('averageGrade', () =>
-            stat.mean(dropNull(this.allSubmissions.map(sub => sub.grade))),
-        );
+        return this._cache.get('averageGrade', () => {
+            if (this.allSubmissions.length === 0) {
+                return null;
+            } else {
+                const grades = this.allSubmissions.map(sub => sub.grade);
+                return stat.mean(grades.filter(grade => grade != null));
+            }
+        });
     }
 
     get averageSubmissions() {
@@ -654,7 +673,7 @@ export class WorkspaceFilter {
     }
 }
 
-class WorkspaceFilterResult {
+export class WorkspaceFilterResult {
     constructor(workspace, filter) {
         this.workspace = workspace;
         this.filter = filter;

@@ -189,6 +189,9 @@ export const BarChart = {
         },
 
         suggestedRange() {
+            if (this.datasets.length === 0) {
+                return [0, 0];
+            }
             const factor = 1 + this.padding;
             const minPerCat = this.datasets.map(ds =>
                 (ds.data.length === 0 ? 0 : stat.min(ds.data)),
@@ -217,7 +220,7 @@ export const ScatterPlot = {
             );
 
             if (this.$utils.getProps(this.options, false, 'cgScatter', 'withBestFit')) {
-                datasets.push(...datasets.map(this.fitLine));
+                datasets.push(...datasets.map(this.fitLine).filter(x => x != null));
             }
 
             return Object.assign({}, this.chartData, { datasets });
@@ -251,6 +254,10 @@ export const ScatterPlot = {
 
     methods: {
         range(dim) {
+            if (this.datasets.length === 0) {
+                return [0, 0];
+            }
+
             const xsPerDataset = this.datasets.map(ds => ds.data.map(el => el[dim]));
             const xs = [].concat(...xsPerDataset);
 
@@ -265,6 +272,10 @@ export const ScatterPlot = {
         },
 
         fitLine(dataset) {
+            if (dataset.data.length === 0) {
+                return null;
+            }
+
             const { data } = dataset;
             const points = data.map(({ x, y }) => [x, y]);
             const f = stat.linearRegressionLine(
