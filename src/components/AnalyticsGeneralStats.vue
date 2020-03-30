@@ -133,17 +133,20 @@ export default {
 
         averageGrade() {
             const workspace = this.gradeWorkspace || this.baseWorkspace;
-            return this.to2Dec(workspace.submissions.averageGrade);
+            const avg = workspace.submissions.averageGrade;
+            return avg == null ? '-' : this.to2Dec(avg);
         },
 
         averageSubmissions() {
-            return this.to2Dec(this.baseWorkspace.submissions.averageSubmissions);
+            const avg = this.baseWorkspace.submissions.averageSubmissions;
+            return avg == null ? '-' : this.to2Dec(avg);
         },
 
         averageFeedbackEntries() {
             const workspace = this.feedbackWorkspace || this.baseWorkspace;
             const source = workspace.getSource('inline_feedback');
-            return source == null ? '-' : this.to2Dec(source.averageEntries);
+            const avg = this.$utils.getProps(source, null, 'averageEntries');
+            return avg == null ? '-' : this.to2Dec(avg);
         },
     },
 

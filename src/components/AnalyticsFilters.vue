@@ -39,9 +39,14 @@
                         </div>
 
                         <div class="icon-button"
-                             :class="{ active: isSplitting[i] }"
+                             :class="{
+                                 active: isSplitting === i,
+                                 'text-muted': isSplittingOther(i),
+                             }"
                              @click="toggleSplitFilter(i)"
-                             v-b-popover.hover.top="'Split'">
+                             v-b-popover.hover.top="
+                                isSplittingOther(i) ? 'Already splitting another filter' : 'Split'
+                            ">
                             <icon name="scissors" />
                         </div>
 
@@ -58,12 +63,12 @@
 
                 <div class="controls">
                     <div class="filter-controls"
-                        :class="{ active: !isSplitting[i] }">
+                        :class="{ active: isSplitting !== i }">
                         <b-input-group prepend="Latest">
                             <div class="form-control pl-2">
                                 <b-form-checkbox :checked="filter.onlyLatestSubs"
-                                                @input="updateFilter(i, 'onlyLatestSubs', $event)"
-                                                class="d-inline-block">
+                                                 @input="updateFilter(i, 'onlyLatestSubs', $event)"
+                                                 class="d-inline-block">
                                     Only use latest submissions
                                 </b-form-checkbox>
                             </div>
@@ -141,7 +146,7 @@
                     </div>
 
                     <div class="split-controls"
-                        :class="{ active: isSplitting[i] }">
+                        :class="{ active: isSplitting === i }">
                         <b-input-group>
                             <b-input-group-prepend is-text>
                                 Latest
@@ -186,7 +191,16 @@
                                             placeholder="Date" />
                         </b-input-group>
 
-                        <div>
+                        <div v-for="split in splitResults">
+                            <small class="pl-1 text-muted">
+                                {{ split.filter.toString() }}
+                            </small>
+                            <analytics-general-stats
+                                :base-workspace="split"
+                                class="mb-0" />
+                        </div>
+
+                        <div class="mt-3">
                             <submit-button class="float-right"
                                         variant="primary"
                                         :submit="() => splitFilter(i)"
@@ -241,7 +255,7 @@ export default {
     data() {
         return {
             filters: [WorkspaceFilter.emptyFilter],
-            isSplitting: [false],
+            isSplitting: null,
             splitLatest: false,
             splitGrade: '',
             splitDate: '',
@@ -274,6 +288,23 @@ export default {
         deleteDisabled() {
             return this.filters.length === 1;
         },
+
+        splitFilters() {
+            // The new filters produced by the current split.
+            if (this.isSplitting == null) {
+                return [];
+            }
+
+            return this.filters[this.isSplitting].split({
+                latest: this.splitLatest,
+                grade: this.splitGrade,
+                date: this.splitDate,
+            });
+        },
+
+        splitResults() {
+            return this.workspace.filter(this.splitFilters);
+        },
     },
 
     watch: {
@@ -287,7 +318,7 @@ export default {
         filters: {
             immediate: true,
             handler() {
-                this.isSplitting = this.filters.map(() => false);
+                this.isSplitting = null;
                 this.$router.replace({
                     query: {
                         ...this.$route.query,
@@ -308,11 +339,12 @@ export default {
 
     methods: {
         resetFilters() {
-            this.isSplitting = [false];
             this.filters = [WorkspaceFilter.emptyFilter];
+            this.resetSplitParams();
         },
 
         resetSplitParams() {
+            this.isSplitting = null;
             this.splitLatest = false;
             this.splitGrade = '';
             this.splitDate = '';
@@ -328,7 +360,11 @@ export default {
         },
 
         toggleSplitFilter(idx) {
-            this.$set(this.isSplitting, idx, !this.isSplitting[idx]);
+            if (this.isSplitting == null) {
+                this.isSplitting = idx;
+            } else if (this.isSplitting === idx) {
+                this.resetSplitParams();
+            }
         },
 
         replaceFilter(idx, ...newFilters) {
@@ -354,12 +390,7 @@ export default {
 
         async splitFilter(idx) {
             // Replace the filter with the result of splitting it.
-            const result = this.filters[idx].split({
-                latest: this.splitLatest,
-                grade: this.splitGrade,
-                date: this.splitDate,
-            });
-            this.replaceFilter(idx, ...result);
+            this.replaceFilter(idx, ...this.splitFilters);
         },
 
         afterSplitFilter() {
@@ -367,6 +398,10 @@ export default {
                 this.$root.$emit('bv::hide::popover');
                 this.resetSplitParams();
             });
+        },
+
+        isSplittingOther(i) {
+            return this.isSplitting != null && this.isSplitting !== i;
         },
 
         filterAvgGrade(filter) {

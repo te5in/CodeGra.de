@@ -313,7 +313,7 @@ export default {
 
                 if (this.submissionDateRelative) {
                     const nSubs = stat.sum(data);
-                    data = data.map(x => 100 * x / nSubs);
+                    data = data.map(x => (nSubs > 0 ? 100 * x / nSubs : 0));
                 }
 
                 return {
@@ -387,14 +387,13 @@ export default {
 
             const datasets = this.submissionSources.map((source, i) => {
                 const data = source.binSubmissionsByGrade();
-
                 // We can't use source.submissionCount here, because some submissions
                 // may have been filtered out, e.g. submissions without a grade.
                 const nSubs = stat.sum(bins.map(bin => data[bin].length));
 
                 return {
                     label: this.filterLabels[i],
-                    data: bins.map(bin => 100 * data[bin].length / nSubs),
+                    data: bins.map(bin => (nSubs ? 100 * data[bin].length / nSubs : 0)),
                 };
             });
 
@@ -637,7 +636,9 @@ export default {
                         rowId: row.id,
                     };
                     stats.push(rowStats);
-                    data.push(rowStats[key]);
+                    // Make sure we render at least a minimal bar for each
+                    // datapoint, otherwise we will not get a popover.
+                    data.push(rowStats[key] == null ? 0 : rowStats[key]);
                 });
 
                 if (normalize && this.rubricNormalizeFactors != null) {
@@ -661,10 +662,6 @@ export default {
             const datasets = this.rubricSources.map((source, i) => {
                 const { rirItemsPerCat } = source;
                 const rirItems = rirItemsPerCat[row.id];
-
-                if (rirItems.length === 0) {
-                    return {};
-                }
 
                 return {
                     label: this.filterLabels[i],

@@ -151,7 +151,7 @@ export class RubricSource extends DataSource {
     mapItemsPerCat(f, skipEmpty = false) {
         return mapObject(this.itemsPerCat, (items, rowId) => {
             if (skipEmpty && items.length === 0) {
-                return [];
+                return f([], rowId);
             }
             return f(items, rowId);
         });
@@ -281,9 +281,15 @@ export class InlineFeedbackSource extends DataSource {
     }
 
     get averageEntries() {
-        const totalEntries = stat.sum(Object.values(this.data));
-        const totalSubs = Object.keys(this.data).length;
-        return totalEntries / totalSubs;
+        return this._cache.get('averageEntries', () => {
+            const totalEntries = stat.sum(Object.values(this.data));
+            const totalSubs = Object.keys(this.data).length;
+            if (totalSubs === 0) {
+                return null;
+            } else {
+                return totalEntries / totalSubs;
+            }
+        });
     }
 }
 
@@ -494,7 +500,7 @@ class WorkspaceSubmissionSet {
 
     get averageGrade() {
         return this._cache.get('averageGrade', () => {
-            if (this.allSubmissions.length === 0) {
+            if (this.submissionCount === 0) {
                 return null;
             } else {
                 const grades = this.allSubmissions.map(sub => sub.grade);
@@ -504,9 +510,13 @@ class WorkspaceSubmissionSet {
     }
 
     get averageSubmissions() {
-        return this._cache.get('averageSubmissions', () =>
-            this.submissionCount / this.studentCount,
-        );
+        return this._cache.get('averageSubmissions', () => {
+            if (this.submissionCount === 0) {
+                return null;
+            } else {
+                return this.submissionCount / this.studentCount;
+            }
+        });
     }
 
     filter(filter) {
