@@ -1,11 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 <template>
 <div class="analytics-dashboard row">
-    <b-alert v-if="error"
-             variant="danger"
-             show>
-        {{ $utils.getErrorMessage(error) }}
-    </b-alert>
+    <div v-if="error"
+         class="col-12">
+        <b-alert show
+                 variant="danger"
+                 class="col-12">
+            {{ $utils.getErrorMessage(error) }}
+        </b-alert>
+    </div>
 
     <loader page-loader v-else-if="loading" />
 
@@ -34,8 +37,10 @@
 
         <loader page-loader :scale="4" v-if="filterResults.length === 0" />
 
+        <!-- TODO: use total filtered submission count instead of total
+            overall submission count. -->
         <div v-else-if="totalSubmissionCount === 0"
-            class="col-12">
+             class="col-12">
             <h3 class="border rounded p-5 text-center text-muted font-italic">
                 No submissions within the specified filter parameters.
             </h3>
@@ -108,8 +113,8 @@
                         </p>
 
                         <b-button variant="primary"
-                                class="float-right"
-                                @click="forceRenderSubmissionDates = true">
+                                  class="float-right"
+                                  @click="forceRenderSubmissionDates = true">
                             Render anyway
                         </b-button>
                     </template>
@@ -252,9 +257,7 @@ export default {
         },
 
         latestSubmissionsWorkspace() {
-            return this.baseWorkspace.filter([
-                new WorkspaceFilter({ onlyLatestSubs: true }),
-            ])[0];
+            return this.baseWorkspace.filter([new WorkspaceFilter({ onlyLatestSubs: true })])[0];
         },
 
         submissionSources() {
@@ -291,21 +294,12 @@ export default {
 
         maxSubmissionDate() {
             const lastPerSource = this.submissionSources.map(source => source.lastSubmissionDate);
-            const last = lastPerSource.reduce(
-                (l, d) => (l == null || l.isBefore(d) ? d : l),
-                null,
-            );
+            const last = lastPerSource.reduce((l, d) => (l == null || l.isBefore(d) ? d : l), null);
             return last.toISOString();
         },
 
         submissionDateBinUnits() {
-            return [
-                'minutes',
-                'hours',
-                'days',
-                'weeks',
-                'years',
-            ];
+            return ['minutes', 'hours', 'days', 'weeks', 'years'];
         },
 
         noSubmissionWithinSelectedDates() {
@@ -327,23 +321,18 @@ export default {
             );
 
             const format = this.submissionDateFormatter;
-            const dateLookup = subs.reduce(
-                (acc, bins) => {
-                    Object.values(bins).forEach(bin => {
-                        if (!acc[bin.start]) {
-                            acc[bin.start] = format(bin.start, bin.end);
-                        }
-                    });
-                    return acc;
-                },
-                {},
-            );
+            const dateLookup = subs.reduce((acc, bins) => {
+                Object.values(bins).forEach(bin => {
+                    if (!acc[bin.start]) {
+                        acc[bin.start] = format(bin.start, bin.end);
+                    }
+                });
+                return acc;
+            }, {});
             const allDates = Object.keys(dateLookup).sort();
 
             const datasets = subs.map((bins, i) => {
-                let data = allDates.map(d =>
-                    (bins[d] == null ? 0 : bins[d].data.length),
-                );
+                let data = allDates.map(d => (bins[d] == null ? 0 : bins[d].data.length));
 
                 if (this.submissionDateRelative) {
                     const nSubs = stat.sum(data);
@@ -365,7 +354,10 @@ export default {
         submissionDateFormatter() {
             const unit = this.submissionDateBinUnit;
 
-            const format = (d, fmt) => moment(d).utc().format(fmt);
+            const format = (d, fmt) =>
+                moment(d)
+                    .utc()
+                    .format(fmt);
 
             switch (unit) {
                 case 'minutes':
@@ -384,7 +376,9 @@ export default {
         },
 
         submissionDateOpts() {
-            const label = this.submissionDateRelative ? 'Percentage of students' : 'Number of students';
+            const label = this.submissionDateRelative
+                ? 'Percentage of students'
+                : 'Number of students';
             return {
                 scales: {
                     yAxes: [
@@ -403,11 +397,7 @@ export default {
         },
 
         largeGradeHistogram() {
-            return (
-                !this.hasRubricSource ||
-                this.hasManyRubricRows ||
-                this.filterResults.length > 2
-            );
+            return !this.hasRubricSource || this.hasManyRubricRows || this.filterResults.length > 2;
         },
 
         gradeHistogram() {
@@ -553,8 +543,8 @@ export default {
                 ];
             };
 
-            const label = this.rubricStatOptions.find(so =>
-                so.value === this.selectedRubricStatistic,
+            const label = this.rubricStatOptions.find(
+                so => so.value === this.selectedRubricStatistic,
             ).text;
 
             return {
@@ -823,9 +813,6 @@ export default {
     },
 };
 </script>
-
-<style lang="less" scoped>
-</style>
 
 <style lang="less">
 @import '~mixins.less';

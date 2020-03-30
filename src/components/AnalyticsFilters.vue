@@ -369,11 +369,7 @@ export default {
 
         replaceFilter(idx, ...newFilters) {
             const fs = this.filters;
-            this.filters = [
-                ...fs.slice(0, idx),
-                ...newFilters,
-                ...fs.slice(idx + 1),
-            ];
+            this.filters = [...fs.slice(0, idx), ...newFilters, ...fs.slice(idx + 1)];
         },
 
         deleteFilter(idx) {
@@ -425,11 +421,9 @@ export default {
         },
     },
 
-    mounted() {
-    },
+    mounted() {},
 
-    destroyed() {
-    },
+    destroyed() {},
 
     components: {
         Icon,

@@ -102,8 +102,7 @@ export default {
     },
 
     data() {
-        return {
-        };
+        return {};
     },
 
     computed: {
@@ -150,8 +149,7 @@ export default {
         },
     },
 
-    watch: {
-    },
+    watch: {},
 
     methods: {
         to2Dec(x) {
@@ -159,11 +157,9 @@ export default {
         },
     },
 
-    mounted() {
-    },
+    mounted() {},
 
-    destroyed() {
-    },
+    destroyed() {},
 
     components: {
         DescriptionPopover,

@@ -4,13 +4,7 @@ import * as stat from 'simple-statistics';
 
 import { store } from '@/store';
 // eslint-ignore-next-line
-import {
-    getProps,
-    mapObject,
-    filterObject,
-    readableFormatDate,
-    zip,
-} from '@/utils';
+import { getProps, mapObject, filterObject, readableFormatDate, zip } from '@/utils';
 import { makeCache } from '@/utils/cache';
 import { defaultdict } from '@/utils/defaultdict';
 
@@ -129,16 +123,13 @@ export class RubricSource extends DataSource {
     get itemsPerCat() {
         return this._cache.get('itemsPerCat', () => {
             const rowPerItem = this.rubricRowPerItem;
-            return Object.values(this.data).reduce(
-                (acc, items) => {
-                    items.forEach(item => {
-                        const rowId = rowPerItem[item.item_id].id;
-                        acc[rowId].push(item);
-                    });
-                    return acc;
-                },
-                Object.fromEntries(this.rowIds.map(id => [id, []])),
-            );
+            return Object.values(this.data).reduce((acc, items) => {
+                items.forEach(item => {
+                    const rowId = rowPerItem[item.item_id].id;
+                    acc[rowId].push(item);
+                });
+                return acc;
+            }, Object.fromEntries(this.rowIds.map(id => [id, []])));
         });
     }
 
@@ -219,15 +210,12 @@ export class RubricSource extends DataSource {
             const scoresPerSub = this.scorePerCatPerSubmission;
             const totalsPerSub = this.totalScorePerSubmission;
 
-            return Object.entries(scoresPerSub).reduce(
-                (acc, [subId, scores]) => {
-                    Object.entries(scores).forEach(([rowId, score]) => {
-                        acc[rowId].push([score, totalsPerSub[subId]]);
-                    });
-                    return acc;
-                },
-                Object.fromEntries(this.rowIds.map(id => [id, []])),
-            );
+            return Object.entries(scoresPerSub).reduce((acc, [subId, scores]) => {
+                Object.entries(scores).forEach(([rowId, score]) => {
+                    acc[rowId].push([score, totalsPerSub[subId]]);
+                });
+                return acc;
+            }, Object.fromEntries(this.rowIds.map(id => [id, []])));
         });
     }
 
@@ -373,9 +361,7 @@ class WorkspaceSubmission {
 
 class WorkspaceSubmissionSet {
     static fromServerData(data) {
-        const subs = mapObject(data, ss =>
-            ss.map(WorkspaceSubmission.fromServerData),
-        );
+        const subs = mapObject(data, ss => ss.map(WorkspaceSubmission.fromServerData));
         return new WorkspaceSubmissionSet(subs);
     }
 
@@ -400,51 +386,40 @@ class WorkspaceSubmissionSet {
 
     get firstSubmissionDate() {
         return this._cache.get('firstSubmission', () =>
-            this.allSubmissions.reduce(
-                (first, sub) => {
-                    if (first == null || first.isAfter(sub.createdAt)) {
-                        return sub.createdAt;
-                    } else {
-                        return first;
-                    }
-                },
-                null,
-            ),
+            this.allSubmissions.reduce((first, sub) => {
+                if (first == null || first.isAfter(sub.createdAt)) {
+                    return sub.createdAt;
+                } else {
+                    return first;
+                }
+            }, null),
         );
     }
 
     get lastSubmissionDate() {
         return this._cache.get('lastSubmission', () =>
-            this.allSubmissions.reduce(
-                (last, sub) => {
-                    if (last == null || last.isBefore(sub.createdAt)) {
-                        return sub.createdAt;
-                    } else {
-                        return last;
-                    }
-                },
-                null,
-            ),
+            this.allSubmissions.reduce((last, sub) => {
+                if (last == null || last.isBefore(sub.createdAt)) {
+                    return sub.createdAt;
+                } else {
+                    return last;
+                }
+            }, null),
         );
     }
 
     get submissionIds() {
-        return this._cache.get('submissionIds', () =>
-            new Set(this.allSubmissions.map(s => s.id)),
-        );
+        return this._cache.get('submissionIds', () => new Set(this.allSubmissions.map(s => s.id)));
     }
 
     binSubmissionsBy(f) {
-        return this.allSubmissions.reduce(
-            (acc, sub) => {
-                const bin = f(sub);
-                if (bin != null) {
-                    acc[f(sub)].push(sub);
-                }
-                return acc;
-            },
-            defaultdict(() => []),
-        );
+        return this.allSubmissions.reduce((acc, sub) => {
+            const bin = f(sub);
+            if (bin != null) {
+                acc[f(sub)].push(sub);
+            }
+            return acc;
+        }, defaultdict(() => []));
     }
 
     binSubmissionsByGrade(binSize = 1) {
@@ -514,9 +489,17 @@ class WorkspaceSubmissionSet {
             end = start.clone();
         }
 
-        start = start.local().hours(0).minutes(0).seconds(0)
+        start = start
+            .local()
+            .hours(0)
+            .minutes(0)
+            .seconds(0)
             .milliseconds(0);
-        end = end.local().hours(23).minutes(59).seconds(59)
+        end = end
+            .local()
+            .hours(23)
+            .minutes(59)
+            .seconds(59)
             .milliseconds(999);
 
         return [start, end];
@@ -552,9 +535,7 @@ class WorkspaceSubmissionSet {
     }
 
     filter(filter) {
-        let filtered = filter.onlyLatestSubs ?
-            this.getLatestSubmissions() :
-            this.submissions;
+        let filtered = filter.onlyLatestSubs ? this.getLatestSubmissions() : this.submissions;
 
         filtered = mapObject(filtered, subs =>
             subs.filter(s => s.satisfiesGrade(filter) && s.satisfiesDate(filter)),
@@ -568,10 +549,7 @@ class WorkspaceSubmissionSet {
     getLatestSubmissions() {
         return mapObject(this.submissions, subs => {
             const [first, ...rest] = subs;
-            const latest = rest.reduce(
-                (a, b) => (a.createdAt.isAfter(b.createdAt) ? a : b),
-                first,
-            );
+            const latest = rest.reduce((a, b) => (a.createdAt.isAfter(b.createdAt) ? a : b), first);
             return latest == null ? [] : [latest];
         });
     }
@@ -627,20 +605,19 @@ export class WorkspaceFilter {
     }
 
     update(key, value) {
-        const x = new WorkspaceFilter(Object.assign({}, this, {
-            // Convert empty string to null because <input>s return the empty
-            // string if they're empty.
-            [key]: value === '' ? null : value,
-        }));
+        const x = new WorkspaceFilter(
+            Object.assign({}, this, {
+                // Convert empty string to null because <input>s return the empty
+                // string if they're empty.
+                [key]: value === '' ? null : value,
+            }),
+        );
         return x;
     }
 
     split(props) {
         const {
-            minGrade,
-            maxGrade,
-            submittedAfter,
-            submittedBefore,
+            minGrade, maxGrade, submittedAfter, submittedBefore,
         } = this;
 
         const { latest, date } = props;
@@ -722,10 +699,7 @@ export class WorkspaceFilterResult {
         this.submissions = workspace.submissions.filter(filter);
 
         const subIds = this.submissions.submissionIds;
-        this.dataSources = Object.freeze(mapObject(
-            workspace.dataSources,
-            ds => ds.filter(subIds),
-        ));
+        this.dataSources = Object.freeze(mapObject(workspace.dataSources, ds => ds.filter(subIds)));
 
         Object.freeze(this);
     }
@@ -735,10 +709,7 @@ export class WorkspaceFilterResult {
     }
 }
 
-const WORKSPACE_SERVER_PROPS = Object.freeze([
-    'id',
-    'assignment_id',
-]);
+const WORKSPACE_SERVER_PROPS = Object.freeze(['id', 'assignment_id']);
 
 export class Workspace {
     static fromServerData(workspace, sources) {
@@ -747,9 +718,7 @@ export class Workspace {
             return acc;
         }, {});
 
-        props.submissions = WorkspaceSubmissionSet.fromServerData(
-            workspace.student_submissions,
-        );
+        props.submissions = WorkspaceSubmissionSet.fromServerData(workspace.student_submissions);
 
         const self = new Workspace(props);
 

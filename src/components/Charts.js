@@ -174,18 +174,22 @@ export const BarChart = {
 
         renderOpts() {
             const [min, max] = this.suggestedRange;
-            return this.$utils.deepExtendArray(this.baseOptions, {
-                scales: {
-                    yAxes: [
-                        {
-                            ticks: {
-                                suggestedMin: min,
-                                suggestedMax: max,
+            return this.$utils.deepExtendArray(
+                this.baseOptions,
+                {
+                    scales: {
+                        yAxes: [
+                            {
+                                ticks: {
+                                    suggestedMin: min,
+                                    suggestedMax: max,
+                                },
                             },
-                        },
-                    ],
+                        ],
+                    },
                 },
-            }, this.options);
+                this.options,
+            );
         },
 
         suggestedRange() {
@@ -193,16 +197,13 @@ export const BarChart = {
                 return [0, 0];
             }
             const factor = 1 + this.padding;
-            const minPerCat = this.datasets.map(ds =>
-                (ds.data.length === 0 ? 0 : stat.min(ds.data)),
+            const minPerCat = this.datasets.map(
+                ds => (ds.data.length === 0 ? 0 : stat.min(ds.data)),
             );
-            const maxPerCat = this.datasets.map(ds =>
-                (ds.data.length === 0 ? 0 : stat.max(ds.data)),
+            const maxPerCat = this.datasets.map(
+                ds => (ds.data.length === 0 ? 0 : stat.max(ds.data)),
             );
-            return [
-                factor * stat.min(minPerCat),
-                factor * stat.max(maxPerCat),
-            ];
+            return [factor * stat.min(minPerCat), factor * stat.max(maxPerCat)];
         },
     },
 };
@@ -215,9 +216,7 @@ export const ScatterPlot = {
     computed: {
         renderData() {
             const colors = this.getColors(this.datasets.length);
-            const datasets = this.datasets.map((ds, i) =>
-                Object.assign({}, ds, colors[i]),
-            );
+            const datasets = this.datasets.map((ds, i) => Object.assign({}, ds, colors[i]));
 
             if (this.$utils.getProps(this.options, false, 'cgScatter', 'withBestFit')) {
                 datasets.push(...datasets.map(this.fitLine).filter(x => x != null));
@@ -227,20 +226,24 @@ export const ScatterPlot = {
         },
 
         renderOpts() {
-            return this.$utils.deepExtendArray(this.baseOptions, {
-                scales: {
-                    xAxes: [
-                        {
-                            ticks: this.xRange,
-                        },
-                    ],
-                    yAxes: [
-                        {
-                            ticks: this.yRange,
-                        },
-                    ],
+            return this.$utils.deepExtendArray(
+                this.baseOptions,
+                {
+                    scales: {
+                        xAxes: [
+                            {
+                                ticks: this.xRange,
+                            },
+                        ],
+                        yAxes: [
+                            {
+                                ticks: this.yRange,
+                            },
+                        ],
+                    },
                 },
-            }, this.options);
+                this.options,
+            );
         },
 
         xRange() {
@@ -266,8 +269,8 @@ export const ScatterPlot = {
             const dX = maxX - minX;
 
             return {
-                min: Math.floor((minX - this.padding * dX) || 0),
-                max: Math.ceil((maxX + this.padding * dX) || 1),
+                min: Math.floor(minX - this.padding * dX || 0),
+                max: Math.ceil(maxX + this.padding * dX || 1),
             };
         },
 
@@ -278,9 +281,7 @@ export const ScatterPlot = {
 
             const { data } = dataset;
             const points = data.map(({ x, y }) => [x, y]);
-            const f = stat.linearRegressionLine(
-                stat.linearRegression(points),
-            );
+            const f = stat.linearRegressionLine(stat.linearRegression(points));
 
             let { min, max } = this.xRange;
             // Make sure the endpoints of the line
@@ -291,10 +292,7 @@ export const ScatterPlot = {
             return Object.assign({}, dataset, {
                 type: 'line',
                 label: `${dataset.label} (Best fit)`,
-                data: [
-                    { x: min, y: f(min) },
-                    { x: max, y: f(max) },
-                ],
+                data: [{ x: min, y: f(min) }, { x: max, y: f(max) }],
                 backgroundColor: 'transparent',
                 borderColor: dataset.lineColor,
             });

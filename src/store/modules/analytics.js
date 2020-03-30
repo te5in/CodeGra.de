@@ -7,10 +7,9 @@ import * as types from '../mutation-types';
 let Workspace = null;
 
 const getters = {
-    getWorkspace: state =>
-        (assignmentId, workspaceId) => state.workspaces[assignmentId][workspaceId],
-    getAssignmentWorkspaces: state =>
-        assignmentId => state.workspaces[assignmentId],
+    getWorkspace: state => (assignmentId, workspaceId) =>
+        state.workspaces[assignmentId][workspaceId],
+    getAssignmentWorkspaces: state => assignmentId => state.workspaces[assignmentId],
 };
 
 const loaders = {

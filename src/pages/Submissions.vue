@@ -647,7 +647,6 @@ export default {
     },
 
     methods: {
-
         ...mapActions('courses', {
             loadCourses: 'loadCourses',
         }),
