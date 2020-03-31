@@ -129,7 +129,20 @@
 
             <div class="col-12 col-xl-6"
                  :class="{ 'col-xl-12': largeGradeHistogram }">
-                <b-card header="Grade statistics">
+                <b-card header-class="d-flex">
+                    <template #header>
+                        <div class="flex-grow-1">
+                            Grade statistics
+                        </div>
+
+                        <div class="d-flex flex-grow-0">
+                            <b-button :variant="gradeHistRelative ? 'primary' : 'secondary'"
+                                      @click="gradeHistRelative = !gradeHistRelative"
+                                      v-b-popover.top.hover="'Relative to filter group'">
+                                <icon name="percent" />
+                            </b-button>
+                        </div>
+                    </template>
                     <loader center :scale="2" class="p-3" v-if="changingGradeHistSize" />
 
                     <bar-chart v-else
@@ -220,6 +233,9 @@ export default {
             submissionDateBinSizeTimer: null,
             submissionDateBinUnit: 'days',
             forceRenderSubmissionDates: false,
+
+            gradeHistRelative: true,
+            gradeHistBinSize: 1,
 
             rubricRelative: true,
             selectedRubricStatistic: null,
@@ -332,16 +348,15 @@ export default {
             const allDates = Object.keys(dateLookup).sort();
 
             const datasets = subs.map((bins, i) => {
-                let data = allDates.map(d => (bins[d] == null ? 0 : bins[d].data.length));
-
-                if (this.submissionDateRelative) {
-                    const nSubs = stat.sum(data);
-                    data = data.map(x => (nSubs > 0 ? 100 * x / nSubs : 0));
-                }
+                const absData = allDates.map(d => (bins[d] == null ? 0 : bins[d].data.length));
+                const nSubs = stat.sum(absData);
+                const relData = absData.map(x => (nSubs > 0 ? 100 * x / nSubs : 0));
 
                 return {
                     label: this.filterLabels[i],
-                    data,
+                    absData,
+                    relData,
+                    data: this.submissionDateRelative ? relData : absData,
                 };
             });
 
@@ -376,9 +391,30 @@ export default {
         },
 
         submissionDateOpts() {
-            const label = this.submissionDateRelative
+            const getDataset = (tooltipItem, data) =>
+                data.datasets[tooltipItem.datasetIndex];
+
+            const label = (tooltipItem, data) => {
+                const ds = getDataset(tooltipItem, data);
+                return ds.label;
+            };
+
+            const afterLabel = (tooltipItem, data) => {
+                const ds = getDataset(tooltipItem, data);
+                const abs = ds.absData[tooltipItem.index];
+                const rel = ds.relData[tooltipItem.index];
+
+                // Do not escape, chart.js does its own escaping.
+                return [
+                    `Number of students: ${abs}`,
+                    `Percentage of students: ${this.to2Dec(rel)}`,
+                ];
+            };
+
+            const labelString = this.submissionDateRelative
                 ? 'Percentage of students'
                 : 'Number of students';
+
             return {
                 scales: {
                     yAxes: [
@@ -388,10 +424,13 @@ export default {
                             },
                             scaleLabel: {
                                 display: true,
-                                labelString: label,
+                                labelString,
                             },
                         },
                     ],
+                },
+                tooltips: {
+                    callbacks: { label, afterLabel },
                 },
             };
         },
@@ -411,13 +450,18 @@ export default {
 
             const datasets = this.submissionSources.map((source, i) => {
                 const data = source.binSubmissionsByGrade();
+
+                const absData = bins.map(bin => data[bin].length);
                 // We can't use source.submissionCount here, because some submissions
                 // may have been filtered out, e.g. submissions without a grade.
                 const nSubs = stat.sum(bins.map(bin => data[bin].length));
+                const relData = absData.map(d => (nSubs ? (100 * d) / nSubs : 0));
 
                 return {
                     label: this.filterLabels[i],
-                    data: bins.map(bin => (nSubs ? 100 * data[bin].length / nSubs : 0)),
+                    absData,
+                    relData,
+                    data: this.gradeHistRelative ? relData : absData,
                 };
             });
 
@@ -425,6 +469,30 @@ export default {
         },
 
         gradeHistOpts() {
+            const getDataset = (tooltipItem, data) =>
+                data.datasets[tooltipItem.datasetIndex];
+
+            const label = (tooltipItem, data) => {
+                const ds = getDataset(tooltipItem, data);
+                return ds.label;
+            };
+
+            const afterLabel = (tooltipItem, data) => {
+                const ds = getDataset(tooltipItem, data);
+                const abs = ds.absData[tooltipItem.index];
+                const rel = ds.relData[tooltipItem.index];
+
+                // Do not escape, chart.js does its own escaping.
+                return [
+                    `Number of students: ${abs}`,
+                    `Percentage of students: ${this.to2Dec(rel)}`,
+                ];
+            };
+
+            const labelString = this.gradeHistRelative
+                ? 'Percentage of students'
+                : 'Number of students';
+
             return {
                 scales: {
                     yAxes: [
@@ -435,10 +503,13 @@ export default {
                             },
                             scaleLabel: {
                                 display: true,
-                                labelString: 'Percentage of students',
+                                labelString,
                             },
                         },
                     ],
+                },
+                tooltips: {
+                    callbacks: { label, afterLabel },
                 },
             };
         },
@@ -520,18 +591,18 @@ export default {
         },
 
         rubricHistogramOpts() {
-            const getStats = (tooltipItem, data) => {
-                const dataset = data.datasets[tooltipItem.datasetIndex];
-                return dataset.stats[tooltipItem.index];
+            const getDataset = (tooltipItem, data) =>
+                data.datasets[tooltipItem.datasetIndex];
+
+            const label = (tooltipItem, data) => {
+                const ds = getDataset(tooltipItem, data);
+                return ds.label;
             };
 
-            const labelCb = (tooltipItem, data) => {
-                const stats = getStats(tooltipItem, data);
-                return this.rirMessage(stats.rir);
-            };
+            const afterLabel = (tooltipItem, data) => {
+                const ds = getDataset(tooltipItem, data);
+                const stats = ds.stats[tooltipItem.index];
 
-            const afterLabelCb = (tooltipItem, data) => {
-                const stats = getStats(tooltipItem, data);
                 // Do not escape, chart.js does its own escaping.
                 return [
                     `Times filled: ${stats.nTimesFilled}`,
@@ -540,10 +611,11 @@ export default {
                     `Mode: ${this.modeToString(stats.mode)}`,
                     `Rit: ${this.to2Dec(stats.rit) || '-'}`,
                     `Rir: ${this.to2Dec(stats.rir) || '-'}`,
+                    this.rirMessage(stats.rir),
                 ];
             };
 
-            const label = this.rubricStatOptions.find(
+            const labelString = this.rubricStatOptions.find(
                 so => so.value === this.selectedRubricStatistic,
             ).text;
 
@@ -553,16 +625,13 @@ export default {
                         {
                             scaleLabel: {
                                 display: true,
-                                labelString: label,
+                                labelString,
                             },
                         },
                     ],
                 },
                 tooltips: {
-                    callbacks: {
-                        label: labelCb,
-                        afterLabel: afterLabelCb,
-                    },
+                    callbacks: { label, afterLabel },
                 },
             };
         },
