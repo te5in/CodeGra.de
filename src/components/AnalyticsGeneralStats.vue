@@ -45,7 +45,7 @@
             {{ averageSubmissions }}
         </component>
 
-        <label v-if="large">Average number of submissions</label>
+        <label v-if="large">Average submissions</label>
         <label v-else>Avg. subs.</label>
 
         <description-popover v-if="large"
@@ -63,13 +63,13 @@
             {{ averageFeedbackEntries }}
         </component>
 
-        <label v-if="large">Average number of feedback entries</label>
+        <label v-if="large">Average inline feedback entries</label>
         <label v-else>Avg. feedback</label>
 
         <description-popover v-if="large"
                              triggers="hover"
                              placement="top">
-            The average number of feedback entries over the latest submissions.
+            The average number of inline feedback entries over the latest submissions.
         </description-popover>
     </div>
 </b-card>

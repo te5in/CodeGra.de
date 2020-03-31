@@ -140,15 +140,32 @@
                             </template>
                         </b-input-group>
 
-                        <b-input-group prepend="Graded by">
-                            <b-form-select :value="filter.assignee"
-                                           @input="updateFilter(i, 'assignee', $event)"
-                                           :options="assigneeOptions" />
+                        <!-- Must have a z-index otherwise the reset buttons of the
+                             other options  are visible over the multiselect popup -->
+                        <b-input-group class="grader-group">
+                            <multiselect
+                                class="d-flex"
+                                :max-height="150"
+                                :value="filter.assignees"
+                                @input="updateFilter(i, 'assignees', $event)"
+                                :options="assignees"
+                                multiple
+                                searchable
+                                open-direction="top"
+                                track-by="id"
+                                label="name"
+                                :close-on-select="false"
+                                placeholder="Select graders"
+                                internal-search>
+                                <span slot="noResult">
+                                    No graders with this name.
+                                </span>
+                            </multiselect>
 
                             <template #append>
                                 <b-button variant="warning"
-                                          :disabled="filter.submittedBefore == null"
-                                          @click="updateFilter(i, 'assignee', null)">
+                                          :disabled="filter.assignees.length === 0"
+                                          @click="updateFilter(i, 'assignees', [])">
                                     <icon name="reply" />
                                 </b-button>
                             </template>
@@ -189,6 +206,8 @@
                             <input v-model="splitGrade"
                                    class="form-control placeholder-left"
                                    type="number"
+                                   :min="0"
+                                   :max="assignmentMaxGrade"
                                    :placeholder="`Avg. of filter = ${filterAvgGrade(filter)}`" />
                         </b-input-group>
 
@@ -202,7 +221,11 @@
                             </b-input-group-prepend>
 
                             <datetime-picker v-model="splitDate"
-                                            placeholder="Date" />
+                                             placeholder="Date"
+                                             :config="{
+                                                 minDate: firstSubmissionDate.toISOString(),
+                                                 maxDate: lastSubmissionDate.toISOString(),
+                                             }"/>
                         </b-input-group>
 
                         <div v-for="split in splitResults">
@@ -238,6 +261,8 @@
 
 <script>
 import { mapGetters } from 'vuex';
+
+import Multiselect from 'vue-multiselect';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/reply';
@@ -302,6 +327,14 @@ export default {
 
         deleteDisabled() {
             return this.filters.length === 1;
+        },
+
+        firstSubmissionDate() {
+            return this.workspace.submissions.firstSubmissionDate;
+        },
+
+        lastSubmissionDate() {
+            return this.workspace.submissions.lastSubmissionDate;
         },
 
         splitFilters() {
@@ -454,6 +487,7 @@ export default {
 
     components: {
         Icon,
+        Multiselect,
         SubmitButton,
         DatetimePicker,
         DescriptionPopover,
@@ -484,6 +518,27 @@ export default {
 
     &.active {
         margin-left: 0;
+    }
+}
+</style>
+
+<style lang="less">
+.analytics-filters {
+    .grader-group {
+        display: flex;
+        flex-wrap: nowrap;
+        z-index: 10;
+    }
+
+    .multiselect {
+        flex: 1 1 auto;
+        width: auto;
+
+        .multiselect__tags {
+            width: 100%;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
     }
 }
 </style>

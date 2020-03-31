@@ -317,18 +317,19 @@ class WorkspaceSubmission {
     }
 
     satisfies(filter) {
+        console.log(filter);
         const {
             minGrade,
             maxGrade,
             submittedAfter,
             submittedBefore,
-            assignee,
+            assignees,
         } = filter;
 
         return (
             this.satisfiesGrade(minGrade, maxGrade) &&
             this.satisfiesDate(submittedAfter, submittedBefore) &&
-            this.satisfiesAssignee(assignee)
+            this.satisfiesAssignee(assignees)
         );
     }
 
@@ -372,9 +373,9 @@ class WorkspaceSubmission {
         return true;
     }
 
-    satisfiesAssignee(assignee) {
-        if (assignee != null) {
-            return this.assignee_id === assignee.id;
+    satisfiesAssignee(assignees) {
+        if (assignees.length > 0) {
+            return assignees.some(a => a.id === this.assignee_id);
         }
         return true;
     }
@@ -594,11 +595,13 @@ const WORKSPACE_FILTER_PROPS = new Set([
     'maxGrade',
     'submittedAfter',
     'submittedBefore',
-    'assignee',
+    'assignees',
 ]);
 
 export class WorkspaceFilter {
     constructor(props) {
+        console.log('new', props);
+
         Object.keys(props).forEach(key => {
             if (!WORKSPACE_FILTER_PROPS.has(key)) {
                 throw new Error(`Invalid filter: ${key}`);
@@ -621,9 +624,15 @@ export class WorkspaceFilter {
         this.submittedAfter = maybeMoment(this.submittedAfter);
         this.submittedBefore = maybeMoment(this.submittedBefore);
 
+        if (this.assignees == null) {
+            this.assignees = [];
+        }
+
         Object.defineProperty(this, '_cache', {
             value: makeCache('string'),
         });
+
+        console.log('new2', this);
 
         Object.freeze(this);
     }
@@ -635,7 +644,7 @@ export class WorkspaceFilter {
             maxGrade: null,
             submittedBefore: null,
             submittedAfter: null,
-            assignee: null,
+            assignees: [],
         });
     }
 
@@ -722,9 +731,7 @@ export class WorkspaceFilter {
                 parts.push(`Before ${readableFormatDate(this.submittedBefore)}`);
             }
 
-            if (this.assignee != null) {
-                parts.push(this.assignee.name);
-            }
+            parts.push(...this.assignees.map(a => a.name));
 
             return parts.join(', ');
         });
@@ -799,6 +806,7 @@ export class Workspace {
     }
 
     filter(filters) {
+        console.log(filters);
         return filters.map(filter => new WorkspaceFilterResult(this, filter));
     }
 }
