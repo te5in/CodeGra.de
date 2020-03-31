@@ -141,6 +141,15 @@
                                       v-b-popover.top.hover="'Relative to filter group'">
                                 <icon name="percent" />
                             </b-button>
+
+                            <b-input-group class="mb-0">
+                                <input v-model="gradeHistBinSize"
+                                       type="number"
+                                       min="1"
+                                       step="1"
+                                       class="form-control ml-2 pt-1"
+                                       style="max-width: 4rem;"/>
+                            </b-input-group>
                         </div>
                     </template>
                     <loader center :scale="2" class="p-3" v-if="changingGradeHistSize" />
@@ -445,11 +454,22 @@ export default {
                 maxGrade = 10;
             }
 
-            const bins = this.$utils.range(Math.ceil(maxGrade));
-            const labels = bins.map(start => `${10 * start}% - ${10 * (start + 1)}%`);
+            let binSize = parseFloat(this.gradeHistBinSize);
+            if (Number.isNaN(binSize)) {
+                binSize = 1;
+            }
+
+            window.range = this.$utils.range;
+
+            const bins = this.$utils.range(0, Math.ceil(maxGrade / binSize));
+            const labels = bins.map(i => {
+                const start = this.to2Dec(10 * i * binSize);
+                const end = this.to2Dec(10 * Math.min(maxGrade, (i + 1) * binSize));
+                return `${start}% - ${end}%`;
+            });
 
             const datasets = this.submissionSources.map((source, i) => {
-                const data = source.binSubmissionsByGrade();
+                const data = source.binSubmissionsByGrade(binSize);
 
                 const absData = bins.map(bin => data[bin].length);
                 // We can't use source.submissionCount here, because some submissions
@@ -669,6 +689,7 @@ export default {
         reset() {
             this.filterResults = [];
             this.resetRubricParams();
+            this.resetGradeHistParams();
             this.resetSubmissionDateParams();
         },
 
@@ -684,6 +705,11 @@ export default {
             this.submissionDateBinUnit = 'days';
             this.forceRenderSubmissionDates = false;
             clearTimeout(this.submissionDateBinSizeTimer);
+        },
+
+        resetGradeHistParams() {
+            this.gradeHistRelative = true;
+            this.gradeHistBinSize = 1;
         },
 
         loadWorkspaceData() {

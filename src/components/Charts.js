@@ -106,7 +106,6 @@ export const BaseChart = {
         },
 
         getColors(n_) {
-            // TODO: get colors based on a hash
             const colors = COLOR_PAIRS.map(c => this.processColor(c.background));
             const ret = [];
 
