@@ -115,7 +115,8 @@
                         <b-input-group prepend="Submitted after">
                             <datetime-picker :value="formatDate(filter.submittedAfter)"
                                              @input="updateFilter(i, 'submittedAfter', $event)"
-                                             :placeholder="`${assignmentCreated} (Assignment created)`"/>
+                                             :placeholder="`${assignmentCreated} (Assignment created)`"
+                                             :config="submittedDateTimeConfig"/>
 
                             <template #append>
                                 <b-button variant="warning"
@@ -129,7 +130,8 @@
                         <b-input-group prepend="Submitted before">
                             <datetime-picker :value="formatDate(filter.submittedBefore)"
                                              @input="updateFilter(i, 'submittedBefore', $event)"
-                                             :placeholder="`${assignmentDeadline} (Assignment deadline)`"/>
+                                             :placeholder="`${assignmentDeadline} (Assignment deadline)`"
+                                             :config="submittedDateTimeConfig"/>
 
                             <template #append>
                                 <b-button variant="warning"
@@ -223,8 +225,8 @@
                             <datetime-picker v-model="splitDate"
                                              placeholder="Date"
                                              :config="{
-                                                 minDate: firstSubmissionDate.toISOString(),
-                                                 maxDate: lastSubmissionDate.toISOString(),
+                                                 minDate: nthFirstSubmissionDate(i).toISOString(),
+                                                 maxDate: nthLastSubmissionDate(i).toISOString(),
                                              }"/>
                         </b-input-group>
 
@@ -321,20 +323,21 @@ export default {
             return this.assignment.getFormattedDeadline();
         },
 
+        submittedDateTimeConfig() {
+            return {
+                minDate: this.workspace.submissions.firstSubmissionDate.toISOString(),
+                maxDate: this.workspace.submissions.lastSubmissionDate.toISOString(),
+                defaultHour: 23,
+                defaultMinute: 59,
+            };
+        },
+
         results() {
             return this.workspace.filter(this.filters);
         },
 
         deleteDisabled() {
             return this.filters.length === 1;
-        },
-
-        firstSubmissionDate() {
-            return this.workspace.submissions.firstSubmissionDate;
-        },
-
-        lastSubmissionDate() {
-            return this.workspace.submissions.lastSubmissionDate;
         },
 
         splitFilters() {
@@ -456,8 +459,16 @@ export default {
             });
         },
 
-        isSplittingOther(i) {
-            return this.isSplitting != null && this.isSplitting !== i;
+        isSplittingOther(idx) {
+            return this.isSplitting != null && this.isSplitting !== idx;
+        },
+
+        nthFirstSubmissionDate(idx) {
+            return this.results[idx].submissions.firstSubmissionDate;
+        },
+
+        nthLastSubmissionDate(idx) {
+            return this.results[idx].submissions.lastSubmissionDate;
         },
 
         filterAvgGrade(filter) {

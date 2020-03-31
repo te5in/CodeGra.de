@@ -576,3 +576,7 @@ export function zip(...lists) {
     }
     return acc;
 }
+
+export function hasAttr(obj, key) {
+    return Object.hasOwnProperty.call(obj, key);
+}

@@ -4,7 +4,7 @@ import * as stat from 'simple-statistics';
 
 import { store } from '@/store';
 // eslint-ignore-next-line
-import { getProps, mapObject, filterObject, readableFormatDate, zip } from '@/utils';
+import { hasAttr, getProps, mapObject, filterObject, readableFormatDate, zip } from '@/utils';
 import { makeCache } from '@/utils/cache';
 import { defaultdict } from '@/utils/defaultdict';
 
@@ -76,7 +76,7 @@ export class RubricSource extends DataSource {
     updateItemPoints() {
         Object.values(this.data).forEach(items => {
             items.forEach(item => {
-                if (!Object.hasOwnProperty.call(item, 'points')) {
+                if (!hasAttr(item, 'points')) {
                     const rubricItem = this.rubricItems[item.item_id];
                     item.points = item.multiplier * rubricItem.points;
                     Object.freeze(item);
@@ -317,7 +317,6 @@ class WorkspaceSubmission {
     }
 
     satisfies(filter) {
-        console.log(filter);
         const {
             minGrade,
             maxGrade,
@@ -589,24 +588,28 @@ class WorkspaceSubmissionSet {
     }
 }
 
-const WORKSPACE_FILTER_PROPS = new Set([
-    'onlyLatestSubs',
-    'minGrade',
-    'maxGrade',
-    'submittedAfter',
-    'submittedBefore',
-    'assignees',
-]);
+const WORKSPACE_FILTER_DEFAULT_PROPS = Object.freeze({
+    onlyLatestSubs: true,
+    minGrade: null,
+    maxGrade: null,
+    submittedAfter: null,
+    submittedBefore: null,
+    assignees: [],
+});
 
 export class WorkspaceFilter {
     constructor(props) {
-        console.log('new', props);
-
         Object.keys(props).forEach(key => {
-            if (!WORKSPACE_FILTER_PROPS.has(key)) {
+            if (!hasAttr(WORKSPACE_FILTER_DEFAULT_PROPS, key)) {
                 throw new Error(`Invalid filter: ${key}`);
             }
             this[key] = props[key];
+        });
+
+        Object.entries(WORKSPACE_FILTER_DEFAULT_PROPS).forEach(([key, defaultValue]) => {
+            if (!hasAttr(this, key)) {
+                this[key] = defaultValue;
+            }
         });
 
         const maybeFloat = x => {
@@ -624,28 +627,15 @@ export class WorkspaceFilter {
         this.submittedAfter = maybeMoment(this.submittedAfter);
         this.submittedBefore = maybeMoment(this.submittedBefore);
 
-        if (this.assignees == null) {
-            this.assignees = [];
-        }
-
         Object.defineProperty(this, '_cache', {
             value: makeCache('string'),
         });
-
-        console.log('new2', this);
 
         Object.freeze(this);
     }
 
     static get emptyFilter() {
-        return new WorkspaceFilter({
-            onlyLatestSubs: true,
-            minGrade: null,
-            maxGrade: null,
-            submittedBefore: null,
-            submittedAfter: null,
-            assignees: [],
-        });
+        return new WorkspaceFilter(WORKSPACE_FILTER_DEFAULT_PROPS);
     }
 
     update(key, value) {
@@ -794,7 +784,7 @@ export class Workspace {
     }
 
     hasSource(sourceName) {
-        return Object.hasOwnProperty.call(this.dataSources, sourceName);
+        return hasAttr(this.dataSources, sourceName);
     }
 
     getSource(sourceName) {
@@ -806,7 +796,6 @@ export class Workspace {
     }
 
     filter(filters) {
-        console.log(filters);
         return filters.map(filter => new WorkspaceFilterResult(this, filter));
     }
 }
