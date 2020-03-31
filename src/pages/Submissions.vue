@@ -276,7 +276,7 @@
             <div v-show="selectedCat === 'analytics'"
                  class="flex-grow-1">
                 <catch-error>
-                    <div slot-scope="scope">
+                    <template slot-scope="scope">
                         <b-alert show variant="danger" v-if="scope.error">
                             An unexpected error occurred:
                             {{ $utils.getErrorMessage(scope.error) }}
@@ -284,7 +284,7 @@
 
                         <analytics-dashboard v-else
                                              :assignment-id="assignmentId" />
-                    </div>
+                    </template>
                 </catch-error>
             </div>
         </template>

@@ -13,6 +13,41 @@
                 <icon name="plus" />
             </div>
 
+            <div :id="shareBtnId"
+                 class="icon-button"
+                 tabindex="-1"
+                 style="outline: none !important;"
+                 v-b-popover.hover.top="'Share current filters'">
+                <icon name="share-alt" />
+
+                <b-popover :target="shareBtnId"
+                           triggers="click blur"
+                           placement="bottom"
+                           title="Share filters">
+                    <p class="mb-2 text-justify">
+                        <small>
+                            Anyone with this URL and permissions to view this
+                            assignment's analytics dashboard will get the
+                            current view.
+                        </small>
+                    </p>
+
+                    <b-input-group class="flex-row" style="flex-wrap: nowrap;">
+                        <div class="form-control text-truncate">
+                            <small>
+                                {{ currentUrl }}
+                            </small>
+                        </div>
+
+                        <template #append>
+                            <b-button @click="copyUrlToClipboard">
+                                <icon name="clipboard" />
+                            </b-button>
+                        </template>
+                    </b-input-group>
+                </b-popover>
+            </div>
+
             <div class="icon-button danger"
                  @click="resetFilters()"
                  v-b-popover.hover.top="'Clear all'">
@@ -258,6 +293,8 @@
               @click="addFilter">
         Add filter
     </b-button>
+
+    <div ref="copyContainer" />
 </b-card>
 </template>
 
@@ -272,6 +309,8 @@ import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/unlink';
 import 'vue-awesome/icons/scissors';
 import 'vue-awesome/icons/copy';
+import 'vue-awesome/icons/share-alt';
+import 'vue-awesome/icons/clipboard';
 
 import { Workspace, WorkspaceFilter } from '@/models/analytics';
 import SubmitButton from '@/components/SubmitButton';
@@ -294,18 +333,30 @@ export default {
     },
 
     data() {
+        const id = this.$utils.getUniqueId();
+
         return {
             filters: [WorkspaceFilter.emptyFilter],
             isSplitting: null,
             splitLatest: false,
             splitGrade: '',
             splitDate: '',
+
+            shareBtnId: `analytics-filters-share-btn-${id}`,
         };
     },
 
     computed: {
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('users', ['getUser']),
+
+        currentUrl() {
+            // We can't get an actual URL from a $route, but we want this to
+            // be updated whenever $route changes.
+            // eslint-disable-next-line
+            const route = this.$route;
+            return window.location.href;
+        },
 
         assignment() {
             return this.assignments[this.assignmentId];
@@ -490,11 +541,13 @@ export default {
         to2Dec(x) {
             return this.$utils.toMaxNDecimals(x, 2);
         },
+
+        copyUrlToClipboard(event) {
+            const url = window.location.href;
+            this.$copyText(url, this.$refs.copyContainer);
+            event.target.blur();
+        },
     },
-
-    mounted() {},
-
-    destroyed() {},
 
     components: {
         Icon,
