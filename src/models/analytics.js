@@ -316,7 +316,23 @@ class WorkspaceSubmission {
         Object.freeze(this);
     }
 
-    satisfiesGrade(filter) {
+    satisfies(filter) {
+        const {
+            minGrade,
+            maxGrade,
+            submittedAfter,
+            submittedBefore,
+            assignee,
+        } = filter;
+
+        return (
+            this.satisfiesGrade(minGrade, maxGrade) &&
+            this.satisfiesDate(submittedAfter, submittedBefore) &&
+            this.satisfiesAssignee(assignee)
+        );
+    }
+
+    satisfiesGrade(minGrade, maxGrade) {
         // We do not want a submission to be in both filter A and
         // filter B if A has maxGrade=6 and B has minGrade=6, so we
         // need to check exclusively at one end. However, we need to be
@@ -329,7 +345,6 @@ class WorkspaceSubmission {
         // submissions graded exactly 10.
         // TODO: use the assignment's max grade instead of hardcoded
         // value 10.
-        const { minGrade, maxGrade } = filter;
 
         if (minGrade != null && this.grade < minGrade) {
             return false;
@@ -345,15 +360,21 @@ class WorkspaceSubmission {
         return true;
     }
 
-    satisfiesDate(filter) {
+    satisfiesDate(submittedAfter, submittedBefore) {
         // Same as with the grade, but we do not have a maximum value to check for.
-        const { submittedAfter, submittedBefore } = filter;
 
         if (submittedAfter != null && this.createdAt.isBefore(submittedAfter)) {
             return false;
         }
         if (submittedBefore != null && !this.createdAt.isBefore(submittedBefore)) {
             return false;
+        }
+        return true;
+    }
+
+    satisfiesAssignee(assignee) {
+        if (assignee != null) {
+            return this.assignee_id === assignee.id;
         }
         return true;
     }
@@ -374,6 +395,7 @@ class WorkspaceSubmissionSet {
             'averageGrade',
             'averageSubmissions',
             'submissionIds',
+            'assigneeIds',
         );
         Object.freeze(this.subs);
     }
@@ -410,6 +432,17 @@ class WorkspaceSubmissionSet {
 
     get submissionIds() {
         return this._cache.get('submissionIds', () => new Set(this.allSubmissions.map(s => s.id)));
+    }
+
+    get assigneeIds() {
+        return this._cache.get('assigneeIds', () =>
+            this.allSubmissions.reduce((acc, sub) => {
+                if (sub.assignee_id != null) {
+                    acc.add(sub.assignee_id);
+                }
+                return acc;
+            }, new Set()),
+        );
     }
 
     binSubmissionsBy(f) {
@@ -538,7 +571,7 @@ class WorkspaceSubmissionSet {
         let filtered = filter.onlyLatestSubs ? this.getLatestSubmissions() : this.submissions;
 
         filtered = mapObject(filtered, subs =>
-            subs.filter(s => s.satisfiesGrade(filter) && s.satisfiesDate(filter)),
+            subs.filter(s => s.satisfies(filter)),
         );
 
         filtered = filterObject(filtered, subs => subs.length > 0);
@@ -561,6 +594,7 @@ const WORKSPACE_FILTER_PROPS = new Set([
     'maxGrade',
     'submittedAfter',
     'submittedBefore',
+    'assignee',
 ]);
 
 export class WorkspaceFilter {
@@ -601,6 +635,7 @@ export class WorkspaceFilter {
             maxGrade: null,
             submittedBefore: null,
             submittedAfter: null,
+            assignee: null,
         });
     }
 
@@ -685,6 +720,10 @@ export class WorkspaceFilter {
 
             if (this.submittedBefore != null) {
                 parts.push(`Before ${readableFormatDate(this.submittedBefore)}`);
+            }
+
+            if (this.assignee != null) {
+                parts.push(this.assignee.name);
             }
 
             return parts.join(', ');

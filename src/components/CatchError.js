@@ -14,14 +14,12 @@ export default {
 
     methods: {
         reset() {
-            console.log('resetting', this.error);
             this.error = null;
             this.$emit('reset');
         },
     },
 
     errorCaptured(error) {
-        console.log('error captured', error);
         this.error = error;
         this.$emit('error', error);
         return this.capture ? false : undefined;

@@ -76,18 +76,18 @@
 
                         <b-input-group prepend="Min. grade">
                             <input :value="filter.minGrade"
-                                @input="updateFilter(i, 'minGrade', $event.target.value)"
-                                class="form-control"
-                                type="number"
-                                placeholder="0"
-                                min="0"
-                                :max="filter.maxGrade"
-                                step="1" />
+                                   @input="updateFilter(i, 'minGrade', $event.target.value)"
+                                   class="form-control"
+                                   type="number"
+                                   placeholder="0"
+                                   min="0"
+                                   :max="filter.maxGrade"
+                                   step="1" />
 
                             <template #append>
                                 <b-button variant="warning"
-                                        :disabled="filter.minGrade == null"
-                                        @click="updateFilter(i, 'minGrade', null)">
+                                          :disabled="filter.minGrade == null"
+                                          @click="updateFilter(i, 'minGrade', null)">
                                     <icon name="reply" />
                                 </b-button>
                             </template>
@@ -95,13 +95,13 @@
 
                         <b-input-group prepend="Max. grade">
                             <input :value="filter.maxGrade"
-                                @input="updateFilter(i, 'maxGrade', $event.target.value)"
-                                class="form-control"
-                                type="number"
-                                :placeholder="assignmentMaxGrade"
-                                :min="filter.minGrade"
-                                :max="assignmentMaxGrade"
-                                step="1" />
+                                   @input="updateFilter(i, 'maxGrade', $event.target.value)"
+                                   class="form-control"
+                                   type="number"
+                                   :placeholder="assignmentMaxGrade"
+                                   :min="filter.minGrade"
+                                   :max="assignmentMaxGrade"
+                                   step="1" />
 
                             <template #append>
                                 <b-button variant="warning"
@@ -114,30 +114,44 @@
 
                         <b-input-group prepend="Submitted after">
                             <datetime-picker :value="formatDate(filter.submittedAfter)"
-                                            @input="updateFilter(i, 'submittedAfter', $event)"
-                                            :placeholder="`${assignmentCreated} (Assignment created)`"/>
+                                             @input="updateFilter(i, 'submittedAfter', $event)"
+                                             :placeholder="`${assignmentCreated} (Assignment created)`"/>
 
-                                <template #append>
-                                    <b-button variant="warning"
-                                            :disabled="filter.submittedAfter == null"
-                                            @click="updateFilter(i, 'submittedAfter', null)">
-                                        <icon name="reply" />
-                                    </b-button>
-                                </template>
+                            <template #append>
+                                <b-button variant="warning"
+                                          :disabled="filter.submittedAfter == null"
+                                          @click="updateFilter(i, 'submittedAfter', null)">
+                                    <icon name="reply" />
+                                </b-button>
+                            </template>
                         </b-input-group>
 
                         <b-input-group prepend="Submitted before">
                             <datetime-picker :value="formatDate(filter.submittedBefore)"
-                                            @input="updateFilter(i, 'submittedBefore', $event)"
-                                            :placeholder="`${assignmentDeadline} (Assignment deadline)`"/>
+                                             @input="updateFilter(i, 'submittedBefore', $event)"
+                                             :placeholder="`${assignmentDeadline} (Assignment deadline)`"/>
 
-                                <template #append>
-                                    <b-button variant="warning"
-                                            :disabled="filter.submittedBefore == null"
-                                            @click="updateFilter(i, 'submittedBefore', null)">
-                                        <icon name="reply" />
-                                    </b-button>
-                                </template>
+                            <template #append>
+                                <b-button variant="warning"
+                                          :disabled="filter.submittedBefore == null"
+                                          @click="updateFilter(i, 'submittedBefore', null)">
+                                    <icon name="reply" />
+                                </b-button>
+                            </template>
+                        </b-input-group>
+
+                        <b-input-group prepend="Graded by">
+                            <b-form-select :value="filter.assignee"
+                                           @input="updateFilter(i, 'assignee', $event)"
+                                           :options="assigneeOptions" />
+
+                            <template #append>
+                                <b-button variant="warning"
+                                          :disabled="filter.submittedBefore == null"
+                                          @click="updateFilter(i, 'assignee', null)">
+                                    <icon name="reply" />
+                                </b-button>
+                            </template>
                         </b-input-group>
 
                         <analytics-general-stats
@@ -146,7 +160,7 @@
                     </div>
 
                     <div class="split-controls"
-                        :class="{ active: isSplitting === i }">
+                         :class="{ active: isSplitting === i }">
                         <b-input-group>
                             <b-input-group-prepend is-text>
                                 Latest
@@ -157,8 +171,8 @@
                             </b-input-group-prepend>
 
                             <b-form-checkbox v-model="splitLatest"
-                                            class="form-control"
-                                            style="padding-left: 2.25rem;">
+                                             class="form-control"
+                                             style="padding-left: 2.25rem;">
                                 Split on latest
                             </b-form-checkbox>
                         </b-input-group>
@@ -173,9 +187,9 @@
                             </b-input-group-prepend>
 
                             <input v-model="splitGrade"
-                                class="form-control placeholder-left"
-                                type="number"
-                                :placeholder="`Avg. of filter = ${filterAvgGrade(filter)}`" />
+                                   class="form-control placeholder-left"
+                                   type="number"
+                                   :placeholder="`Avg. of filter = ${filterAvgGrade(filter)}`" />
                         </b-input-group>
 
                         <b-input-group>
@@ -264,6 +278,7 @@ export default {
 
     computed: {
         ...mapGetters('courses', ['assignments']),
+        ...mapGetters('users', ['getUser']),
 
         assignment() {
             return this.assignments[this.assignmentId];
@@ -304,6 +319,18 @@ export default {
 
         splitResults() {
             return this.workspace.filter(this.splitFilters);
+        },
+
+        assignees() {
+            const ids = this.workspace.submissions.assigneeIds;
+            return [...ids].map(id => this.getUser(id));
+        },
+
+        assigneeOptions() {
+            return this.assignees.map(user => ({
+                text: user.name,
+                value: user,
+            }));
         },
     },
 
