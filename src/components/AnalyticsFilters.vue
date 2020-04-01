@@ -19,34 +19,34 @@
                  style="outline: none !important;"
                  v-b-popover.hover.top="'Share current filters'">
                 <icon name="share-alt" />
-
-                <b-popover :target="shareBtnId"
-                           triggers="click blur"
-                           placement="bottom"
-                           title="Share filters">
-                    <p class="mb-2 text-justify">
-                        <small>
-                            Anyone with this URL and permissions to view this
-                            assignment's analytics dashboard will get the
-                            current view.
-                        </small>
-                    </p>
-
-                    <b-input-group class="flex-row" style="flex-wrap: nowrap;">
-                        <div class="form-control text-truncate">
-                            <small>
-                                {{ currentUrl }}
-                            </small>
-                        </div>
-
-                        <template #append>
-                            <b-button @click="copyUrlToClipboard">
-                                <icon name="clipboard" />
-                            </b-button>
-                        </template>
-                    </b-input-group>
-                </b-popover>
             </div>
+
+            <b-popover :target="shareBtnId"
+                       triggers="click blur"
+                       placement="bottom"
+                       title="Share filters">
+                <p class="mb-2 text-justify">
+                    <small>
+                        Anyone with this URL and permissions to view this
+                        assignment's analytics dashboard will get the
+                        current view.
+                    </small>
+                </p>
+
+                <b-input-group class="flex-row" style="flex-wrap: nowrap;">
+                    <div class="form-control text-truncate">
+                        <small>
+                            {{ currentUrl }}
+                        </small>
+                    </div>
+
+                    <template #append>
+                        <b-button @click="copyUrlToClipboard">
+                            <icon name="clipboard" />
+                        </b-button>
+                    </template>
+                </b-input-group>
+            </b-popover>
 
             <div class="icon-button danger"
                  @click="resetFilters()"
