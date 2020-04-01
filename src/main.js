@@ -324,6 +324,10 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 return this.screenWidth >= this.largeWidth;
             },
 
+            $isXLargeWindow() {
+                return this.screenWidth >= this.largeWidth;
+            },
+
             isEdge() {
                 return window.navigator.userAgent.indexOf('Edge') > -1;
             },

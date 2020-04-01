@@ -125,7 +125,7 @@
                                :chart-data="submissionDateHistogram"
                                :options="submissionDateOpts"
                                :width="300"
-                               :height="75"/>
+                               :height="$root.$isXLargeWindow ? 75 : 100"/>
                 </b-card>
             </div>
 
@@ -241,7 +241,7 @@ export default {
         const { analytics } = this.$route.query;
         const settings = analytics == null ? {} : JSON.parse(analytics);
 
-        const data = {
+        return {
             id: this.$utils.getUniqueId(),
             loading: true,
             error: null,
@@ -270,8 +270,6 @@ export default {
             // again so the charts get properly resized.
             changingGradeHistSize: false,
         };
-
-        return data;
     },
 
     computed: {
@@ -920,12 +918,6 @@ export default {
         },
 
         updateSubmissionDateRange(event) {
-            // Somehow this event is sometimes triggered with a string
-            // instead of an array...
-            if (typeof event === 'string') {
-                return;
-            }
-
             const curRange = this.submissionDateRange;
             const newRange = event.map(d => moment(d));
 
@@ -935,7 +927,7 @@ export default {
                 // prevent a rerender, e.g. in case a user just opened the
                 // popover and immediately closes it by clicking somewhere
                 // in the page.
-                !newRange.every((x, i) => x.isSame(curRange[i]))
+                !newRange.every((d, i) => d.isSame(curRange[i]))
             ) {
                 this.forceRenderSubmissionDates = false;
                 this.submissionDateRange = event;
