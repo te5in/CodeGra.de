@@ -740,6 +740,10 @@ export class WorkspaceFilterResult {
         Object.freeze(this);
     }
 
+    get assignment() {
+        return this.workspace.assignment;
+    }
+
     getSource(sourceName) {
         return this.dataSources[sourceName];
     }

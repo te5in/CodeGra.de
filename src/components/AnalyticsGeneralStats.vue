@@ -9,7 +9,7 @@
             {{ studentCount }}
         </component>
 
-        <label>Students</label>
+        <label>{{ $utils.capitalize(studentType) }}s</label>
     </div>
 
     <div class="metric"
@@ -51,7 +51,7 @@
         <description-popover v-if="large"
                              triggers="hover"
                              placement="top">
-            The average number of submissions per student.
+            The average number of submissions per {{ studentType }}.
         </description-popover>
     </div>
 
@@ -106,6 +106,14 @@ export default {
     },
 
     computed: {
+        assignment() {
+            return this.baseWorkspace.assignment;
+        },
+
+        studentType() {
+            return this.assignment.group_set == null ? 'student' : 'group';
+        },
+
         cardBodyClass() {
             let cls = 'd-flex flex-row flex-wrap pb-0';
             if (!this.large) {
