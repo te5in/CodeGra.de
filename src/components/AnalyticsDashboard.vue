@@ -28,7 +28,7 @@
                 :feedback-workspace="latestSubmissionsWorkspace" />
         </div>
 
-        <div class="col-12">
+        <div class="col-12 mt-3">
             <analytics-filters :assignment-id="assignmentId"
                                :workspace="baseWorkspace"
                                :initial-data="filters"
@@ -42,14 +42,14 @@
         <!-- TODO: use total filtered submission count instead of total
             overall submission count. -->
         <div v-else-if="totalSubmissionCount === 0"
-             class="col-12">
+             class="col-12 mt-3">
             <h3 class="border rounded p-5 text-center text-muted font-italic">
                 No submissions within the specified filter parameters.
             </h3>
         </div>
 
         <template v-else>
-            <div class="col-12">
+            <div class="col-12 mt-3">
                 <b-card header-class="d-flex"
                         :body-class="noSubmissionWithinSelectedDates ? 'center' : ''">
                     <template #header>
@@ -130,7 +130,7 @@
                 </b-card>
             </div>
 
-            <div class="col-12 col-xl-6"
+            <div class="col-12 col-xl-6 mt-3"
                  :class="{ 'col-xl-12': largeGradeHistogram }">
                 <b-card header-class="d-flex">
                     <template #header>
@@ -166,7 +166,7 @@
             </div>
 
             <template v-if="rubricStatistic != null">
-                <div class="col-12 col-xl-6"
+                <div class="col-12 col-xl-6 mt-3"
                      :class="{ 'col-xl-12': largeGradeHistogram }">
                     <b-card header-class="d-flex"
                             :body-class="rubricChartEmpty ? 'center' : ''">
@@ -1026,7 +1026,6 @@ export default {
 
     .card {
         flex: 1 1 auto;
-        margin-bottom: 1rem;
 
         .input-group:not(:last-child) {
             margin-bottom: 1rem;
