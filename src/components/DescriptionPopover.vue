@@ -24,7 +24,7 @@
                class="desc-pop-span px-2"
                :id="compId">
         <span :title="spanTitle">
-            <icon :name="icon" scale="0.75"/>
+            <icon :name="icon" :scale="scale"/>
         </span>
     </component>
 </span>
@@ -86,6 +86,10 @@ export default {
 
         boundary: {
             default: undefined,
+        },
+        scale: {
+            type: Number,
+            default: 0.75,
         },
     },
 

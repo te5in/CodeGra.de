@@ -53,6 +53,39 @@
                  v-b-popover.hover.top="'Clear all'">
                 <icon name="reply" />
             </div>
+
+            <description-popover class="icon-button ml-1"
+                                 placement="bottom"
+                                 :scale="1">
+                <p class="mb-2">
+                    With filters you can select the data you want to visualize.
+                    A filter takes the set of all submissions for this
+                    assignment and produces the subset of those submissions
+                    that satisfy all the filter's requirements.
+                </p>
+
+                <p class="mb-2">
+                    Multiple filters can be enabled at the same time to produce
+                    multiple datasets. Each dataset will have its own distinct
+                    color in the charts below.
+                </p>
+
+                <p class="mb-2">
+                    Say, for example, that you have a filter with a maximum
+                    grade of 5 and another filter with a minimum grade of 5.
+                    This will partition the set of all submissions in two sets,
+                    one with all submissions with a grade below 5, the other
+                    with all submissions with a grade of 5 or higher.
+                </p>
+
+                <p>
+                    The easiest way to create multiple datasets is by using the
+                    split functionality. Click the
+                    <icon name="scissors" :scale="0.75" class="mx-1" />
+                    at the top of a filter to split the submissions satisfying
+                    the filter into two or more groups.
+                </p>
+            </description-popover>
         </div>
     </template>
 
@@ -99,7 +132,17 @@
                 <div class="controls">
                     <div class="filter-controls"
                         :class="{ active: isSplitting !== i }">
-                        <b-input-group prepend="Latest">
+                        <b-input-group>
+                            <template #prepend>
+                                <b-input-group-text>
+                                    Latest
+
+                                    <description-popover hug-text placement="top">
+                                        Keep only the latest submission by each student.
+                                    </description-popover>
+                                </b-input-group-text>
+                            </template>
+
                             <div class="form-control pl-2">
                                 <b-form-checkbox :checked="filter.onlyLatestSubs"
                                                  @input="updateFilter(i, 'onlyLatestSubs', $event)"
@@ -109,7 +152,18 @@
                             </div>
                         </b-input-group>
 
-                        <b-input-group prepend="Min. grade">
+                        <b-input-group>
+                            <template #prepend>
+                                <b-input-group-text>
+                                    Min. grade
+
+                                    <description-popover hug-text placement="top">
+                                        Keep only submissions with a grade equal to
+                                        or greater than this value.
+                                    </description-popover>
+                                </b-input-group-text>
+                            </template>
+
                             <input :value="filter.minGrade"
                                    @input="updateFilter(i, 'minGrade', $event.target.value)"
                                    class="form-control"
@@ -128,7 +182,18 @@
                             </template>
                         </b-input-group>
 
-                        <b-input-group prepend="Max. grade">
+                        <b-input-group>
+                            <template #prepend>
+                                <b-input-group-text>
+                                    Max. grade
+
+                                    <description-popover hug-text placement="top">
+                                        Keep only submissions with a grade less
+                                        than this value.
+                                    </description-popover>
+                                </b-input-group-text>
+                            </template>
+
                             <input :value="filter.maxGrade"
                                    @input="updateFilter(i, 'maxGrade', $event.target.value)"
                                    class="form-control"
@@ -147,7 +212,18 @@
                             </template>
                         </b-input-group>
 
-                        <b-input-group prepend="Submitted after">
+                        <b-input-group>
+                            <template #prepend>
+                                <b-input-group-text>
+                                    Submitted after
+
+                                    <description-popover hug-text placement="top">
+                                        Keep only submissions that were submitted
+                                        on or after this date.
+                                    </description-popover>
+                                </b-input-group-text>
+                            </template>
+
                             <datetime-picker :value="formatDate(filter.submittedAfter)"
                                              @input="updateFilter(i, 'submittedAfter', $event)"
                                              :placeholder="`${assignmentCreated} (Assignment created)`"
@@ -162,7 +238,18 @@
                             </template>
                         </b-input-group>
 
-                        <b-input-group prepend="Submitted before">
+                        <b-input-group>
+                            <template #prepend>
+                                <b-input-group-text>
+                                    Submitted before
+
+                                    <description-popover hug-text placement="top">
+                                        Keep only submissions that were submitted
+                                        before this date.
+                                    </description-popover>
+                                </b-input-group-text>
+                            </template>
+
                             <datetime-picker :value="formatDate(filter.submittedBefore)"
                                              @input="updateFilter(i, 'submittedBefore', $event)"
                                              :placeholder="`${assignmentDeadline} (Assignment deadline)`"

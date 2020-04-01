@@ -58,9 +58,10 @@
                         </div>
 
                         <div class="d-flex flex-grow-0">
-                            <b-button :variant="submissionDateRelative ? 'primary' : 'secondary'"
+                            <b-button :variant="submissionDateRelative ? 'primary' : 'outline-primary'"
                                       @click="submissionDateRelative = !submissionDateRelative"
-                                      v-b-popover.top.hover="'Relative to filter group'">
+                                      v-b-popover.top.hover="'Relative to filter group'"
+                                      class="ml-3">
                                 <icon name="percent" />
                             </b-button>
 
@@ -97,6 +98,27 @@
                                 <icon name="reply" />
                             </div>
 
+                            <description-popover class="icon-button ml-1"
+                                                 placement="bottom"
+                                                 :scale="1">
+                                <p class="mb-2">
+                                    This histogram shows at what times
+                                    students have submitted their work.
+                                    You can change the range of dates
+                                    that is displayed and the bin size
+                                    of the histogram.
+                                </p>
+
+                                <p>
+                                    By default this shows the percentage of
+                                    students in the respective filter group
+                                    that have submitted in some interval.
+                                    You can see the total number of students
+                                    by clicking the
+                                    <icon name="percent" :scale="0.75" class="mx-1" />
+                                    button.
+                                </p>
+                            </description-popover>
                         </div>
                     </template>
 
@@ -138,9 +160,10 @@
                         </div>
 
                         <div class="d-flex flex-grow-0">
-                            <b-button :variant="gradeHistRelative ? 'primary' : 'secondary'"
+                            <b-button :variant="gradeHistRelative ? 'primary' : 'outline-primary'"
                                       @click="gradeHistRelative = !gradeHistRelative"
-                                      v-b-popover.top.hover="'Relative to filter group'">
+                                      v-b-popover.top.hover="'Relative to filter group'"
+                                      class="ml-3">
                                 <icon name="percent" />
                             </b-button>
 
@@ -152,6 +175,27 @@
                                        class="form-control ml-2 pt-1"
                                        style="max-width: 4rem;"/>
                             </b-input-group>
+
+                            <description-popover class="icon-button ml-1"
+                                                 placement="bottom"
+                                                 :scale="1">
+                                <p class="mb-2">
+                                    The grade histogram shows the amount of
+                                    students that got a certain grade for
+                                    this assignment. You can change the bin
+                                    size; fractional numbers are supported.
+                                </p>
+
+                                <p>
+                                    By default this shows the percentage of
+                                    students in the respective filter group
+                                    that have submitted in some interval.
+                                    You can see the total number of students
+                                    by clicking the
+                                    <icon name="percent" :scale="0.75" class="mx-1" />
+                                    button.
+                                </p>
+                            </description-popover>
                         </div>
                     </template>
                     <loader center :scale="2" class="p-3" v-if="changingGradeHistSize" />
@@ -176,7 +220,7 @@
 
                             <div class="d-flex flex-grow-0">
                                 <b-button v-if="rubricStatistic.hasRelative"
-                                          :variant="rubricRelative ? 'primary' : 'secondary'"
+                                          :variant="rubricRelative ? 'primary' : 'outline-primary'"
                                           @click="rubricRelative = !rubricRelative"
                                           v-b-popover.top.hover="'Relative to max score in category'">
                                     <icon name="percent" />
@@ -186,6 +230,119 @@
                                                :options="rubricStatOptions"
                                                class="ml-2"
                                                style="max-width: 7.5rem"/>
+
+                                <description-popover class="icon-button ml-1"
+                                                     placement="bottom"
+                                                     :scale="1">
+                                    <p v-if="rubricSelectedStatistic === 'mean'"
+                                       class="mb-2">
+                                        The mean histogram displays the mean
+                                        achieved score per rubric category.
+                                        The error bars indicate the standard
+                                        deviation of the sample of students.
+                                    </p>
+
+                                    <p v-else-if="rubricSelectedStatistic === 'median'"
+                                       class="mb-2">
+                                        The median histogram displays the median
+                                        of the achieved scores per rubric
+                                        category. The median is obtained by
+                                        picking the middle value of a sorted
+                                        sample.
+                                    </p>
+
+                                    <p v-else-if="rubricSelectedStatistic === 'mode'"
+                                       class="mb-2">
+                                        The mode histogram displays the mode of
+                                        the achieved scores per rubric
+                                        category. The mode is the most common
+                                        value in a sample.
+                                    </p>
+
+                                    <template v-else-if="rubricSelectedStatistic === 'rit'">
+                                        <p class="mb-2">
+                                            The RIT value of a rubric category
+                                            is Pearson's correlation
+                                            coefficient between the achieved
+                                            scores in that category and the
+                                            total scores achieved for the
+                                            entire rubric.
+                                        </p>
+
+                                        <p>
+                                            The RIT value measures whether
+                                            students who scored high in
+                                            a rubric category also scored high
+                                            on the rubric overall.
+                                        </p>
+                                    </template>
+
+                                    <template v-else-if="rubricSelectedStatistic === 'rir'">
+                                        <p class="mb-2">
+                                            The RIR value of a rubric category
+                                            is Pearson's correlation
+                                            coefficient between the achieved
+                                            scores in that category and the
+                                            total scores achieved for the
+                                            entire rubric minus the achieved
+                                            score for the category.
+                                        </p>
+
+                                        <p class="mb-2">
+                                            The RIR value measures whether
+                                            students who scored high in
+                                            a rubric category also scored high
+                                            on the rubric overall.
+                                        </p>
+
+                                        <p>
+                                            While the RIR value is very similar
+                                            to the RIT value, it is a fairer
+                                            representation of the explanatory
+                                            factor of a rubric category because
+                                            if the achieved points in the
+                                            current category weren't removed,
+                                            higher scores in the current
+                                            category would contribute to higher
+                                            overall scores in the rubric.
+                                        </p>
+                                    </template>
+
+                                    <template v-else>
+                                        <p class="mb-2">
+                                            This plot shows a dot for each
+                                            student that shows how much points
+                                            someone achieved in the category
+                                            "{{ rubric.rowsById[rubricSelectedStatistic].header }}"
+                                            versus the total achieved points
+                                            for the entire rubric minus the
+                                            points scored in this category.
+                                        </p>
+
+                                        <p class="mb-2">
+                                            The line is a linear regression of
+                                            the data points and may provide more
+                                            insight in the RIR value for this rubric category.
+                                            An increasing line
+                                            indicates that students who scored
+                                            higher in this category also scored
+                                            higher in the rest of the rubric,
+                                            while a decreasing line indicates the
+                                            opposite. If the line is decreasing,
+                                            this rubric category may need a review!
+                                        </p>
+                                    </template>
+
+                                    <p v-if="rubricStatistic.hasRelative">
+                                        By default this shows the percentage of
+                                        students in the respective filter group
+                                        that have submitted in some interval.
+                                        You can see the total number of students
+                                        by clicking the
+                                        <icon name="percent" :scale="0.75" class="mx-1" />
+                                        button.
+                                    </p>
+                                </description-popover>
                             </div>
                         </template>
 
@@ -225,6 +382,7 @@ import { BarChart, ScatterPlot } from '@/components/Charts';
 import Loader from '@/components/Loader';
 import DatetimePicker from '@/components/DatetimePicker';
 import AnalyticsFilters from '@/components/AnalyticsFilters';
+import DescriptionPopover from '@/components/DescriptionPopover';
 import AnalyticsGeneralStats from '@/components/AnalyticsGeneralStats';
 
 export default {
@@ -999,6 +1157,7 @@ export default {
         BarChart,
         ScatterPlot,
         AnalyticsFilters,
+        DescriptionPopover,
         AnalyticsGeneralStats,
         DatetimePicker,
     },
