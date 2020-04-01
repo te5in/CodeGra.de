@@ -59,7 +59,7 @@
     <div class="row">
         <div v-for="filter, i in filters"
              :key="i"
-             class="col-12 col-xl-6">
+             class="col-12 col-xl-6 mb-3">
             <b-card header-class="d-flex">
                 <template #header>
                     <div class="flex-grow-1">
