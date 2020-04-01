@@ -56,6 +56,7 @@ export class RubricSource extends DataSource {
             'rubricRowPerItem',
             'itemsPerCat',
             'meanPerCat',
+            'stdevPerCat',
             'modePerCat',
             'medianPerCat',
             'nTimesFilledPerCat',
@@ -155,6 +156,18 @@ export class RubricSource extends DataSource {
                     return null;
                 } else {
                     return stat.mean(items.map(item => item.points));
+                }
+            }, true),
+        );
+    }
+
+    get stdevPerCat() {
+        return this._cache.get('stdevPerCat', () =>
+            this.mapItemsPerCat(items => {
+                if (items.length === 0) {
+                    return null;
+                } else {
+                    return stat.sampleStandardDeviation(items.map(item => item.points));
                 }
             }, true),
         );

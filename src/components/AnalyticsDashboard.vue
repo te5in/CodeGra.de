@@ -216,6 +216,7 @@
 import { mapActions, mapGetters } from 'vuex';
 import * as stat from 'simple-statistics';
 import moment from 'moment';
+import errorBarsPlugin from 'chartjs-plugin-error-bars';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/percent';
@@ -652,6 +653,7 @@ export default {
                 return [
                     `Times filled: ${stats.nTimesFilled}`,
                     `Mean: ${this.to2Dec(stats.mean)}`,
+                    `Std. deviation: ${this.to2Dec(stats.stdev)}`,
                     `Median: ${this.to2Dec(stats.median)}`,
                     `Mode: ${this.modeToString(stats.mode)}`,
                     `Rit: ${this.to2Dec(stats.rit) || '-'}`,
@@ -678,6 +680,7 @@ export default {
                 tooltips: {
                     callbacks: { label, afterLabel },
                 },
+                plugins: [errorBarsPlugin],
             };
         },
 
@@ -809,13 +812,16 @@ export default {
         },
 
         getRubricHistogramData(key, normalize) {
+            const labels = this.rubric.rows.map(row => row.header);
+
             const datasets = this.rubricSources.map((source, i) => {
-                let data = [];
+                const data = [];
                 const stats = [];
 
                 this.rubric.rows.forEach(row => {
                     const rowStats = {
                         mean: source.meanPerCat[row.id],
+                        stdev: source.stdevPerCat[row.id],
                         mode: source.modePerCat[row.id],
                         median: source.medianPerCat[row.id],
                         rit: source.ritPerCat[row.id],
@@ -829,19 +835,33 @@ export default {
                     data.push(rowStats[key] == null ? 0 : rowStats[key]);
                 });
 
+                let errorBars = null;
+                if (key === 'mean') {
+                    errorBars = stats.map(st => st.stdev);
+                }
+
+                let normalized = data;
                 if (normalize && this.rubricNormalizeFactors != null) {
-                    data = this.normalize(data, this.rubricNormalizeFactors);
+                    normalized = this.normalize(data, this.rubricNormalizeFactors);
+
+                    if (errorBars != null) {
+                        errorBars = stats.map(({ stdev }, j) => (normalized[j] / data[j]) * stdev);
+                    }
                 }
 
                 return {
                     label: this.filterLabels[i],
-                    data,
+                    data: normalized,
                     stats,
+                    errorBars: errorBars == null ? null : errorBars.reduce((acc, stdev, j) => {
+                        acc[labels[j]] = { plus: stdev, minus: -stdev };
+                        return acc;
+                    }, {}),
                 };
             });
 
             return {
-                labels: this.rubric.rows.map(row => row.header),
+                labels,
                 datasets,
             };
         },
