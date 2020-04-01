@@ -140,60 +140,51 @@ export class RubricSource extends DataSource {
         );
     }
 
-    mapItemsPerCat(f, skipEmpty = false) {
-        return mapObject(this.itemsPerCat, (items, rowId) => {
-            if (skipEmpty && items.length === 0) {
-                return f([], rowId);
-            }
-            return f(items, rowId);
-        });
-    }
-
     get meanPerCat() {
         return this._cache.get('meanPerCat', () =>
-            this.mapItemsPerCat(items => {
+            mapObject(this.itemsPerCat, items => {
                 if (items.length === 0) {
                     return null;
                 } else {
                     return stat.mean(items.map(item => item.points));
                 }
-            }, true),
+            }),
         );
     }
 
     get stdevPerCat() {
         return this._cache.get('stdevPerCat', () =>
-            this.mapItemsPerCat(items => {
-                if (items.length === 0) {
+            mapObject(this.itemsPerCat, items => {
+                if (items.length < 2) {
                     return null;
                 } else {
                     return stat.sampleStandardDeviation(items.map(item => item.points));
                 }
-            }, true),
+            }),
         );
     }
 
     get modePerCat() {
         return this._cache.get('modePerCat', () =>
-            this.mapItemsPerCat(items => {
+            mapObject(this.itemsPerCat, items => {
                 if (items.length === 0) {
                     return null;
                 } else {
                     return stat.mode(items.map(item => item.points));
                 }
-            }, true),
+            }),
         );
     }
 
     get medianPerCat() {
         return this._cache.get('medianPerCat', () =>
-            this.mapItemsPerCat(items => {
+            mapObject(this.itemsPerCat, items => {
                 if (items.length === 0) {
                     return null;
                 } else {
                     return stat.median(items.map(item => item.points));
                 }
-            }, true),
+            }),
         );
     }
 
