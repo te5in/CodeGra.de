@@ -73,8 +73,7 @@
                                                  minDate: minSubmissionDate,
                                                  maxDate: maxSubmissionDate,
                                              }"
-                                             class="ml-2 text-center"
-                                             style="min-width: 20rem"/>
+                                             class="ml-2 text-center"/>
 
                             <b-input-group class="mb-0">
                                 <input :value="submissionDateBinSize"
