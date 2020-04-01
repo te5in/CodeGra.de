@@ -31,6 +31,8 @@
         <div class="col-12">
             <analytics-filters :assignment-id="assignmentId"
                                :workspace="baseWorkspace"
+                               :initial-data="filters"
+                               @serialize="filters = $event"
                                @results="filterResults = $event">
             </analytics-filters>
         </div>
@@ -48,7 +50,8 @@
 
         <template v-else>
             <div class="col-12">
-                <b-card header-class="d-flex">
+                <b-card header-class="d-flex"
+                        :body-class="noSubmissionWithinSelectedDates ? 'center' : ''">
                     <template #header>
                         <div class="flex-grow-1">
                             Students submitted on
@@ -99,8 +102,8 @@
                     </template>
 
                     <template v-if="noSubmissionWithinSelectedDates">
-                        <h3 class="p-3 text-center text-muted font-italic">
-                            No submission within this range!
+                        <h3 class="p-3 text-muted font-italic">
+                            No submissions within this range!
                         </h3>
                     </template>
 
@@ -165,7 +168,8 @@
             <template v-if="rubricStatistic != null">
                 <div class="col-12 col-xl-6"
                      :class="{ 'col-xl-12': largeGradeHistogram }">
-                    <b-card header-class="d-flex">
+                    <b-card header-class="d-flex"
+                            :body-class="rubricChartEmpty ? 'center' : ''">
                         <template #header>
                             <div class="flex-grow-1">
                                 Rubric statistics
@@ -179,7 +183,7 @@
                                     <icon name="percent" />
                                 </b-button>
 
-                                <b-form-select v-model="selectedRubricStatistic"
+                                <b-form-select v-model="rubricSelectedStatistic"
                                                :options="rubricStatOptions"
                                                class="ml-2"
                                                style="max-width: 7.5rem"/>
@@ -187,6 +191,12 @@
                         </template>
 
                         <loader center :scale="2" class="p-3" v-if="changingGradeHistSize" />
+
+                        <template v-if="rubricChartEmpty">
+                            <h3 class="p-4 text-muted font-italic">
+                                No data for this statistic!
+                            </h3>
+                        </template>
 
                         <component v-else
                                    :is="rubricStatistic.chartComponent"
@@ -228,26 +238,31 @@ export default {
     },
 
     data() {
-        return {
+        const { analytics } = this.$route.query;
+        const settings = analytics == null ? {} : JSON.parse(analytics);
+
+        const data = {
             id: this.$utils.getUniqueId(),
             loading: true,
             error: null,
 
             baseWorkspace: null,
-            filterResults: [],
 
-            submissionDateRelative: true,
-            submissionDateRange: [],
-            submissionDateBinSize: 1,
+            ...this.fillSettings(settings),
+
+            // Changing the submission date bin size can cause a lot of
+            // bins to be drawn, especially when typing something like
+            // `10`, where the value is temporarily `1`. We debounce the
+            // event of the bin size input with this timer to prevent
+            // temporary page freezes or flickering of the "too many bins"
+            // message when editing the bin size.
             submissionDateBinSizeTimer: null,
-            submissionDateBinUnit: 'days',
+
+            // When there are a lot of datapoints to draw in a chart the
+            // browser may freeze, so we put a soft cap at 100. Users can
+            // still choose to render the chart anyway, in which case this
+            // boolean is temporarily set to true.
             forceRenderSubmissionDates: false,
-
-            gradeHistRelative: true,
-            gradeHistBinSize: 1,
-
-            rubricRelative: true,
-            selectedRubricStatistic: null,
 
             // Changing `largeGradeHistogram` strangely does not trigger a
             // redraw of the charts that depend on it. So when it changes
@@ -255,6 +270,8 @@ export default {
             // again so the charts get properly resized.
             changingGradeHistSize: false,
         };
+
+        return data;
     },
 
     computed: {
@@ -597,10 +614,18 @@ export default {
         },
 
         rubricStatistic() {
-            if (this.selectedRubricStatistic == null) {
+            if (this.rubricSelectedStatistic == null) {
                 return null;
             }
-            return this.rubricStatistics[this.selectedRubricStatistic];
+            return this.rubricStatistics[this.rubricSelectedStatistic];
+        },
+
+        rubricChartEmpty() {
+            if (this.rubricStatistic == null) {
+                return true;
+            } else {
+                return this.rubricStatistic.data.datasets.every(ds => ds.data.length === 0);
+            }
         },
 
         rubricNormalizeFactors() {
@@ -636,7 +661,7 @@ export default {
             };
 
             const labelString = this.rubricStatOptions.find(
-                so => so.value === this.selectedRubricStatistic,
+                so => so.value === this.rubricSelectedStatistic,
             ).text;
 
             return {
@@ -681,35 +706,79 @@ export default {
                 },
             };
         },
+
+        serializedData() {
+            const ser = JSON.stringify({
+                filters: this.filters,
+                submissionDateRelative: this.submissionDateRelative,
+                submissionDateRange: this.submissionDateRange,
+                submissionDateBinSize: this.submissionDateBinSize,
+                submissionDateBinUnit: this.submissionDateBinUnit,
+                gradeHistRelative: this.gradeHistRelative,
+                gradeHistBinSize: this.gradeHistBinSize,
+                rubricRelative: this.rubricRelative,
+                rubricSelectedStatistic: this.rubricSelectedStatistic,
+            });
+
+            return ser;
+        },
     },
 
     methods: {
         ...mapActions('analytics', ['loadWorkspace', 'clearAssignmentWorkspaces']),
 
+        fillSettings(settings) {
+            return Object.assign(
+                {
+                    filters: settings.filters,
+                    filterResults: [],
+                },
+                this.fillRubricSettings(settings),
+                this.fillGradeHistSettings(settings),
+                this.fillSubmissionDateSettings(settings),
+            );
+        },
+
+        fillRubricSettings(settings) {
+            return Object.assign({
+                rubricRelative: true,
+                rubricSelectedStatistic: 'mean',
+            }, settings);
+        },
+
+        fillGradeHistSettings(settings) {
+            return Object.assign({
+                gradeHistRelative: true,
+                gradeHistBinSize: 1,
+            }, settings);
+        },
+
+        fillSubmissionDateSettings(settings) {
+            return Object.assign({
+                submissionDateRelative: true,
+                submissionDateRange: [],
+                submissionDateBinSize: 1,
+                submissionDateBinUnit: 'days',
+            }, settings);
+        },
+
         reset() {
-            this.filterResults = [];
-            this.resetRubricParams();
-            this.resetGradeHistParams();
-            this.resetSubmissionDateParams();
+            Object.assign(this, this.fillSettings());
         },
 
         resetRubricParams() {
-            this.selectedRubricStatistic = 'mean';
-            this.rubricRelative = true;
+            Object.assign(this, this.fillRubricSettings());
         },
 
         resetSubmissionDateParams() {
-            this.submissionDateRelative = true;
-            this.submissionDateRange = [];
-            this.submissionDateBinSize = 1;
-            this.submissionDateBinUnit = 'days';
+            Object.assign(this, this.fillSubmissionDateSettings());
+
             this.forceRenderSubmissionDates = false;
             clearTimeout(this.submissionDateBinSizeTimer);
         },
 
         resetGradeHistParams() {
-            this.gradeHistRelative = true;
-            this.gradeHistBinSize = 1;
+            Object.assign(this, this.fillGradeHistSettings());
         },
 
         loadWorkspaceData() {
@@ -721,7 +790,6 @@ export default {
                 res => {
                     const ws = res.data;
                     if (ws.id === this.currentWorkspaceId) {
-                        this.reset();
                         this.baseWorkspace = ws;
                         this.error = null;
                         this.loading = false;
@@ -875,8 +943,15 @@ export default {
     watch: {
         currentWorkspaceId: {
             immediate: true,
-            handler() {
-                this.loadWorkspaceData();
+            handler(newVal, oldVal) {
+                this.loadWorkspaceData().then(() => {
+                    // Reset all configuration only when we are changing
+                    // to another workspace, but not when loading the
+                    // component for the first time.
+                    if (newVal !== oldVal && oldVal != null) {
+                        this.reset();
+                    }
+                });
             },
         },
 
@@ -886,6 +961,16 @@ export default {
             this.changingGradeHistSize = true;
             await this.$afterRerender();
             this.changingGradeHistSize = false;
+        },
+
+        serializedData() {
+            this.$router.replace({
+                query: {
+                    ...this.$route.query,
+                    analytics: this.serializedData,
+                },
+                hash: this.$route.hash,
+            });
         },
     },
 
@@ -913,7 +998,14 @@ export default {
 @import '~mixins.less';
 
 .analytics-dashboard {
+    .col-6,
+    .col-12 {
+        display: flex;
+        flex-direction: column;
+    }
+
     .card {
+        flex: 1 1 auto;
         margin-bottom: 1rem;
 
         .input-group:not(:last-child) {
@@ -936,6 +1028,12 @@ export default {
         }
     }
 
+    .card-body.center {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
     // TODO: Define the .icon-button globally so we can use it
     // in other components as well.
     .icon-button {
@@ -944,6 +1042,7 @@ export default {
         cursor: pointer;
         transition: background-color @transition-duration;
 
+        &:focus,
         &.active {
             color: lighten(@color-secondary, 15%);
 

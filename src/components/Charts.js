@@ -252,16 +252,24 @@ export const ScatterPlot = {
         yRange() {
             return this.range('y');
         },
+
+        emptyRange() {
+            return [0, 0];
+        },
     },
 
     methods: {
         range(dim) {
             if (this.datasets.length === 0) {
-                return [0, 0];
+                return this.emptyRange;
             }
 
             const xsPerDataset = this.datasets.map(ds => ds.data.map(el => el[dim]));
             const xs = [].concat(...xsPerDataset);
+
+            if (xs.length === 0) {
+                return this.emptyRange;
+            }
 
             const minX = stat.min(xs);
             const maxX = stat.max(xs);
@@ -280,6 +288,11 @@ export const ScatterPlot = {
 
             const { data } = dataset;
             const points = data.map(({ x, y }) => [x, y]);
+
+            if (points.length === 0) {
+                return null;
+            }
+
             const f = stat.linearRegressionLine(stat.linearRegression(points));
 
             let { min, max } = this.xRange;

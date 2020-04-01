@@ -330,13 +330,17 @@ export default {
             type: Workspace,
             required: true,
         },
+        initialData: {
+            type: Array,
+            default: null,
+        },
     },
 
     data() {
         const id = this.$utils.getUniqueId();
 
         return {
-            filters: [WorkspaceFilter.emptyFilter],
+            filters: this.defaultFilters(this.initialData),
             isSplitting: null,
             splitLatest: false,
             splitGrade: '',
@@ -421,39 +425,17 @@ export default {
         },
     },
 
-    watch: {
-        workspace: {
-            immediate: true,
-            handler() {
-                this.resetFilters();
-            },
-        },
-
-        filters: {
-            immediate: true,
-            handler() {
-                this.isSplitting = null;
-                this.$router.replace({
-                    query: {
-                        ...this.$route.query,
-                        'analytics-filters': JSON.stringify(this.filters),
-                    },
-                    hash: this.$route.hash,
-                });
-            },
-        },
-
-        results: {
-            immediate: true,
-            handler() {
-                this.$emit('results', this.results);
-            },
-        },
-    },
-
     methods: {
+        defaultFilters(filters) {
+            if (filters == null || filters.length === 0) {
+                return [WorkspaceFilter.emptyFilter];
+            } else {
+                return filters.map(f => new WorkspaceFilter(f));
+            }
+        },
+
         resetFilters() {
-            this.filters = [WorkspaceFilter.emptyFilter];
+            this.filters = this.defaultFilters();
             this.resetSplitParams();
         },
 
@@ -470,7 +452,7 @@ export default {
         },
 
         addFilter() {
-            this.filters = [...this.filters, WorkspaceFilter.emptyFilter];
+            this.filters = [WorkspaceFilter.emptyFilter, ...this.filters];
         },
 
         toggleSplitFilter(idx) {
@@ -546,6 +528,36 @@ export default {
             const url = window.location.href;
             this.$copyText(url, this.$refs.copyContainer);
             event.target.blur();
+        },
+    },
+
+    watch: {
+        workspace() {
+            this.resetFilters();
+        },
+
+        filters: {
+            immediate: true,
+            handler() {
+                this.isSplitting = null;
+                this.$emit('serialize', this.filters.map(f => {
+                    const filter = Object.assign({}, f);
+                    if (filter.submittedAfter != null) {
+                        filter.submittedAfter = filter.submittedAfter.toISOString();
+                    }
+                    if (filter.submittedBefore != null) {
+                        filter.submittedAfter = filter.submittedAfter.toISOString();
+                    }
+                    return filter;
+                }));
+            },
+        },
+
+        results: {
+            immediate: true,
+            handler() {
+                this.$emit('results', this.results);
+            },
         },
     },
 
