@@ -39,9 +39,7 @@
 
         <loader page-loader :scale="4" v-if="filterResults.length === 0" />
 
-        <!-- TODO: use total filtered submission count instead of total
-            overall submission count. -->
-        <div v-else-if="totalSubmissionCount === 0"
+        <div v-else-if="filteredSubmissionCount === 0"
              class="col-12 mt-3">
             <h3 class="border rounded p-5 text-center text-muted font-italic">
                 No submissions within the specified filter parameters.
@@ -452,6 +450,16 @@ export default {
 
         totalSubmissionCount() {
             return this.baseWorkspace.submissions.submissionCount;
+        },
+
+        filteredSubmissionCount() {
+            return this.filterResults.reduce(
+                (acc, result) => {
+                    result.submissions.submissionIds.forEach(id => acc.add(id));
+                    return acc;
+                },
+                new Set(),
+            ).size;
         },
 
         latestSubmissionsWorkspace() {
