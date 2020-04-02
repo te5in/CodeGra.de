@@ -347,8 +347,8 @@
                             <datetime-picker v-model="splitDate"
                                              placeholder="Date"
                                              :config="{
-                                                 minDate: nthFirstSubmissionDate(i).toISOString(),
-                                                 maxDate: nthLastSubmissionDate(i).toISOString(),
+                                                 minDate: nthFirstSubmissionDate(i),
+                                                 maxDate: nthLastSubmissionDate(i),
                                              }"/>
                         </b-input-group>
 
@@ -466,9 +466,11 @@ export default {
         },
 
         submittedDateTimeConfig() {
+            const first = this.workspace.submissions.firstSubmissionDate;
+            const last = this.workspace.submissions.lastSubmissionDate;
             return {
-                minDate: this.workspace.submissions.firstSubmissionDate.toISOString(),
-                maxDate: this.workspace.submissions.lastSubmissionDate.toISOString(),
+                minDate: this.maybeToISOString(first),
+                maxDate: this.maybeToISOString(last),
                 defaultHour: 23,
                 defaultMinute: 59,
             };
@@ -584,11 +586,15 @@ export default {
         },
 
         nthFirstSubmissionDate(idx) {
-            return this.results[idx].submissions.firstSubmissionDate;
+            return this.maybeToISOString(
+                this.results[idx].submissions.firstSubmissionDate,
+            );
         },
 
         nthLastSubmissionDate(idx) {
-            return this.results[idx].submissions.lastSubmissionDate;
+            return this.maybeToISOString(
+                this.results[idx].submissions.lastSubmissionDate,
+            );
         },
 
         filterAvgGrade(filter) {
@@ -616,6 +622,10 @@ export default {
             this.$copyText(url, this.$refs.copyContainer);
             event.target.blur();
         },
+
+        maybeToISOString(d) {
+            return d == null ? null : d.toISOString();
+        },
     },
 
     watch: {
@@ -629,12 +639,8 @@ export default {
                 this.isSplitting = null;
                 this.$emit('serialize', this.filters.map(f => {
                     const filter = Object.assign({}, f);
-                    if (filter.submittedAfter != null) {
-                        filter.submittedAfter = filter.submittedAfter.toISOString();
-                    }
-                    if (filter.submittedBefore != null) {
-                        filter.submittedAfter = filter.submittedAfter.toISOString();
-                    }
+                    filter.submittedAfter = this.maybeToISOString(f.submittedAfter);
+                    filter.submittedBefore = this.maybeToISOString(f.submittedBefore);
                     return filter;
                 }));
             },
