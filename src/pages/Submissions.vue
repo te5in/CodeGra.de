@@ -273,7 +273,7 @@
                                       :filename="exportFilename" />
             </div>
 
-            <div v-show="selectedCat === 'analytics'"
+            <div v-if="selectedCat === 'analytics'"
                  class="flex-grow-1">
                 <catch-error>
                     <template slot-scope="scope">
@@ -795,7 +795,10 @@ export default {
         SubmissionsExporter,
         WebhookInstructions,
         LateSubmissionIcon,
-        AnalyticsDashboard: () => import('@/components/AnalyticsDashboard'),
+        AnalyticsDashboard: () => ({
+            component: import('@/components/AnalyticsDashboard'),
+            loading: Loader,
+        }),
     },
 };
 </script>
