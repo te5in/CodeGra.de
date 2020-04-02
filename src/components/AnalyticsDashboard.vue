@@ -625,6 +625,9 @@ export default {
 
             const bins = this.$utils.range(0, Math.ceil(maxGrade / binSize));
             const labels = bins.map(i => {
+                if (binSize === 1) {
+                    return i;
+                }
                 const start = this.to2Dec(i * binSize);
                 const end = this.to2Dec(Math.min(maxGrade, (i + 1) * binSize));
                 return `${start} - ${end}`;
