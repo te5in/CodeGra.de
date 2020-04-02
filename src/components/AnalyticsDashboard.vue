@@ -149,8 +149,7 @@
                 </b-card>
             </div>
 
-            <div class="col-12 col-xl-6 mt-3"
-                 :class="{ 'col-xl-12': largeGradeHistogram }">
+            <div class="col-12 mt-3">
                 <b-card header-class="d-flex">
                     <template #header>
                         <div class="flex-grow-1">
@@ -196,19 +195,16 @@
                             </description-popover>
                         </div>
                     </template>
-                    <loader center :scale="2" class="p-3" v-if="changingGradeHistSize" />
 
-                    <bar-chart v-else
-                               :chart-data="gradeHistogram"
+                    <bar-chart :chart-data="gradeHistogram"
                                :options="gradeHistOpts"
                                :width="300"
-                               :height="largeGradeHistogram ? 133 : 200"/>
+                               :height="100"/>
                 </b-card>
             </div>
 
             <template v-if="rubricStatistic != null">
-                <div class="col-12 col-xl-6 mt-3"
-                     :class="{ 'col-xl-12': largeGradeHistogram }">
+                <div class="col-12 mt-3">
                     <b-card header-class="d-flex"
                             :body-class="rubricChartEmpty ? 'center' : ''">
                         <template #header>
@@ -344,8 +340,6 @@
                             </div>
                         </template>
 
-                        <loader center :scale="2" class="p-3" v-if="changingGradeHistSize" />
-
                         <template v-if="rubricChartEmpty">
                             <h3 class="p-4 text-muted font-italic">
                                 No data for this statistic!
@@ -357,7 +351,7 @@
                                    :chart-data="rubricStatistic.data"
                                    :options="rubricStatistic.options"
                                    :width="300"
-                                   :height="largeGradeHistogram ? 133 : 200"/>
+                                   :height="100"/>
                     </b-card>
                 </div>
             </template>
@@ -420,12 +414,6 @@ export default {
             // still choose to render the chart anyway, in which case this
             // boolean is temporarily set to true.
             forceRenderSubmissionDates: false,
-
-            // Changing `largeGradeHistogram` strangely does not trigger a
-            // redraw of the charts that depend on it. So when it changes
-            // we set this to `true` and then after a rerender back to `false`
-            // again so the charts get properly resized.
-            changingGradeHistSize: false,
         };
     },
 
@@ -480,10 +468,6 @@ export default {
                 return [];
             }
             return this.filterResults.map(r => r.getSource('rubric_data'));
-        },
-
-        hasManyRubricRows() {
-            return this.$utils.getProps(this.rubricSource, 0, 'rowIds', 'length') > 8;
         },
 
         filterLabels() {
@@ -624,10 +608,6 @@ export default {
                     callbacks: { label, afterLabel },
                 },
             };
-        },
-
-        largeGradeHistogram() {
-            return !this.hasRubricSource || this.hasManyRubricRows || this.filterResults.length > 2;
         },
 
         gradeHistogram() {
@@ -1137,14 +1117,6 @@ export default {
             },
         },
 
-        async largeGradeHistogram() {
-            // We must trigger a rerender when the box containing a chart's canvas
-            // changes size.
-            this.changingGradeHistSize = true;
-            await this.$afterRerender();
-            this.changingGradeHistSize = false;
-        },
-
         serializedData() {
             this.$router.replace({
                 query: {
@@ -1181,7 +1153,6 @@ export default {
 @import '~mixins.less';
 
 .analytics-dashboard {
-    .col-6,
     .col-12 {
         display: flex;
         flex-direction: column;
