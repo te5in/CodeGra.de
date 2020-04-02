@@ -643,6 +643,7 @@ export class WorkspaceFilter {
 
         this.minGrade = maybeFloat(this.minGrade);
         this.maxGrade = maybeFloat(this.maxGrade);
+
         this.submittedAfter = maybeMoment(this.submittedAfter);
         this.submittedBefore = maybeMoment(this.submittedBefore);
 
@@ -757,7 +758,19 @@ export class WorkspaceFilter {
         if (filter.submittedBefore != null) {
             filter.submittedBefore = filter.submittedBefore.toISOString();
         }
+        if (filter.assignees != null) {
+            filter.assignees = filter.assignees.map(a => a.id);
+        }
         return filter;
+    }
+
+    static deserialize(data) {
+        if (data.assignees != null) {
+            data.assignees = data.assignees.map(
+                id => store.getters['users/getUser'](id),
+            );
+        }
+        return new WorkspaceFilter(data);
     }
 }
 

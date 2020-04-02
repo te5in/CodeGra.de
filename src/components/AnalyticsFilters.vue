@@ -505,13 +505,6 @@ export default {
             const ids = this.workspace.submissions.assigneeIds;
             return [...ids].map(id => this.getUser(id));
         },
-
-        assigneeOptions() {
-            return this.assignees.map(user => ({
-                text: user.name,
-                value: user,
-            }));
-        },
     },
 
     methods: {
@@ -519,7 +512,7 @@ export default {
             if (filters == null || filters.length === 0) {
                 return [WorkspaceFilter.emptyFilter];
             } else {
-                return filters.map(f => new WorkspaceFilter(f));
+                return filters.map(f => WorkspaceFilter.deserialize(f));
             }
         },
 
