@@ -441,6 +441,20 @@ export function downloadFile(data, filename, contentType) {
     }
 }
 
+export function deepEquals(a, b) {
+    if (typeof a !== 'object') {
+        return a === b;
+    } else if (a == null) {
+        // eslint-disable-next-line eqeqeq
+        return a == b;
+    } else if (typeof b !== 'object') {
+        return false;
+    } else {
+        const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+        return [...keys].every(key => deepEquals(a[key], b[key]));
+    }
+}
+
 export function deepExtend(target, ...sources) {
     sources.forEach(source => {
         Object.entries(source).forEach(([key, val]) => {

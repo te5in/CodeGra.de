@@ -4,7 +4,7 @@ import * as stat from 'simple-statistics';
 
 import { store } from '@/store';
 // eslint-ignore-next-line
-import { hasAttr, getProps, mapObject, filterObject, readableFormatDate, zip } from '@/utils';
+import { hasAttr, getProps, deepEquals, mapObject, filterObject, readableFormatDate, zip } from '@/utils';
 import { makeCache } from '@/utils/cache';
 import { defaultdict } from '@/utils/defaultdict';
 
@@ -744,6 +744,20 @@ export class WorkspaceFilter {
 
             return parts.join(', ');
         });
+    }
+
+    serialize() {
+        const defaults = WorkspaceFilter.emptyFilter;
+        const filter = filterObject(Object.assign({}, this), (val, key) =>
+            !deepEquals(val, defaults[key]),
+        );
+        if (filter.submittedAfter != null) {
+            filter.submittedAfter = filter.submittedAfter.toISOString();
+        }
+        if (filter.submittedBefore != null) {
+            filter.submittedBefore = filter.submittedBefore.toISOString();
+        }
+        return filter;
     }
 }
 

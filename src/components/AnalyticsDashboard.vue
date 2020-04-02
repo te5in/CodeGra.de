@@ -382,6 +382,7 @@ import DatetimePicker from '@/components/DatetimePicker';
 import AnalyticsFilters from '@/components/AnalyticsFilters';
 import DescriptionPopover from '@/components/DescriptionPopover';
 import AnalyticsGeneralStats from '@/components/AnalyticsGeneralStats';
+import { deepEquals, filterObject } from '@/utils';
 
 export default {
     name: 'analytics-dashboard',
@@ -874,8 +875,9 @@ export default {
         },
 
         serializedData() {
-            const ser = JSON.stringify({
-                filters: this.filters,
+            const defaults = this.fillSettings();
+            const serialized = {
+                filters: this.$utils.getProps(this, [], 'filters'),
                 submissionDateRelative: this.submissionDateRelative,
                 submissionDateRange: this.submissionDateRange,
                 submissionDateBinSize: this.submissionDateBinSize,
@@ -884,9 +886,11 @@ export default {
                 gradeHistBinSize: this.gradeHistBinSize,
                 rubricRelative: this.rubricRelative,
                 rubricSelectedStatistic: this.rubricSelectedStatistic,
-            });
+            };
 
-            return ser;
+            return JSON.stringify(filterObject(serialized, (val, key) =>
+                !deepEquals(val, defaults[key]),
+            ));
         },
     },
 
@@ -894,9 +898,10 @@ export default {
         ...mapActions('analytics', ['loadWorkspace', 'clearAssignmentWorkspaces']),
 
         fillSettings(settings) {
+            const filters = this.$utils.getProps(settings, [{}], 'filters');
             return Object.assign(
                 {
-                    filters: settings.filters,
+                    filters,
                     filterResults: [],
                 },
                 this.fillRubricSettings(settings),

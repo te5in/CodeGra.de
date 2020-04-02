@@ -637,12 +637,7 @@ export default {
             immediate: true,
             handler() {
                 this.isSplitting = null;
-                this.$emit('serialize', this.filters.map(f => {
-                    const filter = Object.assign({}, f);
-                    filter.submittedAfter = this.maybeToISOString(f.submittedAfter);
-                    filter.submittedBefore = this.maybeToISOString(f.submittedBefore);
-                    return filter;
-                }));
+                this.$emit('serialize', this.filters.map(f => f.serialize()));
             },
         },
 
