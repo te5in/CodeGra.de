@@ -146,7 +146,8 @@ export class RubricSource extends DataSource {
                 if (items.length === 0) {
                     return null;
                 } else {
-                    return stat.mean(items.map(item => item.points));
+                    const points = items.map(item => item.points);
+                    return stat.mean(points);
                 }
             }),
         );
@@ -158,7 +159,8 @@ export class RubricSource extends DataSource {
                 if (items.length < 2) {
                     return null;
                 } else {
-                    return stat.sampleStandardDeviation(items.map(item => item.points));
+                    const points = items.map(item => item.points);
+                    return stat.sampleStandardDeviation(points);
                 }
             }),
         );
@@ -268,18 +270,20 @@ export class InlineFeedbackSource extends DataSource {
 
     constructor(data, workspace) {
         super(data, workspace);
-        this._cache = makeCache('averageEntries');
+        this._cache = makeCache('averageEntries', 'entriesStdev');
         Object.freeze(this);
     }
 
     get averageEntries() {
         return this._cache.get('averageEntries', () => {
-            const totalEntries = stat.sum(Object.values(this.data));
-            const totalSubs = Object.keys(this.data).length;
-            if (totalSubs === 0) {
+            const allEntries = Object.values(this.data);
+            if (allEntries.length < 2) {
                 return null;
             } else {
-                return totalEntries / totalSubs;
+                return {
+                    avg: stat.mean(allEntries),
+                    stdev: stat.sampleStandardDeviation(allEntries),
+                };
             }
         });
     }
@@ -552,21 +556,32 @@ class WorkspaceSubmissionSet {
 
     get averageGrade() {
         return this._cache.get('averageGrade', () => {
-            if (this.submissionCount === 0) {
+            if (this.submissionCount < 2) {
                 return null;
             } else {
-                const grades = this.allSubmissions.map(sub => sub.grade);
-                return stat.mean(grades.filter(grade => grade != null));
+                const grades = this.allSubmissions
+                    .map(sub => sub.grade)
+                    .filter(grade => grade != null);
+                return {
+                    avg: stat.mean(grades),
+                    stdev: stat.sampleStandardDeviation(grades),
+                };
             }
         });
     }
 
     get averageSubmissions() {
         return this._cache.get('averageSubmissions', () => {
-            if (this.submissionCount === 0) {
+            const subsPerStudent = Object.values(this.submissions)
+                .filter(s => s.length > 0)
+                .map(s => s.length);
+            if (subsPerStudent.length < 2) {
                 return null;
             } else {
-                return this.submissionCount / this.studentCount;
+                return {
+                    avg: stat.sum(subsPerStudent) / subsPerStudent.length,
+                    stdev: stat.sampleStandardDeviation(subsPerStudent),
+                };
             }
         });
     }

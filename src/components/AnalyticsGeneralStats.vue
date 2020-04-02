@@ -25,8 +25,20 @@
         class="w-100 mt-0 mx-3"/>
 
     <div class="border-right metric">
-        <component :is="metricTag" class="d-block">
-            {{ averageGrade }}
+        <component :is="metricTag"
+                    class="d-block">
+
+            <span v-if="averageGrade == null">
+                -
+            </span>
+
+            <span v-else class="position-relative">
+                {{ to2Dec(averageGrade.avg) }}
+
+                <span class="extra text-muted">
+                    &pm;{{ to1Dec(averageGrade.stdev) }}
+                </span>
+            </span>
         </component>
 
         <label v-if="large">Average grade</label>
@@ -36,13 +48,27 @@
                              triggers="hover"
                              placement="top">
             The average grade over the latest submissions.
+
+            <template v-if="averageGrade != null">
+                The standard deviation over the sample is {{ to1Dec(averageGrade.stdev) }}.
+            </template>
         </description-popover>
     </div>
 
     <div class="metric"
          :class="{ 'border-right': $root.$isMediumWindow }">
         <component :is="metricTag" class="d-block">
-            {{ averageSubmissions }}
+            <span v-if="averageSubmissions == null">
+                -
+            </span>
+
+            <span v-else class="position-relative">
+                {{ to2Dec(averageSubmissions.avg) }}
+
+                <span class="extra text-muted">
+                    &pm;{{ to1Dec(averageSubmissions.stdev) }}
+                </span>
+            </span>
         </component>
 
         <label v-if="large">Average submissions</label>
@@ -52,6 +78,10 @@
                              triggers="hover"
                              placement="top">
             The average number of submissions per {{ studentType }}.
+
+            <template v-if="averageSubmissions != null">
+                The standard deviation over the sample is {{ to1Dec(averageSubmissions.stdev) }}.
+            </template>
         </description-popover>
     </div>
 
@@ -60,7 +90,17 @@
 
     <div class="metric">
         <component :is="metricTag" class="d-block">
-            {{ averageFeedbackEntries }}
+            <span v-if="averageFeedbackEntries == null">
+                -
+            </span>
+
+            <span v-else class="position-relative">
+                {{ to2Dec(averageFeedbackEntries.avg) }}
+
+                <span class="extra text-muted">
+                    &pm;{{ to1Dec(averageFeedbackEntries.stdev) }}
+                </span>
+            </span>
         </component>
 
         <label v-if="large">Average inline feedback entries</label>
@@ -70,6 +110,10 @@
                              triggers="hover"
                              placement="top">
             The average number of inline feedback entries over the latest submissions.
+
+            <template v-if="averageFeedbackEntries != null">
+                {{ to1Dec(averageFeedbackEntries.stdev) }}
+            </template>
         </description-popover>
     </div>
 </b-card>
@@ -140,26 +184,27 @@ export default {
 
         averageGrade() {
             const workspace = this.gradeWorkspace || this.baseWorkspace;
-            const avg = workspace.submissions.averageGrade;
-            return avg == null ? '-' : this.to2Dec(avg);
+            return workspace.submissions.averageGrade;
         },
 
         averageSubmissions() {
-            const avg = this.baseWorkspace.submissions.averageSubmissions;
-            return avg == null ? '-' : this.to2Dec(avg);
+            return this.baseWorkspace.submissions.averageSubmissions;
         },
 
         averageFeedbackEntries() {
             const workspace = this.feedbackWorkspace || this.baseWorkspace;
             const source = workspace.getSource('inline_feedback');
-            const avg = this.$utils.getProps(source, null, 'averageEntries');
-            return avg == null ? '-' : this.to2Dec(avg);
+            return this.$utils.getProps(source, null, 'averageEntries');
         },
     },
 
     watch: {},
 
     methods: {
+        to1Dec(x) {
+            return this.$utils.toMaxNDecimals(x, 1);
+        },
+
         to2Dec(x) {
             return this.$utils.toMaxNDecimals(x, 2);
         },
@@ -195,9 +240,19 @@ export default {
         margin-bottom: 0;
     }
 
+    .extra {
+        position: absolute;
+        left: calc(100% + 0.25em);
+    }
+
     .analytics-general-stats.large & {
         label {
             padding: 0 1rem;
+        }
+
+        .extra {
+            font-size: 50%;
+            bottom: 0.66rem;
         }
     }
 
@@ -206,6 +261,11 @@ export default {
 
         label {
             font-size: small;
+        }
+
+        .extra {
+            font-size: 60%;
+            bottom: 0.25rem;
         }
     }
 
