@@ -27,7 +27,7 @@ grading and reviewing code. The most important tool are:
 
 - CodeGrade Filesystem, enabling teachers to access and assess all submissions locally and do all grading from within your favourite editor without any overhead.
 
-- Customizability, making it easy to taylor CodeGrade to your course and way of teaching.
+- Customizability, making it easy to tailor CodeGrade to your course and way of teaching.
 
 - State of the art automatic grading “CodeGrade AutoTest”, easily create and run
   autograding scripts within CodeGrade that seamlessly work together with inline
