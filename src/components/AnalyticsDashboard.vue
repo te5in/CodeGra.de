@@ -167,8 +167,8 @@
                             <b-input-group class="mb-0">
                                 <input v-model="gradeHistBinSize"
                                        type="number"
-                                       min="1"
-                                       step="1"
+                                       min="0.5"
+                                       step="0.5"
                                        class="form-control ml-2 pt-1"
                                        style="max-width: 4rem;"/>
                             </b-input-group>
@@ -900,7 +900,7 @@ export default {
         fillGradeHistSettings(settings) {
             return Object.assign({
                 gradeHistRelative: true,
-                gradeHistBinSize: 1,
+                gradeHistBinSize: 0.5,
             }, settings);
         },
 
