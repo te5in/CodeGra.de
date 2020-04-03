@@ -58,6 +58,7 @@
                 <div class="snippet-edit-wrapper d-flex"
                      style="margin-top: -.75rem">
                     <b-btn class="p-2 cursor-pointer bg-transparent border-0 shadow-none"
+                           v-b-popover.top.hover="showSnippetDialog ? '' : 'Add this feedback as a snippet'"
                            :id="`${componentId}-snippet-add`">
                         <icon name="plus"
                               :class="{ rotated: showSnippetDialog }"/>
@@ -68,7 +69,7 @@
                                :boundary="`#${componentId}`"
                                custom-class="feedback-reply-add-snippet-popover"
                                style="z-index: 1;"
-                               @show="showSnippetDialog = true"
+                               @show="onShowSnippetDialog"
                                @hide="showSnippetDialog = false"
                                placement="topleft"
                                :target="`${componentId}-snippet-add`"
@@ -76,6 +77,7 @@
                         <div>
                             <b-input-group class="input-snippet-group m-0">
                                 <input class="input form-control"
+                                       placeholder="Snippet key"
                                        ref="snippetAddInput"
                                        v-model="snippetKey"
                                        :disabled="inputDisabled"
@@ -399,13 +401,12 @@ Do you want to overwrite it?`;
         this.inputDisabled = false;
     }
 
-    async toggleSnippetDialog(): Promise<void> {
-        this.showSnippetDialog = !this.showSnippetDialog;
-        if (this.showSnippetDialog) {
-            await this.$afterRerender();
-            if (this.snippetAddInput) {
-                this.snippetAddInput.focus();
-            }
+    async onShowSnippetDialog(): Promise<void> {
+        this.showSnippetDialog = true;
+        this.findSnippet();
+        await this.$afterRerender();
+        if (this.snippetAddInput) {
+            this.snippetAddInput.focus();
         }
     }
 
@@ -439,13 +440,13 @@ Do you want to overwrite it?`;
         }
     }
 
-    afterAddSnippet() {
+    async afterAddSnippet() {
         this.inputDisabled = false;
-        this.$root.$emit('bv::hide::popover ', `${this.componentId}-snippet-popover`);
+        this.$root.$emit('bv::hide::popover', `${this.componentId}-snippet-add`);
     }
 
     findSnippet() {
-        if (this.snippetKey !== '' || this.showSnippetDialog) {
+        if (this.snippetKey !== '') {
             return;
         }
 

@@ -11,12 +11,12 @@
             <span slot="header"
                   class="snippet-header">Snippets (press <kbd>Tab</kbd> to select the next item)</span>
             <ul :class="{ 'snippet-list': true, inline: line + 6 >= totalAmountLines, }">
-                <li class="snippet-item"
+                <li class="snippet-item cursor-pointer"
                     v-for="snippet, i in possibleSnippets"
                     :class="{ selected: snippetIndexSelected === i }"
                     ref="snippets"
                     :key="`snippet-key:${snippet.key}:${snippet.course}`"
-                    @click="snippetIndexSelected = i">
+                    @click.capture.stop.prevent="onClickSnippet(i)">
                     <span v-if="snippet.course" class="snippet-icon"><icon :scale="0.9" name="book"/></span>
                     <span v-else class="snippet-icon"><icon :scale="0.9" name="user-circle-o"/></span>
                     <span>{{ snippet.key }}</span>
@@ -154,7 +154,7 @@ export default {
             this.valueCopy = this.value;
         },
 
-        snippetIndexSelected(_, oldVal) {
+        async snippetIndexSelected(_, oldVal) {
             // eslint-disable-next-line
             let [start, end] = this.snippetBound;
             let value;
@@ -163,12 +163,15 @@ export default {
                 if (this.selectedSnippet === null) {
                     return;
                 }
+                // In this case we need to reset the field to its original value
                 this.selectedSnippet = null;
                 value = this.snippetOldKey;
                 const oldSnip = this.possibleSnippets[oldVal];
                 if (oldSnip != null) {
-                    start = end - oldSnip.value.length;
+                    start = Math.max(0, end - oldSnip.value.length);
                 }
+
+                // Scroll next element in to view again
                 const el = this.$refs.snippets[oldVal === 0 ? this.$refs.snippets.length - 1 : 0];
                 if (el && el.scrollIntoView && !(this.$root.isEdge || this.$root.isSafari)) {
                     el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
@@ -204,8 +207,16 @@ export default {
                 }
                 ({ value } = newSnip);
             }
+
             this.valueCopy =
                 this.valueCopy.slice(0, start) + value + this.valueCopy.slice(end);
+
+            await this.$nextTick();
+            const el = this.$refs.field;
+            if (el) {
+                el.focus();
+                el.setSelectionRange(start + value.length, start + value.length);
+            }
         },
 
     },
@@ -221,9 +232,9 @@ export default {
             if (!this.valueCopy) {
                 return [0, 0];
             }
-            const { selectionEnd } = this.$refs.field;
+            const selectionEnd = this.$refs.field.selectionEnd;
 
-            const spaceIndex = lastWhiteSpace(this.valueCopy, selectionEnd) + 1;
+            const spaceIndex = lastWhiteSpace(this.valueCopy, selectionEnd - 1) + 1;
             if (this.ignoreSnippets != null && this.ignoreSnippets !== spaceIndex) {
                 this.ignoreSnippets = null;
             }
@@ -371,6 +382,22 @@ export default {
                 this.$refs.deleteButton.onClick();
             } else {
                 this.$refs.submitButton.onClick();
+            }
+        },
+
+        async onClickSnippet(i) {
+            this.snippetIndexSelected = i;
+            const [start] = this.snippetBound;
+            await this.$nextTick();
+            const selected = this.selectedSnippet;
+            const wantedCursor = start + selected.value.length;
+            this.confirmSnippet();
+
+            await this.$nextTick();
+            const el = this.$refs.field;
+            if (el) {
+                el.focus();
+                el.setSelectionRange(wantedCursor, wantedCursor);
             }
         },
 
