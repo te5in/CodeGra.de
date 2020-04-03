@@ -52,6 +52,22 @@
 
             <code v-html="innerCodeLines[i - 1]" />
 
+            <span v-if="addingInlineFeedback[i - 1]"
+                  class="add-feedback-loader-wrapper">
+                <cg-loader :scale="1" v-if="addingInlineFeedback[i - 1] === true" />
+
+                <span v-else>
+                    <icon name="times" class="text-danger" :id="`add-feedback-line-error-${i}`"/>
+                    <b-popover :target="`add-feedback-line-error-${i}`"
+                               show>
+                        <icon name="times"
+                                class="hide-button"
+                                @click.native="$delete(addingInlineFeedback, i - 1)"/>
+                        Error adding inline feedback: {{ $utils.getErrorMessage(addingInlineFeedback[i - 1]) }}
+                    </b-popover>
+                </span>
+            </span>
+
             <linter-feedback-area :feedback="linterFeedback[i - 1]"
                                   v-if="$userConfig.features.linters && linterFeedback[i - 1] != null"/>
 
@@ -188,6 +204,7 @@ export default {
             showLinesLoader: false,
             innerCodeLines: [],
             cursorType: 'pointer',
+            addingInlineFeedback: {},
         };
     },
 
@@ -199,6 +216,7 @@ export default {
         codeLines: {
             immediate: true,
             handler() {
+                this.addingInlineFeedback = {};
                 this.innerCodeLines = Object.freeze(
                     Object.preventExtensions(this.codeLines.map(x => x)),
                 );
@@ -318,17 +336,22 @@ export default {
 
             const line = Number(el.getAttribute('data-line')) - 1;
             if (!this.hasFeedback(line) && this.canGiveFeedback) {
+                this.$set(this.addingInlineFeedback, line, true);
+
                 FeedbackLine.createFeedbackLine(
                     parseInt(this.fileId, 10),
                     line,
                     this.myId,
                 ).then(({ cgResult }) => {
+                    this.$delete(this.addingInlineFeedback, line);
                     const args = {
                         assignmentId: this.assignment.id,
                         submissionId: this.submission.id,
                         line: cgResult,
                     };
                     this.storeAddFeedbackLine(args);
+                }, err => {
+                    this.$set(this.addingInlineFeedback, line, err);
                 });
             }
         },
@@ -518,6 +541,12 @@ code {
 
 .feedback-area {
     font-size: 110%;
+}
+
+.add-feedback-loader-wrapper {
+    position: absolute;
+    right: 5px;
+    top: 1px;
 }
 </style>
 
