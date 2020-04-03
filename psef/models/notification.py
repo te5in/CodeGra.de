@@ -1,10 +1,11 @@
+import enum
 import typing as t
 
 import sqlalchemy
 from typing_extensions import Literal, TypedDict
 
-from cg_sqlalchemy_helpers import ARRAY
-from cg_sqlalchemy_helpers.types import DbType, ColumnProxy
+from cg_sqlalchemy_helpers import ArrayOfEnum
+from cg_sqlalchemy_helpers.types import DbEnum, ColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import Base, db
@@ -12,23 +13,34 @@ from . import user as u_models
 from . import comment as c_models
 from ..helpers import NotEqualMixin
 
-NotificationReason = Literal['author', 'replied', 'assignee']
-# We cannot use `typing.get_args` as we need to support python 3.7
-ALL_NOTIFICATION_REASONS: t.Set[NotificationReason] = set(
-    NotificationReason.__args__  # type: ignore[misc]
-)
+
+class NotificationReasons(enum.Enum):
+    assignee = 1
+    author = 2
+    replied = 3
+
+    def __lt__(self, other: 'NotificationReasons') -> bool:
+        return self.name < other.name
+
+    def __to_json__(self) -> str:
+        return self.name
 
 
-def NotificationReasonEnum() -> DbType[NotificationReason]:
-    return db.Enum(
-        *sorted(ALL_NOTIFICATION_REASONS), name='notification_reason'
-    )
+NOTIFCATION_REASON_EXPLANATION: t.Mapping[NotificationReasons, str] = {
+    NotificationReasons.author: 'you are the author of the submission',
+    NotificationReasons.replied: 'you replied to this comment thread',
+    NotificationReasons.assignee: 'you are the assignee of this submission',
+}
+
+
+def NotificationReasonEnum() -> DbEnum[NotificationReasons]:
+    return db.Enum(NotificationReasons, name='notification_reason')
 
 
 class BaseNotificationJSON(TypedDict):
     id: int
     read: bool
-    reasons: t.Sequence[NotificationReason]
+    reasons: t.List[t.Tuple[NotificationReasons, str]]
 
 
 class CommentNotificationJSON(BaseNotificationJSON, TypedDict):
@@ -50,7 +62,7 @@ class Notification(Base, IdMixin, TimestampMixin, NotEqualMixin):
     )
     reasons = db.Column(
         'reasons',
-        ARRAY(NotificationReasonEnum(), as_tuple=True, dimensions=1),
+        ArrayOfEnum(NotificationReasonEnum()),
         nullable=False,
     )
 
@@ -73,7 +85,20 @@ class Notification(Base, IdMixin, TimestampMixin, NotEqualMixin):
         innerjoin=True,
         back_populates='notifications',
         lazy='joined',
+        uselist=False,
     )
+
+    @property
+    def deleted(self) -> bool:
+        return self.comment_reply.deleted
+
+    @property
+    def reasons_with_explanation(
+        self
+    ) -> t.List[t.Tuple[NotificationReasons, str]]:
+        return sorted(
+            [(r, NOTIFCATION_REASON_EXPLANATION[r]) for r in self.reasons]
+        )
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Notification):
@@ -83,9 +108,11 @@ class Notification(Base, IdMixin, TimestampMixin, NotEqualMixin):
     def __hash__(self) -> int:
         return hash(self.id)
 
-    # REVIEW: This is the correct spelling right?
-    email_sent = db.Column(
-        'email_sent', db.Boolean, default=False, nullable=False
+    email_sent_at = db.Column(
+        'email_sent_at',
+        db.TIMESTAMP(timezone=True),
+        default=None,
+        nullable=True,
     )
 
     read = db.Column('read', db.Boolean, default=False, nullable=False)
@@ -101,7 +128,7 @@ class Notification(Base, IdMixin, TimestampMixin, NotEqualMixin):
         self,
         receiver: 'u_models.User',
         comment_reply: 'c_models.CommentReply',
-        reasons: t.Sequence[NotificationReason],
+        reasons: t.Sequence[NotificationReasons],
     ) -> None:
         super().__init__(
             receiver=receiver,
@@ -116,7 +143,7 @@ class Notification(Base, IdMixin, TimestampMixin, NotEqualMixin):
         return {
             'id': self.id,
             'created_at': self.created_at.isoformat(),
-            'reasons': self.reasons,
+            'reasons': self.reasons_with_explanation,
             'type': 'comment_notification',
             'comment_reply': self.comment_reply,
             'comment_base_id': base.id,
@@ -124,4 +151,12 @@ class Notification(Base, IdMixin, TimestampMixin, NotEqualMixin):
             'assignment_id': base.work.assignment_id,
             'read': self.read,
             'file_id': base.file_id,
+        }
+
+    def __structlog__(self) -> t.Mapping[str, t.Union[str, int, list]]:
+        return {
+            'type': self.__class__.__name__,
+            'id': self.id,
+            'reasons': self.reasons,
+            'receiver': self.receiver,
         }

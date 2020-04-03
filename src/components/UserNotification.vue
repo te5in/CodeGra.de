@@ -1,16 +1,16 @@
 <template>
 <tr class="user-notification"
-    :class="{ read: notification.read }">
-    <td colspan="4" v-if="loading">
-        <cg-loader :scale="1"
-                   v-b-visible="onVisible" />
-    </td>
-    <template v-else>
+    :class="{ read: notification.read }"
+    v-b-visible="onVisible">
+    <template>
         <td class="notification-icon-wrapper pl-4">
             <icon name="commenting" class="notification-icon"/>
         </td>
 
-        <td>
+        <td v-if="loading" class="loader-wrapper">
+            <cg-loader :scale="1" />
+        </td>
+        <td v-else>
             <div class="text-muted">
                 Submission by <cg-user :user="notification.submission.user" text-when-you="you" />
                 for
@@ -32,8 +32,9 @@
         </td>
 
         <td class="text-right badge-wrapper">
-            <b-badge v-for="reason in notification.reasons"
+            <b-badge v-for="[reason, explanation] in notification.reasons"
                      class="px-2 py-1"
+                     :title="$utils.capitalize(explanation)"
                      :key="reason">
                 {{ reason }}
             </b-badge>
@@ -160,9 +161,19 @@ export default class UserNotification extends Vue {
 @import '~mixins.less';
 
 .badge-wrapper,
+.loader-wrapper,
 .created-at-wrapper,
 .notification-icon-wrapper {
     vertical-align: middle;
+}
+
+@media @media-medium {
+    .badge-wrapper {
+        white-space: nowrap;
+        .badge:not(:first-child) {
+            margin-left: 0.25rem;
+        }
+    }
 }
 
 .user-notification.read {
@@ -208,5 +219,10 @@ export default class UserNotification extends Vue {
             padding: 0;
         }
     }
+}
+
+.badge {
+    text-transform: uppercase;
+    font-size: 70%;
 }
 </style>

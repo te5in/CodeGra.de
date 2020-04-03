@@ -1,6 +1,7 @@
 import typing as t
+import itertools
 
-from sqlalchemy.orm import defaultload
+from sqlalchemy.orm import defaultload, contains_eager
 from typing_extensions import TypedDict
 
 from cg_json import JSONResponse, ExtendedJSONResponse
@@ -8,8 +9,7 @@ from cg_json import JSONResponse, ExtendedJSONResponse
 from . import api
 from .. import auth, models, helpers, current_user
 from ..models import Notification, db
-from ..helpers import did_raise, request_arg_true
-from ..exceptions import PermissionException
+from ..helpers import request_arg_true
 
 
 class NotificationsJSON(TypedDict):
@@ -28,12 +28,18 @@ _MAX_NOTIFICATION_AMOUNT = 100
 def get_all_notifications() -> t.Union[ExtendedJSONResponse[NotificationsJSON],
                                        JSONResponse[HasUnreadNotifcationJSON],
                                        ]:
-    notifications = db.session.query(Notification).filter(
-        Notification.receiver == current_user
+    notifications = db.session.query(Notification).join(
+        Notification.comment_reply
+    ).filter(
+        ~models.CommentReply.deleted, Notification.receiver == current_user
     ).order_by(
         Notification.read.desc(),
         Notification.created_at.desc(),
     ).options(
+        contains_eager(Notification.comment_reply),
+        defaultload(Notification.comment_reply).defer(
+            models.CommentReply.has_edits
+        ),
         defaultload(
             Notification.comment_reply,
         ).defaultload(
@@ -43,13 +49,10 @@ def get_all_notifications() -> t.Union[ExtendedJSONResponse[NotificationsJSON],
         ).selectinload(
             models.File.work,
         ),
-    )
+    ).yield_per(_MAX_NOTIFICATION_AMOUNT)
 
     def can_see(noti: Notification) -> bool:
-        return not did_raise(
-            auth.NotificationPermissions(noti).ensure_may_see,
-            PermissionException,
-        )
+        return auth.NotificationPermissions(noti).ensure_may_see.as_bool()
 
     if request_arg_true('has_unread'):
         has_unread = any(
@@ -58,13 +61,13 @@ def get_all_notifications() -> t.Union[ExtendedJSONResponse[NotificationsJSON],
         return JSONResponse.make({'has_unread': has_unread})
 
     return ExtendedJSONResponse.make(
-        {
-            'notifications':
-                [
-                    n for n in notifications.limit(_MAX_NOTIFICATION_AMOUNT)
-                    if can_see(n)
-                ],
-        },
+        NotificationsJSON(
+            notifications=[
+                n for n in
+                itertools.islice(notifications, _MAX_NOTIFICATION_AMOUNT)
+                if can_see(n)
+            ]
+        ),
         use_extended=(models.CommentReply, Notification)
     )
 
@@ -78,8 +81,10 @@ def update_notification(notification_id: int
     notification = helpers.get_or_404(
         Notification,
         notification_id,
-        also_error=lambda n: did_raise(
-            auth.NotificationPermissions(n).ensure_may_see, PermissionException
+        also_error=lambda n: (
+            n.deleted or auth.NotificationPermissions(
+                n,
+            ).ensure_may_see.as_bool()
         )
     )
 
@@ -112,6 +117,7 @@ def update_notifications() -> ExtendedJSONResponse[NotificationsJSON]:
         Notification,
         Notification.id,
         list(notifications_to_update.keys()),
+        also_error=lambda n: n.deleted,
     )
     for found_notification in found_notifications:
         auth.NotificationPermissions(found_notification).ensure_may_edit()

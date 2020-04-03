@@ -7,15 +7,22 @@
                 Notifications
             </div>
 
-            <cg-submit-button :submit="markAllNotificationsAsRead"
-                              class="py-1"
-                              v-if="hasUnreadNotifications"
-                              label="Mark all as read" />
+            <div>
+                <cg-submit-button :submit="markAllNotificationsAsRead"
+                                  class="py-1"
+                                  v-if="hasUnreadNotifications"
+                                  label="Mark all as read" />
+                <b-btn @click="showNotificationSettings = !showNotificationSettings"
+                       class="py-1"
+                       :variant="showNotificationSettings ? 'primary' : 'secondary'">
+                    <icon name="gear" />
+                </b-btn>
+            </div>
         </div>
 
-        <b-card-body class="user-notifications-card">
-            <user-notifications />
-        </b-card-body>
+        <div class="user-notifications-card">
+            <user-notifications :show-settings="showNotificationSettings" />
+        </div>
     </b-card>
 
     <b-card header="Preferences">
@@ -70,6 +77,7 @@
 import { mapGetters } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
+import 'vue-awesome/icons/gear';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/pencil';
 import 'vue-awesome/icons/plus';
@@ -100,6 +108,7 @@ export default {
         return {
             snippets: false,
             oldSbloc: null,
+            showNotificationSettings: false,
         };
     },
 

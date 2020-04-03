@@ -133,6 +133,10 @@ class DbType(t.Generic[T_CONTRA]):  # pragma: no cover
     ...
 
 
+class DbEnum(t.Generic[T_CONTRA], DbType[T_CONTRA]):  # pragma: no cover
+    ...
+
+
 class _ForeignKey:  # pragma: no cover
     ...
 
@@ -216,14 +220,14 @@ class MyDb:  # pragma: no cover
         ...
 
     @t.overload
-    def Enum(self, typ: t.Type[E], native_enum: bool = True) -> DbType[E]:
+    def Enum(self, typ: t.Type[E], name: str = None, native_enum: bool = True) -> DbEnum[E]:
         ...
 
     @t.overload
-    def Enum(self, *typ: T, name: str, native_enum: bool = True) -> DbType[T]:
+    def Enum(self, *typ: T, name: str, native_enum: bool = True) -> DbEnum[T]:
         ...
 
-    def Enum(self, *args: t.Any, **kwargs: t.Any) -> DbType[t.Any]:
+    def Enum(self, *args: t.Any, **kwargs: t.Any) -> DbEnum[t.Any]:
         ...
 
     @t.overload
@@ -487,8 +491,8 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
         ...
 
     def in_(
-        self, val: t.Union[t.Iterable[T], 'DbColumn[T]',
-                           'MyNonOrderableQuery[T]', 'RawTable']
+        self, val: t.Union[t.Sequence[T], 'DbColumn[T]',
+                           'MyNonOrderableQuery[t.Tuple[T]]', 'RawTable']
     ) -> 'DbColumn[bool]':
         ...
 
@@ -543,6 +547,11 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
     ) -> 'DbColumn[bool]':
         ...
 
+    def __gt__(
+        self, other: t.Union[T, 'DbColumn[T]', 'DbColumn[t.Optional[T]]']
+    ) -> 'DbColumn[bool]':
+        ...
+
     def __lt__(
         self, other: t.Union[T, 'DbColumn[T]', 'DbColumn[t.Optional[T]]']
     ) -> 'DbColumn[bool]':
@@ -573,7 +582,7 @@ class Base:  # pragma: no cover
         pass
 
 
-class MyNonOrderableQuery(t.Generic[T], t.Iterable):  # pragma: no cover
+class MyNonOrderableQuery(t.Generic[T]):  # pragma: no cover
     delete: t.Callable[[QuerySelf], None]
     subquery: t.Callable[[QuerySelf, str], RawTable]
     limit: t.Callable[[QuerySelf, int], QuerySelf]
@@ -581,7 +590,10 @@ class MyNonOrderableQuery(t.Generic[T], t.Iterable):  # pragma: no cover
     exists: t.Callable[[QuerySelf], _ExistsColumn]
     count: t.Callable[[QuerySelf], int]
     one: t.Callable[[QuerySelf], T]
-    __iter__: t.Callable[[QuerySelf], t.Iterator[T]]
+    yield_per: t.Callable[[QuerySelf, int], QuerySelf]
+
+    def __iter__(self) -> t.Iterator[T]:
+        ...
 
     def distinct(self: QuerySelf, on: DbColumn = None) -> 'QuerySelf':
         pass
@@ -738,17 +750,17 @@ if t.TYPE_CHECKING:
         def __clause_element__(self) -> DbColumn[T]:
             ...
 
-    def ARRAY(
-        item_type: DbType[T_CONTRA],
-        *,
-        as_tuple: Literal[True],
-        dimensions: Literal[1],
-    ) -> DbType[t.Tuple[T_CONTRA, ...]]:
-        ...
+    class TypeDecorator:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        def result_processor(self, dialect: object,
+                             coltype: object) -> t.Callable[[object], object]:
+            pass
 else:
     from sqlalchemy.ext.hybrid import hybrid_property
     from sqlalchemy.ext.hybrid import Comparator as _Comparator
-    from sqlalchemy.dialects.postgresql import ARRAY
+    from sqlalchemy import TypeDecorator
 
     def hybrid_expression(fun: T) -> T:
         return fun

@@ -12,3 +12,4 @@ export * from './submission';
 export * from './user';
 export * from './feedback';
 export * from './notification';
+export * from './user_setting';

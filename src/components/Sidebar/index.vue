@@ -188,7 +188,7 @@ const floatingRoutes = new Set([
     'plagiarism_overview',
     'plagiarism_detail',
 ]);
-const hideRoutes = new Set([...floatingRoutes, 'login', 'register', 'reset-password']);
+const hideRoutes = new Set([...floatingRoutes, 'login', 'register', 'reset-password', 'unsubscribe']);
 
 export default {
     name: 'sidebar',

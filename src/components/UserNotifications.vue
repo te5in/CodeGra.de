@@ -1,7 +1,15 @@
 <template>
 <div class="user-notifications">
-    <cg-loader v-if="loading" :scale="1"/>
-    <div v-else>
+    <b-collapse :visible="showSettings">
+        <div class="border-bottom notification-settings-wrapper">
+            <notification-settings class="px-3 pt-3" />
+        </div>
+    </b-collapse>
+
+    <cg-loader v-if="loading"
+               :scale="1"
+               class="p-3"/>
+    <div v-else class="p-3">
         <div v-if="!hasUnreadNotifications"
              class="text-muted">
             You are all caught up!
@@ -32,20 +40,24 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component } from 'vue-property-decorator';
+import { Vue, Component, Prop } from 'vue-property-decorator';
 
 import { NotificationStore } from '@/store/modules/notification';
 
 import * as models from '@/models';
 
 import UserNotification from './UserNotification';
+import NotificationSettings from './NotificationSettings';
 
 @Component({
     components: {
         UserNotification,
+        NotificationSettings,
     },
 })
 export default class UserNotifications extends Vue {
+    @Prop({ required: true }) showSettings!: boolean;
+
     // eslint-disable-next-line
     get allNotifications(): ReadonlyArray<models.Notification> {
         return NotificationStore.getAllNotifications();
@@ -128,8 +140,12 @@ export default class UserNotifications extends Vue {
 }
 </script>
 
-<style lang="less">
+<style lang="less" scoped>
 @import '~mixins.less';
+
+.notification-settings-wrapper {
+    background-color: @footer-color;
+}
 
 .list-group-item:hover {
     background-color: @color-lightest-gray;

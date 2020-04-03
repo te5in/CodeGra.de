@@ -8,7 +8,7 @@ import { FeedbackReplyServerData, FeedbackReply } from '@/models/feedback';
 import { Assignment } from '@/models/assignment';
 import { Submission } from './submission';
 
-type NotificationReason = 'author' | 'replied' | 'assignee';
+export type NotificationReason = 'author' | 'replied' | 'assignee';
 
 /* eslint-disable camelcase */
 export interface CommentNotificationServerData {
@@ -21,7 +21,7 @@ export interface CommentNotificationServerData {
     comment_reply: FeedbackReplyServerData;
     read: boolean;
     file_id: number;
-    reasons: NotificationReason[];
+    reasons: [NotificationReason, string][];
 }
 /* eslint-enable camelcase */
 
@@ -34,8 +34,9 @@ export class CommentNotification {
         public readonly createdAt: moment.Moment,
         public readonly read: boolean,
         public readonly fileId: string,
-        public readonly reasons: ReadonlyArray<NotificationReason>,
+        private readonly reasons: [NotificationReason, string][],
     ) {
+        Object.freeze(this.reasons);
         Object.freeze(this);
     }
 

@@ -424,6 +424,7 @@ def get_in_or_error(
     options: t.Optional[t.List[t.Any]] = None,
     *,
     as_map: Literal[True],
+    also_error: t.Callable[[Y], bool] = None,
 ) -> t.Dict[T, Y]:
     # pylint: disable=missing-function-docstring
     ...
@@ -437,6 +438,7 @@ def get_in_or_error(
     options: t.Optional[t.List[t.Any]] = None,
     *,
     as_map: Literal[False] = False,
+    also_error: t.Callable[[Y], bool] = None,
 ) -> t.List[Y]:
     # pylint: disable=missing-function-docstring
     ...
@@ -448,6 +450,7 @@ def get_in_or_error(
     in_values: t.List[T],
     options: t.Optional[t.List[t.Any]] = None,
     *,
+    also_error: t.Callable[[Y], bool] = None,
     as_map: bool = False,
 ) -> t.Union[t.Dict[T, Y], t.List[Y]]:
     """Get object by doing an ``IN`` query.
@@ -479,13 +482,18 @@ def get_in_or_error(
             query = query.options(*options)
         res = query.all()
 
-    if len(res) != len(in_values):
+    def _raise() -> t.NoReturn:
         raise psef.errors.APIException(
             f'Not all requested {model.__name__.lower()} could be found', (
                 f'Out of the {len(in_values)} requested only {len(res)} were'
                 ' found'
             ), psef.errors.APICodes.OBJECT_ID_NOT_FOUND, 404
         )
+
+    if len(res) != len(in_values):
+        _raise()
+    elif also_error is not None and any(also_error(item[1]) for item in res):
+        _raise()
 
     if as_map:
         return dict(res)

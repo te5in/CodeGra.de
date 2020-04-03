@@ -2,9 +2,9 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-
 import enum
 import typing as t
+import hashlib
 from collections import defaultdict
 
 import sqlalchemy
@@ -13,6 +13,7 @@ from werkzeug.utils import cached_property
 from typing_extensions import Literal
 
 import psef
+from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers.types import ImmutableColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
@@ -21,7 +22,7 @@ from . import file as file_models
 from . import user as user_models
 from . import _MyQuery
 from . import notification as n_models
-from .. import current_user
+from .. import current_app, current_user
 from ..permissions import CoursePermission
 
 
@@ -74,6 +75,12 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         innerjoin=True,
     )
 
+    in_reply_to = db.relationship(
+        lambda: CommentReply,
+        foreign_keys=in_reply_to_id,
+        innerjoin=False,
+        uselist=False,
+    )
     comment = db.Column('comment', db.Unicode, nullable=False)
 
     edits = db.relationship(
@@ -95,7 +102,6 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         lambda: n_models.Notification,
         back_populates='comment_reply',
         uselist=True,
-        lazy='raise',
     )
 
     # We set this property later on
@@ -103,10 +109,24 @@ class CommentReply(IdMixin, TimestampMixin, Base):
 
     @property
     def can_see_author(self) -> bool:
-        return (
-            self.comment_base.can_see_author or
-            self.author.contains_user(psef.current_user)
+        return psef.auth.FeedbackReplyPermissions(
+            self
+        ).ensure_may_see_author.as_bool()
+
+    @property
+    def message_id(self) -> str:
+        return 'message_reply_{id_hash}@{domain}'.format(
+            id_hash=self.id, domain=current_app.config['EXTERNAL_DOMAIN']
         )
+
+    @property
+    def references(self) -> t.List['CommentReply']:
+        if self.in_reply_to is None:
+            return []
+        else:  # pragma: no cover
+            base = self.in_reply_to.references
+            base.append(self.in_reply_to)
+            return base
 
     def __init__(
         self,
@@ -128,20 +148,22 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         )
 
         work = self.comment_base.work
-        user_reasons: t.Dict[user_models.User, t.Set[n_models.NotificationReason]]
+        user_reasons: t.Dict[user_models.User, t.Set[n_models.
+                                                     NotificationReasons]]
         user_reasons = defaultdict(set)
 
         for reply in self.comment_base.replies:
             for user in reply.author.get_contained_users():
-                user_reasons[user].add('replied')
+                user_reasons[user].add(n_models.NotificationReasons.replied)
 
         for work_author in work.user.get_contained_users():
-            user_reasons[work_author].add('author')
+            user_reasons[work_author].add(n_models.NotificationReasons.author)
 
         if work.assignee:
             for assignee in work.assignee.get_contained_users():
-                user_reasons[assignee].add('assignee')
-
+                user_reasons[assignee].add(
+                    n_models.NotificationReasons.assignee
+                )
 
         for receiver, reasons in user_reasons.items():
             if receiver != author:
@@ -150,6 +172,12 @@ class CommentReply(IdMixin, TimestampMixin, Base):
                     comment_reply=self,
                     reasons=sorted(reasons),
                 )
+
+        @callback_after_this_request
+        def __after() -> None:
+            psef.tasks.send_direct_notification_emails(
+                [n.id for n in self.notifications]
+            )
 
     def update(self, new_comment_text: str) -> 'CommentReplyEdit':
         edit = CommentReplyEdit(
@@ -295,13 +323,6 @@ class CommentBase(IdMixin, Base):
         lazy='selectin',
     )
 
-    @cached_property
-    def can_see_author(self) -> bool:
-        return psef.current_user.has_permission(
-            CoursePermission.can_view_feedback_author,
-            self.file.work.assignment.course_id
-        )
-
     replies = db.relationship(
         lambda: CommentReply,
         back_populates='comment_base',
@@ -317,6 +338,12 @@ class CommentBase(IdMixin, Base):
     @property
     def work(self) -> 'psef.models.Work':
         return self.file.work
+
+    @property
+    def message_id(self) -> str:
+        return 'message_base_{id_hash}@{domain}'.format(
+            id_hash=self.id, domain=current_app.config['EXTERNAL_DOMAIN']
+        )
 
     def add_reply(
         self,
@@ -378,12 +405,15 @@ class CommentBase(IdMixin, Base):
         return fr.author if fr else None
 
     def get_outdated_json(self) -> t.Mapping[str, object]:
+        first_reply = self.first_reply
         return {
             'id': self.id,
             'line': self.line,
             'file_id': self.file_id,
             'msg': self.comment,
-            'author': self.user if self.can_see_author else None,
+            'author':
+                self.user if
+                (first_reply and first_reply.can_see_author) else None,
         }
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:

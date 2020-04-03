@@ -182,5 +182,8 @@ if True:  # pylint: disable=using-constant-test
     from .blob_storage import BlobStorage
     from .proxy import Proxy, ProxyState
 
-    from .notification import Notification
-    from .user_setting import NotificationsSetting, SettingBase
+    from .notification import Notification, NotificationReasons
+    from .user_setting import (
+        NotificationsSetting, SettingBase, EmailNotificationTypes,
+        NotificationSettingJSON
+    )

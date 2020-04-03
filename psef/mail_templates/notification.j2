@@ -1,0 +1,33 @@
+{% extends "base.j2" %}
+{% import "utils.j2" as utils %}
+{% set comment = notification.comment_reply %}
+{% set comment_base = comment.comment_base %}
+{% set work = comment_base.work %}
+
+{% block title %}{{ subject }}{% endblock %}
+
+{% block preview %}A new comment was placed on a thread you are following{% endblock %}
+
+{% block body %}
+    {% call utils.body_row() %}
+        Hi {{ notification.receiver.get_readable_name() }},
+    {% endcall %}
+    {% call utils.body_row() %}
+        A new comment was placed on a submission by
+        {{ work.user.get_readable_name() }} for the assignment
+        {{ work.assignment.name }} on line
+        {{ comment_base.line }} of the file
+        <code>{{ comment_base.file.get_path() }}</code>.
+    {% endcall %}
+
+    {% call utils.body_row() %}
+        {{ comment.author.get_readable_name() if comment.can_see_author else 'A grader' }} wrote:
+
+        <pre style="font-family: monospace; line-height: 1.5em; font-size: 14px; padding: 10px; margin-top: 5px; border-left: 4px solid #cccccc">{{ comment.comment }}</pre>
+    {% endcall %}
+{% endblock %}
+
+{% block footer %}
+    You received this email because {{ reasons }}. You can edit your
+    notification preferences {{ utils.footer_link(site_url + '/unsubscribe/email_notifications/?token=' + settings_token, 'here') -}}.
+{% endblock %}

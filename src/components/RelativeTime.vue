@@ -33,7 +33,7 @@ export default Vue.extend({
                 class: ctx.data.staticClass,
                 style: ctx.data.style,
             },
-            [ctx.props.date.from(ctx.parent.$now)],
+            [ctx.props.date.from(ctx.parent.$root.$now)],
         );
   },
 });

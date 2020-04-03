@@ -1,12 +1,9 @@
-<template>
-    <img class="cg-logo"
-         :src="logoSrc"
-         alt="CodeGrade" />
-</template>
+<script lang="ts">
+import Vue from 'vue';
 
-<script>
-export default {
+export default Vue.extend({
     name: 'cg-logo',
+    functional: true,
 
     props: {
         inverted: {
@@ -23,28 +20,45 @@ export default {
         },
     },
 
-    computed: {
-        logoSrc() {
+    render(h, ctx) {
+        function getLogoSrc(): string {
             let logo;
+            const now = ctx.parent.$root.$now;
+            const isChristmas = () => now.month() === 11 && now.date() <= 26;
 
-            if (this.showEasterEggs && this.isChristmas) {
+            if (ctx.props.showEasterEggs && isChristmas()) {
                 logo = 'CodeGrade_christmas';
-            } else if (this.small) {
+            } else if (ctx.props.small) {
                 logo = 'logo';
             } else {
                 logo = 'codegrade';
             }
 
-            if (this.inverted) {
+            if (ctx.props.inverted) {
                 logo += '-inv';
             }
 
             return `/static/img/${logo}.svg`;
-        },
+        }
+        let staticClass = 'cg-logo';
+        if (ctx.data.staticClass) {
+            staticClass = `${staticClass} ${ctx.data.staticClass}`;
+        }
 
-        isChristmas() {
-            return this.$root.$now.month() === 11 && this.$root.$now.date() <= 26;
-        },
+        return h(
+            'img',
+            {
+                attrs: Object.assign(
+                    {
+                        src: getLogoSrc(),
+                        alt: 'CodeGrade',
+                    },
+                    ctx.data.attrs,
+                ),
+                class: staticClass,
+                style: ctx.data.staticStyle,
+            },
+        );
     },
-};
+});
 </script>

@@ -109,6 +109,12 @@ class User(NotEqualMixin, Base):
         index=True,
     )
 
+    def get_readable_name(self) -> str:
+        if self.group:
+            return f'group "{self.group.name}"'
+        else:
+            return self.name
+
     def _get_username(self) -> str:
         """The username of the user
         """
@@ -352,7 +358,7 @@ class User(NotEqualMixin, Base):
             Permission,
             course_permissions.c.permission_id == Permission.id,
         ).filter(
-            t.cast(DbColumn[int], Permission.id).in_(p.id for p in perms)
+            t.cast(DbColumn[int], Permission.id).in_([p.id for p in perms])
         ).subquery('crp')
 
         res: t.Sequence[t.Tuple[int, int]]

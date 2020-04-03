@@ -26,7 +26,7 @@ def upgrade():
         sa.Column('updated_at', sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column('receiver_id', sa.Integer(), nullable=False),
         sa.Column('comment_reply_id', sa.Integer(), nullable=False),
-        sa.Column('email_sent', sa.Boolean(), nullable=False),
+        sa.Column('email_sent_at', sa.TIMESTAMP(timezone=True), nullable=True),
         sa.Column('read', sa.Boolean(), nullable=False),
         sa.ForeignKeyConstraint(
             ['comment_reply_id'],

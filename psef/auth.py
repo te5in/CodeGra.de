@@ -2,19 +2,10 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-# TODO: As soon as the `SomeArguments` proposal from
-# https://github.com/python/mypy/issues/3157 is fixed we should create a
-# `PermissionChecker` class here that wraps each of these `ensure_*`
-# functions. It would have two methods: `PermissionChecker.ensure` and
-# `PermissionChecker.check` where the first one would raise an exception (just
-# like the functions do now) and the second one would return a boolean
-# (indicating if the function raised or not). The `__call__` of the
-# `PermissionChecker` should probably call the `ensure` method to be backwards
-# compatible.
-
 import abc
 import typing as t
-from functools import wraps
+import contextlib
+from functools import wraps, partial
 
 import oauth2
 import structlog
@@ -30,7 +21,7 @@ from typing_extensions import Final, Literal
 import psef
 from psef import features
 from cg_dt_utils import DatetimeWithTimezone
-from psef.helpers import readable_join
+from psef.helpers import did_raise, readable_join
 from psef.exceptions import APICodes, APIException, PermissionException
 
 from . import helpers
@@ -82,20 +73,69 @@ jwt.user_loader_error_loader(
     lambda id: _handle_jwt_errors(f'No user with id "{id}" was found.')
 )
 
+T_PERM_CHECKER = t.TypeVar('T_PERM_CHECKER', bound='PermissionChecker')
+
+
+class _PermissionCheckFunction(t.Generic[T_PERM_CHECKER]):
+    __slots__ = ('__fn', )
+
+    class _Inner:
+        __slots__ = ('__call__')
+
+        def __init__(self, bound_fn: t.Callable[[], None]):
+            self.__call__ = bound_fn
+
+        def as_bool(self) -> bool:
+            try:
+                self()
+            except PermissionException:
+                return False
+            else:
+                return True
+
+    def __init__(self, fn: t.Callable[[T_PERM_CHECKER], None]) -> None:
+        self.__fn = fn
+
+    def __get__(
+        self, instance: T_PERM_CHECKER, owner: object
+    ) -> '_PermissionCheckFunction._Inner':
+        return self.__class__._Inner(partial(self.__fn, instance))
+
+
+_T_PERMISSION_CHECKER = t.TypeVar(
+    '_T_PERMISSION_CHECKER', bound='PermissionChecker'
+)
+
 
 class PermissionChecker(abc.ABC):
+    __slots__ = ('_user', )
+
     if t.TYPE_CHECKING:
 
         @property
         def course_id(self) -> int:
             raise NotImplementedError
 
+    def __init__(self) -> None:
+        self._user: t.Optional['psef.models.User'] = None
+
+    def set_user(
+        self: _T_PERMISSION_CHECKER, user: 'psef.models.User'
+    ) -> _T_PERMISSION_CHECKER:
+        self._user = _resolve_user(user)
+        return self
+
     @property
     def user(self) -> 'psef.models.User':
-        return _get_cur_user()
+        return _get_cur_user() if self._user is None else self._user
+
+    @staticmethod
+    def as_ensure_function(fun: t.Callable[[T_PERM_CHECKER], None]
+                           ) -> _PermissionCheckFunction[T_PERM_CHECKER]:
+        return _PermissionCheckFunction(fun)
 
     def _ensure_enrolled(self) -> None:
-        ensure_enrolled(self.course_id)
+        ensure_enrolled(self.course_id, self.user)
 
     def _ensure(self, perm: CPerm) -> None:
         ensure_permission(perm, self.course_id, user=self.user)
@@ -211,8 +251,17 @@ def ensure_enrolled(
             APICodes.INCORRECT_PERMISSION, 403
         )
 
+@contextlib.contextmanager
+def as_current_user(user: t.Union['psef.models.User', LocalProxy]) -> t.Generator[None, None, None]:
+    old_user = _get_cur_user(allow_none=True)
+    try:
+        set_current_user(user)
+        yield
+    finally:
+        set_current_user(old_user)
 
-def set_current_user(user: t.Union['psef.models.User', LocalProxy]) -> None:
+
+def set_current_user(user: t.Union['psef.models.User', LocalProxy, None]) -> None:
     """Set the current user for this request.
 
     You probably never should use this method, it is only useful after logging
@@ -493,8 +542,9 @@ def ensure_can_see_grade(work: 'psef.models.Work') -> None:
         )
 
 
-@login_required
-def ensure_can_see_user_feedback(work: 'psef.models.Work') -> None:
+def ensure_can_see_user_feedback(
+    work: 'psef.models.Work', user: t.Optional['psef.models.User'] = None
+) -> None:
     """Ensure the current user can see the grade of the given work.
 
     :param work: The work to check for.
@@ -505,7 +555,7 @@ def ensure_can_see_user_feedback(work: 'psef.models.Work') -> None:
     :raises PermissionException: If the user can not see the grade.
         (INCORRECT_PERMISSION)
     """
-    user = _get_cur_user()
+    user = _get_cur_user() if user is None else user
     course_id = work.assignment.course_id
 
     # Don't check for any state if we simply have all required
@@ -841,9 +891,11 @@ def ensure_can_edit_members_of_group(
 
 class FeedbackBasePermissions(PermissionChecker):
     def __init__(self, base: 'psef.models.CommentBase'):
+        super().__init__()
         self.base: Final = base
         self.course_id: Final = self.base.work.assignment.course_id
 
+    @PermissionChecker.as_ensure_function
     def ensure_may_add(self) -> None:
         perms = [CPerm.can_grade_work]
         if self.base.work.has_as_author(self.user):
@@ -852,7 +904,10 @@ class FeedbackBasePermissions(PermissionChecker):
 
 
 class FeedbackReplyPermissions(PermissionChecker):
+    __slots__ = ('reply', 'course_id')
+
     def __init__(self, reply: 'psef.models.CommentReply'):
+        super().__init__()
         self.reply: Final = reply
         self.course_id: Final = reply.comment_base.work.assignment.course_id
 
@@ -860,6 +915,7 @@ class FeedbackReplyPermissions(PermissionChecker):
     def is_own_reply(self) -> bool:
         return self.reply.author.contains_user(self.user)
 
+    @PermissionChecker.as_ensure_function
     def ensure_may_edit(self) -> None:
         # You can always update your own comments, as long as you are enrolled
         # in the course.
@@ -868,23 +924,32 @@ class FeedbackReplyPermissions(PermissionChecker):
         if not self.is_own_reply:
             self._ensure(CPerm.can_edit_others_comments)
 
+    @PermissionChecker.as_ensure_function
     def ensure_may_see_edits(self) -> None:
         self._ensure_enrolled()
 
         if not self.is_own_reply:
             self._ensure(CPerm.can_view_others_comment_edits)
 
+    @PermissionChecker.as_ensure_function
     def ensure_may_add(self) -> None:
         FeedbackBasePermissions(self.reply.comment_base).ensure_may_add()
 
+    @PermissionChecker.as_ensure_function
     def ensure_may_delete(self) -> None:
         self.ensure_may_edit()
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see_author(self) -> None:
+        if not self.reply.author.contains_user(psef.current_user):
+            self._ensure(CPerm.can_view_feedback_author)
 
 
 class NotificationPermissions(PermissionChecker):
     __slots__ = ('notification', 'work', 'course_id')
 
     def __init__(self, notification: 'psef.models.Notification'):
+        super().__init__()
         self.notification: Final = notification
         self.work: Final = notification.comment_reply.comment_base.work
         self.course_id: Final = self.work.assignment.course_id
@@ -893,9 +958,11 @@ class NotificationPermissions(PermissionChecker):
         if self.notification.receiver != self.user:
             raise
 
+    @PermissionChecker.as_ensure_function
     def ensure_may_see(self) -> None:
-        ensure_can_see_user_feedback(self.work)
+        ensure_can_see_user_feedback(self.work, user=self.user)
 
+    @PermissionChecker.as_ensure_function
     def ensure_may_edit(self) -> None:
         self._ensure_my_notification()
 
