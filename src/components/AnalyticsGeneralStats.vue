@@ -336,7 +336,7 @@ export default {
         }
 
         .extra {
-            font-size: 60%;
+            font-size: 75%;
             bottom: 0.25rem;
         }
     }
