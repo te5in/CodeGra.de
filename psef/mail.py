@@ -273,6 +273,9 @@ def send_direct_notification_email(notification: models.Notification) -> None:
             notification=notification,
             subject=subject,
             settings_token=settings_token,
+            reasons=readable_join(
+                [expl for _, expl in notification.reasons_with_explanation]
+            ),
         )
 
     _send_mail(
@@ -281,9 +284,6 @@ def send_direct_notification_email(notification: models.Notification) -> None:
         message_id=comment.message_id,
         in_reply_to=in_reply_to_message_id,
         references=references,
-        reasons=readable_join(
-            [expl for _, expl in notification.reasons_with_explanation]
-        )
     )
 
 

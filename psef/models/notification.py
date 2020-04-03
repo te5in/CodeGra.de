@@ -153,7 +153,7 @@ class Notification(Base, IdMixin, TimestampMixin, NotEqualMixin):
             'file_id': base.file_id,
         }
 
-    def __structlog__(self) -> t.Mapping[str, t.Union[str, int, list]]:
+    def __structlog__(self) -> t.Mapping[str, object]:
         return {
             'type': self.__class__.__name__,
             'id': self.id,

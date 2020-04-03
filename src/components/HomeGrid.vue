@@ -74,7 +74,7 @@
                                         <span>{{ assignment.name }}</span><br>
 
                                         <small v-if="assignment.hasDeadline">
-                                            Due {{ assignment.deadline.from($root.$now) }}
+                                            Due <cg-relative-time :date="assignment.deadline" />
                                         </small>
                                         <small v-else class="text-muted font-italic">
                                             No deadline

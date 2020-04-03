@@ -38,7 +38,7 @@ def get_all_notifications() -> t.Union[ExtendedJSONResponse[NotificationsJSON],
     ).options(
         contains_eager(Notification.comment_reply),
         defaultload(Notification.comment_reply).defer(
-            models.CommentReply.has_edits
+            models.CommentReply.last_edit
         ),
         defaultload(
             Notification.comment_reply,

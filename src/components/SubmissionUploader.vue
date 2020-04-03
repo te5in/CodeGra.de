@@ -272,8 +272,11 @@
 
         <b-input-group-prepend v-else
                                class="deadline-information">
-            <b-input-group-text class="border-0">
-                The assignment is due {{ readableDeadline }}.
+            <b-input-group-text class="border-0" v-if="assignment.hasDeadline">
+                <span>
+                    The assignment is due
+                    <cg-relative-time :date="assignment.deadline" />
+                </span>
             </b-input-group-text>
         </b-input-group-prepend>
 
@@ -546,14 +549,6 @@ export default {
             return `/api/v1/assignments/${this.assignment.id}/submission?ignored_files=${
                 this.ignored
             }&${this.uploadUrlQueryArgs}`;
-        },
-
-        readableDeadline() {
-            const assig = this.assignment;
-            if (assig.hasDeadline) {
-                return assig.deadline.from(this.$root.$now);
-            }
-            return '';
         },
 
         disabledPopover() {

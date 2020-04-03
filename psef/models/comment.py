@@ -13,6 +13,7 @@ from werkzeug.utils import cached_property
 from typing_extensions import Literal
 
 import psef
+from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers.types import ImmutableColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
@@ -105,7 +106,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
     )
 
     # We set this property later on
-    has_edits: ImmutableColumnProxy[bool]
+    last_edit: ImmutableColumnProxy[t.Optional[DatetimeWithTimezone]]
 
     @property
     def can_see_author(self) -> bool:
@@ -195,14 +196,14 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         return f'<CommentReply id={self.id} deleted={self.deleted}>'
 
     def __to_json__(self) -> t.Mapping[str, t.Union[str, int, None]]:
+        last_edit = self.last_edit
         res: t.Dict[str, t.Union[str, int, None]] = {
             'id': self.id,
             'comment': self.comment,
             'author_id': None,
             'in_reply_to_id': self.in_reply_to_id,
-            'has_edits': self.has_edits,
+            'last_edit': None if last_edit is None else last_edit.isoformat(),
             'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
             'reply_type': self.reply_type.name,
         }
 
@@ -290,11 +291,11 @@ class CommentReplyEdit(IdMixin, TimestampMixin, Base):
     )
 
 
-CommentReply.has_edits = column_property(
-    sqlalchemy.sql.exists(
-        [1]
+CommentReply.last_edit = column_property(
+    sqlalchemy.sql.select(
+        [sqlalchemy.sql.func.max(CommentReplyEdit.created_at)]
     ).where(CommentReplyEdit.comment_reply_id == CommentReply.id
-            ).correlate_except(CommentReplyEdit).label('has_edits')
+            ).correlate_except(CommentReplyEdit).label('last_edit')
 )
 
 

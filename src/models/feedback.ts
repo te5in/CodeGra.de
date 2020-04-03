@@ -22,7 +22,7 @@ export interface FeedbackReplyServerData {
     comment: string;
     author_id: number | null;
     in_reply_to_id: number | null;
-    has_edits: boolean;
+    last_edit: string | null;
     created_at: string;
     updated_at: string;
     reply_type: ReplyTypes;
@@ -61,10 +61,9 @@ export class FeedbackReply {
         public readonly inReplyToId: number | null,
         public readonly message: string,
         public readonly authorId: number | null,
-        public readonly hasEdits: boolean,
+        public readonly lastEdit: moment.Moment | null,
         public readonly replyType: ReplyTypes,
         public readonly createdAt: moment.Moment,
-        public readonly updatedAt: moment.Moment,
         private readonly feedbackLineId: number,
         public readonly deleted = false,
     ) {
@@ -95,10 +94,9 @@ export class FeedbackReply {
             serverData.in_reply_to_id,
             serverData.comment,
             serverData.author_id,
-            serverData.has_edits,
+            serverData.last_edit == null ? null : moment.utc(serverData.last_edit, moment.ISO_8601),
             serverData.reply_type,
             moment.utc(serverData.created_at, moment.ISO_8601),
-            moment.utc(serverData.updated_at, moment.ISO_8601),
             feedbackLineId,
         );
     }
@@ -130,10 +128,9 @@ export class FeedbackReply {
             this.inReplyToId,
             message,
             this.authorId,
-            this.hasEdits,
+            this.lastEdit,
             this.replyType,
             this.createdAt,
-            this.updatedAt,
             this.feedbackLineId,
         );
     }
@@ -145,10 +142,9 @@ export class FeedbackReply {
             this.inReplyToId,
             this.message,
             this.authorId,
-            this.hasEdits,
+            this.lastEdit,
             this.replyType,
             this.createdAt,
-            this.updatedAt,
             this.feedbackLineId,
             true, // Deleted
         );
@@ -182,9 +178,8 @@ export class FeedbackReply {
             null,
             '',
             userId,
-            false,
+            null,
             'markdown',
-            moment(),
             moment(),
             feedbackLineId,
         );

@@ -112,8 +112,8 @@
                         <cg-relative-time
                             :date="reply.createdAt"/>
 
-                        <template v-if="reply.hasEdits">
-                            updated <cg-relative-time :date="reply.updatedAt" />
+                        <template v-if="reply.lastEdit != null">
+                            <sup :title="`Edited on ${$utils.readableFormatDate(reply.lastEdit)}`">*</sup>
                         </template>
                     </span>
                 </span>
