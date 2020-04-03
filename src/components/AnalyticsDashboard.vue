@@ -21,19 +21,39 @@
 
     <template v-else>
         <div class="col-12">
-            <analytics-general-stats
-                large
-                :base-workspace="baseWorkspace"
-                :grade-workspace="latestSubmissionsWorkspace"
-                :feedback-workspace="latestSubmissionsWorkspace" />
+            <catch-error capture>
+                <template slot-scope="scope">
+                    <b-alert show variant="danger" v-if="scope.error">
+                        An unexpected error occurred:
+                        {{ $utils.getErrorMessage(scope.error) }}
+                    </b-alert>
+
+                    <analytics-general-stats
+                        v-else
+                        large
+                        :base-workspace="baseWorkspace"
+                        :grade-workspace="latestSubmissionsWorkspace"
+                        :feedback-workspace="latestSubmissionsWorkspace" />
+                </template>
+            </catch-error>
         </div>
 
         <div class="col-12 mt-3">
-            <analytics-filters
-                :assignment-id="assignmentId"
-                :workspace="baseWorkspace"
-                v-model="filters"
-                @results="filterResults = $event"/>
+            <catch-error capture>
+                <template slot-scope="scope">
+                    <b-alert show variant="danger" v-if="scope.error">
+                        An unexpected error occurred:
+                        {{ $utils.getErrorMessage(scope.error) }}
+                    </b-alert>
+
+                    <analytics-filters
+                        v-else
+                        :assignment-id="assignmentId"
+                        :workspace="baseWorkspace"
+                        v-model="filters"
+                        @results="filterResults = $event"/>
+                </template>
+            </catch-error>
         </div>
 
         <loader page-loader :scale="4" v-if="filterResults.length === 0" />
@@ -47,24 +67,53 @@
 
         <template v-else>
             <div class="col-12 mt-3">
-                <analytics-submission-date
-                    v-model="submissionDateSettings"
-                    :filter-results="filterResults" />
+                <catch-error capture>
+                    <template slot-scope="scope">
+                        <b-alert show variant="danger" v-if="scope.error">
+                            An unexpected error occurred:
+                            {{ $utils.getErrorMessage(scope.error) }}
+                        </b-alert>
+
+                        <analytics-submission-date
+                            v-else
+                            v-model="submissionDateSettings"
+                            :filter-results="filterResults" />
+                    </template>
+                </catch-error>
             </div>
 
             <div class="col-12 mt-3">
-                <analytics-grade-stats
-                    v-model="gradeSettings"
-                    :filter-results="filterResults" />
+                <catch-error capture>
+                    <template slot-scope="scope">
+                        <b-alert show variant="danger" v-if="scope.error">
+                            An unexpected error occurred:
+                            {{ $utils.getErrorMessage(scope.error) }}
+                        </b-alert>
+
+                        <analytics-grade-stats
+                            v-else
+                            v-model="gradeSettings"
+                            :filter-results="filterResults" />
+                    </template>
+                </catch-error>
             </div>
 
-            <template v-if="hasRubricSource != null">
-                <div class="col-12 mt-3">
-                    <analytics-rubric-stats
-                        v-model="rubricSettings"
-                        :filter-results="filterResults" />
-                </div>
-            </template>
+            <div v-if="hasRubricSource != null"
+                 class="col-12 mt-3">
+                <catch-error capture>
+                    <template slot-scope="scope">
+                        <b-alert show variant="danger" v-if="scope.error">
+                            An unexpected error occurred:
+                            {{ $utils.getErrorMessage(scope.error) }}
+                        </b-alert>
+
+                        <analytics-rubric-stats
+                            v-else
+                            v-model="rubricSettings"
+                            :filter-results="filterResults" />
+                    </template>
+                </catch-error>
+            </div>
         </template>
     </template>
 </div>
@@ -79,6 +128,7 @@ import 'vue-awesome/icons/percent';
 import { WorkspaceFilter } from '@/models/analytics';
 import { BarChart, ScatterPlot } from '@/components/Charts';
 import Loader from '@/components/Loader';
+import CatchError from '@/components/CatchError';
 import DatetimePicker from '@/components/DatetimePicker';
 import AnalyticsFilters from '@/components/AnalyticsFilters';
 import DescriptionPopover from '@/components/DescriptionPopover';
@@ -263,6 +313,7 @@ export default {
         AnalyticsRubricStats,
         AnalyticsGradeStats,
         DatetimePicker,
+        CatchError,
     },
 };
 </script>
