@@ -270,21 +270,24 @@ export class InlineFeedbackSource extends DataSource {
 
     constructor(data, workspace) {
         super(data, workspace);
-        this._cache = makeCache('averageEntries', 'entriesStdev');
+        this._cache = makeCache('entryStats', 'entriesStdev');
         Object.freeze(this);
     }
 
-    get averageEntries() {
-        return this._cache.get('averageEntries', () => {
+    get entryStats() {
+        return this._cache.get('entryStats', () => {
             const allEntries = Object.values(this.data);
+
             if (allEntries.length < 2) {
                 return null;
-            } else {
-                return {
-                    avg: stat.mean(allEntries),
-                    stdev: stat.sampleStandardDeviation(allEntries),
-                };
             }
+
+            return {
+                mean: stat.mean(allEntries),
+                median: stat.median(allEntries),
+                mode: stat.mode(allEntries),
+                stdev: stat.sampleStandardDeviation(allEntries),
+            };
         });
     }
 }
@@ -400,8 +403,8 @@ class WorkspaceSubmissionSet {
             'allSubmissions',
             'firstSubmission',
             'lastSubmission',
-            'averageGrade',
-            'averageSubmissions',
+            'gradeStats',
+            'submissionStats',
             'submissionIds',
             'assigneeIds',
         );
@@ -554,35 +557,40 @@ class WorkspaceSubmissionSet {
         return Object.keys(this.submissions).length;
     }
 
-    get averageGrade() {
-        return this._cache.get('averageGrade', () => {
+    get gradeStats() {
+        return this._cache.get('gradeStats', () => {
             if (this.submissionCount < 2) {
                 return null;
-            } else {
-                const grades = this.allSubmissions
-                    .map(sub => sub.grade)
-                    .filter(grade => grade != null);
-                return {
-                    avg: stat.mean(grades),
-                    stdev: stat.sampleStandardDeviation(grades),
-                };
             }
+
+            const grades = this.allSubmissions
+                .map(sub => sub.grade)
+                .filter(grade => grade != null);
+            return {
+                mean: stat.mean(grades),
+                median: stat.median(grades),
+                mode: stat.mode(grades),
+                stdev: stat.sampleStandardDeviation(grades),
+            };
         });
     }
 
-    get averageSubmissions() {
-        return this._cache.get('averageSubmissions', () => {
+    get submissionStats() {
+        return this._cache.get('submissionStats', () => {
             const subsPerStudent = Object.values(this.submissions)
                 .filter(s => s.length > 0)
                 .map(s => s.length);
+
             if (subsPerStudent.length < 2) {
                 return null;
-            } else {
-                return {
-                    avg: stat.sum(subsPerStudent) / subsPerStudent.length,
-                    stdev: stat.sampleStandardDeviation(subsPerStudent),
-                };
             }
+
+            return {
+                mean: stat.mean(subsPerStudent),
+                median: stat.median(subsPerStudent),
+                mode: stat.mode(subsPerStudent),
+                stdev: stat.sampleStandardDeviation(subsPerStudent),
+            };
         });
     }
 

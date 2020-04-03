@@ -28,15 +28,15 @@
         <component :is="metricTag"
                     class="d-block">
 
-            <span v-if="averageGrade == null">
+            <span v-if="gradeStats == null">
                 -
             </span>
 
             <span v-else class="position-relative">
-                {{ to2Dec(averageGrade.avg) }}
+                {{ to1Dec(gradeStats.mean) }}
 
                 <span class="extra text-muted">
-                    &pm;{{ to1Dec(averageGrade.stdev) }}
+                    &pm;{{ to1Dec(gradeStats.stdev) }}
                 </span>
             </span>
         </component>
@@ -49,24 +49,48 @@
                              placement="top">
             The average grade over the latest submissions.
 
-            <template v-if="averageGrade != null">
-                The standard deviation over the sample is {{ to1Dec(averageGrade.stdev) }}.
-            </template>
+            <table v-if="gradeStats != null"
+                   class="table mt-2 mb-0">
+                <tr>
+                    <td>Mean</td>
+                    <td class="text-right">
+                        {{ to2Dec(gradeStats.mean) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Std. deviation</td>
+                    <td class="text-right">
+                        {{ to2Dec(gradeStats.stdev) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Median</td>
+                    <td class="text-right">
+                        {{ to2Dec(gradeStats.median) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Mode</td>
+                    <td class="text-right">
+                        {{ to2Dec(gradeStats.mode) }}
+                    </td>
+                </tr>
+            </table>
         </description-popover>
     </div>
 
     <div class="metric"
          :class="{ 'border-right': $root.$isMediumWindow }">
         <component :is="metricTag" class="d-block">
-            <span v-if="averageSubmissions == null">
+            <span v-if="submissionStats == null">
                 -
             </span>
 
             <span v-else class="position-relative">
-                {{ to2Dec(averageSubmissions.avg) }}
+                {{ to1Dec(submissionStats.mean) }}
 
                 <span class="extra text-muted">
-                    &pm;{{ to1Dec(averageSubmissions.stdev) }}
+                    &pm;{{ to1Dec(submissionStats.stdev) }}
                 </span>
             </span>
         </component>
@@ -79,9 +103,33 @@
                              placement="top">
             The average number of submissions per {{ studentType }}.
 
-            <template v-if="averageSubmissions != null">
-                The standard deviation over the sample is {{ to1Dec(averageSubmissions.stdev) }}.
-            </template>
+            <table v-if="submissionStats != null"
+                   class="table mt-2 mb-0">
+                <tr>
+                    <td>Mean</td>
+                    <td class="text-right">
+                        {{ to2Dec(submissionStats.mean) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Std. deviation</td>
+                    <td class="text-right">
+                        {{ to2Dec(submissionStats.stdev) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Median</td>
+                    <td class="text-right">
+                        {{ to2Dec(submissionStats.median) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Mode</td>
+                    <td class="text-right">
+                        {{ to2Dec(submissionStats.mode) }}
+                    </td>
+                </tr>
+            </table>
         </description-popover>
     </div>
 
@@ -90,15 +138,15 @@
 
     <div class="metric">
         <component :is="metricTag" class="d-block">
-            <span v-if="averageFeedbackEntries == null">
+            <span v-if="feedbackStats == null">
                 -
             </span>
 
             <span v-else class="position-relative">
-                {{ to2Dec(averageFeedbackEntries.avg) }}
+                {{ to1Dec(feedbackStats.mean) }}
 
                 <span class="extra text-muted">
-                    &pm;{{ to1Dec(averageFeedbackEntries.stdev) }}
+                    &pm;{{ to1Dec(feedbackStats.stdev) }}
                 </span>
             </span>
         </component>
@@ -111,9 +159,33 @@
                              placement="top">
             The average number of inline feedback entries over the latest submissions.
 
-            <template v-if="averageFeedbackEntries != null">
-                {{ to1Dec(averageFeedbackEntries.stdev) }}
-            </template>
+            <table v-if="feedbackStats != null"
+                   class="table mt-2 mb-0">
+                <tr>
+                    <td>Mean</td>
+                    <td class="text-right">
+                        {{ to2Dec(feedbackStats.mean) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Std. deviation</td>
+                    <td class="text-right">
+                        {{ to2Dec(feedbackStats.stdev) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Median</td>
+                    <td class="text-right">
+                        {{ to2Dec(feedbackStats.median) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Mode</td>
+                    <td class="text-right">
+                        {{ to2Dec(feedbackStats.mode) }}
+                    </td>
+                </tr>
+            </table>
         </description-popover>
     </div>
 </b-card>
@@ -182,19 +254,19 @@ export default {
             return this.baseWorkspace.submissions.submissionCount;
         },
 
-        averageGrade() {
+        gradeStats() {
             const workspace = this.gradeWorkspace || this.baseWorkspace;
-            return workspace.submissions.averageGrade;
+            return workspace.submissions.gradeStats;
         },
 
-        averageSubmissions() {
-            return this.baseWorkspace.submissions.averageSubmissions;
+        submissionStats() {
+            return this.baseWorkspace.submissions.submissionStats;
         },
 
-        averageFeedbackEntries() {
+        feedbackStats() {
             const workspace = this.feedbackWorkspace || this.baseWorkspace;
             const source = workspace.getSource('inline_feedback');
-            return this.$utils.getProps(source, null, 'averageEntries');
+            return this.$utils.getProps(source, null, 'entryStats');
         },
     },
 
