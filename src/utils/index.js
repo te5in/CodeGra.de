@@ -594,3 +594,11 @@ export function zip(...lists) {
 export function hasAttr(obj, key) {
     return Object.hasOwnProperty.call(obj, key);
 }
+
+export function isEmpty(obj) {
+    if (typeof obj !== 'object' || obj == null) {
+        return !obj;
+    } else {
+        return Object.keys(obj).length === 0;
+    }
+}

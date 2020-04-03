@@ -427,9 +427,9 @@ export default {
             type: Workspace,
             required: true,
         },
-        initialData: {
+        value: {
             type: Array,
-            default: null,
+            default: [],
         },
     },
 
@@ -437,7 +437,7 @@ export default {
         const id = this.$utils.getUniqueId();
 
         return {
-            filters: this.defaultFilters(this.initialData),
+            filters: this.defaultFilters(this.value),
             isSplitting: null,
             splitLatest: false,
             splitGrade: '',
@@ -639,7 +639,7 @@ export default {
             immediate: true,
             handler() {
                 this.isSplitting = null;
-                this.$emit('serialize', this.filters.map(f => f.serialize()));
+                this.$emit('input', this.filters.map(f => f.serialize()));
             },
         },
 
