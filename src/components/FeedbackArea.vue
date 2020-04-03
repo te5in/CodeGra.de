@@ -12,7 +12,7 @@
                  v-for="reply, idx in nonDeletedReplies">
                 <b-btn v-if="!showMoreReplies && idx === 1"
                        @click="showMoreReplies = true"
-                       class="mx-auto my-n2">
+                       class="mx-auto mt-n1 mb-n2">
                     Show {{ hiddenReplies }} more repl{{ hiddenReplies > 1 ? 'ies' : 'y' }}
                 </b-btn>
                 <template v-else>
@@ -21,7 +21,6 @@
                         <icon name="caret-right" class="reply-icon" />
                     </div>
                     <feedback-reply
-                        :is-collapsed="false"
                         class="d-block"
                         :can-use-snippets="canUseSnippets"
                         :reply="reply"

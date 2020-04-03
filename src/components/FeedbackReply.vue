@@ -13,6 +13,7 @@
                         :total-amount-lines="totalAmountLines"
                         :feedback-disabled="inputDisabled"
                         :can-use-snippets="canUseSnippets"
+                        :max-initial-height="300"
                         :line="feedbackLine.line"
                         ref="inputField"
                         @ctrlEnter="doSubmit"
@@ -121,7 +122,7 @@
             <div>
                 <transition name="fade">
                 <b-dropdown toggle-class="feedback-reply-settings-toggle p-0 border-0 bg-transparent"
-                            v-if="!isCollapsed && editable"
+                            v-if="editable"
                             dropleft
                             @hide="onDropDownHide">
                     <template v-slot:button-content>
@@ -149,16 +150,14 @@
             </div>
         </div>
         <transition name="fade">
-            <b-card :style="{'min-height': '1em'}"
-                    v-if="!isCollapsed"
-                    class="feedback-reply-message p-2">
+            <b-card class="feedback-reply-message-wrapper m-0">
 
                 <div v-html="newlines($utils.htmlEscape(internalReply.message))"
-                     class="plain-text-message"
+                     class="plain-text-message p-2"
                      v-if="internalReply.replyType === 'plain_text'"  />
                 <inner-markdown-viewer
                     :markdown="internalReply.message"
-                    class="markdown-message"
+                    class="markdown-message py-2 px-3"
                     v-else />
 
             </b-card>
@@ -217,8 +216,6 @@ export default class FeedbackReply extends Vue {
     addSnippetToStore!: any;
 
     updateSnippetInStore!: any;
-
-    @Prop({ default: false }) isCollapsed!: boolean;
 
     @Prop({ required: true }) reply!: FeedbackReplyModel
 
@@ -466,6 +463,14 @@ Do you want to overwrite it?`;
 <style lang="less" scoped>
 @import '~mixins.less';
 
+.feedback-reply-message-wrapper {
+    min-height: 1em;
+    max-height: 15rem;
+    margin-top: 0;
+    overflow-y: auto;
+    padding: 0;
+}
+
 .feedback-reply {
     .default-text-colors;
     background-color: white;
@@ -483,9 +488,7 @@ Do you want to overwrite it?`;
 
     font-size: 1.1em;
 
-    .feedback-reply-message {
-        margin-top: 0;
-
+    .feedback-reply-message-wrapper {
         @{dark-mode} {
             background-color: @color-primary;
             border-color: @color-primary-darkest;
@@ -503,10 +506,6 @@ Do you want to overwrite it?`;
     &.edit {
         position: relative;
     }
-}
-
-.card-body {
-    padding: 0.5rem;
 }
 
 .editable-feedback-reply {
@@ -595,5 +594,10 @@ Do you want to overwrite it?`;
 
 .feedback-reply-add-snippet-popover {
     z-index: 10;
+}
+
+
+.feedback-reply .feedback-reply-message-wrapper .card-body {
+    padding: 0;
 }
 </style>
