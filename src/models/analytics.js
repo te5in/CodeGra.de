@@ -278,7 +278,7 @@ export class InlineFeedbackSource extends DataSource {
         return this._cache.get('entryStats', () => {
             const allEntries = Object.values(this.data);
 
-            if (allEntries.length < 2) {
+            if (allEntries.length === 0) {
                 return null;
             }
 
@@ -286,7 +286,7 @@ export class InlineFeedbackSource extends DataSource {
                 mean: stat.mean(allEntries),
                 median: stat.median(allEntries),
                 mode: stat.mode(allEntries),
-                stdev: stat.sampleStandardDeviation(allEntries),
+                stdev: allEntries.length < 2 ? 0 : stat.sampleStandardDeviation(allEntries),
             };
         });
     }
@@ -559,10 +559,9 @@ class WorkspaceSubmissionSet {
 
     get gradeStats() {
         return this._cache.get('gradeStats', () => {
-            if (this.submissionCount < 2) {
+            if (this.submissionCount === 0) {
                 return null;
             }
-
             const grades = this.allSubmissions
                 .map(sub => sub.grade)
                 .filter(grade => grade != null);
@@ -570,7 +569,7 @@ class WorkspaceSubmissionSet {
                 mean: stat.mean(grades),
                 median: stat.median(grades),
                 mode: stat.mode(grades),
-                stdev: stat.sampleStandardDeviation(grades),
+                stdev: grades.length < 2 ? 0 : stat.sampleStandardDeviation(grades),
             };
         });
     }
@@ -581,7 +580,7 @@ class WorkspaceSubmissionSet {
                 .filter(s => s.length > 0)
                 .map(s => s.length);
 
-            if (subsPerStudent.length < 2) {
+            if (subsPerStudent.length === 0) {
                 return null;
             }
 
@@ -589,7 +588,7 @@ class WorkspaceSubmissionSet {
                 mean: stat.mean(subsPerStudent),
                 median: stat.median(subsPerStudent),
                 mode: stat.mode(subsPerStudent),
-                stdev: stat.sampleStandardDeviation(subsPerStudent),
+                stdev: subsPerStudent.length < 2 ? 0 : stat.sampleStandardDeviation(subsPerStudent),
             };
         });
     }
