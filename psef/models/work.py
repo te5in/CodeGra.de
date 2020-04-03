@@ -311,7 +311,7 @@ class Work(Base):
             # The assignment doesn't have a rubric, so simply return an empty
             # query result. We filter it with `false` so it will never return
             # rows.
-            return db.session.query(cls.id, sqlalchemy.sql.null).filter(
+            return db.session.query(cls.id, sqlalchemy.sql.null()).filter(
                 sqlalchemy.sql.false()
             )
 
