@@ -26,10 +26,16 @@ export const BaseChart = {
         },
 
         renderData() {
+            // If subclasses need to do some processing on the data they have
+            // received in their props they can do that here.
+
             return this.chartData;
         },
 
         renderOpts() {
+            // If subclasses need to do some processing on the options they
+            // have received in their props they can do that here.
+
             return this.options;
         },
 
@@ -204,6 +210,9 @@ export const BarChart = {
         },
 
         valuesPerDataset() {
+            // Get the values per dataset that need to be considered for the
+            // calculation of the limits, i.e. add the error to the
+            // corresponding data value for each data point.
             return this.datasets.map(ds => {
                 const errors = this.errors(ds);
                 if (errors == null) {
@@ -231,6 +240,8 @@ export const BarChart = {
 
     methods: {
         errors(dataset) {
+            // Convert the errorBars object on a dataset to an array of error
+            // values in the same order as the data array on the dataset.
             const errors = dataset.errorBars;
             if (errors == null) {
                 return null;
