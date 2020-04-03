@@ -617,7 +617,7 @@ Do you want to overwrite it?`;
 }
 
 .feedback-reply .feedback-reply-message-wrapper {
-    transition: box-shadow 500ms, border 500ms;
+    transition: box-shadow @transition-duration, border @transition-duration;
 }
 
 .feedback-reply.focus .feedback-reply-message-wrapper {
