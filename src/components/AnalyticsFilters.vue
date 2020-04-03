@@ -226,8 +226,13 @@
 
                             <datetime-picker :value="formatDate(filter.submittedAfter)"
                                              @input="updateFilter(i, 'submittedAfter', $event)"
-                                             :placeholder="`${assignmentCreated} (Assignment created)`"
-                                             :config="submittedDateTimeConfig"/>
+                                             :placeholder="formatDate(firstSubmissionDate)"
+                                             :config="{
+                                                 minDate: firstSubmissionDate.toISOString(),
+                                                 maxDate: lastSubmissionDate.toISOString(),
+                                                 defaultHour: 0,
+                                                 defaultMinute: 0,
+                                             }"/>
 
                             <template #append>
                                 <b-button variant="warning"
@@ -252,8 +257,13 @@
 
                             <datetime-picker :value="formatDate(filter.submittedBefore)"
                                              @input="updateFilter(i, 'submittedBefore', $event)"
-                                             :placeholder="`${assignmentDeadline} (Assignment deadline)`"
-                                             :config="submittedDateTimeConfig"/>
+                                             :placeholder="formatDate(lastSubmissionDate)"
+                                             :config="{
+                                                 minDate: firstSubmissionDate.toISOString(),
+                                                 maxDate: lastSubmissionDate.toISOString(),
+                                                 defaultHour: 23,
+                                                 defaultMinute: 59,
+                                             }"/>
 
                             <template #append>
                                 <b-button variant="warning"
@@ -457,23 +467,22 @@ export default {
             return this.assignment.maxGrade || 10;
         },
 
-        assignmentCreated() {
-            return this.assignment.getFormattedCreatedAt();
+        firstSubmissionDate() {
+            const { firstSubmissionDate } = this.workspace.submissions;
+            if (firstSubmissionDate == null) {
+                return this.assignment.createdAt;
+            } else {
+                return firstSubmissionDate;
+            }
         },
 
-        assignmentDeadline() {
-            return this.assignment.getFormattedDeadline();
-        },
-
-        submittedDateTimeConfig() {
-            const first = this.workspace.submissions.firstSubmissionDate;
-            const last = this.workspace.submissions.lastSubmissionDate;
-            return {
-                minDate: this.maybeToISOString(first),
-                maxDate: this.maybeToISOString(last),
-                defaultHour: 23,
-                defaultMinute: 59,
-            };
+        lastSubmissionDate() {
+            const { lastSubmissionDate } = this.workspace.submissions;
+            if (lastSubmissionDate == null) {
+                return this.assignment.deadline;
+            } else {
+                return lastSubmissionDate;
+            }
         },
 
         results() {
