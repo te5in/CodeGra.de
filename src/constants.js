@@ -66,7 +66,7 @@ export const UNSET_SENTINEL = {};
 export const RUBRIC_BADGE_AT =
     '<div class="ml-1 badge badge-primary" title="This is an AutoTest category">AT</div>';
 
-export const COLOR_PAIRS = [
+export const COLOR_PAIRS = Object.freeze([
     { background: 'rgba(44,  62,  80)', color: 'light' },
     { background: 'rgb(112, 163, 162)', color: 'dark' },
     { background: 'rgb(203,  84,  82)', color: 'light' },
@@ -88,4 +88,4 @@ export const COLOR_PAIRS = [
     { background: 'rgb(180, 174, 164)', color: 'dark' },
     { background: 'rgb(210, 207, 159)', color: 'dark' },
     { background: 'rgb(231, 238, 233)', color: 'dark' },
-];
+].map(Object.freeze));
