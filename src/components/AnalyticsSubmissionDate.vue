@@ -226,12 +226,12 @@ export default {
 
             switch (unit) {
                 case 'minutes':
-                    return start => format(start, 'ddd MM-DD HH:mm');
+                    return start => format(start, 'ddd DD-MM HH:mm');
                 case 'hours':
-                    return start => format(start, 'ddd MM-DD HH:00');
+                    return start => format(start, 'ddd DD-MM HH:00');
                 default:
                     return (start, end) => {
-                        const fmt = 'ddd MM-DD';
+                        const fmt = 'ddd DD-MM';
                         // The times reported per bin are UTC UNIX epoch timestamps.
                         const s = format(start, fmt);
                         const e = format(end, fmt);
