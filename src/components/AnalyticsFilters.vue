@@ -317,7 +317,11 @@
                                 Latest
 
                                 <description-popover hug-text placement="top">
-                                    TODO Split on latest...
+                                    Splitting on latest will generate two new
+                                    filters: one that selects all submissions
+                                    for this assignment, and another one that
+                                    selects only the latest submission per
+                                    student.
                                 </description-popover>
                             </b-input-group-prepend>
 
@@ -333,7 +337,12 @@
                                 Grade
 
                                 <description-popover hug-text placement="top">
-                                    TODO Split on the grade...
+                                    Splitting on grade will generate two new
+                                    filters: one that selects all submissions
+                                    with a grade less than this value, and
+                                    another one that selects all submissions
+                                    with a grade equal to or greater than this
+                                    value.
                                 </description-popover>
                             </b-input-group-prepend>
 
@@ -347,10 +356,14 @@
 
                         <b-input-group>
                             <b-input-group-prepend is-text>
-                                Submitted
+                                Submitted on
 
                                 <description-popover hug-text placement="top">
-                                    TODO Split on submitted...
+                                    Splitting on submission date will generate
+                                    two new filters: one that selects all
+                                    submissions before the given date, and
+                                    another one that selects all submissions
+                                    exactly on or after the given date.
                                 </description-popover>
                             </b-input-group-prepend>
 
@@ -362,14 +375,14 @@
                                              }"/>
                         </b-input-group>
 
-                        <div v-for="split in splitResults">
-                            <small class="pl-1 text-muted">
+                        <template v-for="split in splitResults">
+                            <small class="pl-2 text-muted">
                                 {{ split.filter.toString() }}
                             </small>
                             <analytics-general-stats
                                 :base-workspace="split"
                                 class="mb-0" />
-                        </div>
+                        </template>
 
                         <div class="mt-3">
                             <submit-button class="float-right"
