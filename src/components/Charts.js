@@ -63,46 +63,53 @@ export const BaseChart = {
         },
 
         darkModeOpts() {
-            // This is @text-color-dark from mixins.less.
-            const color = alpha => `rgb(210, 212, 213, ${alpha})`;
-
             return {
                 legend: {
                     labels: {
-                        fontColor: color(1),
+                        fontColor: this.darkModeColor(1),
                     },
                 },
                 scales: {
                     xAxes: [
                         {
                             gridLines: {
-                                color: color(0.2),
-                                zeroLineColor: color(0.6),
+                                color: this.darkModeColor(0.2),
+                                zeroLineColor: this.darkModeColor(0.6),
                             },
                             scaleLabel: {
-                                fontColor: color(0.8),
+                                fontColor: this.darkModeColor(0.8),
                             },
                             ticks: {
-                                fontColor: color(0.8),
+                                fontColor: this.darkModeColor(0.8),
                             },
                         },
                     ],
                     yAxes: [
                         {
                             gridLines: {
-                                color: color(0.2),
-                                zeroLineColor: color(0.6),
+                                color: this.darkModeColor(0.2),
+                                zeroLineColor: this.darkModeColor(0.6),
                             },
                             scaleLabel: {
-                                fontColor: color(0.8),
+                                fontColor: this.darkModeColor(0.8),
                             },
                             ticks: {
-                                fontColor: color(0.8),
+                                fontColor: this.darkModeColor(0.8),
                             },
                         },
                     ],
                 },
             };
+        },
+
+        colorPairs() {
+            const pairs = COLOR_PAIRS.map(p => Object.assign({}, p));
+
+            if (this.darkMode) {
+                pairs[0].background = this.darkModeColor(1);
+            }
+
+            return pairs;
         },
     },
 
@@ -112,7 +119,7 @@ export const BaseChart = {
         },
 
         getColors(n_) {
-            const colors = COLOR_PAIRS.map(c => this.processColor(c.background));
+            const colors = this.colorPairs.map(c => this.processColor(c.background));
             const ret = [];
 
             let n = n_;
@@ -133,6 +140,15 @@ export const BaseChart = {
                 borderWidth: 2,
                 lineColor: color.replace(')', ', 0.4)'),
             };
+        },
+
+        darkModeColor(alpha) {
+            // This is @text-color-dark from mixins.less.
+            if (alpha === 1) {
+                return 'rgb(210, 212, 213)';
+            } else {
+                return `rgb(210, 212, 213, ${alpha})`;
+            }
         },
     },
 
