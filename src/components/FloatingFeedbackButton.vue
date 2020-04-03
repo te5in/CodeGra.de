@@ -21,7 +21,7 @@
         ref="feedbackArea"
         :editable="editable"
         :feedback="feedback"
-        :total-amount-lines="line + 1000"
+        :total-amount-lines="1"
         :forceSnippetsAbove="snippetFieldAbove"
         :can-use-snippets="canUseSnippets"
         :submission="submission"
@@ -166,10 +166,10 @@ export default {
 .content {
     position: relative;
     flex: 1 1 auto;
-    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    min-height: 0;
 }
 
 .content-wrapper {
@@ -183,8 +183,9 @@ export default {
 }
 
 .feedback-area {
-    overflow: auto;
     flex: 1 0 auto;
+    max-height: 80%;
+    overflow-y: auto;
 }
 
 .feedback-button.btn {

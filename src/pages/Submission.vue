@@ -427,7 +427,7 @@ export default {
                         }
 
                         const nitems = Object.values(this.feedback.user).reduce(
-                            (acc, file) => acc + Object.values(file).filter(x => x.msg).length,
+                            (acc, file) => acc + Object.values(file).filter(x => !x.isEmpty).length,
                             this.submission.comment ? 1 : 0,
                         );
                         if (nitems) {

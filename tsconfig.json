@@ -13,6 +13,7 @@
     "experimentalDecorators": true,
     "noImplicitAny": true,
     "sourceMap": true,
+    "emitDecoratorMetadata": true,
     "baseUrl": ".",
     "paths": {
       "@/*": [

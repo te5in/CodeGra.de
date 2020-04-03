@@ -7,25 +7,32 @@
                           tag="div">
             <div :key="reply.trackingId"
                  class="reply-wrapper"
-                 v-if="!reply.deleted"
+                 v-if="shouldShowReply(idx, reply)"
                  :class="{ editing: isEditing(reply) }"
-                 v-for="reply in replies">
-                <div v-if="!isFirstNonDeletedReply(reply)"
-                     class="pr-1 reply-gutter">
-                    <icon name="reply" class="reply-icon" />
-                </div>
-                <feedback-reply
-                    @editing="(event) => onEditingEvent(reply, event)"
-                    :is-collapsed="false"
-                    class="d-block"
-                    :can-use-snippets="canUseSnippets"
-                    :reply="reply"
-                    :feedback-line="feedback"
-                    :force-snippets-above="false"
-                    :total-amount-lines="10000"
-                    @updated="replyUpdated"
-                    @deleted="replyDeleted"
-                    :submission="submission" />
+                 v-for="reply, idx in nonDeletedReplies">
+                <b-btn v-if="!showMoreReplies && idx === 1"
+                       @click="showMoreReplies = true"
+                       class="mx-auto my-n2">
+                    Show {{ hiddenReplies }} more repl{{ hiddenReplies > 1 ? 'ies' : 'y' }}
+                </b-btn>
+                <template v-else>
+                    <div v-if="idx !== 0"
+                        class="pr-1 reply-gutter">
+                        <icon name="caret-right" class="reply-icon" />
+                    </div>
+                    <feedback-reply
+                        :is-collapsed="false"
+                        class="d-block"
+                        :can-use-snippets="canUseSnippets"
+                        :reply="reply"
+                        :feedback-line="feedback"
+                        :force-snippets-above="false"
+                        :total-amount-lines="totalAmountLines"
+                        @updated="replyUpdated"
+                        @deleted="replyDeleted"
+                        @editing="onEditingEvent(reply, $event)"
+                        :submission="submission" />
+                </template>
             </div>
         </transition-group>
     </div>
@@ -38,13 +45,12 @@
 </template>
 
 <script lang="ts">
-
 import { Vue, Component, Prop } from 'vue-property-decorator';
 import { Getter, Action } from 'vuex-class';
 
 // @ts-ignore
 import Icon from 'vue-awesome/components/Icon';
-import 'vue-awesome/icons/reply';
+import 'vue-awesome/icons/caret-right';
 
 import { FeedbackLine, FeedbackReply as FeedbackReplyModel } from '@/models/feedback';
 
@@ -65,21 +71,48 @@ export default class FeedbackArea extends Vue {
 
     @Action('feedback/addFeedbackLine') addFeedbackLine!: any;
 
-    @Prop({ required: true }) feedback!: FeedbackLine;
+    @Prop({ required: true }) readonly feedback!: FeedbackLine;
 
-    @Prop({ required: true }) canUseSnippets!: boolean;
+    @Prop({ required: true }) readonly canUseSnippets!: boolean;
 
-    @Prop({ required: true }) submission!: Submission;
+    @Prop({ required: true }) readonly submission!: Submission;
+
+    @Prop({ required: true }) readonly totalAmountLines!: number;
 
     editingReplies: Record<string, boolean> = {};
+
+    showMoreReplies: boolean = this.nonDeletedReplies.length < 3;
 
     get nonDeletedReplies(): FeedbackReplyModel[] {
         return this.feedback.replies.filter(r => !r.deleted);
     }
 
-    isFirstNonDeletedReply(r: FeedbackReplyModel): boolean {
+    get hiddenReplies(): number {
+        return this.nonDeletedReplies.length - 2;
+    }
+
+    shouldShowReply(idx: number, reply: FeedbackReplyModel): boolean {
+        return (!reply.deleted &&
+            (this.showMoreReplies || [0, 1, this.nonDeletedReplies.length - 1].indexOf(idx) >= 0));
+    }
+
+    isLastNonDeletedReply(r: FeedbackReplyModel): boolean {
         const replies = this.nonDeletedReplies;
-        return !r.deleted && replies.length > 0 && replies[0].trackingId === r.trackingId;
+        return (
+            !r.deleted &&
+                replies.length > 0 &&
+                replies[replies.length - 1].trackingId === r.trackingId
+        );
+    }
+
+    getReplyIndex(r: FeedbackReplyModel): number | null {
+        const replies = this.nonDeletedReplies;
+        for (let i = 0, len = replies.length; i < len; ++i) {
+            if (replies[i].trackingId === r.trackingId) {
+                return i;
+            }
+        }
+        return null;
     }
 
     get showReply(): boolean {
@@ -144,12 +177,7 @@ export default class FeedbackArea extends Vue {
         margin-top: 1rem;
     }
 
-    .reply-gutter {
-        cursor: pointer;
-    }
-
     &.editing .reply-gutter {
-        cursor: unset;
         opacity: 0;
     }
 }
@@ -174,10 +202,5 @@ export default class FeedbackArea extends Vue {
     .feedback-reply {
         flex: 1 1 auto;
     }
-}
-
-.reply-icon {
-    transform: rotate(180deg);
-
 }
 </style>

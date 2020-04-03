@@ -42,12 +42,12 @@
                     to see the entire file.
 
                     <feedback-area v-if="disabledFileType(id).singleLine"
+                                   class="pt-2"
                                    :editable="false"
                                    :can-use-snippets="false"
                                    :line="0"
-                                   :feedback="feedback.user[id][0].msg"
+                                   :feedback="feedback.user[id][0]"
                                    :total-amount-lines="0"
-                                   :author="feedback.user[id][0].author"
                                    :assignment="assignment"
                                    :submission="submission" />
                 </div>

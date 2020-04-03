@@ -4,31 +4,6 @@
     <b-card no-body v-if="editing" class="mt-0">
         <b-tabs card>
             <b-tab title="Edit" active>
-                <b-collapse class="collapsep"
-                            v-model="showSnippetDialog"
-                            v-if="canUseSnippets"
-                            :id="`collapse${line}`"
-                            style="margin: 0">
-                    <div>
-                        <b-input-group class="input-snippet-group mb-2">
-                            <input class="input form-control"
-                                   v-model="snippetKey"
-                                   :disabled="inputDisabled"
-                                   @keydown.ctrl.enter="() => addSnippetButton.onClick()"/>
-                            <b-input-group-append>
-                                <submit-button ref="addSnippetButton"
-                                               class="add-snippet-btn"
-                                               :submit="addSnippet"
-                                               :confirm="addSnippetConfirm"
-                                               @after-success="afterAddSnippet"
-                                               @error="inputDisabled = false">
-                                    <icon :scale="1" name="check"/>
-                                </submit-button>
-                            </b-input-group-append>
-                        </b-input-group>
-                    </div>
-                </b-collapse>
-
                 <div>
                     <snippetable-input
                         :value="internalReply.message"
@@ -77,6 +52,48 @@
                         class="markdown-message" />
                 </div>
             </b-tab>
+
+            <template v-slot:tabs-end>
+                <div class="snippet-edit-wrapper d-flex"
+                     style="margin-top: -.75rem">
+                    <b-btn class="p-2 cursor-pointer bg-transparent border-0 shadow-none"
+                           :id="`${componentId}-snippet-add`">
+                        <icon name="plus"
+                              :class="{ rotated: showSnippetDialog }"/>
+                    </b-btn>
+
+                    <b-popover v-if="canUseSnippets"
+                               :delay="0"
+                               :boundary="`#${componentId}`"
+                               custom-class="feedback-reply-add-snippet-popover"
+                               style="z-index: 1;"
+                               @show="showSnippetDialog = true"
+                               @hide="showSnippetDialog = false"
+                               placement="topleft"
+                               :target="`${componentId}-snippet-add`"
+                               :id="`${componentId}-snippet-popover`">
+                        <div>
+                            <b-input-group class="input-snippet-group m-0">
+                                <input class="input form-control"
+                                       ref="snippetAddInput"
+                                       v-model="snippetKey"
+                                       :disabled="inputDisabled"
+                                       @keydown.ctrl.enter="() => addSnippetButton.onClick()"/>
+                                <b-input-group-append>
+                                    <submit-button ref="addSnippetButton"
+                                                   class="add-snippet-btn"
+                                                   :submit="addSnippet"
+                                                   :confirm="addSnippetConfirm"
+                                                   @after-success="afterAddSnippet"
+                                                   @error="inputDisabled = false">
+                                        <icon :scale="1" name="check"/>
+                                    </submit-button>
+                                </b-input-group-append>
+                            </b-input-group>
+                        </div>
+                    </b-popover>
+                </div>
+            </template>
         </b-tabs>
     </b-card>
 
@@ -85,15 +102,20 @@
             <div class="info-text-wrapper">
                 <span>
                     <cg-user :user="reply.author" :show-you="true"
-                        v-if="reply.author"/>
+                             v-if="reply.author"/>
                     <i v-else
                        title="You do not have the permission to see the authors of feedback">
                         A grader
                     </i>
 
-                    <cg-relative-time
-                        :date="reply.createdAt"
-                        class="text-muted"/>
+                    <span class="text-muted">
+                        <cg-relative-time
+                            :date="reply.createdAt"/>
+
+                        <template v-if="reply.hasEdits">
+                            updated <cg-relative-time :date="reply.updatedAt" />
+                        </template>
+                    </span>
                 </span>
             </div>
             <div>
@@ -146,7 +168,7 @@
 </template>
 
 <script lang="ts">
-    import { Vue, Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Vue, Component, Prop, Ref, Watch } from 'vue-property-decorator';
 
 // @ts-ignore
 import Icon from 'vue-awesome/components/Icon';
@@ -252,6 +274,7 @@ export default class FeedbackReply extends Vue {
 
     @Watch('editing', { immediate: true })
     onEditingChange(): void {
+        this.showSnippetDialog = false;
         this.$emit('editing', { reply: this.reply, isEditing: this.editing });
         if (this.editing) {
             this.focusInput();
@@ -286,6 +309,8 @@ Do you want to overwrite it?`;
     @Ref() readonly deleteButton: SubmitButton | null;
 
     @Ref() readonly addSnippetButton: SubmitButton | null;
+
+    @Ref() readonly snippetAddInput: any | null;
 
     onInput(event: string) {
         this.internalReply = this.internalReply.update(event);
@@ -377,6 +402,16 @@ Do you want to overwrite it?`;
         this.inputDisabled = false;
     }
 
+    async toggleSnippetDialog(): Promise<void> {
+        this.showSnippetDialog = !this.showSnippetDialog;
+        if (this.showSnippetDialog) {
+            await this.$afterRerender();
+            if (this.snippetAddInput) {
+                this.snippetAddInput.focus();
+            }
+        }
+    }
+
     addSnippet() {
         const key = this.snippetKey;
         const value = this.internalReply.message;
@@ -393,22 +428,23 @@ Do you want to overwrite it?`;
 
         if (key in this.snippets) {
             const { id } = this.snippets[key];
-            return this.$http.patch(`/api/v1/snippets/${id}`, { key, value }).then(() => {
+            return this.$http.patch(`/api/v1/snippets/${id}`, { key, value }).then(response => {
                 this.updateSnippetInStore({ id, key, value });
+                return response;
             });
         } else {
             return this.$http
                 .put('/api/v1/snippet', { key, value })
-                .then(({ data: newSnippet }) => {
-                    this.addSnippetToStore(newSnippet);
+                .then(response => {
+                    this.addSnippetToStore(response.data);
+                    return response;
                 });
         }
     }
 
     afterAddSnippet() {
         this.inputDisabled = false;
-
-        this.$root.$emit('bv::toggle::collapse', `collapse${this.line}`);
+        this.$root.$emit('bv::hide::popover ', `${this.componentId}-snippet-popover`);
     }
 
     findSnippet() {
@@ -473,54 +509,6 @@ Do you want to overwrite it?`;
     padding: 0.5rem;
 }
 
-button {
-    border: none;
-    box-shadow: none !important;
-}
-
-.minor-buttons {
-    z-index: 1;
-    &:hover {
-        box-shadow: none;
-    }
-    button,
-    .submit-button {
-        flex: 1;
-        &:first-child {
-            border-top-right-radius: 0;
-            border-top-left-radius: 0;
-        }
-    }
-    min-height: 7em;
-}
-
-.collapsep {
-    float: right;
-    display: flex;
-}
-
-.snippet-btn {
-    border-top-width: 1px;
-    border-top-style: solid;
-}
-
-.snippet-btn .fa-icon {
-    transform: translateY(-1px) rotate(0);
-    transition: transform @transition-duration;
-
-    &.rotated {
-        transform: translateY(-1px) rotate(45deg);
-    }
-}
-
-.input.snippet {
-    margin: 0;
-}
-
-.input-snippet-group {
-    padding-top: 0;
-}
-
 .editable-feedback-reply {
     position: relative;
     min-height: 7em;
@@ -549,6 +537,18 @@ button {
     line-height: 1.5rem;
     display: flex;
     align-items: center;
+}
+
+.snippet-edit-wrapper {
+    align-self: center;
+    margin-left: auto;
+    .fa-icon {
+        transition: transform @transition-duration;
+
+        &.rotated {
+            transform: translateY(-1px) rotate(45deg);
+        }
+    }
 }
 </style>
 
@@ -591,5 +591,9 @@ button {
     .fade-enter {
         opacity: 0;
     }
+}
+
+.feedback-reply-add-snippet-popover {
+    z-index: 10;
 }
 </style>

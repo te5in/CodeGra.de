@@ -30,3 +30,4 @@ PRIVACY_STATEMENT.md
 /cypress/videos
 /.nyc_output/
 /src/userConfig.js
+.#*

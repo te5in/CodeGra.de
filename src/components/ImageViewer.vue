@@ -133,7 +133,7 @@ export default {
 
 <style lang="less" scoped>
 .image-viewer {
-    // padding: 0;
+    padding: 0;
 
     .img {
         display: inline-block;

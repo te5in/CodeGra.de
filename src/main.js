@@ -4,6 +4,7 @@ import 'bootstrap-vue/dist/bootstrap-vue.css';
 import 'highlightjs/styles/solarized-dark.css';
 import 'vue-multiselect/dist/vue-multiselect.min.css';
 import '@/style.less';
+import 'reflect-metadata';
 
 import Icon from 'vue-awesome/components/Icon';
 import Vue from 'vue';
