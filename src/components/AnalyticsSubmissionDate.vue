@@ -201,7 +201,7 @@ export default {
             const datasets = subs.map((bins, i) => {
                 const absData = allDates.map(d => (bins[d] == null ? 0 : bins[d].data.length));
                 const nSubs = stat.sum(absData);
-                const relData = absData.map(x => (nSubs > 0 ? 100 * x / nSubs : 0));
+                const relData = absData.map(x => (nSubs > 0 ? (100 * x) / nSubs : 0));
 
                 return {
                     label: this.filterLabels[i],

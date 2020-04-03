@@ -90,6 +90,22 @@
                             {{ $utils.getErrorMessage(scope.error) }}
                         </b-alert>
 
+                        <analytics-submission-count
+                            v-else
+                            v-model="submissionCountSettings"
+                            :filter-results="filterResults" />
+                    </template>
+                </catch-error>
+            </div>
+
+            <div class="col-12 mt-3">
+                <catch-error capture>
+                    <template slot-scope="scope">
+                        <b-alert show variant="danger" v-if="scope.error">
+                            An unexpected error occurred:
+                            {{ $utils.getErrorMessage(scope.error) }}
+                        </b-alert>
+
                         <analytics-grade-stats
                             v-else
                             v-model="gradeSettings"
@@ -134,6 +150,7 @@ import AnalyticsFilters from '@/components/AnalyticsFilters';
 import DescriptionPopover from '@/components/DescriptionPopover';
 import AnalyticsGeneralStats from '@/components/AnalyticsGeneralStats';
 import AnalyticsSubmissionDate from '@/components/AnalyticsSubmissionDate';
+import AnalyticsSubmissionCount from '@/components/AnalyticsSubmissionCount';
 import AnalyticsRubricStats from '@/components/AnalyticsRubricStats';
 import AnalyticsGradeStats from '@/components/AnalyticsGradeStats';
 import { deepEquals, filterObject } from '@/utils';
@@ -208,6 +225,7 @@ export default {
             const settings = {
                 filters: this.$utils.getProps(this, [], 'filters'),
                 submissionDateSettings: this.submissionDateSettings,
+                submissionCountSettings: this.submissionCountSettings,
                 rubricSettings: this.rubricSettings,
                 gradeSettings: this.gradeSettings,
             };
@@ -230,6 +248,7 @@ export default {
                     gradeSettings: {},
                     rubricSettings: {},
                     submissionDateSettings: {},
+                    submissionCountSettings: {},
                 },
                 settings,
             );
@@ -310,6 +329,7 @@ export default {
         DescriptionPopover,
         AnalyticsGeneralStats,
         AnalyticsSubmissionDate,
+        AnalyticsSubmissionCount,
         AnalyticsRubricStats,
         AnalyticsGradeStats,
         DatetimePicker,

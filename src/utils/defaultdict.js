@@ -10,7 +10,7 @@ export function defaultdict(defaultType) {
             },
 
             set(target, key, value, receiver) {
-                Reflect.set(target, key, value, receiver);
+                return Reflect.set(target, key, value, receiver);
             },
         },
     );

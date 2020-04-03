@@ -403,6 +403,7 @@ class WorkspaceSubmissionSet {
             'lastSubmission',
             'gradeStats',
             'submissionStats',
+            'submissionsPerStudent',
             'submissionIds',
             'assigneeIds',
         );
@@ -588,6 +589,19 @@ class WorkspaceSubmissionSet {
                 mode: stat.mode(subsPerStudent),
                 stdev: subsPerStudent.length < 2 ? 0 : stat.sampleStandardDeviation(subsPerStudent),
             };
+        });
+    }
+
+    get submissionsPerStudent() {
+        return this._cache.get('submissionsPerStudent', () => {
+            const subsPerStudent = Object.values(this.submissions)
+                .filter(s => s.length > 0)
+                .map(s => s.length);
+            return subsPerStudent.reduce((acc, nSubs) => {
+                const amt = acc[nSubs];
+                acc[nSubs] = amt + 1;
+                return acc;
+            }, defaultdict(() => 0));
         });
     }
 
