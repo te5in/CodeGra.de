@@ -458,7 +458,6 @@ export class RubricResult {
     }
 
     get maxPoints() {
-        // TODO: Move this to the Rubric model and get it from this.rubric.
         return getProps(
             this.assignment,
             getProps(this.rubric, null, 'maxPoints'),

@@ -354,8 +354,6 @@ class WorkspaceSubmission {
         // that a maxGrade of 9 will not contain submissions graded
         // exactly 9, but that a maxGrade of 10 _will_ include
         // submissions graded exactly 10.
-        // TODO: use the assignment's max grade instead of hardcoded
-        // value 10.
 
         if (minGrade != null && this.grade < minGrade) {
             return false;
