@@ -444,7 +444,7 @@ export function downloadFile(data, filename, contentType) {
 export function deepEquals(a, b) {
     if (typeof a !== 'object') {
         return a === b;
-    } else if (a == null) {
+    } else if (a == null || b == null) {
         // eslint-disable-next-line eqeqeq
         return a == b;
     } else if (typeof b !== 'object') {
