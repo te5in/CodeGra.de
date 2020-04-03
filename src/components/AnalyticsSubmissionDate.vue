@@ -21,8 +21,8 @@
                              :config="{
                                  mode: 'range',
                                  enableTime: false,
-                                 minDate: firstSubmissionDate,
-                                 maxDate: lastSubmissionDate,
+                                 minDate: minDate.toISOString(),
+                                 maxDate: maxDate.toISOString(),
                              }"
                              class="ml-2 text-center"/>
 
@@ -153,19 +153,20 @@ export default {
             return this.filterResults.map(r => r.submissions);
         },
 
-        firstSubmissionDate() {
+        minDate() {
             const firstPerSource = this.submissionSources.map(source => source.firstSubmissionDate);
-            const first = firstPerSource.reduce(
+            return firstPerSource.reduce(
                 (f, d) => (f == null || f.isAfter(d) ? d : f),
                 null,
-            );
-            return first.toISOString();
+            ).local().startOf('day');
         },
 
-        lastSubmissionDate() {
+        maxDate() {
             const lastPerSource = this.submissionSources.map(source => source.lastSubmissionDate);
-            const last = lastPerSource.reduce((l, d) => (l == null || l.isBefore(d) ? d : l), null);
-            return last.toISOString();
+            return lastPerSource.reduce(
+                (l, d) => (l == null || l.isBefore(d) ? d : l),
+                null,
+            ).local().startOf('day');
         },
 
         binUnits() {
@@ -318,6 +319,8 @@ export default {
         updateRange(event) {
             const curRange = this.range;
             const newRange = event.map(d => moment(d));
+
+            console.log(newRange.map(d => d.toISOString()), this.minDate.toISOString());
 
             if (
                 newRange.length !== curRange.length ||
