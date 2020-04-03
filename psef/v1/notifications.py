@@ -31,7 +31,8 @@ def get_all_notifications() -> t.Union[ExtendedJSONResponse[NotificationsJSON],
     notifications = db.session.query(Notification).join(
         Notification.comment_reply
     ).filter(
-        ~models.CommentReply.deleted, Notification.receiver == current_user
+        ~models.CommentReply.deleted,
+        Notification.receiver == current_user,
     ).order_by(
         Notification.read.desc(),
         Notification.created_at.desc(),
@@ -82,7 +83,7 @@ def update_notification(notification_id: int
         Notification,
         notification_id,
         also_error=lambda n: (
-            n.deleted or auth.NotificationPermissions(
+            n.deleted or not auth.NotificationPermissions(
                 n,
             ).ensure_may_see.as_bool()
         )

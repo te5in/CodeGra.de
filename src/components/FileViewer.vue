@@ -181,9 +181,9 @@ export default {
         showEmptyFileMessage() {
             return (
                 !this.loading &&
-                this.fileData &&
-                this.fileContent &&
-                this.fileContent.byteLength === 0
+                    this.fileData &&
+                    this.fileContent &&
+                    this.fileContent.byteLength === 0
             );
         },
 
@@ -239,16 +239,22 @@ export default {
         dataAvailable() {
             return (
                 this.fileData &&
-                !this.loading &&
-                (this.fileContent != null || !this.fileData.needsContent)
+                    !this.loading &&
+                    (this.fileContent != null || !this.fileData.needsContent)
             );
         },
 
         showError() {
             return (
                 this.error ||
-                (this.fileData && this.showDiff(this.file) && !this.fileData.supportsDiff)
+                    (this.fileData && this.showDiff(this.file) && !this.fileData.supportsDiff)
             );
+        },
+
+
+        replyIdToFocus() {
+            const replyId = this.$route.query?.replyToFocus;
+            return parseInt(replyId || '', 10);
         },
     },
 
@@ -271,12 +277,51 @@ export default {
                 this.loadFileContent(newVal);
             },
         },
+
+        replyIdToFocus: {
+            immediate: true,
+            handler: 'tryScrollToReplyToFocus',
+        },
+
+        dataAvailable: 'tryScrollToReplyToFocus',
     },
 
     methods: {
         ...mapActions('code', {
             storeLoadCode: 'loadCode',
         }),
+
+        async tryScrollToReplyToFocus() {
+            const replyId = this.replyIdToFocus;
+
+            if (this.dataAvailable && !Number.isNaN(replyId)) {
+                await this.$nextTick();
+                const el = document.querySelector(`#feedback-reply-id-${replyId}`);
+                if (el) {
+                    el.scrollIntoView({
+                        block: 'center',
+                        inline: 'center',
+                        behavior: 'smooth',
+                    });
+
+                    setTimeout(() => {
+                        if (this.replyIdToFocus !== replyId) {
+                            return;
+                        }
+
+                        this.$router.replace(Object.assign(
+                            {},
+                            this.$route,
+                            {
+                                query: Object.assign(
+                                    {}, this.$route.query, { replyToFocus: undefined },
+                                ),
+                            },
+                        ));
+                    }, 30_000);
+                }
+            }
+        },
 
         async loadFileContent(fileId) {
             this.fileContent = null;

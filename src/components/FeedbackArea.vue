@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="feedback-area ">
+<div class="feedback-area">
     <div class="replies-wrapper"
          :style="{ 'pb-2': showReply }">
         <transition-group name="fade"
@@ -10,10 +10,10 @@
                  v-if="shouldShowReply(idx, reply)"
                  :class="{ editing: isEditing(reply) }"
                  v-for="reply, idx in nonDeletedReplies">
-                <b-btn v-if="!showMoreReplies && idx === 1"
-                       @click="showMoreReplies = true"
+                <b-btn v-if="hiddenReplies.has(reply.trackingId) && idx === 1"
+                       @click="showAllReplies"
                        class="mx-auto mt-n1 mb-n2">
-                    Show {{ hiddenReplies }} more repl{{ hiddenReplies > 1 ? 'ies' : 'y' }}
+                    Show {{ amountHiddenReplies }} more repl{{ amountHiddenReplies > 1 ? 'ies' : 'y' }}
                 </b-btn>
                 <template v-else>
                     <div v-if="idx !== 0"
@@ -44,7 +44,7 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Prop } from 'vue-property-decorator';
+    import { Vue, Component, Prop, Watch } from 'vue-property-decorator';
 import { Getter, Action } from 'vuex-class';
 
 // @ts-ignore
@@ -80,19 +80,42 @@ export default class FeedbackArea extends Vue {
 
     editingReplies: Record<string, boolean> = {};
 
-    showMoreReplies: boolean = this.nonDeletedReplies.length < 3;
+    hiddenReplies: Set<number> = new Set(this.nonDeletedReplies.slice(1, -1).map(r => r.trackingId));
 
     get nonDeletedReplies(): FeedbackReplyModel[] {
         return this.feedback.replies.filter(r => !r.deleted);
     }
 
-    get hiddenReplies(): number {
-        return this.nonDeletedReplies.length - 2;
+    get amountHiddenReplies(): number {
+        return this.hiddenReplies.size;
+    }
+
+    get replyIdToFocus(): number {
+        const replyId = this.$route.query?.replyToFocus;
+        return parseInt(replyId ?? '', 10);
+    }
+
+    @Watch('replyIdToFocus', { immediate: true })
+    async onReplyToFocus() {
+        if (!Number.isNaN(this.replyIdToFocus)) {
+            if (this.feedback.replies.some(r => r.id === this.replyIdToFocus)) {
+                this.showAllReplies();
+            }
+        }
+    }
+
+    showAllReplies() {
+        this.hiddenReplies = new Set([]);
     }
 
     shouldShowReply(idx: number, reply: FeedbackReplyModel): boolean {
-        return (!reply.deleted &&
-            (this.showMoreReplies || [0, 1, this.nonDeletedReplies.length - 1].indexOf(idx) >= 0));
+        if (reply.deleted) {
+            return false;
+        }
+        if (!this.hiddenReplies.has(reply.trackingId)) {
+            return true;
+        }
+        return idx === 1;
     }
 
     isLastNonDeletedReply(r: FeedbackReplyModel): boolean {

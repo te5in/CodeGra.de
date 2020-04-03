@@ -16,16 +16,19 @@
             <icon name="edit"/>
         </submit-button>
     </div>
-    <feedback-area
-        class="border-top"
-        ref="feedbackArea"
-        :editable="editable"
-        :feedback="feedback"
-        :total-amount-lines="1"
-        :forceSnippetsAbove="snippetFieldAbove"
-        :can-use-snippets="canUseSnippets"
-        :submission="submission"
-        v-if="hasFeedback && !disabled"/>
+
+    <div class="feedback-area-wrapper">
+        <feedback-area
+            class="border-top py-1"
+            ref="feedbackArea"
+            :editable="editable"
+            :feedback="feedback"
+            :total-amount-lines="1"
+            :forceSnippetsAbove="snippetFieldAbove"
+            :can-use-snippets="canUseSnippets"
+            :submission="submission"
+            v-if="hasFeedback && !disabled"/>
+    </div>
 </div>
 </template>
 
@@ -182,7 +185,7 @@ export default {
     flex: 1 1 auto;
 }
 
-.feedback-area {
+.feedback-area-wrapper {
     flex: 1 0 auto;
     max-height: 80%;
     overflow-y: auto;

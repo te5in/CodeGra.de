@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="feedback-reply" :id="componentId">
+<div class="feedback-reply" :id="componentId" v-b-visible="onVisible"
+     :class="{ 'focus': showFocus && replyIdToFocus === reply.id }">
     <b-card no-body v-if="editing" class="mt-0">
         <b-tabs card>
             <b-tab title="Edit" active>
@@ -249,6 +250,11 @@ export default class FeedbackReply extends Vue {
         return `feedback-reply-id-${this.reply.id}`;
     }
 
+    get replyIdToFocus(): number {
+        const replyId = this.$route.query?.replyToFocus;
+        return parseInt(replyId ?? '', 10);
+    }
+
     snippetKey: string = '';
 
     snippetDisabled: boolean = false;
@@ -258,6 +264,14 @@ export default class FeedbackReply extends Vue {
     inputDisabled: boolean = false;
 
     wasClicked: boolean = false;
+
+    showFocus: boolean = false;
+
+    onVisible(nowVisible: boolean) {
+        if (nowVisible) {
+            this.showFocus = true;
+        }
+    }
 
     startEdit() {
         this.wasClicked = true;
@@ -600,5 +614,15 @@ Do you want to overwrite it?`;
 
 .feedback-reply .feedback-reply-message-wrapper .card-body {
     padding: 0;
+}
+
+.feedback-reply .feedback-reply-message-wrapper {
+    transition: box-shadow 500ms, border 500ms;
+}
+
+.feedback-reply.focus .feedback-reply-message-wrapper {
+    border: 1px solid @color-warning;
+    box-shadow: 0px 0px 15px @color-warning;
+    border-radius: @border-radius;
 }
 </style>

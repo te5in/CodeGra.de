@@ -152,11 +152,6 @@ export default {
             this.emitLoad(this.fileId);
             return res;
         },
-
-
-        replyToFocus() {
-            return this.$route.query && this.$route.query.replyToFocus;
-        },
     },
 
     data() {
@@ -185,12 +180,6 @@ export default {
             }
             this.selectedLanguage = lang;
         },
-
-        replyToFocus: 'tryScrollToReplyToFocus',
-        async feedback() {
-            await this.$nextTick();
-            this.tryScrollToReplyToFocus();
-        },
     },
 
     methods: {
@@ -206,38 +195,11 @@ export default {
             });
         },
 
-        tryScrollToReplyToFocus() {
-            const replyToFocus = this.replyToFocus;
-
-            if (replyToFocus != null) {
-                const el = document.querySelector(`#feedback-reply-id-${replyToFocus}`);
-
-                if (el) {
-                    this.$router.replace(Object.assign(
-                        {},
-                        this.$route,
-                        {
-                            query: Object.assign(
-                                {}, this.$route.query, { replyToFocus: undefined },
-                            ),
-                        },
-                    ));
-
-                    el.scrollIntoView({
-                        block: 'center',
-                        inline: 'center',
-                        behavior: 'smooth',
-                    });
-                }
-            }
-        },
-
         async emitLoad(fileId) {
             if (this.fileId === fileId) {
                 this.$emit('load', fileId);
 
                 await this.$nextTick();
-                this.tryScrollToReplyToFocus();
             }
         },
     },

@@ -17,14 +17,23 @@
         </div>
 
         <div class="border rounded" v-if="notifications.length > 0">
-            <table class="table table-hover table-borderless mb-0">
-                <transition-group name="fade" tag="tbody">
-                    <user-notification :notification="notification"
-                                       class="cursor-pointer"
-                                       @click.native="gotoNotification(notification)"
-                                       :class="{ read: notification.read }"
-                                       v-for="notification in notifications"
-                                       :key="notification.id" />
+            <table class="table table-hover table-borderless mb-0"
+                   :class="{ disabled }">
+                <transition-group :name="goingToSubmission != null ? '' : 'fade'" tag="tbody">
+                    <template v-for="notification in notifications">
+                        <tr v-if="goingToSubmission === notification.id"
+                            :class="{ disabled }"
+                            :key="notification.id">
+                            <td colspan="4">
+                                <cg-loader :scale="1"/>
+                            </td>
+                        </tr>
+                        <user-notification :notification="notification"
+                                           v-else
+                                           :key="notification.id"
+                                           @click.native="gotoNotification(notification)"
+                                           :class="{ read: notification.read, disabled }" />
+                    </template>
                 </transition-group>
             </table>
         </div>
@@ -81,9 +90,15 @@ export default class UserNotifications extends Vue {
         return this.showRead ? this.allNotifications : this.unreadNotifications;
     }
 
+    get disabled(): boolean {
+        return this.goingToSubmission != null;
+    }
+
     loading: boolean = true;
 
-    smallLoading: boolean = false;
+    disableAnimations: boolean = false;
+
+    goingToSubmission: number | null = null;
 
     showRead: boolean = false;
 
@@ -121,18 +136,19 @@ export default class UserNotifications extends Vue {
     async gotoNotification(notification: models.Notification): Promise<void> {
         const assignmentId = notification.assignment?.id;
         const submissionId = notification.submission?.id;
-
-        this.$store.dispatch('feedback/loadFeedback', {
-            assignmentId,
-            submissionId,
-            force: true,
-        });
+        this.goingToSubmission = notification.id;
 
         notification.markAsRead().then(({ cgResult }) => {
             NotificationStore.commitUpdateNotifications({
                 notifications: [cgResult],
             });
         });
+
+        await this.$store.dispatch('feedback/loadFeedback', {
+            assignmentId,
+            submissionId,
+            force: true,
+        }).catch(() => null);
 
         this.$router.push(this.getNotificationRoute(notification));
         this.$root.$emit('cg::sidebar::close');
@@ -165,5 +181,17 @@ export default class UserNotifications extends Vue {
 .fade-enter,
 .fade-leave-to {
     opacity: 0;
+}
+
+.disabled {
+    cursor: not-allowed;
+}
+
+tr {
+    cursor: pointer;
+    &.disabled {
+        cursor: not-allowed;
+        pointer-events: none;
+    }
 }
 </style>
