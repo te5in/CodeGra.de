@@ -166,7 +166,7 @@ export default {
             return lastPerSource.reduce(
                 (l, d) => (l == null || l.isBefore(d) ? d : l),
                 null,
-            ).local().startOf('day');
+            ).local().endOf('day');
         },
 
         binUnits() {
