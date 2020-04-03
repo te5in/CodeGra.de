@@ -71,10 +71,24 @@
                     <p class="mb-2">
                         The RIR value measures whether students who scored high
                         in a rubric category also scored high on the rubric
-                        overall.
+                        overall. The value is a number between -1 and 1. Higher
+                        values are more desirable.
                     </p>
 
-                    <p>
+                    <p class="mb-2">
+                        A RIR value greater than 0.25 means there is a strong
+                        correlation between student scores in this rubric
+                        category and their overall scores for the rubric.
+                    </p>
+
+                    <p class="mb-2">
+                        A negative RIR value is a sign that something may be
+                        off with a rubric category, as it means that students
+                        who scored higher in a rubric category scored lower in
+                        the overall rubric.
+                    </p>
+
+                    <p class="mb-2">
                         While the RIR value is very similar to the RIT value,
                         it is a fairer representation of the explanatory factor
                         of a rubric category because if the achieved points in
@@ -289,7 +303,6 @@ export default {
                     `Mode: ${this.modeToString(stats.mode)}`,
                     `Rit: ${this.to2Dec(stats.rit) || '-'}`,
                     `Rir: ${this.to2Dec(stats.rir) || '-'}`,
-                    this.rirMessage(stats.rir),
                 ];
             };
 
@@ -457,18 +470,6 @@ export default {
                 return mode.map(this.to2Dec).join(', ');
             } else {
                 return this.to2Dec(mode);
-            }
-        },
-
-        rirMessage(rir) {
-            if (rir == null) {
-                return 'There was not enough data to calculate a meaningful Rir value.';
-            } else if (rir < 0) {
-                return 'The rir value is negative, which means ...';
-            } else if (rir > 0.25) {
-                return 'The rir value is very high, which means...';
-            } else {
-                return 'The rir value is very close to zero, which means...';
             }
         },
     },
