@@ -1,23 +1,22 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="feedback-area ">
-    <div class="replies-wrapper pb-2">
+    <div class="replies-wrapper"
+         :style="{ 'pb-2': showReply }">
         <transition-group name="fade"
                           tag="div">
             <div :key="reply.trackingId"
                  class="reply-wrapper"
                  v-if="!reply.deleted"
-                 @click="() => unCollapse(reply)"
-                 :class="{ collapsed: isCollapsed(reply), editing: isEditing(reply) }"
+                 :class="{ editing: isEditing(reply) }"
                  v-for="reply in replies">
                 <div v-if="!isFirstNonDeletedReply(reply)"
-                     @click.stop="toggleCollapse(reply)"
                      class="pr-1 reply-gutter">
                     <icon name="reply" class="reply-icon" />
                 </div>
                 <feedback-reply
                     @editing="(event) => onEditingEvent(reply, event)"
-                    :is-collapsed="isCollapsed(reply)"
+                    :is-collapsed="false"
                     class="d-block"
                     :can-use-snippets="canUseSnippets"
                     :reply="reply"
@@ -31,7 +30,7 @@
         </transition-group>
     </div>
     <div @click.prevent="addReply"
-         class="add-reply text-muted p-2 border rounded my-2 border-top"
+         class="add-reply text-muted p-2 border rounded mt-2 border-top"
          v-if="showReply">
         Reply&hellip;
     </div>
@@ -72,8 +71,6 @@ export default class FeedbackArea extends Vue {
 
     @Prop({ required: true }) submission!: Submission;
 
-    collapsedReplies: Record<string, boolean> = {};
-
     editingReplies: Record<string, boolean> = {};
 
     get nonDeletedReplies(): FeedbackReplyModel[] {
@@ -99,23 +96,6 @@ export default class FeedbackArea extends Vue {
 
     get replies(): ReadonlyArray<FeedbackReplyModel> {
         return this.feedback.replies;
-    }
-
-    unCollapse(reply: FeedbackReplyModel): void {
-        this.$delete(this.collapsedReplies, reply.trackingId);
-    }
-
-    toggleCollapse(reply: FeedbackReplyModel): void {
-        const key = reply.trackingId;
-        if (this.collapsedReplies[key]) {
-            this.$delete(this.collapsedReplies, key);
-        } else {
-            this.$set(this.collapsedReplies, key, true);
-        }
-    }
-
-    isCollapsed(reply: FeedbackReplyModel): boolean {
-        return this.collapsedReplies[reply.trackingId] || false;
     }
 
     isEditing(reply: FeedbackReplyModel): boolean {
@@ -160,24 +140,8 @@ export default class FeedbackArea extends Vue {
 
 .reply-wrapper {
     transition: margin @transition-duration;
-    margin-top: 1rem;
-
-    &:not(:last-child) {
-        margin-bottom: 1rem;
-    }
-
-    &:first-child {
-        margin-top: 0.5rem;
-        margin-bottom: 0.5rem;
-    }
-
-    &.collapsed {
-        cursor: pointer;
-        margin-top: 0;
-
-        &:not(:last-child) {
-            margin-bottom: 0.5rem;
-        }
+    &:not(:first-child) {
+        margin-top: 1rem;
     }
 
     .reply-gutter {

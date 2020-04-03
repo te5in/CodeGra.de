@@ -133,7 +133,7 @@ class Notification(Base, IdMixin, TimestampMixin, NotEqualMixin):
         super().__init__(
             receiver=receiver,
             comment_reply=comment_reply,
-            email_sent=False,
+            email_sent_at=None,
             read=False,
             reasons=reasons,
         )

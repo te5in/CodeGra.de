@@ -56,7 +56,7 @@
                                   v-if="$userConfig.features.linters && linterFeedback[i - 1] != null"/>
 
             <feedback-area
-                class="border-top border-bottom py-1 px-3 bg-white mt-1"
+                class="border-top border-bottom py-2 px-3 bg-white mt-1"
                 :key="feedback[i - 1 + lineFeedbackOffset].id"
                 :feedback="feedback[i - 1 + lineFeedbackOffset]"
                 :total-amount-lines="computedEndLine"

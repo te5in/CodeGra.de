@@ -28,9 +28,6 @@ export class CgMarkdownIt {
             const token = tokens[idx];
             token.attrSet('target', '_blank');
 
-            const classes = token.attrGet('class') || '';
-            token.attrSet('class', `${classes} inline-link`);
-
             return defaultRender(tokens, idx, options, env, self);
         };
 

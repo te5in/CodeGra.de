@@ -17,7 +17,7 @@
         </submit-button>
     </div>
     <feedback-area
-        :class="{ 'feedback-editable': editable }"
+        class="border-top"
         ref="feedbackArea"
         :editable="editable"
         :feedback="feedback"
@@ -153,6 +153,9 @@ export default {
 @import '~mixins.less';
 
 .floating-feedback-button {
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
     overflow: hidden;
 
     @media @media-no-large {
@@ -162,24 +165,26 @@ export default {
 
 .content {
     position: relative;
-    height: 70%;
+    flex: 1 1 auto;
+    min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
 }
 
 .content-wrapper {
     width: 100%;
     height: 100%;
     overflow: auto;
+    max-height: 100%;
     display: flex;
     flex-direction: column;
-    flex: 1 1 100%;
+    flex: 1 1 auto;
 }
 
 .feedback-area {
-    padding-top: 0 !important;
     overflow: auto;
-    flex: 1 1 30%;
+    flex: 1 0 auto;
 }
 
 .feedback-button.btn {
@@ -213,21 +218,15 @@ export default {
         opacity: 1;
     }
 }
-
-.feedback-editable {
-    cursor: pointer;
-}
 </style>
 
 <style lang="less">
-.floating-feedback-button .feedback-area.edit.feedback-editable {
-    padding-bottom: 0;
+.floating-feedback-button .feedback-area {
+    padding: 0.5rem;
 }
 
 .floating-feedback-button.add-space {
     .feedback-area {
-        margin: 0 -1px -1px;
-
         textarea {
             border-top-left-radius: 0 !important;
         }
