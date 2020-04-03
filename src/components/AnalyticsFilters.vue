@@ -276,9 +276,19 @@
 
                         <!-- Must have a z-index otherwise the reset buttons of the
                              other options  are visible over the multiselect popup -->
-                        <b-input-group class="grader-group">
+                        <b-input-group class="flex-wrap-0">
+                            <template #prepend>
+                                <b-input-group-text>
+                                    Graders
+
+                                    <description-popover hug-text placement="top">
+                                        ...
+                                    </description-popover>
+                                </b-input-group-text>
+                            </template>
+
                             <multiselect
-                                class="d-flex"
+                                class="d-flex rounded-0"
                                 :max-height="150"
                                 :value="filter.assignees"
                                 @input="updateFilter(i, 'assignees', $event)"
@@ -375,6 +385,36 @@
                                              }"/>
                         </b-input-group>
 
+                        <b-input-group class="flex-wrap-0">
+                            <b-input-group-prepend is-text>
+                                Grader
+
+                                <description-popover hug-text placement="top">
+                                    Splitting on grader will generate a new
+                                    filter for every selected grader.
+                                </description-popover>
+                            </b-input-group-prepend>
+
+                            <multiselect
+                                class="d-flex rounded-left-0"
+                                :max-height="150"
+                                :value="splitAssignees"
+                                @input="updateSplitAssignees"
+                                :options="assigneesOrAll"
+                                multiple
+                                searchable
+                                open-direction="top"
+                                track-by="id"
+                                label="name"
+                                :close-on-select="false"
+                                placeholder="Select graders"
+                                internal-search>
+                                <span slot="noResult">
+                                    No graders with this name.
+                                </span>
+                            </multiselect>
+                        </b-input-group>
+
                         <template v-for="split in splitResults">
                             <small class="pl-2 text-muted">
                                 {{ split.filter.toString() }}
@@ -452,6 +492,7 @@ export default {
         return {
             filters: this.defaultFilters(this.value),
             isSplitting: null,
+            splitAssignees: [],
             splitLatest: false,
             splitGrade: '',
             splitDate: '',
@@ -513,6 +554,7 @@ export default {
             }
 
             return this.filters[this.isSplitting].split({
+                assignees: this.splitAssignees,
                 latest: this.splitLatest,
                 grade: this.splitGrade,
                 date: this.splitDate,
@@ -526,6 +568,13 @@ export default {
         assignees() {
             const ids = this.workspace.submissions.assigneeIds;
             return [...ids].map(id => this.getUser(id));
+        },
+
+        assigneesOrAll() {
+            return [{
+                name: 'All',
+                allAssignees: true,
+            }, ...this.assignees];
         },
     },
 
@@ -545,6 +594,7 @@ export default {
 
         resetSplitParams() {
             this.isSplitting = null;
+            this.splitAssignees = [];
             this.splitLatest = false;
             this.splitGrade = '';
             this.splitDate = '';
@@ -594,6 +644,15 @@ export default {
                 this.$root.$emit('bv::hide::popover');
                 this.resetSplitParams();
             });
+        },
+
+        updateSplitAssignees(assignees) {
+            console.log(assignees, assignees.some(a => a.allAssignees));
+            if (assignees.some(a => a.allAssignees)) {
+                this.splitAssignees = this.assignees;
+            } else {
+                this.splitAssignees = assignees;
+            }
         },
 
         isSplittingOther(idx) {
@@ -699,22 +758,30 @@ export default {
         margin-left: 0;
     }
 }
+
+.flex-wrap-0 {
+    flex-wrap: nowrap;
+}
 </style>
 
 <style lang="less">
 .analytics-filters {
-    .grader-group {
-        display: flex;
-        flex-wrap: nowrap;
-        z-index: 10;
-    }
-
     .multiselect {
         flex: 1 1 auto;
         width: auto;
 
         .multiselect__tags {
             width: 100%;
+        }
+
+        &.rounded-left-0 .multiselect__tags {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        &.rounded-0 .multiselect__tags {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
             border-top-right-radius: 0;
             border-bottom-right-radius: 0;
         }

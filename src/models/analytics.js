@@ -693,7 +693,7 @@ export class WorkspaceFilter {
             minGrade, maxGrade, submittedAfter, submittedBefore,
         } = this;
 
-        const { latest, date } = props;
+        const { latest, date, assignees } = props;
         const grade = parseFloat(props.grade);
 
         let result = [this];
@@ -729,6 +729,12 @@ export class WorkspaceFilter {
                 f.update('onlyLatestSubs', false),
                 f.update('onlyLatestSubs', true),
             ]);
+        }
+
+        if (assignees && assignees.length) {
+            result = assignees.flatMap(a =>
+                result.map(f => f.update('assignees', [a])),
+            );
         }
 
         return result;
