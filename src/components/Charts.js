@@ -195,14 +195,49 @@ export const BarChart = {
             if (this.datasets.length === 0) {
                 return [0, 0];
             }
+
+            const min = stat.min(this.minPerDataset);
+            const max = stat.max(this.maxPerDataset);
+
             const factor = 1 + this.padding;
-            const minPerCat = this.datasets.map(
-                ds => (ds.data.length === 0 ? 0 : stat.min(ds.data)),
+            return [factor * min, factor * max];
+        },
+
+        valuesPerDataset() {
+            return this.datasets.map(ds => {
+                const errors = this.errors(ds);
+                if (errors == null) {
+                    return ds.data;
+                }
+                return ds.data.map((x, i) => {
+                    const err = errors[i] || 0;
+                    return x < 0 ? x + err.minus : x + err.plus;
+                });
+            });
+        },
+
+        minPerDataset() {
+            return this.valuesPerDataset.map(values =>
+                (values.length === 0 ? 0 : stat.min(values)),
             );
-            const maxPerCat = this.datasets.map(
-                ds => (ds.data.length === 0 ? 0 : stat.max(ds.data)),
+        },
+
+        maxPerDataset() {
+            return this.valuesPerDataset.map(values =>
+                (values.length === 0 ? 0 : stat.max(values)),
             );
-            return [factor * stat.min(minPerCat), factor * stat.max(maxPerCat)];
+        },
+    },
+
+    methods: {
+        errors(dataset) {
+            const errors = dataset.errorBars;
+            if (errors == null) {
+                return null;
+            }
+            return this.chartData.labels.map(
+                label => dataset.errorBars[label],
+            );
         },
     },
 };
