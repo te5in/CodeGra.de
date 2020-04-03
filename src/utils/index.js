@@ -250,6 +250,9 @@ export function range(start, end) {
         // eslint-disable-next-line
         start = 0;
     }
+    if (end < start) {
+        return [];
+    }
     const len = end - start;
     const res = Array(len);
     for (let i = 0; i < len; i++) {

@@ -336,7 +336,7 @@ export default {
             clearTimeout(this.binSizeTimer);
             this.binSizeTimer = setTimeout(() => {
                 const newSize = parseFloat(event.target.value);
-                if (!Number.isNaN(newSize) && newSize !== this.binSize && newSize !== 0) {
+                if (!Number.isNaN(newSize) && newSize !== this.binSize && newSize > 0) {
                     this.binSize = Number(newSize);
                     this.forceRender = false;
                 }

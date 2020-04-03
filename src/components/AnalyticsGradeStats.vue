@@ -118,8 +118,6 @@ export default {
                 binSize = 1;
             }
 
-            window.range = this.$utils.range;
-
             const bins = this.$utils.range(0, Math.ceil(maxGrade / binSize));
             const labels = bins.map(i => {
                 if (binSize === 1) {
@@ -222,7 +220,7 @@ export default {
             clearTimeout(this.binSizeTimer);
             this.binSizeTimer = setTimeout(() => {
                 const newSize = parseFloat(event.target.value);
-                if (!Number.isNaN(newSize) && newSize !== this.binSize && newSize !== 0) {
+                if (!Number.isNaN(newSize) && newSize !== this.binSize && newSize > 0) {
                     this.binSize = Number(newSize);
                 }
             }, 500);
