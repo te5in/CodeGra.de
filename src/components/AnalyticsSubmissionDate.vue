@@ -10,7 +10,7 @@
         <div class="d-flex flex-grow-0">
             <b-button :variant="relative ? 'primary' : 'outline-primary'"
                       @click="relative = !relative"
-                      v-b-popover.top.hover="'Relative to filter group'"
+                      v-b-popover.top.hover="relativePopoverText"
                       class="ml-3">
                 <icon name="percent" />
             </b-button>
@@ -151,6 +151,14 @@ export default {
 
         submissionSources() {
             return this.filterResults.map(r => r.submissions);
+        },
+
+        relativePopoverText() {
+            if (this.relative) {
+                return 'Show amount of students';
+            } else {
+                return 'Show percentage of students';
+            }
         },
 
         minDate() {

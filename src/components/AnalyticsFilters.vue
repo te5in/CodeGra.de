@@ -268,7 +268,8 @@
                                     Graders
 
                                     <description-popover hug-text placement="top">
-                                        ...
+                                        Keep only submissions assigned to the
+                                        selcted graders.
                                     </description-popover>
                                 </b-input-group-text>
                             </template>

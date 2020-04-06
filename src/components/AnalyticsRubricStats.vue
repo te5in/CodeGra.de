@@ -11,7 +11,7 @@
             <b-button v-if="selectedStatistic.hasRelative"
                       :variant="relative ? 'primary' : 'outline-primary'"
                       @click="relative = !relative"
-                      v-b-popover.top.hover="'Relative to max score in category'">
+                      v-b-popover.top.hover="relativePopoverText">
                 <icon name="percent" />
             </b-button>
 
@@ -101,6 +101,14 @@ export default {
 
         rubric() {
             return this.$utils.getProps(this.assignment, null, 'rubric');
+        },
+
+        relativePopoverText() {
+            if (this.relative) {
+                return 'Show amount of points';
+            } else {
+                return 'Show percentage of points relative to the maximum score in the category';
+            }
         },
 
         metricOptions() {
