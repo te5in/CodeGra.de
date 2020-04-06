@@ -58,11 +58,11 @@
                 </p>
 
                 <p>
-                    By default this shows the percentage of students in the
-                    respective filter group that have submitted in some
-                    interval.  You can see the total number of students by
-                    clicking the <icon name="percent" :scale="0.75" class="mx-1" />
-                    button.
+                    See
+                    <a href="https://docs.codegra.de/user/analytics-dashboard.html#submission-statistics"
+                       target="_blank"
+                        >the documentation</a>
+                    for more details.
                 </p>
             </description-popover>
         </div>

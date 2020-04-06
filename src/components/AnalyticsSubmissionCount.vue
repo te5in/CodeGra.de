@@ -21,6 +21,14 @@
                     This histogram shows the amount of times students submitted
                     their work.
                 </p>
+
+                <p>
+                    See
+                    <a href="https://docs.codegra.de/user/analytics-dashboard.html#submission-statistics"
+                       target="_blank"
+                        >the documentation</a>
+                    for more details.
+                </p>
             </description-popover>
         </div>
     </template>

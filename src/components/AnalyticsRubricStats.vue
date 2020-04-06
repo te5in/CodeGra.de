@@ -23,108 +23,18 @@
             <description-popover class="icon-button ml-1"
                                  placement="bottom"
                                  :scale="1">
-                <p v-if="metric === 'mean'"
-                   class="mb-2">
-                    The mean histogram displays the mean achieved score per
-                    rubric category.  The error bars indicate the standard
-                    deviation of the sample of students.
+                <p class="mb-2">
+                    This is a collection of several diagrams showing how
+                    students scored in each rubric category, as well as diagrams
+                    measuring the quality of the rubric categories.
                 </p>
 
-                <p v-else-if="metric === 'median'"
-                   class="mb-2">
-                    The median histogram displays the median of the achieved
-                    scores per rubric category. The median is obtained by
-                    picking the middle value of a sorted sample.
-                </p>
-
-                <p v-else-if="metric === 'mode'"
-                   class="mb-2">
-                    The mode histogram displays the mode of the achieved scores
-                    per rubric category. The mode is the most common value in
-                    a sample.
-                </p>
-
-                <template v-else-if="metric === 'rit'">
-                    <p class="mb-2">
-                        The RIT value of a rubric category is Pearson's
-                        correlation coefficient between the achieved scores in
-                        that category and the total scores achieved for the
-                        entire rubric.
-                    </p>
-
-                    <p>
-                        The RIT value measures whether students who scored high
-                        in a rubric category also scored high on the rubric
-                        overall.
-                    </p>
-                </template>
-
-                <template v-else-if="metric === 'rir'">
-                    <p class="mb-2">
-                        The RIR value of a rubric category is Pearson's
-                        correlation coefficient between the achieved scores in
-                        that category and the total scores achieved for the
-                        entire rubric minus the achieved score for the
-                        category.
-                    </p>
-
-                    <p class="mb-2">
-                        The RIR value measures whether students who scored high
-                        in a rubric category also scored high on the rubric
-                        overall. The value is a number between -1 and 1. Higher
-                        values are more desirable.
-                    </p>
-
-                    <p class="mb-2">
-                        A RIR value greater than 0.25 means there is a strong
-                        correlation between student scores in this rubric
-                        category and their overall scores for the rubric.
-                    </p>
-
-                    <p class="mb-2">
-                        A negative RIR value is a sign that something may be
-                        off with a rubric category, as it means that students
-                        who scored higher in a rubric category scored lower in
-                        the overall rubric.
-                    </p>
-
-                    <p class="mb-2">
-                        While the RIR value is very similar to the RIT value,
-                        it is a fairer representation of the explanatory factor
-                        of a rubric category because if the achieved points in
-                        the current category weren't removed, higher scores in
-                        the current category would contribute to higher overall
-                        scores in the rubric.
-                    </p>
-                </template>
-
-                <template v-else>
-                    <p class="mb-2">
-                        This plot shows a dot for each student that shows how
-                        much points someone achieved in the category
-                        "{{ rubric.rowsById[metric].header }}" versus the total
-                        achieved points for the entire rubric minus the points
-                        scored in this category.
-                    </p>
-
-                    <p class="mb-2">
-                        The line is a linear regression of the data points and
-                        may provide more insight in the RIR value for this
-                        rubric category.  An increasing line indicates that
-                        students who scored higher in this category also scored
-                        higher in the rest of the rubric, while a decreasing
-                        line indicates the opposite. If the line is decreasing,
-                        this rubric category may need a review!
-                    </p>
-                </template>
-
-                <p v-if="selectedStatistic.hasRelative">
-                    By default this shows the percentage of students in the
-                    respective filter group that have submitted in some
-                    interval.  You can see the total number of students by
-                    clicking the
-                    <icon name="percent" :scale="0.75" class="mx-1" />
-                    button.
+                <p>
+                    See
+                    <a href="https://docs.codegra.de/user/analytics-dashboard.html#rubric-statistics"
+                       target="_blank"
+                        >the documentation</a>
+                    for more details.
                 </p>
             </description-popover>
         </div>

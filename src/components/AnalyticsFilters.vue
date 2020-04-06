@@ -64,26 +64,12 @@
                     that satisfy all the filter's requirements.
                 </p>
 
-                <p class="mb-2">
-                    Multiple filters can be enabled at the same time to produce
-                    multiple datasets. Each dataset will have its own distinct
-                    color in the charts below.
-                </p>
-
-                <p class="mb-2">
-                    Say, for example, that you have a filter with a maximum
-                    grade of 5 and another filter with a minimum grade of 5.
-                    This will partition the set of all submissions in two sets,
-                    one with all submissions with a grade below 5, the other
-                    with all submissions with a grade of 5 or higher.
-                </p>
-
                 <p>
-                    The easiest way to create multiple datasets is by using the
-                    split functionality. Click the
-                    <icon name="scissors" :scale="0.75" class="mx-1" />
-                    at the top of a filter to split the submissions satisfying
-                    the filter into two or more groups.
+                    See
+                    <a href="https://docs.codegra.de/user/analytics-dashboard.html#filters"
+                       target="_blank"
+                        >the documentation</a>
+                    for more details.
                 </p>
             </description-popover>
         </div>
