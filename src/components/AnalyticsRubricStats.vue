@@ -252,7 +252,7 @@ export default {
                 baseStats[row.id] = {
                     chartComponent: 'scatter-plot',
                     data: this.getScatterData(row),
-                    options: this.scatterOpts,
+                    options: this.scatterOptions,
                 };
             });
 
