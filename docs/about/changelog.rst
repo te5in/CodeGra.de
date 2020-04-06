@@ -6,6 +6,14 @@ Version *Next*
 
 **Released**: *Unreleased*
 
+**Features**
+
+- Analytics dashboard (`#1300
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1300>`__). The analytics
+  dashboard is a new page with various statistics about an assignment. It gives
+  teachers insight in how students are doing on the assignment and where the
+  assignment may be improved.
+
 **Updates**
 
 - Various internal improvements (`#1244
