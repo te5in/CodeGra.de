@@ -42,7 +42,9 @@ Filters
 
 Filters can be used to select a subset of the available data. You can create
 multiple filters to select multiple datasets that will be visualized in
-parallel. The default filter selects the latest submission of each student.
+parallel. Each dataset will have its own distinct color in the charts in the
+rest of the page. The default filter selects the latest submission of each
+student.
 
 .. note::
     It is possible to create overlapping datasets, e.g. two datasets that
