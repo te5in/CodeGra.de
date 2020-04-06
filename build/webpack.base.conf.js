@@ -42,7 +42,7 @@ module.exports = {
         enforce: 'pre',
           include: [
               resolve('src'),
-              resolve('test')
+              resolve('test'),
           ],
         options: {
           formatter: require('eslint-friendly-formatter')

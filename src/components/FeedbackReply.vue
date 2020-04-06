@@ -56,46 +56,75 @@
             </b-tab>
 
             <template v-slot:tabs-end>
-                <div class="snippet-edit-wrapper d-flex"
+                <div class="snippet-toolbar-wrapper"
                      style="margin-top: -.75rem">
-                    <b-btn class="p-2 cursor-pointer bg-transparent border-0 shadow-none"
-                           v-b-popover.top.hover="showSnippetDialog ? '' : 'Add this feedback as a snippet'"
-                           :id="`${componentId}-snippet-add`">
-                        <icon name="plus"
-                              :class="{ rotated: showSnippetDialog }"/>
-                    </b-btn>
+                    <b-dropdown toggle-class="p-0 border-0 bg-transparent"
+                                class="snippet-dropdown"
+                                ref="snippetDropdown"
+                                v-b-popover.top.hover="'Use, search and add snippets'"
+                                style="max-height: 70vh;"
+                                dropleft>
+                        <template v-slot:button-content>
+                            <icon name="reply" />
+                        </template>
 
-                    <b-popover v-if="canUseSnippets"
-                               :delay="0"
-                               :boundary="`#${componentId}`"
-                               custom-class="feedback-reply-add-snippet-popover"
-                               style="z-index: 1;"
-                               @show="onShowSnippetDialog"
-                               @hide="showSnippetDialog = false"
-                               placement="topleft"
-                               :target="`${componentId}-snippet-add`"
-                               :id="`${componentId}-snippet-popover`">
-                        <div>
-                            <b-input-group class="input-snippet-group m-0">
-                                <input class="input form-control"
-                                       placeholder="Snippet key"
-                                       ref="snippetAddInput"
-                                       v-model="snippetKey"
-                                       :disabled="inputDisabled"
-                                       @keydown.ctrl.enter="() => addSnippetButton.onClick()"/>
-                                <b-input-group-append>
-                                    <submit-button ref="addSnippetButton"
-                                                   class="add-snippet-btn"
-                                                   :submit="addSnippet"
-                                                   :confirm="addSnippetConfirm"
-                                                   @after-success="afterAddSnippet"
-                                                   @error="inputDisabled = false">
-                                        <icon :scale="1" name="check"/>
-                                    </submit-button>
-                                </b-input-group-append>
+                        <b-dropdown-group header="Search snippet">
+                            <b-input-group>
+                                <input class="form-control" placeholder="Search snippets"
+                                       v-model="snippetsFilter"/>
                             </b-input-group>
-                        </div>
-                    </b-popover>
+                        </b-dropdown-group>
+
+                        <b-dropdown-divider />
+
+                        <b-dropdown-group header="Existing snippets"
+                                          style="max-height: 40vh; overflow-y: auto;">
+                            <template v-if="sortedSnippets.length === 0">
+                                <b-dropdown-item
+                                    href="#"
+                                    disabled>
+                                    You have no snippets yet
+                                </b-dropdown-item>
+                            </template>
+                            <template v-else>
+                                <li v-for="snippet in filteredSnippets"
+                                    :key="snippet.key">
+                                    <div class="dropdown-item cursor-pointer"
+                                         @click="selectSnippet(snippet)">
+                                        <icon :scale="0.9" :name="snippet.course ? 'book' : 'user-circle-o'" />
+                                        <b class="snippet-key">{{ snippet.key }}</b>
+                                        <div class="snippet-value">{{ snippet.value }}</div>
+                                    </div>
+                                </li>
+                            </template>
+                        </b-dropdown-group>
+
+
+                        <b-dropdown-divider />
+
+                        <b-dropdown-group header="Add current text as snippet">
+                            <li>
+                                <b-input-group class="input-snippet-group m-0">
+                                    <input class="input form-control"
+                                           placeholder="Snippet key"
+                                           ref="snippetAddInput"
+                                           v-model="snippetKey"
+                                           :disabled="inputDisabled"
+                                           @keydown.ctrl.enter="() => addSnippetButton.onClick()"/>
+                                    <b-input-group-append>
+                                        <submit-button ref="addSnippetButton"
+                                                       class="add-snippet-btn"
+                                                       :submit="addSnippet"
+                                                       :confirm="addSnippetConfirm"
+                                                       @after-success="afterAddSnippet"
+                                                       @error="inputDisabled = false">
+                                            <icon :scale="1" name="check"/>
+                                        </submit-button>
+                                    </b-input-group-append>
+                                </b-input-group>
+                            </li>
+                        </b-dropdown-group>
+                    </b-dropdown>
                 </div>
             </template>
         </b-tabs>
@@ -170,19 +199,23 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Prop, Ref, Watch } from 'vue-property-decorator';
+    import { Vue, Component, Prop, Ref, Watch } from 'vue-property-decorator';
 
 // @ts-ignore
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/check';
-import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/plus';
+import 'vue-awesome/icons/reply';
 import 'vue-awesome/icons/gear';
+import 'vue-awesome/icons/user-circle-o';
+import 'vue-awesome/icons/book';
 
 import { mapActions, mapGetters } from 'vuex';
 
 // @ts-ignore
 import { Submission } from '@/models/submission';
+
+import { Snippet, CourseSnippet, UserSnippet } from '@/interfaces';
 
 import { FeedbackReply as FeedbackReplyModel, FeedbackLine, Assignment, User as UserModel } from '@/models';
 // @ts-ignore
@@ -214,7 +247,7 @@ import SnippetableInput from './SnippetableInput';
 })
 
 export default class FeedbackReply extends Vue {
-    snippets!: Record<string, any>;
+    snippets!: Record<string, Snippet>;
 
     addSnippetToStore!: any;
 
@@ -267,6 +300,8 @@ export default class FeedbackReply extends Vue {
 
     showFocus: boolean = false;
 
+    snippetsFilter: string = '';
+
     onVisible(nowVisible: boolean) {
         if (nowVisible) {
             this.showFocus = true;
@@ -315,6 +350,35 @@ Do you want to overwrite it?`;
         return `feedback-edit-gear-${this.reply.trackingId}`;
     }
 
+    get courseSnippets(): CourseSnippet[] {
+        return (this.assignment.course.snippets || []).map(
+            (s: UserSnippet) => Object.assign({}, s, { course: true }),
+        );
+    }
+
+    get sortedSnippets(): Snippet[] {
+        return Object.values(this.snippets).concat(this.courseSnippets).sort(
+            (a, b) => a.key.localeCompare(b.key),
+        );
+    }
+
+    get filteredSnippets(): Snippet[] {
+        if (this.snippetsFilter === '') {
+            return this.sortedSnippets;
+        }
+        const terms = this.snippetsFilter.toLocaleLowerCase().split(' ');
+
+        return this.sortedSnippets.filter(snip => {
+            const key = snip.key.toLocaleLowerCase();
+            const value = snip.value.toLocaleLowerCase();
+            const course = snip.course ? 'course' : '';
+
+            return terms.every(
+                term => key.indexOf(term) >= 0 || value.indexOf(term) >= 0 || course.indexOf(term) >= 0,
+            );
+        });
+    }
+
     @Ref() readonly inputField: SnippetableInput | null;
 
     @Ref() readonly submitButton: SubmitButton | null;
@@ -324,6 +388,8 @@ Do you want to overwrite it?`;
     @Ref() readonly addSnippetButton: SubmitButton | null;
 
     @Ref() readonly snippetAddInput: any | null;
+
+    @Ref() readonly snippetDropdown: any | null;
 
     onInput(event: string) {
         this.internalReply = this.internalReply.update(event);
@@ -456,7 +522,9 @@ Do you want to overwrite it?`;
 
     async afterAddSnippet() {
         this.inputDisabled = false;
-        this.$root.$emit('bv::hide::popover', `${this.componentId}-snippet-add`);
+        if (this.snippetDropdown) {
+            this.snippetDropdown.hide();
+        }
     }
 
     findSnippet() {
@@ -471,6 +539,15 @@ Do you want to overwrite it?`;
                 return;
             }
         }
+    }
+
+    async selectSnippet(snippet: Snippet) {
+        let base = this.internalReply.message;
+        if (/[^\s]$/.test(base)) {
+            base += ' ';
+        }
+        this.internalReply = this.internalReply.update(base + snippet.value);
+        this.focusInput();
     }
 }
 </script>
@@ -553,7 +630,7 @@ Do you want to overwrite it?`;
     align-items: center;
 }
 
-.snippet-edit-wrapper {
+.snippet-toolbar-wrapper {
     align-self: center;
     margin-left: auto;
     .fa-icon {
@@ -564,6 +641,7 @@ Do you want to overwrite it?`;
         }
     }
 }
+
 </style>
 
 <style lang="less">
@@ -624,5 +702,44 @@ Do you want to overwrite it?`;
     border: 1px solid @color-warning;
     box-shadow: 0px 0px 15px @color-warning;
     border-radius: @border-radius;
+}
+
+.feedback-reply .snippet-dropdown {
+    .input-group {
+        padding: .5rem;
+    }
+
+    .snippet-key,
+    .snippet-value {
+        white-space: break-word;
+    }
+    .snippet-value {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+
+    .dropdown-divider {
+        padding: 0;
+        margin: 0;
+    }
+
+    .dropdown-header {
+        background: @footer-color;
+        border-bottom: 1px solid @border-color;
+    }
+
+    & > .dropdown-menu {
+        min-width: 25rem;
+        padding: 0;
+    }
+
+    pre {
+        margin-bottom: 0;
+    }
+
+    &.show > .dropdown-menu {
+        max-height: 70vh;
+    }
 }
 </style>
