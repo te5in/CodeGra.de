@@ -106,6 +106,11 @@ export default {
             type: Number,
             default: null,
         },
+
+        noAutoFocus: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     data() {
@@ -118,6 +123,10 @@ export default {
     },
 
     mounted() {
+        if (!this.noAutoFocus) {
+            this.focusInput();
+        }
+
         this.$nextTick(() => {
             let wantedHeight = this.$refs.field.scrollHeight + 5;
             if (this.maxInitialHeight != null && this.maxInitialHeight < wantedHeight) {
@@ -255,17 +264,6 @@ export default {
             maybeRefreshSnippets: 'maybeRefreshSnippets',
         }),
 
-        async focus() {
-            const el = this.$refs.field;
-            if (el) {
-                el.focus();
-                // Put the cursor at the end of the text (Safari puts it at the
-                // start for some reason...
-                await this.$afterRerender();
-                el.setSelectionRange(el.value.length, el.value.length);
-            }
-        },
-
         beforeKeyPress(event) {
             if (
                 (event.key === 'Backspace' ||
@@ -367,14 +365,21 @@ export default {
         },
 
         async focusInput() {
-            const el = this.$refs.field;
-            if (el != null) {
-                el.focus();
-                // Put the cursor at the end of the text (Safari puts it at the
-                // start for some reason...
+            let el = this.$refs.field;
+            if (el == null) {
                 await this.$afterRerender();
-                el.setSelectionRange(el.value.length, el.value.length);
+                el = this.$refs.field;
+                console.log('no el', el);
+                if (el == null) {
+                    return;
+                }
             }
+
+            el.focus();
+            // Put the cursor at the end of the text (Safari puts it at the start
+            // for some reason...
+            await this.$afterRerender();
+            el.setSelectionRange(el.value.length, el.value.length);
         },
 
         doSubmit() {

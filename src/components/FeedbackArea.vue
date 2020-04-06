@@ -160,6 +160,8 @@ export default class FeedbackArea extends Vue {
     updateLine(newLine: FeedbackLine) {
         // Make sure we don't display that a comment was placed in the future.
         this.$root.$emit('cg::root::update-now');
+        this.$emit('updated');
+
         this.addFeedbackLine({
             assignmentId: this.assignment.id,
             submissionId: (this.submission as any).id,
@@ -185,6 +187,7 @@ export default class FeedbackArea extends Vue {
     }
 
     onEditingEvent(reply: FeedbackReplyModel, event: any): void {
+        this.$emit('editing');
         this.$set(this.editingReplies, reply.trackingId, event.isEditing);
     }
 }

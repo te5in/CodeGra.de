@@ -39,7 +39,7 @@
                :placement="popoverPlacement"
                :show="!!error"
                v-if="!mounting"
-               :container="container"
+               :container="innerContainer"
                :target="btnId"
                triggers=""
                variant="danger"
@@ -65,6 +65,7 @@
     <b-popover :id="`${btnId}-warning-popover`"
                :placement="popoverPlacement"
                :show="!!warning"
+               :container="innerContainer"
                v-if="!mounting"
                :target="btnId"
                triggers=""
@@ -129,7 +130,7 @@
         <b-popover v-else-if="confirm && confirm.length > 0"
                    :id="`${btnId}-confirm-popover`"
                    :placement="popoverPlacement"
-                   :container="container"
+                   :container="innerContainer"
                    :show="confirmVisible"
                    :target="btnId"
                    triggers=""
@@ -294,6 +295,13 @@ export default {
 
         isDisabled() {
             return this.disabled || this.state !== 'default' || this.confirmVisible;
+        },
+
+        innerContainer() {
+            if (this.container === 'self') {
+                return `#${this.btnId}`;
+            }
+            return this.container;
         },
     },
 
@@ -508,6 +516,12 @@ export default {
 
 .submit-button .loader {
     display: inline-block !important;
+}
+
+.submit-button .popover {
+    min-width: 15rem;
+    opacity: 1;
+    background: unset;
 }
 
 .submit-button-confirm-modal {

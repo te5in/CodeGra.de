@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="feedback-reply" :id="componentId" v-b-visible="onVisible"
-     :class="{ 'focus': showFocus && replyIdToFocus === reply.id }">
+     :class="{ 'focus': showFocus && replyIdToFocus === reply.id, editing, }">
     <b-card no-body v-if="editing" class="mt-0">
         <b-tabs card>
             <b-tab title="Edit" active>
@@ -24,23 +24,23 @@
                         <submit-button
                             ref="deleteButton"
                             variant="danger"
+                            name="delete-feedback"
                             :submit="deleteFeedback"
                             @error="inputDisabled = false"
-                            @success="onDeleteFeedback"
                             :confirm="(reply.isEmpty && internalReply.isEmpty) ?  '' : 'Are you sure you want to delete this comment?'"
                             @after-success="afterDeleteFeedback"
                             label="Delete" />
 
                         <b-btn @click="cancelEditing"
-                               variant="primary">
+                               variant="outline-primary">
                             Cancel
                         </b-btn>
 
                         <submit-button :submit="submitFeedback"
                                        @after-success="afterSubmitFeedback"
-                                       :disabled="internalReply.isEmpty"
                                        @error="inputDisabled = false"
                                        ref="submitButton"
+                                       name="submit-feedback"
                                        label="Save"  />
                     </div>
                 </div>
@@ -59,6 +59,7 @@
                 <div class="snippet-toolbar-wrapper"
                      style="margin-top: -.75rem">
                     <b-dropdown toggle-class="p-0 border-0 bg-transparent"
+                                no-caret
                                 class="snippet-dropdown"
                                 ref="snippetDropdown"
                                 v-b-popover.top.hover="'Use, search and add snippets'"
@@ -68,7 +69,7 @@
                             <icon name="reply" />
                         </template>
 
-                        <b-dropdown-group header="Search snippet">
+                        <b-dropdown-group header="Search snippet" class="rounded-top">
                             <b-input-group>
                                 <input class="form-control" placeholder="Search snippets"
                                        v-model="snippetsFilter"/>
@@ -103,7 +104,7 @@
                         <b-dropdown-divider />
 
                         <b-dropdown-group header="Add current text as snippet">
-                            <li>
+                            <li :id="`${componentId}-add-snippet-wrapper`">
                                 <b-input-group class="input-snippet-group m-0">
                                     <input class="input form-control"
                                            placeholder="Snippet key"
@@ -116,6 +117,7 @@
                                                        class="add-snippet-btn"
                                                        :submit="addSnippet"
                                                        :confirm="addSnippetConfirm"
+                                                       :container="`#${componentId}-add-snippet-wrapper`"
                                                        @after-success="afterAddSnippet"
                                                        @error="inputDisabled = false">
                                             <icon :scale="1" name="check"/>
@@ -324,9 +326,6 @@ export default class FeedbackReply extends Vue {
     onEditingChange(): void {
         this.showSnippetDialog = false;
         this.$emit('editing', { reply: this.reply, isEditing: this.editing });
-        if (this.editing) {
-            this.focusInput();
-        }
     }
 
     get line(): number {
@@ -398,9 +397,15 @@ Do you want to overwrite it?`;
     async focusInput(): Promise<void> {
         await this.$nextTick();
 
-        const el = this.inputField;
+        let el = this.inputField;
+        if (el == null) {
+            await this.$afterRerender();
+            el = this.inputField;
+            console.error('could not find el before', el);
+        }
+
         if (el != null) {
-            el.focus();
+            el.focusInput();
         }
     }
 
@@ -424,7 +429,11 @@ Do you want to overwrite it?`;
     }
 
     afterSubmitFeedback(response: any): void {
-        this.$emit('updated', this.internalReply.updateFromServerData(response.data));
+        if (this.internalReply.isEmpty) {
+            this.$emit('deleted', this.internalReply);
+        } else {
+            this.$emit('updated', this.internalReply.updateFromServerData(response.data));
+        }
         this.inputDisabled = false;
         this.wasClicked = false;
     }
@@ -740,6 +749,12 @@ Do you want to overwrite it?`;
 
     &.show > .dropdown-menu {
         max-height: 70vh;
+        border-top-left-radius: @border-radius;
+        border-top-right-radius: @border-radius;
+
+        .popover {
+            max-width: 80% !important;
+        }
     }
 }
 </style>

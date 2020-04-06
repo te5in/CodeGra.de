@@ -17,16 +17,21 @@
     :visible-without-hover="$root.isEdge"
     add-space
     button-position="bottom-right">
-    <object :data="pdfURL"
-            type="application/pdf"
-            width="100%"
-            height="100%"
-            v-if="pdfURL !== ''">
-        <b-alert class="mb-0" variant="danger" show>
-            Your browser doesn't support the PDF viewer. Please download
-            the PDF <a class="alert-link" :href="pdfURL">here</a>.
-        </b-alert>
-    </object>
+    <template v-slot:default="slotProps">
+        <div class="p-relative h-100">
+        <div class="resize-div" v-if="slotProps.resizing" />
+        <object :data="pdfURL"
+                type="application/pdf"
+                width="100%"
+                height="100%"
+                v-if="pdfURL !== ''">
+            <b-alert class="mb-0" variant="danger" show>
+                Your browser doesn't support the PDF viewer. Please download
+                the PDF <a class="alert-link" :href="pdfURL">here</a>.
+            </b-alert>
+        </object>
+        </div>
+    </template>
 </floating-feedback-button>
 </template>
 
@@ -170,6 +175,12 @@ object {
     margin: 0;
     padding: 0;
 }
+
+.resize-div {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+}
 </style>
 
 <style lang="less">
@@ -180,5 +191,9 @@ object {
         display: flex;
         flex-direction: column;
     }
+}
+
+.pdf-viewer.floating-feedback-button .feedback-area-wrapper {
+    flex: unset;
 }
 </style>

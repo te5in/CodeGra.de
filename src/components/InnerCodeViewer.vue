@@ -340,7 +340,7 @@ export default {
 
                 FeedbackLine.createFeedbackLine(
                     parseInt(this.fileId, 10),
-                    line,
+                    line + this.lineFeedbackOffset,
                     this.myId,
                 ).then(({ cgResult }) => {
                     this.$delete(this.addingInlineFeedback, line);

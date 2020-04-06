@@ -1,9 +1,20 @@
 <template>
-<div class="floating-feedback-button"
-     :class="{ 'add-space': addSpace, 'without-hover': visibleWithoutHover }">
-    <div class="content">
+<component :is="showFeedback && !noResize ? 'rs-panes' : 'div'"
+           :class="{ 'add-space': addSpace, 'without-hover': visibleWithoutHover }"
+           class="floating-feedback-button p-relative"
+           :size="initialSize"
+           units="percents"
+           :step="50"
+           :min-size="20"
+           :max-size="90"
+           allow-resize
+           :on-drag-started="() => {resizing = true;}"
+           :on-drag-finished="() => {resizing = false;}"
+           split-to="rows">
+    <div class="content" slot="firstPane"
+         key="content">
         <div class="content-wrapper">
-            <slot/>
+            <slot v-bind:resizing="resizing"/>
         </div>
 
         <submit-button class="feedback-button"
@@ -17,18 +28,21 @@
         </submit-button>
     </div>
 
-    <div class="feedback-area-wrapper">
-        <feedback-area
-            class="border-top py-1"
-            ref="feedbackArea"
-            :editable="editable"
-            :feedback="feedback"
-            :total-amount-lines="1"
-            :forceSnippetsAbove="snippetFieldAbove"
+    <div class="feedback-area-wrapper" v-if="showFeedback"
+             slot="secondPane">
+            <feedback-area
+                class="py-1"
+                @updated="updateSize"
+                @editing="updateSize"
+                ref="feedbackArea"
+                :editable="editable"
+                :feedback="feedback"
+                :total-amount-lines="1"
+                :forceSnippetsAbove="forceSnippetsAbove"
             :can-use-snippets="canUseSnippets"
-            :submission="submission"
-            v-if="hasFeedback && !disabled"/>
-    </div>
+            :submission="submission" />
+        </div>
+    </component>
 </div>
 </template>
 
@@ -38,6 +52,8 @@ import { FeedbackLine } from '@/models';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/edit';
+
+import ResSplitPane from 'vue-resize-split-pane';
 
 import FeedbackArea from './FeedbackArea';
 import SubmitButton from './SubmitButton';
@@ -78,7 +94,7 @@ export default {
             type: Boolean,
             default: false,
         },
-        snippetFieldAbove: {
+        forceSnippetsAbove: {
             type: Boolean,
             default: false,
         },
@@ -102,6 +118,11 @@ export default {
             type: String,
             default: 'top-right',
         },
+
+        noResize: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     computed: {
@@ -113,6 +134,10 @@ export default {
             return this.feedback != null && !this.feedback.isEmpty;
         },
 
+        showFeedback() {
+            return this.hasFeedback && !this.disabled;
+        },
+
         buttonClasses() {
             const res = { hide: this.hasFeedback && !this.alwaysShowButton };
             this.buttonPosition.split('-').forEach(pos => {
@@ -122,10 +147,52 @@ export default {
         },
     },
 
+    data() {
+        return {
+            resizing: false,
+            initialSize: 65,
+        };
+    },
+
+    async mounted() {
+        await this.$afterRerender();
+        this.updateSize();
+    },
+
+    watch: {
+        showFeedback: 'updateSize',
+        noResize: 'updateSize',
+    },
+
     methods: {
         ...mapActions('feedback', {
             storeAddFeedbackLine: 'addFeedbackLine',
         }),
+
+        async updateSize() {
+            if (!this.showFeedback && this.noResize) {
+                return;
+            }
+            await this.$nextTick();
+
+            let height;
+            for (let i = 0; i < 10; ++i) {
+                const fbEl = this.$refs.feedbackArea;
+                if (!fbEl) {
+                    return;
+                }
+                height = fbEl.$el.scrollHeight;
+                if (height !== 0) {
+                    break;
+                }
+
+                // eslint-disable-next-line no-await-in-loop
+                await this.$afterRerender();
+            }
+
+            const totalHeight = this.$el.scrollHeight;
+            this.initialSize = Math.max(20, 100 - ((height + 10) / totalHeight) * 100);
+        },
 
         addFeedback() {
             return FeedbackLine.createFeedbackLine(
@@ -148,6 +215,7 @@ export default {
         Icon,
         FeedbackArea,
         SubmitButton,
+        'rs-panes': ResSplitPane,
     },
 };
 </script>
@@ -173,6 +241,10 @@ export default {
     flex-direction: column;
     overflow-y: auto;
     min-height: 0;
+
+    .pane-rs & {
+        height: 100%;
+    }
 }
 
 .content-wrapper {
@@ -186,8 +258,8 @@ export default {
 }
 
 .feedback-area-wrapper {
-    flex: 1 0 auto;
-    max-height: 80%;
+    height: 100%;
+    width: 100%;
     overflow-y: auto;
 }
 
@@ -227,6 +299,9 @@ export default {
 <style lang="less">
 .floating-feedback-button .feedback-area {
     padding: 0.5rem;
+}
+.floating-feedback-button.pane-rs > .Pane.row {
+    margin: 0;
 }
 
 .floating-feedback-button.add-space {
