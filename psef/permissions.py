@@ -187,6 +187,7 @@ class CoursePermission(BasePermission):
     :ivar can_override_submission_limiting: Users with this permission can create new submissions, even if the maximum amount of submissions has been reacher, or if a cool-off period is in effect.
     :ivar can_see_linter_feedback_before_done: Users with this permission can see the output of linters before an assignment is set to "done"
     :ivar can_see_user_feedback_before_done: Users with this permission can see feedback before an assignment is set to "done"
+    :ivar can_view_analytics: Users with this permission can view the analytics dashboard of an assignment.
     """
 
     @staticmethod
@@ -243,5 +244,6 @@ class CoursePermission(BasePermission):
     can_override_submission_limiting = _PermissionValue(item=47, default_value=False)
     can_see_linter_feedback_before_done = _PermissionValue(item=48, default_value=False)
     can_see_user_feedback_before_done = _PermissionValue(item=49, default_value=False)
+    can_view_analytics = _PermissionValue(item=50, default_value=False)
 
 # yapf: enable

@@ -349,5 +349,12 @@
     "course_permission": true,
     "short_description": "See feedback before done",
     "long_description": "Users with this permission can see feedback before an assignment is set to \"done\""
+  },
+  "can_view_analytics": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Can view analytics",
+    "long_description": "Users with this permission can view the analytics dashboard of an assignment.",
+    "warning": "With this permission a user can request all the grades for all the submissions in this course. Use with caution!"
   }
 }
