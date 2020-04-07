@@ -68,8 +68,10 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
             db.session.add(reply.update(comment_text))
         else:
             reply = comment_base.add_reply(
-                current_user, comment_text,
-                models.CommentReplyType.plain_text, None
+                current_user,
+                comment_text,
+                models.CommentReplyType.plain_text,
+                None,
             )
             auth.FeedbackReplyPermissions(reply).ensure_may_add()
     else:

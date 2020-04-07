@@ -195,9 +195,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
     def __repr__(self) -> str:
         return f'<CommentReply id={self.id} deleted={self.deleted}>'
 
-    def get_outdated_json(
-        self
-    ) -> t.Mapping[str, t.Union[str, int, 'user_models.User']]:
+    def get_outdated_json(self) -> t.Mapping[str, object]:
         res = {
             'line': self.comment_base.line,
             'msg': self.comment,

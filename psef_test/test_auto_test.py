@@ -31,7 +31,6 @@ import requests_stubs
 from cg_dt_utils import DatetimeWithTimezone
 from psef.exceptions import APICodes, APIException
 
-pytestmark = pytest.mark.skip("Don't run these tests now")
 
 @pytest.fixture(params=[False])
 def fail_wget_attach(request):
