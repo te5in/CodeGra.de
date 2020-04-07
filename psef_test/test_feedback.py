@@ -170,7 +170,7 @@ def test_add_feedback(
 )
 def test_get_feedback(
     named_user, request, logged_in, test_client, assignment_real_works,
-    session, error_template, ta_user
+    monkeypatch_celery, session, error_template, ta_user
 ):
     assignment, work = assignment_real_works
     assig_id = assignment.id
@@ -261,7 +261,7 @@ def test_get_feedback(
 @pytest.mark.parametrize('perm_value', [True, False])
 def test_can_see_user_feedback_before_done_permission(
     named_user, request, logged_in, test_client, assignment_real_works,
-    session, error_template, ta_user, perm_value
+    monkeypatch_celery, session, error_template, ta_user, perm_value
 ):
     assignment, work = assignment_real_works
     assig_id = assignment.id
@@ -339,7 +339,7 @@ def test_can_see_user_feedback_before_done_permission(
 )
 def test_delete_feedback(
     named_user, request, logged_in, test_client, assignment_real_works,
-    session, error_template, ta_user
+    monkeypatch_celery, session, error_template, ta_user
 ):
     assignment, work = assignment_real_works
     work_id = work['id']

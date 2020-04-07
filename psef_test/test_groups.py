@@ -777,7 +777,7 @@ def test_add_user_to_group(
 @pytest.mark.parametrize('assignment', ['new'], indirect=True)
 def test_submit_with_group(
     test_client, session, logged_in, teacher_user, course, error_template,
-    assignment
+    assignment, monkeypatch_celery
 ):
     user_full_group = create_user_with_perms(
         session, [CPerm.can_submit_own_work, CPerm.can_see_assignments], course
