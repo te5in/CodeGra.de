@@ -11,6 +11,8 @@ parallel in intuitive graphs. There are graphs for when and how many times
 students submitted their work, the distribution of grades, and, if the
 assignment has a rubric, statistics about the rubric's categories.
 
+.. _analytics-dashboard-general-statistics:
+
 General statistics
 ------------------
 
@@ -162,12 +164,12 @@ scored on the rubric of this assignment:
   taking the middle value in the sorted list of scores.
 - **Mode** gives the mode per rubric category. The mode is obtained by taking
   the most common value amongst a sample.
-- **RIT** is the correlation, commonly denoted **R**, between the **I**\ tem and
-  the **T**\ otal score.  :ref:`More details
-  <analytics-dashboard-the-rit-rir-values>`.
+- **RIT** is the correlation, commonly denoted **R**, between the **I**\ tem
+  and the **T**\ otal score.  :ref:`More details
+  <analytics-dashboard-rit-rir>`.
 - **RIR** is the correlation **R** between the **I**\ tem and the **R**\ educed
   score, where the rest score is the total score for the rubric minus the score
-  for this category. :ref:`More details <analytics-dashboard-the-rit-rir-values>`.
+  for this category. :ref:`More details <analytics-dashboard-rit-rir>`.
 - A **Correlation** diagram per rubric category plots the achieved scores in
   the rubric category against the :ref:`reduced score
   <analytics-dashboard-reduced-rubric-score>` of the entire rubric. Each point
@@ -206,7 +208,7 @@ this.
 
 While the RIT and RIR values are very similar, there is a subtle difference in
 how they are calculated. The RIT value is calculated against the total score on
-the rubric, but since the total score also includes the score for the
+the rubric, but since this total score also includes the score for the
 compared-to category the data is biased, because higher item scores
 automatically lead to higher total scores. The RIR value overcomes this by
 using the reduced rubric score instead of the total rubric score. Subtracting
