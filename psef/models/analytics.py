@@ -106,11 +106,16 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:
+        data_sources = [
+            source for (source, cls) in analytics_data_sources.get_all()
+            if cls.should_include(self)
+        ]
+
         return {
             'id': self.id,
             'assignment_id': self.assignment_id,
             'student_submissions': self.submissions_per_student,
-            'data_sources': list(analytics_data_sources.keys())
+            'data_sources': data_sources,
         }
 
 
@@ -133,6 +138,10 @@ class BaseDataSource(t.Generic[T]):
             'name': analytics_data_sources.find(type(self), ''),
             'data': self.get_data(),
         }
+
+    @staticmethod
+    def should_include(_workspace: AnalyticsWorkspace) -> bool:
+        return True
 
 
 class _RubricDataSourceModel(TypedDict, total=True):
@@ -168,6 +177,10 @@ class _RubricDataSource(BaseDataSource[t.List[_RubricDataSourceModel]]):
             ]
             for work_id, item_ids, mults in query
         }
+
+    @staticmethod
+    def should_include(workspace: AnalyticsWorkspace) -> bool:
+        return len(workspace.assignment.rubric_rows) > 0
 
 
 class _InlineFeedbackModel(TypedDict, total=True):
