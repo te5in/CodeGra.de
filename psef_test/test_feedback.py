@@ -3,6 +3,7 @@ import re
 
 import pytest
 
+import helpers
 import psef.models as m
 from helpers import create_marker
 from psef.permissions import CoursePermission as CPerm
@@ -13,16 +14,6 @@ late_error = create_marker(pytest.mark.late_error)
 only_own = create_marker(pytest.mark.only_own)
 
 
-@pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
-@pytest.mark.parametrize(
-    'named_user', [
-        'Thomas Schaper',
-        perm_error(error=403)('admin'),
-        perm_error(error=403)('Student1'),
-        perm_error(error=401)('NOT_LOGGED_IN'),
-    ],
-    indirect=True
-)
 @pytest.mark.parametrize(
     'data', [
         data_error('err'),
@@ -34,33 +25,42 @@ only_own = create_marker(pytest.mark.only_own)
     ]
 )
 def test_add_feedback(
-    named_user, request, logged_in, test_client, assignment_real_works,
-    session, data, error_template, ta_user, teacher_user, monkeypatch_celery
+    request, logged_in, test_client, session, data, error_template, admin_user,
+    monkeypatch_celery, describe, tomorrow
 ):
-    assignment, work = assignment_real_works
-    perm_err = request.node.get_closest_marker('perm_error')
-    data_err = request.node.get_closest_marker('data_error') is not None
+    with describe('setup'), logged_in(admin_user):
+        assignment = helpers.create_assignment(
+            test_client, state='open', deadline=tomorrow
+        )
+        course = assignment['course']
+        teacher = admin_user
+        student = helpers.create_user_with_perms(
+            session, [CPerm.can_submit_own_work], course
+        )
+        work = helpers.create_submission(
+            test_client, assignment, for_user=student
+        )
 
-    code_id = session.query(m.File.id).filter(
-        m.File.work_id == work['id'],
-        m.File.parent != None,  # NOQA
-        m.File.name != '__init__',
-    ).first()[0]
+        data_err = request.node.get_closest_marker('data_error') is not None
 
-    if perm_err:
-        code = perm_err.kwargs['error']
-    elif data_err:
-        code = 400
-    else:
-        code = 204
+        code_id = session.query(m.File.id).filter(
+            m.File.work_id == work['id'],
+            m.File.parent_id.isnot(None),
+            m.File.name != '__init__',
+        ).first()[0]
 
-    def get_result():
-        if data_err or perm_err:
-            return {}
-        msg = data.get('expected_result', data['comment'])
-        return {'0': {'line': 0, 'msg': msg, 'author': dict}}
+        if data_err:
+            code = 400
+        else:
+            code = 204
 
-    with logged_in(named_user):
+        def get_result():
+            if data_err:
+                return {}
+            msg = data.get('expected_result', data['comment'])
+            return {'0': {'line': 0, 'msg': msg, 'author': dict}}
+
+    with describe('teacher can place comments'), logged_in(teacher):
         test_client.req(
             'put',
             f'/api/v1/code/{code_id}/comments/0',
@@ -68,8 +68,9 @@ def test_add_feedback(
             data=data,
             result=None if code == 204 else error_template
         )
+        if data_error:
+            return
 
-    with logged_in(ta_user):
         res = test_client.req(
             'get',
             f'/api/v1/code/{code_id}',
@@ -77,22 +78,20 @@ def test_add_feedback(
             query={'type': 'feedback'},
             result=get_result()
         )
-        if not (data_error or perm_error):
-            assert res['author']['id'] == named_user.id
+        assert res['author']['id'] == teacher.id
 
-    with logged_in(named_user):
-        if not data_err:
-            data['comment'] = 'bye'
-            data['expected_result'] = 'bye'
-            test_client.req(
-                'put',
-                f'/api/v1/code/{code_id}/comments/0',
-                code,
-                data=data,
-                result=None if code == 204 else error_template
-            )
+        data = {
+            'comment': 'bye',
+            'expected_result': 'bye',
+        }
+        test_client.req(
+            'put',
+            f'/api/v1/code/{code_id}/comments/0',
+            code,
+            data=data,
+            result=204,
+        )
 
-    with logged_in(ta_user):
         test_client.req(
             'get',
             f'/api/v1/code/{code_id}',
@@ -101,15 +100,58 @@ def test_add_feedback(
             result=get_result()
         )
 
-    with logged_in(teacher_user):
+    with describe(
+        'Students cannot place comments if they do not have the permission'
+    ), logged_in(student):
+        test_client.req(
+            'put',
+            f'/api/v1/code/{code_id}/comments/1',
+            code,
+            data=data,
+            result=403
+        )
+
+    with describe('Students can get comments when assignment is done'):
+        with logged_in(student):
+            test_client.req(
+                'get',
+                f'/api/v1/code/{code_id}',
+                403,
+                query={'type': 'feedback'},
+                result=error_template,
+            )
+        with logged_in(teacher):
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{assignment["id"]}',
+                200,
+                data={'state': 'done'},
+            )
+        with logged_in(student):
+            test_client.req(
+                'get',
+                f'/api/v1/code/{code_id}',
+                200,
+                query={'type': 'feedback'},
+                result=get_result(),
+            )
+
+    with describe('Cannot get or update feedback after deleting submission'
+                  ), logged_in(teacher):
         test_client.req('delete', f'/api/v1/submissions/{work["id"]}', 204)
 
-        # You cannot comment on deleted submissions
+        test_client.req(
+            'get',
+            f'/api/v1/code/{code_id}',
+            404,
+            query={'type': 'feedback'},
+            result=error_template,
+        )
         test_client.req(
             'put',
             f'/api/v1/code/{code_id}/comments/0',
             404,
-            data=data,
+            data={'comment': 'Any value'},
             result=error_template,
         )
 
@@ -119,13 +161,9 @@ def test_add_feedback(
     'named_user', [
         'Thomas Schaper',
         perm_error(error=403)('admin'),
-        pytest.param(
-            'Student1',
-            marks=[
-                pytest.mark.late_error,
-                pytest.mark.list_error,
-            ]
-        ),
+        pytest.param('Student1', marks=[
+            pytest.mark.late_error,
+        ]),
         perm_error(error=401)('NOT_LOGGED_IN'),
     ],
     indirect=True
@@ -138,7 +176,6 @@ def test_get_feedback(
     assig_id = assignment.id
     perm_err = request.node.get_closest_marker('perm_error')
     late_err = request.node.get_closest_marker('late_error')
-    list_err = request.node.get_closest_marker('list_error')
 
     code_id = session.query(m.File.id).filter(
         m.File.work_id == work['id'],
@@ -179,9 +216,6 @@ def test_get_feedback(
                     'author': dict,
                 }
             }
-            if list_err:
-                del res['0']['author']
-                del res['1']['author']
 
         test_client.req(
             'get',
@@ -212,9 +246,6 @@ def test_get_feedback(
                     'author': dict,
                 }
             }
-            if list_err:
-                del res['0']['author']
-                del res['1']['author']
 
         test_client.req(
             'get',
@@ -311,11 +342,12 @@ def test_delete_feedback(
     session, error_template, ta_user
 ):
     assignment, work = assignment_real_works
+    work_id = work['id']
     perm_err = request.node.get_closest_marker('perm_error')
 
     code_id = session.query(m.File.id).filter(
-        m.File.work_id == work['id'],
-        m.File.parent != None,  # NOQA
+        m.File.work_id == work_id,
+        m.File.parent_id.isnot(None),
         m.File.name != '__init__',
     ).first()[0]
 
@@ -329,6 +361,11 @@ def test_delete_feedback(
             'msg': 'line1',
             'author': dict,
         }
+    }
+
+    feedbacks_result = {
+        '__allow_extra__': True,
+        'user': {str(code_id): {'0': 'for line 0', '1': 'line1'}},
     }
 
     with logged_in(ta_user):
@@ -353,6 +390,13 @@ def test_delete_feedback(
             result=result
         )
 
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{work_id}/feedbacks/',
+            200,
+            result=feedbacks_result,
+        )
+
     with logged_in(named_user):
         test_client.req(
             'delete',
@@ -362,6 +406,7 @@ def test_delete_feedback(
 
     if not perm_err:
         result.pop('0')
+        feedbacks_result['user'][str(code_id)].pop('0')
 
     with logged_in(ta_user):
         test_client.req(
@@ -370,6 +415,12 @@ def test_delete_feedback(
             200,
             query={'type': 'feedback'},
             result=result
+        )
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{work_id}/feedbacks/',
+            200,
+            result=feedbacks_result,
         )
 
 

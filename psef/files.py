@@ -421,6 +421,7 @@ def restore_directory_structure(
         models.File.work_id == work.id,
         models.File.parent_id.is_(None),
         models.File.fileowner != exclude,
+        ~models.File.self_deleted,
     )
     cache = work.get_file_children_mapping(exclude)
     return _restore_directory_structure(code, parent, cache)

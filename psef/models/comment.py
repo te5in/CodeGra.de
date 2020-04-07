@@ -96,7 +96,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         'reply_type',
         db.Enum(CommentReplyType),
         nullable=False,
-        server_default="'plain_text'"
+        server_default=CommentReplyType.plain_text.name,
     )
 
     notifications = db.relationship(
@@ -194,6 +194,17 @@ class CommentReply(IdMixin, TimestampMixin, Base):
 
     def __repr__(self) -> str:
         return f'<CommentReply id={self.id} deleted={self.deleted}>'
+
+    def get_outdated_json(
+        self
+    ) -> t.Mapping[str, t.Union[str, int, 'user_models.User']]:
+        res = {
+            'line': self.comment_base.line,
+            'msg': self.comment,
+        }
+        if self.can_see_author:
+            res['author'] = self.author
+        return res
 
     def __to_json__(self) -> t.Mapping[str, t.Union[str, int, None]]:
         last_edit = self.last_edit
@@ -404,18 +415,6 @@ class CommentBase(IdMixin, Base):
     def user(self) -> t.Optional['user_models.User']:
         fr = self.first_reply
         return fr.author if fr else None
-
-    def get_outdated_json(self) -> t.Mapping[str, object]:
-        first_reply = self.first_reply
-        return {
-            'id': self.id,
-            'line': self.line,
-            'file_id': self.file_id,
-            'msg': self.comment,
-            'author':
-                self.user if
-                (first_reply and first_reply.can_see_author) else None,
-        }
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.

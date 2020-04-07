@@ -24,7 +24,7 @@ from ..helpers import (
 )
 from ..permissions import CoursePermission as CPerm
 
-_HumanFeedback = t.Mapping[str, t.Mapping[str, object]]
+_HumanFeedback = t.Mapping[str, object]
 _LinterFeedback = t.MutableSequence[t.Tuple[str, models.LinterComment]]  # pylint: disable=invalid-name
 _FeedbackMapping = t.Dict[str, t.Union[_HumanFeedback, _LinterFeedback]]  # pylint: disable=invalid-name
 
@@ -51,25 +51,24 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
                                  attached course. (INCORRECT_PERMISSION)
     """
     comment_base = db.session.query(models.CommentBase).filter(
-        models.CommentBase.file_id == code_id, models.CommentBase.line == line
+        models.CommentBase.file_id == code_id,
+        models.CommentBase.line == line,
     ).with_for_update().one_or_none()
-    if comment_base and comment_base.file.work.deleted:
+    if comment_base and comment_base.file.deleted:
         comment_base = None
 
-    def __get_comment() -> str:
-        content = ensure_json_dict(request.get_json())
-        ensure_keys_in_dict(content, [('comment', str)])
-        return t.cast(str, content['comment']).replace('\0', '')
+    with helpers.get_from_request_transaction() as [get, _]:
+        comment_text = get('comment', str).replace('\0', '')
 
     if comment_base:
         reply = comment_base.first_reply
         if reply is not None:
             auth.FeedbackReplyPermissions(reply).ensure_may_edit()
 
-            db.session.add(reply.update(__get_comment()))
+            db.session.add(reply.update(comment_text))
         else:
             reply = comment_base.add_reply(
-                current_user, __get_comment(),
+                current_user, comment_text,
                 models.CommentReplyType.plain_text, None
             )
             auth.FeedbackReplyPermissions(reply).ensure_may_add()
@@ -77,14 +76,14 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
         file = helpers.filter_single_or_404(
             models.File,
             models.File.id == code_id,
-            also_error=lambda f: f.work.deleted,
+            also_error=lambda f: f.deleted,
             with_for_update=True,
         )
         base, reply = models.CommentBase.create_and_add_reply(
             file=file,
             user=current_user,
             line=line,
-            comment=__get_comment(),
+            comment=comment_text,
             reply_type=models.CommentReplyType.plain_text,
         )
         auth.FeedbackBasePermissions(base).ensure_may_add()
@@ -121,7 +120,7 @@ def remove_comment(code_id: int, line: int) -> EmptyResponse:
         models.CommentBase,
         models.CommentBase.file_id == code_id,
         models.CommentBase.line == line,
-        also_error=lambda c: c.first_reply is None or c.file.work.deleted,
+        also_error=lambda c: c.first_reply is None or c.file.deleted,
     )
 
     reply = comment_base.first_reply
@@ -182,7 +181,7 @@ def get_code(file_id: t.Union[int, uuid.UUID]
         f = helpers.filter_single_or_404(
             models.File,
             models.File.id == file_id,
-            also_error=lambda f: f.work.deleted
+            also_error=lambda f: f.deleted
         )
 
         auth.ensure_can_view_files(f.work, f.fileowner == FileOwner.teacher)
@@ -266,8 +265,10 @@ def get_feedback(file: models.File, linter: bool = False) -> _FeedbackMapping:
             for human_comment in db.session.query(
                 models.CommentBase,
             ).filter_by(file_id=file.id):
-                res[str(human_comment.line)
-                    ] = human_comment.get_outdated_json()
+                first_reply = human_comment.first_reply
+                if first_reply is not None:
+                    line = str(human_comment.line)
+                    res[line] = first_reply.get_outdated_json()
         return res
 
     except auth.PermissionException:
@@ -300,7 +301,7 @@ def delete_code(file_id: int) -> EmptyResponse:
         file. (INCORRECT_PERMISSION)
     """
     code: models.File = helpers.get_or_404(
-        models.File, file_id, also_error=lambda f: f.work.deleted
+        models.File, file_id, also_error=lambda f: f.deleted
     )
 
     auth.ensure_can_edit_work(code.work)
@@ -329,7 +330,10 @@ def delete_code(file_id: int) -> EmptyResponse:
     elif code.fileowner == current:
         if db.session.query(
             sql.or_(
-                models.CommentBase.query.filter_by(file_id=code.id).exists(),
+                models.CommentBase.query.filter(
+                    models.CommentBase.file_id == code.id,
+                    models.CommentBase.replies.any(),
+                ).exists(),
                 models.LinterComment.query.filter_by(file_id=code.id).exists(),
             )
         ).scalar():
@@ -360,8 +364,7 @@ def delete_code(file_id: int) -> EmptyResponse:
                 APICodes.INVALID_STATE, 400
             )
 
-        code.delete_from_disk()
-        db.session.delete(code)
+        code.delete()
     elif code.fileowner == models.FileOwner.both:
         code.fileowner = other
 
@@ -493,7 +496,7 @@ def update_code(file_id: int) -> JSONResponse[models.File]:
         models.File,
         models.File.id == file_id,
         models.File.is_directory != dir_filter,
-        also_error=lambda f: f.work.deleted,
+        also_error=lambda f: f.deleted,
     )
 
     auth.ensure_can_edit_work(code.work)

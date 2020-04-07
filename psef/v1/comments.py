@@ -19,7 +19,7 @@ def add_comment() -> ExtendedJSONResponse[CommentBase]:
     file = helpers.filter_single_or_404(
         models.File,
         models.File.id == file_id,
-        also_error=lambda f: f.work.deleted,
+        also_error=lambda f: f.deleted,
         with_for_update=True,
     )
     base = CommentBase.create_if_not_exists(file=file, line=line)
@@ -40,7 +40,11 @@ def add_reply(comment_base_id: int) -> ExtendedJSONResponse[CommentReply]:
         in_reply_to_id = opt_get('in_reply_to', int, None)
         reply_type = get('reply_type', models.CommentReplyType)
 
-    base = helpers.get_or_404(CommentBase, comment_base_id)
+    base = helpers.get_or_404(
+        CommentBase,
+        comment_base_id,
+        also_error=lambda b: b.file.deleted,
+    )
 
     in_reply_to = None
     if in_reply_to_id is not None:

@@ -289,7 +289,7 @@ def _get_feedback_without_replies(
             for file_id, comms in _group_by_file_id(comments)
         }
 
-    authors = {}
+    authors = None
     if can_view_feedback and can_view_authors:
         authors = {
             file_id: {
@@ -388,17 +388,23 @@ def get_feedback_from_submission(
         }
 
     comments = models.CommentBase.query.filter(
-        models.CommentBase.file.has(work=work),
+        models.File.work == work,
+        ~models.File.self_deleted,
         # We join the replies using an innerload to make sure we only get
         # commentbases that have at least one reply.
     ).join(
         models.CommentBase.replies, isouter=False
+    ).join(
+        models.CommentBase.file, isouter=False
     ).order_by(
         # This order is really important for the `itertools.groupby` call.
         models.CommentBase.file_id.asc(),
         models.CommentBase.line.asc(),
         models.CommentReply.created_at.asc(),
-    ).options(contains_eager(models.CommentBase.replies)).all()
+    ).options(
+        contains_eager(models.CommentBase.replies),
+        contains_eager(models.CommentBase.file),
+    ).all()
 
     fun: t.Callable[[t.List[models.CommentBase], bool, bool, LinterComments], t
                     .Union[FeedbackWithoutReplies, FeedbackWithReplies]]
@@ -931,6 +937,7 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
         models.File.fileowner != exclude_owner,
         models.File.name == patharr[0],
         models.File.parent_id.is_(None),
+        ~models.File.self_deleted,
     )
 
     code = None
@@ -940,6 +947,7 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
             models.File.fileowner != exclude_owner,
             models.File.name == part,
             models.File.parent == parent,
+            ~models.File.self_deleted,
         ).first()
         end_idx = idx + 1
         if code is None:
@@ -1056,15 +1064,18 @@ def get_dir_contents(
             models.File,
             models.File.id == file_id,
             models.File.work_id == work.id,
+            ~models.File.self_deleted,
         )
     elif path:
         found_file = work.search_file(path, exclude_owner)
         return jsonify(psef.files.get_stat_information(found_file))
     else:
         file = helpers.filter_single_or_404(
-            models.File, models.File.work_id == submission_id,
+            models.File,
+            models.File.work_id == submission_id,
             models.File.parent_id.is_(None),
-            models.File.fileowner != exclude_owner
+            models.File.fileowner != exclude_owner,
+            ~models.File.self_deleted,
         )
 
     if not file.is_directory:
@@ -1097,7 +1108,9 @@ def create_proxy(submission_id: int) -> JSONResponse[models.Proxy]:
     :returns: The created proxy.
     """
     submission = helpers.filter_single_or_404(
-        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+        models.Work,
+        models.Work.id == submission_id,
+        ~models.Work.deleted,
     )
 
     with helpers.get_from_map_transaction(
@@ -1117,6 +1130,7 @@ def create_proxy(submission_id: int) -> JSONResponse[models.Proxy]:
         models.File.work == submission,
         models.File.fileowner != exclude_owner,
         models.File.parent_id.is_(None),
+        ~models.File.self_deleted,
     ).one()
 
     proxy = models.Proxy(

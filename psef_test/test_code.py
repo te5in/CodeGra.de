@@ -538,25 +538,27 @@ def test_invalid_delete_code(
         session.commit()
 
         f = res['entries'][0]['entries'][0]
+        code_id = f['id']
         new_f = test_client.req(
             'patch',
-            f'/api/v1/code/{f["id"]}',
+            f'/api/v1/code/{code_id}',
             200,
             query={'operation': 'content'},
             result={'name': f['name'], 'id': str, 'is_directory': False},
             real_data='WOWSERS123',
         )
+        new_code_id = new_f['id']
 
-        assert new_f['id'] != f['id'], 'Should have a new file'
+        assert new_code_id != code_id, 'Should have a new file'
 
         test_client.req(
             'put',
-            f'/api/v1/code/{new_f["id"]}/comments/0',
+            f'/api/v1/code/{new_code_id}/comments/0',
             204,
             data={'comment': 'GOED!'},
         )
 
-        req = test_client.get(f'/api/v1/code/{new_f["id"]}')
+        req = test_client.get(f'/api/v1/code/{new_code_id}')
         assert req.status_code == 200, 'Request had no errors'
         assert req.get_data(
             as_text=True
@@ -564,7 +566,7 @@ def test_invalid_delete_code(
 
         test_client.req(
             'delete',
-            f'/api/v1/code/{new_f["id"]}',
+            f'/api/v1/code/{new_code_id}',
             400,
             result=error_template,
         )
@@ -572,7 +574,7 @@ def test_invalid_delete_code(
         # Delete comment
         test_client.req(
             'delete',
-            f'/api/v1/code/{new_f["id"]}/comments/0',
+            f'/api/v1/code/{new_code_id}/comments/0',
             204,
         )
 
@@ -603,7 +605,7 @@ def test_invalid_delete_code(
         # Still not possible
         test_client.req(
             'delete',
-            f'/api/v1/code/{new_f["id"]}',
+            f'/api/v1/code/{new_code_id}',
             400,
             result=error_template,
         )
@@ -614,8 +616,20 @@ def test_invalid_delete_code(
         # Not it should work as there is no comment and not plagiarism case
         test_client.req(
             'delete',
-            f'/api/v1/code/{new_f["id"]}',
+            f'/api/v1/code/{new_code_id}',
             204,
+        )
+
+        assert test_client.get(
+            f'/api/v1/code/{new_code_id}'
+        ).status_code == 404
+        assert test_client.get(f'/api/v1/code/{code_id}').status_code == 200
+
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{work_id}/files/',
+            200,
+            result=res,
         )
 
 

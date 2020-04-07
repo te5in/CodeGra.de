@@ -714,7 +714,7 @@ class Work(Base):
         self,
         pathname: str,
         exclude: 'file_models.FileOwner',
-    ) -> t.List[t.Any]:
+    ) -> t.List[DbColumn[bool]]:
         """Get the filters needed to search for a file in the this directory
         with a given name.
 
@@ -738,6 +738,7 @@ class Work(Base):
                 file_models.File.parent_id == parent,
                 file_models.File.work_id == self.id,
                 file_models.File.is_directory,
+                ~file_models.File.self_deleted,
             ).subquery(f'parent_{idx}')
 
         if parent is not None:
@@ -749,6 +750,7 @@ class Work(Base):
             file_models.File.parent_id == parent,
             file_models.File.fileowner != exclude,
             file_models.File.is_directory == is_dir,
+            ~file_models.File.self_deleted,
         ]
 
     def search_file(
@@ -790,7 +792,8 @@ class Work(Base):
                          List['file_models.File']] = defaultdict(list)
         files = file_models.File.query.filter(
             file_models.File.work == self,
-            file_models.File.fileowner != exclude
+            file_models.File.fileowner != exclude,
+            ~file_models.File.self_deleted,
         ).all()
         # We sort in Python as this increases consistency between different
         # server platforms, Python also has better defaults.

@@ -256,6 +256,14 @@ class File(NestedFileMixin[int], Base):
 
     id = db.Column('id', db.Integer, primary_key=True)
 
+    _deleted = db.Column(
+        'deleted',
+        db.Boolean,
+        default=False,
+        nullable=False,
+        server_default='false'
+    )
+
     def get_id(self) -> int:
         return self.id
 
@@ -290,6 +298,17 @@ class File(NestedFileMixin[int], Base):
         foreign_keys=work_id,
     )
 
+    @property
+    def deleted(self) -> bool:
+        return self._deleted or self.work.deleted
+
+    @hybrid_property
+    def self_deleted(self) -> bool:
+        return self._deleted
+
+    def delete(self) -> None:
+        self._deleted = True
+
     @staticmethod
     def get_exclude_owner(owner: t.Optional[str], course_id: int) -> FileOwner:
         """Get the :class:`.FileOwner` the current user does not want to see
@@ -322,6 +341,10 @@ class File(NestedFileMixin[int], Base):
                 return teacher
         else:
             return teacher
+
+    def get_diskname(self) -> str:
+        assert not self._deleted
+        return super().get_diskname()
 
     def get_path(self) -> str:
         return '/'.join(self.get_path_list())
@@ -369,9 +392,12 @@ class File(NestedFileMixin[int], Base):
         :raises APIException: If renaming would result in a naming collision
             (INVALID_STATE).
         """
-        if new_parent.children.filter_by(name=new_name).filter(
-            File.fileowner != exclude_owner,
-        ).first() is not None:
+        if db.session.query(
+            new_parent.children.filter_by(name=new_name).filter(
+                File.fileowner != exclude_owner,
+                ~File.self_deleted,
+            ).exists(),
+        ).scalar():
             raise APIException(
                 'This file already exists within this directory',
                 f'The file "{new_parent.id}" has '

@@ -165,7 +165,9 @@ if True:  # pylint: disable=using-constant-test
     from .plagiarism import (
         PlagiarismState, PlagiarismRun, PlagiarismCase, PlagiarismMatch
     )
-    from .comment import CommentBase, CommentReply, CommentReplyEdit, CommentReplyType
+    from .comment import (
+        CommentBase, CommentReply, CommentReplyEdit, CommentReplyType
+    )
     from .role import AbstractRole, Role, CourseRole
     from .snippet import Snippet
     from .rubric import RubricItem, RubricRowBase as RubricRow, WorkRubricItem

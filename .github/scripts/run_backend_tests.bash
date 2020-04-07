@@ -3,6 +3,7 @@ set -o xtrace
 export PYTHONPATH="$PWD"
 export GITHUB_ACTIONS=true
 sudo chown -R "$USER":"$(id -gn)" /tmp/
+printf '[Back-end]\nexternal_url = http://localhost:1234' > config.ini
 
 create_db() {
     DBNAME="ci_test_gw${1}"

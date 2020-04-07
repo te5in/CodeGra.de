@@ -319,9 +319,9 @@ def assert_similar():
                            len(vals), i
                        )
         elif not allowed_extra:
-            assert len(vals) == i, 'Difference in keys: {}'.format(
-                set(vals) ^ set(tree)
-            )
+            assert len(vals) == i, (
+                'Difference in keys: {}, (server data: {}, expected: {})'
+            ).format(set(vals) ^ set(tree), vals, tree)
         else:
             gotten_disallowed_keys = (set(vals.keys()) & not_allowed_extra)
             assert not gotten_disallowed_keys, (
