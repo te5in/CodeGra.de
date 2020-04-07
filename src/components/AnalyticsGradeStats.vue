@@ -115,7 +115,7 @@ export default {
         },
 
         histogramData() {
-            const maxGrade = this.assignment.max_grade;
+            const maxGrade = this.assignment.maxGrade;
             let binSize = parseFloat(this.binSize);
             if (Number.isNaN(binSize)) {
                 binSize = 1;
