@@ -218,11 +218,14 @@ export const BarChart = {
                 return [0, 0];
             }
 
-            const min = stat.min(this.minPerDataset);
-            const max = stat.max(this.maxPerDataset);
-
             const factor = 1 + this.padding;
-            return [factor * min, factor * max];
+            const min = factor * stat.min(this.minPerDataset);
+            const max = factor * stat.max(this.maxPerDataset);
+
+            return [
+                Math.min(0, min),
+                Math.max(0, max),
+            ];
         },
 
         valuesPerDataset() {
