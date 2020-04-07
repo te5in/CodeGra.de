@@ -251,8 +251,10 @@ def ensure_enrolled(
             APICodes.INCORRECT_PERMISSION, 403
         )
 
+
 @contextlib.contextmanager
-def as_current_user(user: t.Union['psef.models.User', LocalProxy]) -> t.Generator[None, None, None]:
+def as_current_user(user: t.Union['psef.models.User', LocalProxy]
+                    ) -> t.Generator[None, None, None]:
     old_user = _get_cur_user(allow_none=True)
     try:
         set_current_user(user)
@@ -261,7 +263,9 @@ def as_current_user(user: t.Union['psef.models.User', LocalProxy]) -> t.Generato
         set_current_user(old_user)
 
 
-def set_current_user(user: t.Union['psef.models.User', LocalProxy, None]) -> None:
+def set_current_user(
+    user: t.Union['psef.models.User', LocalProxy, None]
+) -> None:
     """Set the current user for this request.
 
     You probably never should use this method, it is only useful after logging

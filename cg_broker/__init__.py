@@ -39,6 +39,8 @@ BrokerConfig = TypedDict(  # pylint: disable=invalid-name
         '_TRANSIP_PRIVATE_KEY_FILE': str,
         'OLD_JOB_AGE': int,
         'SLOW_STARTING_AGE': int,
+        'SLOW_STARTING_TASK_AGE': int,
+        'SLOW_TASK_AGE': int,
         'HEALTH_KEY': t.Optional[str],
         'RUNNER_CONFIG_DIR': str,
         'VERSION': str,
@@ -109,10 +111,17 @@ class BrokerFlask(flask.Flask):
         )
 
         self.config['OLD_JOB_AGE'] = _parser['General'].getint(
-            'OLD_JOB_AGE', fallback=90
+            'OLD_JOB_AGE', fallback=360
         )
         self.config['SLOW_STARTING_AGE'] = _parser['General'].getint(
             'SLOW_STARTING_AGE', fallback=1
+        )
+
+        self.config['SLOW_STARTING_TASK_AGE'] = _parser['General'].getint(
+            'SLOW_STARTING_TASK_AGE', fallback=15
+        )
+        self.config['SLOW_TASK_AGE'] = _parser['General'].getint(
+            'SLOW_TASK_AGE', fallback=30
         )
 
         self.config['MAX_AMOUNT_OF_RUNNERS'] = _parser['General'].getint(

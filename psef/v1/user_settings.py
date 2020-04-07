@@ -32,8 +32,7 @@ def get_notification_settings(
 
 
 @api.route('/settings/notification_settings/', methods=['PATCH'])
-def update_notification_settings(
-) -> EmptyResponse:
+def update_notification_settings() -> EmptyResponse:
     user = _get_user()
 
     with get_from_request_transaction() as [get, _]:

@@ -10,17 +10,19 @@ import typing as t
 
 import sqlalchemy
 from flask import Flask, g
-from sqlalchemy import event
+from sqlalchemy import func, event
 from sqlalchemy.orm import deferred as _deferred
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy_utils import UUIDType as _UUIDType
 from sqlalchemy_utils import force_auto_coercion
 from sqlalchemy.dialects.postgresql import ARRAY
 
+from cg_dt_utils import DatetimeWithTimezone
+
 from . import types, mixins
 from .types import (
-    DbEnum, DbType, Comparator, TypeDecorator, hybrid_property,
-    hybrid_expression
+    JSONB, TIMESTAMP, DbEnum, DbType, Comparator, TypeDecorator,
+    hybrid_property, hybrid_expression
 )
 
 UUID_LENGTH = len(str(uuid.uuid4()))  # 36
@@ -50,7 +52,8 @@ class ArrayOfEnum(t.Generic[T], TypeDecorator, DbType[t.Tuple[T, ...]]):
     def bind_expression(self, bindvalue: object) -> object:
         return sqlalchemy.cast(bindvalue, self)
 
-    def result_processor(self, dialect: object, coltype: object) -> t.Callable[[object], object]:
+    def result_processor(self, dialect: object,
+                         coltype: object) -> t.Callable[[object], object]:
         super_rp = super().result_processor(dialect, coltype)
 
         def handle_raw_string(value: str) -> t.List[str]:

@@ -318,10 +318,7 @@ def _get_feedback_with_replies(
         user = comments
 
     authors = list(
-        set(
-            r.author for c in comments for r in c.replies
-                if r.can_see_author
-        )
+        set(r.author for c in comments for r in c.replies if r.can_see_author)
     )
     print(authors)
 

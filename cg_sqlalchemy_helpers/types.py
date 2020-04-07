@@ -27,6 +27,8 @@ QuerySelf = t.TypeVar('QuerySelf', bound='MyNonOrderableQuery')
 _T_BASE = t.TypeVar('_T_BASE', bound='Base')
 _Y_BASE = t.TypeVar('_Y_BASE', bound='Base')
 
+Never = t.NewType('Never', object)
+
 
 class MySession:  # pragma: no cover
     def bulk_save_objects(self, objs: t.Sequence['Base']) -> None:
@@ -220,7 +222,8 @@ class MyDb:  # pragma: no cover
         ...
 
     @t.overload
-    def Enum(self, typ: t.Type[E], name: str = None, native_enum: bool = True) -> DbEnum[E]:
+    def Enum(self, typ: t.Type[E], name: str = None,
+             native_enum: bool = True) -> DbEnum[E]:
         ...
 
     @t.overload
@@ -490,6 +493,17 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
     def any(self, cond: 'DbColumn[bool]' = None) -> 'DbColumn[bool]':
         ...
 
+    def __getitem__(
+        self: 'DbColumn[t.Optional[t.Mapping[str, object]]]', key: str
+    ) -> 'IndexedJSONColumn':
+        ...
+
+    def notin_(
+        self, val: t.Union[t.Iterable[T], 'DbColumn[T]',
+                           'MyNonOrderableQuery[T]', 'RawTable']
+    ) -> 'DbColumn[bool]':
+        ...
+
     def in_(
         self, val: t.Union[t.Sequence[T], 'DbColumn[T]',
                            'MyNonOrderableQuery[t.Tuple[T]]', 'RawTable']
@@ -558,6 +572,20 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
         ...
 
     def __or__(self, other: 'DbColumn[bool]') -> 'DbColumn[bool]':
+        ...
+
+    def cast(self, other: DbType[Y]) -> 'DbColumn[Y]':
+        ...
+
+
+class IndexedJSONColumn(DbColumn[Never]):
+    def __getitem__(self, key: str) -> 'IndexedJSONColumn':
+        ...
+
+    def as_string(self) -> 'DbColumn[t.Optional[str]]':
+        ...
+
+    def as_integer(self) -> 'DbColumn[t.Optional[int]]':
         ...
 
 
@@ -750,6 +778,12 @@ if t.TYPE_CHECKING:
         def __clause_element__(self) -> DbColumn[T]:
             ...
 
+    JSONB = DbType[t.Mapping[str, object]]()
+
+    def TIMESTAMP(*, timezone: Literal[True]
+                  ) -> DbType[cg_dt_utils.DatetimeWithTimezone]:
+        ...
+
     class TypeDecorator:
         def __init__(self, *args: object, **kwargs: object) -> None:
             pass
@@ -760,7 +794,8 @@ if t.TYPE_CHECKING:
 else:
     from sqlalchemy.ext.hybrid import hybrid_property
     from sqlalchemy.ext.hybrid import Comparator as _Comparator
-    from sqlalchemy import TypeDecorator
+    from sqlalchemy import TypeDecorator, TIMESTAMP
+    from sqlalchemy.dialects.postgresql import JSONB
 
     def hybrid_expression(fun: T) -> T:
         return fun

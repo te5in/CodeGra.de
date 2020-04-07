@@ -280,7 +280,8 @@ def send_direct_notification_email(notification: models.Notification) -> None:
 
     _send_mail(
         html_body,
-        subject, [notification.receiver.email],
+        subject,
+        [notification.receiver.email],
         message_id=comment.message_id,
         in_reply_to=in_reply_to_message_id,
         references=references,

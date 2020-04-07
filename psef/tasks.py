@@ -21,7 +21,7 @@ from operator import itemgetter
 import structlog
 from flask import Flask
 from celery import signals, current_task
-from requests import HTTPError
+from requests import RequestException
 from sqlalchemy.orm import contains_eager
 from mypy_extensions import NamedArg, DefaultNamedArg
 from celery.schedules import crontab
@@ -390,7 +390,7 @@ def _run_autotest_batch_runs_1() -> None:
 
 
 @celery.task(
-    autoretry_for=(HTTPError, ),
+    autoretry_for=(RequestException, ),
     retry_backoff=True,
     retry_kwargs={'max_retries': 15}
 )
@@ -433,7 +433,7 @@ def _notify_broker_of_new_job_1(
 
 
 @celery.task(
-    autoretry_for=(HTTPError, ),
+    autoretry_for=(RequestException, ),
     retry_backoff=True,
     retry_kwargs={'max_retries': 15}
 )
@@ -466,7 +466,7 @@ def _notify_broker_kill_single_runner_1(
 
 
 @celery.task(
-    autoretry_for=(HTTPError, ),
+    autoretry_for=(RequestException, ),
     retry_backoff=True,
     retry_kwargs={'max_retries': 15}
 )
@@ -559,7 +559,11 @@ def _kill_runners_and_adjust_1(
     _adjust_amount_runners_1(run_id)
 
 
-@celery.task
+@celery.task(
+    autoretry_for=(RequestException, ),
+    retry_backoff=True,
+    retry_kwargs={'max_retries': 15}
+)
 def _update_latest_results_in_broker_1(auto_test_run_id: int) -> None:
     m = p.models  # pylint: disable=invalid-name
 
@@ -783,7 +787,9 @@ def _send_delayed_notification_emails(
 
     now = DatetimeWithTimezone.utcnow()
     for notification in notifications:
-        with cg_logger.bound_to_logger(notification=notification.__structlog__()):
+        with cg_logger.bound_to_logger(
+            notification=notification.__structlog__()
+        ):
             if not should_send(notification, digest_type):
                 logger.info('Should not send notification')
                 continue
@@ -811,9 +817,11 @@ def _send_delayed_notification_emails(
 def _send_daily_notifications() -> None:
     _send_delayed_notification_emails(p.models.EmailNotificationTypes.daily)
 
+
 @celery.task
 def _send_weekly_notifications() -> None:
     _send_delayed_notification_emails(p.models.EmailNotificationTypes.weekly)
+
 
 passback_grades = _passback_grades_1.delay  # pylint: disable=invalid-name
 lint_instances = _lint_instances_1.delay  # pylint: disable=invalid-name
