@@ -194,7 +194,7 @@ The RIT & RIR values
 
 The **RIT** and **RIR** values of a rubric category are the correlation
 coefficients between the score achieved in one rubric category category versus
-how well they did overall in the rubric. They are a number between -1 and
+how well they did in the overall rubric. Their value is a number between -1 and
 1 measuring how well the score in a rubric category predicts the score in the
 overall rubric.
 
