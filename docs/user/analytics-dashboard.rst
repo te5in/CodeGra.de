@@ -176,6 +176,8 @@ scored on the rubric of this assignment:
   in the graph represents a single student. :ref:`More details
   <analytics-dashboard-correlation-diagrams>`.
 
+.. _analytics-dashboard-reduced-rubric-score:
+
 Reduced rubric score
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -194,7 +196,7 @@ The **RIT** and **RIR** values of a rubric category are the correlation
 coefficients between the score achieved in one rubric category category versus
 how well they did overall in the rubric. They are a number between -1 and
 1 measuring how well the score in a rubric category predicts the score in the
-  overall rubric.
+overall rubric.
 
 Positive values indicate that students who scored higher in a rubric category
 also scored higher in the entire rubric, while negative values indicate the
@@ -215,6 +217,8 @@ using the reduced rubric score instead of the total rubric score. Subtracting
 the total score from the item score first, and only then calculating the
 correlation between the two removes this bias. The RIR value is often a fairer
 representation of the quality of a rubric category.
+
+.. _analytics-dashboard-correlation-diagrams:
 
 Correlation diagrams
 ~~~~~~~~~~~~~~~~~~~~
