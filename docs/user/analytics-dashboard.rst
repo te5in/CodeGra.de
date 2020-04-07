@@ -11,8 +11,6 @@ parallel in intuitive graphs. There are graphs for when and how many times
 students submitted their work, the distribution of grades, and, if the
 assignment has a rubric, statistics about the rubric's categories.
 
-.. _analytics-dashboard-general-statistics:
-
 General statistics
 ------------------
 
@@ -101,7 +99,8 @@ With the exception of the **Latest** option, the submissions are split into
 several disjoint subsets.
 
 - **Latest**: creates two sets of submissions. One will only contain the latest
-  submission by each student, while the other has all submissions per student.
+  submission by each student, while the other has all submissions per student,
+  including their latest submission.
 - **Grade**: creates two disjoint subsets. One will contain only those
   submissions with a grade strictly lower than the entered value. The other
   will contain the rest of the submissions.
