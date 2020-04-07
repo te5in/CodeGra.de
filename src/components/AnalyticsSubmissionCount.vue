@@ -93,15 +93,18 @@ export default {
                 source.submissionsPerStudent,
             );
 
-            const max = stat.max(subsPerStudent.map(s =>
-                stat.max(Object.keys(s).map(Number)),
-            ));
+            const max = stat.max(subsPerStudent.map(s => {
+                const keys = Object.keys(s).map(Number);
+                return keys.length === 0 ? 0 : stat.max(keys);
+            }));
             const labels = this.$utils.range(1, max + 1);
 
             const datasets = subsPerStudent.map((data, i) => {
                 const absData = labels.map(nSubs => data[nSubs]);
                 const nStudents = stat.sum(Object.values(data));
-                const relData = absData.map(x => (100 * x) / nStudents);
+                const relData = absData.map(x =>
+                    (x === 0 ? 0 : (100 * x) / nStudents),
+                );
 
                 return {
                     label: this.filterLabels[i],
