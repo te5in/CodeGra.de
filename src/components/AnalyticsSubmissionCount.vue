@@ -20,6 +20,10 @@
                 <p class="mb-2">
                     This histogram shows the amount of times students submitted
                     their work.
+                    <!-- TODO: Remove this when we implement customisable
+                        workspaces. -->
+                    (Uncheck "only show latest submissions" in the filter for
+                    useful results)
                 </p>
 
                 <p>

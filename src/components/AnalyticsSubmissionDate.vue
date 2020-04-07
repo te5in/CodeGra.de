@@ -52,9 +52,9 @@
                                  placement="bottom"
                                  :scale="1">
                 <p class="mb-2">
-                    This histogram shows at what times students have submitted
-                    their work.  You can change the range of dates that is
-                    displayed and the bin size of the histogram.
+                    This histogram shows at what times students submitted their
+                    work. You can change the range of dates that is displayed
+                    and the bin size of the histogram.
                 </p>
 
                 <p>

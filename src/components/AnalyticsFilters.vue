@@ -27,9 +27,9 @@
                        title="Share filters">
                 <p class="mb-2 text-justify">
                     <small>
-                        Anyone with this URL and permissions to view this
-                        assignment's analytics dashboard will get the
-                        current view.
+                        Anyone with this URL and permission to view this
+                        assignment's analytics dashboard will get the current
+                        view.
                     </small>
                 </p>
 
