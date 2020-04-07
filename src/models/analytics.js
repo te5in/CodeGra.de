@@ -8,6 +8,18 @@ import { hasAttr, getProps, deepEquals, mapObject, filterObject, readableFormatD
 import { makeCache } from '@/utils/cache';
 import { defaultdict } from '@/utils/defaultdict';
 
+function averages(xs) {
+    if (xs.length < 1) {
+        return null;
+    }
+    return {
+        mean: stat.mean(xs),
+        median: stat.median(xs),
+        mode: stat.mode(xs),
+        stdev: xs.length < 2 ? 0 : stat.sampleStandardDeviation(xs),
+    };
+}
+
 export class DataSource {
     static sourceName = '__base_data_source';
 
@@ -277,17 +289,7 @@ export class InlineFeedbackSource extends DataSource {
     get entryStats() {
         return this._cache.get('entryStats', () => {
             const allEntries = Object.values(this.data);
-
-            if (allEntries.length === 0) {
-                return null;
-            }
-
-            return {
-                mean: stat.mean(allEntries),
-                median: stat.median(allEntries),
-                mode: stat.mode(allEntries),
-                stdev: allEntries.length < 2 ? 0 : stat.sampleStandardDeviation(allEntries),
-            };
+            return averages(allEntries);
         });
     }
 }
@@ -558,18 +560,10 @@ class WorkspaceSubmissionSet {
 
     get gradeStats() {
         return this._cache.get('gradeStats', () => {
-            if (this.submissionCount === 0) {
-                return null;
-            }
             const grades = this.allSubmissions
                 .map(sub => sub.grade)
                 .filter(grade => grade != null);
-            return {
-                mean: stat.mean(grades),
-                median: stat.median(grades),
-                mode: stat.mode(grades),
-                stdev: grades.length < 2 ? 0 : stat.sampleStandardDeviation(grades),
-            };
+            return averages(grades);
         });
     }
 
@@ -578,17 +572,7 @@ class WorkspaceSubmissionSet {
             const subsPerStudent = Object.values(this.submissions)
                 .filter(s => s.length > 0)
                 .map(s => s.length);
-
-            if (subsPerStudent.length === 0) {
-                return null;
-            }
-
-            return {
-                mean: stat.mean(subsPerStudent),
-                median: stat.median(subsPerStudent),
-                mode: stat.mode(subsPerStudent),
-                stdev: subsPerStudent.length < 2 ? 0 : stat.sampleStandardDeviation(subsPerStudent),
-            };
+            return averages(subsPerStudent);
         });
     }
 

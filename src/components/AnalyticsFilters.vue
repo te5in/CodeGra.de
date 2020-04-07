@@ -505,7 +505,7 @@ export default {
         },
 
         assignmentMaxGrade() {
-            return this.assignment.maxGrade || 10;
+            return this.assignment.maxGrade;
         },
 
         firstSubmissionDate() {
@@ -664,8 +664,7 @@ export default {
                 minGrade = 0;
             }
             if (maxGrade == null) {
-                const assigMax = this.assignment.maxGrade;
-                maxGrade = assigMax == null ? 10 : assigMax;
+                maxGrade = this.assignment.maxGrade;
             }
             return (minGrade + maxGrade) / 2;
         },

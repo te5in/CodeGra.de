@@ -215,7 +215,8 @@ export default {
         },
 
         hasRubricSource() {
-            return this.assignment.rubric != null &&
+            return this.assignment.rubric &&
+                this.assignment.rubric.rows &&
                 this.baseWorkspace &&
                 this.baseWorkspace.hasSource('rubric_data');
         },
