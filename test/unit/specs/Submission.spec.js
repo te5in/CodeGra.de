@@ -63,8 +63,8 @@ describe('Submission.vue', () => {
     beforeEach(async () => {
         feedback = {
             general: {},
-            authors: {},
-            user: {},
+            authors: [],
+            user: [],
             linter: {},
         };
         tree1 = {
@@ -322,7 +322,7 @@ describe('Submission.vue', () => {
                 });
                 setFeedback({
                     general: 'abc',
-                    user: {},
+                    user: [],
                 });
                 await wait();
 
@@ -330,11 +330,16 @@ describe('Submission.vue', () => {
 
                 setFeedback({
                     general: '',
-                    user: {
-                        1: {
-                            4: 'abc',
-                        },
-                    },
+                    user: [{
+                        file: 1,
+                        line: 1,
+                        id: 4,
+                        replies: [{
+                            comment: 'abc',
+                            id: 4,
+                            reply_type: 'plain_text',
+                        }],
+                    }],
                 })
                 await wait();
 
@@ -368,7 +373,7 @@ describe('Submission.vue', () => {
                 });
                 setFeedback({
                     general: '',
-                    user: {},
+                    user: [],
                     linter: {},
                 });
 

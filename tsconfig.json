@@ -15,6 +15,10 @@
     "sourceMap": true,
     "emitDecoratorMetadata": true,
     "baseUrl": ".",
+    "esModuleInterop": true,
+    "plugins": [
+      { "transform": "ts-transformer-keys/transformer" }
+    ],
     "paths": {
       "@/*": [
         "src/*"

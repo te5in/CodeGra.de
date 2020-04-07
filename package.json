@@ -54,7 +54,6 @@
     "text-encoding-shim": "^1.0.0",
     "ts-loader": "^6.2.1",
     "ts-transformer-keys": "^0.4.1",
-    "typescript": "^3.8.3",
     "typescript-eslint-parser": "^22.0.0",
     "uglifyjs-webpack-plugin": "^2.2.0",
     "url-search-params": "^0.10.0",
@@ -90,11 +89,13 @@
     "@babel/plugin-transform-runtime": "^7.9.0",
     "@babel/preset-env": "^7.9.0",
     "@cypress/code-coverage": "^1.10.4",
+    "@types/jest": "^25.2.1",
     "@vue/test-utils": "^1.0.0-beta.31",
     "array-to-sentence": "^1.1.0",
     "autoprefixer": "^7.2.5",
+    "babel-core": "^7.0.0-bridge.0",
     "babel-eslint": "^7.1.1",
-    "babel-jest": "^23.6.0",
+    "babel-jest": "^25.2.6",
     "babel-loader": "^8.1.0",
     "babel-plugin-check-es2015-constants": "^6.22.0",
     "babel-plugin-istanbul": "^4.1.6",
@@ -129,7 +130,7 @@
     "http-proxy-middleware": "^0.17.3",
     "ignore-loader": "^0.1.2",
     "inject-loader": "^4.0.1",
-    "jest": "^23.6.0",
+    "jest": "^25.2.7",
     "jest-extended": "^0.11.2",
     "karma": "^1.4.1",
     "karma-coverage": "^1.1.1",
@@ -157,6 +158,9 @@
     "shelljs": "^0.7.6",
     "sinon": "^2.1.0",
     "sinon-chai": "^2.8.0",
+    "ts-jest": "^25.3.1",
+    "ttypescript": "^1.5.10",
+    "typescript": "^3.8.3",
     "url-loader": "^0.5.8",
     "vti": "0.0.3",
     "vue-jest": "^3.0.5",
@@ -172,20 +176,31 @@
     "webpack-merge": "^4.1.0"
   },
   "jest": {
-    "setupTestFrameworkScriptFile": "jest-extended",
+    "setupFilesAfterEnv": [
+      "jest-extended"
+    ],
     "moduleFileExtensions": [
+      "ts",
+      "tsx",
       "js",
       "vue"
     ],
+    "preset": "ts-jest/presets/js-with-babel",
     "transform": {
       ".*\\.js$": "babel-jest",
       ".*\\.vue$": "vue-jest"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!vue-awesome|vue-multiselect|vue-resize-split-pane)"
+      "node_modules/(?!vue-awesome|vue-multiselect|vue-resize-split-pane).+\\.js$"
     ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"
+    },
+    "globals": {
+      "ts-jest": {
+        "compiler": "ttypescript",
+        "tsConfig": "./tsconfig.json"
+      }
     },
     "setupFiles": [
       "<rootDir>/test/unit/setup.js"

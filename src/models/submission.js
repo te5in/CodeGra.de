@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { store } from '@/store';
 import { cmpNoCase, formatGrade, snakeToCamelCase, readableFormatDate } from '@/utils';
 import { NONEXISTENT } from '@/constants';
 import moment from 'moment';
-import { store } from '@/store';
 import * as mutationTypes from '@/store/mutation-types';
 
 const REVISIONS = ['student', 'teacher'];

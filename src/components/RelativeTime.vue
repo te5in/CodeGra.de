@@ -1,6 +1,6 @@
 <script lang="ts">
     import Vue from 'vue';
-import * as moment from 'moment';
+import moment from 'moment';
 
 import { readableFormatDate } from '@/utils';
 

@@ -36,13 +36,17 @@ describe('PlagiarismRunner.vue', () => {
         providers = [
             {
                 name: 'testProvider',
-                options: [{ name: 'a', title: 'b' }],
+                options: [
+                    { name: 'a', title: 'b' },
+                ],
                 base_code: true,
                 progress: false,
             },
             {
                 name: 'testProvider2',
-                options: [{ name: 'a', title: 'c' }],
+                options: [
+                    { name: 'a', title: 'c' },
+                ],
                 base_code: true,
                 progress: false,
             },

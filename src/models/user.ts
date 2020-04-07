@@ -1,5 +1,5 @@
 import axios from 'axios';
-import * as moment from 'moment';
+import moment from 'moment';
 // @ts-ignore
 import { nameOfUser, getNoNull, formatDate } from '@/utils';
 
@@ -189,10 +189,10 @@ export class GroupUser extends User implements GroupUserServerData {
 }
 
 export function makeUser(data: UserServerData, oldObject: any = null): AnyUser {
-    if (data.group) {
-        return new GroupUser(data, oldObject);
+    if (data.group == null) {
+        return new NormalUser(data, oldObject);
     }
-    return new NormalUser(data, oldObject);
+    return new GroupUser(data, oldObject);
 }
 
 export type AnyUser = NormalUser | GroupUser;
