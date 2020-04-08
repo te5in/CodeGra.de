@@ -9778,6 +9778,7 @@
             "babel-generator": "6.26.1",
             "babel-helpers": "6.24.1",
             "babel-messages": "6.23.0",
+            "babel-register": "6.26.0",
             "babel-runtime": "6.26.0",
             "babel-template": "6.26.0",
             "babel-traverse": "6.26.0",
@@ -9794,6 +9795,27 @@
             "source-map": "0.5.7"
           },
           "dependencies": {
+            "babel-register": {
+              "version": "6.26.0",
+              "resolved": "https://registry.npmjs.org/babel-register/-/babel-register-6.26.0.tgz",
+              "integrity": "sha1-btAhFz4vy0htestFxgCahW9kcHE=",
+              "requires": {
+                "babel-core": "6.26.3",
+                "babel-runtime": "6.26.0",
+                "core-js": "2.6.11",
+                "home-or-tmp": "2.0.0",
+                "lodash": "4.17.4",
+                "mkdirp": "0.5.1",
+                "source-map-support": "0.4.15"
+              },
+              "dependencies": {
+                "core-js": {
+                  "version": "2.6.11",
+                  "resolved": "https://registry.npmjs.org/core-js/-/core-js-2.6.11.tgz",
+                  "integrity": "sha512-5wjnpaT/3dV+XB4borEsnAYQchn00XSgTAWKDkEqv+K8KevjbzmofK6hfJ9TZIlpj2N0xQpazy7PiRQiWHqzWg=="
+                }
+              }
+            },
             "babel-runtime": {
               "version": "6.26.0",
               "resolved": "https://registry.npmjs.org/babel-runtime/-/babel-runtime-6.26.0.tgz",
