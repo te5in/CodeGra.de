@@ -39,10 +39,15 @@ class PsefFlask(Flask):
         super().__init__(name)
         self.config.update(t.cast(t.Any, config))
         dict_to_load = {}
-        noti_template = self.config['DIRECT_NOTIFICATION_TEMPLATE_FILE']
-        if noti_template:
-            with open(noti_template, 'r') as f:
-                dict_to_load['notification.j2'] = f.read()
+
+        for key, t_name in [
+            ('DIRECT_NOTIFICATION_TEMPLATE_FILE', 'notification.j2'),
+            ('DIGEST_NOTIFICATION_TEMPLATE_FILE', 'digest.j2')
+        ]:  # pragma: no cover
+            template = self.config.get(key)
+            if template:
+                with open(str(template), 'r') as f:
+                    dict_to_load['notification.j2'] = f.read()
 
         self.jinja_mail_env = jinja2.Environment(
             autoescape=True,

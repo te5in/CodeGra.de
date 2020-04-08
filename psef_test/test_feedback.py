@@ -16,7 +16,7 @@ only_own = create_marker(pytest.mark.only_own)
 
 
 @pytest.fixture
-def make_add_reply(session, test_client):
+def make_add_reply(session, test_client, error_template):
     def inner(work_id):
         code_id = session.query(m.File.id).filter(
             m.File.work_id == work_id,
@@ -24,7 +24,15 @@ def make_add_reply(session, test_client):
             m.File.name != '__init__',
         ).first()[0]
 
-        def add_reply(txt, line=0, include_response=False, include_base=False):
+        def add_reply(
+            txt,
+            line=0,
+            include_response=False,
+            include_base=False,
+            in_reply_to=None,
+            expect_error=False,
+        ):
+            in_reply_to_id = in_reply_to and get_id(in_reply_to)
             base = test_client.req(
                 'post',
                 '/api/v1/comments/',
@@ -42,12 +50,18 @@ def make_add_reply(session, test_client):
             res = test_client.req(
                 'post',
                 f'/api/v1/comments/{get_id(base)}/replies/',
-                200,
-                data={'comment': txt, 'reply_type': 'markdown'},
-                result={
+                expect_error or 200,
+                data={
+                    'comment': txt,
+                    'reply_type': 'markdown',
+                    'in_reply_to': in_reply_to_id,
+                },
+                result=error_template if expect_error else {
                     'id': int,
                     'reply_type': 'markdown',
                     'comment': txt,
+                    'in_reply_to_id': in_reply_to_id,
+                    'last_edit': None,
                     '__allow_extra__': True,
                 },
                 include_response=include_response,
@@ -66,45 +80,49 @@ def make_add_reply(session, test_client):
 
 @pytest.fixture(autouse=True)
 def mail_functions(
-    monkeypatch, monkeypatch_celery, stub_function_class, make_function_spy
+    monkeypatch, monkeypatch_celery, make_function_spy, stubmailer
 ):
-    send_mail = stub_function_class(lambda: None)
-    monkeypatch.setattr(psef.mail, '_send_mail', send_mail)
+
     direct = make_function_spy(psef.mail, 'send_direct_notification_email')
     digest = make_function_spy(psef.mail, 'send_digest_notification_email')
 
     def any_mails():
         if direct.called:
-            print('Direct emails send', direct.all_args, send_mail.all_args)
+            print('Direct emails send', direct.all_args, stubmailer.args)
             return True
         elif digest.called:
-            print('Digest emails send', digest.all_args, send_mail.all_args)
+            print('Digest emails send', digest.all_args, stubmailer.args)
             return True
         return False
 
     def assert_mailed(user, amount=1):
         if amount > 0:
-            assert any_mails() and send_mail.called, 'Nobody was mailed'
+            assert any_mails() and len(stubmailer.args
+                                       ) > 0, ('Nobody was mailed')
 
         user_id = helpers.get_id(user)
         user = m.User.query.get(user_id)
         assert user is not None, f'Given user {user_id} was not found'
         msgs = []
 
-        for args in send_mail.all_args:
-            recipients = args.get(2, args.get('recipients'))
+        for arg, in stubmailer.args:
+            message = arg._message()
+            recipients = message['To'].split(', ')
             assert recipients, 'A mail was send to nobody'
             for recipient in recipients:
-                if isinstance(recipient, tuple):
-                    recipient = recipient[1]
-                if recipient == user.email:
+                print(recipient)
+                if '<{}>'.format(user.email) in recipient:
                     msgs.append(
                         dotdict(
-                            msg=args.get(0, args.get('html_body')),
-                            subject=args.get(0, args.get('subject')),
-                            message_id=args.get('message_id'),
-                            in_reply_to=args.get('in_reply_to'),
-                            references=args.get('references'),
+                            orig=message,
+                            msg=arg.html,
+                            subject=message['Subject'],
+                            message_id=message['Message-ID'],
+                            in_reply_to=message['In-Reply-To'],
+                            references=(
+                                message['References'] and
+                                message['References'].split(' ')
+                            ),
                         )
                     )
                     amount -= 1
@@ -113,7 +131,7 @@ def mail_functions(
         return msgs
 
     yield dotdict(
-        send_mail=send_mail,
+        send_mail=stubmailer,
         direct=direct,
         digest=digest,
         any_mails=any_mails,
@@ -805,7 +823,7 @@ def test_get_assignment_all_feedback(
             data={'name': 'Flake8', 'cfg': ''}
         )
 
-    def match_res(res):
+    def match_res(res, only_own_subs=only_own_subs):
         general = 'Niet zo goed'
         user = ['test.py:1:1: for line 0', 'test.py:2:1: for line - 1']
         assert len(res) == 1 if only_own_subs else 3
@@ -864,6 +882,22 @@ def test_get_assignment_all_feedback(
 
         if not perm_err:
             match_res(res)
+
+    with logged_in(
+        helpers.create_user_with_perms(
+            session, [CPerm.can_see_others_work], assig.course
+        )
+    ):
+        res = test_client.req(
+            'get',
+            f'/api/v1/assignments/{assig_id}/feedbacks/',
+            200,
+            result=dict,
+        )
+
+        if not perm_err:
+
+            match_res(res, only_own_subs=False)
 
 
 def test_reply(
@@ -1050,3 +1084,132 @@ def test_delete_feedback(
                 f'replies/{reply["id"]}'
             ), 404
         )
+
+
+def test_edit_feedback(
+    logged_in, test_client, session, admin_user, mail_functions, describe,
+    tomorrow, make_add_reply
+):
+    with describe('setup'), logged_in(admin_user):
+        assignment = helpers.create_assignment(
+            test_client, state='open', deadline=tomorrow
+        )
+        course = assignment['course']
+        teacher = admin_user
+        student = helpers.create_user_with_role(session, 'Student', course)
+        ta = helpers.create_user_with_role(session, 'TA', course)
+
+        work_id = helpers.get_id(
+            helpers.create_submission(
+                test_client, assignment, for_user=student
+            )
+        )
+
+        add_reply = make_add_reply(work_id)
+        feedback_url = f'/api/v1/submissions/{work_id}/feedbacks/?with_replies'
+        with logged_in(student):
+            reply = add_reply('a reply')
+        reply_url = (
+            f'/api/v1/comments/{reply["comment_base_id"]}/'
+            f'replies/{reply["id"]}'
+        )
+
+    with describe('teachers and own user can edit reply'):
+        with logged_in(student):
+            test_client.req(
+                'patch', reply_url, 200, data={'comment': 'updated1'}
+            )
+        with logged_in(teacher):
+            test_client.req(
+                'patch', reply_url, 200, data={'comment': 'updated2'}
+            )
+        with logged_in(ta):
+            test_client.req(
+                'patch', reply_url, 403, data={'comment': 'updated3'}
+            )
+
+        with logged_in(teacher):
+            test_client.req(
+                'get',
+                feedback_url,
+                200,
+                result={
+                    'general': '', 'linter': {}, 'authors': [student],
+                    'user': [{
+                        '__allow_extra__': True,
+                        'replies': [{
+                            'id': reply['id'],
+                            'comment': 'updated2',
+                            'last_edit': str,
+                            '__allow_extra__': True,
+                        }],
+                    }]
+                },
+            )
+
+    with describe('Students can only see own edits'):
+        with logged_in(teacher):
+            other_reply = add_reply('A reply jooo')
+            other_reply_url = (
+                f'/api/v1/comments/{other_reply["comment_base_id"]}/'
+                f'replies/{other_reply["id"]}'
+            )
+
+        with logged_in(student):
+            edits = test_client.req(
+                'get',
+                reply_url + '/edits/',
+                200,
+                result=[
+                    {
+                        'id': int,
+                        'old_text': 'a reply',
+                        'new_text': 'updated1',
+                        'editor': student,
+                    },
+                    {
+                        'id': int,
+                        'old_text': 'updated1',
+                        'new_text': 'updated2',
+                        'editor': teacher,
+                    },
+                ]
+            )
+
+            test_client.req('get', other_reply_url + '/edits/', 403)
+
+    with describe('teachers can see others edits'), logged_in(teacher):
+        test_client.req('get', reply_url + '/edits/', 200, result=edits)
+        test_client.req('get', other_reply_url + '/edits/', 200, result=[])
+
+
+def test_reply_to_a_comment(
+    logged_in, test_client, session, admin_user, mail_functions, describe,
+    tomorrow, make_add_reply
+):
+    with describe('setup'), logged_in(admin_user):
+        assignment = helpers.create_assignment(
+            test_client, state='open', deadline=tomorrow
+        )
+        course = assignment['course']
+        teacher = admin_user
+        student = helpers.create_user_with_role(session, 'Student', course)
+        ta = helpers.create_user_with_role(session, 'TA', course)
+
+        work_id = helpers.get_id(
+            helpers.create_submission(
+                test_client, assignment, for_user=student
+            )
+        )
+
+        add_reply = make_add_reply(work_id)
+        feedback_url = f'/api/v1/submissions/{work_id}/feedbacks/?with_replies'
+        with logged_in(student):
+            reply = add_reply('a reply')
+
+    with describe('You set the in_reply_to of a comment'), logged_in(teacher):
+        add_reply('a reply to', in_reply_to=reply)
+
+    with describe('You cannot reply on a comment from a different line'
+                  ), logged_in(teacher):
+        add_reply('a reply to', line=10, in_reply_to=reply, expect_error=404)

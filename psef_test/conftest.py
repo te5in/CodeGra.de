@@ -769,6 +769,7 @@ def stubmailer(monkeypatch):
             self.called = 0
             self.args = []
             self.kwargs = []
+            DESCRIBE_HOOKS.append(self.reset)
 
         def send(self, msg):
             self.called += 1

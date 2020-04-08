@@ -21,7 +21,7 @@ from typing_extensions import Final, Literal
 import psef
 from psef import features
 from cg_dt_utils import DatetimeWithTimezone
-from psef.helpers import did_raise, readable_join
+from psef.helpers import readable_join
 from psef.exceptions import APICodes, APIException, PermissionException
 
 from . import helpers
@@ -105,7 +105,7 @@ class _PermissionCheckFunction(t.Generic[T_PERM_CHECKER]):
 class PermissionChecker(abc.ABC):
     __slots__ = ()
 
-    if t.TYPE_CHECKING:
+    if t.TYPE_CHECKING:  # pragma: no cover
 
         @property
         def course_id(self) -> int:
@@ -551,14 +551,6 @@ def ensure_can_see_general_feedback(
     user = _get_cur_user() if user is None else user
     course_id = work.assignment.course_id
 
-    if work.deleted:
-        raise PermissionException(
-            'The given work is deleted, so you may not see its feedback',
-            f'The work "{work.id}" was deleted',
-            APICodes.INCORRECT_PERMISSION,
-            403,
-        )
-
     # Don't check for any state if we simply have all required
     # permissions. This makes this function about twice as fast.
     if (
@@ -891,6 +883,8 @@ def ensure_can_edit_members_of_group(
 
 
 class FeedbackBasePermissions(PermissionChecker):
+    __slots__ = ('base', 'course_id')
+
     def __init__(self, base: 'psef.models.CommentBase'):
         super().__init__()
         self.base: Final = base
@@ -927,7 +921,7 @@ class FeedbackReplyPermissions(PermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see_edits(self) -> None:
-        self._ensure_enrolled()
+        self.ensure_may_see()
 
         if not self.is_own_reply:
             self._ensure(CPerm.can_view_others_comment_edits)
@@ -964,6 +958,7 @@ class FeedbackReplyPermissions(PermissionChecker):
             return
 
         if self.is_own_reply:
+            self._ensure_enrolled()
             return
 
         # This check is faster than the other one, and more common to fail, so
@@ -986,7 +981,12 @@ class NotificationPermissions(PermissionChecker):
 
     def _ensure_my_notification(self) -> None:
         if self.notification.receiver != self.user:
-            raise
+            raise PermissionException(
+                'The given notification does not belong to the current user', (
+                    f'The notification {self.notification.id} does not belong'
+                    f' to {self.user.id}'
+                ), APICodes.UNSUPPORTED, 403
+            )
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see(self) -> None:

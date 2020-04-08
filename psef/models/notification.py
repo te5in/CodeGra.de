@@ -100,14 +100,6 @@ class Notification(Base, IdMixin, TimestampMixin, NotEqualMixin):
             [(r, NOTIFCATION_REASON_EXPLANATION[r]) for r in self.reasons]
         )
 
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, Notification):
-            return self.id == other.id
-        return NotImplemented
-
-    def __hash__(self) -> int:
-        return hash(self.id)
-
     email_sent_at = db.Column(
         'email_sent_at',
         db.TIMESTAMP(timezone=True),

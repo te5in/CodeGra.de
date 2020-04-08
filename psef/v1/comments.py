@@ -40,7 +40,7 @@ def add_comment() -> ExtendedJSONResponse[CommentBase]:
 def add_reply(comment_base_id: int) -> ExtendedJSONResponse[CommentReply]:
     with helpers.get_from_request_transaction() as [get, opt_get]:
         reply_message = get('comment', str)
-        in_reply_to_id = opt_get('in_reply_to', int, None)
+        in_reply_to_id = opt_get('in_reply_to', (int, type(None)), None)
         reply_type = get('reply_type', models.CommentReplyType)
 
     base = helpers.get_or_404(
@@ -64,7 +64,9 @@ def add_reply(comment_base_id: int) -> ExtendedJSONResponse[CommentReply]:
     db.session.flush()
 
     warning_authors = set()
-    for author in set(r.author for r in base.user_visible_replies):
+    for author in set(
+        r.author for r in base.user_visible_replies if r.can_see_author
+    ):
         with as_current_user(author):
             if not FeedbackReplyPermissions(reply).ensure_may_see.as_bool():
                 warning_authors.add(author)
@@ -128,7 +130,9 @@ def get_reply_edits(comment_base_id: int, reply_id: int
     )
     FeedbackReplyPermissions(reply).ensure_may_see_edits()
 
-    return ExtendedJSONResponse.make(reply.edits.all())
+    return ExtendedJSONResponse.make(
+        reply.edits.all(), use_extended=CommentReplyEdit
+    )
 
 
 @api.route(

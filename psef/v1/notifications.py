@@ -34,7 +34,7 @@ def get_all_notifications() -> t.Union[ExtendedJSONResponse[NotificationsJSON],
         ~models.CommentReply.deleted,
         Notification.receiver == current_user,
     ).order_by(
-        Notification.read.desc(),
+        Notification.read.asc(),
         Notification.created_at.desc(),
     ).options(
         contains_eager(Notification.comment_reply),
@@ -119,14 +119,18 @@ def update_notifications() -> ExtendedJSONResponse[NotificationsJSON]:
         Notification.id,
         list(notifications_to_update.keys()),
         also_error=lambda n: n.deleted,
+        as_map=True,
     )
-    for found_notification in found_notifications:
+    result = []
+    for n_id, read in notifications_to_update.items():
+        found_notification = found_notifications[n_id]
         auth.NotificationPermissions(found_notification).ensure_may_edit()
         found_notification.read = read
+        result.append(found_notification)
 
     db.session.commit()
 
     return ExtendedJSONResponse.make(
-        {'notifications': found_notifications},
+        {'notifications': result},
         use_extended=(models.CommentReply, Notification)
     )

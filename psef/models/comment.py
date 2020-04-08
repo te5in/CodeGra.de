@@ -119,7 +119,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
 
     @property
     def message_id(self) -> str:
-        return 'message_reply_{id_hash}@{domain}'.format(
+        return '<message_reply_{id_hash}@{domain}>'.format(
             id_hash=self.id, domain=current_app.config['EXTERNAL_DOMAIN']
         )
 
@@ -131,11 +131,6 @@ class CommentReply(IdMixin, TimestampMixin, Base):
             base = self.in_reply_to.references
             base.append(self.in_reply_to)
             return base
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, CommentReply):  # pragma: no cover
-            return NotImplemented
-        return other.id == self.id
 
     def __init__(
         self,
@@ -200,9 +195,6 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         edit = CommentReplyEdit(self, current_user, is_deletion=True)
         self.deleted = True
         return edit
-
-    def __repr__(self) -> str:
-        return f'<CommentReply id={self.id} deleted={self.deleted}, user={self.author_id}>'
 
     def get_outdated_json(self) -> t.Mapping[str, object]:
         res = {
@@ -274,8 +266,16 @@ class CommentReplyEdit(IdMixin, TimestampMixin, Base):
             new_comment=new_comment_text,
             is_deletion=is_deletion,
             old_comment=comment_reply.comment,
-            editor_id=editor.id,
+            editor=user_models.User.resolve(editor),
         )
+
+    def __to_json__(self) -> t.Mapping[str, object]:
+        return {
+            'id': self.id,
+            'editor': self.editor,
+            'old_text': self.old_comment,
+            'new_text': self.new_comment,
+        }
 
     comment_reply_id = db.Column(
         'comment_reply_id',
@@ -296,6 +296,11 @@ class CommentReplyEdit(IdMixin, TimestampMixin, Base):
         db.Integer,
         db.ForeignKey('User.id', ondelete='CASCADE'),
         nullable=False,
+    )
+    editor = db.relationship(
+        lambda: user_models.User,
+        foreign_keys=editor_id,
+        innerjoin=True,
     )
 
     new_comment = db.Column('new_comment', db.Unicode, nullable=True)
@@ -359,12 +364,6 @@ class CommentBase(IdMixin, Base):
     def work(self) -> 'psef.models.Work':
         return self.file.work
 
-    @property
-    def message_id(self) -> str:
-        return 'message_base_{id_hash}@{domain}'.format(
-            id_hash=self.id, domain=current_app.config['EXTERNAL_DOMAIN']
-        )
-
     def add_reply(
         self,
         user: 'user_models.User',
@@ -397,19 +396,6 @@ class CommentBase(IdMixin, Base):
         if self is None:
             self = cls.create(file, line)
         return self
-
-    @classmethod
-    def create_and_add_reply(
-        cls,
-        file: 'file_models.File',
-        line: int,
-        user: 'user_models.User',
-        comment: str,
-        reply_type: CommentReplyType,
-    ) -> t.Tuple['CommentBase', CommentReply]:
-        self = cls.create(file, line)
-        reply = self.add_reply(user, comment, reply_type, None)
-        return self, reply
 
     @property
     def first_reply(self) -> t.Optional['CommentReply']:

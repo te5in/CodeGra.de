@@ -215,3 +215,144 @@ def test_send_mails(
             403,
             data={'reason': 'assignee', 'value': 'direct'}
         )
+
+
+def test_updating_notifications(
+    logged_in, test_client, session, admin_user, mail_functions, describe,
+    tomorrow, make_add_reply
+):
+    with describe('setup'), logged_in(admin_user):
+        assignment = helpers.create_assignment(
+            test_client, state='open', deadline=tomorrow
+        )
+        course = assignment['course']
+        teacher = admin_user
+        student = helpers.create_user_with_role(session, 'Student', course)
+
+        work_id = helpers.get_id(
+            helpers.create_submission(
+                test_client, assignment, for_user=student
+            )
+        )
+
+        add_reply = make_add_reply(work_id)
+        add_reply('base comment', include_response=True)
+
+        with logged_in(student):
+            r1 = add_reply('first reply')
+            r2 = add_reply('second reply')
+            r3 = add_reply('third reply')
+            r4 = add_reply('fourth reply')
+
+    with describe('Can get all notifications'), logged_in(teacher):
+        notis = test_client.req(
+            'get',
+            '/api/v1/notifications/?has_unread',
+            200,
+            result={'has_unread': True}
+        )
+        notis = test_client.req(
+            'get', '/api/v1/notifications/', 200, {
+                'notifications': [
+                    {
+                        'read': False,
+                        '__allow_extra__': True,
+                        'comment_reply': r4,
+                    },
+                    {
+                        'read': False,
+                        '__allow_extra__': True,
+                        'comment_reply': r3,
+                    },
+                    {
+                        'read': False,
+                        '__allow_extra__': True,
+                        'comment_reply': r2,
+                    },
+                    {
+                        'read': False,
+                        '__allow_extra__': True,
+                        'comment_reply': r1,
+                    },
+                ]
+            }
+        )['notifications']
+
+    with describe('Can update single notification'), logged_in(teacher):
+        noti = notis.pop(0)
+        noti = test_client.req(
+            'patch',
+            f'/api/v1/notifications/{get_id(noti)}',
+            200,
+            data={
+                'read': True,
+            }
+        )
+        notis.append(noti)
+        print(notis)
+        notis = test_client.req(
+            'get', '/api/v1/notifications/', 200, {'notifications': notis}
+        )['notifications']
+
+    with describe('Can update bulk notifications'), logged_in(teacher):
+        # Update the first two notifications (those sould now become the last
+        # two)
+        notis += test_client.req(
+            'patch',
+            f'/api/v1/notifications/',
+            200,
+            data={
+                'notifications': [{
+                    'id': n['id'],
+                    'read': True,
+                } for n in [notis.pop(0), notis.pop(0)]],
+            }
+        )['notifications']
+
+        notis = test_client.req(
+            'get', '/api/v1/notifications/', 200, {'notifications': notis}
+        )['notifications']
+
+    with describe('cannot update notifications for deleted replies'
+                  ), logged_in(teacher):
+        # Make sure the notification we are going to update is that of the
+        # deleted reply
+        assert notis[0]['comment_reply']['id'] == r1['id']
+        test_client.req(
+            'delete', (
+                f'/api/v1/comments/{r1["comment_base_id"]}/'
+                f'replies/{r1["id"]}'
+            ), 204
+        )
+        test_client.req(
+            'patch',
+            f'/api/v1/notifications/',
+            404,
+            data={
+                'notifications': [{'id': notis[0]['id'], 'read': True}],
+            }
+        )
+        test_client.req(
+            'patch',
+            f'/api/v1/notifications/{notis[0]["id"]}',
+            404,
+            data={'read': True}
+        )
+
+    with describe('Cannot update notifications of others'), logged_in(student):
+        # Make sure this not the notification of the deleted reply
+        assert notis[-1]['comment_reply']['id'] != r1['id']
+        test_client.req(
+            'patch',
+            f'/api/v1/notifications/',
+            403,
+            data={
+                'notifications': [{'id': notis[-1]['id'], 'read': True}],
+            }
+        )
+        test_client.req(
+            'patch',
+            f'/api/v1/notifications/{notis[-1]["id"]}',
+            403,
+            data={'read': True}
+        )

@@ -50,47 +50,34 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
     :raises PermissionException: If the user can not can grade work in the
                                  attached course. (INCORRECT_PERMISSION)
     """
-    comment_base = db.session.query(models.CommentBase).filter(
-        models.CommentBase.file_id == code_id,
-        models.CommentBase.line == line,
-    ).with_for_update().one_or_none()
-    if comment_base and comment_base.file.deleted:
-        comment_base = None
+    file = helpers.filter_single_or_404(
+        models.File,
+        models.File.id == code_id,
+        also_error=lambda f: f.deleted,
+        with_for_update=True,
+    )
 
     with helpers.get_from_request_transaction() as [get, _]:
         comment_text = get('comment', str).replace('\0', '')
 
-    if comment_base:
-        reply = comment_base.first_reply
-        if reply is not None:
-            auth.FeedbackReplyPermissions(reply).ensure_may_edit()
+    comment_base = models.CommentBase.create_if_not_exists(file, line)
+    if comment_base.id is None:
+        auth.FeedbackBasePermissions(comment_base).ensure_may_add(  # type: ignore[unreachable]
+        )
+        db.session.add(comment_base)
+    reply = comment_base.first_reply
 
-            db.session.add(reply.update(comment_text))
-        else:
-            reply = comment_base.add_reply(
-                current_user,
-                comment_text,
-                models.CommentReplyType.plain_text,
-                None,
-            )
-            auth.FeedbackReplyPermissions(reply).ensure_may_add()
+    if reply is not None:
+        auth.FeedbackReplyPermissions(reply).ensure_may_edit()
+        db.session.add(reply.update(comment_text))
     else:
-        file = helpers.filter_single_or_404(
-            models.File,
-            models.File.id == code_id,
-            also_error=lambda f: f.deleted,
-            with_for_update=True,
+        reply = comment_base.add_reply(
+            current_user,
+            comment_text,
+            models.CommentReplyType.plain_text,
+            None,
         )
-        base, reply = models.CommentBase.create_and_add_reply(
-            file=file,
-            user=current_user,
-            line=line,
-            comment=comment_text,
-            reply_type=models.CommentReplyType.plain_text,
-        )
-        auth.FeedbackBasePermissions(base).ensure_may_add()
         auth.FeedbackReplyPermissions(reply).ensure_may_add()
-        db.session.add(base)
 
     db.session.commit()
 

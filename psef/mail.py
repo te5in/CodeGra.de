@@ -11,6 +11,7 @@ import html2text
 import structlog
 from flask import current_app
 from flask_mail import Mail, Message
+from typing_extensions import Literal
 
 import psef
 import psef.models as models
@@ -51,8 +52,6 @@ def _send_mail(
 
         extra_headers = {}
 
-        if message_id is not None:
-            extra_headers['Message-ID'] = message_id
         if in_reply_to is not None:
             extra_headers['In-Reply-To'] = in_reply_to
         if references:
@@ -65,6 +64,8 @@ def _send_mail(
             recipients=recipients,
             extra_headers=extra_headers,
         )
+        if message_id is not None:
+            message.msgId = message_id
 
         mailer.send(message)
 
@@ -197,11 +198,17 @@ def send_reset_password_email(user: models.User) -> None:
 
 def send_digest_notification_email(
     notifications: t.List[models.Notification],
-    send_type: models.EmailNotificationTypes,
+    send_type: Literal[models.EmailNotificationTypes.daily, models.
+                       EmailNotificationTypes.weekly],
 ) -> None:
-    if not notifications:
-        return
+    """Send digest email for the given notifications.
 
+    :param notifictions: The notifications to send the digest email for. All
+        notifications should have the same receiver and the list should not be
+        empty.
+    :param send_type: What kind of digest email is this.
+    """
+    assert notifications
     receiver = notifications[0].receiver
     assert all(n.receiver == receiver for n in notifications)
 
@@ -241,7 +248,7 @@ def send_digest_notification_email(
     _send_mail(
         html_body,
         subject,
-        [receiver.email],
+        [(receiver.name, receiver.email)],
     )
 
 
@@ -285,7 +292,7 @@ def send_direct_notification_email(notification: models.Notification) -> None:
     _send_mail(
         html_body,
         subject,
-        [notification.receiver.email],
+        [(notification.receiver.name, notification.receiver.email)],
         message_id=comment.message_id,
         in_reply_to=in_reply_to_message_id,
         references=references,

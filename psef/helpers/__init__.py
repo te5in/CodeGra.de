@@ -1639,12 +1639,3 @@ def contains_duplicate(it_to_check: t.Iterator[T_Hashable]) -> bool:
         seen.add(item)
 
     return False
-
-
-def did_raise(fun: t.Callable[[], None], exc: t.Type[Exception]) -> bool:
-    try:
-        fun()
-    except exc:
-        return True
-    else:
-        return False
