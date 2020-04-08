@@ -75,12 +75,7 @@ context('Inline feedback', () => {
         const base = '.feedback-area .feedback-reply'
 
         getLine(line, viewer)
-            .find(`${base}:not(.editing) .feedback-reply-settings-toggle`)
-            .click();
-
-        getLine(line, viewer)
-            .find(`${base}:not(.editing) .header-line .dropdown`)
-            .contains('Edit')
+            .find(`${base}:not(.editing) .edit-buttons-wrapper .btn[name=edit-feedback]`)
             .click();
 
         return cy.get(`.file-viewer${viewer} li:nth-child(${line + 1}) ${base} .snippetable-input textarea:focus`);
@@ -104,7 +99,7 @@ context('Inline feedback', () => {
             .find(`${base}.editing .submit-button[name=submit-feedback]`)
             .submit('success', opts);
         getLine(line, viewer)
-            .find('.feedback-area.editing')
+            .find('.feedback-reply.editing')
             .should('not.exist');
     }
 
@@ -125,7 +120,7 @@ context('Inline feedback', () => {
             .find(`${base} .submit-button[name=submit-feedback]`)
             .submit('success', opts);
         getLine(line, viewer)
-            .find('.feedback-area.edit')
+            .find('.feedback-reply.editing')
             .should('not.exist');
     }
 
@@ -145,13 +140,13 @@ context('Inline feedback', () => {
             .should('be.visible');
 
         getLine(line, viewer)
-            .find(`.feedback-reply:not(.editing) .feedback-reply-settings-toggle`)
-            .click();
+            .find(`.feedback-reply:not(.editing) .edit-buttons-wrapper .btn[name=delete-feedback]`)
+            .submit('success', {
+                waitForState: false,
+                waitForDefault: false,
+                hasConfirm: true,
+            });
 
-        getLine(line, viewer)
-            .find(`.feedback-reply:not(.editing) .header-line .dropdown`)
-            .contains('Delete')
-            .submit('success', opts);
         getLine(line, viewer)
             .find('.feedback-reply')
             .should('not.exist');
@@ -211,16 +206,12 @@ context('Inline feedback', () => {
     }
 
     function deleteSingleFeedback(viewer) {
-        getSingleFeedbackArea('non-editing', viewer)
-            .find(`.feedback-reply-settings-toggle`)
-            .click();
-
-        getSingleFeedbackArea('non-editing', viewer)
-            .find(`.header-line .dropdown`)
-            .contains('Delete')
+        return getSingleFeedbackArea('non-editing', viewer)
+            .find(`.edit-buttons-wrapper .btn[name=delete-feedback]`)
             .submit('success', {
                 waitForState: false,
                 waitForDefault: false,
+                hasConfirm: true,
             });
     }
 
@@ -321,9 +312,19 @@ context('Inline feedback', () => {
         it('should be possible to give inline feedback', () => {
             giveInlineFeedback(0, inlineMsg, {});
             checkInlineFeedback(0, inlineMsg, true);
+            getLine(0)
+                .find('.info-text-wrapper sup')
+                .should('not.exist');
 
             editInlineFeedback(0, otherMsg, {});
             checkInlineFeedback(0, otherMsg, true);
+            getLine(0)
+                .find('.info-text-wrapper sup')
+                .scrollIntoView()
+                .should('be.visible')
+                .then($elem => {
+                    cy.wrap($elem.attr('title')).should('contain', 'Edited on');
+                });
         });
 
         it('should be possible to submit feedback on ctrl+enter', () => {
@@ -462,7 +463,6 @@ context('Inline feedback', () => {
             ImageViewer: {
                 filename: 'venn1.png',
                 outerViewer: '.image-viewer',
-                // checkButtonAfterScroll: true,
                 checkMessageInOverview: true,
             },
             IPythonMarkdownCell: {
@@ -478,7 +478,6 @@ context('Inline feedback', () => {
             MarkdownViewer: {
                 filename: 'README.md',
                 outerViewer: '.markdown-viewer',
-                checkButtonAfterScroll: true,
                 checkMessageInOverview: true,
             },
             PDFViewer: {

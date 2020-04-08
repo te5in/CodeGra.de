@@ -153,34 +153,25 @@
                     </span>
                 </span>
             </div>
-            <div>
-                <transition name="fade">
-                <b-dropdown toggle-class="feedback-reply-settings-toggle p-0 border-0 bg-transparent"
-                            v-if="editable"
-                            dropleft
-                            @hide="onDropDownHide">
-                    <template v-slot:button-content>
-                        <icon class="cursor-pointer" name="gear" :id="gearId"/>
-                    </template>
+            <div v-if="editable" class="d-flex mb-1 edit-buttons-wrapper">
+                <submit-button
+                    class="p-1 border-0"
+                    ref="deleteButton"
+                    variant="secondary"
+                    name="delete-feedback"
+                    :submit="deleteFeedback"
+                    confirm="Are you sure you want to delete this comment?"
+                    @error="inputDisabled = false"
+                    @success="onDeleteFeedback"
+                    @after-success="afterDeleteFeedback">
+                    <icon name="times" class="text-danger" />
+                </submit-button>
 
-                    <li>
-                        <submit-button
-                            class="dropdown-item rounded-0"
-                            ref="deleteButton"
-                            variant="secondary"
-                            :submit="deleteFeedback"
-                            @error="inputDisabled = false"
-                            @success="onDeleteFeedback"
-                            @after-success="afterDeleteFeedback"
-                            label="Delete" />
-                    </li>
-                    <b-dropdown-item
-                        href="#"
-                        @click="startEdit">
-                        Edit
-                    </b-dropdown-item>
-                </b-dropdown>
-                </transition>
+                <b-btn @click="startEdit"
+                       name="edit-feedback"
+                       class="p-1 border-0 m-0">
+                    <icon name="pencil"/>
+                </b-btn>
             </div>
         </div>
         <transition name="fade">
@@ -211,6 +202,8 @@ import 'vue-awesome/icons/reply';
 import 'vue-awesome/icons/gear';
 import 'vue-awesome/icons/user-circle-o';
 import 'vue-awesome/icons/book';
+import 'vue-awesome/icons/times';
+import 'vue-awesome/icons/pencil';
 
 import { mapActions, mapGetters } from 'vuex';
 
@@ -650,6 +643,16 @@ Do you want to overwrite it?`;
     }
 }
 
+.edit-buttons-wrapper .btn {
+    display: inline-block;
+
+    &:hover {
+        background-color: initial !important;
+    }
+    &:focus {
+        box-shadow: none;
+    }
+}
 </style>
 
 <style lang="less">
