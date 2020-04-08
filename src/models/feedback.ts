@@ -1,8 +1,12 @@
 import moment from 'moment';
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
+
+// @ts-ignore-next
+import DiffMatchPatch from 'diff-match-patch';
 
 // @ts-ignore
-import { setProps, coerceToString, getUniqueId } from '@/utils';
+import { setProps, coerceToString, getUniqueId, htmlEscape } from '@/utils';
+import { NEWLINE_CHAR } from '@/utils/diff';
 import { Assignment, Submission } from '@/models';
 
 import { CoursePermission as CPerm } from '@/permissions';
@@ -10,13 +14,19 @@ import { CoursePermission as CPerm } from '@/permissions';
 import { store } from '@/store';
 import { SubmitButtonResult } from '../interfaces';
 
-// @ts-ignore
-
 import { User, AnyUser, UserServerData, NormalUser } from './user';
 
 type ReplyTypes = 'plain_text' | 'markdown';
 
 /* eslint-disable camelcase */
+interface FeedbackReplyEditServerData {
+    id: number;
+    editor: UserServerData;
+    old_text: string;
+    new_text: string;
+    created_at: string;
+}
+
 export interface FeedbackReplyServerData {
     id: number;
     comment: string;
@@ -46,6 +56,60 @@ interface FeedbackServerData {
     authors: UserServerData[];
 }
 /* eslint-enable camelcase */
+
+export class FeedbackReplyEdit {
+    constructor(
+        public readonly id: number,
+        public readonly editorId: number,
+        public readonly oldText: string,
+        public readonly newText: string,
+        public readonly createdAt: moment.Moment,
+    ) {
+        Object.freeze(this);
+    }
+
+    static fromServerData(data: FeedbackReplyEditServerData) {
+        store.dispatch('users/addOrUpdateUser', { user: data.editor });
+        return new FeedbackReplyEdit(
+            data.id,
+            data.editor.id,
+            data.old_text,
+            data.new_text,
+            moment.utc(data.created_at, moment.ISO_8601),
+        );
+    }
+
+    get editor(): AnyUser | null {
+        return User.findUserById(this.editorId);
+    }
+
+    getDiffHtml(): string {
+        const dmp = new DiffMatchPatch();
+        const diff = dmp.diff_main(this.oldText, this.newText);
+        dmp.diff_cleanupSemantic(diff);
+
+        return diff
+            .map(([state, txt]: [-1 | 0 | 1, string]) => {
+                let cls: '' | 'removed' | 'added' = '';
+                if (state === -1) {
+                    cls = 'removed';
+                } else if (state === 1) {
+                    cls = 'added';
+                }
+
+                let innerTxt = txt;
+                if (cls) {
+                    const innerReplace = (match: string) =>
+                        match.replace(/\n/g, `${NEWLINE_CHAR}\n`);
+
+                    innerTxt = txt.replace(/^\n+/, innerReplace).replace(/\n+$/, innerReplace);
+                }
+
+                return `<span class="${cls}">${htmlEscape(innerTxt)}</span>`;
+            })
+            .join('');
+    }
+}
 
 // This should really be kept track of in the store, but that isn't really
 // possible for now without rewriting that entire store unfortunately.
@@ -99,6 +163,24 @@ export class FeedbackReply {
             moment.utc(serverData.created_at, moment.ISO_8601),
             feedbackLineId,
         );
+    }
+
+    async fetchEdits(): Promise<SubmitButtonResult<FeedbackReplyEdit[]>> {
+        const url = `/api/v1/comments/${this.feedbackLineId}/replies/${this.id}/edits/`;
+        const response: AxiosResponse<FeedbackReplyEditServerData[]> = await axios.get(url);
+
+        return {
+            ...response,
+            cgResult: response.data.map(d => FeedbackReplyEdit.fromServerData(d)),
+        };
+    }
+
+    canSeeEdits(assignment: Assignment): boolean {
+        const author = this.author;
+        if (author?.isEqualOrMemberOf(NormalUser.getCurrentUser())) {
+            return true;
+        }
+        return assignment.hasPermission(CPerm.canViewOthersCommentEdits);
     }
 
     canEdit(assignment: Assignment): boolean {

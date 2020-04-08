@@ -1,9 +1,11 @@
 import re
 
 import pytest
+from freezegun import freeze_time
 
 import psef
 import helpers
+import cg_dt_utils
 import psef.models as m
 from dotdict import dotdict
 from helpers import get_id, create_marker
@@ -1163,15 +1165,17 @@ def test_edit_feedback(
                 result=[
                     {
                         'id': int,
-                        'old_text': 'a reply',
-                        'new_text': 'updated1',
-                        'editor': student,
+                        'old_text': 'updated1',
+                        'created_at': str,
+                        'new_text': 'updated2',
+                        'editor': teacher,
                     },
                     {
                         'id': int,
-                        'old_text': 'updated1',
-                        'new_text': 'updated2',
-                        'editor': teacher,
+                        'old_text': 'a reply',
+                        'created_at': str,
+                        'new_text': 'updated1',
+                        'editor': student,
                     },
                 ]
             )
@@ -1181,6 +1185,22 @@ def test_edit_feedback(
     with describe('teachers can see others edits'), logged_in(teacher):
         test_client.req('get', reply_url + '/edits/', 200, result=edits)
         test_client.req('get', other_reply_url + '/edits/', 200, result=[])
+
+    with describe('last_edit should really be the last edit'
+                  ), logged_in(student):
+        last_edit = test_client.req('get', feedback_url,
+                                    200)['user'][0]['replies'][0]['last_edit']
+
+        now = cg_dt_utils.DatetimeWithTimezone.utcnow()
+        with freeze_time(now):
+            test_client.req(
+                'patch', reply_url, 200, data={'comment': 'updated4'}
+            )
+
+        new_last_edit = test_client.req('get', feedback_url, 200
+                                        )['user'][0]['replies'][0]['last_edit']
+        assert new_last_edit > last_edit
+        assert new_last_edit == now.isoformat()
 
 
 def test_reply_to_a_comment(

@@ -153,9 +153,22 @@
                     </span>
                 </span>
             </div>
-            <div v-if="editable" class="d-flex mb-1 edit-buttons-wrapper">
+            <div v-if="editable || canSeeEdits" class="d-flex mb-1 edit-buttons-wrapper">
+                <b-btn v-if="canSeeEdits && reply.lastEdit"
+                       :id="`${componentId}-history-btn`">
+                    <icon name="history" />
+                </b-btn>
+                <b-popover :target="`${componentId}-history-btn`"
+                           triggers="click"
+                           title="Edit history"
+                           custom-class="feedback-reply-edit-history-popover p-0"
+                           :container="componentId"
+                           placement="leftbottom">
+                    <feedback-reply-history :reply="reply"/>
+                </b-popover>
+
                 <submit-button
-                    class="p-1 border-0"
+                    v-if="editable"
                     ref="deleteButton"
                     variant="secondary"
                     name="delete-feedback"
@@ -168,8 +181,8 @@
                 </submit-button>
 
                 <b-btn @click="startEdit"
-                       name="edit-feedback"
-                       class="p-1 border-0 m-0">
+                       v-if="editable"
+                       name="edit-feedback">
                     <icon name="pencil"/>
                 </b-btn>
             </div>
@@ -204,6 +217,7 @@ import 'vue-awesome/icons/user-circle-o';
 import 'vue-awesome/icons/book';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/pencil';
+import 'vue-awesome/icons/history';
 
 import { mapActions, mapGetters } from 'vuex';
 
@@ -219,6 +233,8 @@ import SubmitButton from './SubmitButton';
 import InnerMarkdownViewer from './InnerMarkdownViewer';
 // @ts-ignore
 import SnippetableInput from './SnippetableInput';
+
+import FeedbackReplyHistory from './FeedbackReplyHistory';
 
 @Component({
     computed: {
@@ -238,6 +254,7 @@ import SnippetableInput from './SnippetableInput';
         SubmitButton,
         SnippetableInput,
         InnerMarkdownViewer,
+        FeedbackReplyHistory,
     },
 })
 
@@ -305,6 +322,10 @@ export default class FeedbackReply extends Vue {
 
     startEdit() {
         this.wasClicked = true;
+    }
+
+    get canSeeEdits(): boolean {
+        return this.reply.canSeeEdits(this.assignment);
     }
 
     get editable(): boolean {
@@ -645,21 +666,21 @@ Do you want to overwrite it?`;
 
 .edit-buttons-wrapper .btn {
     display: inline-block;
+    padding: 0.25rem;
+    border: none;
 
     &:hover {
         background-color: initial !important;
     }
-    &:focus {
-        box-shadow: none;
-    }
+    box-shadow: none !important;
 }
 </style>
 
 <style lang="less">
 @import '~mixins.less';
 
-.feedback-reply .user .group-user,
-.feedback-reply .user .name-user {
+.feedback-reply .info-text-wrapper .user .group-user,
+.feedback-reply .info-text-wrapper .user .name-user {
     font-weight: bold;
 }
 
@@ -696,7 +717,8 @@ Do you want to overwrite it?`;
     }
 }
 
-.feedback-reply-add-snippet-popover {
+.feedback-reply-edit-history-popover {
+    width: 70%;
     z-index: 10;
 }
 

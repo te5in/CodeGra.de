@@ -41,7 +41,7 @@
                     <router-link class="inline-link" :to="getFileLink(id)">here</router-link>
                     to see the entire file.
 
-                    <feedback-area v-if="disabledFileType(id).singleLine"
+                    <feedback-area v-if="disabledFileType(id).singleLine && showInlineFeedback"
                                    class="pt-2"
                                    :editable="false"
                                    :can-use-snippets="false"
@@ -64,7 +64,7 @@
                                        :assignment="assignment"
                                        :submission="submission"
                                        :code-lines="codeLines[id]"
-                                       :feedback="feedback.user[id] || null"
+                                       :feedback="showInlineFeedback ? (feedback.user[id] || {}) : {}"
                                        :linter-feedback="feedback.linter[id]"
                                        :editable="false"
                                        :file-id="id"
@@ -106,6 +106,10 @@ export default {
         canSeeFeedback: {
             type: Boolean,
             default: false,
+        },
+        showInlineFeedback: {
+            type: Boolean,
+            default: true,
         },
     },
 

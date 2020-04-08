@@ -90,7 +90,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         back_populates='comment_reply',
         uselist=True,
         lazy='dynamic',
-        order_by=lambda: CommentReplyEdit.created_at.asc(),
+        order_by=lambda: CommentReplyEdit.created_at.desc(),
     )
 
     reply_type = db.Column(
@@ -272,6 +272,7 @@ class CommentReplyEdit(IdMixin, TimestampMixin, Base):
     def __to_json__(self) -> t.Mapping[str, object]:
         return {
             'id': self.id,
+            'created_at': self.created_at.isoformat(),
             'editor': self.editor,
             'old_text': self.old_comment,
             'new_text': self.new_comment,

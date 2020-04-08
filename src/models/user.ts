@@ -36,7 +36,7 @@ export interface NormalUserServerData extends BaseUserServerData {
     group: null;
 }
 
-type UserServerData = NormalUserServerData | GroupUserServerData;
+export type UserServerData = NormalUserServerData | GroupUserServerData;
 
 export abstract class User implements BaseUserServerData {
     readonly id: number;
