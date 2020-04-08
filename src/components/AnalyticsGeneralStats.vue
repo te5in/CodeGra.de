@@ -47,7 +47,8 @@
         <description-popover v-if="large"
                              triggers="hover"
                              placement="top">
-            The average grade over the latest submissions.
+            The average grade over the latest submissions that have already
+            been graded.
 
             <table v-if="gradeStats != null"
                    class="table mt-2 mb-0">
