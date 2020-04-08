@@ -50,6 +50,9 @@ Vue.use(VueClipboard);
 Vue.config.productionTip = false;
 
 moment.relativeTimeThreshold('h', 48);
+moment.defineLocale('en-original', {
+    parentLocale: 'en',
+});
 moment.updateLocale('en', {
     relativeTime: {
         past(input) {

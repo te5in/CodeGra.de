@@ -79,7 +79,7 @@ context('Sidebar', () => {
             cy.get('.sidebar-top-item.sidebar-entry-user .name').text().should('eq', newName);
             openProfile();
 
-            cy.get('input[name=full-name]').clear().type(oldName);
+            cy.get('input[name=full-name]').focus().setText(oldName);
             getSubmit().submit('success');
             cy.get('.sidebar-top-item.sidebar-entry-user .name').text().should('eq', oldName);
         });
