@@ -4,11 +4,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import uuid
 import typing as t
+import functools
 from collections import defaultdict
 
 import structlog
 from flask import current_app
 from itsdangerous import BadSignature, URLSafeTimedSerializer
+from werkzeug.local import LocalProxy
 from sqlalchemy_utils import PasswordType
 from sqlalchemy.sql.expression import false
 from sqlalchemy.orm.collections import attribute_mapped_collection
@@ -31,6 +33,7 @@ if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
 logger = structlog.get_logger()
 
 
+@functools.total_ordering
 class User(NotEqualMixin, Base):
     """This class describes a user of the system.
 
@@ -60,6 +63,13 @@ class User(NotEqualMixin, Base):
     :ivar reset_email_on_lti: Determines if the email should be reset on the
         next LTI launch.
     """
+    @classmethod
+    def resolve(cls: t.Type['User'], possible_user: t.Union['User', LocalProxy]) -> 'User':
+        if isinstance(possible_user, LocalProxy):
+            possible_user = possible_user._get_current_object()
+        assert isinstance(possible_user, cls), 'Give object is not a User'
+        return possible_user
+
     if t.TYPE_CHECKING:  # pragma: no cover
         query: t.ClassVar[_MyQuery['User']] = Base.query
 
@@ -173,6 +183,9 @@ class User(NotEqualMixin, Base):
         if not isinstance(other, User):
             return NotImplemented
         return self.id == other.id
+
+    def __lt__(self, other: 'User') -> bool:
+        return self.username < other.username
 
     def __hash__(self) -> int:
         return hash(self.id)

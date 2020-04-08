@@ -102,6 +102,7 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
     'Please update comments by id and create them by POSTing to'
     ' /api/v1/comments/'
 )
+@auth.login_required
 def remove_comment(code_id: int, line: int) -> EmptyResponse:
     """Removes the given :class:`.models.CommentBase` in the given
     :class:`.models.File`
@@ -262,13 +263,13 @@ def get_feedback(file: models.File, linter: bool = False) -> _FeedbackMapping:
                 name = linter_comment.linter.tester.name
                 res[line].append((name, linter_comment))  # type: ignore
         else:
-            auth.ensure_can_see_user_feedback(file.work)
-
             for human_comment in db.session.query(
                 models.CommentBase,
             ).filter_by(file_id=file.id):
                 first_reply = human_comment.first_reply
-                if first_reply is not None:
+                if first_reply is not None and auth.FeedbackReplyPermissions(
+                    first_reply
+                ).ensure_may_see.as_bool():
                     line = str(human_comment.line)
                     res[line] = first_reply.get_outdated_json()
         return res

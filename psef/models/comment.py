@@ -9,6 +9,7 @@ from collections import defaultdict
 
 import sqlalchemy
 from sqlalchemy.orm import column_property
+from werkzeug.utils import invalidate_cached_property  # type: ignore
 from werkzeug.utils import cached_property
 from typing_extensions import Literal
 
@@ -23,7 +24,7 @@ from . import file as file_models
 from . import user as user_models
 from . import _MyQuery
 from . import notification as n_models
-from .. import current_app, current_user
+from .. import auth, current_app, current_user
 from ..permissions import CoursePermission
 
 
@@ -110,9 +111,11 @@ class CommentReply(IdMixin, TimestampMixin, Base):
 
     @property
     def can_see_author(self) -> bool:
-        return psef.auth.FeedbackReplyPermissions(
-            self
-        ).ensure_may_see_author.as_bool()
+        checker = psef.auth.FeedbackReplyPermissions(self)
+        return (
+            checker.ensure_may_see.as_bool() and
+            checker.ensure_may_see_author.as_bool()
+        )
 
     @property
     def message_id(self) -> str:
@@ -129,6 +132,11 @@ class CommentReply(IdMixin, TimestampMixin, Base):
             base.append(self.in_reply_to)
             return base
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, CommentReply):  # pragma: no cover
+            return NotImplemented
+        return other.id == self.id
+
     def __init__(
         self,
         author: 'user_models.User',
@@ -141,7 +149,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
 
         super().__init__(
             deleted=False,
-            author=author,
+            author=user_models.User.resolve(author),
             comment=comment,
             reply_type=reply_type,
             in_reply_to_id=None if in_reply_to is None else in_reply_to.id,
@@ -160,6 +168,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         for work_author in work.user.get_contained_users():
             user_reasons[work_author].add(n_models.NotificationReasons.author)
 
+        print('assignee', work.assignee)
         if work.assignee:
             for assignee in work.assignee.get_contained_users():
                 user_reasons[assignee].add(
@@ -193,7 +202,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         return edit
 
     def __repr__(self) -> str:
-        return f'<CommentReply id={self.id} deleted={self.deleted}>'
+        return f'<CommentReply id={self.id} deleted={self.deleted}, user={self.author_id}>'
 
     def get_outdated_json(self) -> t.Mapping[str, object]:
         res = {
@@ -228,6 +237,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         return {
             **self.__to_json__(),
             'author': author,
+            'comment_base_id': self.comment_base_id,
         }
 
 
@@ -369,6 +379,7 @@ class CommentBase(IdMixin, Base):
             in_reply_to=in_reply_to,
             comment_base=self,
         )
+        invalidate_cached_property(self, 'user_visible_replies')
         return reply
 
     @classmethod
@@ -402,17 +413,15 @@ class CommentBase(IdMixin, Base):
 
     @property
     def first_reply(self) -> t.Optional['CommentReply']:
-        return self.replies[0] if self.replies else None
+        reps = self.user_visible_replies
+        return reps[0] if reps else None
 
-    @property
-    def comment(self) -> t.Optional[str]:
-        fr = self.first_reply
-        return fr.comment if fr else None
-
-    @property
-    def user(self) -> t.Optional['user_models.User']:
-        fr = self.first_reply
-        return fr.author if fr else None
+    @cached_property
+    def user_visible_replies(self) -> t.Sequence[CommentReply]:
+        return [
+            r for r in self.replies
+            if auth.FeedbackReplyPermissions(r).ensure_may_see.as_bool()
+        ]
 
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
@@ -435,5 +444,5 @@ class CommentBase(IdMixin, Base):
             'id': self.id,
             'line': self.line,
             'file_id': str(self.file_id),
-            'replies': self.replies,
+            'replies': self.user_visible_replies,
         }

@@ -53,7 +53,7 @@ class FeedbackWithReplies(FeedbackBase, total=True):
 
 class FeedbackWithoutReplies(FeedbackBase, total=True):
     user: t.Dict[int, t.Dict[int, str]]
-    authors: t.Optional[t.Dict[int, t.Dict[int, models.User]]]
+    authors: t.Dict[int, t.Dict[int, models.User]]
 
 
 @api.route("/submissions/<int:submission_id>", methods=['GET'])
@@ -126,13 +126,13 @@ def get_feedback(work: models.Work) -> t.Mapping[str, str]:
         grade = str(work.grade or '')
 
     try:
-        auth.ensure_can_see_user_feedback(work)
+        auth.ensure_can_see_general_feedback(work)
     except PermissionException:
         general_comment = ''
-        comments = []
     else:
         general_comment = work.comment or ''
-        comments = work.get_user_feedback()
+
+    comments = work.get_user_feedback()
 
     try:
         auth.ensure_can_see_linter_feedback(work)
@@ -275,29 +275,21 @@ def _group_by_file_id(comms: t.List[TCom]
 
 def _get_feedback_without_replies(
     comments: t.List[models.CommentBase],
-    can_view_authors: bool,
-    can_view_feedback: bool,
     linter_comments: LinterComments,
 ) -> FeedbackWithoutReplies:
-    user = {}
-    if can_view_feedback:
-        user = {
-            file_id: {
-                c.line: c.first_reply.comment
-                for c in comms if c.first_reply is not None
-            }
-            for file_id, comms in _group_by_file_id(comments)
-        }
+    user: t.Dict[int, t.Dict[int, str]] = defaultdict(dict)
+    authors: t.Dict[int, t.Dict[int, models.User]] = defaultdict(dict)
 
-    authors = None
-    if can_view_feedback and can_view_authors:
-        authors = {
-            file_id: {
-                c.line: c.first_reply.author
-                for c in comms if c.first_reply is not None
-            }
-            for file_id, comms in _group_by_file_id(comments)
-        }
+    for file_id, comms in _group_by_file_id(comments):
+        for com in comms:
+            line = com.line
+            reply = com.first_reply
+            if reply is None:
+                continue
+
+            user[file_id][line] = reply.comment
+            if reply.can_see_author:
+                authors[file_id][line] = reply.author
 
     return {
         'general': '',
@@ -309,22 +301,19 @@ def _get_feedback_without_replies(
 
 def _get_feedback_with_replies(
     comments: t.List[models.CommentBase],
-    can_view_authors: bool,
-    can_view_feedback: bool,
     linter_comments: LinterComments,
 ) -> FeedbackWithReplies:
-    user = []
-    if can_view_feedback:
-        user = comments
-
-    authors = list(
-        set(r.author for c in comments for r in c.replies if r.can_see_author)
+    user_comments = [c for c in comments if c.user_visible_replies]
+    authors = sorted(
+        set(
+            r.author for c in user_comments for r in c.replies
+            if r.can_see_author
+        )
     )
-    print(authors)
 
     return {
         'general': '',
-        'user': user,
+        'user': user_comments,
         'authors': authors,
         'linter': linter_comments,
     }
@@ -352,14 +341,6 @@ def get_feedback_from_submission(
     """
     work = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
-    )
-    course_id = work.assignment.course_id
-    can_view_authors: Final = current_user.has_permission(
-        CPerm.can_see_assignee,
-        course_id,
-    )
-    can_view_feedback = not helpers.did_raise(
-        lambda: auth.ensure_can_see_user_feedback(work), PermissionException
     )
 
     try:
@@ -406,16 +387,14 @@ def get_feedback_from_submission(
         contains_eager(models.CommentBase.file),
     ).all()
 
-    fun: t.Callable[[t.List[models.CommentBase], bool, bool, LinterComments], t
-                    .Union[FeedbackWithoutReplies, FeedbackWithReplies]]
+    fun: t.Callable[[t.List[models.CommentBase], LinterComments], t.
+                    Union[FeedbackWithoutReplies, FeedbackWithReplies]]
     if helpers.request_arg_true('with_replies'):
         fun = _get_feedback_with_replies
     else:
         fun = _get_feedback_without_replies
 
-    return jsonify(
-        fun(comments, can_view_authors, can_view_feedback, linter_comments)
-    )
+    return jsonify(fun(comments, linter_comments))
 
 
 @api.route("/submissions/<int:submission_id>/rubrics/", methods=['GET'])

@@ -28,23 +28,27 @@ def _send_mail(
     subject: str,
     recipients: t.Optional[t.Sequence[t.Union[str, t.Tuple[str, str]]]],
     mailer: t.Optional[Mail] = None,
+    *,
     message_id: str = None,
     in_reply_to: str = None,
     references: t.List[str] = None,
 ) -> None:
+    text_maker = html2text.HTML2Text(bodywidth=78)
+    text_maker.inline_links = False
+    text_maker.wrap_links = False
+    text_body = text_maker.handle(html_body)
+
     logger.info(
         'Sending email',
         subject=subject,
-        html_body=html_body,
+        html_body=html_body[:200],
+        text_body=text_body,
         recipients=recipients,
     )
     if recipients:
         if mailer is None:
             mailer = mail
 
-        text_maker = html2text.HTML2Text(bodywidth=78)
-        text_maker.inline_links = False
-        text_maker.wrap_links = False
         extra_headers = {}
 
         if message_id is not None:
@@ -56,7 +60,7 @@ def _send_mail(
 
         message = Message(
             subject=subject,
-            body=text_maker.handle(html_body),
+            body=text_body,
             html=html_body,
             recipients=recipients,
             extra_headers=extra_headers,

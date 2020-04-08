@@ -278,6 +278,8 @@ def assert_similar():
         not_allowed_extra = set()
 
         for k, value in enumerate(tree) if is_list else tree.items():
+            if isinstance(value, LocalProxy):
+                value = value._get_current_object()
 
             if k == '__allow_extra__' and value:
                 allowed_extra = True
@@ -290,6 +292,9 @@ def assert_similar():
                     continue
             i += 1
             assert is_list or k in vals
+
+            if isinstance(value, psef.models.Base):
+                value = value.__to_json__()
 
             if isinstance(value, type):
                 assert isinstance(vals[k], value), (
@@ -310,8 +315,10 @@ def assert_similar():
                 )
             else:
                 assert vals[k] == value, (
-                    "Wrong value for key '{}', expected '{}', got '{}'"
-                ).format('.'.join(cur_path + [str(k)]), value, vals[k])
+                    "Wrong value for key '{}', expected '{} (type={})', got '{}'"
+                ).format(
+                    '.'.join(cur_path + [str(k)]), value, type(value), vals[k]
+                )
 
         if is_list:
             assert len(vals
@@ -598,6 +605,17 @@ def assignment(course_name, state_is_hidden, session, request, with_works):
 @pytest.fixture
 def filename(request):
     yield request.param
+
+
+@pytest.fixture
+def make_function_spy(monkeypatch, stub_function_class):
+    def make_spy(module, name):
+        orig = getattr(module, name)
+        spy = stub_function_class(orig, with_args=True)
+        monkeypatch.setattr(module, name, spy)
+        return spy
+
+    yield make_spy
 
 
 @pytest.fixture

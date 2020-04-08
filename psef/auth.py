@@ -102,13 +102,8 @@ class _PermissionCheckFunction(t.Generic[T_PERM_CHECKER]):
         return self.__class__._Inner(partial(self.__fn, instance))
 
 
-_T_PERMISSION_CHECKER = t.TypeVar(
-    '_T_PERMISSION_CHECKER', bound='PermissionChecker'
-)
-
-
 class PermissionChecker(abc.ABC):
-    __slots__ = ('_user', )
+    __slots__ = ()
 
     if t.TYPE_CHECKING:
 
@@ -116,18 +111,9 @@ class PermissionChecker(abc.ABC):
         def course_id(self) -> int:
             raise NotImplementedError
 
-    def __init__(self) -> None:
-        self._user: t.Optional['psef.models.User'] = None
-
-    def set_user(
-        self: _T_PERMISSION_CHECKER, user: 'psef.models.User'
-    ) -> _T_PERMISSION_CHECKER:
-        self._user = _resolve_user(user)
-        return self
-
     @property
     def user(self) -> 'psef.models.User':
-        return _get_cur_user() if self._user is None else self._user
+        return _get_cur_user()
 
     @staticmethod
     def as_ensure_function(fun: t.Callable[[T_PERM_CHECKER], None]
@@ -136,6 +122,9 @@ class PermissionChecker(abc.ABC):
 
     def _ensure_enrolled(self) -> None:
         ensure_enrolled(self.course_id, self.user)
+
+    def _has_permission(self, perm: CPerm) -> bool:
+        return self.user.has_permission(perm, self.course_id)
 
     def _ensure(self, perm: CPerm) -> None:
         ensure_permission(perm, self.course_id, user=self.user)
@@ -546,7 +535,7 @@ def ensure_can_see_grade(work: 'psef.models.Work') -> None:
         )
 
 
-def ensure_can_see_user_feedback(
+def ensure_can_see_general_feedback(
     work: 'psef.models.Work', user: t.Optional['psef.models.User'] = None
 ) -> None:
     """Ensure the current user can see the grade of the given work.
@@ -561,6 +550,14 @@ def ensure_can_see_user_feedback(
     """
     user = _get_cur_user() if user is None else user
     course_id = work.assignment.course_id
+
+    if work.deleted:
+        raise PermissionException(
+            'The given work is deleted, so you may not see its feedback',
+            f'The work "{work.id}" was deleted',
+            APICodes.INCORRECT_PERMISSION,
+            403,
+        )
 
     # Don't check for any state if we simply have all required
     # permissions. This makes this function about twice as fast.
@@ -948,6 +945,35 @@ class FeedbackReplyPermissions(PermissionChecker):
         if not self.reply.author.contains_user(psef.current_user):
             self._ensure(CPerm.can_view_feedback_author)
 
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        work = self.reply.comment_base.work
+        if work.deleted:
+            raise PermissionException(
+                'The given work is deleted, so you may not see its feedback',
+                f'The work "{work.id}" was deleted',
+                APICodes.INCORRECT_PERMISSION,
+                403,
+            )
+
+        # Don't check for any state if we simply have all required permissions.
+        if (
+            self._has_permission(CPerm.can_see_others_work) and
+            self._has_permission(CPerm.can_see_user_feedback_before_done)
+        ):
+            return
+
+        if self.is_own_reply:
+            return
+
+        # This check is faster than the other one, and more common to fail, so
+        # lets check this one first.
+        if not work.assignment.is_done:
+            self._ensure(CPerm.can_see_user_feedback_before_done)
+
+        if not work.has_as_author(self.user):
+            self._ensure(CPerm.can_see_others_work)
+
 
 class NotificationPermissions(PermissionChecker):
     __slots__ = ('notification', 'work', 'course_id')
@@ -964,10 +990,13 @@ class NotificationPermissions(PermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see(self) -> None:
-        ensure_can_see_user_feedback(self.work, user=self.user)
+        FeedbackReplyPermissions(
+            self.notification.comment_reply,
+        ).ensure_may_see()
 
     @PermissionChecker.as_ensure_function
     def ensure_may_edit(self) -> None:
+        self.ensure_may_see()
         self._ensure_my_notification()
 
 

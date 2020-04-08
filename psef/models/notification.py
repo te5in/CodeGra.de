@@ -131,7 +131,7 @@ class Notification(Base, IdMixin, TimestampMixin, NotEqualMixin):
         reasons: t.Sequence[NotificationReasons],
     ) -> None:
         super().__init__(
-            receiver=receiver,
+            receiver=u_models.User.resolve(receiver),
             comment_reply=comment_reply,
             email_sent_at=None,
             read=False,

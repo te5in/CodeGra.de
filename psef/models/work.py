@@ -572,7 +572,7 @@ class Work(Base):
             res['rubric_result'] = self.__rubric_to_json__()
 
         try:
-            auth.ensure_can_see_user_feedback(self)
+            auth.ensure_can_see_general_feedback(self)
         except PermissionException:
             pass
         else:
@@ -662,7 +662,6 @@ class Work(Base):
         :returns: An iterator producing human readable representations of the
             feedback given by a person.
         """
-        # TODO: Figure out replies
         comments = CommentBase.query.filter(
             CommentBase.file.has(work=self),
         ).order_by(
@@ -670,7 +669,10 @@ class Work(Base):
             CommentBase.line.asc(),
         )
         for com in comments:
-            yield f'{com.file.get_path()}:{com.line + 1}:1: {com.comment}'
+            path = com.file.get_path()
+            line = com.line + 1
+            for idx, reply in enumerate(com.user_visible_replies):
+                yield f'{path}:{line}:{idx + 1}: {reply.comment}'
 
     def get_linter_feedback(self) -> t.Iterable[str]:
         """Get all linter feedback for this work.

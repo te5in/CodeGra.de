@@ -5,8 +5,11 @@ from cg_flask_helpers import EmptyResponse
 
 from . import api
 from .. import models, helpers, current_user
-from ..auth import FeedbackBasePermissions, FeedbackReplyPermissions
+from ..auth import (
+    FeedbackBasePermissions, FeedbackReplyPermissions, as_current_user
+)
 from ..models import CommentBase, CommentReply, CommentReplyEdit, db
+from ..exceptions import APIWarnings
 from ..permissions import CoursePermission as CPerm
 
 
@@ -58,8 +61,32 @@ def add_reply(comment_base_id: int) -> ExtendedJSONResponse[CommentReply]:
     )
 
     FeedbackReplyPermissions(reply).ensure_may_add()
+    db.session.flush()
+
+    warning_authors = set()
+    for author in set(r.author for r in base.user_visible_replies):
+        with as_current_user(author):
+            if not FeedbackReplyPermissions(reply).ensure_may_see.as_bool():
+                warning_authors.add(author)
+
+    if warning_authors:
+        multiple = len(warning_authors) > 1
+        helpers.add_warning(
+            (
+                'The author{s} {authors} {do_not} have sufficient permissions'
+                ' to see this reply, the reply will probably only be visible'
+                ' when the assignment state is set to "done".'
+            ).format(
+                s='s' if multiple else '',
+                do_not="don't" if multiple else "doesn't",
+                authors=helpers.readable_join(
+                    [u.get_readable_name() for u in sorted(warning_authors)]
+                ),
+            ), APIWarnings.POSSIBLE_INVISIBLE_REPLY
+        )
 
     db.session.commit()
+
     return ExtendedJSONResponse.make(
         reply, use_extended=(CommentBase, CommentReply)
     )

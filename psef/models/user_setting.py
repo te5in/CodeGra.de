@@ -16,7 +16,9 @@ from cg_sqlalchemy_helpers.types import ColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import Base, User, db
-from ..auth import APICodes, PermissionException, NotificationPermissions
+from ..auth import (
+    APICodes, PermissionException, NotificationPermissions, as_current_user
+)
 from .notification import (
     NOTIFCATION_REASON_EXPLANATION, Notification, NotificationReasons,
     NotificationReasonEnum
@@ -82,7 +84,7 @@ class SettingBase(TimestampMixin, IdMixin):
 
         return psef.helpers.get_or_404(User, user_id)
 
-    if t.TYPE_CHECKING:
+    if t.TYPE_CHECKING:  # pragma: no cover
         user_id: ColumnProxy[int]
         user: ColumnProxy[User]
     else:
@@ -115,7 +117,7 @@ class EmailNotificationTypes(enum.Enum):
     def ordered_options(cls) -> t.List['EmailNotificationTypes']:
         return sorted(cls.__members__.values())
 
-    def previous_option(self) -> t.Optional['EmailNotificationTypes']:
+    def previous_option(self) -> t.Optional['EnabledEmailNotificationTypes']:
         """Get the previous value.
 
         >>> EmailNotificationTypes.off.previous_option()
@@ -130,7 +132,7 @@ class EmailNotificationTypes(enum.Enum):
         opts = self.ordered_options()
         idx = opts.index(self)
         if idx > 0:
-            return opts[idx - 1]
+            return t.cast(EnabledEmailNotificationTypes, opts[idx - 1])
         return None
 
     def __lt__(self, other: 'EmailNotificationTypes') -> bool:
@@ -138,6 +140,11 @@ class EmailNotificationTypes(enum.Enum):
 
     def __to_json__(self) -> str:
         return self.name
+
+
+EnabledEmailNotificationTypes = Literal[EmailNotificationTypes.
+                                        direct, EmailNotificationTypes.
+                                        daily, EmailNotificationTypes.weekly]
 
 
 class NotificationSettingOptionJSON(TypedDict):
@@ -198,9 +205,9 @@ class NotificationsSetting(Base, SettingBase):
     def get_default_values(
     ) -> t.MutableMapping[NotificationReasons, EmailNotificationTypes]:
         return {
-            NotificationReasons.author: EmailNotificationTypes.direct,
+            NotificationReasons.author: EmailNotificationTypes.off,
             NotificationReasons.replied: EmailNotificationTypes.direct,
-            NotificationReasons.assignee: EmailNotificationTypes.off,
+            NotificationReasons.assignee: EmailNotificationTypes.direct,
         }
 
     @classmethod
@@ -214,7 +221,7 @@ class NotificationsSetting(Base, SettingBase):
             cls.user == user, cls.reason == reason
         ).with_for_update().one_or_none()
         if pref is None:
-            pref = cls(user=user, reason=reason, value=value)
+            pref = cls(user=User.resolve(user), reason=reason, value=value)
             db.session.add(pref)
         else:
             pref.value = value
@@ -222,9 +229,10 @@ class NotificationsSetting(Base, SettingBase):
     @classmethod
     def get_should_send_for_users(
         cls, user_ids: t.List[int]
-    ) -> t.Callable[[Notification, EmailNotificationTypes], bool]:
-        query = db.session.query(cls).filter(cls.user_id.in_(user_ids)
-                                             ).order_by(cls.reason)
+    ) -> t.Callable[[Notification, EnabledEmailNotificationTypes], bool]:
+        query = db.session.query(cls).filter(
+            cls.user_id.in_(user_ids),
+        ).order_by(cls.reason)
 
         lookup = {
             reason: {pref.user_id: pref
@@ -238,12 +246,8 @@ class NotificationsSetting(Base, SettingBase):
 
         def _should_send(
             notification: Notification,
-            send_type: EmailNotificationTypes,
+            send_type: EnabledEmailNotificationTypes,
         ) -> bool:
-            if send_type == EmailNotificationTypes.off:
-                logger.info('Should not send notification for off type')
-                return False
-
             previous_val = send_type.previous_option()
             if (
                 previous_val is not None and
@@ -253,6 +257,7 @@ class NotificationsSetting(Base, SettingBase):
                 return False
 
             default_return = False
+            print(notification.reasons, lookup, notification.receiver_id)
             for reason in notification.reasons:
                 pref = lookup.get(reason, {}).get(notification.receiver_id)
                 if pref is None:
@@ -264,16 +269,17 @@ class NotificationsSetting(Base, SettingBase):
 
         def should_send(
             notification: Notification,
-            send_type: EmailNotificationTypes,
+            send_type: EnabledEmailNotificationTypes,
         ) -> bool:
-            if notification.deleted:
-                logger.info('Notification is deleted')
-                return False
-            elif not NotificationPermissions(notification).set_user(
-                notification.receiver
-            ).ensure_may_see.as_bool():
-                logger.info('No permission to see the notification')
-                return False
+            with as_current_user(notification.receiver):
+                if notification.deleted:
+                    logger.info('Notification is deleted')
+                    return False
+                elif not NotificationPermissions(notification
+                                                 ).ensure_may_see.as_bool():
+                    logger.info('No permission to see the notification')
+                    return False
+
             return _should_send(notification, send_type)
 
         return should_send

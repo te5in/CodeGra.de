@@ -49,8 +49,9 @@ def _setup_periodic_tasks(sender: t.Any, **_: object) -> None:
         crontab(minute='*/15'),
         _run_autotest_batch_runs_1.si(),
     )
+    # These times are in UTC
     sender.add_periodic_task(
-        crontab(minute='*/2', hour='*'),
+        crontab(minute='0', hour='10'),
         _send_daily_notifications.si(),
     )
     sender.add_periodic_task(
