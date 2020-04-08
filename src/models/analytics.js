@@ -7,6 +7,7 @@ import { store } from '@/store';
 import { hasAttr, getProps, deepEquals, mapObject, filterObject, readableFormatDate, zip } from '@/utils';
 import { makeCache } from '@/utils/cache';
 import { defaultdict } from '@/utils/defaultdict';
+import { NONEXISTENT } from '@/constants';
 
 function averages(xs) {
     if (xs.length < 1) {
@@ -59,7 +60,7 @@ export class RubricSource extends DataSource {
     constructor(data, workspace) {
         super(data, workspace);
 
-        if (getProps(workspace, null, 'assignment', 'rubric') == null) {
+        if (getProps(this.assignment, NONEXISTENT, 'rubric') === NONEXISTENT) {
             throw new Error('This assignment does not have a rubric');
         }
 
@@ -312,7 +313,7 @@ const WORKSPACE_SUBMISSION_SERVER_PROPS = Object.freeze([
     'grade',
 ]);
 
-class WorkspaceSubmission {
+export class WorkspaceSubmission {
     static fromServerData(data) {
         const props = WORKSPACE_SUBMISSION_SERVER_PROPS.reduce((acc, prop) => {
             acc[prop] = data[prop];
@@ -341,7 +342,7 @@ class WorkspaceSubmission {
         return (
             this.satisfiesGrade(minGrade, maxGrade) &&
             this.satisfiesDate(submittedAfter, submittedBefore) &&
-            this.satisfiesAssignee(assignees)
+            this.satisfiesAssignees(assignees)
         );
     }
 
@@ -357,6 +358,9 @@ class WorkspaceSubmission {
         // exactly 9, but that a maxGrade of 10 _will_ include
         // submissions graded exactly 10.
 
+        if ((minGrade != null || maxGrade != null) && this.grade == null) {
+            return false;
+        }
         if (minGrade != null && this.grade < minGrade) {
             return false;
         }
@@ -383,7 +387,7 @@ class WorkspaceSubmission {
         return true;
     }
 
-    satisfiesAssignee(assignees) {
+    satisfiesAssignees(assignees) {
         if (assignees.length > 0) {
             return assignees.some(a => a.id === this.assignee_id);
         }
@@ -391,7 +395,7 @@ class WorkspaceSubmission {
     }
 }
 
-class WorkspaceSubmissionSet {
+export class WorkspaceSubmissionSet {
     static fromServerData(data) {
         const subs = mapObject(data, ss => ss.map(WorkspaceSubmission.fromServerData));
         return new WorkspaceSubmissionSet(subs);
@@ -410,6 +414,7 @@ class WorkspaceSubmissionSet {
             'assigneeIds',
         );
         Object.freeze(this.subs);
+        Object.freeze(this);
     }
 
     get allSubmissions() {
@@ -672,8 +677,11 @@ export class WorkspaceFilter {
             minGrade, maxGrade, submittedAfter, submittedBefore,
         } = this;
 
-        const { latest, date, assignees } = props;
+        const { latest, assignees } = props;
         const grade = parseFloat(props.grade);
+        // moment(undefined) gives a valid moment, so we must convert it to
+        // null first.
+        const date = moment(props.date == null ? null : props.date);
 
         let result = [this];
 
@@ -690,7 +698,7 @@ export class WorkspaceFilter {
             ]);
         }
 
-        if (date !== '') {
+        if (date.isValid()) {
             if (submittedAfter != null && !submittedAfter.isBefore(date)) {
                 throw new Error('Selected date is before the old "Submitted after".');
             }
@@ -811,9 +819,13 @@ export class Workspace {
         props.submissions = WorkspaceSubmissionSet.fromServerData(workspace.student_submissions);
 
         const self = new Workspace(props);
+        const dataSources = workspace.data_sources.reduce((acc, srcName, i) => {
+            const source = sources[i];
+            if (source == null || source.name !== srcName) {
+                throw new Error(`Did not receive data for source: ${srcName}`);
+            }
 
-        const dataSources = workspace.data_sources.reduce((acc, src, i) => {
-            acc[src] = createDataSource(sources[i], self);
+            acc[srcName] = createDataSource(sources[i], self);
             return acc;
         }, {});
         // eslint-disable-next-line no-underscore-dangle
