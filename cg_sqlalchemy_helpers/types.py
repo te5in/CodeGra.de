@@ -610,6 +610,7 @@ class Base:  # pragma: no cover
         pass
 
 
+
 class MyNonOrderableQuery(t.Generic[T]):  # pragma: no cover
     delete: t.Callable[[QuerySelf], None]
     subquery: t.Callable[[QuerySelf, str], RawTable]

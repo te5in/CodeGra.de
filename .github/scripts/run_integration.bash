@@ -9,7 +9,7 @@ if grep -r '\.only(' ./cypress; then
 fi
 
 make privacy_statement
-npm run start_integration > /dev/null 2>&1  &
+npm run start_integration &
 
 DBNAME="ci_test"
 export SQLALCHEMY_DATABASE_URI="postgresql://postgres:postgres@localhost:5432/${DBNAME}"
@@ -18,6 +18,7 @@ cat >config.ini <<EOF
 [Back-end]
 sqlalchemy_database_uri = $SQLALCHEMY_DATABASE_URI
 DEBUG = true
+external_url = http://localhost:8080
 mirror_upload_dir = /tmp/psef/mirror_uploads
 upload_dir = /tmp/psef/uploads
 

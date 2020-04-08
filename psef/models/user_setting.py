@@ -190,7 +190,7 @@ class NotificationsSetting(Base, SettingBase):
     )
 
     __table_args__ = (db.UniqueConstraint(
-        SettingBase.user_id,
+        'user_id',
         reason,
     ), )
 
