@@ -369,17 +369,14 @@ export default {
             if (el == null) {
                 await this.$afterRerender();
                 el = this.$refs.field;
-                console.log('no el', el);
-                if (el == null) {
-                    return;
-                }
             }
-
-            el.focus();
-            // Put the cursor at the end of the text (Safari puts it at the start
-            // for some reason...
-            await this.$afterRerender();
-            el.setSelectionRange(el.value.length, el.value.length);
+            if (el != null) {
+                el.focus();
+                // Put the cursor at the end of the text (Safari puts it at the start
+                // for some reason...
+                await this.$afterRerender();
+                el.setSelectionRange(el.value.length, el.value.length);
+            }
         },
 
         doSubmit() {

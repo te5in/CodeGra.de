@@ -405,9 +405,6 @@ export default {
             }
 
             let data;
-            console.log(JSON.stringify(this.selectedProvider.options));
-            console.log('selectedOpts');
-            console.log(selectedOptions);
             if (
                 this.selectedProvider.options.some(
                     opt => opt.type === 'file' && selectedOptions[opt.name] != null,

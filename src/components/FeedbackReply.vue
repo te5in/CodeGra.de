@@ -401,7 +401,6 @@ Do you want to overwrite it?`;
         if (el == null) {
             await this.$afterRerender();
             el = this.inputField;
-            console.error('could not find el before', el);
         }
 
         if (el != null) {
