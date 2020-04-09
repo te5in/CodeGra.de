@@ -201,13 +201,10 @@ export default {
         },
 
         filteredSubmissionCount() {
-            return this.filterResults.reduce(
-                (acc, result) => {
-                    result.submissions.submissionIds.forEach(id => acc.add(id));
-                    return acc;
-                },
-                new Set(),
-            ).size;
+            return this.filterResults.reduce((acc, result) => {
+                result.submissions.submissionIds.forEach(id => acc.add(id));
+                return acc;
+            }, new Set()).size;
         },
 
         latestSubmissionsWorkspace() {
@@ -215,10 +212,12 @@ export default {
         },
 
         hasRubricSource() {
-            return this.assignment.rubric &&
+            return (
+                this.assignment.rubric &&
                 this.assignment.rubric.rows &&
                 this.baseWorkspace &&
-                this.baseWorkspace.hasSource('rubric_data');
+                this.baseWorkspace.hasSource('rubric_data')
+            );
         },
 
         settings() {
@@ -231,9 +230,7 @@ export default {
                 gradeSettings: this.gradeSettings,
             };
 
-            return filterObject(settings, (val, key) =>
-                !deepEquals(val, defaults[key]),
-            );
+            return filterObject(settings, (val, key) => !deepEquals(val, defaults[key]));
         },
     },
 

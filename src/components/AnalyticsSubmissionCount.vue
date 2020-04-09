@@ -93,22 +93,22 @@ export default {
         },
 
         histogramData() {
-            const subsPerStudent = this.submissionSources.map(source =>
-                source.submissionsPerStudent,
+            const subsPerStudent = this.submissionSources.map(
+                source => source.submissionsPerStudent,
             );
 
-            const max = stat.max(subsPerStudent.map(s => {
-                const keys = Object.keys(s).map(Number);
-                return keys.length === 0 ? 0 : stat.max(keys);
-            }));
+            const max = stat.max(
+                subsPerStudent.map(s => {
+                    const keys = Object.keys(s).map(Number);
+                    return keys.length === 0 ? 0 : stat.max(keys);
+                }),
+            );
             const labels = this.$utils.range(1, max + 1);
 
             const datasets = subsPerStudent.map((data, i) => {
                 const absData = labels.map(nSubs => data[nSubs]);
                 const nStudents = stat.sum(Object.values(data));
-                const relData = absData.map(x =>
-                    (x === 0 ? 0 : (100 * x) / nStudents),
-                );
+                const relData = absData.map(x => (x === 0 ? 0 : 100 * x / nStudents));
 
                 return {
                     label: this.filterLabels[i],
@@ -122,8 +122,7 @@ export default {
         },
 
         histogramOptions() {
-            const getDataset = (tooltipItem, data) =>
-                data.datasets[tooltipItem.datasetIndex];
+            const getDataset = (tooltipItem, data) => data.datasets[tooltipItem.datasetIndex];
 
             const label = (tooltipItem, data) => {
                 const ds = getDataset(tooltipItem, data);
@@ -142,9 +141,7 @@ export default {
                 ];
             };
 
-            const labelString = this.relative
-                ? 'Percentage of students'
-                : 'Number of students';
+            const labelString = this.relative ? 'Percentage of students' : 'Number of students';
 
             return {
                 scales: {
@@ -178,9 +175,12 @@ export default {
 
     methods: {
         fillSettings(settings) {
-            return Object.assign({
-                relative: true,
-            }, settings);
+            return Object.assign(
+                {
+                    relative: true,
+                },
+                settings,
+            );
         },
 
         resetParams() {
@@ -210,4 +210,5 @@ export default {
 </script>
 
 <style lang="less" scoped>
+
 </style>

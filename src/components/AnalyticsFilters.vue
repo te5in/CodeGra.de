@@ -558,10 +558,13 @@ export default {
         },
 
         assigneesOrAll() {
-            return [{
-                name: 'All',
-                allAssignees: true,
-            }, ...this.assignees];
+            return [
+                {
+                    name: 'All',
+                    allAssignees: true,
+                },
+                ...this.assignees,
+            ];
         },
     },
 
@@ -634,7 +637,6 @@ export default {
         },
 
         updateSplitAssignees(assignees) {
-            console.log(assignees, assignees.some(a => a.allAssignees));
             if (assignees.some(a => a.allAssignees)) {
                 this.splitAssignees = this.assignees;
             } else {
@@ -647,15 +649,11 @@ export default {
         },
 
         nthFirstSubmissionDate(idx) {
-            return this.maybeToISOString(
-                this.results[idx].submissions.firstSubmissionDate,
-            );
+            return this.maybeToISOString(this.results[idx].submissions.firstSubmissionDate);
         },
 
         nthLastSubmissionDate(idx) {
-            return this.maybeToISOString(
-                this.results[idx].submissions.lastSubmissionDate,
-            );
+            return this.maybeToISOString(this.results[idx].submissions.lastSubmissionDate);
         },
 
         filterAvgGrade(filter) {

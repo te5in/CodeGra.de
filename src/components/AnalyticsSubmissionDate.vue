@@ -163,18 +163,18 @@ export default {
 
         minDate() {
             const firstPerSource = this.submissionSources.map(source => source.firstSubmissionDate);
-            return firstPerSource.reduce(
-                (f, d) => (f == null || f.isAfter(d) ? d : f),
-                null,
-            ).local().startOf('day');
+            return firstPerSource
+                .reduce((f, d) => (f == null || f.isAfter(d) ? d : f), null)
+                .local()
+                .startOf('day');
         },
 
         maxDate() {
             const lastPerSource = this.submissionSources.map(source => source.lastSubmissionDate);
-            return lastPerSource.reduce(
-                (l, d) => (l == null || l.isBefore(d) ? d : l),
-                null,
-            ).local().endOf('day');
+            return lastPerSource
+                .reduce((l, d) => (l == null || l.isBefore(d) ? d : l), null)
+                .local()
+                .endOf('day');
         },
 
         binUnits() {
@@ -209,7 +209,7 @@ export default {
             const datasets = subs.map((bins, i) => {
                 const absData = allDates.map(d => (bins[d] == null ? 0 : bins[d].data.length));
                 const nSubs = stat.sum(absData);
-                const relData = absData.map(x => (nSubs > 0 ? (100 * x) / nSubs : 0));
+                const relData = absData.map(x => (nSubs > 0 ? 100 * x / nSubs : 0));
 
                 return {
                     label: this.filterLabels[i],
@@ -250,8 +250,7 @@ export default {
         },
 
         histogramOptions() {
-            const getDataset = (tooltipItem, data) =>
-                data.datasets[tooltipItem.datasetIndex];
+            const getDataset = (tooltipItem, data) => data.datasets[tooltipItem.datasetIndex];
 
             const label = (tooltipItem, data) => {
                 const ds = getDataset(tooltipItem, data);
@@ -270,9 +269,7 @@ export default {
                 ];
             };
 
-            const labelString = this.relative
-                ? 'Percentage of students'
-                : 'Number of students';
+            const labelString = this.relative ? 'Percentage of students' : 'Number of students';
 
             return {
                 scales: {
@@ -309,12 +306,15 @@ export default {
 
     methods: {
         fillSettings(settings) {
-            return Object.assign({
-                relative: true,
-                range: [],
-                binSize: 1,
-                binUnit: 'days',
-            }, settings);
+            return Object.assign(
+                {
+                    relative: true,
+                    range: [],
+                    binSize: 1,
+                    binUnit: 'days',
+                },
+                settings,
+            );
         },
 
         resetParams() {
@@ -327,8 +327,6 @@ export default {
         updateRange(event) {
             const curRange = this.range;
             const newRange = event.map(d => moment(d));
-
-            console.log(newRange.map(d => d.toISOString()), this.minDate.toISOString());
 
             if (
                 newRange.length !== curRange.length ||

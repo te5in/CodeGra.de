@@ -4,7 +4,15 @@ import * as stat from 'simple-statistics';
 
 import { store } from '@/store';
 // eslint-ignore-next-line
-import { hasAttr, getProps, deepEquals, mapObject, filterObject, readableFormatDate, zip } from '@/utils';
+import {
+    hasAttr,
+    getProps,
+    deepEquals,
+    mapObject,
+    filterObject,
+    readableFormatDate,
+    zip,
+} from '@/utils';
 import { makeCache } from '@/utils/cache';
 import { defaultdict } from '@/utils/defaultdict';
 import { NONEXISTENT } from '@/constants';
@@ -324,11 +332,7 @@ export class WorkspaceSubmission {
 
     satisfies(filter) {
         const {
-            minGrade,
-            maxGrade,
-            submittedAfter,
-            submittedBefore,
-            assignees,
+            minGrade, maxGrade, submittedAfter, submittedBefore, assignees,
         } = filter;
 
         return (
@@ -534,12 +538,14 @@ export class WorkspaceSubmissionSet {
         }
 
         return [
-            start.local()
+            start
+                .local()
                 .hours(0)
                 .minutes(0)
                 .seconds(0)
                 .milliseconds(0),
-            end.local()
+            end
+                .local()
                 .hours(23)
                 .minutes(59)
                 .seconds(59)
@@ -557,9 +563,7 @@ export class WorkspaceSubmissionSet {
 
     get gradeStats() {
         return this._cache.get('gradeStats', () => {
-            const grades = this.allSubmissions
-                .map(sub => sub.grade)
-                .filter(grade => grade != null);
+            const grades = this.allSubmissions.map(sub => sub.grade).filter(grade => grade != null);
             return averages(grades);
         });
     }
@@ -589,9 +593,7 @@ export class WorkspaceSubmissionSet {
     filter(filter) {
         let filtered = filter.onlyLatestSubs ? this.getLatestSubmissions() : this.submissions;
 
-        filtered = mapObject(filtered, subs =>
-            subs.filter(s => s.satisfies(filter)),
-        );
+        filtered = mapObject(filtered, subs => subs.filter(s => s.satisfies(filter)));
 
         filtered = filterObject(filtered, subs => subs.length > 0);
 
@@ -659,9 +661,7 @@ export class WorkspaceFilter {
     }
 
     update(key, value) {
-        return new WorkspaceFilter(
-            Object.assign({}, this, { [key]: value }),
-        );
+        return new WorkspaceFilter(Object.assign({}, this, { [key]: value }));
     }
 
     split(props) {
@@ -711,9 +711,7 @@ export class WorkspaceFilter {
         }
 
         if (assignees && assignees.length) {
-            result = assignees.flatMap(a =>
-                result.map(f => f.update('assignees', [a])),
-            );
+            result = assignees.flatMap(a => result.map(f => f.update('assignees', [a])));
         }
 
         return result;
@@ -753,8 +751,9 @@ export class WorkspaceFilter {
 
     serialize() {
         const defaults = WorkspaceFilter.emptyFilter;
-        const filter = filterObject(Object.assign({}, this), (val, key) =>
-            !deepEquals(val, defaults[key]),
+        const filter = filterObject(
+            Object.assign({}, this),
+            (val, key) => !deepEquals(val, defaults[key]),
         );
         if (filter.submittedAfter != null) {
             filter.submittedAfter = filter.submittedAfter.toISOString();
@@ -770,9 +769,7 @@ export class WorkspaceFilter {
 
     static deserialize(data) {
         if (data.assignees != null) {
-            data.assignees = data.assignees.map(
-                id => store.getters['users/getUser'](id),
-            );
+            data.assignees = data.assignees.map(id => store.getters['users/getUser'](id));
         }
         return new WorkspaceFilter(data);
     }

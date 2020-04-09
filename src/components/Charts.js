@@ -222,10 +222,7 @@ export const BarChart = {
             const min = factor * stat.min(this.minPerDataset);
             const max = factor * stat.max(this.maxPerDataset);
 
-            return [
-                Math.min(0, min),
-                Math.max(0, max),
-            ];
+            return [Math.min(0, min), Math.max(0, max)];
         },
 
         valuesPerDataset() {
@@ -245,14 +242,14 @@ export const BarChart = {
         },
 
         minPerDataset() {
-            return this.valuesPerDataset.map(values =>
-                (values.length === 0 ? 0 : stat.min(values)),
+            return this.valuesPerDataset.map(
+                values => (values.length === 0 ? 0 : stat.min(values)),
             );
         },
 
         maxPerDataset() {
-            return this.valuesPerDataset.map(values =>
-                (values.length === 0 ? 0 : stat.max(values)),
+            return this.valuesPerDataset.map(
+                values => (values.length === 0 ? 0 : stat.max(values)),
             );
         },
     },
@@ -265,9 +262,7 @@ export const BarChart = {
             if (errors == null) {
                 return null;
             }
-            return this.chartData.labels.map(
-                label => dataset.errorBars[label],
-            );
+            return this.chartData.labels.map(label => dataset.errorBars[label]);
         },
     },
 };

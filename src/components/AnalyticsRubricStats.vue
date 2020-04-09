@@ -200,8 +200,7 @@ export default {
         },
 
         histogramOptions() {
-            const getDataset = (tooltipItem, data) =>
-                data.datasets[tooltipItem.datasetIndex];
+            const getDataset = (tooltipItem, data) => data.datasets[tooltipItem.datasetIndex];
 
             const label = (tooltipItem, data) => {
                 const ds = getDataset(tooltipItem, data);
@@ -224,9 +223,7 @@ export default {
                 ];
             };
 
-            const labelString = this.metricOptions.find(
-                so => so.value === this.metric,
-            ).text;
+            const labelString = this.metricOptions.find(so => so.value === this.metric).text;
 
             return {
                 scales: {
@@ -284,10 +281,13 @@ export default {
 
     methods: {
         fillSettings(settings) {
-            return Object.assign({
-                relative: true,
-                metric: 'mean',
-            }, settings);
+            return Object.assign(
+                {
+                    relative: true,
+                    metric: 'mean',
+                },
+                settings,
+            );
         },
 
         resetParams() {
@@ -328,18 +328,22 @@ export default {
                     normalized = this.normalize(data, this.normalizeFactors);
 
                     if (errorBars != null) {
-                        errorBars = stats.map(({ stdev }, j) => (normalized[j] / data[j]) * stdev);
+                        errorBars = stats.map(({ stdev }, j) => normalized[j] / data[j] * stdev);
                     }
+                }
+
+                if (errorBars != null) {
+                    errorBars = errorBars.reduce((acc, stdev, j) => {
+                        acc[labels[j]] = { plus: stdev, minus: -stdev };
+                        return acc;
+                    }, {});
                 }
 
                 return {
                     label: this.filterLabels[i],
                     data: normalized,
                     stats,
-                    errorBars: errorBars == null ? null : errorBars.reduce((acc, stdev, j) => {
-                        acc[labels[j]] = { plus: stdev, minus: -stdev };
-                        return acc;
-                    }, {}),
+                    errorBars,
                 };
             });
 

@@ -138,7 +138,7 @@ export default {
                 // We can't use source.submissionCount here, because some submissions
                 // may have been filtered out, e.g. submissions without a grade.
                 const nSubs = stat.sum(bins.map(bin => data[bin].length));
-                const relData = absData.map(d => (nSubs ? (100 * d) / nSubs : 0));
+                const relData = absData.map(d => (nSubs ? 100 * d / nSubs : 0));
 
                 return {
                     label: this.filterLabels[i],
@@ -152,8 +152,7 @@ export default {
         },
 
         histogramOptions() {
-            const getDataset = (tooltipItem, data) =>
-                data.datasets[tooltipItem.datasetIndex];
+            const getDataset = (tooltipItem, data) => data.datasets[tooltipItem.datasetIndex];
 
             const label = (tooltipItem, data) => {
                 const ds = getDataset(tooltipItem, data);
@@ -172,9 +171,7 @@ export default {
                 ];
             };
 
-            const labelString = this.relative
-                ? 'Percentage of students'
-                : 'Number of students';
+            const labelString = this.relative ? 'Percentage of students' : 'Number of students';
 
             return {
                 scales: {
@@ -209,10 +206,13 @@ export default {
 
     methods: {
         fillSettings(settings) {
-            return Object.assign({
-                relative: true,
-                binSize: 0.5,
-            }, settings);
+            return Object.assign(
+                {
+                    relative: true,
+                    binSize: 0.5,
+                },
+                settings,
+            );
         },
 
         resetParams() {
@@ -243,11 +243,9 @@ export default {
         },
     },
 
-    mounted() {
-    },
+    mounted() {},
 
-    destroyed() {
-    },
+    destroyed() {},
 
     components: {
         Icon,
