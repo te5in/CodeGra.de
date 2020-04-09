@@ -13,6 +13,7 @@ function averages(xs) {
     if (xs.length < 1) {
         return null;
     }
+
     return {
         mean: stat.mean(xs),
         median: stat.median(xs),
@@ -24,17 +25,20 @@ function averages(xs) {
 export class DataSource {
     static sourceName = '__base_data_source';
 
-    static fromServerData() {
-        throw new Error('Not implemented');
-    }
-
-    static checkType(dataSource) {
+    static fromServerData(dataSource, workspace) {
         if (dataSource.name !== this.sourceName) {
             throw new TypeError('Invalid DataSource type');
         }
+        if (!hasAttr(dataSource, 'data')) {
+            throw new TypeError('Data source without data');
+        }
+        return new this(dataSource.data, workspace);
     }
 
     constructor(data, workspace) {
+        if (this.constructor === DataSource) {
+            throw new TypeError('DataSource should not be instantiated directly');
+        }
         this.data = Object.freeze(data);
         this.workspace = workspace;
     }
@@ -51,11 +55,6 @@ export class DataSource {
 
 export class RubricSource extends DataSource {
     static sourceName = 'rubric_data';
-
-    static fromServerData(dataSource, workspace) {
-        this.checkType(dataSource);
-        return new RubricSource(dataSource.data, workspace);
-    }
 
     constructor(data, workspace) {
         super(data, workspace);
@@ -169,8 +168,10 @@ export class RubricSource extends DataSource {
     get stdevPerCat() {
         return this._cache.get('stdevPerCat', () =>
             mapObject(this.itemsPerCat, items => {
-                if (items.length < 2) {
+                if (items.length < 1) {
                     return null;
+                } else if (items.length === 1) {
+                    return 0;
                 } else {
                     const points = items.map(item => item.points);
                     return stat.sampleStandardDeviation(points);
@@ -249,12 +250,10 @@ export class RubricSource extends DataSource {
     get ritPerCat() {
         return this._cache.get('ritPerCat', () =>
             mapObject(this.ritItemsPerCat, zipped => {
-                // eslint-disable-next-line no-unused-vars
-                const filtered = zipped.filter(([_, total]) => total !== 0);
-                if (filtered.length < 10) {
+                if (zipped.length < 2) {
                     return null;
                 }
-                return stat.sampleCorrelation(...zip(...filtered));
+                return stat.sampleCorrelation(...zip(...zipped));
             }),
         );
     }
@@ -262,12 +261,10 @@ export class RubricSource extends DataSource {
     get rirPerCat() {
         return this._cache.get('rirPerCat', () =>
             mapObject(this.rirItemsPerCat, zipped => {
-                // eslint-disable-next-line no-unused-vars
-                const filtered = zipped.filter(([_, total]) => total !== 0);
-                if (filtered.length < 10) {
+                if (zipped.length < 2) {
                     return null;
                 }
-                return stat.sampleCorrelation(...zip(...filtered));
+                return stat.sampleCorrelation(...zip(...zipped));
             }),
         );
     }
@@ -275,11 +272,6 @@ export class RubricSource extends DataSource {
 
 export class InlineFeedbackSource extends DataSource {
     static sourceName = 'inline_feedback';
-
-    static fromServerData(dataSource, workspace) {
-        this.checkType(dataSource);
-        return new InlineFeedbackSource(dataSource.data, workspace);
-    }
 
     constructor(data, workspace) {
         super(data, workspace);
@@ -402,7 +394,7 @@ export class WorkspaceSubmissionSet {
     }
 
     constructor(subs) {
-        this.submissions = mapObject(subs, Object.freeze);
+        this.submissions = subs;
         this._cache = makeCache(
             'allSubmissions',
             'firstSubmission',
@@ -413,7 +405,8 @@ export class WorkspaceSubmissionSet {
             'submissionIds',
             'assigneeIds',
         );
-        Object.freeze(this.subs);
+        mapObject(this.submissions, Object.freeze);
+        Object.freeze(this.submissions);
         Object.freeze(this);
     }
 
@@ -480,7 +473,7 @@ export class WorkspaceSubmissionSet {
     }
 
     binSubmissionsByDate(range, binSize, binUnit) {
-        const [start, end] = this.getDateRange(range);
+        const [start, end] = WorkspaceSubmissionSet.getDateRange(range);
         const binStep = moment.duration(binSize, binUnit).asMilliseconds();
 
         if (binStep === 0) {
@@ -488,6 +481,8 @@ export class WorkspaceSubmissionSet {
         }
 
         const getBin = d => {
+            // We use unix timestamp for binning. Each bin starts at an integer
+            // multiple of the bin size.
             // Correction term for the timezone offset.
             // utcOffset() is in seconds but we need milliseconds.
             const off = 60 * 1000 * d.utcOffset();
@@ -524,8 +519,7 @@ export class WorkspaceSubmissionSet {
         return result;
     }
 
-    // eslint-disable-next-line
-    getDateRange(range) {
+    static getDateRange(range) {
         let start;
         let end;
 
@@ -539,20 +533,18 @@ export class WorkspaceSubmissionSet {
             end = start.clone();
         }
 
-        start = start
-            .local()
-            .hours(0)
-            .minutes(0)
-            .seconds(0)
-            .milliseconds(0);
-        end = end
-            .local()
-            .hours(23)
-            .minutes(59)
-            .seconds(59)
-            .milliseconds(999);
-
-        return [start, end];
+        return [
+            start.local()
+                .hours(0)
+                .minutes(0)
+                .seconds(0)
+                .milliseconds(0),
+            end.local()
+                .hours(23)
+                .minutes(59)
+                .seconds(59)
+                .milliseconds(999),
+        ];
     }
 
     get submissionCount() {
