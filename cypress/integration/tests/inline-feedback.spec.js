@@ -42,7 +42,7 @@ context('Inline feedback', () => {
     function checkInlineFeedback(line, feedback, checkAfterReload=false, viewer=undefined) {
         if (feedback == null) {
             getLine(line, viewer)
-                .find('.feedback-area .feedback-reply .markdown-message')
+                .find('.feedback-area .feedback-reply')
                 .should('not.exist');
         } else {
             getLine(line, viewer)
@@ -101,6 +101,12 @@ context('Inline feedback', () => {
         getLine(line, viewer)
             .find('.feedback-reply.editing')
             .should('not.exist');
+        if (feedback) {
+            return getLine(line, viewer)
+                .find('.feedback-reply:not(.editing)')
+                .scrollIntoView()
+                .should('be.visible');
+        }
     }
 
     function giveInlineFeedback(
@@ -122,6 +128,12 @@ context('Inline feedback', () => {
         getLine(line, viewer)
             .find('.feedback-reply.editing')
             .should('not.exist');
+        if (feedback) {
+            return getLine(line, viewer)
+                .find('.feedback-reply:not(.editing)')
+                .scrollIntoView()
+                .should('be.visible');
+        }
     }
 
     function deleteInlineFeedback(
@@ -169,13 +181,13 @@ context('Inline feedback', () => {
     }
 
     function getSingleFeedbackArea(cls, viewer='.file-viewer') {
-        const el = getFileViewer(viewer)
-              .find('.feedback-area .feedback-reply');
+        let selector = '.feedback-area .feedback-reply';
         if (cls === 'non-editing') {
-                return el.should('have.not.class', cls);
+            selector += ':not(.editing)';
         } else {
-                return el.should('have.class', cls);
+            selector += `.${cls}`;
         }
+        return getFileViewer(viewer).find(selector);
     }
 
     function checkSingleFeedback(feedback, checkAfterReload=false, viewer='.file-viewer') {
@@ -203,6 +215,7 @@ context('Inline feedback', () => {
         getSingleFeedbackArea('editing', viewer)
             .find('.submit-button[name=submit-feedback]')
             .submit('success', { waitForDefault: false });
+        getSingleFeedbackArea('non-editing', viewer)
     }
 
     function deleteSingleFeedback(viewer) {
@@ -266,6 +279,23 @@ context('Inline feedback', () => {
         return cy.get('.feedback-overview')
             .contains('.card-header', filename)
             .parent()
+    }
+
+    function deleteAllFeedback() {
+        return cy.formRequest({
+            method: 'GET',
+            url: `/api/v1/submissions/${submission.id}/feedbacks/?with_replies`,
+        }).its('response.body.user').then((user) => {
+            return Cypress.Promise.all(user.reduce((acc, base) => {
+                acc.push(...base.replies.map(r => {
+                    return cy.formRequest({
+                        method: 'DELETE',
+                        url: `/api/v1/comments/${base.id}/replies/${r.id}`,
+                    });
+                }));
+                return acc;
+            }, []));
+        });
     }
 
     before(() => {
@@ -353,6 +383,42 @@ context('Inline feedback', () => {
                 cy.openCategory('Feedback overview');
                 checkInlineFeedbackOverview(filename, 0, inlineMsg);
             });
+
+            cy.login('admin', 'admin');
+        });
+
+        context('Feedback overview', () => {
+            before(() => {
+                deleteAllFeedback();
+            });
+
+            it('should show a badge in the category if there is inline feedback', () => {
+                checkOverviewBadge(0);
+                giveInlineFeedback(0, otherMsg);
+                checkOverviewBadge(1);
+
+                editInlineFeedback(0, inlineMsg);
+                checkOverviewBadge(1);
+
+                giveInlineFeedback(1, otherMsg);
+                checkOverviewBadge(2);
+
+                cy.openCategory('Feedback overview');
+                checkInlineFeedbackOverview(filename, 0, inlineMsg);
+                checkInlineFeedbackOverview(filename, 1, otherMsg);
+
+                cy.openCategory('Code');
+                deleteInlineFeedback(0);
+                checkOverviewBadge(1);
+                deleteInlineFeedback(1);
+                checkOverviewBadge(0);
+            });
+
+            it('should show a message if no inline feedback is given', () => {
+                cy.openCategory('Feedback overview');
+                cy.get('.inline-feedback')
+                    .should('contain', 'This submission has no line comments.');
+            });
         });
 
         context('Deleting', () => {
@@ -407,36 +473,6 @@ context('Inline feedback', () => {
             })
         });
 
-        context('Feedback overview', () => {
-            it('should show a badge in the category if there is inline feedback', () => {
-                checkOverviewBadge(0);
-                giveInlineFeedback(0, otherMsg);
-                checkOverviewBadge(1);
-
-                editInlineFeedback(0, inlineMsg);
-                checkOverviewBadge(1);
-
-                giveInlineFeedback(1, otherMsg);
-                checkOverviewBadge(2);
-
-                cy.openCategory('Feedback overview');
-                checkInlineFeedbackOverview(filename, 0, inlineMsg);
-                checkInlineFeedbackOverview(filename, 1, otherMsg);
-
-                cy.openCategory('Code');
-                deleteInlineFeedback(0);
-                checkOverviewBadge(1);
-                deleteInlineFeedback(1);
-                checkOverviewBadge(0);
-            });
-
-            it('should show a message if no inline feedback is given', () => {
-                cy.openCategory('Feedback overview');
-                cy.get('.inline-feedback')
-                    .should('contain', 'This submission has no line comments.');
-            });
-        });
-
         context('IPython code cells', () => {
             const filename = 'Graaf vinden met diameter%avg-path-length ratio.ipynb';
             const selector = '.ipython-viewer .inner-code-viewer:first';
@@ -488,7 +524,10 @@ context('Inline feedback', () => {
         };
 
         beforeEach(() => {
-            cy.openCategory('Code');
+            deleteAllFeedback().then(() => {
+                reload();
+                cy.openCategory('Code');
+            });
         });
 
         it('should be possible to give inline feedback', () => {
@@ -507,7 +546,7 @@ context('Inline feedback', () => {
         it('should be possible to delete inline feedback', () => {
             Object.values(files).forEach(opts => {
                 openFile(opts.filename, opts.outerViewer);
-                // giveSingleFeedback(inlineMsg, opts.innerViewer);
+                giveSingleFeedback(inlineMsg, opts.innerViewer);
                 getSingleFeedbackArea('non-editing', opts.innerViewer);
                 deleteSingleFeedback(opts.innerViewer);
                 checkSingleFeedback(null, false, opts.innerViewer);

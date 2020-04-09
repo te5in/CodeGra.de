@@ -177,7 +177,7 @@
                     @error="inputDisabled = false"
                     @success="onDeleteFeedback"
                     @after-success="afterDeleteFeedback">
-                    <icon name="times" class="text-danger" />
+                    <icon name="times" class="delete-icon"/>
                 </submit-button>
 
                 <b-btn @click="startEdit"
@@ -668,11 +668,32 @@ Do you want to overwrite it?`;
     display: inline-block;
     padding: 0.25rem;
     border: none;
+    margin-left: 0.5rem;
+    box-shadow: none !important;
+
+    .fa-icon {
+        color: @color-secondary-text-lighter;
+    }
 
     &:hover {
         background-color: initial !important;
+
+        .fa-icon {
+            color: @color-primary;
+            @{dark-mode} {
+                color: @color-secondary;
+            }
+        }
+
+        @{dark-mode} .delete-icon,
+        .delete-icon {
+            color: @color-danger;
+        }
     }
-    box-shadow: none !important;
+
+    .fa-icon {
+        transition: color @transition-duration ease-out;
+    }
 }
 </style>
 

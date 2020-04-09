@@ -72,7 +72,7 @@
                                   v-if="$userConfig.features.linters && linterFeedback[i - 1] != null"/>
 
             <feedback-area
-                class="border-top border-bottom py-2 px-3 bg-white mt-1"
+                class="border-top border-bottom py-2 px-3 mt-1"
                 :key="feedback[i - 1 + lineFeedbackOffset].id"
                 :feedback="feedback[i - 1 + lineFeedbackOffset]"
                 :total-amount-lines="computedEndLine"
@@ -541,6 +541,7 @@ code {
 
 .feedback-area {
     font-size: 110%;
+    .default-background;
 }
 
 .add-feedback-loader-wrapper {
@@ -559,6 +560,16 @@ ol.lines .btn:not(.btn-success):not(.btn-danger):not(.btn-warning) {
 
         &:hover {
             background: darken(@color-secondary, 10%);
+        }
+
+        &.btn-outline-primary {
+            background-color: unset;
+            border: 1px solid @color-secondary;
+
+            &:hover {
+                background: @color-secondary-darker;
+                border-color: @color-secondary-darker;
+            }
         }
 
         &.btn-secondary {
