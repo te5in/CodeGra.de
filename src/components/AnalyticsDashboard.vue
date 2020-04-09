@@ -380,10 +380,14 @@ export default {
     // TODO: Define the .icon-button globally so we can use it
     // in other components as well.
     .icon-button {
-        margin: -0.5rem -0.5rem -0.5rem 0.5rem;
+        margin: -0.5rem 0;
         padding: 0.5rem;
         cursor: pointer;
         transition: background-color @transition-duration;
+
+        &:last-child {
+            margin-right: -0.5rem;
+        }
 
         &:focus,
         &.active {

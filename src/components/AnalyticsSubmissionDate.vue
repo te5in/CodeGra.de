@@ -42,13 +42,13 @@
                                 style="max-width: 7.5rem"/>
             </b-input-group>
 
-            <div class="icon-button danger"
+            <div class="icon-button danger ml-2"
                  @click="resetParams"
                  v-b-popover.top.hover="'Reset'">
                 <icon name="reply" />
             </div>
 
-            <description-popover class="icon-button ml-1"
+            <description-popover class="icon-button pl-0"
                                  placement="bottom"
                                  :scale="1">
                 <p class="mb-2">

@@ -54,7 +54,7 @@
                 <icon name="reply" />
             </div>
 
-            <description-popover class="icon-button ml-1"
+            <description-popover class="icon-button pl-0"
                                  placement="bottom"
                                  :scale="1">
                 <p class="mb-2">
