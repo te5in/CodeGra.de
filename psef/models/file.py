@@ -300,10 +300,25 @@ class File(NestedFileMixin[int], Base):
 
     @property
     def deleted(self) -> bool:
+        """Should this file be considered deleted.
+
+        :returns: ``True`` if either this file is deleted, or if the
+            :class:`.work_models.Work` of this file should be considered
+            deleted.
+        """
         return self._deleted or self.work.deleted
 
     @hybrid_property
     def self_deleted(self) -> bool:
+        """Is this file deleted.
+
+        .. warning::
+
+            This only checks if this file is deleted, to check if the file
+            should be considered as deleted, use the ``deleted`` property,
+            which also checks if the :class:`.work_models.Work` of this file is
+            deleted. Really you should only use this property in queries.
+        """
         return self._deleted
 
     def delete(self) -> None:
@@ -343,6 +358,11 @@ class File(NestedFileMixin[int], Base):
             return teacher
 
     def get_diskname(self) -> str:
+        """Get the absolute path on the disk for this file.
+
+        :returns: The absolute path.
+        :raises AssertionError: If this file is deleted.
+        """
         assert not self._deleted
         return super().get_diskname()
 

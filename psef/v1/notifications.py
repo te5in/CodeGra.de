@@ -1,3 +1,8 @@
+"""
+This route defines all routes for notifications.
+
+SPDX-License-Identifier: AGPL-3.0-only
+"""
 import typing as t
 import itertools
 
@@ -13,10 +18,14 @@ from ..helpers import request_arg_true
 
 
 class NotificationsJSON(TypedDict):
+    """JSON serialization for all notifications.
+    """
     notifications: t.List[Notification]
 
 
 class HasUnreadNotifcationJSON(TypedDict):
+    """JSON serialization for checking if there are any unread notifications.
+    """
     has_unread: bool
 
 
@@ -28,6 +37,17 @@ _MAX_NOTIFICATION_AMOUNT = 100
 def get_all_notifications() -> t.Union[ExtendedJSONResponse[NotificationsJSON],
                                        JSONResponse[HasUnreadNotifcationJSON],
                                        ]:
+    """Get all notifications for the current user.
+
+    .. :quickref: Notification; Get all notifications.
+
+    :query boolean has_unread: If considered true a short digest will be send,
+        i.e. a single object with one key ``has_unread`` with a boolean
+        value. Please use this if you simply want to check if there are unread
+        notifications.
+    :returns: Either a :class:`.NotificationsJSON` or a
+        `HasUnreadNotifcationJSON` based on the ``has_unread`` parameter.
+    """
     notifications = db.session.query(Notification).join(
         Notification.comment_reply
     ).filter(
@@ -76,6 +96,14 @@ def get_all_notifications() -> t.Union[ExtendedJSONResponse[NotificationsJSON],
 @api.route('/notifications/<int:notification_id>', methods=['PATCH'])
 def update_notification(notification_id: int
                         ) -> ExtendedJSONResponse[Notification]:
+    """Update the read status for the given notification.
+
+    .. :quickref: Notification; Update a single notification.
+
+    :>json boolean read: Should the notification be considered read.
+    :param notification_id: The id of the notification to update.
+    :returns: The updated notification.
+    """
     with helpers.get_from_request_transaction() as [get, _]:
         read = get('read', bool)
 
@@ -100,6 +128,14 @@ def update_notification(notification_id: int
 
 @api.route('/notifications/', methods=['PATCH'])
 def update_notifications() -> ExtendedJSONResponse[NotificationsJSON]:
+    """Update the read status for the given notifications.
+
+    .. :quickref: Notification; Update multiple notifications in bulk.
+
+    :>jsonarr int id: The id of the notification to update.
+    :>jsonarr boolean read: Should the notification be considered read.
+    :returns: The updated notifications in the same order as given in the body.
+    """
     with helpers.get_from_request_transaction() as [get, _]:
         notifications: t.List[helpers.JSONType] = get('notifications', list)
 

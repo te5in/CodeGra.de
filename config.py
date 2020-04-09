@@ -12,10 +12,11 @@ from configparser import ConfigParser
 from mypy_extensions import TypedDict
 from typing_extensions import Literal
 
-config_file = os.getenv('CODEGRADE_CONFIG_FILE', 'config.ini')
+cur_dir = os.path.dirname(os.path.abspath(__file__))
+config_file = os.getenv('CODEGRADE_CONFIG_FILE', os.path.join(cur_dir, 'config.ini'))
 
 CONFIG: t.Dict[str, t.Any] = dict()
-CONFIG['BASE_DIR'] = os.path.dirname(os.path.abspath(__file__))
+CONFIG['BASE_DIR'] = cur_dir
 
 os.environ['BASE_DIR'] = str(CONFIG['BASE_DIR'])
 
@@ -330,7 +331,10 @@ set_str(CONFIG, backend_ops, 'PROXY_BASE_DOMAIN', '')
 CONFIG['EXTERNAL_DOMAIN'] = urllib.parse.urlparse(
     CONFIG['EXTERNAL_URL']
 ).hostname
-assert CONFIG['EXTERNAL_DOMAIN'] is not None
+if not CONFIG['DEBUG']:
+    import pprint
+    pprint.pprint(CONFIG)
+    assert CONFIG['EXTERNAL_DOMAIN'] is not None
 
 set_str(CONFIG, backend_ops, 'JAVA_PATH', 'java')
 

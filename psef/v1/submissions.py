@@ -15,7 +15,7 @@ import sqlalchemy.sql as sql
 from flask import request
 from sqlalchemy.orm import selectinload, contains_eager
 from mypy_extensions import TypedDict
-from typing_extensions import Final, Protocol
+from typing_extensions import Protocol
 
 import psef.files
 from psef import app, tasks, current_user
@@ -42,16 +42,47 @@ LinterComments = t.Dict[int,
 
 
 class FeedbackBase(TypedDict, total=True):
+    """The base JSON representation for feedback.
+
+    This representation is never send, see the two models below.
+
+    :ivar general: The general feedback given on this submission.
+    :ivar linter: A mapping that is almost the same the user feedback mapping
+        for feedback without replies, only the final key is not a string but a
+        list of tuples where the first item is the linter code and the second
+        item is a :class:`.models.LinterComment`.
+    """
     general: t.Optional[str]
     linter: LinterComments
 
 
 class FeedbackWithReplies(FeedbackBase, total=True):
+    """The JSON representation for feedback with replies.
+
+    .. note:: Both lists should be considered unsorted.
+
+    :ivar authors: A list of all authors you have permission to see that placed
+        comments. This list is unique, i.e. each author occurs at most once.
+    :ivar user: A list of user given inline feedback.
+    """
     user: t.List[models.CommentBase]
     authors: t.List[models.User]
 
 
 class FeedbackWithoutReplies(FeedbackBase, total=True):
+    """The JSON representation for feedback without replies.
+
+    .. note::
+
+        This representation is considered deprecated, as it doesn't include
+        important information (i.e. replies)
+
+    :ivar user: A mapping between file id and a mapping that is between line
+        and feedback. So for example: ``{5: {0: 'Nice job!'}}`` means that file
+        with ``id`` 5 has feedback on line 0.
+    :ivar authors: The authors of the user feedback. In the example above the
+        author of the feedback 'Nice job!' would be at ``{5: {0: $USER}}``.
+    """
     user: t.Dict[int, t.Dict[int, str]]
     authors: t.Dict[int, t.Dict[int, models.User]]
 
@@ -328,16 +359,10 @@ def get_feedback_from_submission(
 
     .. :quickref: Submission; Get all (linter, user and general) feedback.
 
-    :>json general: The general feedback given on this submission.
-    :>json user: A mapping between file id and a mapping that is between line
-        and feedback. So for example: ``{5: {0: 'Nice job!'}}`` means that file
-        with ``id`` 5 has feedback on line 0.
-    :>json linter: A mapping that is almost the same the user feedback mapping,
-        only the final key is not a string but a list of tuples where the first
-        item is the linter code and the second item is a
-        :class:`.models.LinterComment`.
-    :>json authors: The authors of the user feedback. In the example above the
-        author of the feedback 'Nice job!' would be at ``{5: {0: $USER}}``.
+    :query boolean with_replies: If considered true (see
+        :func:`.helpers.request_arg_true`) feedback is send including
+        replies. Please note that passing this as true is deprecated.
+    :returns: The feedback of this submission.
     """
     work = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted

@@ -1,12 +1,10 @@
 import { AxiosResponse } from 'axios';
-import * as models from '@/models';
 
 export interface SubmitButtonResult<Y, T = any> extends AxiosResponse<T> {
     cgResult: Y;
 
     onAfterSuccess?: () => void;
 }
-
 
 interface BaseSnippet {
     id: number;

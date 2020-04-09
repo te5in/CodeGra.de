@@ -63,9 +63,22 @@ class User(NotEqualMixin, Base):
     :ivar reset_email_on_lti: Determines if the email should be reset on the
         next LTI launch.
     """
+
     @classmethod
-    def resolve(cls: t.Type['User'], possible_user: t.Union['User', LocalProxy]) -> 'User':
+    def resolve(
+        cls: t.Type['User'], possible_user: t.Union['User', LocalProxy]
+    ) -> 'User':
+        """Unwrap the possible local proxy to a user.
+
+        :param possible_user: The user we should unwrap.
+        :returns: If the given argument was a LocalProxy
+            `_get_current_object()` is called and the return value is returned,
+            otherwise the given argument is returned.
+        :raises AssertionError: If the given argument was not a user after
+            unwrapping.
+        """
         if isinstance(possible_user, LocalProxy):
+            # pylint: disable=protected-access
             possible_user = possible_user._get_current_object()
         assert isinstance(possible_user, cls), 'Give object is not a User'
         return possible_user
@@ -120,6 +133,12 @@ class User(NotEqualMixin, Base):
     )
 
     def get_readable_name(self) -> str:
+        """Get the readable name of this user.
+
+        :returns: If this is a normal user this method simply returns the name
+            of the user. If this user is the virtual user of a group a nicely
+            formatted group name is returned.
+        """
         if self.group:
             return f'group "{self.group.name}"'
         else:
@@ -206,6 +225,12 @@ class User(NotEqualMixin, Base):
             return self.group.has_as_member(possible_member)
 
     def get_contained_users(self) -> t.Iterable['User']:
+        """Get all contained users of this user.
+
+        :returns: If this user is the virtual user of this group a list of
+            members of the group, otherwise the user itself is wrapped in a
+            list and returned.
+        """
         if self.group is None:
             return [self]
         return self.group.members

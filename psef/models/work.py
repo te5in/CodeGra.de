@@ -30,7 +30,7 @@ from . import assignment as assignment_models
 from .. import auth, helpers, features
 from .linter import LinterState, LinterComment, LinterInstance
 from .rubric import RubricItem, WorkRubricItem
-from .comment import CommentBase, CommentReply
+from .comment import CommentBase
 from ..helpers import JSONType
 from ..exceptions import PermissionException
 from ..permissions import CoursePermission

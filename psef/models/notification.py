@@ -1,3 +1,9 @@
+"""
+This module defines all classes needed to represent notifications in the
+database.
+
+SPDX-License-Identifier: AGPL-3.0-only
+"""
 import enum
 import typing as t
 
@@ -5,7 +11,7 @@ import sqlalchemy
 from typing_extensions import Literal, TypedDict
 
 from cg_sqlalchemy_helpers import ArrayOfEnum
-from cg_sqlalchemy_helpers.types import DbEnum, ColumnProxy
+from cg_sqlalchemy_helpers.types import DbEnum
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import Base, db
@@ -15,6 +21,8 @@ from ..helpers import NotEqualMixin
 
 
 class NotificationReasons(enum.Enum):
+    """The reason a user received a notification.
+    """
     assignee = 1
     author = 2
     replied = 3
@@ -33,17 +41,21 @@ NOTIFCATION_REASON_EXPLANATION: t.Mapping[NotificationReasons, str] = {
 }
 
 
-def NotificationReasonEnum() -> DbEnum[NotificationReasons]:
+def NotificationReasonEnum() -> DbEnum[NotificationReasons]:  # pylint: disable=invalid-name
     return db.Enum(NotificationReasons, name='notification_reason')
 
 
 class BaseNotificationJSON(TypedDict):
+    """The base dict used for representing a notification as JSON.
+    """
     id: int
     read: bool
     reasons: t.List[t.Tuple[NotificationReasons, str]]
 
 
 class CommentNotificationJSON(BaseNotificationJSON, TypedDict):
+    """The dict used for representing a comment notification as JSON.
+    """
     type: Literal['comment_notification']
     created_at: str
     comment_reply: 'c_models.CommentReply'
@@ -54,6 +66,11 @@ class CommentNotificationJSON(BaseNotificationJSON, TypedDict):
 
 
 class Notification(Base, IdMixin, TimestampMixin, NotEqualMixin):
+    """This class represents a notification.
+
+    This can be a notification for many things, but currently it is only used
+    as a notification for new comments.
+    """
     receiver_id = db.Column(
         'receiver_id',
         db.Integer,
@@ -90,12 +107,19 @@ class Notification(Base, IdMixin, TimestampMixin, NotEqualMixin):
 
     @property
     def deleted(self) -> bool:
+        """Should you consider this notification deleted.
+        """
         return self.comment_reply.deleted
 
     @property
     def reasons_with_explanation(
         self
     ) -> t.List[t.Tuple[NotificationReasons, str]]:
+        """Get a list of reasons for this notification with an explanation.
+
+        :returns: A list of tuples where the first element is the reason, and
+            the second one the explanation.
+        """
         return sorted(
             [(r, NOTIFCATION_REASON_EXPLANATION[r]) for r in self.reasons]
         )

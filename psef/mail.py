@@ -6,7 +6,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 import html
 import typing as t
 
-import jinja2
 import html2text
 import structlog
 from flask import current_app
@@ -253,6 +252,10 @@ def send_digest_notification_email(
 
 
 def send_direct_notification_email(notification: models.Notification) -> None:
+    """Send a direct notification email for the given notification.
+
+    :param notification: The notification for which we should send an e-mail.
+    """
     comment = notification.comment_reply
 
     references = [r.message_id for r in comment.references]

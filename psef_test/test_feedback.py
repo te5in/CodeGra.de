@@ -36,7 +36,7 @@ def make_add_reply(session, test_client, error_template):
         ):
             in_reply_to_id = in_reply_to and get_id(in_reply_to)
             base = test_client.req(
-                'post',
+                'put',
                 '/api/v1/comments/',
                 200,
                 data={

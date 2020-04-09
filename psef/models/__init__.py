@@ -103,6 +103,18 @@ This module defines all the objects in the database in their relation.
     :members:
     :show-inheritance:
 
+``psef.models.user_setting``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: psef.models.user_setting
+    :members:
+    :show-inheritance:
+
+``psef.models.notification``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: psef.models.notification
+    :members:
+    :show-inheritance:
+
 SPDX-License-Identifier: AGPL-3.0-only
 """
 

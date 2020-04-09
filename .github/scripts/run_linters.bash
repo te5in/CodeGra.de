@@ -1,7 +1,12 @@
 #!/bin/bash
 set -o xtrace
 
-printf '[Back-end]\nproxy_base_domain = test.com' > config.ini
+cat >config.ini <<EOF
+[Back-end]
+external_url = http://localhost:1234
+proxy_base_domain = test.com
+EOF
+
 npm run build &
 NPM_PID="$!"
 

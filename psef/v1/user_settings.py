@@ -1,5 +1,8 @@
-import typing as t
+"""
+This module defines all API routes with for user settings.
 
+SPDX-License-Identifier: AGPL-3.0-only
+"""
 from flask import request
 
 from cg_json import JSONResponse
@@ -22,6 +25,15 @@ def _get_user() -> 'models.User':
 @api.route('/settings/notification_settings/', methods=['GET'])
 def get_notification_settings(
 ) -> JSONResponse[models.NotificationSettingJSON]:
+    """Update preferences for notifications.
+
+    .. :quickref: User Setting; Get the preferences for notifications.
+
+    :query str token: The token with which you want to get the preferences,
+        if not given the preferences are retrieved for the currently logged in
+        user.
+    :returns: The preferences for the user as described by the ``token``.
+    """
     user = _get_user()
 
     return JSONResponse.make(
@@ -33,6 +45,19 @@ def get_notification_settings(
 
 @api.route('/settings/notification_settings/', methods=['PATCH'])
 def update_notification_settings() -> EmptyResponse:
+    """Update preferences for notifications.
+
+    .. :quickref: User Setting; Update preferences for notifications.
+
+    :query str token: The token with which you want to update the preferences,
+        if not given the preferences are updated for the currently logged in
+        user.
+    :>json string reason: The :class:`.models.NotificationReasons` which you
+        want to update.
+    :>json string value: The :class:`.models.EmailNotificationTypes` which
+        should be the new value.
+    :returns: Nothing.
+    """
     user = _get_user()
 
     with get_from_request_transaction() as [get, _]:

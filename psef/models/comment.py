@@ -1,10 +1,10 @@
-"""This module defines a Comment.
+"""
+This module defines all database models needed for inline feedback comments.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import enum
 import typing as t
-import hashlib
 from collections import defaultdict
 
 import sqlalchemy
@@ -24,17 +24,23 @@ from . import file as file_models
 from . import user as user_models
 from . import _MyQuery
 from . import notification as n_models
-from .. import auth, current_app, current_user
-from ..permissions import CoursePermission
+from .. import auth, db_locks, current_app, current_user
 
 
 @enum.unique
 class CommentReplyType(enum.Enum):
+    """The type of formatting used for the contents of the reply.
+    """
     plain_text = enum.auto()
     markdown = enum.auto()
 
 
 class CommentReply(IdMixin, TimestampMixin, Base):
+    """The class representing a reply.
+
+    If a reply doesn't have a ``reply_to_id`` set you should see this as a
+    reply to the comment base.
+    """
     comment_base_id = db.Column(
         'comment_base_id',
         db.Integer,
@@ -90,6 +96,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         back_populates='comment_reply',
         uselist=True,
         lazy='dynamic',
+        # pylint: disable=unnecessary-lambda
         order_by=lambda: CommentReplyEdit.created_at.desc(),
     )
 
@@ -111,20 +118,28 @@ class CommentReply(IdMixin, TimestampMixin, Base):
 
     @property
     def can_see_author(self) -> bool:
+        """Is the current user allowed to see this replies author.
+
+        .. note::
+
+            You are only allowed to see the author when you are also allowed to
+            see the reply itself.
+        """
         checker = psef.auth.FeedbackReplyPermissions(self)
-        return (
-            checker.ensure_may_see.as_bool() and
-            checker.ensure_may_see_author.as_bool()
-        )
+        return checker.ensure_may_see_author.as_bool()
 
     @property
     def message_id(self) -> str:
+        """The message id of this reply when you send it as an e-mail.
+        """
         return '<message_reply_{id_hash}@{domain}>'.format(
             id_hash=self.id, domain=current_app.config['EXTERNAL_DOMAIN']
         )
 
     @property
     def references(self) -> t.List['CommentReply']:
+        """Get a list of all comment replies this reply references.
+        """
         if self.in_reply_to is None:
             return []
         else:  # pragma: no cover
@@ -163,7 +178,6 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         for work_author in work.user.get_contained_users():
             user_reasons[work_author].add(n_models.NotificationReasons.author)
 
-        print('assignee', work.assignee)
         if work.assignee:
             for assignee in work.assignee.get_contained_users():
                 user_reasons[assignee].add(
@@ -185,6 +199,11 @@ class CommentReply(IdMixin, TimestampMixin, Base):
             )
 
     def update(self, new_comment_text: str) -> 'CommentReplyEdit':
+        """Update the contents this reply and create a
+            :class:`.CommentReplyEdit` object for this mutation.
+
+        :returns: The created :class:`.CommentReplyEdit`.
+        """
         edit = CommentReplyEdit(
             self, current_user, new_comment_text=new_comment_text
         )
@@ -192,11 +211,21 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         return edit
 
     def delete(self) -> 'CommentReplyEdit':
+        """Delete this reply and create a :class:`.CommentReplyEdit` object for
+            this mutation.
+
+        :returns: The created :class:`.CommentReplyEdit`.
+        """
         edit = CommentReplyEdit(self, current_user, is_deletion=True)
         self.deleted = True
         return edit
 
     def get_outdated_json(self) -> t.Mapping[str, object]:
+        """Get the old JSON representation for this reply.
+
+        This representation was used for the old comments api, the one before
+        we supported replies. Don't use it for new apis.
+        """
         res = {
             'line': self.comment_base.line,
             'msg': self.comment,
@@ -234,6 +263,9 @@ class CommentReply(IdMixin, TimestampMixin, Base):
 
 
 class CommentReplyEdit(IdMixin, TimestampMixin, Base):
+    """A class representing an edit of a comment reply.
+    """
+
     @t.overload
     def __init__(
         self, comment_reply: CommentReply, editor: 'user_models.User', *,
@@ -354,15 +386,25 @@ class CommentBase(IdMixin, Base):
         back_populates='comment_base',
         uselist=True,
         lazy='selectin',
-        order_by=lambda: CommentReply.created_at.asc(),
+        order_by=CommentReply.created_at.asc,
         primaryjoin=lambda: sqlalchemy.and_(
             CommentBase.id == CommentReply.comment_base_id,
             ~CommentReply.deleted,
         )
     )
 
+    def __eq__(self, other: object) -> bool:
+        """Check if the given object is considered equal to this comment base.
+        """
+        return (
+            other.id == self.id
+            if isinstance(other, CommentBase) else NotImplemented
+        )
+
     @property
     def work(self) -> 'psef.models.Work':
+        """The :class:`psef.models.Work` associated with this comment base.
+        """
         return self.file.work
 
     def add_reply(
@@ -372,6 +414,15 @@ class CommentBase(IdMixin, Base):
         reply_type: CommentReplyType,
         in_reply_to: t.Optional[CommentReply],
     ) -> CommentReply:
+        """Add a reply to this comment base.
+
+        :param user: The author of the reply.
+        :param comment: The text of the reply.
+        :param reply_type: The format of the reply text.
+        :param in_reply_to: An optional reply, in this case the new reply will
+            be considered a reply on this given reply.
+        :returns: The created reply.
+        """
         reply = CommentReply(
             comment=comment,
             author=user,
@@ -383,28 +434,50 @@ class CommentBase(IdMixin, Base):
         return reply
 
     @classmethod
-    def create(cls, file: 'file_models.File', line: int) -> 'CommentBase':
-        return cls(file=file, file_id=file.id, line=line, replies=[])
-
-    @classmethod
     def create_if_not_exists(
         cls, file: 'file_models.File', line: int
     ) -> 'CommentBase':
+        """Find, or create if it doesn't exist, a comment base for the given
+            ``file`` and ``line``.
+
+        This function makes sure that no duplicates will be created in the
+        database, at the cost of possibly multiple queries.
+
+        :returns: A found or created (in which case it will not have been added
+            to the session) comment base.
+        """
+        # Do an optimistic try to find it
         self = cls.query.filter(
             cls.file_id == file.id,
             cls.line == line,
         ).one_or_none()
+
         if self is None:
-            self = cls.create(file, line)
+            # If we cannot find it lock this file for comments, search again,
+            # and if we can still not find it we can safely create it.
+            db_locks.acquire_lock(
+                db_locks.LockNamespaces.comment_base, file.id
+            )
+            self = cls.query.filter(
+                cls.file_id == file.id,
+                cls.line == line,
+            ).one_or_none()
+            if self is None:
+                self = cls(file=file, file_id=file.id, line=line, replies=[])
         return self
 
     @property
     def first_reply(self) -> t.Optional['CommentReply']:
+        """Get the first reply that the currently logged in user may see.
+        """
         reps = self.user_visible_replies
         return reps[0] if reps else None
 
     @cached_property
     def user_visible_replies(self) -> t.Sequence[CommentReply]:
+        """Get the replies of this comment base that the currently logged in
+            user may see.
+        """
         return [
             r for r in self.replies
             if auth.FeedbackReplyPermissions(r).ensure_may_see.as_bool()

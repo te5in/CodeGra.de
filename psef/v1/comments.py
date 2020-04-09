@@ -1,3 +1,10 @@
+"""
+This module defines all API routes for comments. With these routes you can
+create, edit and delete comments. Retrieving comments should be done using the
+route ``/api/v1/submissions/<submission_id>/feedbacks/``.
+
+SPDX-License-Identifier: AGPL-3.0-only
+"""
 import typing as t
 
 from cg_json import ExtendedJSONResponse
@@ -10,11 +17,19 @@ from ..auth import (
 )
 from ..models import CommentBase, CommentReply, CommentReplyEdit, db
 from ..exceptions import APIWarnings
-from ..permissions import CoursePermission as CPerm
 
 
-@api.route('/comments/', methods=['POST'])
+@api.route('/comments/', methods=['PUT'])
 def add_comment() -> ExtendedJSONResponse[CommentBase]:
+    """Create a new comment base, or retrieve an existing one.
+
+    .. :quickref: Comment; Create a new comment base.
+
+    :>json int file_id: The id of the file in which this comment should be
+        placed.
+    :>json int line: The line on which this comment should be placed.
+    :returns: The just created comment base.
+    """
     with helpers.get_from_request_transaction() as [get, _]:
         file_id = get('file_id', int)
         line = get('line', int)
@@ -38,6 +53,19 @@ def add_comment() -> ExtendedJSONResponse[CommentBase]:
 
 @api.route('/comments/<int:comment_base_id>/replies/', methods=['POST'])
 def add_reply(comment_base_id: int) -> ExtendedJSONResponse[CommentReply]:
+    """Add a reply to a comment base.
+
+    .. :quickref: Comment; Add a reply to a comment base.
+
+    :>json string comment: The content of the new reply.
+    :>json string reply_type: The type of formatting used for the contents of
+        the new reply. Should be a member of :class:`.models.CommentReplyType`.
+    :>json t.Optional[int] in_reply_to: The id of the reply this new reply
+        should be considered a reply to. (OPTIONAL).
+    :param comment_base_id: The id of the base to which you want to add a
+        reply.
+    :returns: The just created reply.
+    """
     with helpers.get_from_request_transaction() as [get, opt_get]:
         reply_message = get('comment', str)
         in_reply_to_id = opt_get('in_reply_to', (int, type(None)), None)
@@ -100,7 +128,16 @@ def add_reply(comment_base_id: int) -> ExtendedJSONResponse[CommentReply]:
 )
 def update_reply(comment_base_id: int,
                  reply_id: int) -> ExtendedJSONResponse[CommentReply]:
-    with helpers.get_from_request_transaction() as [get, opt_get]:
+    """Update the content of reply.
+
+    .. :quickref: Comment; Update the content of an inline feedback reply.
+
+    :>json string comment: The new content of the reply.
+    :param comment_base_id: The base of the given reply.
+    :param reply_id: The id of the reply for which you want to update.
+    :returns: The just updated reply.
+    """
+    with helpers.get_from_request_transaction() as [get, _]:
         message = get('comment', str)
 
     reply = helpers.filter_single_or_404(
@@ -122,6 +159,14 @@ def update_reply(comment_base_id: int,
 )
 def get_reply_edits(comment_base_id: int, reply_id: int
                     ) -> ExtendedJSONResponse[t.List[CommentReplyEdit]]:
+    """Get the edits of a reply.
+
+    .. :quickref: Comment; Get the edits of an inline feedback reply.
+
+    :param comment_base_id: The base of the given reply.
+    :param reply_id: The id of the reply for which you want to get the replies.
+    :returns: A list of edits, sorted from newest to oldest.
+    """
     reply = helpers.filter_single_or_404(
         CommentReply,
         CommentReply.id == reply_id,
@@ -140,6 +185,14 @@ def get_reply_edits(comment_base_id: int, reply_id: int
     methods=['DELETE']
 )
 def delete_reply(comment_base_id: int, reply_id: int) -> EmptyResponse:
+    """Delete the given reply.
+
+    .. :quickref: Comment; Delete an inline feedback reply.
+
+    :param comment_base_id: The base of the given reply.
+    :param reply_id: The id of the reply to delete.
+    :returns: Nothing.
+    """
     reply = helpers.filter_single_or_404(
         CommentReply,
         CommentReply.id == reply_id,

@@ -47,7 +47,7 @@ class PsefFlask(Flask):
             template = self.config.get(key)
             if template:
                 with open(str(template), 'r') as f:
-                    dict_to_load['notification.j2'] = f.read()
+                    dict_to_load[t_name] = f.read()
 
         self.jinja_mail_env = jinja2.Environment(
             autoescape=True,

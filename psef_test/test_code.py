@@ -510,7 +510,7 @@ def test_delete_code_twice(
 )
 def test_invalid_delete_code(
     assignment_real_works, test_client, request, error_template, ta_user,
-    logged_in, session, monkeypatch_celery,
+    logged_in, session, monkeypatch_celery
 ):
     assignment, work = assignment_real_works
     work_id = work['id']

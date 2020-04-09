@@ -340,7 +340,7 @@ export class FeedbackLine {
         line: number,
         userId: number,
     ): Promise<SubmitButtonResult<FeedbackLine>> {
-        const response = await axios.post('/api/v1/comments/', {
+        const response = await axios.put('/api/v1/comments/', {
             file_id: fileId,
             line,
         });

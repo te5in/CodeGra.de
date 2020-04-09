@@ -43,7 +43,10 @@ def make_db() -> types.MyDb:
 _T = t.TypeVar('_T')
 
 
-class ArrayOfEnum(t.Generic[T], TypeDecorator, DbType[t.Tuple[T, ...]]):
+class ArrayOfEnum(t.Generic[T], TypeDecorator, DbType[t.Tuple[T, ...]]):  # pylint: disable=too-many-ancestors
+    """A class to use enums in a Postgres array.
+    """
+
     impl = ARRAY
 
     def __init__(self, item_type: DbEnum[T]):

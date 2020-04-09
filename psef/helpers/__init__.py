@@ -150,6 +150,12 @@ def add_deprecate_warning(warning: str) -> None:
 
 
 def mark_as_deprecated_route(warning: str) -> t.Callable[[T_CAL], T_CAL]:
+    """Mark a given route as deprecated.
+
+    :param warning: The deprecation warning that should be added to each
+        request to the wrapped route.
+    """
+
     def __wrapper(fun: T_CAL) -> t.Any:
         @wraps(fun)
         def __inner(*args: object, **kwargs: object) -> object:
@@ -881,7 +887,12 @@ def get_from_request_transaction(
     ensure_empty: bool = False,
 ) -> t.ContextManager[t.Tuple[TransactionGet[str], TransactionOptionalGet[str]]
                       ]:
-    return get_from_map_transaction(get_json_dict_from_request())
+    """The same as :func:`get_from_map_transaction` but with
+        :func:`get_json_dict_from_request` as first argument.
+    """
+    return get_from_map_transaction(
+        get_json_dict_from_request(), ensure_empty=ensure_empty
+    )
 
 
 def ensure_keys_in_dict(

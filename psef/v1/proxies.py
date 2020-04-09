@@ -81,6 +81,8 @@ def start_proxy(
 ) -> werkzeug.wrappers.Response:
     """Start using the given proxy.
 
+    .. :quickref: Proxy; Start using a proxy.
+
     :param proxy_id: The proxy you want to start using.
     :param path_str: The initial file that should be served.
     :returns: A redirection to a url which can be used to get the requested
@@ -112,6 +114,8 @@ def get_proxy_file(
     path_str: str = '', proxy_id: uuid.UUID = None
 ) -> werkzeug.wrappers.Response:
     """Get a file for the given proxy.
+
+    .. :quickref: Proxy; Get a file from a proxy.
 
     :param proxy_id: The proxy in which you want to get a file.
     :param path: The path of the file you want to get.

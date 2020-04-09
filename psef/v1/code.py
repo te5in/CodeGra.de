@@ -19,8 +19,8 @@ from .. import app, auth, files, models, helpers, current_user
 from ..errors import APICodes, APIException
 from ..models import FileOwner, db
 from ..helpers import (
-    JSONResponse, EmptyResponse, jsonify, ensure_json_dict,
-    ensure_keys_in_dict, make_empty_response
+    JSONResponse, EmptyResponse, jsonify, ensure_keys_in_dict,
+    make_empty_response
 )
 from ..permissions import CoursePermission as CPerm
 
@@ -31,7 +31,7 @@ _FeedbackMapping = t.Dict[str, t.Union[_HumanFeedback, _LinterFeedback]]  # pyli
 
 @api.route("/code/<int:code_id>/comments/<int:line>", methods=['PUT'])
 @helpers.mark_as_deprecated_route(
-    'Please update comments by id and create them by POSTing to'
+    'Please update comments by id and create them by PUTting to'
     ' /api/v1/comments/'
 )
 def put_comment(code_id: int, line: int) -> EmptyResponse:
@@ -62,8 +62,9 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
 
     comment_base = models.CommentBase.create_if_not_exists(file, line)
     if comment_base.id is None:
-        auth.FeedbackBasePermissions(comment_base).ensure_may_add(  # type: ignore[unreachable]
-        )
+        auth.FeedbackBasePermissions(  # type: ignore[unreachable]
+            comment_base
+        ).ensure_may_add()
         db.session.add(comment_base)
     reply = comment_base.first_reply
 
@@ -86,7 +87,7 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
 
 @api.route("/code/<int:code_id>/comments/<int:line>", methods=['DELETE'])
 @helpers.mark_as_deprecated_route(
-    'Please update comments by id and create them by POSTing to'
+    'Please update comments by id and create them by PUTting to'
     ' /api/v1/comments/'
 )
 @auth.login_required
@@ -144,7 +145,9 @@ def get_code(file_id: t.Union[int, uuid.UUID]
       :py:func:`.get_file_url`.
     - If ``type == 'feedback'`` or ``type == 'linter-feedback'`` see
       :py:func:`.code.get_feedback`. This will always return an empty mapping
-      for :class:`.models.AutoTestOutputFiles` for now.
+      for :class:`.models.AutoTestOutputFiles` for now. This type is
+      deprecated, please get all feedback of submission in one try using
+      ``/api/v1/submissions/<submission_id>/feedbacks/``.
     - Otherwise the content of the file is returned as plain text.
 
     :param file_id: The id of the file if you want get the data for a

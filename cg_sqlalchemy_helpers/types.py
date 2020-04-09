@@ -610,7 +610,6 @@ class Base:  # pragma: no cover
         pass
 
 
-
 class MyNonOrderableQuery(t.Generic[T]):  # pragma: no cover
     delete: t.Callable[[QuerySelf], None]
     subquery: t.Callable[[QuerySelf, str], RawTable]
@@ -736,7 +735,8 @@ class _MyExistsQuery:
 
 _MyQuery = MyQuery
 
-if t.TYPE_CHECKING:
+MYPY = False
+if t.TYPE_CHECKING and MYPY:
 
     @t.overload
     def hybrid_property(fget: t.Callable[[Z], T]) -> ImmutableColumnProxy[T]:
@@ -791,7 +791,7 @@ if t.TYPE_CHECKING:
 
         def result_processor(self, dialect: object,
                              coltype: object) -> t.Callable[[object], object]:
-            pass
+            return lambda x: x
 else:
     from sqlalchemy.ext.hybrid import hybrid_property
     from sqlalchemy.ext.hybrid import Comparator as _Comparator

@@ -1,17 +1,20 @@
+"""
+This module defines all models needed for persisting user settings in the
+database.
+
+SPDX-License-Identifier: AGPL-3.0-only
+"""
 import abc
 import enum
 import typing as t
 import itertools
-import dataclasses
 
 import structlog
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from typing_extensions import Literal, TypedDict, get_type_hints
+from typing_extensions import Literal, TypedDict
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.dialects.postgresql import JSONB
 
 import psef
-from cg_sqlalchemy_helpers import ARRAY
 from cg_sqlalchemy_helpers.types import ColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
@@ -26,34 +29,50 @@ from .notification import (
 
 logger = structlog.get_logger()
 
+MYPY = False
+
 
 class SettingBase(TimestampMixin, IdMixin):
-    @classmethod
-    @abc.abstractmethod
-    def get_setting_name(self) -> str:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def __to_json__(self) -> str:
-        raise NotImplementedError
+    """The base class for representing a new user setting.
+    """
 
     @classmethod
-    def get_salt(cls) -> str:
+    @abc.abstractmethod
+    def get_setting_name(cls) -> str:
+        """Get the name of this setting.
+
+        This should be unique per table.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def _get_salt(cls) -> str:
         return f'setting:{cls.get_setting_name()}'
 
     @classmethod
     def get_settings_change_token(cls, user: User) -> str:
+        """Get a token to change settings on this settings class for the given
+            user.
+
+        :param user: The user for which you want to change settings later on.
+        :returns: A token that can later be given to
+            :meth:`.SettingBase.verify_settings_change_token`.
+        """
         return URLSafeTimedSerializer(
             psef.current_app.config['SECRET_KEY'],
-            salt=cls.get_salt(),
+            salt=cls._get_salt(),
         ).dumps(user.id)
 
     @classmethod
     def verify_settings_change_token(cls, token: str) -> User:
+        """Verify the given token to change settings for this settings class.
+
+        :returns: The user for which this token can change settings.
+        """
         try:
             user_id: int = URLSafeTimedSerializer(
                 psef.current_app.config['SECRET_KEY'],
-                salt=cls.get_salt(),
+                salt=cls._get_salt(),
             ).loads(
                 token,
                 max_age=round(psef.current_app.config['SETTING_TOKEN_TIME']),
@@ -84,13 +103,13 @@ class SettingBase(TimestampMixin, IdMixin):
 
         return psef.helpers.get_or_404(User, user_id)
 
-    if t.TYPE_CHECKING:  # pragma: no cover
+    if t.TYPE_CHECKING and MYPY:  # pragma: no cover
         user_id: ColumnProxy[int]
         user: ColumnProxy[User]
     else:
 
         @declared_attr
-        def user_id(cls):
+        def user_id(cls):  # pylint: disable=missing-function-docstring,no-self-argument
             return db.Column(
                 'user_id',
                 db.Integer,
@@ -99,7 +118,7 @@ class SettingBase(TimestampMixin, IdMixin):
             )
 
         @declared_attr
-        def user(cls):
+        def user(cls):  # pylint: disable=missing-function-docstring,no-self-argument
             return db.relationship(
                 User,
                 foreign_keys=cls.user_id,
@@ -108,6 +127,8 @@ class SettingBase(TimestampMixin, IdMixin):
 
 
 class EmailNotificationTypes(enum.Enum):
+    """The possible options for preferences for sending email notifications.
+    """
     direct = 1
     daily = 2
     weekly = 3
@@ -115,6 +136,8 @@ class EmailNotificationTypes(enum.Enum):
 
     @classmethod
     def ordered_options(cls) -> t.List['EmailNotificationTypes']:
+        """Get the options of this enum sorted.
+        """
         return sorted(cls.__members__.values())
 
     def previous_option(self) -> t.Optional['EnabledEmailNotificationTypes']:
@@ -142,32 +165,41 @@ class EmailNotificationTypes(enum.Enum):
         return self.name
 
 
-EnabledEmailNotificationTypes = Literal[EmailNotificationTypes.
+EnabledEmailNotificationTypes = Literal[EmailNotificationTypes.  # pylint: disable=invalid-name
                                         direct, EmailNotificationTypes.
                                         daily, EmailNotificationTypes.weekly]
 
 
 class NotificationSettingOptionJSON(TypedDict):
+    """The JSON serialization schema for a single notification setting option.
+    """
     reason: NotificationReasons
     explanation: str
     value: EmailNotificationTypes
 
 
 class NotificationSettingJSON(TypedDict):
+    """The JSON serialization schema for :class:`.NotificationsSetting`.
+    """
     options: t.List[NotificationSettingOptionJSON]
     possible_values: t.List[EmailNotificationTypes]
 
 
 class NotificationsSetting(Base, SettingBase):
-    @classmethod
-    def get_setting_name(self) -> str:
+    """The class representing settings for sending notification emails.
+    """
+
+    @staticmethod
+    def get_setting_name() -> str:
         return 'notification_settings'
 
     @classmethod
     def get_notification_setting_json_for_user(
         cls, user: User
     ) -> NotificationSettingJSON:
-        settings = cls.get_default_values()
+        """Get the notification settings for the given user as JSON.
+        """
+        settings = cls._get_default_values()
         settings.update(
             db.session.query(cls.reason, cls.value).filter(cls.user == user)
         )
@@ -202,7 +234,7 @@ class NotificationsSetting(Base, SettingBase):
     ), )
 
     @staticmethod
-    def get_default_values(
+    def _get_default_values(
     ) -> t.MutableMapping[NotificationReasons, EmailNotificationTypes]:
         return {
             NotificationReasons.author: EmailNotificationTypes.off,
@@ -212,9 +244,18 @@ class NotificationsSetting(Base, SettingBase):
 
     @classmethod
     def update_for_user(
-        cls, user: User, reason: NotificationReasons,
-        value: EmailNotificationTypes
+        cls,
+        user: User,
+        reason: NotificationReasons,
+        value: EmailNotificationTypes,
     ) -> None:
+        """Update the notification type for the given reason for the given
+            user.
+
+        :param user: The user for which we should update the setting.
+        :param reason: The reason for which we should update the setting.
+        :param value: The value the setting should be set to.
+        """
         # XXX: It would be useful to use an upsert here, but you cannot use
         # upserts with the orm
         pref = db.session.query(cls).filter(
@@ -230,6 +271,17 @@ class NotificationsSetting(Base, SettingBase):
     def get_should_send_for_users(
         cls, user_ids: t.List[int]
     ) -> t.Callable[[Notification, EnabledEmailNotificationTypes], bool]:
+        """Get a function that can be used to check if you should send a given
+        notification.
+
+        :param user_ids: A list of user ids, these are the users that later can
+            be the receiver of the notification you pass to the returned
+            closure.
+        :returns: A function that when called with two arguments, the
+            notification and the notification type, will return if you should
+            send the notification receiver an email.
+        """
+        given_user_ids = set(user_ids)
         query = db.session.query(cls).filter(
             cls.user_id.in_(user_ids),
         ).order_by(cls.reason)
@@ -242,7 +294,7 @@ class NotificationsSetting(Base, SettingBase):
                 lambda noti: noti.reason,
             )
         }
-        default_values = cls.get_default_values()
+        default_values = cls._get_default_values()
 
         def _should_send(
             notification: Notification,
@@ -257,7 +309,6 @@ class NotificationsSetting(Base, SettingBase):
                 return False
 
             default_return = False
-            print(notification.reasons, lookup, notification.receiver_id)
             for reason in notification.reasons:
                 pref = lookup.get(reason, {}).get(notification.receiver_id)
                 if pref is None:
@@ -271,6 +322,9 @@ class NotificationsSetting(Base, SettingBase):
             notification: Notification,
             send_type: EnabledEmailNotificationTypes,
         ) -> bool:
+            assert notification.receiver_id in given_user_ids, (
+                "You didn't specify this user in the original call"
+            )
             with as_current_user(notification.receiver):
                 if notification.deleted:
                     logger.info('Notification is deleted')

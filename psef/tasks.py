@@ -749,6 +749,7 @@ def _send_direct_notification_emails_1(
             now = DatetimeWithTimezone.utcnow()
             try:
                 p.mail.send_direct_notification_email(notification)
+            # pylint: disable=broad-except
             except Exception:  # pragma: no cover
                 # This happens if mail sending fails or if the user has no
                 # e-mail address.
@@ -806,6 +807,7 @@ def _send_delayed_notification_emails(
             p.mail.send_digest_notification_email(
                 list(user_notifications), digest_type
             )
+        # pylint: disable=broad-except
         except Exception:  # pragma: no cover
             logger.warning(
                 'Could not send digest email',

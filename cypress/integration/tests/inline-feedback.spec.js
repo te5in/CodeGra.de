@@ -327,7 +327,7 @@ context('Inline feedback', () => {
     beforeEach(() => {
         cy.server();
         cy.route('/api/v1/login?type=extended&with_permissions').as('getPermissionsRoute');
-        cy.route('POST', '/api/v1/comments/').as('addCommentRoute');
+        cy.route('PUT', '/api/v1/comments/').as('addCommentRoute');
         login('admin', 'admin');
     });
 
