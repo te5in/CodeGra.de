@@ -218,7 +218,7 @@ export default {
                     `Mean: ${this.to2Dec(stats.mean)}`,
                     `Std. deviation: ${this.to2Dec(stats.stdev)}`,
                     `Median: ${this.to2Dec(stats.median)}`,
-                    `Mode: ${this.modeToString(stats.mode)}`,
+                    `Mode: ${this.to2Dec(stats.mode)}`,
                     `Rit: ${this.to2Dec(stats.rit) || '-'}`,
                     `Rir: ${this.to2Dec(stats.rir) || '-'}`,
                 ];
@@ -379,16 +379,6 @@ export default {
 
         to2Dec(x) {
             return this.$utils.toMaxNDecimals(x, 2);
-        },
-
-        modeToString(mode) {
-            // The mode is usually a number, but it can also be a list when multiple
-            // values were the most common.
-            if (Array.isArray(mode)) {
-                return mode.map(this.to2Dec).join(', ');
-            } else {
-                return this.to2Dec(mode);
-            }
         },
     },
 
