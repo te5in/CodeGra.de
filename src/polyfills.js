@@ -8,6 +8,18 @@ Math.log10 = Math.log10 || (x => Math.log(x) / Math.LN10);
 window.TextDecoder = window.TextDecoder || TextDecoder;
 window.URLSearchParams = window.URLSearchParams || URLSearchParams;
 
+if (!Object.prototype.hasOwnProperty.call(Object.prototype, 'fromEntries')) {
+    // eslint-disable-next-line
+    Object.defineProperty(Object.prototype, 'fromEntries', {
+        value(iterable) {
+            return [...iterable].reduce((obj, [key, val]) => {
+                obj[key] = val;
+                return obj;
+            }, {});
+        },
+    });
+}
+
 // eslint-disable-next-line
 Array.prototype.findIndex =
     Array.prototype.findIndex ||
