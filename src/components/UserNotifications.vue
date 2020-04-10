@@ -134,8 +134,8 @@ export default class UserNotifications extends Vue {
     }
 
     async gotoNotification(notification: models.Notification): Promise<void> {
-        const assignmentId = notification.assignment?.id;
-        const submissionId = notification.submission?.id;
+        const assignmentId = notification.assignmentId;
+        const submissionId = notification.submissionId;
         this.goingToSubmission = notification.id;
 
         notification.markAsRead().then(({ cgResult }) => {

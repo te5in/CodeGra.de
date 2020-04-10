@@ -1,26 +1,30 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-// eslint-disable-next-line
-let polyFilled = Promise.resolve();
+const promises = [];
 
 if (window.TextDecoder == null) {
-    polyFilled = import(/* webpackChunkName: 'text-encoding' */ 'text-encoding').then(
-        ({ TextDecoder }) => {
+    promises.push(
+        import(/* webpackChunkName: 'text-encoding' */ 'text-encoding').then(({ TextDecoder }) => {
             window.TextDecoder = TextDecoder;
-        },
+        }),
     );
 }
 
 if (window.URLSearchParams == null) {
-    const res = import(/* webpackChunkName: 'url-search-params' */ 'url-search-params').then(
-        ({ default: URLSearchParams }) => {
-            window.URLSearchParams = URLSearchParams;
-        },
+    promises.push(
+        import(/* webpackChunkName: 'url-search-params' */ 'url-search-params').then(
+            ({ default: URLSearchParams }) => {
+                window.URLSearchParams = URLSearchParams;
+            },
+        ),
     );
-    polyFilled.then(() => res);
 }
 
-polyFilled = polyFilled.then(() => {
+if (window.IntersectionObserver == null) {
+    promises.push(import(/* webpackChunkName: 'intersection-observer' */ 'intersection-observer'));
+}
+
+promises.push(() => {
     Element.prototype.matches = Element.prototype.matches || Element.prototype.msMatchesSelector;
     Math.log10 = Math.log10 || (x => Math.log(x) / Math.LN10);
 
@@ -91,4 +95,6 @@ polyFilled = polyFilled.then(() => {
         };
 });
 
+// eslint-disable-next-line
+const polyFilled = Promise.all(promises);
 export { polyFilled };

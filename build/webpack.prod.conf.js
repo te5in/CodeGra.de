@@ -89,7 +89,7 @@ var webpackConfig = merge(baseWebpackConfig, {
       cacheGroups: {
         vendor: {
           name: 'vendor',
-          test: /[\\/]node_modules[\\/](?!text-encoding|highlightjs|url-search-params)/,
+          test: /[\\/]node_modules[\\/](?!text-encoding|highlightjs|url-search-params|intersection-observer)/,
           enforce: true,
         },
         highlightjs: {

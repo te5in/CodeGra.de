@@ -18,17 +18,17 @@
     add-space
     button-position="bottom-right">
     <template v-slot:default="slotProps">
-        <div class="p-relative h-100">
-        <div class="resize-div" v-if="slotProps.resizing" />
-        <object :data="pdfURL"
-                type="application/pdf"
-                width="100%"
-                height="100%"
-                v-if="pdfURL !== ''">
-            <b-alert class="mb-0" variant="danger" show>
-                Your browser doesn't support the PDF viewer. Please download
-                the PDF <a class="alert-link" :href="pdfURL">here</a>.
-            </b-alert>
+        <div class="p-relative d-flex flex-grow flex-column">
+            <div class="resize-div" v-if="slotProps.resizing" />
+            <object :data="pdfURL"
+                    type="application/pdf"
+                    width="100%"
+                    height="100%"
+                    v-if="pdfURL !== ''">
+                <b-alert class="mb-0 flex-grow" variant="danger" show>
+                    Your browser doesn't support the PDF viewer. Please download
+                    the PDF <a class="alert-link" :href="pdfURL">here</a>.
+                </b-alert>
         </object>
         </div>
     </template>
@@ -161,7 +161,6 @@ export default {
 
 <style lang="less" scoped>
 .pdf-viewer {
-    position: relative;
     padding: 0 !important;
     height: 100%;
     min-height: 100%;

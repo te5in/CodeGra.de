@@ -667,6 +667,8 @@ Do you want to overwrite it?`;
 .edit-buttons-wrapper .btn {
     display: inline-block;
     padding: 0.25rem;
+    margin-top: -0.5rem;
+    margin-bottom: -0.25rem;
     border: none;
     margin-left: 0.5rem;
     box-shadow: none !important;
