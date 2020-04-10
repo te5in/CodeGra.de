@@ -9,11 +9,13 @@ import typing as t
 
 import structlog
 from flask import request, current_app
+from requests import RequestException
+
+from cg_json import JSONResponse
 
 from . import api
-from .. import models, permissions
+from .. import models, helpers, permissions
 from ..files import check_dir
-from ..helpers import JSONResponse, jsonify
 from ..permissions import CoursePermission
 
 logger = structlog.get_logger()
@@ -59,14 +61,26 @@ def about(
         uploads = check_dir(current_app.config['UPLOAD_DIR'])
         mirror_uploads = check_dir(current_app.config['MIRROR_UPLOAD_DIR'])
 
+        with helpers.BrokerSession() as ses:
+            try:
+                # Set a short timeout as the broker really shouldn't take
+                # longer than 2 seconds to answer.
+                ses.get('/api/v1/ping', timeout=2).raise_for_status()
+            except RequestException:
+                logger.error('Broker unavailable', exc_info=True)
+                broker_ok = False
+            else:
+                broker_ok = True
+
         res['health'] = {
             'application': True,
             'database': database,
             'uploads': uploads,
+            'broker': broker_ok,
             'mirror_uploads': mirror_uploads,
         }
 
         if not all(res['health'].values()):
             status_code = 500
 
-    return jsonify(res, status_code=status_code)
+    return JSONResponse.make(res, status_code=status_code)

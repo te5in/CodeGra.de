@@ -315,6 +315,16 @@ def get_jobs_for_runner(public_runner_id: uuid.UUID
     return cg_json.jsonify([{'url': url} for url in urls])
 
 
+@api.route('/ping', methods=['GET'])
+@instance_route
+def get_ping() -> cg_json.JSONResponse[t.Mapping[str, str]]:
+    """Do a simple ping to the broker.
+
+    This is useful to make sure an instance is allowed to access the broker.
+    """
+    return cg_json.jsonify({'ping': 'pong'})
+
+
 @api.route('/about', methods=['GET'])
 def about() -> cg_json.JSONResponse[t.Mapping[str, object]]:
     """Get some information about the state of this broker.
