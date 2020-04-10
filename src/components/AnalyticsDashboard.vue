@@ -1,11 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 <template>
 <div class="analytics-dashboard row">
-    <div v-if="error"
+    <div v-if="workspaceIds.length === 0"
          class="col-12">
         <b-alert show
                  variant="danger"
                  class="col-12">
+            You do not have permission to view the Analytics Dashboard.
+        </b-alert>
+    </div>
+
+    <div v-else-if="error"
+         class="col-12">
+        <b-alert show
+                 variant="danger">
             {{ $utils.getErrorMessage(error) }}
         </b-alert>
     </div>
@@ -189,7 +197,7 @@ export default {
         },
 
         workspaceIds() {
-            return this.$utils.getProps(this.assignment, null, 'analytics_workspace_ids');
+            return this.$utils.getProps(this.assignment, [], 'analytics_workspace_ids');
         },
 
         currentWorkspaceId() {

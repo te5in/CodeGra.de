@@ -14,7 +14,7 @@
             </div>
 
             <div :id="shareBtnId"
-                 class="icon-button"
+                 class="icon-button share"
                  tabindex="-1"
                  style="outline: none !important;"
                  v-b-popover.hover.top="'Share current filters'">
@@ -48,7 +48,7 @@
                 </b-input-group>
             </b-popover>
 
-            <div class="icon-button danger"
+            <div class="icon-button reset danger"
                  @click="resetFilters()"
                  v-b-popover.hover.top="'Clear all'">
                 <icon name="reply" />
@@ -78,7 +78,7 @@
     <div class="row">
         <div v-for="filter, i in filters"
              :key="i"
-             class="col-12 col-xl-6 mb-3">
+             class="filter col-12 col-xl-6 mb-3">
             <b-card header-class="d-flex">
                 <template #header>
                     <div class="flex-grow-1">
@@ -86,13 +86,13 @@
                     </div>
 
                     <div class="d-flex flex-grow-0">
-                        <div class="icon-button"
+                        <div class="icon-button clone"
                              @click="duplicateFilter(i)"
                              v-b-popover.hover.top="'Duplicate'">
                             <icon name="copy" />
                         </div>
 
-                        <div class="icon-button"
+                        <div class="icon-button split"
                              :class="{
                                  active: isSplitting === i,
                                  'text-muted': isSplittingOther(i),
@@ -104,7 +104,7 @@
                             <icon name="scissors" />
                         </div>
 
-                        <div class="icon-button danger"
+                        <div class="icon-button delete danger"
                              :class="{ 'text-muted': deleteDisabled }"
                              @click="deleteFilter(i)"
                              v-b-popover.hover.top="

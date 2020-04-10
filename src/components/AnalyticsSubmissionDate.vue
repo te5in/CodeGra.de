@@ -183,7 +183,7 @@ export default {
 
         noSubmissionWithinRange() {
             const datasets = this.histogramData.datasets;
-            return stat.sum(datasets.flatMap(ds => ds.data)) === 0;
+            return stat.sum([].concat(...datasets.map(ds => ds.data))) === 0;
         },
 
         tooMuchBins() {
