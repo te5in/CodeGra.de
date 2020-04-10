@@ -38,13 +38,13 @@
     <div @click.prevent="addReply"
          class="add-reply text-muted p-2 border rounded mt-2 border-top"
          v-if="showReply">
-        Reply&hellip;
+        Click to reply&hellip;
     </div>
 </div>
 </template>
 
 <script lang="ts">
-    import { Vue, Component, Prop, Watch } from 'vue-property-decorator';
+import { Vue, Component, Prop, Watch } from 'vue-property-decorator';
 import { Getter, Action } from 'vuex-class';
 
 // @ts-ignore
@@ -80,7 +80,9 @@ export default class FeedbackArea extends Vue {
 
     editingReplies: Record<string, boolean> = {};
 
-    hiddenReplies: Set<number> = new Set(this.nonDeletedReplies.slice(1, -1).map(r => r.trackingId));
+    hiddenReplies: Set<number> = new Set(
+        this.nonDeletedReplies.slice(1, -1).map(r => r.trackingId),
+    );
 
     get nonDeletedReplies(): FeedbackReplyModel[] {
         return this.feedback.replies.filter(r => !r.deleted);

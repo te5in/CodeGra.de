@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="unsubscribe-page">
     <div class="settings-wrapper d-flex align-items-center flex-column">

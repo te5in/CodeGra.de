@@ -15,6 +15,8 @@ HEADER = """/**
 This file contains permissions
 
 {warning}
+
+SPDX-License-Identifier: AGPL-3.0-only
 */
 
 /* eslint-disable */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import axios from 'axios';
 import moment from 'moment';
 // @ts-ignore

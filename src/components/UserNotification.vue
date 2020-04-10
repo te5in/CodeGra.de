@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <tr class="user-notification"
     :class="{ read: notification.read }"

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="feedback-reply-history" :class="{ loading: loading }">
     <b-alert variant="error" show v-if="error != null">

@@ -137,7 +137,6 @@ export default {
 
     .img {
         display: inline-block;
-        // max-width: 100%;
         max-height: 100%;
     }
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import { AxiosResponse } from 'axios';
 
 export interface SubmitButtonResult<Y, T = any> extends AxiosResponse<T> {

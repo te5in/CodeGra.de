@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import Vue from 'vue';
 import { getStoreBuilder } from 'vuex-typex';
 import axios, { AxiosResponse } from 'axios';

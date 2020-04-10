@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import 'vue';
 import { Moment } from 'moment';
 import { AxiosStatic } from 'axios';

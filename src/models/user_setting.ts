@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import axios, { AxiosResponse } from 'axios';
 
 import { NotificationReason } from './notification';

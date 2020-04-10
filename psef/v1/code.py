@@ -225,7 +225,7 @@ def get_file_url(file: models.FileMixin[object]) -> str:
 
 
 def get_feedback(file: models.File, linter: bool = False) -> _FeedbackMapping:
-    """Returns the :class:`.models.CommentBAse` objects attached to the given
+    """Returns the :class:`.models.CommentBase` objects attached to the given
     :class:`.models.File` if the user can see them, else returns an empty dict.
 
     .. note::

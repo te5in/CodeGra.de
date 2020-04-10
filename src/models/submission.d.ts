@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import { AnyUser } from './user';
 import { Assignment } from './assignment';
 

@@ -30,4 +30,6 @@
 {% block footer %}
     You received this email because {{ reasons }}. You can edit your
     notification preferences {{ utils.footer_link(site_url + '/unsubscribe/email_notifications/?token=' + settings_token, 'here') -}}.
+    This is an automated email. Please do not reply directly to it because it
+    will not be redirected to the comment author.
 {% endblock %}

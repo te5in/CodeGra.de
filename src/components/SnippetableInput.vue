@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-input-group
     class="snippetable-input"
@@ -45,6 +46,8 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/user-circle-o';
 import 'vue-awesome/icons/book';
 
+import { Assignment } from '@/models';
+
 import { mapActions, mapGetters } from 'vuex';
 
 function lastWhiteSpace(str, start) {
@@ -62,6 +65,11 @@ export default {
     name: 'snippetable-input',
 
     props: {
+        assignment: {
+            type: Assignment,
+            required: true,
+        },
+
         forceSnippetsAbove: {
             type: Boolean,
             default: false,

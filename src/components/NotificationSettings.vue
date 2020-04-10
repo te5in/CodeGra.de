@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="notification-settings">
     <b-alert v-if="error" show variant="danger">
@@ -17,7 +18,7 @@
                     </li>
                     <li>
                         <b>daily</b>: Send a daily digest email with all new
-                        comments. If there are no new comments no email is send.
+                        comments. If there are no new comments no email is sent.
                     </li>
                     <li>
                         <b>weekly</b>: Same as the <b>daily</b>, but send a

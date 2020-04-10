@@ -7,6 +7,7 @@
             <b-tab title="Edit" active>
                 <div>
                     <snippetable-input
+                        :assignment="assignment"
                         :value="internalReply.message"
                         @input="onInput"
                         :min-initial-height="100"
@@ -205,7 +206,7 @@
 </template>
 
 <script lang="ts">
-    import { Vue, Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Vue, Component, Prop, Ref, Watch } from 'vue-property-decorator';
 
 // @ts-ignore
 import Icon from 'vue-awesome/components/Icon';
@@ -257,7 +258,6 @@ import FeedbackReplyHistory from './FeedbackReplyHistory';
         FeedbackReplyHistory,
     },
 })
-
 export default class FeedbackReply extends Vue {
     snippets!: Record<string, Snippet>;
 
@@ -387,7 +387,9 @@ Do you want to overwrite it?`;
             const course = snip.course ? 'course' : '';
 
             return terms.every(
-                term => key.indexOf(term) >= 0 || value.indexOf(term) >= 0 || course.indexOf(term) >= 0,
+                term => key.indexOf(term) >= 0 ||
+                    value.indexOf(term) >= 0 ||
+                    course.indexOf(term) >= 0,
             );
         });
     }

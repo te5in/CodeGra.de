@@ -24,7 +24,6 @@ var webpackConfig = merge(baseWebpackConfig, {
   devtool: config.build.productionSourceMap ? '#source-map' : false,
   output: {
     path: config.build.assetsRoot,
-    // filename: utils.assetsPath('js/[name].[chunkhash].js'),
     chunkFilename: utils.assetsPath('js/[name].bundle.[chunkhash].js'),
   },
   plugins: [
@@ -100,18 +99,6 @@ var webpackConfig = merge(baseWebpackConfig, {
       },
     },
     runtimeChunk: 'single',
-
-    // minimizer: [
-    //   new UglifyJsPlugin({
-    //     uglifyOptions: {
-    //       compress: {
-    //         warnings: false
-    //       }
-    //     },
-    //     sourceMap: config.build.productionSourceMap,
-    //     parallel: true
-    //   }),
-    // ],
   },
 })
 

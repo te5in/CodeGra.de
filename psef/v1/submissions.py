@@ -361,7 +361,7 @@ def get_feedback_from_submission(
 
     :query boolean with_replies: If considered true (see
         :func:`.helpers.request_arg_true`) feedback is send including
-        replies. Please note that passing this as true is deprecated.
+        replies. Please note that passing this as false is deprecated.
     :returns: The feedback of this submission.
     """
     work = helpers.filter_single_or_404(

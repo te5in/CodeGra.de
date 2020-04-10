@@ -1,7 +1,8 @@
-<script lang="ts">
-    import Vue from 'vue';
+/* SPDX-License-Identifier: AGPL-3.0-only */
+import Vue from 'vue';
 import moment from 'moment';
 
+// @ts-ignore
 import { readableFormatDate } from '@/utils';
 
 export default Vue.extend({
@@ -19,7 +20,6 @@ export default Vue.extend({
         },
     },
 
-
     render(h, ctx) {
         return h(
             'span',
@@ -35,6 +35,5 @@ export default Vue.extend({
             },
             [ctx.props.date.from(ctx.parent.$root.$now)],
         );
-  },
+    },
 });
-</script>

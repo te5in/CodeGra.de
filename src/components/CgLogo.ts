@@ -1,4 +1,4 @@
-<script lang="ts">
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import Vue from 'vue';
 
 export default Vue.extend({
@@ -45,20 +45,16 @@ export default Vue.extend({
             staticClass = `${staticClass} ${ctx.data.staticClass}`;
         }
 
-        return h(
-            'img',
-            {
-                attrs: Object.assign(
-                    {
-                        src: getLogoSrc(),
-                        alt: 'CodeGrade',
-                    },
-                    ctx.data.attrs,
-                ),
-                class: staticClass,
-                style: ctx.data.staticStyle,
-            },
-        );
+        return h('img', {
+            attrs: Object.assign(
+                {
+                    src: getLogoSrc(),
+                    alt: 'CodeGrade',
+                },
+                ctx.data.attrs,
+            ),
+            class: staticClass,
+            style: ctx.data.staticStyle,
+        });
     },
 });
-</script>
