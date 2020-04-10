@@ -6,6 +6,14 @@ Version *Next*
 
 **Released**: *Unreleased*
 
+**Features**
+
+- Inline feedback replies (`#1305
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1305>`__). It is now possible
+  to reply to inline feedback, which makes distance learning easier to do with
+  CodeGrade. This update also adds markdown formatting to inline feedback, and
+  notifies you when you have received new replies.
+
 **Updates**
 
 - Various internal improvements (`#1244
