@@ -557,6 +557,10 @@ describe('WorkspaceFilter', () => {
         });
 
         describe('splitting on multiple filters', () => {
+            const count = (s, pred) => {
+                return s.reduce((acc, sf) => (pred(sf) ? acc + 1 : acc), 0);
+            };
+
             it('should return the cartesian product of all possible splits', () => {
                 const f = WorkspaceFilter.emptyFilter;
                 const d = new Date();
@@ -565,6 +569,49 @@ describe('WorkspaceFilter', () => {
 
                 expect(s1).toHaveLength(4);
                 expect(s2).toHaveLength(24);
+            });
+
+            describe('latest', () => {
+                it('should apply onlySplitLatest to half of the filters if selected', () => {
+                    const f = WorkspaceFilter.emptyFilter;
+                    const d = new Date();
+                    const s = f.split({ latest: true, grade: 5, date: d, assignees: [0, 1, 2] });
+                    const n = count(s, sf => sf.onlyLatestSubs);
+
+                    expect(n).toBe(s.length / 2);
+                });
+
+                it('should keep the filter latest if not selected', () => {
+                    const f = WorkspaceFilter.emptyFilter;
+                    const d = new Date();
+                    const s = f.split({ grade: 5, date: d, assignees: [0, 1, 2] });
+
+                    s.forEach(sf => {
+                        expect(sf.onlyLatestSubs).toBe(f.onlyLatestSubs);
+                    });
+                });
+            });
+
+            describe('grade', () => {
+                it('should apply maxGrade to half the filters and minGrade to the other half if selected', () => {
+                    const f = WorkspaceFilter.emptyFilter;
+                    const d = new Date();
+                    const s = f.split({ latest: true, grade: 5, date: d, assignees: [0, 1, 2] });
+                    const n = count(s, sf => sf.onlyLatestSubs);
+
+                    expect(n).toBe(s.length / 2);
+                });
+
+                it('should keep the filter min and max grade if not selected', () => {
+                    const f = WorkspaceFilter.emptyFilter.update('minGrade', 5);
+                    const d = new Date();
+                    const s = f.split({ latest: true, date: d, assignees: [0, 1, 2] });
+
+                    s.forEach(sf => {
+                        expect(sf.minGrade).toBe(f.minGrade);
+                        expect(sf.maxGrade).toBe(f.maxGrade);
+                    });
+                });
             });
         });
     });
