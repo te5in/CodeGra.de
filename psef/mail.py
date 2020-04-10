@@ -302,5 +302,30 @@ def send_direct_notification_email(notification: models.Notification) -> None:
     )
 
 
+def send_student_mail(
+    mailer: Mail,
+    sender: models.User,
+    receiver: models.User,
+    subject: str,
+    text_body: str,
+) -> None:
+    logger.info(
+        'Sending email to student',
+        subject=subject,
+        text_body=text_body,
+        recipient=sender,
+    )
+
+    message = Message(
+        sender=(sender.name, current_app.config['MAIL_DEFAULT_SENDER'][1]),
+        subject=subject,
+        body=text_body,
+        recipients=[(receiver.name, receiver.email)],
+        reply_to=(sender.name, sender.email),
+    )
+
+    mailer.send(message)
+
+
 def init_app(app: t.Any) -> None:
     mail.init_app(app)

@@ -17,12 +17,13 @@ from sqlalchemy.orm import selectinload, contains_eager
 from mypy_extensions import TypedDict
 from typing_extensions import Protocol
 
+import cg_logger
 import psef.files
 from psef import app, tasks, current_user
 from cg_sqlalchemy_helpers.types import ColumnProxy
 
 from . import api
-from .. import auth, models, helpers, features
+from .. import auth, mail, models, helpers, limiter, features
 from ..errors import APICodes, APIException
 from ..models import DbColumn, FileOwner, db
 from ..helpers import (
@@ -1146,3 +1147,49 @@ def create_proxy(submission_id: int) -> JSONResponse[models.Proxy]:
     db.session.add(proxy)
     db.session.commit()
     return jsonify(proxy)
+
+
+@api.route('/submissions/<int:submission_id>/email', methods=['POST'])
+@limiter.limit('1 per minute', key_func=lambda: current_user.id)
+def send_author_email(submission_id: int) -> EmptyResponse:
+    work = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
+    auth.ensure_permission(CPerm.can_email_students, work.assignment.course_id)
+
+    with helpers.get_from_request_transaction() as [get, _]:
+        subject = get('subject', str)
+        body = get('body', str)
+
+    all_authors = work.user.get_contained_users()
+    failed_authors = []
+
+    with mail.mail.connect() as mailer:
+        for author in all_authors:
+            with cg_logger.bound_to_logger(author=author):
+                try:
+                    mail.send_student_mail(
+                        mailer,
+                        sender=current_user,
+                        receiver=author,
+                        subject=subject,
+                        text_body=body
+                    )
+                except:
+                    logger.info('Failed emailing to student', exc_info=True)
+                    failed_authors.append(author)
+
+    if failed_authors:
+        raise APIException(
+            'Failed to email {every} author of this submission'.format(
+                every='every'
+                if len(all_authors) != len(failed_authors) else 'any'
+            ),
+            'Failed to mail some authors of the submission',
+            APICodes.MAILING_FAILED,
+            400,
+            all_authors=all_authors,
+            failed_authors=failed_authors,
+        )
+
+    return EmptyResponse.make()

@@ -78,6 +78,7 @@
 # mail_use_ssl = false
 # mail_username =
 # mail_password =
+# mail_default_sender_name =
 # mail_default_sender =
 # mail_max_emails =
 

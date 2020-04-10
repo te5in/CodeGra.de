@@ -54,6 +54,30 @@
                 </b-popover>
             </b-button>
 
+            <b-button v-if="canEmailStudents"
+                      id="codeviewer-email-student"
+                      v-b-modal.codeviewer-email-student-modal>
+                <icon name="envelope"/>
+
+            </b-button>
+
+            <b-modal v-if="canEmailStudents"
+                     id="codeviewer-email-student-modal"
+                     ref="contactStudentModal"
+                     size="xl"
+                     hide-footer
+                     no-close-on-backdrop
+                     no-close-on-esc
+                     hide-header-close
+                     title="Email authors"
+                     body-class="p-0"
+                     dialog-class="auto-test-result-modal">
+                <student-contact :submission="submission"
+                                 @hide="() => $refs.contactStudentModal.hide()"
+                                 :can-use-snippets="canUseSnippets"
+                                 class="p-3"/>
+            </b-modal>
+
             <b-button v-b-popover.hover.top="'Download assignment or feedback'"
                       id="codeviewer-download-toggle">
                 <icon name="download"/>
@@ -179,6 +203,7 @@ import 'vue-awesome/icons/edit';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/history';
+import 'vue-awesome/icons/envelope';
 import 'vue-awesome/icons/binoculars';
 import ResSplitPane from 'vue-resize-split-pane';
 
@@ -209,6 +234,7 @@ import {
 } from '@/components';
 
 import FileViewer from '@/components/FileViewer';
+import StudentContact from '@/components/StudentContact';
 
 export default {
     name: 'submission-page',
@@ -301,6 +327,10 @@ export default {
 
         canSeeGradeHistory() {
             return this.coursePerms.can_see_grade_history;
+        },
+
+        canEmailStudents() {
+            return this.coursePerms.can_email_students;
         },
 
         canViewAutoTestBeforeDone() {
@@ -818,6 +848,7 @@ export default {
         Toggle,
         Icon,
         User,
+        StudentContact,
         'rs-panes': ResSplitPane,
     },
 };
@@ -942,6 +973,7 @@ export default {
             position: absolute;
             top: 50%;
             left: 50%;
+            z-index: 10;
         }
 
         &:before {
