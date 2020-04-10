@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: AGPL-3.0-only */
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="analytics-dashboard row">
     <div v-if="workspaceIds.length === 0"

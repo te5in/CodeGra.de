@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-card class="analytics-general-stats"
         :class="{ large }"
@@ -271,8 +272,6 @@ export default {
         },
     },
 
-    watch: {},
-
     methods: {
         to1Dec(x) {
             return this.$utils.toMaxNDecimals(x, 1);
@@ -282,10 +281,6 @@ export default {
             return this.$utils.toMaxNDecimals(x, 2);
         },
     },
-
-    mounted() {},
-
-    destroyed() {},
 
     components: {
         DescriptionPopover,

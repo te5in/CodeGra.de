@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-card class="analytics-submission-date"
         header-class="d-flex"
@@ -74,7 +75,7 @@
         </h3>
     </template>
 
-    <template v-else-if="tooMuchBins && !forceRender">
+    <template v-else-if="tooManyBins && !forceRender">
         <p class="p-3 text-muted font-italic">
             The selected range contains a lot of data points and rendering the
             graph may freeze your browser.  Please select fewer bins or click
@@ -186,7 +187,7 @@ export default {
             return stat.sum([].concat(...datasets.map(ds => ds.data))) === 0;
         },
 
-        tooMuchBins() {
+        tooManyBins() {
             return this.histogramData.labels.length > 100;
         },
 

@@ -20,8 +20,8 @@ async function loadWorkspace(workspaceId) {
     const promises = [axios.get(`/api/v1/analytics/${workspaceId}`)];
     if (Workspace == null) {
         promises.push(
-            import('@/models/analytics').then((...args) => {
-                Workspace = args[0].Workspace;
+            import('@/models/analytics').then(arg => {
+                Workspace = arg.Workspace;
             }),
         );
     }

@@ -444,6 +444,10 @@ export function downloadFile(data, filename, contentType) {
     }
 }
 
+export function hasAttr(obj, key) {
+    return Object.hasOwnProperty.call(obj, key);
+}
+
 export function deepEquals(a, b) {
     if (typeof a !== 'object') {
         return a === b;
@@ -462,7 +466,7 @@ export function deepExtend(target, ...sources) {
     sources.forEach(source => {
         Object.entries(source).forEach(([key, val]) => {
             if (typeof val === 'object' && !Array.isArray(val)) {
-                if (!Object.hasOwnProperty.call(target, key)) {
+                if (!hasAttr(target, key)) {
                     target[key] = {};
                 }
                 deepExtend(target[key], val);
@@ -475,13 +479,16 @@ export function deepExtend(target, ...sources) {
 }
 
 export function deepExtendArray(target, ...sources) {
+    // deepExtend with support for arrays. We couldn't rewrite deepExtend to
+    // support arrays, because there are places in our codebase where we depend
+    // on the property that it doesn't.
     sources.forEach(source => {
         Object.entries(source).forEach(([key, val]) => {
             if (typeof val !== 'object') {
                 target[key] = val;
                 return;
             }
-            if (typeof target[key] !== 'object' || !Object.hasOwnProperty.call(target, key)) {
+            if (typeof target[key] !== 'object' || !hasAttr(target, key)) {
                 target[key] = Array.isArray(val) ? [] : {};
             }
             deepExtendArray(target[key], val);
@@ -587,15 +594,12 @@ export function zip(...lists) {
 
     const acc = [];
     const end = Math.min(...lists.map(l => l.length));
-    for (let i = 0; i < end; i++) {
-        // eslint-disable-next-line no-loop-func
-        acc.push(lists.map(l => l[i]));
+    let i = 0;
+    const get = l => l[i];
+    for (; i < end; i++) {
+        acc.push(lists.map(get));
     }
     return acc;
-}
-
-export function hasAttr(obj, key) {
-    return Object.hasOwnProperty.call(obj, key);
 }
 
 export function isEmpty(obj) {

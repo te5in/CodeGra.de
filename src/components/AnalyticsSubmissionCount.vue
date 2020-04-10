@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-card class="analytics-submission-count"
         header-class="d-flex">

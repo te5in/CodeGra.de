@@ -3,7 +3,6 @@ import moment from 'moment';
 import * as stat from 'simple-statistics';
 
 import { store } from '@/store';
-// eslint-ignore-next-line
 import {
     hasAttr,
     getProps,

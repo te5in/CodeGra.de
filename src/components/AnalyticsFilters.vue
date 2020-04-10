@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-card class="analytics-filters"
         header-class="d-flex">
@@ -76,8 +77,8 @@
     </template>
 
     <div class="row">
-        <div v-for="filter, i in filters"
-             :key="i"
+        <div v-for="filter, filterIndex in filters"
+             :key="filterIndex"
              class="filter col-12 col-xl-6 mb-3">
             <b-card header-class="d-flex">
                 <template #header>
@@ -87,26 +88,26 @@
 
                     <div class="d-flex flex-grow-0">
                         <div class="icon-button clone"
-                             @click="duplicateFilter(i)"
+                             @click="duplicateFilter(filterIndex)"
                              v-b-popover.hover.top="'Duplicate'">
                             <icon name="copy" />
                         </div>
 
                         <div class="icon-button split"
                              :class="{
-                                 active: isSplitting === i,
-                                 'text-muted': isSplittingOther(i),
+                                 active: isSplitting === filterIndex,
+                                 'text-muted': isSplittingOther(filterIndex),
                              }"
-                             @click="toggleSplitFilter(i)"
+                             @click="toggleSplitFilter(filterIndex)"
                              v-b-popover.hover.top="
-                                isSplittingOther(i) ? 'Already splitting another filter' : 'Split'
+                                isSplittingOther(filterIndex) ? 'Already splitting another filter' : 'Split'
                             ">
                             <icon name="scissors" />
                         </div>
 
                         <div class="icon-button delete danger"
                              :class="{ 'text-muted': deleteDisabled }"
-                             @click="deleteFilter(i)"
+                             @click="deleteFilter(filterIndex)"
                              v-b-popover.hover.top="
                                 deleteDisabled ?  'You cannot delete the only filter' : 'Delete'
                              ">
@@ -117,7 +118,7 @@
 
                 <div class="controls">
                     <div class="filter-controls"
-                        :class="{ active: isSplitting !== i }">
+                        :class="{ active: isSplitting !== filterIndex }">
                         <b-input-group>
                             <template #prepend>
                                 <b-input-group-text>
@@ -131,7 +132,7 @@
 
                             <div class="form-control pl-2">
                                 <b-form-checkbox :checked="filter.onlyLatestSubs"
-                                                 @input="updateFilter(i, 'onlyLatestSubs', $event)"
+                                                 @input="updateFilter(filterIndex, 'onlyLatestSubs', $event)"
                                                  class="d-inline-block">
                                     Only use latest submissions
                                 </b-form-checkbox>
@@ -151,18 +152,18 @@
                             </template>
 
                             <input :value="filter.minGrade"
-                                   @input="updateFilter(i, 'minGrade', $event.target.value)"
+                                   @input="updateFilter(filterIndex, 'minGrade', $event.target.value)"
                                    class="form-control"
                                    type="number"
                                    placeholder="0"
                                    min="0"
                                    :max="filter.maxGrade"
-                                   step="1" />
+                                   step="0.5" />
 
                             <template #append>
                                 <b-button variant="warning"
                                           :disabled="filter.minGrade == null"
-                                          @click="updateFilter(i, 'minGrade', null)">
+                                          @click="updateFilter(filterIndex, 'minGrade', null)">
                                     <icon name="reply" />
                                 </b-button>
                             </template>
@@ -181,18 +182,18 @@
                             </template>
 
                             <input :value="filter.maxGrade"
-                                   @input="updateFilter(i, 'maxGrade', $event.target.value)"
+                                   @input="updateFilter(filterIndex, 'maxGrade', $event.target.value)"
                                    class="form-control"
                                    type="number"
                                    :placeholder="assignmentMaxGrade"
                                    :min="filter.minGrade"
                                    :max="assignmentMaxGrade"
-                                   step="1" />
+                                   step="0.5" />
 
                             <template #append>
                                 <b-button variant="warning"
                                         :disabled="filter.maxGrade == null"
-                                        @click="updateFilter(i, 'maxGrade', null)">
+                                        @click="updateFilter(filterIndex, 'maxGrade', null)">
                                     <icon name="reply" />
                                 </b-button>
                             </template>
@@ -211,7 +212,7 @@
                             </template>
 
                             <datetime-picker :value="formatDate(filter.submittedAfter)"
-                                             @input="updateFilter(i, 'submittedAfter', $event)"
+                                             @input="updateFilter(filterIndex, 'submittedAfter', $event)"
                                              :placeholder="formatDate(firstSubmissionDate)"
                                              :config="{
                                                  minDate: firstSubmissionDate.toISOString(),
@@ -223,7 +224,7 @@
                             <template #append>
                                 <b-button variant="warning"
                                           :disabled="filter.submittedAfter == null"
-                                          @click="updateFilter(i, 'submittedAfter', null)">
+                                          @click="updateFilter(filterIndex, 'submittedAfter', null)">
                                     <icon name="reply" />
                                 </b-button>
                             </template>
@@ -242,7 +243,7 @@
                             </template>
 
                             <datetime-picker :value="formatDate(filter.submittedBefore)"
-                                             @input="updateFilter(i, 'submittedBefore', $event)"
+                                             @input="updateFilter(filterIndex, 'submittedBefore', $event)"
                                              :placeholder="formatDate(lastSubmissionDate)"
                                              :config="{
                                                  minDate: firstSubmissionDate.toISOString(),
@@ -254,7 +255,7 @@
                             <template #append>
                                 <b-button variant="warning"
                                           :disabled="filter.submittedBefore == null"
-                                          @click="updateFilter(i, 'submittedBefore', null)">
+                                          @click="updateFilter(filterIndex, 'submittedBefore', null)">
                                     <icon name="reply" />
                                 </b-button>
                             </template>
@@ -278,7 +279,7 @@
                                 class="d-flex rounded-0"
                                 :max-height="150"
                                 :value="filter.assignees"
-                                @input="updateFilter(i, 'assignees', $event)"
+                                @input="updateFilter(filterIndex, 'assignees', $event)"
                                 :options="assignees"
                                 multiple
                                 searchable
@@ -296,19 +297,19 @@
                             <template #append>
                                 <b-button variant="warning"
                                           :disabled="filter.assignees.length === 0"
-                                          @click="updateFilter(i, 'assignees', [])">
+                                          @click="updateFilter(filterIndex, 'assignees', [])">
                                     <icon name="reply" />
                                 </b-button>
                             </template>
                         </b-input-group>
 
                         <analytics-general-stats
-                            :base-workspace="results[i]"
+                            :base-workspace="results[filterIndex]"
                             class="mb-0" />
                     </div>
 
                     <div class="split-controls"
-                         :class="{ active: isSplitting === i }">
+                         :class="{ active: isSplitting === filterIndex }">
                         <b-input-group>
                             <b-input-group-prepend is-text>
                                 Latest
@@ -367,8 +368,8 @@
                             <datetime-picker v-model="splitDate"
                                              placeholder="Date"
                                              :config="{
-                                                 minDate: nthFirstSubmissionDate(i),
-                                                 maxDate: nthLastSubmissionDate(i),
+                                                 minDate: nthFirstSubmissionDate(filterIndex),
+                                                 maxDate: nthLastSubmissionDate(filterIndex),
                                              }"/>
                         </b-input-group>
 
@@ -414,7 +415,7 @@
                         <div class="mt-3">
                             <submit-button class="float-right"
                                         variant="primary"
-                                        :submit="() => splitFilter(i)"
+                                        :submit="() => splitFilter(filterIndex)"
                                         @after-success="afterSplitFilter">
                                 <icon name="check" />
                             </submit-button>
@@ -459,10 +460,6 @@ export default {
     name: 'analytics-filters',
 
     props: {
-        assignmentId: {
-            type: Number,
-            required: true,
-        },
         workspace: {
             type: Workspace,
             required: true,
@@ -501,7 +498,7 @@ export default {
         },
 
         assignment() {
-            return this.assignments[this.assignmentId];
+            return this.workspace.assignment;
         },
 
         assignmentMaxGrade() {

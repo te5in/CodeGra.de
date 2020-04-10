@@ -311,6 +311,8 @@ export default {
         },
 
         doSubmit() {
+            this.state = 'pending';
+
             let promise = Promise.resolve().then(this.submit);
             if (this.waitAtLeast > 0) {
                 promise = waitAtLeast(this.waitAtLeast, promise);
@@ -319,8 +321,6 @@ export default {
             promise = promise.then(this.filterSuccess, this.filterError);
             promise.then(this.onSuccess, this.onError);
             promise.then(() => this.resetConfirm(false), () => this.resetConfirm(false));
-
-            this.state = 'pending';
         },
 
         maybeCall(data, prop) {

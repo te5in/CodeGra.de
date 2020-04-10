@@ -325,7 +325,7 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
             },
 
             $isXLargeWindow() {
-                return this.screenWidth >= this.largeWidth;
+                return this.screenWidth >= this.xlargeWidth;
             },
 
             isEdge() {
