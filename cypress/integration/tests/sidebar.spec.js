@@ -66,7 +66,7 @@ context('Sidebar', () => {
 
             cy.visit('/');
             openProfile();
-            cy.get('input[name=full-name]').clear().setText('');
+            cy.get('input[name=full-name]').setText('');
             getSubmit().submit('error', {
                 popoverMsg: 'Your new name cannot be empty'
             });
@@ -122,7 +122,7 @@ context('Sidebar', () => {
 
             cy.get('.userinfo').find('input').each(($el, $index) => {
                 if ($index > 0) {
-                    cy.wrap($el).clear().setText(`HELLO! - ${Math.random()}`);
+                    cy.wrap($el).setText(`HELLO! - ${Math.random()}`);
                 }
             });
 
