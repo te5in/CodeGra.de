@@ -27,12 +27,6 @@ export default {
     },
 
     render() {
-        if (this.error != null && this.$scopedSlots.error != null) {
-            return this.$scopedSlots.error({
-                error: this.error,
-                resetError: this.reset,
-            });
-        }
         return this.$scopedSlots.default({
             error: this.error,
             resetError: this.reset,
