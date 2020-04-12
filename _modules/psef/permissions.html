@@ -386,6 +386,10 @@
 <span class="sd">    :ivar can_override_submission_limiting: Users with this permission can create new submissions, even if the maximum amount of submissions has been reacher, or if a cool-off period is in effect.</span>
 <span class="sd">    :ivar can_see_linter_feedback_before_done: Users with this permission can see the output of linters before an assignment is set to &quot;done&quot;</span>
 <span class="sd">    :ivar can_see_user_feedback_before_done: Users with this permission can see feedback before an assignment is set to &quot;done&quot;</span>
+<span class="sd">    :ivar can_edit_others_comments: Users with this permission can edit inline comments left by other users</span>
+<span class="sd">    :ivar can_add_own_inline_comments: Users with this permission can add and reply to inline comments on subbmission they are the author of</span>
+<span class="sd">    :ivar can_view_others_comment_edits: Users with this permission may see the edit history of comments placed by others</span>
+<span class="sd">    :ivar can_view_feedback_author: Users with this permission can view the author of inline and general feedback</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="nd">@staticmethod</span>
@@ -441,7 +445,11 @@
     <span class="n">can_delete_assignments</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">46</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">can_override_submission_limiting</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">47</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">can_see_linter_feedback_before_done</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">48</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">can_see_user_feedback_before_done</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">49</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+    <span class="n">can_see_user_feedback_before_done</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">49</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">can_edit_others_comments</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">can_add_own_inline_comments</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">51</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">can_view_others_comment_edits</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">52</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">can_view_feedback_author</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">53</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
 <span class="c1"># yapf: enable</span>
 </pre></div>

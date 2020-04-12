@@ -197,30 +197,378 @@
            <div itemprop="articleBody">
             
   <h1>Source code for psef.models.comment</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;This module defines a Comment.</span>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module defines all database models needed for inline feedback comments.</span>
 
 <span class="sd">SPDX-License-Identifier: AGPL-3.0-only</span>
 <span class="sd">&quot;&quot;&quot;</span>
-
+<span class="kn">import</span> <span class="nn">enum</span>
 <span class="kn">import</span> <span class="nn">typing</span> <span class="k">as</span> <span class="nn">t</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+
+<span class="kn">import</span> <span class="nn">sqlalchemy</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy.orm</span> <span class="kn">import</span> <span class="n">column_property</span>
+<span class="kn">from</span> <span class="nn">werkzeug.utils</span> <span class="kn">import</span> <span class="n">invalidate_cached_property</span>  <span class="c1"># type: ignore</span>
+<span class="kn">from</span> <span class="nn">werkzeug.utils</span> <span class="kn">import</span> <span class="n">cached_property</span>
+<span class="kn">from</span> <span class="nn">typing_extensions</span> <span class="kn">import</span> <span class="n">Literal</span>
 
 <span class="kn">import</span> <span class="nn">psef</span>
+<span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
+<span class="kn">from</span> <span class="nn">cg_flask_helpers</span> <span class="kn">import</span> <span class="n">callback_after_this_request</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">ImmutableColumnProxy</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.mixins</span> <span class="kn">import</span> <span class="n">IdMixin</span><span class="p">,</span> <span class="n">TimestampMixin</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">db</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">file</span> <span class="k">as</span> <span class="n">file_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">user</span> <span class="k">as</span> <span class="n">user_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">_MyQuery</span>
-<span class="kn">from</span> <span class="nn">..permissions</span> <span class="kn">import</span> <span class="n">CoursePermission</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">notification</span> <span class="k">as</span> <span class="n">n_models</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span><span class="p">,</span> <span class="n">db_locks</span><span class="p">,</span> <span class="n">current_app</span><span class="p">,</span> <span class="n">current_user</span>
 
 
-<div class="viewcode-block" id="Comment"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.Comment">[docs]</a><span class="k">class</span> <span class="nc">Comment</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
+<div class="viewcode-block" id="CommentReplyType"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentReplyType">[docs]</a><span class="nd">@enum</span><span class="o">.</span><span class="n">unique</span>
+<span class="k">class</span> <span class="nc">CommentReplyType</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The type of formatting used for the contents of the reply.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">plain_text</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
+    <span class="n">markdown</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="CommentReply"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentReply">[docs]</a><span class="k">class</span> <span class="nc">CommentReply</span><span class="p">(</span><span class="n">IdMixin</span><span class="p">,</span> <span class="n">TimestampMixin</span><span class="p">,</span> <span class="n">Base</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The class representing a reply.</span>
+
+<span class="sd">    If a reply doesn&#39;t have a ``reply_to_id`` set you should see this as a</span>
+<span class="sd">    reply to the comment base.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">comment_base_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;comment_base_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s2">&quot;Comment.id&quot;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
+
+    <span class="n">comment_base</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">CommentBase</span><span class="p">,</span>
+        <span class="n">foreign_keys</span><span class="o">=</span><span class="n">comment_base_id</span><span class="p">,</span>
+        <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;replies&#39;</span><span class="p">,</span>
+        <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;selectin&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">deleted</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;deleted&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;f&#39;</span>
+    <span class="p">)</span>
+
+    <span class="n">in_reply_to_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;in_reply_to_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;comment_reply.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;SET NULL&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">author_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;author_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;User.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">author</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="p">,</span>
+        <span class="n">foreign_keys</span><span class="o">=</span><span class="n">author_id</span><span class="p">,</span>
+        <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">in_reply_to</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">CommentReply</span><span class="p">,</span>
+        <span class="n">foreign_keys</span><span class="o">=</span><span class="n">in_reply_to_id</span><span class="p">,</span>
+        <span class="n">innerjoin</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">comment</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;comment&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">edits</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">CommentReplyEdit</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;comment_reply&#39;</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;dynamic&#39;</span><span class="p">,</span>
+        <span class="c1"># pylint: disable=unnecessary-lambda</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">CommentReplyEdit</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">desc</span><span class="p">(),</span>
+    <span class="p">)</span>
+
+    <span class="n">reply_type</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;reply_type&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="n">CommentReplyType</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">server_default</span><span class="o">=</span><span class="n">CommentReplyType</span><span class="o">.</span><span class="n">plain_text</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">notifications</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">n_models</span><span class="o">.</span><span class="n">Notification</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;comment_reply&#39;</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># We set this property later on</span>
+    <span class="n">last_edit</span><span class="p">:</span> <span class="n">ImmutableColumnProxy</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">]]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">can_see_author</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Is the current user allowed to see this replies author.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">            You are only allowed to see the author when you are also allowed to</span>
+<span class="sd">            see the reply itself.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">checker</span> <span class="o">=</span> <span class="n">psef</span><span class="o">.</span><span class="n">auth</span><span class="o">.</span><span class="n">FeedbackReplyPermissions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">checker</span><span class="o">.</span><span class="n">ensure_may_see_author</span><span class="o">.</span><span class="n">as_bool</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">message_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;The message id of this reply when you send it as an e-mail.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s1">&#39;&lt;message_reply_</span><span class="si">{id_hash}</span><span class="s1">@</span><span class="si">{domain}</span><span class="s1">&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">id_hash</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;EXTERNAL_DOMAIN&#39;</span><span class="p">]</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">references</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="s1">&#39;CommentReply&#39;</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Get a list of all comment replies this reply references.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_reply_to</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_reply_to</span><span class="o">.</span><span class="n">references</span>
+            <span class="n">base</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">in_reply_to</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">base</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">author</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span>
+        <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">reply_type</span><span class="p">:</span> <span class="n">CommentReplyType</span><span class="p">,</span>
+        <span class="n">in_reply_to</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;CommentReply&#39;</span><span class="p">],</span>
+        <span class="n">comment_base</span><span class="p">:</span> <span class="s1">&#39;CommentBase&#39;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">author</span><span class="o">.</span><span class="n">group</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;Only normal users can place comments&#39;</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">deleted</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">author</span><span class="o">=</span><span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">author</span><span class="p">),</span>
+            <span class="n">comment</span><span class="o">=</span><span class="n">comment</span><span class="p">,</span>
+            <span class="n">reply_type</span><span class="o">=</span><span class="n">reply_type</span><span class="p">,</span>
+            <span class="n">in_reply_to_id</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">in_reply_to</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">in_reply_to</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="n">comment_base</span><span class="o">=</span><span class="n">comment_base</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">work</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment_base</span><span class="o">.</span><span class="n">work</span>
+        <span class="n">user_reasons</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Set</span><span class="p">[</span><span class="n">n_models</span><span class="o">.</span>
+                                                     <span class="n">NotificationReasons</span><span class="p">]]</span>
+        <span class="n">user_reasons</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">set</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">reply</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment_base</span><span class="o">.</span><span class="n">replies</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">reply</span><span class="o">.</span><span class="n">author</span><span class="o">.</span><span class="n">get_contained_users</span><span class="p">():</span>
+                <span class="n">user_reasons</span><span class="p">[</span><span class="n">user</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">n_models</span><span class="o">.</span><span class="n">NotificationReasons</span><span class="o">.</span><span class="n">replied</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">work_author</span> <span class="ow">in</span> <span class="n">work</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">get_contained_users</span><span class="p">():</span>
+            <span class="n">user_reasons</span><span class="p">[</span><span class="n">work_author</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">n_models</span><span class="o">.</span><span class="n">NotificationReasons</span><span class="o">.</span><span class="n">author</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">work</span><span class="o">.</span><span class="n">assignee</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">assignee</span> <span class="ow">in</span> <span class="n">work</span><span class="o">.</span><span class="n">assignee</span><span class="o">.</span><span class="n">get_contained_users</span><span class="p">():</span>
+                <span class="n">user_reasons</span><span class="p">[</span><span class="n">assignee</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+                    <span class="n">n_models</span><span class="o">.</span><span class="n">NotificationReasons</span><span class="o">.</span><span class="n">assignee</span>
+                <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">receiver</span><span class="p">,</span> <span class="n">reasons</span> <span class="ow">in</span> <span class="n">user_reasons</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">receiver</span> <span class="o">!=</span> <span class="n">author</span><span class="p">:</span>
+                <span class="n">n_models</span><span class="o">.</span><span class="n">Notification</span><span class="p">(</span>
+                    <span class="n">receiver</span><span class="o">=</span><span class="n">receiver</span><span class="p">,</span>
+                    <span class="n">comment_reply</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                    <span class="n">reasons</span><span class="o">=</span><span class="nb">sorted</span><span class="p">(</span><span class="n">reasons</span><span class="p">),</span>
+                <span class="p">)</span>
+
+        <span class="nd">@callback_after_this_request</span>
+        <span class="k">def</span> <span class="nf">__after</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">psef</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">send_direct_notification_emails</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">n</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">notifications</span><span class="p">]</span>
+            <span class="p">)</span>
+
+<div class="viewcode-block" id="CommentReply.update"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentReply.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_comment_text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;CommentReplyEdit&#39;</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Update the contents this reply and create a</span>
+<span class="sd">            :class:`.CommentReplyEdit` object for this mutation.</span>
+
+<span class="sd">        :param new_comment_text: The new content of the reply.</span>
+<span class="sd">        :returns: The created :class:`.CommentReplyEdit` if the given</span>
+<span class="sd">            ``new_comment_text`` is different than the existing text, otherwise</span>
+<span class="sd">            ``None`` is returned.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">new_comment_text</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">edit</span> <span class="o">=</span> <span class="n">CommentReplyEdit</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">current_user</span><span class="p">,</span> <span class="n">new_comment_text</span><span class="o">=</span><span class="n">new_comment_text</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">comment</span> <span class="o">=</span> <span class="n">new_comment_text</span>
+        <span class="k">return</span> <span class="n">edit</span></div>
+
+<div class="viewcode-block" id="CommentReply.delete"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentReply.delete">[docs]</a>    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;CommentReplyEdit&#39;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Delete this reply and create a :class:`.CommentReplyEdit` object for</span>
+<span class="sd">            this mutation.</span>
+
+<span class="sd">        :returns: The created :class:`.CommentReplyEdit`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">edit</span> <span class="o">=</span> <span class="n">CommentReplyEdit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">current_user</span><span class="p">,</span> <span class="n">is_deletion</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">deleted</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="n">edit</span></div>
+
+<div class="viewcode-block" id="CommentReply.get_outdated_json"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentReply.get_outdated_json">[docs]</a>    <span class="k">def</span> <span class="nf">get_outdated_json</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Get the old JSON representation for this reply.</span>
+
+<span class="sd">        This representation was used for the old comments api, the one before</span>
+<span class="sd">        we supported replies. Don&#39;t use it for new apis.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;line&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment_base</span><span class="o">.</span><span class="n">line</span><span class="p">,</span>
+            <span class="s1">&#39;msg&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">can_see_author</span><span class="p">:</span>
+            <span class="n">res</span><span class="p">[</span><span class="s1">&#39;author&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">author</span>
+        <span class="k">return</span> <span class="n">res</span></div>
+
+    <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]]:</span>
+        <span class="n">last_edit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_edit</span>
+        <span class="n">res</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="s1">&#39;comment&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment</span><span class="p">,</span>
+            <span class="s1">&#39;author_id&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s1">&#39;in_reply_to_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_reply_to_id</span><span class="p">,</span>
+            <span class="s1">&#39;last_edit&#39;</span><span class="p">:</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">last_edit</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">last_edit</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+            <span class="s1">&#39;created_at&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+            <span class="s1">&#39;reply_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">reply_type</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">can_see_author</span><span class="p">:</span>
+            <span class="n">res</span><span class="p">[</span><span class="s1">&#39;author_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">author_id</span>
+
+        <span class="k">return</span> <span class="n">res</span>
+
+    <span class="k">def</span> <span class="nf">__extended_to_json__</span><span class="p">(</span>
+        <span class="bp">self</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">]]:</span>
+        <span class="n">author</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">author</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">can_see_author</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">__to_json__</span><span class="p">(),</span>
+            <span class="s1">&#39;author&#39;</span><span class="p">:</span> <span class="n">author</span><span class="p">,</span>
+            <span class="s1">&#39;comment_base_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment_base_id</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="CommentReplyEdit"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentReplyEdit">[docs]</a><span class="k">class</span> <span class="nc">CommentReplyEdit</span><span class="p">(</span><span class="n">IdMixin</span><span class="p">,</span> <span class="n">TimestampMixin</span><span class="p">,</span> <span class="n">Base</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A class representing an edit of a comment reply.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">comment_reply</span><span class="p">:</span> <span class="n">CommentReply</span><span class="p">,</span> <span class="n">editor</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span>
+        <span class="n">is_deletion</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">True</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="o">...</span>
+
+    <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">comment_reply</span><span class="p">:</span> <span class="n">CommentReply</span><span class="p">,</span>
+        <span class="n">editor</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">new_comment_text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="o">...</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">comment_reply</span><span class="p">:</span> <span class="n">CommentReply</span><span class="p">,</span>
+        <span class="n">editor</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">new_comment_text</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_deletion</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="o">...</span>
+        <span class="k">assert</span> <span class="n">comment_reply</span><span class="o">.</span><span class="n">id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;CommentReply should be in db&#39;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">comment_reply_id</span><span class="o">=</span><span class="n">comment_reply</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="n">new_comment</span><span class="o">=</span><span class="n">new_comment_text</span><span class="p">,</span>
+            <span class="n">is_deletion</span><span class="o">=</span><span class="n">is_deletion</span><span class="p">,</span>
+            <span class="n">old_comment</span><span class="o">=</span><span class="n">comment_reply</span><span class="o">.</span><span class="n">comment</span><span class="p">,</span>
+            <span class="n">editor</span><span class="o">=</span><span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">editor</span><span class="p">),</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="s1">&#39;created_at&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+            <span class="s1">&#39;editor&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">editor</span><span class="p">,</span>
+            <span class="s1">&#39;old_text&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">old_comment</span><span class="p">,</span>
+            <span class="s1">&#39;new_text&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">new_comment</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="n">comment_reply_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;comment_reply_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="n">CommentReply</span><span class="o">.</span><span class="n">id</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">comment_reply</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">CommentReply</span><span class="p">,</span>
+        <span class="n">foreign_keys</span><span class="o">=</span><span class="n">comment_reply_id</span><span class="p">,</span>
+        <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;edits&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">editor_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;editor_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;User.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">editor</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="p">,</span>
+        <span class="n">foreign_keys</span><span class="o">=</span><span class="n">editor_id</span><span class="p">,</span>
+        <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">new_comment</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;new_comment&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">is_deletion</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;was_deleted&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">old_comment</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;old_comment&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">__table_args__</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">CheckConstraint</span><span class="p">(</span>
+            <span class="s1">&#39;new_comment IS NOT NULL OR was_deleted&#39;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s1">&#39;either_new_comment_or_deletion&#39;</span>
+        <span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<span class="n">CommentReply</span><span class="o">.</span><span class="n">last_edit</span> <span class="o">=</span> <span class="n">column_property</span><span class="p">(</span>
+    <span class="n">sqlalchemy</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">sqlalchemy</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">CommentReplyEdit</span><span class="o">.</span><span class="n">created_at</span><span class="p">)]</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">CommentReplyEdit</span><span class="o">.</span><span class="n">comment_reply_id</span> <span class="o">==</span> <span class="n">CommentReply</span><span class="o">.</span><span class="n">id</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">correlate_except</span><span class="p">(</span><span class="n">CommentReplyEdit</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s1">&#39;last_edit&#39;</span><span class="p">)</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="CommentBase"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentBase">[docs]</a><span class="k">class</span> <span class="nc">CommentBase</span><span class="p">(</span><span class="n">IdMixin</span><span class="p">,</span> <span class="n">Base</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Describes a comment placed in a :class:`.file_models.File` by a</span>
 <span class="sd">    :class:`.user_models.User` with the ability to grade.</span>
 
 <span class="sd">    A comment is always linked to a specific line in a file.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">_MyQuery</span><span class="p">[</span><span class="s1">&#39;Comment&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>
+        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">_MyQuery</span><span class="p">[</span><span class="s1">&#39;CommentBase&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s2">&quot;Comment&quot;</span>
     <span class="n">file_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;File_id&#39;</span><span class="p">,</span>
@@ -228,22 +576,117 @@
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;File.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">user_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="s1">&#39;User_id&#39;</span><span class="p">,</span>
-        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
-        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;User.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
-        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-    <span class="p">)</span>
     <span class="n">line</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;line&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">comment</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;comment&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-    <span class="n">__table_args__</span> <span class="o">=</span> <span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">PrimaryKeyConstraint</span><span class="p">(</span><span class="n">file_id</span><span class="p">,</span> <span class="n">line</span><span class="p">),</span> <span class="p">)</span>
+    <span class="n">__table_args__</span> <span class="o">=</span> <span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">UniqueConstraint</span><span class="p">(</span><span class="n">file_id</span><span class="p">,</span> <span class="n">line</span><span class="p">),</span> <span class="p">)</span>
 
     <span class="n">file</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="k">lambda</span><span class="p">:</span> <span class="n">file_models</span><span class="o">.</span><span class="n">File</span><span class="p">,</span> <span class="n">foreign_keys</span><span class="o">=</span><span class="n">file_id</span><span class="p">,</span> <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">file_models</span><span class="o">.</span><span class="n">File</span><span class="p">,</span>
+        <span class="n">foreign_keys</span><span class="o">=</span><span class="n">file_id</span><span class="p">,</span>
+        <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;selectin&#39;</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">user</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="k">lambda</span><span class="p">:</span> <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="p">,</span> <span class="n">foreign_keys</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span> <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span>
+
+    <span class="n">replies</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">CommentReply</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;comment_base&#39;</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;selectin&#39;</span><span class="p">,</span>
+        <span class="n">order_by</span><span class="o">=</span><span class="n">CommentReply</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">asc</span><span class="p">,</span>
+        <span class="n">primaryjoin</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">sqlalchemy</span><span class="o">.</span><span class="n">and_</span><span class="p">(</span>
+            <span class="n">CommentBase</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">CommentReply</span><span class="o">.</span><span class="n">comment_base_id</span><span class="p">,</span>
+            <span class="o">~</span><span class="n">CommentReply</span><span class="o">.</span><span class="n">deleted</span><span class="p">,</span>
+        <span class="p">)</span>
     <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Check if the given object is considered equal to this comment base.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">other</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">CommentBase</span><span class="p">)</span> <span class="k">else</span> <span class="bp">NotImplemented</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">work</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;psef.models.Work&#39;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;The :class:`psef.models.Work` associated with this comment base.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">work</span>
+
+<div class="viewcode-block" id="CommentBase.add_reply"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentBase.add_reply">[docs]</a>    <span class="k">def</span> <span class="nf">add_reply</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">user</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span>
+        <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">reply_type</span><span class="p">:</span> <span class="n">CommentReplyType</span><span class="p">,</span>
+        <span class="n">in_reply_to</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">CommentReply</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CommentReply</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Add a reply to this comment base.</span>
+
+<span class="sd">        :param user: The author of the reply.</span>
+<span class="sd">        :param comment: The text of the reply.</span>
+<span class="sd">        :param reply_type: The format of the reply text.</span>
+<span class="sd">        :param in_reply_to: An optional reply, in this case the new reply will</span>
+<span class="sd">            be considered a reply on this given reply.</span>
+<span class="sd">        :returns: The created reply.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">reply</span> <span class="o">=</span> <span class="n">CommentReply</span><span class="p">(</span>
+            <span class="n">comment</span><span class="o">=</span><span class="n">comment</span><span class="p">,</span>
+            <span class="n">author</span><span class="o">=</span><span class="n">user</span><span class="p">,</span>
+            <span class="n">reply_type</span><span class="o">=</span><span class="n">reply_type</span><span class="p">,</span>
+            <span class="n">in_reply_to</span><span class="o">=</span><span class="n">in_reply_to</span><span class="p">,</span>
+            <span class="n">comment_base</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">invalidate_cached_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;user_visible_replies&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">reply</span></div>
+
+<div class="viewcode-block" id="CommentBase.create_if_not_exists"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentBase.create_if_not_exists">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">create_if_not_exists</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="s1">&#39;file_models.File&#39;</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;CommentBase&#39;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Find, or create if it doesn&#39;t exist, a comment base for the given</span>
+<span class="sd">            ``file`` and ``line``.</span>
+
+<span class="sd">        This function makes sure that no duplicates will be created in the</span>
+<span class="sd">        database, at the cost of possibly multiple queries.</span>
+
+<span class="sd">        :returns: A found or created (in which case it will not have been added</span>
+<span class="sd">            to the session) comment base.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Do an optimistic try to find it</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">file_id</span> <span class="o">==</span> <span class="n">file</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">line</span> <span class="o">==</span> <span class="n">line</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">one_or_none</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># If we cannot find it lock this file for comments, search again,</span>
+            <span class="c1"># and if we can still not find it we can safely create it.</span>
+            <span class="n">db_locks</span><span class="o">.</span><span class="n">acquire_lock</span><span class="p">(</span>
+                <span class="n">db_locks</span><span class="o">.</span><span class="n">LockNamespaces</span><span class="o">.</span><span class="n">comment_base</span><span class="p">,</span> <span class="n">file</span><span class="o">.</span><span class="n">id</span>
+            <span class="p">)</span>
+            <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">file_id</span> <span class="o">==</span> <span class="n">file</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">line</span> <span class="o">==</span> <span class="n">line</span><span class="p">,</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">one_or_none</span><span class="p">()</span>
+            <span class="k">if</span> <span class="bp">self</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="n">file</span><span class="p">,</span> <span class="n">file_id</span><span class="o">=</span><span class="n">file</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">line</span><span class="o">=</span><span class="n">line</span><span class="p">,</span> <span class="n">replies</span><span class="o">=</span><span class="p">[])</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">first_reply</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;CommentReply&#39;</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Get the first reply that the currently logged in user may see.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">reps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user_visible_replies</span>
+        <span class="k">return</span> <span class="n">reps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">reps</span> <span class="k">else</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="CommentBase.user_visible_replies"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentBase.user_visible_replies">[docs]</a>    <span class="nd">@cached_property</span>
+    <span class="k">def</span> <span class="nf">user_visible_replies</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">CommentReply</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Get the replies of this comment base that the currently logged in</span>
+<span class="sd">            user may see.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">replies</span>
+            <span class="k">if</span> <span class="n">auth</span><span class="o">.</span><span class="n">FeedbackReplyPermissions</span><span class="p">(</span><span class="n">r</span><span class="p">)</span><span class="o">.</span><span class="n">ensure_may_see</span><span class="o">.</span><span class="n">as_bool</span><span class="p">()</span>
+        <span class="p">]</span></div>
 
     <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Creates a JSON serializable representation of this object.</span>
@@ -255,28 +698,19 @@
 
 <span class="sd">            {</span>
 <span class="sd">                &#39;line&#39;: int, # The line of this comment.</span>
-<span class="sd">                &#39;msg&#39;: str,  # The message of this comment.</span>
-<span class="sd">                &#39;author&#39;: t.Optional[user_models.User], # The author of this</span>
-<span class="sd">                                                        # comment. This is</span>
-<span class="sd">                                                        # ``None`` if the user</span>
-<span class="sd">                                                        # does not have</span>
-<span class="sd">                                                        # permission to see it.</span>
+<span class="sd">                &#39;file_id&#39;: str, # The file this feedback was given on.</span>
+<span class="sd">                &#39;replies&#39;: t.List[CommentReply] # All the replies on this</span>
+<span class="sd">                                                # comment base.</span>
 <span class="sd">            }</span>
 
 <span class="sd">        :returns: A object as described above.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">res</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
             <span class="s1">&#39;line&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="p">,</span>
-            <span class="s1">&#39;msg&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment</span><span class="p">,</span>
-        <span class="p">}</span>
-
-        <span class="k">if</span> <span class="n">psef</span><span class="o">.</span><span class="n">current_user</span><span class="o">.</span><span class="n">has_permission</span><span class="p">(</span>
-            <span class="n">CoursePermission</span><span class="o">.</span><span class="n">can_see_assignee</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span>
-        <span class="p">):</span>
-            <span class="n">res</span><span class="p">[</span><span class="s1">&#39;author&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span>
-
-        <span class="k">return</span> <span class="n">res</span></div>
+            <span class="s1">&#39;file_id&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_id</span><span class="p">),</span>
+            <span class="s1">&#39;replies&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">user_visible_replies</span><span class="p">,</span>
+        <span class="p">}</span></div>
 </pre></div>
 
            </div>

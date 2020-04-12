@@ -240,7 +240,7 @@ this backend is named <code class="docutils literal notranslate"><span class="pr
 <p>SPDX-License-Identifier: AGPL-3.0-only</p>
 <dl class="class">
 <dt id="psef.PsefFlask">
-<em class="property">class </em><code class="sig-prename descclassname">psef.</code><code class="sig-name descname">PsefFlask</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">name: str</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef.html#PsefFlask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.PsefFlask" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">psef.</code><code class="sig-name descname">PsefFlask</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">name: str</em>, <em class="sig-param">config: dict</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef.html#PsefFlask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.PsefFlask" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">flask.app.Flask</span></code></p>
 <p>Our subclass of flask.</p>
 <p>This contains the extra property <a class="reference internal" href="#psef.PsefFlask.do_sanity_checks" title="psef.PsefFlask.do_sanity_checks"><code class="xref py py-meth docutils literal notranslate"><span class="pre">PsefFlask.do_sanity_checks()</span></code></a>.</p>
@@ -341,6 +341,133 @@ so this function always raises a <a class="reference external" href="https://doc
 <p>This module implements all authorization functions used by <a class="reference internal" href="#module-psef" title="psef"><code class="xref py py-mod docutils literal notranslate"><span class="pre">psef</span></code></a>.</p>
 <p>SPDX-License-Identifier: AGPL-3.0-only</p>
 <dl class="class">
+<dt id="psef.auth.FeedbackBasePermissions">
+<em class="property">class </em><code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">FeedbackBasePermissions</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">base: psef.models.comment.CommentBase</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/auth.html#FeedbackBasePermissions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.FeedbackBasePermissions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#psef.auth.PermissionChecker" title="psef.auth.PermissionChecker"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.auth.PermissionChecker</span></code></a></p>
+<p>The permission checker for <code class="xref py py-class docutils literal notranslate"><span class="pre">psef.models.CommentBase</span></code>.</p>
+<dl class="attribute">
+<dt id="psef.auth.FeedbackBasePermissions.base">
+<code class="sig-name descname">base</code><a class="headerlink" href="#psef.auth.FeedbackBasePermissions.base" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.auth.FeedbackBasePermissions.ensure_may_add">
+<code class="sig-name descname">ensure_may_add</code><em class="property"> = &lt;psef.auth._PermissionCheckFunction._Inner object&gt;</em><a class="reference internal" href="../_modules/psef/auth.html#FeedbackBasePermissions.ensure_may_add"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.FeedbackBasePermissions.ensure_may_add" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.auth.FeedbackReplyPermissions">
+<em class="property">class </em><code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">FeedbackReplyPermissions</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">reply: psef.models.comment.CommentReply</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/auth.html#FeedbackReplyPermissions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.FeedbackReplyPermissions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#psef.auth.PermissionChecker" title="psef.auth.PermissionChecker"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.auth.PermissionChecker</span></code></a></p>
+<p>The permission checker for <code class="xref py py-class docutils literal notranslate"><span class="pre">psef.models.CommentReply</span></code>.</p>
+<dl class="attribute">
+<dt id="psef.auth.FeedbackReplyPermissions.ensure_may_add">
+<code class="sig-name descname">ensure_may_add</code><em class="property"> = &lt;psef.auth._PermissionCheckFunction._Inner object&gt;</em><a class="reference internal" href="../_modules/psef/auth.html#FeedbackReplyPermissions.ensure_may_add"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.FeedbackReplyPermissions.ensure_may_add" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.auth.FeedbackReplyPermissions.ensure_may_delete">
+<code class="sig-name descname">ensure_may_delete</code><em class="property"> = &lt;psef.auth._PermissionCheckFunction._Inner object&gt;</em><a class="reference internal" href="../_modules/psef/auth.html#FeedbackReplyPermissions.ensure_may_delete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.FeedbackReplyPermissions.ensure_may_delete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.auth.FeedbackReplyPermissions.ensure_may_edit">
+<code class="sig-name descname">ensure_may_edit</code><em class="property"> = &lt;psef.auth._PermissionCheckFunction._Inner object&gt;</em><a class="reference internal" href="../_modules/psef/auth.html#FeedbackReplyPermissions.ensure_may_edit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.FeedbackReplyPermissions.ensure_may_edit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.auth.FeedbackReplyPermissions.ensure_may_see">
+<code class="sig-name descname">ensure_may_see</code><em class="property"> = &lt;psef.auth._PermissionCheckFunction._Inner object&gt;</em><a class="reference internal" href="../_modules/psef/auth.html#FeedbackReplyPermissions.ensure_may_see"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.FeedbackReplyPermissions.ensure_may_see" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.auth.FeedbackReplyPermissions.ensure_may_see_author">
+<code class="sig-name descname">ensure_may_see_author</code><em class="property"> = &lt;psef.auth._PermissionCheckFunction._Inner object&gt;</em><a class="reference internal" href="../_modules/psef/auth.html#FeedbackReplyPermissions.ensure_may_see_author"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.FeedbackReplyPermissions.ensure_may_see_author" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.auth.FeedbackReplyPermissions.ensure_may_see_edits">
+<code class="sig-name descname">ensure_may_see_edits</code><em class="property"> = &lt;psef.auth._PermissionCheckFunction._Inner object&gt;</em><a class="reference internal" href="../_modules/psef/auth.html#FeedbackReplyPermissions.ensure_may_see_edits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.FeedbackReplyPermissions.ensure_may_see_edits" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.auth.FeedbackReplyPermissions.reply">
+<code class="sig-name descname">reply</code><a class="headerlink" href="#psef.auth.FeedbackReplyPermissions.reply" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.auth.NotificationPermissions">
+<em class="property">class </em><code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">NotificationPermissions</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">notification: psef.models.notification.Notification</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/auth.html#NotificationPermissions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.NotificationPermissions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#psef.auth.PermissionChecker" title="psef.auth.PermissionChecker"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.auth.PermissionChecker</span></code></a></p>
+<p>The permission checker for <code class="xref py py-class docutils literal notranslate"><span class="pre">psef.models.Notification</span></code>.</p>
+<dl class="attribute">
+<dt id="psef.auth.NotificationPermissions.ensure_may_edit">
+<code class="sig-name descname">ensure_may_edit</code><em class="property"> = &lt;psef.auth._PermissionCheckFunction._Inner object&gt;</em><a class="reference internal" href="../_modules/psef/auth.html#NotificationPermissions.ensure_may_edit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.NotificationPermissions.ensure_may_edit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.auth.NotificationPermissions.ensure_may_see">
+<code class="sig-name descname">ensure_may_see</code><em class="property"> = &lt;psef.auth._PermissionCheckFunction._Inner object&gt;</em><a class="reference internal" href="../_modules/psef/auth.html#NotificationPermissions.ensure_may_see"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.NotificationPermissions.ensure_may_see" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.auth.NotificationPermissions.notification">
+<code class="sig-name descname">notification</code><a class="headerlink" href="#psef.auth.NotificationPermissions.notification" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.auth.NotificationPermissions.work">
+<code class="sig-name descname">work</code><a class="headerlink" href="#psef.auth.NotificationPermissions.work" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.auth.PermissionChecker">
+<em class="property">class </em><code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">PermissionChecker</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">course_id: int</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#PermissionChecker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.PermissionChecker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>The base permission checker class.</p>
+<dl class="method">
+<dt id="psef.auth.PermissionChecker.as_ensure_function">
+<em class="property">static </em><code class="sig-name descname">as_ensure_function</code><span class="sig-paren">(</span><em class="sig-param">fun: Callable[[_T_PERM_CHECKER], None]</em><span class="sig-paren">)</span> &#x2192; psef.auth._PermissionCheckFunction[~_T_PERM_CHECKER][_T_PERM_CHECKER]<a class="reference internal" href="../_modules/psef/auth.html#PermissionChecker.as_ensure_function"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.PermissionChecker.as_ensure_function" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Wrap a permission checker function as a</dt><dd><p><code class="xref py py-class docutils literal notranslate"><span class="pre">_PermissionCheckFunction</span></code>.</p>
+</dd>
+</dl>
+<p>This adds helper methods to the method like
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">_PermissionCheckFunction.as_bool()</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">_PermissionCheckFunction</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">_T_PERM_CHECKER</span></code>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="psef.auth.PermissionChecker.course_id">
+<code class="sig-name descname">course_id</code><a class="headerlink" href="#psef.auth.PermissionChecker.course_id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="psef.auth.PermissionChecker.user">
+<em class="property">property </em><code class="sig-name descname">user</code><a class="headerlink" href="#psef.auth.PermissionChecker.user" title="Permalink to this definition">¶</a></dt>
+<dd><p>The current logged in user.</p>
+<p>Accessing this property raises a <a class="reference internal" href="#psef.exceptions.PermissionException" title="psef.exceptions.PermissionException"><code class="xref py py-exc docutils literal notranslate"><span class="pre">PermissionException</span></code></a> if no user
+is logged in.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
 <dt id="psef.auth.RequestValidatorMixin">
 <em class="property">class </em><code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">RequestValidatorMixin</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">key: str</em>, <em class="sig-param">secret: str</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#RequestValidatorMixin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.RequestValidatorMixin" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
@@ -389,8 +516,20 @@ and form, where the last two are a key value mapping.</p>
 </dd></dl>
 
 <dl class="function">
+<dt id="psef.auth.as_current_user">
+<code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">as_current_user</code><span class="sig-paren">(</span><em class="sig-param">user: Union[psef.models.User, werkzeug.local.LocalProxy]</em><span class="sig-paren">)</span> &#x2192; Generator[None, None, None]<a class="reference internal" href="../_modules/psef/auth.html#as_current_user"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.as_current_user" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute a block of code while pretending the given user is logged in.</p>
+<p>After the contextmanager exists the original logged in user is restored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generator" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Generator</span></code></a>[<code class="docutils literal notranslate"><span class="pre">None</span></code>, <code class="docutils literal notranslate"><span class="pre">None</span></code>, <code class="docutils literal notranslate"><span class="pre">None</span></code>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
 <dt id="psef.auth.ensure_any_of_permissions">
-<code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">ensure_any_of_permissions</code><span class="sig-paren">(</span><em class="sig-param">permissions: List[psef.permissions.CoursePermission], course_id: int</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#ensure_any_of_permissions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.ensure_any_of_permissions" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">ensure_any_of_permissions</code><span class="sig-paren">(</span><em class="sig-param">permissions: List[psef.permissions.CoursePermission], course_id: int, user: Optional[psef.models.User] = None</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#ensure_any_of_permissions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.ensure_any_of_permissions" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="simple">
 <dt>Make sure that the current user has at least one of the given</dt><dd><p>permissions.</p>
 </dd>
@@ -401,6 +540,8 @@ and form, where the last two are a key value mapping.</p>
 <li><p><strong>permissions</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<a class="reference internal" href="#psef.permissions.CoursePermission" title="psef.permissions.CoursePermission"><code class="xref py py-class docutils literal notranslate"><span class="pre">CoursePermission</span></code></a>]) – The permissions to check for.</p></li>
 <li><p><strong>course_id</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>) – The course id of the course that should be used to check
 for the given permissions.</p></li>
+<li><p><strong>user</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>]) – The user param that will be passed to
+<a class="reference internal" href="#psef.auth.ensure_permission" title="psef.auth.ensure_permission"><code class="xref py py-func docutils literal notranslate"><span class="pre">ensure_permission()</span></code></a>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type</dt>
@@ -480,6 +621,30 @@ files.</p>
 </dd></dl>
 
 <dl class="function">
+<dt id="psef.auth.ensure_can_see_general_feedback">
+<code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">ensure_can_see_general_feedback</code><span class="sig-paren">(</span><em class="sig-param">work: psef.models.work.Work</em>, <em class="sig-param">user: Optional[psef.models.User] = None</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#ensure_can_see_general_feedback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.ensure_can_see_general_feedback" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ensure the current user can see the grade of the given work.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>work</strong> (<a class="reference internal" href="#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>) – The work to check for.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>Nothing</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference internal" href="#psef.exceptions.PermissionException" title="psef.exceptions.PermissionException"><strong>PermissionException</strong></a> – If there is no logged in user. (NOT_LOGGED_IN)</p></li>
+<li><p><a class="reference internal" href="#psef.exceptions.PermissionException" title="psef.exceptions.PermissionException"><strong>PermissionException</strong></a> – If the user can not see the grade.
+(INCORRECT_PERMISSION)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
 <dt id="psef.auth.ensure_can_see_grade">
 <code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">ensure_can_see_grade</code><span class="sig-paren">(</span><em class="sig-param">work: psef.models.work.Work</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#ensure_can_see_grade"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.ensure_can_see_grade" title="Permalink to this definition">¶</a></dt>
 <dd><p>Ensure the current user can see the grade of the given work.</p>
@@ -545,30 +710,6 @@ cases.</p></li>
 </dd>
 <dt class="field-odd">Returns</dt>
 <dd class="field-odd"><p>Nothing</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="function">
-<dt id="psef.auth.ensure_can_see_user_feedback">
-<code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">ensure_can_see_user_feedback</code><span class="sig-paren">(</span><em class="sig-param">work: psef.models.work.Work</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#ensure_can_see_user_feedback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.ensure_can_see_user_feedback" title="Permalink to this definition">¶</a></dt>
-<dd><p>Ensure the current user can see the grade of the given work.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>work</strong> (<a class="reference internal" href="#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>) – The work to check for.</p>
-</dd>
-<dt class="field-even">Return type</dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code></p>
-</dd>
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>Nothing</p>
-</dd>
-<dt class="field-even">Raises</dt>
-<dd class="field-even"><ul class="simple">
-<li><p><a class="reference internal" href="#psef.exceptions.PermissionException" title="psef.exceptions.PermissionException"><strong>PermissionException</strong></a> – If there is no logged in user. (NOT_LOGGED_IN)</p></li>
-<li><p><a class="reference internal" href="#psef.exceptions.PermissionException" title="psef.exceptions.PermissionException"><strong>PermissionException</strong></a> – If the user can not see the grade.
-(INCORRECT_PERMISSION)</p></li>
-</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -879,13 +1020,13 @@ permission, this is done in the same way as
 
 <dl class="function">
 <dt id="psef.auth.set_current_user">
-<code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">set_current_user</code><span class="sig-paren">(</span><em class="sig-param">user: Union[psef.models.User, werkzeug.local.LocalProxy]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#set_current_user"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.set_current_user" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">psef.auth.</code><code class="sig-name descname">set_current_user</code><span class="sig-paren">(</span><em class="sig-param">user: Union[psef.models.User, werkzeug.local.LocalProxy, None]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/auth.html#set_current_user"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.auth.set_current_user" title="Permalink to this definition">¶</a></dt>
 <dd><p>Set the current user for this request.</p>
 <p>You probably never should use this method, it is only useful after logging
 in a user.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>user</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>, <a class="reference external" href="https://werkzeug.palletsprojects.com/en/1.0.x/local/#werkzeug.local.LocalProxy" title="(in Werkzeug v1.0.x)"><code class="xref py py-class docutils literal notranslate"><span class="pre">LocalProxy</span></code></a>]) – The user that should become the current user.</p>
+<dd class="field-odd"><p><strong>user</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>, <a class="reference external" href="https://werkzeug.palletsprojects.com/en/1.0.x/local/#werkzeug.local.LocalProxy" title="(in Werkzeug v1.0.x)"><code class="xref py py-class docutils literal notranslate"><span class="pre">LocalProxy</span></code></a>, <code class="docutils literal notranslate"><span class="pre">None</span></code>]) – The user that should become the current user.</p>
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code></p>
@@ -1155,6 +1296,31 @@ from this class.</p></li>
 </ul>
 </dd>
 </dl>
+<dl class="attribute">
+<dt id="psef.exceptions.APIException.api_code">
+<code class="sig-name descname">api_code</code><a class="headerlink" href="#psef.exceptions.APIException.api_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.APIException.description">
+<code class="sig-name descname">description</code><a class="headerlink" href="#psef.exceptions.APIException.description" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.APIException.message">
+<code class="sig-name descname">message</code><a class="headerlink" href="#psef.exceptions.APIException.message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.APIException.rest">
+<code class="sig-name descname">rest</code><a class="headerlink" href="#psef.exceptions.APIException.rest" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.APIException.status_code">
+<code class="sig-name descname">status_code</code><a class="headerlink" href="#psef.exceptions.APIException.status_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="class">
@@ -1218,6 +1384,11 @@ from this class.</p></li>
 <dd></dd></dl>
 
 <dl class="attribute">
+<dt id="psef.exceptions.APIWarnings.POSSIBLE_INVISIBLE_REPLY">
+<code class="sig-name descname">POSSIBLE_INVISIBLE_REPLY</code><em class="property"> = 17</em><a class="headerlink" href="#psef.exceptions.APIWarnings.POSSIBLE_INVISIBLE_REPLY" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
 <dt id="psef.exceptions.APIWarnings.POSSIBLE_LTI_SETUP_ERROR">
 <code class="sig-name descname">POSSIBLE_LTI_SETUP_ERROR</code><em class="property"> = 16</em><a class="headerlink" href="#psef.exceptions.APIWarnings.POSSIBLE_LTI_SETUP_ERROR" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
@@ -1254,6 +1425,31 @@ from this class.</p></li>
 <em class="property">exception </em><code class="sig-prename descclassname">psef.exceptions.</code><code class="sig-name descname">FeatureException</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">feature: Feature</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/exceptions.html#FeatureException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.exceptions.FeatureException" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#psef.exceptions.PermissionException" title="psef.exceptions.PermissionException"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.exceptions.PermissionException</span></code></a></p>
 <p>The exception used when a feature is not enabled.</p>
+<dl class="attribute">
+<dt id="psef.exceptions.FeatureException.api_code">
+<code class="sig-name descname">api_code</code><a class="headerlink" href="#psef.exceptions.FeatureException.api_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.FeatureException.description">
+<code class="sig-name descname">description</code><a class="headerlink" href="#psef.exceptions.FeatureException.description" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.FeatureException.message">
+<code class="sig-name descname">message</code><a class="headerlink" href="#psef.exceptions.FeatureException.message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.FeatureException.rest">
+<code class="sig-name descname">rest</code><a class="headerlink" href="#psef.exceptions.FeatureException.rest" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.FeatureException.status_code">
+<code class="sig-name descname">status_code</code><a class="headerlink" href="#psef.exceptions.FeatureException.status_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="exception">
@@ -1269,6 +1465,11 @@ from this class.</p></li>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#Exception" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></a></p>
 <p>This exception should be raised when a configuration is in an invalid
 state.</p>
+<dl class="attribute">
+<dt id="psef.exceptions.InvalidStateException.reason">
+<code class="sig-name descname">reason</code><a class="headerlink" href="#psef.exceptions.InvalidStateException.reason" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="exception">
@@ -1276,6 +1477,31 @@ state.</p>
 <em class="property">exception </em><code class="sig-prename descclassname">psef.exceptions.</code><code class="sig-name descname">PermissionException</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">message: str</em>, <em class="sig-param">description: str</em>, <em class="sig-param">api_code: psef.exceptions.APICodes</em>, <em class="sig-param">status_code: int</em>, <em class="sig-param">**rest: Any</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/exceptions.html#PermissionException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.exceptions.PermissionException" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#psef.exceptions.APIException" title="psef.exceptions.APIException"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.exceptions.APIException</span></code></a></p>
 <p>The exception used when a permission check fails.</p>
+<dl class="attribute">
+<dt id="psef.exceptions.PermissionException.api_code">
+<code class="sig-name descname">api_code</code><a class="headerlink" href="#psef.exceptions.PermissionException.api_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.PermissionException.description">
+<code class="sig-name descname">description</code><a class="headerlink" href="#psef.exceptions.PermissionException.description" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.PermissionException.message">
+<code class="sig-name descname">message</code><a class="headerlink" href="#psef.exceptions.PermissionException.message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.PermissionException.rest">
+<code class="sig-name descname">rest</code><a class="headerlink" href="#psef.exceptions.PermissionException.rest" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.PermissionException.status_code">
+<code class="sig-name descname">status_code</code><a class="headerlink" href="#psef.exceptions.PermissionException.status_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="exception">
@@ -1289,6 +1515,31 @@ state.</p>
 <em class="property">exception </em><code class="sig-prename descclassname">psef.exceptions.</code><code class="sig-name descname">ValidationException</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">message: str</em>, <em class="sig-param">description: str</em>, <em class="sig-param">code: psef.exceptions.APICodes = &lt;APICodes.INVALID_PARAM: 5&gt;</em>, <em class="sig-param">**rest: Any</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/exceptions.html#ValidationException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.exceptions.ValidationException" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#psef.exceptions.APIException" title="psef.exceptions.APIException"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.exceptions.APIException</span></code></a></p>
 <p>Thrown when some kind of validation fails.</p>
+<dl class="attribute">
+<dt id="psef.exceptions.ValidationException.api_code">
+<code class="sig-name descname">api_code</code><a class="headerlink" href="#psef.exceptions.ValidationException.api_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.ValidationException.description">
+<code class="sig-name descname">description</code><a class="headerlink" href="#psef.exceptions.ValidationException.description" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.ValidationException.message">
+<code class="sig-name descname">message</code><a class="headerlink" href="#psef.exceptions.ValidationException.message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.ValidationException.rest">
+<code class="sig-name descname">rest</code><a class="headerlink" href="#psef.exceptions.ValidationException.rest" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.ValidationException.status_code">
+<code class="sig-name descname">status_code</code><a class="headerlink" href="#psef.exceptions.ValidationException.status_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="exception">
@@ -1296,6 +1547,31 @@ state.</p>
 <em class="property">exception </em><code class="sig-prename descclassname">psef.exceptions.</code><code class="sig-name descname">WeakPasswordException</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">message: str</em>, <em class="sig-param">description: str</em>, <em class="sig-param">code: psef.exceptions.APICodes = &lt;APICodes.INVALID_PARAM: 5&gt;</em>, <em class="sig-param">**rest: Any</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/exceptions.html#WeakPasswordException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.exceptions.WeakPasswordException" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#psef.exceptions.ValidationException" title="psef.exceptions.ValidationException"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.exceptions.ValidationException</span></code></a></p>
 <p>Thrown when a password is too weak.</p>
+<dl class="attribute">
+<dt id="psef.exceptions.WeakPasswordException.api_code">
+<code class="sig-name descname">api_code</code><a class="headerlink" href="#psef.exceptions.WeakPasswordException.api_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.WeakPasswordException.description">
+<code class="sig-name descname">description</code><a class="headerlink" href="#psef.exceptions.WeakPasswordException.description" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.WeakPasswordException.message">
+<code class="sig-name descname">message</code><a class="headerlink" href="#psef.exceptions.WeakPasswordException.message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.WeakPasswordException.rest">
+<code class="sig-name descname">rest</code><a class="headerlink" href="#psef.exceptions.WeakPasswordException.rest" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.exceptions.WeakPasswordException.status_code">
+<code class="sig-name descname">status_code</code><a class="headerlink" href="#psef.exceptions.WeakPasswordException.status_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 </div>
@@ -1806,6 +2082,31 @@ these files as direct children.</p></li>
 <em class="property">exception </em><code class="sig-prename descclassname">psef.files.</code><code class="sig-name descname">IgnoredFilesException</code><span class="sig-paren">(</span><em class="sig-param">self, invalid_files: List[psef.ignore.FileDeletion], filter_version: int, original_tree: psef.extract_tree.ExtractFileTree, missing_files: List[Mapping[str, str]]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/files.html#IgnoredFilesException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.files.IgnoredFilesException" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#psef.exceptions.APIException" title="psef.exceptions.APIException"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.exceptions.APIException</span></code></a></p>
 <p>The exception used when a permission check fails.</p>
+<dl class="attribute">
+<dt id="psef.files.IgnoredFilesException.api_code">
+<code class="sig-name descname">api_code</code><a class="headerlink" href="#psef.files.IgnoredFilesException.api_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.files.IgnoredFilesException.description">
+<code class="sig-name descname">description</code><a class="headerlink" href="#psef.files.IgnoredFilesException.description" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.files.IgnoredFilesException.message">
+<code class="sig-name descname">message</code><a class="headerlink" href="#psef.files.IgnoredFilesException.message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.files.IgnoredFilesException.rest">
+<code class="sig-name descname">rest</code><a class="headerlink" href="#psef.files.IgnoredFilesException.rest" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.files.IgnoredFilesException.status_code">
+<code class="sig-name descname">status_code</code><a class="headerlink" href="#psef.files.IgnoredFilesException.status_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="function">
@@ -3094,8 +3395,20 @@ returned.</p>
 </dd></dl>
 
 <dl class="function">
+<dt id="psef.helpers.get_from_request_transaction">
+<code class="sig-prename descclassname">psef.helpers.</code><code class="sig-name descname">get_from_request_transaction</code><span class="sig-paren">(</span><em class="sig-param">*</em>, <em class="sig-param">ensure_empty: bool = False</em><span class="sig-paren">)</span> &#x2192; AbstractContextManager[Tuple[psef.helpers.TransactionGet[str][str], psef.helpers.TransactionOptionalGet[str][str]]]<a class="reference internal" href="../_modules/psef/helpers.html#get_from_request_transaction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.get_from_request_transaction" title="Permalink to this definition">¶</a></dt>
+<dd><p>The same as <a class="reference internal" href="#psef.helpers.get_from_map_transaction" title="psef.helpers.get_from_map_transaction"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_from_map_transaction()</span></code></a> but with
+<a class="reference internal" href="#psef.helpers.get_json_dict_from_request" title="psef.helpers.get_json_dict_from_request"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_json_dict_from_request()</span></code></a> as first argument.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractContextManager</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">TransactionGet</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>], <code class="xref py py-class docutils literal notranslate"><span class="pre">TransactionOptionalGet</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
 <dt id="psef.helpers.get_in_or_error">
-<code class="sig-prename descclassname">psef.helpers.</code><code class="sig-name descname">get_in_or_error</code><span class="sig-paren">(</span><em class="sig-param">model: Type[Y], in_column: cg_sqlalchemy_helpers.types.DbColumn[~T][T], in_values: List[T], options: Optional[List[Any]] = None, *, as_map: bool = False</em><span class="sig-paren">)</span> &#x2192; Union[Dict[T, Y], List[Y]]<a class="reference internal" href="../_modules/psef/helpers.html#get_in_or_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.get_in_or_error" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">psef.helpers.</code><code class="sig-name descname">get_in_or_error</code><span class="sig-paren">(</span><em class="sig-param">model: Type[Y], in_column: cg_sqlalchemy_helpers.types.DbColumn[~T][T], in_values: List[T], options: Optional[List[Any]] = None, *, also_error: Callable[[Y], bool] = None, as_map: bool = False</em><span class="sig-paren">)</span> &#x2192; Union[Dict[T, Y], List[Y]]<a class="reference internal" href="../_modules/psef/helpers.html#get_in_or_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.get_in_or_error" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get object by doing an <code class="docutils literal notranslate"><span class="pre">IN</span></code> query.</p>
 <p>This method protects against empty <code class="docutils literal notranslate"><span class="pre">in_values</span></code>, and will return an empty
 list in that case. If not all items from the <code class="docutils literal notranslate"><span class="pre">in_values</span></code> this function
@@ -3323,6 +3636,21 @@ lookup tables.</p>
 </dd>
 <dt class="field-odd">Returns</dt>
 <dd class="field-odd"><p>A boolean indicating if <code class="docutils literal notranslate"><span class="pre">needle</span></code> was found in <code class="docutils literal notranslate"><span class="pre">hay</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="psef.helpers.mark_as_deprecated_route">
+<code class="sig-prename descclassname">psef.helpers.</code><code class="sig-name descname">mark_as_deprecated_route</code><span class="sig-paren">(</span><em class="sig-param">warning: str</em><span class="sig-paren">)</span> &#x2192; Callable[[T_CAL], T_CAL]<a class="reference internal" href="../_modules/psef/helpers.html#mark_as_deprecated_route"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.mark_as_deprecated_route" title="Permalink to this definition">¶</a></dt>
+<dd><p>Mark a given route as deprecated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>warning</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – The deprecation warning that should be added to each
+request to the wrapped route.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code></a>[[<code class="xref py py-class docutils literal notranslate"><span class="pre">T_CAL</span></code>], <code class="xref py py-class docutils literal notranslate"><span class="pre">T_CAL</span></code>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -4055,6 +4383,31 @@ the given archive.</p></li>
 <em class="property">exception </em><code class="sig-prename descclassname">psef.ignore.</code><code class="sig-name descname">ParseError</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">msg: str</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/ignore.html#ParseError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.ignore.ParseError" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#psef.exceptions.APIException" title="psef.exceptions.APIException"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.exceptions.APIException</span></code></a></p>
 <p>The exception raised when parsing failed.</p>
+<dl class="attribute">
+<dt id="psef.ignore.ParseError.api_code">
+<code class="sig-name descname">api_code</code><a class="headerlink" href="#psef.ignore.ParseError.api_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.ignore.ParseError.description">
+<code class="sig-name descname">description</code><a class="headerlink" href="#psef.ignore.ParseError.description" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.ignore.ParseError.message">
+<code class="sig-name descname">message</code><a class="headerlink" href="#psef.ignore.ParseError.message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.ignore.ParseError.rest">
+<code class="sig-name descname">rest</code><a class="headerlink" href="#psef.ignore.ParseError.rest" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.ignore.ParseError.status_code">
+<code class="sig-name descname">status_code</code><a class="headerlink" href="#psef.ignore.ParseError.status_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="class">
@@ -6151,6 +6504,31 @@ this name.</p>
 <em class="property">exception </em><code class="sig-prename descclassname">psef.lti.</code><code class="sig-name descname">LTIRoleException</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">message: str</em>, <em class="sig-param">description: str</em>, <em class="sig-param">api_code: psef.exceptions.APICodes</em>, <em class="sig-param">status_code: int</em>, <em class="sig-param">**rest: Any</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/lti.html#LTIRoleException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.LTIRoleException" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#psef.exceptions.APIException" title="psef.exceptions.APIException"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.exceptions.APIException</span></code></a></p>
 <p>Thrown when a role could not be parsed.</p>
+<dl class="attribute">
+<dt id="psef.lti.LTIRoleException.api_code">
+<code class="sig-name descname">api_code</code><a class="headerlink" href="#psef.lti.LTIRoleException.api_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.lti.LTIRoleException.description">
+<code class="sig-name descname">description</code><a class="headerlink" href="#psef.lti.LTIRoleException.description" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.lti.LTIRoleException.message">
+<code class="sig-name descname">message</code><a class="headerlink" href="#psef.lti.LTIRoleException.message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.lti.LTIRoleException.rest">
+<code class="sig-name descname">rest</code><a class="headerlink" href="#psef.lti.LTIRoleException.rest" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.lti.LTIRoleException.status_code">
+<code class="sig-name descname">status_code</code><a class="headerlink" href="#psef.lti.LTIRoleException.status_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="class">
@@ -6359,6 +6737,39 @@ launch.</p></li>
 <span id="psef-mail"></span><h2><code class="docutils literal notranslate"><span class="pre">psef.mail</span></code><a class="headerlink" href="#module-psef.mail" title="Permalink to this headline">¶</a></h2>
 <p>This module is used for all mailing related tasks.</p>
 <p>SPDX-License-Identifier: AGPL-3.0-only</p>
+<dl class="function">
+<dt id="psef.mail.send_digest_notification_email">
+<code class="sig-prename descclassname">psef.mail.</code><code class="sig-name descname">send_digest_notification_email</code><span class="sig-paren">(</span><em class="sig-param">notifications: List[psef.models.notification.Notification], send_type: typing_extensions.Literal[&lt;EmailNotificationTypes.daily: 2&gt;, &lt;EmailNotificationTypes.weekly: 3&gt;][&lt;EmailNotificationTypes.daily: 2&gt;, &lt;EmailNotificationTypes.weekly: 3&gt;]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/mail.html#send_digest_notification_email"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.mail.send_digest_notification_email" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send digest email for the given notifications.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>notifictions</strong> – The notifications to send the digest email for. All
+notifications should have the same receiver and the list should not be
+empty.</p></li>
+<li><p><strong>send_type</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">_GenericAlias</span></code>[EmailNotificationTypes.daily, EmailNotificationTypes.weekly]) – What kind of digest email is this.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="psef.mail.send_direct_notification_email">
+<code class="sig-prename descclassname">psef.mail.</code><code class="sig-name descname">send_direct_notification_email</code><span class="sig-paren">(</span><em class="sig-param">notification: psef.models.notification.Notification</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/mail.html#send_direct_notification_email"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.mail.send_direct_notification_email" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a direct notification email for the given notification.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>notification</strong> (<a class="reference internal" href="#psef.models.notification.Notification" title="psef.models.notification.Notification"><code class="xref py py-class docutils literal notranslate"><span class="pre">Notification</span></code></a>) – The notification for which we should send an e-mail.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="function">
 <dt id="psef.mail.send_grade_reminder_email">
 <code class="sig-prename descclassname">psef.mail.</code><code class="sig-name descname">send_grade_reminder_email</code><span class="sig-paren">(</span><em class="sig-param">assig: psef.models.assignment.Assignment</em>, <em class="sig-param">user: psef.models.user.User</em>, <em class="sig-param">mailer: flask_mail.Mail</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/mail.html#send_grade_reminder_email"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.mail.send_grade_reminder_email" title="Permalink to this definition">¶</a></dt>
@@ -7258,15 +7669,200 @@ belongs to.</p></li>
 </div>
 <div class="section" id="module-psef.models.comment">
 <span id="psef-models-comment"></span><h3><code class="docutils literal notranslate"><span class="pre">psef.models.comment</span></code><a class="headerlink" href="#module-psef.models.comment" title="Permalink to this headline">¶</a></h3>
-<p>This module defines a Comment.</p>
+<p>This module defines all database models needed for inline feedback comments.</p>
 <p>SPDX-License-Identifier: AGPL-3.0-only</p>
 <dl class="class">
-<dt id="psef.models.comment.Comment">
-<em class="property">class </em><code class="sig-prename descclassname">psef.models.comment.</code><code class="sig-name descname">Comment</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/models/comment.html#Comment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.comment.Comment" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">sqlalchemy.ext.declarative.api.Model</span></code></p>
+<dt id="psef.models.comment.CommentBase">
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.comment.</code><code class="sig-name descname">CommentBase</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/models/comment.html#CommentBase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.comment.CommentBase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">cg_sqlalchemy_helpers.mixins.IdMixin</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">sqlalchemy.ext.declarative.api.Model</span></code></p>
 <p>Describes a comment placed in a <code class="xref py py-class docutils literal notranslate"><span class="pre">file_models.File</span></code> by a
 <code class="xref py py-class docutils literal notranslate"><span class="pre">user_models.User</span></code> with the ability to grade.</p>
 <p>A comment is always linked to a specific line in a file.</p>
+<dl class="method">
+<dt id="psef.models.comment.CommentBase.add_reply">
+<code class="sig-name descname">add_reply</code><span class="sig-paren">(</span><em class="sig-param">self, user: psef.models.user.User, comment: str, reply_type: psef.models.comment.CommentReplyType, in_reply_to: Optional[psef.models.comment.CommentReply]</em><span class="sig-paren">)</span> &#x2192; psef.models.comment.CommentReply<a class="reference internal" href="../_modules/psef/models/comment.html#CommentBase.add_reply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.comment.CommentBase.add_reply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a reply to this comment base.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>user</strong> (<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>) – The author of the reply.</p></li>
+<li><p><strong>comment</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – The text of the reply.</p></li>
+<li><p><strong>reply_type</strong> (<a class="reference internal" href="#psef.models.comment.CommentReplyType" title="psef.models.comment.CommentReplyType"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReplyType</span></code></a>) – The format of the reply text.</p></li>
+<li><p><strong>in_reply_to</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference internal" href="#psef.models.comment.CommentReply" title="psef.models.comment.CommentReply"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReply</span></code></a>]) – An optional reply, in this case the new reply will
+be considered a reply on this given reply.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#psef.models.comment.CommentReply" title="psef.models.comment.CommentReply"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReply</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The created reply.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.comment.CommentBase.create_if_not_exists">
+<em class="property">classmethod </em><code class="sig-name descname">create_if_not_exists</code><span class="sig-paren">(</span><em class="sig-param">file: psef.models.file.File</em>, <em class="sig-param">line: int</em><span class="sig-paren">)</span> &#x2192; psef.models.comment.CommentBase<a class="reference internal" href="../_modules/psef/models/comment.html#CommentBase.create_if_not_exists"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.comment.CommentBase.create_if_not_exists" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Find, or create if it doesn’t exist, a comment base for the given</dt><dd><p><code class="docutils literal notranslate"><span class="pre">file</span></code> and <code class="docutils literal notranslate"><span class="pre">line</span></code>.</p>
+</dd>
+</dl>
+<p>This function makes sure that no duplicates will be created in the
+database, at the cost of possibly multiple queries.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#psef.models.comment.CommentBase" title="psef.models.comment.CommentBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentBase</span></code></a></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A found or created (in which case it will not have been added
+to the session) comment base.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.comment.CommentBase.first_reply">
+<em class="property">property </em><code class="sig-name descname">first_reply</code><a class="headerlink" href="#psef.models.comment.CommentBase.first_reply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the first reply that the currently logged in user may see.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference internal" href="#psef.models.comment.CommentReply" title="psef.models.comment.CommentReply"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReply</span></code></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.comment.CommentBase.user_visible_replies">
+<em class="property">property </em><code class="sig-name descname">user_visible_replies</code><a class="reference internal" href="../_modules/psef/models/comment.html#CommentBase.user_visible_replies"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.comment.CommentBase.user_visible_replies" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the replies of this comment base that the currently logged in
+user may see.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.comment.CommentBase.work">
+<em class="property">property </em><code class="sig-name descname">work</code><a class="headerlink" href="#psef.models.comment.CommentBase.work" title="Permalink to this definition">¶</a></dt>
+<dd><p>The <code class="xref py py-class docutils literal notranslate"><span class="pre">psef.models.Work</span></code> associated with this comment base.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.models.comment.CommentReply">
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.comment.</code><code class="sig-name descname">CommentReply</code><span class="sig-paren">(</span><em class="sig-param">author</em>, <em class="sig-param">comment</em>, <em class="sig-param">reply_type</em>, <em class="sig-param">in_reply_to</em>, <em class="sig-param">comment_base</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/models/comment.html#CommentReply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.comment.CommentReply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">cg_sqlalchemy_helpers.mixins.IdMixin</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">cg_sqlalchemy_helpers.mixins.TimestampMixin</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">sqlalchemy.ext.declarative.api.Model</span></code></p>
+<p>The class representing a reply.</p>
+<p>If a reply doesn’t have a <code class="docutils literal notranslate"><span class="pre">reply_to_id</span></code> set you should see this as a
+reply to the comment base.</p>
+<dl class="method">
+<dt id="psef.models.comment.CommentReply.can_see_author">
+<em class="property">property </em><code class="sig-name descname">can_see_author</code><a class="headerlink" href="#psef.models.comment.CommentReply.can_see_author" title="Permalink to this definition">¶</a></dt>
+<dd><p>Is the current user allowed to see this replies author.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You are only allowed to see the author when you are also allowed to
+see the reply itself.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.comment.CommentReply.delete">
+<code class="sig-name descname">delete</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span> &#x2192; psef.models.comment.CommentReplyEdit<a class="reference internal" href="../_modules/psef/models/comment.html#CommentReply.delete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.comment.CommentReply.delete" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Delete this reply and create a <a class="reference internal" href="#psef.models.comment.CommentReplyEdit" title="psef.models.comment.CommentReplyEdit"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReplyEdit</span></code></a> object for</dt><dd><p>this mutation.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#psef.models.comment.CommentReplyEdit" title="psef.models.comment.CommentReplyEdit"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReplyEdit</span></code></a></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The created <a class="reference internal" href="#psef.models.comment.CommentReplyEdit" title="psef.models.comment.CommentReplyEdit"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReplyEdit</span></code></a>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.comment.CommentReply.get_outdated_json">
+<code class="sig-name descname">get_outdated_json</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span> &#x2192; Mapping[str, object]<a class="reference internal" href="../_modules/psef/models/comment.html#CommentReply.get_outdated_json"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.comment.CommentReply.get_outdated_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the old JSON representation for this reply.</p>
+<p>This representation was used for the old comments api, the one before
+we supported replies. Don’t use it for new apis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.comment.CommentReply.message_id">
+<em class="property">property </em><code class="sig-name descname">message_id</code><a class="headerlink" href="#psef.models.comment.CommentReply.message_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>The message id of this reply when you send it as an e-mail.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.comment.CommentReply.references">
+<em class="property">property </em><code class="sig-name descname">references</code><a class="headerlink" href="#psef.models.comment.CommentReply.references" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a list of all comment replies this reply references.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<a class="reference internal" href="#psef.models.comment.CommentReply" title="psef.models.comment.CommentReply"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReply</span></code></a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.comment.CommentReply.update">
+<code class="sig-name descname">update</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">new_comment_text: str</em><span class="sig-paren">)</span> &#x2192; Optional[psef.models.comment.CommentReplyEdit]<a class="reference internal" href="../_modules/psef/models/comment.html#CommentReply.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.comment.CommentReply.update" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Update the contents this reply and create a</dt><dd><p><a class="reference internal" href="#psef.models.comment.CommentReplyEdit" title="psef.models.comment.CommentReplyEdit"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReplyEdit</span></code></a> object for this mutation.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>new_comment_text</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – The new content of the reply.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference internal" href="#psef.models.comment.CommentReplyEdit" title="psef.models.comment.CommentReplyEdit"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReplyEdit</span></code></a>]</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The created <a class="reference internal" href="#psef.models.comment.CommentReplyEdit" title="psef.models.comment.CommentReplyEdit"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReplyEdit</span></code></a> if the given
+<code class="docutils literal notranslate"><span class="pre">new_comment_text</span></code> is different than the existing text, otherwise
+<code class="docutils literal notranslate"><span class="pre">None</span></code> is returned.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.models.comment.CommentReplyEdit">
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.comment.</code><code class="sig-name descname">CommentReplyEdit</code><span class="sig-paren">(</span><em class="sig-param">comment_reply</em>, <em class="sig-param">editor</em>, <em class="sig-param">*</em>, <em class="sig-param">new_comment_text=None</em>, <em class="sig-param">is_deletion=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/models/comment.html#CommentReplyEdit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.comment.CommentReplyEdit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">cg_sqlalchemy_helpers.mixins.IdMixin</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">cg_sqlalchemy_helpers.mixins.TimestampMixin</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">sqlalchemy.ext.declarative.api.Model</span></code></p>
+<p>A class representing an edit of a comment reply.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.models.comment.CommentReplyType">
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.comment.</code><code class="sig-name descname">CommentReplyType</code><a class="reference internal" href="../_modules/psef/models/comment.html#CommentReplyType"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.comment.CommentReplyType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.Enum" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">enum.Enum</span></code></a></p>
+<p>The type of formatting used for the contents of the reply.</p>
 </dd></dl>
 
 </div>
@@ -7462,6 +8058,13 @@ request the saved file is also deleted.</p>
 </dl>
 </dd></dl>
 
+<dl class="attribute">
+<dt id="psef.models.file.AutoTestFixture.is_directory">
+<code class="sig-name descname">is_directory</code><a class="headerlink" href="#psef.models.file.AutoTestFixture.is_directory" title="Permalink to this definition">¶</a></dt>
+<dd><p>An AutoTest fixture is never a directory, as we only allow file
+uploads.</p>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="class">
@@ -7507,6 +8110,39 @@ directory file does not physically exist but is stored only in the database
 to preserve the submitted work structure. Each submission should have a
 single top level file. Each other file in a submission should be directly
 or indirectly connected to this file via the parent attribute.</p>
+<dl class="method">
+<dt id="psef.models.file.File.deleted">
+<em class="property">property </em><code class="sig-name descname">deleted</code><a class="headerlink" href="#psef.models.file.File.deleted" title="Permalink to this definition">¶</a></dt>
+<dd><p>Should this file be considered deleted.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">True</span></code> if either this file is deleted, or if the
+<code class="xref py py-class docutils literal notranslate"><span class="pre">work_models.Work</span></code> of this file should be considered
+deleted.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.file.File.get_diskname">
+<code class="sig-name descname">get_diskname</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="../_modules/psef/models/file.html#File.get_diskname"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.file.File.get_diskname" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the absolute path on the disk for this file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The absolute path.</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#AssertionError" title="(in Python v3.8)"><strong>AssertionError</strong></a> – If this file is deleted.</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="method">
 <dt id="psef.models.file.File.get_exclude_owner">
 <em class="property">static </em><code class="sig-name descname">get_exclude_owner</code><span class="sig-paren">(</span><em class="sig-param">owner: Optional[str], course_id: int</em><span class="sig-paren">)</span> &#x2192; psef.models.file.FileOwner<a class="reference internal" href="../_modules/psef/models/file.html#File.get_exclude_owner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.file.File.get_exclude_owner" title="Permalink to this definition">¶</a></dt>
@@ -7602,6 +8238,19 @@ collisions.</p></li>
 (INVALID_STATE).</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="psef.models.file.File.self_deleted">
+<code class="sig-name descname">self_deleted</code><a class="headerlink" href="#psef.models.file.File.self_deleted" title="Permalink to this definition">¶</a></dt>
+<dd><p>Is this file deleted.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This only checks if this file is deleted, to check if the file
+should be considered as deleted, use the <code class="docutils literal notranslate"><span class="pre">deleted</span></code> property,
+which also checks if the <code class="xref py py-class docutils literal notranslate"><span class="pre">work_models.Work</span></code> of this file is
+deleted. Really you should only use this property in queries.</p>
+</div>
 </dd></dl>
 
 </dd></dl>
@@ -7886,6 +8535,12 @@ for this user for every member in this group.</p>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="psef.models.group.Group.members">
+<code class="sig-name descname">members</code><a class="headerlink" href="#psef.models.group.Group.members" title="Permalink to this definition">¶</a></dt>
+<dd><p>The members of this group.</p>
 </dd></dl>
 
 <dl class="method">
@@ -8270,12 +8925,23 @@ this permission is global for the entire site.</p></li>
 </dl>
 </dd></dl>
 
+<dl class="attribute">
+<dt id="psef.models.permission.Permission.value">
+<code class="sig-name descname">value</code><a class="headerlink" href="#psef.models.permission.Permission.value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the permission value of the database permission.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The permission of this database permission.</p>
+</dd>
+</dl>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="class">
 <dt id="psef.models.permission.PermissionComp">
-<em class="property">class </em><code class="sig-prename descclassname">psef.models.permission.</code><code class="sig-name descname">PermissionComp</code><span class="sig-paren">(</span><em class="sig-param">self, _Comparator__name: cg_sqlalchemy_helpers.types.DbColumn[~T][T]</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/models/permission.html#PermissionComp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.permission.PermissionComp" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">cg_sqlalchemy_helpers.types.Comparator</span></code></p>
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.permission.</code><code class="sig-name descname">PermissionComp</code><span class="sig-paren">(</span><em class="sig-param">expression</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/models/permission.html#PermissionComp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.permission.PermissionComp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Generic" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">typing.Generic</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">cg_sqlalchemy_helpers.types.Comparator</span></code></p>
 </dd></dl>
 
 </div>
@@ -8827,6 +9493,13 @@ of added.</p>
 <dd><p>Bases: <a class="reference internal" href="#psef.helpers.NotEqualMixin" title="psef.helpers.NotEqualMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.helpers.NotEqualMixin</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">sqlalchemy.ext.declarative.api.Model</span></code></p>
 <p>The association table between a <code class="xref py py-class docutils literal notranslate"><span class="pre">work_models.Work</span></code> and a
 <a class="reference internal" href="#psef.models.rubric.RubricItem" title="psef.models.rubric.RubricItem"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricItem</span></code></a>.</p>
+<dl class="attribute">
+<dt id="psef.models.rubric.WorkRubricItem.points">
+<code class="sig-name descname">points</code><a class="headerlink" href="#psef.models.rubric.WorkRubricItem.points" title="Permalink to this definition">¶</a></dt>
+<dd><p>Same as above, but this returns an expression used by
+sqlalchemy.</p>
+</dd></dl>
+
 </dd></dl>
 
 </div>
@@ -9008,6 +9681,22 @@ current user has this permission.</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="psef.models.user.User.get_contained_users">
+<code class="sig-name descname">get_contained_users</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span> &#x2192; Iterable[psef.models.user.User]<a class="reference internal" href="../_modules/psef/models/user.html#User.get_contained_users"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user.User.get_contained_users" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get all contained users of this user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code></a>[<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>]</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>If this user is the virtual user of this group a list of
+members of the group, otherwise the user itself is wrapped in a
+list and returned.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
 <dt id="psef.models.user.User.get_permissions_in_courses">
 <code class="sig-name descname">get_permissions_in_courses</code><span class="sig-paren">(</span><em class="sig-param">self, wanted_perms: Sequence[psef.permissions.CoursePermission]</em><span class="sig-paren">)</span> &#x2192; Mapping[int, Mapping[psef.permissions.CoursePermission, bool]]<a class="reference internal" href="../_modules/psef/models/user.html#User.get_permissions_in_courses"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user.User.get_permissions_in_courses" title="Permalink to this definition">¶</a></dt>
 <dd><p>Check for specific <code class="xref py py-class docutils literal notranslate"><span class="pre">Permission`s</span> <span class="pre">in</span> <span class="pre">all</span> <span class="pre">courses</span>
@@ -9030,6 +9719,22 @@ supported. However the resulting mapping will be empty.</p>
 the values at this are a mapping between the given permission names
 and a boolean indicating if the current user has this permission
 for the course with this course id.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.user.User.get_readable_name">
+<code class="sig-name descname">get_readable_name</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="../_modules/psef/models/user.html#User.get_readable_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user.User.get_readable_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the readable name of this user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>If this is a normal user this method simply returns the name
+of the user. If this user is the virtual user of a group a nicely
+formatted group name is returned.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -9104,6 +9809,12 @@ permission with this name exists.</p>
 </dl>
 </dd></dl>
 
+<dl class="attribute">
+<dt id="psef.models.user.User.id">
+<code class="sig-name descname">id</code><a class="headerlink" href="#psef.models.user.User.id" title="Permalink to this definition">¶</a></dt>
+<dd><p>The id of the user</p>
+</dd></dl>
+
 <dl class="method">
 <dt id="psef.models.user.User.is_active">
 <em class="property">property </em><code class="sig-name descname">is_active</code><a class="headerlink" href="#psef.models.user.User.is_active" title="Permalink to this definition">¶</a></dt>
@@ -9176,6 +9887,35 @@ database.</p>
 given token.</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.user.User.resolve">
+<em class="property">classmethod </em><code class="sig-name descname">resolve</code><span class="sig-paren">(</span><em class="sig-param">possible_user: Union[User, werkzeug.local.LocalProxy]</em><span class="sig-paren">)</span> &#x2192; psef.models.user.User<a class="reference internal" href="../_modules/psef/models/user.html#User.resolve"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user.User.resolve" title="Permalink to this definition">¶</a></dt>
+<dd><p>Unwrap the possible local proxy to a user.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>possible_user</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>, <a class="reference external" href="https://werkzeug.palletsprojects.com/en/1.0.x/local/#werkzeug.local.LocalProxy" title="(in Werkzeug v1.0.x)"><code class="xref py py-class docutils literal notranslate"><span class="pre">LocalProxy</span></code></a>]) – The user we should unwrap.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>If the given argument was a LocalProxy
+<cite>_get_current_object()</cite> is called and the return value is returned,
+otherwise the given argument is returned.</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#AssertionError" title="(in Python v3.8)"><strong>AssertionError</strong></a> – If the given argument was not a user after
+unwrapping.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="psef.models.user.User.username">
+<code class="sig-name descname">username</code><a class="headerlink" href="#psef.models.user.User.username" title="Permalink to this definition">¶</a></dt>
+<dd><p>The username of the user</p>
 </dd></dl>
 
 </dd></dl>
@@ -9284,6 +10024,12 @@ to the current time.</p></li>
 <dd class="field-odd"><p>The name of the zip file in the <cite>MIRROR_UPLOADS</cite> dir.</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="psef.models.work.Work.deleted">
+<code class="sig-name descname">deleted</code><a class="headerlink" href="#psef.models.work.Work.deleted" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a query that checks if this submission is deleted.</p>
 </dd></dl>
 
 <dl class="method">
@@ -9513,7 +10259,7 @@ leading and trailing slashes which do not have any meaning.</p></li>
 
 <dl class="method">
 <dt id="psef.models.work.Work.search_file_filters">
-<code class="sig-name descname">search_file_filters</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">pathname: str</em>, <em class="sig-param">exclude: psef.models.file.FileOwner</em><span class="sig-paren">)</span> &#x2192; List[Any]<a class="reference internal" href="../_modules/psef/models/work.html#Work.search_file_filters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.work.Work.search_file_filters" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">search_file_filters</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">pathname: str</em>, <em class="sig-param">exclude: psef.models.file.FileOwner</em><span class="sig-paren">)</span> &#x2192; List[cg_sqlalchemy_helpers.types.DbColumn[bool][bool]]<a class="reference internal" href="../_modules/psef/models/work.html#Work.search_file_filters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.work.Work.search_file_filters" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the filters needed to search for a file in the this directory
 with a given name.</p>
 <dl class="field-list simple">
@@ -9526,7 +10272,7 @@ leading and trailing slashes which do not have any meaning.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type</dt>
-<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]</p>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DbColumn</span></code>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>]]</p>
 </dd>
 <dt class="field-odd">Returns</dt>
 <dd class="field-odd"><p>The criteria needed to find the file with the given pathname.</p>
@@ -9880,6 +10626,43 @@ points possible in the given suites.</p>
 these results are for all <a class="reference internal" href="#psef.models.auto_test.AutoTestRun" title="psef.models.auto_test.AutoTestRun"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTestRun</span></code></a> s.</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="psef.models.auto_test.AutoTestResult.is_finished">
+<code class="sig-name descname">is_finished</code><a class="headerlink" href="#psef.models.auto_test.AutoTestResult.is_finished" title="Permalink to this definition">¶</a></dt>
+<dd><p>Has this state passed?</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="psef.models.auto_test.AutoTestResult.state">
+<code class="sig-name descname">state</code><a class="headerlink" href="#psef.models.auto_test.AutoTestResult.state" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the state of this result</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timezone</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">called</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">fun</span><span class="p">(</span><span class="n">_</span><span class="p">):</span>
+<span class="gp">... </span> <span class="k">global</span> <span class="n">called</span>
+<span class="gp">... </span> <span class="n">called</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">psef</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">adjust_amount_runners</span> <span class="o">=</span> <span class="n">fun</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span> <span class="o">=</span> <span class="n">AutoTestResult</span><span class="p">(</span><span class="n">run</span><span class="o">=</span><span class="n">AutoTestRun</span><span class="p">())</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">not_set</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">started_at</span> <span class="o">=</span> <span class="n">not_set</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">auto_test_step_models</span><span class="o">.</span><span class="n">AutoTestStepResultState</span><span class="o">.</span><span class="n">running</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">started_at</span><span class="p">,</span> <span class="n">datetime</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">started_at</span><span class="o">.</span><span class="n">tzinfo</span> <span class="o">==</span> <span class="n">timezone</span><span class="o">.</span><span class="n">utc</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">called</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="mi">6</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">started_at</span> <span class="ow">is</span> <span class="kc">None</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">started_at</span> <span class="o">=</span> <span class="n">not_set</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="mi">6</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">r</span><span class="o">.</span><span class="n">started_at</span> <span class="ow">is</span> <span class="n">not_set</span>
+<span class="go">True</span>
+</pre></div>
+</div>
 </dd></dl>
 
 <dl class="method">
@@ -10390,6 +11173,243 @@ psef.exceptions.APIException
 <p>This enum represents the states the result of a step can be in.</p>
 <p>A single step result will probably be in multiple states during its
 existence.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-psef.models.user_setting">
+<span id="psef-models-user-setting"></span><h3><code class="docutils literal notranslate"><span class="pre">psef.models.user_setting</span></code><a class="headerlink" href="#module-psef.models.user_setting" title="Permalink to this headline">¶</a></h3>
+<p>This module defines all models needed for persisting user settings in the
+database.</p>
+<p>SPDX-License-Identifier: AGPL-3.0-only</p>
+<dl class="class">
+<dt id="psef.models.user_setting.EmailNotificationTypes">
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.user_setting.</code><code class="sig-name descname">EmailNotificationTypes</code><a class="reference internal" href="../_modules/psef/models/user_setting.html#EmailNotificationTypes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user_setting.EmailNotificationTypes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.Enum" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">enum.Enum</span></code></a></p>
+<p>The possible options for preferences for sending email notifications.</p>
+<dl class="method">
+<dt id="psef.models.user_setting.EmailNotificationTypes.previous_option">
+<code class="sig-name descname">previous_option</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span> &#x2192; Optional[typing_extensions.Literal[&lt;EmailNotificationTypes.direct: 1&gt;, &lt;EmailNotificationTypes.daily: 2&gt;, &lt;EmailNotificationTypes.weekly: 3&gt;][&lt;EmailNotificationTypes.direct: 1&gt;, &lt;EmailNotificationTypes.daily: 2&gt;, &lt;EmailNotificationTypes.weekly: 3&gt;]]<a class="reference internal" href="../_modules/psef/models/user_setting.html#EmailNotificationTypes.previous_option"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user_setting.EmailNotificationTypes.previous_option" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the previous value.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">EmailNotificationTypes</span><span class="o">.</span><span class="n">off</span><span class="o">.</span><span class="n">previous_option</span><span class="p">()</span>
+<span class="go">&lt;EmailNotificationTypes.weekly: 3&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">EmailNotificationTypes</span><span class="o">.</span><span class="n">weekly</span><span class="o">.</span><span class="n">previous_option</span><span class="p">()</span>
+<span class="go">&lt;EmailNotificationTypes.daily: 2&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">EmailNotificationTypes</span><span class="o">.</span><span class="n">daily</span><span class="o">.</span><span class="n">previous_option</span><span class="p">()</span>
+<span class="go">&lt;EmailNotificationTypes.direct: 1&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">EmailNotificationTypes</span><span class="o">.</span><span class="n">direct</span><span class="o">.</span><span class="n">previous_option</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span>
+<span class="go">True</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">_GenericAlias</span></code>[EmailNotificationTypes.direct, EmailNotificationTypes.daily, EmailNotificationTypes.weekly]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.models.user_setting.NotificationSettingJSON">
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.user_setting.</code><code class="sig-name descname">NotificationSettingJSON</code><a class="reference internal" href="../_modules/psef/models/user_setting.html#NotificationSettingJSON"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user_setting.NotificationSettingJSON" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></p>
+<p>The JSON serialization schema for <a class="reference internal" href="#psef.models.user_setting.NotificationsSetting" title="psef.models.user_setting.NotificationsSetting"><code class="xref py py-class docutils literal notranslate"><span class="pre">NotificationsSetting</span></code></a>.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.models.user_setting.NotificationSettingOptionJSON">
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.user_setting.</code><code class="sig-name descname">NotificationSettingOptionJSON</code><a class="reference internal" href="../_modules/psef/models/user_setting.html#NotificationSettingOptionJSON"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user_setting.NotificationSettingOptionJSON" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></p>
+<p>The JSON serialization schema for a single notification setting option.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.models.user_setting.NotificationsSetting">
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.user_setting.</code><code class="sig-name descname">NotificationsSetting</code><span class="sig-paren">(</span><em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/models/user_setting.html#NotificationsSetting"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user_setting.NotificationsSetting" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">sqlalchemy.ext.declarative.api.Model</span></code>, <a class="reference internal" href="#psef.models.user_setting.SettingBase" title="psef.models.user_setting.SettingBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.models.user_setting.SettingBase</span></code></a></p>
+<p>The class representing settings for sending notification emails.</p>
+<dl class="method">
+<dt id="psef.models.user_setting.NotificationsSetting.get_notification_setting_json_for_user">
+<em class="property">classmethod </em><code class="sig-name descname">get_notification_setting_json_for_user</code><span class="sig-paren">(</span><em class="sig-param">user: psef.models.user.User</em><span class="sig-paren">)</span> &#x2192; psef.models.user_setting.NotificationSettingJSON<a class="reference internal" href="../_modules/psef/models/user_setting.html#NotificationsSetting.get_notification_setting_json_for_user"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user_setting.NotificationsSetting.get_notification_setting_json_for_user" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the notification settings for the given user as JSON.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#psef.models.user_setting.NotificationSettingJSON" title="psef.models.user_setting.NotificationSettingJSON"><code class="xref py py-class docutils literal notranslate"><span class="pre">NotificationSettingJSON</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.user_setting.NotificationsSetting.get_setting_name">
+<em class="property">static </em><code class="sig-name descname">get_setting_name</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="../_modules/psef/models/user_setting.html#NotificationsSetting.get_setting_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user_setting.NotificationsSetting.get_setting_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the name of this setting.</p>
+<p>This should be unique per table.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.user_setting.NotificationsSetting.get_should_send_for_users">
+<em class="property">classmethod </em><code class="sig-name descname">get_should_send_for_users</code><span class="sig-paren">(</span><em class="sig-param">user_ids: List[int]</em><span class="sig-paren">)</span> &#x2192; Callable[[psef.models.notification.Notification, typing_extensions.Literal[&lt;EmailNotificationTypes.direct: 1&gt;, &lt;EmailNotificationTypes.daily: 2&gt;, &lt;EmailNotificationTypes.weekly: 3&gt;][&lt;EmailNotificationTypes.direct: 1&gt;, &lt;EmailNotificationTypes.daily: 2&gt;, &lt;EmailNotificationTypes.weekly: 3&gt;]], bool]<a class="reference internal" href="../_modules/psef/models/user_setting.html#NotificationsSetting.get_should_send_for_users"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user_setting.NotificationsSetting.get_should_send_for_users" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a function that can be used to check if you should send a given
+notification.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>user_ids</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>]) – A list of user ids, these are the users that later can
+be the receiver of the notification you pass to the returned
+closure.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code></a>[[<a class="reference internal" href="#psef.models.notification.Notification" title="psef.models.notification.Notification"><code class="xref py py-class docutils literal notranslate"><span class="pre">Notification</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">_GenericAlias</span></code>[EmailNotificationTypes.direct, EmailNotificationTypes.daily, EmailNotificationTypes.weekly]], <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>]</p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A function that when called with two arguments, the
+notification and the notification type, will return if you should
+send the notification receiver an email.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.user_setting.NotificationsSetting.update_for_user">
+<em class="property">classmethod </em><code class="sig-name descname">update_for_user</code><span class="sig-paren">(</span><em class="sig-param">user: psef.models.user.User</em>, <em class="sig-param">reason: psef.models.notification.NotificationReasons</em>, <em class="sig-param">value: psef.models.user_setting.EmailNotificationTypes</em><span class="sig-paren">)</span> &#x2192; None<a class="reference internal" href="../_modules/psef/models/user_setting.html#NotificationsSetting.update_for_user"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user_setting.NotificationsSetting.update_for_user" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Update the notification type for the given reason for the given</dt><dd><p>user.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>user</strong> (<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>) – The user for which we should update the setting.</p></li>
+<li><p><strong>reason</strong> (<a class="reference internal" href="#psef.models.notification.NotificationReasons" title="psef.models.notification.NotificationReasons"><code class="xref py py-class docutils literal notranslate"><span class="pre">NotificationReasons</span></code></a>) – The reason for which we should update the setting.</p></li>
+<li><p><strong>value</strong> (<a class="reference internal" href="#psef.models.user_setting.EmailNotificationTypes" title="psef.models.user_setting.EmailNotificationTypes"><code class="xref py py-class docutils literal notranslate"><span class="pre">EmailNotificationTypes</span></code></a>) – The value the setting should be set to.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.models.user_setting.SettingBase">
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.user_setting.</code><code class="sig-name descname">SettingBase</code><a class="reference internal" href="../_modules/psef/models/user_setting.html#SettingBase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user_setting.SettingBase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">cg_sqlalchemy_helpers.mixins.TimestampMixin</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">cg_sqlalchemy_helpers.mixins.IdMixin</span></code></p>
+<p>The base class for representing a new user setting.</p>
+<dl class="method">
+<dt id="psef.models.user_setting.SettingBase.get_setting_name">
+<em class="property">abstract classmethod </em><code class="sig-name descname">get_setting_name</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="../_modules/psef/models/user_setting.html#SettingBase.get_setting_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user_setting.SettingBase.get_setting_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the name of this setting.</p>
+<p>This should be unique per table.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.user_setting.SettingBase.get_settings_change_token">
+<em class="property">classmethod </em><code class="sig-name descname">get_settings_change_token</code><span class="sig-paren">(</span><em class="sig-param">user: psef.models.user.User</em><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="../_modules/psef/models/user_setting.html#SettingBase.get_settings_change_token"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user_setting.SettingBase.get_settings_change_token" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Get a token to change settings on this settings class for the given</dt><dd><p>user.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>user</strong> (<a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>) – The user for which you want to change settings later on.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>A token that can later be given to
+<a class="reference internal" href="#psef.models.user_setting.SettingBase.verify_settings_change_token" title="psef.models.user_setting.SettingBase.verify_settings_change_token"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SettingBase.verify_settings_change_token()</span></code></a>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.user_setting.SettingBase.verify_settings_change_token">
+<em class="property">classmethod </em><code class="sig-name descname">verify_settings_change_token</code><span class="sig-paren">(</span><em class="sig-param">token: str</em><span class="sig-paren">)</span> &#x2192; psef.models.user.User<a class="reference internal" href="../_modules/psef/models/user_setting.html#SettingBase.verify_settings_change_token"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.user_setting.SettingBase.verify_settings_change_token" title="Permalink to this definition">¶</a></dt>
+<dd><p>Verify the given token to change settings for this settings class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The user for which this token can change settings.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-psef.models.notification">
+<span id="psef-models-notification"></span><h3><code class="docutils literal notranslate"><span class="pre">psef.models.notification</span></code><a class="headerlink" href="#module-psef.models.notification" title="Permalink to this headline">¶</a></h3>
+<p>This module defines all classes needed to represent notifications in the
+database.</p>
+<p>SPDX-License-Identifier: AGPL-3.0-only</p>
+<dl class="class">
+<dt id="psef.models.notification.BaseNotificationJSON">
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.notification.</code><code class="sig-name descname">BaseNotificationJSON</code><a class="reference internal" href="../_modules/psef/models/notification.html#BaseNotificationJSON"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.notification.BaseNotificationJSON" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></p>
+<p>The base dict used for representing a notification as JSON.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.models.notification.CommentNotificationJSON">
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.notification.</code><code class="sig-name descname">CommentNotificationJSON</code><a class="reference internal" href="../_modules/psef/models/notification.html#CommentNotificationJSON"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.notification.CommentNotificationJSON" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a></p>
+<p>The dict used for representing a comment notification as JSON.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.models.notification.Notification">
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.notification.</code><code class="sig-name descname">Notification</code><span class="sig-paren">(</span><em class="sig-param">receiver</em>, <em class="sig-param">comment_reply</em>, <em class="sig-param">reasons</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/psef/models/notification.html#Notification"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.notification.Notification" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">sqlalchemy.ext.declarative.api.Model</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">cg_sqlalchemy_helpers.mixins.IdMixin</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">cg_sqlalchemy_helpers.mixins.TimestampMixin</span></code>, <a class="reference internal" href="#psef.helpers.NotEqualMixin" title="psef.helpers.NotEqualMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.helpers.NotEqualMixin</span></code></a></p>
+<p>This class represents a notification.</p>
+<p>This can be a notification for many things, but currently it is only used
+as a notification for new comments.</p>
+<dl class="method">
+<dt id="psef.models.notification.Notification.deleted">
+<em class="property">property </em><code class="sig-name descname">deleted</code><a class="headerlink" href="#psef.models.notification.Notification.deleted" title="Permalink to this definition">¶</a></dt>
+<dd><p>Should you consider this notification deleted.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="psef.models.notification.Notification.reasons_with_explanation">
+<em class="property">property </em><code class="sig-name descname">reasons_with_explanation</code><a class="headerlink" href="#psef.models.notification.Notification.reasons_with_explanation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a list of reasons for this notification with an explanation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>[<a class="reference internal" href="#psef.models.notification.NotificationReasons" title="psef.models.notification.NotificationReasons"><code class="xref py py-class docutils literal notranslate"><span class="pre">NotificationReasons</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A list of tuples where the first element is the reason, and
+the second one the explanation.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="psef.models.notification.NotificationReasons">
+<em class="property">class </em><code class="sig-prename descclassname">psef.models.notification.</code><code class="sig-name descname">NotificationReasons</code><a class="reference internal" href="../_modules/psef/models/notification.html#NotificationReasons"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.notification.NotificationReasons" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/enum.html#enum.Enum" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">enum.Enum</span></code></a></p>
+<p>The reason a user received a notification.</p>
 </dd></dl>
 
 <p>SPDX-License-Identifier: AGPL-3.0-only</p>
@@ -10949,9 +11969,18 @@ trees.</p></li>
 <li><p><a class="reference internal" href="#psef.permissions.CoursePermission.can_override_submission_limiting" title="psef.permissions.CoursePermission.can_override_submission_limiting"><strong>can_override_submission_limiting</strong></a> – Users with this permission can create new submissions, even if the maximum amount of submissions has been reacher, or if a cool-off period is in effect.</p></li>
 <li><p><a class="reference internal" href="#psef.permissions.CoursePermission.can_see_linter_feedback_before_done" title="psef.permissions.CoursePermission.can_see_linter_feedback_before_done"><strong>can_see_linter_feedback_before_done</strong></a> – Users with this permission can see the output of linters before an assignment is set to “done”</p></li>
 <li><p><a class="reference internal" href="#psef.permissions.CoursePermission.can_see_user_feedback_before_done" title="psef.permissions.CoursePermission.can_see_user_feedback_before_done"><strong>can_see_user_feedback_before_done</strong></a> – Users with this permission can see feedback before an assignment is set to “done”</p></li>
+<li><p><a class="reference internal" href="#psef.permissions.CoursePermission.can_edit_others_comments" title="psef.permissions.CoursePermission.can_edit_others_comments"><strong>can_edit_others_comments</strong></a> – Users with this permission can edit inline comments left by other users</p></li>
+<li><p><a class="reference internal" href="#psef.permissions.CoursePermission.can_add_own_inline_comments" title="psef.permissions.CoursePermission.can_add_own_inline_comments"><strong>can_add_own_inline_comments</strong></a> – Users with this permission can add and reply to inline comments on subbmission they are the author of</p></li>
+<li><p><a class="reference internal" href="#psef.permissions.CoursePermission.can_view_others_comment_edits" title="psef.permissions.CoursePermission.can_view_others_comment_edits"><strong>can_view_others_comment_edits</strong></a> – Users with this permission may see the edit history of comments placed by others</p></li>
+<li><p><a class="reference internal" href="#psef.permissions.CoursePermission.can_view_feedback_author" title="psef.permissions.CoursePermission.can_view_feedback_author"><strong>can_view_feedback_author</strong></a> – Users with this permission can view the author of inline and general feedback</p></li>
 </ul>
 </dd>
 </dl>
+<dl class="attribute">
+<dt id="psef.permissions.CoursePermission.can_add_own_inline_comments">
+<code class="sig-name descname">can_add_own_inline_comments</code><em class="property"> = _PermissionValue(item=51, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_add_own_inline_comments" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 <dl class="attribute">
 <dt id="psef.permissions.CoursePermission.can_assign_graders">
 <code class="sig-name descname">can_assign_graders</code><em class="property"> = _PermissionValue(item=10, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_assign_graders" title="Permalink to this definition">¶</a></dt>
@@ -11025,6 +12054,11 @@ trees.</p></li>
 <dl class="attribute">
 <dt id="psef.permissions.CoursePermission.can_edit_maximum_grade">
 <code class="sig-name descname">can_edit_maximum_grade</code><em class="property"> = _PermissionValue(item=24, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_edit_maximum_grade" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.permissions.CoursePermission.can_edit_others_comments">
+<code class="sig-name descname">can_edit_others_comments</code><em class="property"> = _PermissionValue(item=50, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_edit_others_comments" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -11173,6 +12207,11 @@ trees.</p></li>
 <dd></dd></dl>
 
 <dl class="attribute">
+<dt id="psef.permissions.CoursePermission.can_view_feedback_author">
+<code class="sig-name descname">can_view_feedback_author</code><em class="property"> = _PermissionValue(item=53, default_value=True)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_view_feedback_author" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
 <dt id="psef.permissions.CoursePermission.can_view_hidden_autotest_steps">
 <code class="sig-name descname">can_view_hidden_autotest_steps</code><em class="property"> = _PermissionValue(item=41, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_view_hidden_autotest_steps" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
@@ -11180,6 +12219,11 @@ trees.</p></li>
 <dl class="attribute">
 <dt id="psef.permissions.CoursePermission.can_view_hidden_fixtures">
 <code class="sig-name descname">can_view_hidden_fixtures</code><em class="property"> = _PermissionValue(item=37, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_view_hidden_fixtures" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="psef.permissions.CoursePermission.can_view_others_comment_edits">
+<code class="sig-name descname">can_view_others_comment_edits</code><em class="property"> = _PermissionValue(item=52, default_value=False)</em><a class="headerlink" href="#psef.permissions.CoursePermission.can_view_others_comment_edits" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">

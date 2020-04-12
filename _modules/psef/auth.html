@@ -202,7 +202,8 @@
 <span class="sd">SPDX-License-Identifier: AGPL-3.0-only</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">typing</span> <span class="k">as</span> <span class="nn">t</span>
-<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">import</span> <span class="nn">contextlib</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span><span class="p">,</span> <span class="n">partial</span>
 
 <span class="kn">import</span> <span class="nn">oauth2</span>
 <span class="kn">import</span> <span class="nn">structlog</span>
@@ -213,7 +214,7 @@
 <span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">sql</span>
 <span class="kn">from</span> <span class="nn">werkzeug.local</span> <span class="kn">import</span> <span class="n">LocalProxy</span>
 <span class="kn">from</span> <span class="nn">mypy_extensions</span> <span class="kn">import</span> <span class="n">NoReturn</span>
-<span class="kn">from</span> <span class="nn">typing_extensions</span> <span class="kn">import</span> <span class="n">Literal</span>
+<span class="kn">from</span> <span class="nn">typing_extensions</span> <span class="kn">import</span> <span class="n">Final</span><span class="p">,</span> <span class="n">Literal</span>
 
 <span class="kn">import</span> <span class="nn">psef</span>
 <span class="kn">from</span> <span class="nn">psef</span> <span class="kn">import</span> <span class="n">features</span>
@@ -269,6 +270,84 @@
 <span class="n">jwt</span><span class="o">.</span><span class="n">user_loader_error_loader</span><span class="p">(</span>
     <span class="k">lambda</span> <span class="nb">id</span><span class="p">:</span> <span class="n">_handle_jwt_errors</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;No user with id &quot;</span><span class="si">{</span><span class="nb">id</span><span class="si">}</span><span class="s1">&quot; was found.&#39;</span><span class="p">)</span>
 <span class="p">)</span>
+
+<span class="n">_T_PERM_CHECKER</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;_T_PERM_CHECKER&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="s1">&#39;PermissionChecker&#39;</span><span class="p">)</span>  <span class="c1"># pylint: disable=invalid-name</span>
+
+
+<span class="k">class</span> <span class="nc">_PermissionCheckFunction</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">Generic</span><span class="p">[</span><span class="n">_T_PERM_CHECKER</span><span class="p">]):</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;__fn&#39;</span><span class="p">,</span> <span class="p">)</span>
+
+    <span class="k">class</span> <span class="nc">_Inner</span><span class="p">:</span>
+        <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;__fn&#39;</span><span class="p">,</span> <span class="p">)</span>
+
+        <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bound_fn</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__fn</span> <span class="o">=</span> <span class="n">bound_fn</span>
+
+        <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__fn</span><span class="p">()</span>
+
+        <span class="k">def</span> <span class="nf">as_bool</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+            <span class="sd">&quot;&quot;&quot;Get the result permission checker as a bool.</span>
+
+<span class="sd">            :returns: ``True`` if the function didn&#39;t raise a</span>
+<span class="sd">                :exc:`.PermissionException` and ``False`` if it did. This can</span>
+<span class="sd">                be used to check if somebody has this higher level permission.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="p">()</span>
+            <span class="k">except</span> <span class="n">PermissionException</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="n">_T_PERM_CHECKER</span><span class="p">],</span> <span class="kc">None</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__fn</span> <span class="o">=</span> <span class="n">fn</span>
+
+    <span class="k">def</span> <span class="fm">__get__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">:</span> <span class="n">_T_PERM_CHECKER</span><span class="p">,</span> <span class="n">owner</span><span class="p">:</span> <span class="nb">object</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;_PermissionCheckFunction._Inner&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="n">_Inner</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__fn</span><span class="p">,</span> <span class="n">instance</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="PermissionChecker"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.PermissionChecker">[docs]</a><span class="k">class</span> <span class="nc">PermissionChecker</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;The base permission checker class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;course_id&#39;</span><span class="p">,</span> <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">course_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">course_id</span> <span class="o">=</span> <span class="n">course_id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">user</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;psef.models.User&#39;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;The current logged in user.</span>
+
+<span class="sd">        Accessing this property raises a :exc:`.PermissionException` if no user</span>
+<span class="sd">        is logged in.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">_get_cur_user</span><span class="p">()</span>
+
+<div class="viewcode-block" id="PermissionChecker.as_ensure_function"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.PermissionChecker.as_ensure_function">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">as_ensure_function</span><span class="p">(</span><span class="n">fun</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="n">_T_PERM_CHECKER</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span>
+                           <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_PermissionCheckFunction</span><span class="p">[</span><span class="n">_T_PERM_CHECKER</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Wrap a permission checker function as a</span>
+<span class="sd">            :class:`._PermissionCheckFunction`.</span>
+
+<span class="sd">        This adds helper methods to the method like</span>
+<span class="sd">        :meth:`._PermissionCheckFunction.as_bool`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">_PermissionCheckFunction</span><span class="p">(</span><span class="n">fun</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_ensure_enrolled</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ensure_enrolled</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">course_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_has_permission</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">perm</span><span class="p">:</span> <span class="n">CPerm</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">has_permission</span><span class="p">(</span><span class="n">perm</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_ensure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">perm</span><span class="p">:</span> <span class="n">CPerm</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ensure_permission</span><span class="p">(</span><span class="n">perm</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_ensure_any</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">perms</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">CPerm</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ensure_any_of_permissions</span><span class="p">(</span><span class="n">perms</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">)</span></div>
 
 
 <span class="nd">@jwt</span><span class="o">.</span><span class="n">user_loader_callback_loader</span>
@@ -379,7 +458,24 @@
         <span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="set_current_user"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.set_current_user">[docs]</a><span class="k">def</span> <span class="nf">set_current_user</span><span class="p">(</span><span class="n">user</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="s1">&#39;psef.models.User&#39;</span><span class="p">,</span> <span class="n">LocalProxy</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<div class="viewcode-block" id="as_current_user"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.as_current_user">[docs]</a><span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
+<span class="k">def</span> <span class="nf">as_current_user</span><span class="p">(</span><span class="n">user</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="s1">&#39;psef.models.User&#39;</span><span class="p">,</span> <span class="n">LocalProxy</span><span class="p">]</span>
+                    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Generator</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+    <span class="sd">&quot;&quot;&quot;Execute a block of code while pretending the given user is logged in.</span>
+
+<span class="sd">    After the contextmanager exists the original logged in user is restored.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">old_user</span> <span class="o">=</span> <span class="n">_get_cur_user</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">set_current_user</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">set_current_user</span><span class="p">(</span><span class="n">old_user</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="set_current_user"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.set_current_user">[docs]</a><span class="k">def</span> <span class="nf">set_current_user</span><span class="p">(</span>
+    <span class="n">user</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="s1">&#39;psef.models.User&#39;</span><span class="p">,</span> <span class="n">LocalProxy</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Set the current user for this request.</span>
 
 <span class="sd">    You probably never should use this method, it is only useful after logging</span>
@@ -660,8 +756,9 @@
         <span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="ensure_can_see_user_feedback"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.ensure_can_see_user_feedback">[docs]</a><span class="nd">@login_required</span>
-<span class="k">def</span> <span class="nf">ensure_can_see_user_feedback</span><span class="p">(</span><span class="n">work</span><span class="p">:</span> <span class="s1">&#39;psef.models.Work&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<div class="viewcode-block" id="ensure_can_see_general_feedback"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.ensure_can_see_general_feedback">[docs]</a><span class="k">def</span> <span class="nf">ensure_can_see_general_feedback</span><span class="p">(</span>
+    <span class="n">work</span><span class="p">:</span> <span class="s1">&#39;psef.models.Work&#39;</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.models.User&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Ensure the current user can see the grade of the given work.</span>
 
 <span class="sd">    :param work: The work to check for.</span>
@@ -672,7 +769,7 @@
 <span class="sd">    :raises PermissionException: If the user can not see the grade.</span>
 <span class="sd">        (INCORRECT_PERMISSION)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">user</span> <span class="o">=</span> <span class="n">_get_cur_user</span><span class="p">()</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="n">_get_cur_user</span><span class="p">()</span> <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">user</span>
     <span class="n">course_id</span> <span class="o">=</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span>
 
     <span class="c1"># Don&#39;t check for any state if we simply have all required</span>
@@ -683,13 +780,15 @@
     <span class="p">):</span>
         <span class="k">return</span>
 
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">work</span><span class="o">.</span><span class="n">has_as_author</span><span class="p">(</span><span class="n">user</span><span class="p">):</span>
-        <span class="n">ensure_permission</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_others_work</span><span class="p">,</span> <span class="n">course_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">)</span>
-
+    <span class="c1"># This check is faster than the other one, and more common to fail, so lets</span>
+    <span class="c1"># check this one first.</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">is_done</span><span class="p">:</span>
         <span class="n">ensure_permission</span><span class="p">(</span>
             <span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_user_feedback_before_done</span><span class="p">,</span> <span class="n">course_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span>
-        <span class="p">)</span></div>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">work</span><span class="o">.</span><span class="n">has_as_author</span><span class="p">(</span><span class="n">user</span><span class="p">):</span>
+        <span class="n">ensure_permission</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_others_work</span><span class="p">,</span> <span class="n">course_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="ensure_can_see_linter_feedback"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.ensure_can_see_linter_feedback">[docs]</a><span class="nd">@login_required</span>
@@ -1004,10 +1103,168 @@
         <span class="p">)</span></div>
 
 
+<div class="viewcode-block" id="FeedbackBasePermissions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.FeedbackBasePermissions">[docs]</a><span class="k">class</span> <span class="nc">FeedbackBasePermissions</span><span class="p">(</span><span class="n">PermissionChecker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The permission checker for :class:`psef.models.CommentBase`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;base&#39;</span><span class="p">,</span> <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">base</span><span class="p">:</span> <span class="s1">&#39;psef.models.CommentBase&#39;</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">course_id</span><span class="o">=</span><span class="n">base</span><span class="o">.</span><span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="p">:</span> <span class="n">Final</span> <span class="o">=</span> <span class="n">base</span>
+
+<div class="viewcode-block" id="FeedbackBasePermissions.ensure_may_add"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.FeedbackBasePermissions.ensure_may_add">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_add</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Make sure the current user may add a comment base.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">perms</span> <span class="o">=</span> <span class="p">[</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_grade_work</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">work</span><span class="o">.</span><span class="n">has_as_author</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">):</span>
+            <span class="n">perms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_add_own_inline_comments</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_any</span><span class="p">(</span><span class="n">perms</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="FeedbackReplyPermissions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.FeedbackReplyPermissions">[docs]</a><span class="k">class</span> <span class="nc">FeedbackReplyPermissions</span><span class="p">(</span><span class="n">PermissionChecker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The permission checker for :class:`psef.models.CommentReply`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;reply&#39;</span><span class="p">,</span> <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reply</span><span class="p">:</span> <span class="s1">&#39;psef.models.CommentReply&#39;</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">course_id</span><span class="o">=</span><span class="n">reply</span><span class="o">.</span><span class="n">comment_base</span><span class="o">.</span><span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reply</span><span class="p">:</span> <span class="n">Final</span> <span class="o">=</span> <span class="n">reply</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_is_own_reply</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">reply</span><span class="o">.</span><span class="n">author</span><span class="o">.</span><span class="n">contains_user</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FeedbackReplyPermissions.ensure_may_edit"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.FeedbackReplyPermissions.ensure_may_edit">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_edit</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Ensure that the current user may edit this reply.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_own_reply</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_enrolled</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ensure</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_edit_others_comments</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FeedbackReplyPermissions.ensure_may_see_edits"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.FeedbackReplyPermissions.ensure_may_see_edits">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_see_edits</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Ensure that the current user may see the edits of this reply.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">            A user may always see if a reply is edited, this checks if the user</span>
+<span class="sd">            may see the contents of these edits.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">            If a user may see the edit, the author may also always be</span>
+<span class="sd">            displayed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ensure_may_see</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_own_reply</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ensure</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_view_others_comment_edits</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FeedbackReplyPermissions.ensure_may_add"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.FeedbackReplyPermissions.ensure_may_add">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_add</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Ensure that the current user may add this feedback reply.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">FeedbackBasePermissions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reply</span><span class="o">.</span><span class="n">comment_base</span><span class="p">)</span><span class="o">.</span><span class="n">ensure_may_add</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="FeedbackReplyPermissions.ensure_may_delete"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.FeedbackReplyPermissions.ensure_may_delete">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Ensure that the current user may delete this feedback reply.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ensure_may_edit</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="FeedbackReplyPermissions.ensure_may_see_author"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.FeedbackReplyPermissions.ensure_may_see_author">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_see_author</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Ensure that the current user may see the author of this reply.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">            You are only allowed to see the author when you are also allowed to</span>
+<span class="sd">            see the reply itself.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ensure_may_see</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">reply</span><span class="o">.</span><span class="n">author</span><span class="o">.</span><span class="n">contains_user</span><span class="p">(</span><span class="n">psef</span><span class="o">.</span><span class="n">current_user</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ensure</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_view_feedback_author</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FeedbackReplyPermissions.ensure_may_see"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.FeedbackReplyPermissions.ensure_may_see">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_see</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Make sure the current user may see this feedback reply.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">work</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reply</span><span class="o">.</span><span class="n">comment_base</span><span class="o">.</span><span class="n">work</span>
+        <span class="k">if</span> <span class="n">work</span><span class="o">.</span><span class="n">deleted</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">PermissionException</span><span class="p">(</span>
+                <span class="s1">&#39;The given work is deleted, so you may not see its feedback&#39;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s1">&#39;The work &quot;</span><span class="si">{</span><span class="n">work</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1">&quot; was deleted&#39;</span><span class="p">,</span>
+                <span class="n">APICodes</span><span class="o">.</span><span class="n">INCORRECT_PERMISSION</span><span class="p">,</span>
+                <span class="mi">403</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Don&#39;t check for any state if we simply have all required permissions.</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_has_permission</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_others_work</span><span class="p">)</span> <span class="ow">and</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_has_permission</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_user_feedback_before_done</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_own_reply</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_enrolled</span><span class="p">()</span>
+            <span class="k">return</span>
+
+        <span class="c1"># This check is faster than the other one, and more common to fail, so</span>
+        <span class="c1"># lets check this one first.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">is_done</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ensure</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_user_feedback_before_done</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">work</span><span class="o">.</span><span class="n">has_as_author</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ensure</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_others_work</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="NotificationPermissions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.NotificationPermissions">[docs]</a><span class="k">class</span> <span class="nc">NotificationPermissions</span><span class="p">(</span><span class="n">PermissionChecker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The permission checker for :class:`psef.models.Notification`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;notification&#39;</span><span class="p">,</span> <span class="s1">&#39;work&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">notification</span><span class="p">:</span> <span class="s1">&#39;psef.models.Notification&#39;</span><span class="p">):</span>
+        <span class="n">work</span> <span class="o">=</span> <span class="n">notification</span><span class="o">.</span><span class="n">comment_reply</span><span class="o">.</span><span class="n">comment_base</span><span class="o">.</span><span class="n">work</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">course_id</span><span class="o">=</span><span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">work</span><span class="p">:</span> <span class="n">Final</span> <span class="o">=</span> <span class="n">work</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">notification</span><span class="p">:</span> <span class="n">Final</span> <span class="o">=</span> <span class="n">notification</span>
+
+    <span class="k">def</span> <span class="nf">_ensure_my_notification</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">notification</span><span class="o">.</span><span class="n">receiver</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">PermissionException</span><span class="p">(</span>
+                <span class="s1">&#39;The given notification does not belong to the current user&#39;</span><span class="p">,</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;The notification </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">notification</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1"> does not belong&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39; to </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="p">),</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">UNSUPPORTED</span><span class="p">,</span> <span class="mi">403</span>
+            <span class="p">)</span>
+
+<div class="viewcode-block" id="NotificationPermissions.ensure_may_see"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.NotificationPermissions.ensure_may_see">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_see</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Make sure the current user may see this notification.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">FeedbackReplyPermissions</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">notification</span><span class="o">.</span><span class="n">comment_reply</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">ensure_may_see</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="NotificationPermissions.ensure_may_edit"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.NotificationPermissions.ensure_may_edit">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_edit</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Make sure the current user may edit this notification.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ensure_may_see</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_my_notification</span><span class="p">()</span></div></div>
+
+
 <div class="viewcode-block" id="ensure_any_of_permissions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.ensure_any_of_permissions">[docs]</a><span class="nd">@login_required</span>
 <span class="k">def</span> <span class="nf">ensure_any_of_permissions</span><span class="p">(</span>
     <span class="n">permissions</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">CPerm</span><span class="p">],</span>
     <span class="n">course_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">user</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.models.User&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Make sure that the current user has at least one of the given</span>
 <span class="sd">        permissions.</span>
@@ -1015,6 +1272,8 @@
 <span class="sd">    :param permissions: The permissions to check for.</span>
 <span class="sd">    :param course_id: The course id of the course that should be used to check</span>
 <span class="sd">        for the given permissions.</span>
+<span class="sd">    :param user: The user param that will be passed to</span>
+<span class="sd">        :func:`ensure_permission`.</span>
 <span class="sd">    :returns: Nothing.</span>
 <span class="sd">    :raises PermissionException: If the current user has none of the given</span>
 <span class="sd">        permissions. This will always happen if the list of given permissions</span>
@@ -1022,7 +1281,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">for</span> <span class="n">perm</span> <span class="ow">in</span> <span class="n">permissions</span><span class="p">:</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">ensure_permission</span><span class="p">(</span><span class="n">perm</span><span class="p">,</span> <span class="n">course_id</span><span class="p">)</span>
+            <span class="n">ensure_permission</span><span class="p">(</span><span class="n">perm</span><span class="p">,</span> <span class="n">course_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">)</span>
         <span class="k">except</span> <span class="n">PermissionException</span><span class="p">:</span>
             <span class="k">continue</span>
         <span class="k">else</span><span class="p">:</span>

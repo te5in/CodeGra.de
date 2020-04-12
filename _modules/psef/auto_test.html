@@ -454,11 +454,11 @@
 <span class="sd">    ...</span>
 <span class="sd">    CommandTimeoutException</span>
 
-<span class="sd">    &gt;&gt;&gt; pid = Popen(&#39;exit 32&#39;, shell=True).pid</span>
+<span class="sd">    &gt;&gt;&gt; pid = Popen(&#39;sleep 0.5 &amp;&amp; exit 32&#39;, shell=True).pid</span>
 <span class="sd">    &gt;&gt;&gt; _wait_for_pid(pid, 4)[0]</span>
 <span class="sd">    32</span>
 
-<span class="sd">    &gt;&gt;&gt; _wait_for_pid(Popen(&#39;exit 20&#39;, shell=True).pid, 4)[0]</span>
+<span class="sd">    &gt;&gt;&gt; _wait_for_pid(Popen(&#39;sleep 0.5 &amp;&amp; exit 20&#39;, shell=True).pid, 4)[0]</span>
 <span class="sd">    20</span>
 
 <span class="sd">    &gt;&gt;&gt; exit, left = _wait_for_pid(Popen([&#39;sleep&#39;, &#39;0.25&#39;]).pid, 1)</span>

@@ -209,10 +209,14 @@
 <span class="kn">import</span> <span class="nn">structlog</span>
 <span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">current_app</span>
 <span class="kn">from</span> <span class="nn">flask_mail</span> <span class="kn">import</span> <span class="n">Mail</span><span class="p">,</span> <span class="n">Message</span>
+<span class="kn">from</span> <span class="nn">typing_extensions</span> <span class="kn">import</span> <span class="n">Literal</span>
 
 <span class="kn">import</span> <span class="nn">psef</span>
 <span class="kn">import</span> <span class="nn">psef.models</span> <span class="k">as</span> <span class="nn">models</span>
 <span class="kn">from</span> <span class="nn">psef.errors</span> <span class="kn">import</span> <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIException</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">auth</span>
+<span class="kn">from</span> <span class="nn">.helpers</span> <span class="kn">import</span> <span class="n">readable_join</span>
 
 <span class="n">mail</span> <span class="o">=</span> <span class="n">Mail</span><span class="p">()</span>  <span class="c1"># pylint: disable=invalid-name</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">structlog</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
@@ -223,27 +227,44 @@
     <span class="n">subject</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">recipients</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]]],</span>
     <span class="n">mailer</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">Mail</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">message_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">in_reply_to</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">references</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">text_maker</span> <span class="o">=</span> <span class="n">html2text</span><span class="o">.</span><span class="n">HTML2Text</span><span class="p">(</span><span class="n">bodywidth</span><span class="o">=</span><span class="mi">78</span><span class="p">)</span>
+    <span class="n">text_maker</span><span class="o">.</span><span class="n">inline_links</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">text_maker</span><span class="o">.</span><span class="n">wrap_links</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">text_body</span> <span class="o">=</span> <span class="n">text_maker</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">html_body</span><span class="p">)</span>
+
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
         <span class="s1">&#39;Sending email&#39;</span><span class="p">,</span>
         <span class="n">subject</span><span class="o">=</span><span class="n">subject</span><span class="p">,</span>
-        <span class="n">html_body</span><span class="o">=</span><span class="n">html_body</span><span class="p">,</span>
+        <span class="n">html_body</span><span class="o">=</span><span class="n">html_body</span><span class="p">[:</span><span class="mi">200</span><span class="p">],</span>
+        <span class="n">text_body</span><span class="o">=</span><span class="n">text_body</span><span class="p">,</span>
         <span class="n">recipients</span><span class="o">=</span><span class="n">recipients</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="n">recipients</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">mailer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">mailer</span> <span class="o">=</span> <span class="n">mail</span>
 
-        <span class="n">text_maker</span> <span class="o">=</span> <span class="n">html2text</span><span class="o">.</span><span class="n">HTML2Text</span><span class="p">(</span><span class="n">bodywidth</span><span class="o">=</span><span class="mi">78</span><span class="p">)</span>
-        <span class="n">text_maker</span><span class="o">.</span><span class="n">inline_links</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="n">text_maker</span><span class="o">.</span><span class="n">wrap_links</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">extra_headers</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">if</span> <span class="n">in_reply_to</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">extra_headers</span><span class="p">[</span><span class="s1">&#39;In-Reply-To&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">in_reply_to</span>
+        <span class="k">if</span> <span class="n">references</span><span class="p">:</span>
+            <span class="n">extra_headers</span><span class="p">[</span><span class="s1">&#39;References&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">references</span><span class="p">)</span>
 
         <span class="n">message</span> <span class="o">=</span> <span class="n">Message</span><span class="p">(</span>
             <span class="n">subject</span><span class="o">=</span><span class="n">subject</span><span class="p">,</span>
-            <span class="n">body</span><span class="o">=</span><span class="n">text_maker</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">html_body</span><span class="p">),</span>
+            <span class="n">body</span><span class="o">=</span><span class="n">text_body</span><span class="p">,</span>
             <span class="n">html</span><span class="o">=</span><span class="n">html_body</span><span class="p">,</span>
             <span class="n">recipients</span><span class="o">=</span><span class="n">recipients</span><span class="p">,</span>
+            <span class="n">extra_headers</span><span class="o">=</span><span class="n">extra_headers</span><span class="p">,</span>
         <span class="p">)</span>
+        <span class="k">if</span> <span class="n">message_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">message</span><span class="o">.</span><span class="n">msgId</span> <span class="o">=</span> <span class="n">message_id</span>
+
         <span class="n">mailer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
 
 
@@ -371,6 +392,113 @@
             <span class="n">APICodes</span><span class="o">.</span><span class="n">UNKOWN_ERROR</span><span class="p">,</span>
             <span class="mi">500</span><span class="p">,</span>
         <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="send_digest_notification_email"><a class="viewcode-back" href="../../psef_api/psef.html#psef.mail.send_digest_notification_email">[docs]</a><span class="k">def</span> <span class="nf">send_digest_notification_email</span><span class="p">(</span>
+    <span class="n">notifications</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">models</span><span class="o">.</span><span class="n">Notification</span><span class="p">],</span>
+    <span class="n">send_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="n">models</span><span class="o">.</span><span class="n">EmailNotificationTypes</span><span class="o">.</span><span class="n">daily</span><span class="p">,</span> <span class="n">models</span><span class="o">.</span>
+                       <span class="n">EmailNotificationTypes</span><span class="o">.</span><span class="n">weekly</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Send digest email for the given notifications.</span>
+
+<span class="sd">    :param notifictions: The notifications to send the digest email for. All</span>
+<span class="sd">        notifications should have the same receiver and the list should not be</span>
+<span class="sd">        empty.</span>
+<span class="sd">    :param send_type: What kind of digest email is this.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">notifications</span>
+    <span class="n">receiver</span> <span class="o">=</span> <span class="n">notifications</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">receiver</span>
+    <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">receiver</span> <span class="o">==</span> <span class="n">receiver</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">notifications</span><span class="p">)</span>
+
+    <span class="n">settings_token</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">NotificationsSetting</span><span class="o">.</span><span class="n">get_settings_change_token</span><span class="p">(</span>
+        <span class="n">receiver</span>
+    <span class="p">)</span>
+
+    <span class="n">reasons</span> <span class="o">=</span> <span class="n">readable_join</span><span class="p">(</span>
+        <span class="nb">sorted</span><span class="p">(</span>
+            <span class="nb">set</span><span class="p">(</span>
+                <span class="n">expl</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">notifications</span>
+                <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">expl</span> <span class="ow">in</span> <span class="n">n</span><span class="o">.</span><span class="n">reasons_with_explanation</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">with</span> <span class="n">auth</span><span class="o">.</span><span class="n">as_current_user</span><span class="p">(</span><span class="n">receiver</span><span class="p">):</span>
+        <span class="n">subject</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">jinja_mail_env</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span>
+            <span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;DIGEST_NOTIFICATION_SUBJECT&#39;</span><span class="p">]</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">render</span><span class="p">(</span>
+            <span class="n">site_url</span><span class="o">=</span><span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;EXTERNAL_URL&quot;</span><span class="p">],</span>
+            <span class="n">notifications</span><span class="o">=</span><span class="n">notifications</span><span class="p">,</span>
+            <span class="n">send_type</span><span class="o">=</span><span class="n">send_type</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">html_body</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">jinja_mail_env</span><span class="o">.</span><span class="n">get_template</span><span class="p">(</span>
+            <span class="s1">&#39;digest.j2&#39;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">render</span><span class="p">(</span>
+            <span class="n">site_url</span><span class="o">=</span><span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;EXTERNAL_URL&quot;</span><span class="p">],</span>
+            <span class="n">notifications</span><span class="o">=</span><span class="n">notifications</span><span class="p">,</span>
+            <span class="n">subject</span><span class="o">=</span><span class="n">subject</span><span class="p">,</span>
+            <span class="n">send_type</span><span class="o">=</span><span class="n">send_type</span><span class="p">,</span>
+            <span class="n">receiver</span><span class="o">=</span><span class="n">receiver</span><span class="p">,</span>
+            <span class="n">reasons</span><span class="o">=</span><span class="n">reasons</span><span class="p">,</span>
+            <span class="n">settings_token</span><span class="o">=</span><span class="n">settings_token</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="n">_send_mail</span><span class="p">(</span>
+        <span class="n">html_body</span><span class="p">,</span>
+        <span class="n">subject</span><span class="p">,</span>
+        <span class="p">[(</span><span class="n">receiver</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">receiver</span><span class="o">.</span><span class="n">email</span><span class="p">)],</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="send_direct_notification_email"><a class="viewcode-back" href="../../psef_api/psef.html#psef.mail.send_direct_notification_email">[docs]</a><span class="k">def</span> <span class="nf">send_direct_notification_email</span><span class="p">(</span><span class="n">notification</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">Notification</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Send a direct notification email for the given notification.</span>
+
+<span class="sd">    :param notification: The notification for which we should send an e-mail.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">comment</span> <span class="o">=</span> <span class="n">notification</span><span class="o">.</span><span class="n">comment_reply</span>
+
+    <span class="n">references</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span><span class="o">.</span><span class="n">message_id</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">comment</span><span class="o">.</span><span class="n">references</span><span class="p">]</span>
+    <span class="n">first_reply</span> <span class="o">=</span> <span class="n">comment</span><span class="o">.</span><span class="n">comment_base</span><span class="o">.</span><span class="n">first_reply</span>
+    <span class="n">in_reply_to_message_id</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="n">first_reply</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">first_reply</span><span class="o">.</span><span class="n">id</span> <span class="o">!=</span> <span class="n">comment</span><span class="o">.</span><span class="n">id</span><span class="p">:</span>
+        <span class="n">in_reply_to_message_id</span> <span class="o">=</span> <span class="n">first_reply</span><span class="o">.</span><span class="n">message_id</span>
+        <span class="n">references</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">in_reply_to_message_id</span><span class="p">)</span>
+    <span class="n">references</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+
+    <span class="n">settings_token</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">NotificationsSetting</span><span class="o">.</span><span class="n">get_settings_change_token</span><span class="p">(</span>
+        <span class="n">notification</span><span class="o">.</span><span class="n">receiver</span>
+    <span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">auth</span><span class="o">.</span><span class="n">as_current_user</span><span class="p">(</span><span class="n">notification</span><span class="o">.</span><span class="n">receiver</span><span class="p">):</span>
+        <span class="n">subject</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">jinja_mail_env</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span>
+            <span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;DIRECT_NOTIFICATION_SUBJECT&#39;</span><span class="p">]</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">render</span><span class="p">(</span>
+            <span class="n">site_url</span><span class="o">=</span><span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;EXTERNAL_URL&quot;</span><span class="p">],</span>
+            <span class="n">notification</span><span class="o">=</span><span class="n">notification</span><span class="p">,</span>
+            <span class="n">settings_token</span><span class="o">=</span><span class="n">settings_token</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">html_body</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">jinja_mail_env</span><span class="o">.</span><span class="n">get_template</span><span class="p">(</span>
+            <span class="s1">&#39;notification.j2&#39;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">render</span><span class="p">(</span>
+            <span class="n">site_url</span><span class="o">=</span><span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;EXTERNAL_URL&quot;</span><span class="p">],</span>
+            <span class="n">notification</span><span class="o">=</span><span class="n">notification</span><span class="p">,</span>
+            <span class="n">subject</span><span class="o">=</span><span class="n">subject</span><span class="p">,</span>
+            <span class="n">settings_token</span><span class="o">=</span><span class="n">settings_token</span><span class="p">,</span>
+            <span class="n">reasons</span><span class="o">=</span><span class="n">readable_join</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">expl</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">expl</span> <span class="ow">in</span> <span class="n">notification</span><span class="o">.</span><span class="n">reasons_with_explanation</span><span class="p">]</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+
+    <span class="n">_send_mail</span><span class="p">(</span>
+        <span class="n">html_body</span><span class="p">,</span>
+        <span class="n">subject</span><span class="p">,</span>
+        <span class="p">[(</span><span class="n">notification</span><span class="o">.</span><span class="n">receiver</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">notification</span><span class="o">.</span><span class="n">receiver</span><span class="o">.</span><span class="n">email</span><span class="p">)],</span>
+        <span class="n">message_id</span><span class="o">=</span><span class="n">comment</span><span class="o">.</span><span class="n">message_id</span><span class="p">,</span>
+        <span class="n">in_reply_to</span><span class="o">=</span><span class="n">in_reply_to_message_id</span><span class="p">,</span>
+        <span class="n">references</span><span class="o">=</span><span class="n">references</span><span class="p">,</span>
+    <span class="p">)</span></div>
 
 
 <span class="k">def</span> <span class="nf">init_app</span><span class="p">(</span><span class="n">app</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>

@@ -231,7 +231,8 @@
     <span class="n">ALREADY_EXPIRED</span> <span class="o">=</span> <span class="mi">13</span>
     <span class="n">DANGEROUS_ROLE</span> <span class="o">=</span> <span class="mi">14</span>
     <span class="n">LIMIT_ALREADY_EXCEEDED</span> <span class="o">=</span> <span class="mi">15</span>
-    <span class="n">POSSIBLE_LTI_SETUP_ERROR</span> <span class="o">=</span> <span class="mi">16</span></div>
+    <span class="n">POSSIBLE_LTI_SETUP_ERROR</span> <span class="o">=</span> <span class="mi">16</span>
+    <span class="n">POSSIBLE_INVISIBLE_REPLY</span> <span class="o">=</span> <span class="mi">17</span></div>
 
 
 <div class="viewcode-block" id="APICodes"><a class="viewcode-back" href="../../psef_api/psef.html#psef.exceptions.APICodes">[docs]</a><span class="nd">@unique</span>
@@ -298,12 +299,13 @@
 <span class="sd">    :param status_code: The Http status code to use, should not be 2xx.</span>
 <span class="sd">    :param rest: All the other fields to return in the JSON object.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;status_code&#39;</span><span class="p">,</span> <span class="s1">&#39;api_code&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="s1">&#39;message&#39;</span><span class="p">,</span> <span class="s1">&#39;rest&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">description</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">api_code</span><span class="p">:</span> <span class="n">APICodes</span><span class="p">,</span>
         <span class="n">status_code</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">**</span><span class="n">rest</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">APIException</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">status_code</span> <span class="o">=</span> <span class="n">status_code</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">api_code</span> <span class="o">=</span> <span class="n">api_code</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="n">description</span>
@@ -371,6 +373,7 @@
     <span class="sd">&quot;&quot;&quot;This exception should be raised when a configuration is in an invalid</span>
 <span class="sd">    state.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;reason&#39;</span><span class="p">,</span> <span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reason</span><span class="p">)</span>

@@ -455,6 +455,14 @@
 
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
+    <span class="n">_deleted</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;deleted&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;false&#39;</span>
+    <span class="p">)</span>
+
 <div class="viewcode-block" id="File.get_id"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.file.File.get_id">[docs]</a>    <span class="k">def</span> <span class="nf">get_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span></div>
 
@@ -489,6 +497,32 @@
         <span class="n">foreign_keys</span><span class="o">=</span><span class="n">work_id</span><span class="p">,</span>
     <span class="p">)</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">deleted</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Should this file be considered deleted.</span>
+
+<span class="sd">        :returns: ``True`` if either this file is deleted, or if the</span>
+<span class="sd">            :class:`.work_models.Work` of this file should be considered</span>
+<span class="sd">            deleted.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_deleted</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">work</span><span class="o">.</span><span class="n">deleted</span>
+
+    <span class="nd">@hybrid_property</span>
+    <span class="k">def</span> <span class="nf">self_deleted</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Is this file deleted.</span>
+
+<span class="sd">        .. warning::</span>
+
+<span class="sd">            This only checks if this file is deleted, to check if the file</span>
+<span class="sd">            should be considered as deleted, use the ``deleted`` property,</span>
+<span class="sd">            which also checks if the :class:`.work_models.Work` of this file is</span>
+<span class="sd">            deleted. Really you should only use this property in queries.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_deleted</span>
+
+    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_deleted</span> <span class="o">=</span> <span class="kc">True</span>
+
 <div class="viewcode-block" id="File.get_exclude_owner"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.file.File.get_exclude_owner">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">get_exclude_owner</span><span class="p">(</span><span class="n">owner</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">course_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FileOwner</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Get the :class:`.FileOwner` the current user does not want to see</span>
@@ -521,6 +555,15 @@
                 <span class="k">return</span> <span class="n">teacher</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">teacher</span></div>
+
+<div class="viewcode-block" id="File.get_diskname"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.file.File.get_diskname">[docs]</a>    <span class="k">def</span> <span class="nf">get_diskname</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get the absolute path on the disk for this file.</span>
+
+<span class="sd">        :returns: The absolute path.</span>
+<span class="sd">        :raises AssertionError: If this file is deleted.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_deleted</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">get_diskname</span><span class="p">()</span></div>
 
     <span class="k">def</span> <span class="nf">get_path</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="k">return</span> <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_path_list</span><span class="p">())</span>
@@ -568,9 +611,12 @@
 <span class="sd">        :raises APIException: If renaming would result in a naming collision</span>
 <span class="sd">            (INVALID_STATE).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">new_parent</span><span class="o">.</span><span class="n">children</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">new_name</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-            <span class="n">File</span><span class="o">.</span><span class="n">fileowner</span> <span class="o">!=</span> <span class="n">exclude_owner</span><span class="p">,</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+            <span class="n">new_parent</span><span class="o">.</span><span class="n">children</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">new_name</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+                <span class="n">File</span><span class="o">.</span><span class="n">fileowner</span> <span class="o">!=</span> <span class="n">exclude_owner</span><span class="p">,</span>
+                <span class="o">~</span><span class="n">File</span><span class="o">.</span><span class="n">self_deleted</span><span class="p">,</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">(),</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">():</span>
             <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
                 <span class="s1">&#39;This file already exists within this directory&#39;</span><span class="p">,</span>
                 <span class="sa">f</span><span class="s1">&#39;The file &quot;</span><span class="si">{</span><span class="n">new_parent</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1">&quot; has &#39;</span>
