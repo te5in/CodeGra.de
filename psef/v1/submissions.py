@@ -1150,8 +1150,16 @@ def create_proxy(submission_id: int) -> JSONResponse[models.Proxy]:
 
 
 @api.route('/submissions/<int:submission_id>/email', methods=['POST'])
-@limiter.limit('1 per minute', key_func=lambda: current_user.id)
-def send_author_email(submission_id: int) -> EmptyResponse:
+# @limiter.limit('1 per minute', key_func=lambda: current_user.id)
+def send_author_email(submission_id: int) -> JSONResponse[models.TaskResult]:
+    """Sent the author(s) of a submission an email.
+
+    .. :quickref: Submission; Send the authors of a submission an email.
+
+    :>json subject: The subject of the email to send, should not be empty.
+    :>json body: The body of the email to send, should not be empty.
+    :returns: A task result that will send these emails.
+    """
     work = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
@@ -1161,35 +1169,22 @@ def send_author_email(submission_id: int) -> EmptyResponse:
         subject = get('subject', str)
         body = get('body', str)
 
-    all_authors = work.user.get_contained_users()
-    failed_authors = []
-
-    with mail.mail.connect() as mailer:
-        for author in all_authors:
-            with cg_logger.bound_to_logger(author=author):
-                try:
-                    mail.send_student_mail(
-                        mailer,
-                        sender=current_user,
-                        receiver=author,
-                        subject=subject,
-                        text_body=body
-                    )
-                except:
-                    logger.info('Failed emailing to student', exc_info=True)
-                    failed_authors.append(author)
-
-    if failed_authors:
+    if not (subject and body):
         raise APIException(
-            'Failed to email {every} author of this submission'.format(
-                every='every'
-                if len(all_authors) != len(failed_authors) else 'any'
-            ),
-            'Failed to mail some authors of the submission',
-            APICodes.MAILING_FAILED,
-            400,
-            all_authors=all_authors,
-            failed_authors=failed_authors,
+            'Both a subject and body should be given', (
+                f'One or both of the given subject ({subject}) or body'
+                f' ({body}) is empty'
+            ), APICodes.INVALID_PARAM, 400
         )
 
-    return EmptyResponse.make()
+    task_result = models.TaskResult(psef.current_user)
+    db.session.add(task_result)
+    db.session.commit()
+    psef.tasks.send_email_as_user(
+        receiver_ids=[u.id for u in work.user.get_contained_users()],
+        subject=subject,
+        body=body,
+        task_result_hex_id=task_result.id.hex,
+        sender_id=current_user.id,
+    )
+    return JSONResponse.make(task_result)

@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from mypy_extensions import TypedDict
 from flask_limiter.util import get_remote_address
 
+import psef
 import psef.auth as auth
 import psef.models as models
 import psef.helpers as helpers
@@ -1082,3 +1083,61 @@ def register_user_in_course(course_id: int, link_id: uuid.UUID
         fresh=True,
     )
     return jsonify({'access_token': token})
+
+
+@api.route('/submissions/<int:submission_id>/email', methods=['POST'])
+@limiter.limit('1 per minute', key_func=lambda: current_user.id)
+def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
+    """Sent the authors in this course an email.
+
+    .. :quickref: Course; Send users in this course an email.
+
+    :>json subject: The subject of the email to send, should not be empty.
+    :>json body: The body of the email to send, should not be empty.
+    :>jsonarr user_ids: The ids of the users to which you want to send an
+        email.
+    :returns: A task result that will send these emails.
+    """
+    course = helpers.filter_single_or_404(
+        models.Course,
+        models.Course.id == course_id,
+        also_error=lambda c: c.virtual,
+    )
+    auth.ensure_permission(CPerm.can_email_students, course.id)
+
+    with helpers.get_from_request_transaction() as [get, _]:
+        subject = get('subject', str)
+        body = get('body', str)
+        user_ids = get('user_ids', list)
+
+    receivers = helpers.flatten(
+        u.get_contained_users() for u in
+        helpers.get_in_or_error(models.User, models.User.id, user_ids)
+    )
+
+    if any(course_id not in u.courses for u in receivers):
+        raise APIException(
+            'Not all given users are enrolled in this course',
+            f'Some given users are not enrolled in course {course_id}',
+            APICodes.INVALID_PARAM, 400
+        )
+
+    if not (subject and body):
+        raise APIException(
+            'Both a subject and body should be given', (
+                f'One or both of the given subject ({subject}) or body'
+                f' ({body}) is empty'
+            ), APICodes.INVALID_PARAM, 400
+        )
+
+    task_result = models.TaskResult(current_user)
+    db.session.add(task_result)
+    db.session.commit()
+    psef.tasks.send_email_as_user(
+        receiver_ids=[u.id for u in receivers],
+        subject=subject,
+        body=body,
+        task_result_hex_id=task_result.id.hex,
+        sender_id=current_user.id,
+    )
+    return JSONResponse.make(task_result)

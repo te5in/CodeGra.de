@@ -826,6 +826,67 @@ def _send_weekly_notifications() -> None:
     _send_delayed_notification_emails(p.models.EmailNotificationTypes.weekly)
 
 
+@celery.task
+def _send_email_as_user_1(
+    receiver_ids: t.List[int], subject: str, body: str,
+    task_result_hex_id: str, sender_id: int
+) -> None:
+    task_result_id = uuid.UUID(hex=task_result_hex_id)
+    task_result = p.models.TaskResult.query.with_for_update(
+    ).get(task_result_id)
+
+    if task_result is None:
+        logger.error('Could not find task result')
+        return None
+    if task_result.state != p.models.TaskResultState.not_started:
+        logger.error('Task already started or done', task_result=task_result)
+
+    def __task() -> None:
+        receivers = p.helpers.get_in_or_error(
+            p.models.User,
+            p.models.User.id,
+            receiver_ids,
+        )
+        sender = p.models.User.query.get(sender_id)
+        if sender is None:
+            raise Exception('Wanted sender was not found')
+
+        failed_receivers = []
+
+        with p.mail.mail.connect() as mailer:
+            for receiver in receivers:
+                with cg_logger.bound_to_logger(receiver=receiver):
+                    try:
+                        p.mail.send_student_mail(
+                            mailer,
+                            sender=sender,
+                            receiver=receiver,
+                            subject=subject,
+                            text_body=body
+                        )
+                    except:
+                        logger.info(
+                            'Failed emailing to student', exc_info=True
+                        )
+                        failed_receivers.append(receiver)
+
+        if failed_receivers:
+            raise p.exceptions.APIException(
+                'Failed to email {every} user'.format(
+                    every='every'
+                    if len(receivers) != len(failed_receivers) else 'any'
+                ),
+                'Failed to mail some authors of the submission',
+                p.exceptions.APICodes.MAILING_FAILED,
+                400,
+                all_authors=receivers,
+                failed_authors=failed_receivers,
+            )
+
+    task_result.as_task(__task)
+    p.models.db.session.commit()
+
+
 passback_grades = _passback_grades_1.delay  # pylint: disable=invalid-name
 lint_instances = _lint_instances_1.delay  # pylint: disable=invalid-name
 add = _add_1.delay  # pylint: disable=invalid-name
@@ -842,6 +903,7 @@ update_latest_results_in_broker = _update_latest_results_in_broker_1.delay  # py
 clone_commit_as_submission = _clone_commit_as_submission_1.delay  # pylint: disable=invalid-name
 delete_file_at_time = _delete_file_at_time_1.delay  # pylint: disable=invalid-name
 send_direct_notification_emails = _send_direct_notification_emails_1.delay  # pylint: disable=invalid-name
+send_email_as_user = _send_email_as_user_1.delay  # pylint: disable=invalid-name
 
 send_reminder_mails: t.Callable[
     [t.Tuple[int],

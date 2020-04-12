@@ -201,3 +201,4 @@ if True:  # pylint: disable=using-constant-test
         NotificationsSetting, SettingBase, EmailNotificationTypes,
         NotificationSettingJSON
     )
+    from .task_result import TaskResult, TaskResultState

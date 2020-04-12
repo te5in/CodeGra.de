@@ -375,9 +375,18 @@ export default {
             }
             if (el != null) {
                 el.focus();
+                await this.$afterRerender();
+
+                // When we animate this element in a modal the first focus fails
+                // for whatever reason, so if we are not focused at this moment
+                // we simply try again.
+                if (document.activeElement !== el) {
+                    el.focus();
+                    await this.$afterRerender();
+                }
+
                 // Put the cursor at the end of the text (Safari puts it at the start
                 // for some reason...
-                await this.$afterRerender();
                 el.setSelectionRange(el.value.length, el.value.length);
             }
         },

@@ -57,7 +57,6 @@
 </template>
 
 <script lang="ts">
-
     import { Vue, Component, Prop, Ref } from 'vue-property-decorator';
 
 import * as models from '@/models';
@@ -75,9 +74,19 @@ export default class StudentContact extends Vue {
 
     @Prop({ required: true }) canUseSnippets!: boolean;
 
-    public subject: string = '';
+    get assignment(): models.Assignment {
+        return this.submission.assignment;
+    }
+
+    public subject: string = `A comment about your submission for the assignment "${this.assignment.name}"`;
 
     public body: string = '';
+
+    public onDestroyHook = () => { };
+
+    destroyed() {
+        this.onDestroyHook();
+    }
 
     @Ref() submitButton!: any;
 
@@ -85,10 +94,22 @@ export default class StudentContact extends Vue {
         if (!this.subject || !this.body) {
             throw new Error('Both the body and the subject should not be empty');
         }
+        let destroyed = false;
+        this.onDestroyHook = () => {
+            destroyed = true;
+        };
 
         return this.$http.post(`/api/v1/submissions/${this.submission.id}/email`, {
             subject: this.subject,
             body: this.body,
+        }).then(({ data }) => {
+            if (destroyed) {
+                return Promise.resolve();
+            }
+            const { promise, stop } = this.$utils.pollTaskResult(data.id);
+
+            this.onDestroyHook = stop;
+            return promise;
         });
     }
 }

@@ -224,7 +224,7 @@ class User(NotEqualMixin, Base):
         else:
             return self.group.has_as_member(possible_member)
 
-    def get_contained_users(self) -> t.Iterable['User']:
+    def get_contained_users(self) -> t.Sequence['User']:
         """Get all contained users of this user.
 
         :returns: If this user is the virtual user of this group a list of

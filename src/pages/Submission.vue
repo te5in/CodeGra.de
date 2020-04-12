@@ -38,7 +38,7 @@
 
             <b-button v-if="canSeeGradeHistory"
                       id="codeviewer-grade-history"
-                      v-b-popover.hover.top="'Grade history'">
+                      v-b-popover.hover.top="'Show grade history'">
                 <icon name="history"/>
 
                 <b-popover target="codeviewer-grade-history"
@@ -56,6 +56,7 @@
 
             <b-button v-if="canEmailStudents"
                       id="codeviewer-email-student"
+                      v-b-popover.top.hover="`Email the author${submission.user.isGroup ? 's' : ''} of this submission`"
                       v-b-modal.codeviewer-email-student-modal>
                 <icon name="envelope"/>
 

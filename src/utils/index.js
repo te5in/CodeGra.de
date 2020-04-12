@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import moment from 'moment';
+import axios from 'axios';
+
 import { getLanguage, highlight } from 'highlightjs';
 import { visualizeWhitespace } from './visualize';
 
@@ -533,4 +535,39 @@ export function numberToTimes(number) {
 
 export function ensureArray(obj) {
     return Array.isArray(obj) ? obj : [obj];
+}
+
+export function pollTaskResult(taskResultId, waitTime = 5000) {
+    let stop = false;
+
+    const promise = new Promise((resolve, reject) => {
+        const poll = async () => {
+            let response;
+            try {
+                response = await axios.get(`/api/v1/task_results/${taskResultId}`);
+            } catch (e) {
+                reject(e);
+                return;
+            }
+            const state = response.data.state;
+
+            if (state === 'finished' || stop) {
+                resolve(response);
+            } else if (state === 'crashed' || state === 'failed') {
+                // eslint-disable-next-line
+                reject({ response: { data: response.data.result } });
+            } else {
+                setTimeout(poll, waitTime);
+            }
+        };
+
+        poll();
+    });
+
+    return {
+        promise,
+        stop: () => {
+            stop = true;
+        },
+    };
 }
