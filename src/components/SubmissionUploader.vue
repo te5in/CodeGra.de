@@ -272,8 +272,11 @@
 
         <b-input-group-prepend v-else
                                class="deadline-information">
-            <b-input-group-text class="border-0">
-                The assignment is due {{ readableDeadline }}.
+            <b-input-group-text class="border-0" v-if="assignment.hasDeadline">
+                <span>
+                    The assignment is due
+                    <cg-relative-time :date="assignment.deadline" />
+                </span>
             </b-input-group-text>
         </b-input-group-prepend>
 
@@ -363,7 +366,7 @@ export function getCoolOffPeriodText({ subs, author, loggedInUser, period, amoun
         capitalize = x => x;
     }
 
-    const humanizedPeriod = period.humanize().replace(/^a /, '');
+    const humanizedPeriod = period.clone().locale('en-original').humanize().replace(/^an? /, '');
     const cutoff = now.clone().subtract(period);
     const lines = [
         `You may submit <b>${numberToTimes(amountInPeriod, false)} every ${escape(
@@ -376,8 +379,8 @@ export function getCoolOffPeriodText({ subs, author, loggedInUser, period, amoun
     lines.push(' ');
 
     const latestSubmissionDate = subs[subs.length - amountInPeriod].createdAt;
-    const diff = moment.duration(latestSubmissionDate.diff(now));
-    const waitTime = moment.duration(cutoff.diff(latestSubmissionDate));
+    const diff = moment.duration(latestSubmissionDate.diff(now)).locale('en-original');
+    const waitTime = moment.duration(cutoff.diff(latestSubmissionDate)).locale('en-original');
 
     if (amountInPeriod === 1) {
         lines.push(
@@ -388,7 +391,7 @@ export function getCoolOffPeriodText({ subs, author, loggedInUser, period, amoun
             `${capitalize(authorName)} submitted ${numberToTimes(
                 amountInPeriod,
                 false,
-            )} in the past ${escape(diff.humanize().replace(/^a /, ''))}`,
+            )} in the past ${escape(diff.humanize().replace(/^an? /, ''))}`,
         );
     }
     if (latestSubmissionDate.isAfter(cutoff)) {
@@ -546,14 +549,6 @@ export default {
             return `/api/v1/assignments/${this.assignment.id}/submission?ignored_files=${
                 this.ignored
             }&${this.uploadUrlQueryArgs}`;
-        },
-
-        readableDeadline() {
-            const assig = this.assignment;
-            if (assig.hasDeadline) {
-                return assig.deadline.from(this.$root.$now);
-            }
-            return '';
         },
 
         disabledPopover() {

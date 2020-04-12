@@ -81,7 +81,7 @@ export default {
         feedback() {
             return this.$utils.getProps(
                 this.submission,
-                {},
+                null,
                 'feedback',
                 'user',
                 this.fileId,

@@ -33,6 +33,7 @@ class APIWarnings(IntEnum):
     DANGEROUS_ROLE = 14
     LIMIT_ALREADY_EXCEEDED = 15
     POSSIBLE_LTI_SETUP_ERROR = 16
+    POSSIBLE_INVISIBLE_REPLY = 17
 
 
 @unique
@@ -99,12 +100,13 @@ class APIException(Exception):
     :param status_code: The Http status code to use, should not be 2xx.
     :param rest: All the other fields to return in the JSON object.
     """
+    __slots__ = ('status_code', 'api_code', 'description', 'message', 'rest')
 
     def __init__(
         self, message: str, description: str, api_code: APICodes,
         status_code: int, **rest: t.Any
     ) -> None:
-        super(APIException, self).__init__()
+        super().__init__()
         self.status_code = status_code
         self.api_code = api_code
         self.description = description
@@ -172,6 +174,7 @@ class InvalidStateException(Exception):
     """This exception should be raised when a configuration is in an invalid
     state.
     """
+    __slots__ = ('reason', )
 
     def __init__(self, reason: str) -> None:
         super().__init__(self, reason)

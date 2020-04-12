@@ -6,15 +6,17 @@ import datetime
 import tempfile
 import warnings
 import subprocess
+import urllib.parse
 from configparser import ConfigParser
 
 from mypy_extensions import TypedDict
 from typing_extensions import Literal
 
-config_file = os.getenv('CODEGRADE_CONFIG_FILE', 'config.ini')
+cur_dir = os.path.dirname(os.path.abspath(__file__))
+config_file = os.getenv('CODEGRADE_CONFIG_FILE', os.path.join(cur_dir, 'config.ini'))
 
 CONFIG: t.Dict[str, t.Any] = dict()
-CONFIG['BASE_DIR'] = os.path.dirname(os.path.abspath(__file__))
+CONFIG['BASE_DIR'] = cur_dir
 
 os.environ['BASE_DIR'] = str(CONFIG['BASE_DIR'])
 
@@ -96,6 +98,7 @@ FlaskConfig = TypedDict(
         'MAX_NORMAL_UPLOAD_SIZE': int,
         'MAX_LARGE_UPLOAD_SIZE': int,
         'DEFAULT_ROLE': str,
+        'EXTERNAL_DOMAIN': str,
         'EXTERNAL_URL': str,
         'PROXY_BASE_DOMAIN': str,
         'JAVA_PATH': str,
@@ -110,11 +113,14 @@ FlaskConfig = TypedDict(
         'MAIL_PASSWORD': str,
         'MAIL_DEFAULT_SENDER': str,
         'MAIL_MAX_EMAILS': int,
-        'RESET_TOKEN_TIME': int,
+        'RESET_TOKEN_TIME': float,
+        'SETTING_TOKEN_TIME': float,
         'EMAIL_TEMPLATE': str,
         'REMINDER_TEMPLATE': str,
         'GRADER_STATUS_TEMPLATE': str,
         'DONE_TEMPLATE': str,
+        'DIRECT_NOTIFICATION_TEMPLATE_FILE': t.Optional[str],
+        'DIRECT_NOTIFICATION_SUBJECT': str,
         'MIN_PASSWORD_SCORE': int,
         'CHECKSTYLE_PROGRAM': t.List[str],
         'PMD_PROGRAM': t.List[str],
@@ -322,6 +328,13 @@ set_str(CONFIG, backend_ops, 'DEFAULT_ROLE', 'Student')
 # The external URL the server runs on.
 set_str(CONFIG, backend_ops, 'EXTERNAL_URL', '')
 set_str(CONFIG, backend_ops, 'PROXY_BASE_DOMAIN', '')
+CONFIG['EXTERNAL_DOMAIN'] = urllib.parse.urlparse(
+    CONFIG['EXTERNAL_URL']
+).hostname
+if not CONFIG['DEBUG']:
+    import pprint
+    pprint.pprint(CONFIG)
+    assert CONFIG['EXTERNAL_DOMAIN'] is not None
 
 set_str(CONFIG, backend_ops, 'JAVA_PATH', 'java')
 
@@ -361,7 +374,8 @@ set_str(CONFIG, backend_ops, 'MAIL_USERNAME', 'noreply')
 set_str(CONFIG, backend_ops, 'MAIL_PASSWORD', 'nopasswd')
 set_str(CONFIG, backend_ops, 'MAIL_DEFAULT_SENDER', 'noreply')
 set_int(CONFIG, backend_ops, 'MAIL_MAX_EMAILS', 100)
-set_int(CONFIG, backend_ops, 'RESET_TOKEN_TIME', 86400)
+set_float(CONFIG, backend_ops, 'RESET_TOKEN_TIME', datetime.timedelta(days=1).total_seconds())
+set_float(CONFIG, backend_ops, 'SETTING_TOKEN_TIME', datetime.timedelta(days=2).total_seconds())
 set_str(
     CONFIG,
     backend_ops,
@@ -425,6 +439,29 @@ This email was automatically sent because of reminder that was set for this
 assignment. You can change these settings <a
 href="{site_url}/courses/{course_id}">here</a>.</p>
         """.strip()
+)
+
+set_str(
+    CONFIG,
+    backend_ops,
+    'DIGEST_NOTIFICATION_SUBJECT',
+    "Your {{ send_type.name }} digest on CodeGrade",
+)
+CONFIG['DIGEST_NOTIFICATION_TEMPLATE_FILE'] = backend_ops.get(
+    'DIGEST_NOTIFICATION_TEMPLATE_FILE'
+)
+
+set_str(
+    CONFIG,
+    backend_ops,
+    'DIRECT_NOTIFICATION_SUBJECT',
+    """{% set comment = notification.comment_reply -%}
+{{ comment.author.get_readable_name() if comment.can_see_author else 'A grader' }} commented on a thread you are following
+""".strip(),
+)
+
+CONFIG['DIRECT_NOTIFICATION_TEMPLATE_FILE'] = backend_ops.get(
+    'DIRECT_NOTIFICATION_TEMPLATE_FILE'
 )
 
 set_float(CONFIG, backend_ops, 'MIN_PASSWORD_SCORE', 3, min=0, max=4)
@@ -593,7 +630,6 @@ if celery_parser.read(config_file) and 'Celery' in celery_parser:
     CONFIG['CELERY_CONFIG'] = dict(celery_parser['Celery'])
 else:
     CONFIG['CELERY_CONFIG'] = {}
-
 
 set_bool(CONFIG, auto_test_ops, 'IS_AUTO_TEST_RUNNER', False)
 

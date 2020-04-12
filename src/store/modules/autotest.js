@@ -255,9 +255,7 @@ const actions = {
 
     async loadAutoTestResult(
         { commit, dispatch, state },
-        {
-            autoTestId, submissionId, force, autoTestRunId,
-        },
+        { autoTestId, submissionId, force, autoTestRunId },
     ) {
         await dispatch('loadAutoTest', { autoTestId });
         const autoTest = state.tests[autoTestId];
@@ -521,9 +519,7 @@ const mutations = {
         });
     },
 
-    [types.SET_AUTO_TEST_RESULTS_BY_USER](state, {
-        results, autoTest, autoTestRunId, userId,
-    }) {
+    [types.SET_AUTO_TEST_RESULTS_BY_USER](state, { results, autoTest, autoTestRunId, userId }) {
         const runIndex = autoTest.runs.findIndex(r => r.id === autoTestRunId);
         if (runIndex === -1) {
             throw new Error('Could not find run');

@@ -121,7 +121,7 @@
                              :editable="canSeeUserFeedback && canGiveLineFeedback"
                              :can-use-snippets="canUseSnippets"
                              :show-whitespace="showWhitespace"
-                             :show-inline-feedback="showInlineFeedback"
+                             :show-inline-feedback="selectedCat === 'code' && showInlineFeedback && revision === 'student'"
                              :language="selectedLanguage"
                              @language="languageChanged" />
 
@@ -139,6 +139,7 @@
                                :assignment="assignment"
                                :submission="submission"
                                :show-whitespace="showWhitespace"
+                               :show-inline-feedback="selectedCat === 'feedback-overview'"
                                :can-see-feedback="canSeeUserFeedback" />
         </div>
 
@@ -427,7 +428,17 @@ export default {
                         }
 
                         const nitems = Object.values(this.feedback.user).reduce(
-                            (acc, file) => acc + Object.values(file).filter(x => x.msg).length,
+                            (acc, file) => Object.values(file).reduce(
+                                (innerAcc, feedback) => {
+                                    if (!feedback.isEmpty && feedback.replies.some(
+                                        r => !r.isEmpty,
+                                    )) {
+                                        return innerAcc + 1;
+                                    }
+                                    return innerAcc;
+                                },
+                                acc,
+                            ),
                             this.submission.comment ? 1 : 0,
                         );
                         if (nitems) {
@@ -835,10 +846,12 @@ export default {
     min-height: 0;
     margin: 0 -15px 1rem;
     padding: 0 1rem;
-    transition: opacity 0.25s ease-out;
+    transition: opacity .25s ease-out, visibility .25s ease-out;
     overflow: hidden;
+    visibility: visible;
 
     &.hidden {
+        visibility: hidden;
         padding: 0;
         margin: 0;
         opacity: 0;
@@ -903,15 +916,15 @@ export default {
         max-width: 45em;
     }
 
-    .pane-rs {
+    .code-wrapper.pane-rs {
         position: relative;
     }
 
-    .Resizer {
+    .code-wrapper .Resizer {
         z-index: 0;
     }
 
-    .Resizer.columns {
+    .code-wrapper > .Resizer.columnsres {
         background-color: transparent !important;
         border: none !important;
         width: 1rem !important;

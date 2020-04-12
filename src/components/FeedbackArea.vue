@@ -1,862 +1,258 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="feedback-area-wrapper non-editable" v-if="!editing">
-    <div class="author" v-if="authorName">{{ authorName }}</div>
-    <b-card class="feedback-area non-editable" :class="{'has-author': !!authorName}">
-        <div @click="changeFeedback($event)" :style="{'min-height': '1em'}">
-            <div v-html="newlines($utils.htmlEscape(serverFeedback))"></div>
-        </div>
-    </b-card>
-</div>
-<div class="feedback-area edit" v-else @click.stop>
-    <b-collapse class="collapsep"
-                v-model="showSnippetDialog"
-                v-if="canUseSnippets"
-                :id="`collapse${line}`"
-                style="margin: 0">
-        <div>
-            <b-input-group class="input-snippet-group mb-2">
-                <input class="input form-control"
-                       v-model="snippetKey"
-                       :disabled="snippetDisabled"
-                       @keydown.ctrl.enter="$refs.addSnippetButton.onClick"/>
-                <b-input-group-append>
-                    <submit-button ref="addSnippetButton"
-                                   class="add-snippet-btn"
-                                   :submit="addSnippet"
-                                   :confirm="addSnippetConfirm"
-                                   @after-success="afterAddSnippet"
-                                   @error="snippetDisabled = false">
-                        <icon :scale="1" name="check"/>
-                    </submit-button>
-                </b-input-group-append>
-            </b-input-group>
-        </div>
-    </b-collapse>
-
-    <b-input-group
-        class="editable-area"
-        :style="{ 'margin-bottom': notSnippetsAbsoluteBelow && !showSnippetsAbove ?
-                '11em' :
-                undefined }">
-        <div style="flex: 1; position: relative;">
-            <b-card class="snippet-list-wrapper"
-                    :class="{ 'snippets-above': showSnippetsAbove }"
-                    v-if="possibleSnippets.length > 0">
-                <span slot="header"
-                      class="snippet-header">Snippets (press <kbd>Tab</kbd> to select the next item)</span>
-                <ul :class="{ 'snippet-list': true, inline: line + 6 >= totalAmountLines, }">
-                    <li class="snippet-item"
-                        v-for="snippet, i in possibleSnippets"
-                        :class="{ selected: snippetIndexSelected === i }"
-                        ref="snippets"
-                        :key="`snippet-key:${snippet.key}:${snippet.course}`"
-                        @click="snippetIndexSelected = i">
-                        <span v-if="snippet.course" class="snippet-icon"><icon :scale="0.9" name="book"/></span>
-                        <span v-else class="snippet-icon"><icon :scale="0.9" name="user-circle-o"/></span>
-                        <span>{{ snippet.key }}</span>
-                        <span>- {{ snippet.value }}</span>
-                    </li>
-                </ul>
-            </b-card>
-            <textarea ref="field"
-                      v-model="internalFeedback"
-                      class="form-control editable-feedback-area rounded-right-0"
-                      :disabled="feedbackDisabled"
-                      @keydown.esc.prevent="stopSnippets"
-                      @keydown.exact.tab.prevent="maybeSelectNextSnippet(false)"
-                      @keydown.exact.shift.tab.prevent="maybeSelectNextSnippet(true)"
-                      @keydown="beforeKeyPress"
-                      @keyup="updatePossibleSnippets"
-                      @keydown.ctrl.enter.prevent="doSubmit"/>
-        </div>
-        <div class="minor-buttons btn-group-vertical">
-            <b-btn class="snippet-btn rounded-0"
-                   variant="secondary"
-                   v-if="canUseSnippets"
-                   @click="findSnippet(); showSnippetDialog = !showSnippetDialog"
-                   v-b-popover.top.hover="showSnippetDialog ? 'Hide snippet name' : 'Save as snippet'">
-                <icon name="plus"
-                      aria-hidden="true"
-                      :class="{ rotated: showSnippetDialog }"/>
-            </b-btn>
-            <submit-button :submit="deleteFeedback"
-                           :filter-error="deleteFilter"
-                           :duration="300"
-                           :confirm="internalFeedback ? 'Are you sure you want to delete this comment?' : ''"
-                           @error="deleteFeedbackError"
-                           variant="danger"
-                           ref="deleteButton"
-                           v-b-popover.top.hover="'Delete feedback'"
-                           class="delete-feedback rounded-0">
-                <icon name="times" aria-hidden="true"/>
-            </submit-button>
-        </div>
-        <b-input-group-append class="submit-feedback">
-            <submit-button :submit="submitFeedback"
-                           @after-success="afterSubmitFeedback"
-                           @error="feedbackDisabled = false"
-                           ref="submitButton"
-                           v-b-popover.top.hover="'Save feedback'">
-                <icon name="check" aria-hidden="true"/>
-            </submit-button>
-        </b-input-group-append>
-    </b-input-group>
+<div class="feedback-area">
+    <div class="replies-wrapper"
+         :style="{ 'pb-2': showReply }">
+        <transition-group name="fade"
+                          tag="div">
+            <div :key="reply.trackingId"
+                 class="reply-wrapper"
+                 v-if="shouldShowReply(idx, reply)"
+                 :class="{ editing: isEditing(reply) }"
+                 v-for="reply, idx in nonDeletedReplies">
+                <a v-if="hiddenReplies.has(reply.trackingId) && idx === 1"
+                   href="#"
+                   @click.prevent="showAllReplies"
+                   class="inline-link mx-auto mt-n1 mb-n3">
+                    Show {{ amountHiddenReplies }} more repl{{ amountHiddenReplies > 1 ? 'ies' : 'y' }}
+                </a>
+                <template v-else>
+                    <div v-if="idx !== 0"
+                        class="pr-1 reply-gutter">
+                        <icon name="caret-right" class="reply-icon" />
+                    </div>
+                    <feedback-reply
+                        class="d-block"
+                        :can-use-snippets="canUseSnippets"
+                        :reply="reply"
+                        :feedback-line="feedback"
+                        :force-snippets-above="false"
+                        :total-amount-lines="totalAmountLines"
+                        @updated="replyUpdated"
+                        @deleted="replyDeleted"
+                        @editing="onEditingEvent(reply, $event)"
+                        :submission="submission" />
+                </template>
+            </div>
+        </transition-group>
+    </div>
+    <div @click.prevent="addReply"
+         class="add-reply text-muted p-2 border rounded mt-2 border-top"
+         v-if="showReply">
+        Click to reply&hellip;
+    </div>
 </div>
 </template>
 
-<script>
+<script lang="ts">
+import { Vue, Component, Prop, Watch } from 'vue-property-decorator';
+import { Getter, Action } from 'vuex-class';
+
+// @ts-ignore
 import Icon from 'vue-awesome/components/Icon';
-import 'vue-awesome/icons/refresh';
-import 'vue-awesome/icons/check';
-import 'vue-awesome/icons/times';
-import 'vue-awesome/icons/plus';
-import 'vue-awesome/icons/user-circle-o';
-import 'vue-awesome/icons/book';
+import 'vue-awesome/icons/caret-right';
 
-import { mapActions, mapGetters } from 'vuex';
+import { FeedbackLine, FeedbackReply as FeedbackReplyModel } from '@/models/feedback';
 
-import { nameOfUser } from '@/utils';
-import SubmitButton from './SubmitButton';
+import { Assignment } from '@/models/assignment';
+// @ts-ignore
+import { Submission } from '@/models/submission';
 
-export default {
-    name: 'feedback-area',
+import FeedbackReply from './FeedbackReply';
 
-    props: {
-        line: {
-            type: Number,
-            required: true,
-        },
-        feedback: {
-            type: String,
-            required: true,
-        },
-        author: {
-            type: [Object],
-            required: false,
-            default: undefined,
-        },
-        fileId: {
-            type: String,
-            default: null,
-        },
-        editable: {
-            type: Boolean,
-            default: false,
-        },
-        editing: {
-            type: Boolean,
-            default: false,
-        },
-        canUseSnippets: {
-            type: Boolean,
-            default: false,
-        },
-        totalAmountLines: {
-            type: Number,
-            required: true,
-        },
-        forceSnippetsAbove: {
-            type: Boolean,
-            default: false,
-        },
-        assignment: {
-            type: Object,
-            required: true,
-        },
-        submission: {
-            type: Object,
-            required: true,
-        },
-    },
+/**
+ * Get the tracking ids of which replies to hide.
+ *
+ * @param replies - A list of non deleted to replies for which we should find
+ *   the replies you want to hide.
+ * @param base - If not null this is should be a set of tracking ids. This will
+ *   be used as base for the returned set, i.e. the resulting set will be equal to
+ *   or a subset of this base.
+ */
+function getRepliesToHide(replies: FeedbackReplyModel[], base: Set<number> | null): Set<number> {
+    let trackingIds = replies.slice(1, -1).map(r => r.trackingId);
+    if (base != null) {
+        trackingIds = trackingIds.filter(id => base.has(id));
+    }
+    return new Set(trackingIds);
+}
 
-    data() {
-        return {
-            internalFeedback: this.feedback,
-            serverFeedback: this.feedback,
-            snippetKey: '',
-            loadedSnippets: null,
-            snippetIndexSelected: null,
-            selectedSnippet: null,
-            snippetOldKey: null,
-            snippetDisabled: false,
-            possibleSnippets: [],
-            ignoreSnippets: null,
-            showSnippetDialog: false,
-            feedbackDisabled: false,
-        };
-    },
-
-    async mounted() {
-        if (this.editing) {
-            this.loadedSnippets = false;
-            await this.maybeRefreshSnippets();
-            this.loadedSnippets = true;
-        }
-
-        this.focusInput();
-    },
-
-    watch: {
-        async editing() {
-            this.loadedSnippets = false;
-            await this.maybeRefreshSnippets();
-            this.loadedSnippets = true;
-        },
-
-        snippetIndexSelected(_, oldVal) {
-            // eslint-disable-next-line
-            let [start, end] = this.snippetBound;
-            let value;
-
-            if (this.snippetIndexSelected === null) {
-                if (this.selectedSnippet === null) {
-                    return;
-                }
-                this.selectedSnippet = null;
-                value = this.snippetOldKey;
-                const oldSnip = this.possibleSnippets[oldVal];
-                if (oldSnip != null) {
-                    start = end - oldSnip.value.length;
-                }
-                const el = this.$refs.snippets[oldVal === 0 ? this.$refs.snippets.length - 1 : 0];
-                if (el && el.scrollIntoView && !(this.$root.isEdge || this.$root.isSafari)) {
-                    el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
-                }
-            } else {
-                const newSnip = this.possibleSnippets[this.snippetIndexSelected];
-                if (
-                    !newSnip ||
-                    (this.selectedSnippet != null &&
-                        newSnip.key === this.selectedSnippet.key &&
-                        newSnip.course === this.selectedSnippet.course)
-                ) {
-                    return;
-                }
-
-                [1, 0].forEach(i => {
-                    const el = this.$refs.snippets[this.snippetIndexSelected + i];
-                    if (el && el.scrollIntoView && !(this.$root.isEdge || this.$root.isSafari)) {
-                        el.scrollIntoView({
-                            block: 'nearest',
-                            inline: 'nearest',
-                            behavior: 'smooth',
-                        });
-                    }
-                });
-
-                this.selectedSnippet = newSnip;
-                if (oldVal === null) {
-                    this.snippetOldKey = this.internalFeedback.slice(start, end) || '';
-                } else {
-                    const oldSnip = this.possibleSnippets[oldVal];
-                    start = end - oldSnip.value.length;
-                }
-                ({ value } = newSnip);
-            }
-            this.internalFeedback =
-                this.internalFeedback.slice(0, start) + value + this.internalFeedback.slice(end);
-        },
-
-        feedback: {
-            immediate: true,
-            handler() {
-                if (!this.editing) {
-                    this.internalFeedback = this.feedback;
-                    this.serverFeedback = this.feedback;
-                }
-            },
-        },
-    },
-
-    computed: {
-        ...mapGetters({
-            snippets: 'user/snippets',
-            nameCurrentUser: 'user/name',
-            findUserSnippetsByPrefix: 'user/findSnippetsByPrefix',
-        }),
-
-        snippetBound() {
-            if (!this.editing || !this.internalFeedback) {
-                return [0, 0];
-            }
-            const { selectionEnd } = this.$refs.field;
-
-            const spaceIndex = this.lastWhiteSpace(this.internalFeedback, selectionEnd) + 1;
-            if (this.ignoreSnippets != null && this.ignoreSnippets !== spaceIndex) {
-                this.ignoreSnippets = null;
-            }
-            return [spaceIndex, selectionEnd];
-        },
-
-        notSnippetsAbsoluteBelow() {
-            return this.possibleSnippets.length && this.line + 6 >= this.totalAmountLines;
-        },
-
-        showSnippetsAbove() {
-            return this.forceSnippetsAbove || (this.notSnippetsAbsoluteBelow && this.line > 6);
-        },
-
-        authorName() {
-            return nameOfUser(this.author);
-        },
-
-        addSnippetConfirm() {
-            if (this.snippetKey in this.snippets) {
-                return `There is already a snippet with key "${this.snippetKey}".
-                    Do you want to overwrite it?`;
-            } else {
-                return '';
-            }
-        },
-    },
-
-    methods: {
-        ...mapActions('user', {
-            maybeRefreshSnippets: 'maybeRefreshSnippets',
-            addSnippetToStore: 'addSnippet',
-            updateSnippetInStore: 'updateSnippet',
-        }),
-
-        ...mapActions('feedback', {
-            storeSubmitFeedbackLine: 'submitFeedbackLine',
-            storeDeleteFeedbackLine: 'deleteFeedbackLine',
-        }),
-
-        lastWhiteSpace(str, start) {
-            let i = start;
-            for (; i > -1; i--) {
-                const val = str[i];
-                if (val === ' ' || val === '\n' || val === '\t') {
-                    return i;
-                }
-            }
-            return -1;
-        },
-
-        beforeKeyPress(event) {
-            if (
-                (event.key === 'Backspace' ||
-                    event.keyIdentifier === 'Backspace' ||
-                    event.keyCode === 8) &&
-                (event.selectionStart !== event.selectionEnd || this.snippetIndexSelected !== null)
-            ) {
-                event.preventDefault();
-                this.snippetIndexSelected = null;
-            } else if (
-                (event.key === 'Enter' ||
-                    event.keyIdentifier === 'Enter' ||
-                    event.keyCode === 13) &&
-                this.snippetIndexSelected !== null
-            ) {
-                event.preventDefault();
-                this.confirmSnippet();
-            }
-        },
-
-        stopSnippets(event) {
-            if (!this.possibleSnippets.length) {
-                return;
-            }
-
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
-            this.snippetIndexSelected = null;
-            this.$nextTick().then(() => {
-                [this.ignoreSnippets] = this.snippetBound;
-                this.possibleSnippets = [];
-            });
-            event.target.focus();
-        },
-
-        updatePossibleSnippets(event) {
-            if (
-                event.key === 'Tab' ||
-                event.keyIdentifier === 'Tab' ||
-                event.keyCode === 9 ||
-                event.key === 'Shift' ||
-                event.keyIdentifier === 'Shift' ||
-                event.keyCode === 16 ||
-                event.key === 'Alt' ||
-                event.keyIdentifier === 'Alt' ||
-                event.keyCode === 18 ||
-                event.key === 'Escape' ||
-                event.keyIdentifier === 'Escape' ||
-                event.keyCode === 27 ||
-                event.key === 'Control' ||
-                event.keyIdentifier === 'Control' ||
-                event.keyCode === 17
-            ) {
-                return;
-            }
-            if (
-                event.key !== 'Delete' &&
-                event.keyIdentifier !== 'Delete' &&
-                event.keyCode !== 46
-            ) {
-                this.selectedSnippet = null;
-            }
-            if (!this.editing || !this.loadedSnippets || !this.internalFeedback) {
-                this.possibleSnippets = [];
-                return;
-            }
-            this.getPossibleSnippets();
-        },
-
-        getPossibleSnippets(force = false) {
-            const [start, end] = this.snippetBound;
-            this.snippetIndexSelected = null;
-            if (start === this.ignoreSnippets || (!force && end - start < 3)) {
-                this.possibleSnippets = [];
-                return;
-            }
-            const word = this.internalFeedback.slice(start, end) || '';
-            this.possibleSnippets = this.findSnippetsByPrefix(word);
-        },
-
-        findSnippetsByPrefix(word) {
-            return [
-                ...(this.assignment ? this.assignment.course.snippets : [])
-                    .filter(snip => snip.key.startsWith(word))
-                    .sort((a, b) => a.key.localeCompare(b.key))
-                    .map(snip => Object.assign({}, snip, { course: true })),
-                ...this.findUserSnippetsByPrefix(word),
-            ];
-        },
-
-        async changeFeedback(e) {
-            if (this.editable) {
-                this.$emit('editFeedback', this.line);
-                this.internalFeedback = this.serverFeedback;
-                e.stopPropagation();
-                this.focusInput();
-                this.loadedSnippets = false;
-                await this.maybeRefreshSnippets();
-                this.loadedSnippets = true;
-            }
-        },
-
-        async focusInput() {
-            await this.$nextTick();
-
-            const el = this.$refs.field;
-            if (el != null) {
-                el.focus();
-                // Put the cursor at the end of the text (Safari puts it at the
-                // start for some reason...
-                await this.$afterRerender();
-                el.setSelectionRange(el.value.length, el.value.length);
-            }
-        },
-
-        doSubmit() {
-            if (this.internalFeedback === '' || this.internalFeedback == null) {
-                this.$refs.deleteButton.onClick();
-            } else {
-                this.$refs.submitButton.onClick();
-            }
-        },
-
-        submitFeedback() {
-            if (this.internalFeedback === '' || this.internalFeedback == null) {
-                return this.deleteFeedback();
-            }
-
-            this.feedbackDisabled = true;
-
-            const feedback = this.internalFeedback;
-            return this.storeSubmitFeedbackLine({
-                assignmentId: this.assignment.id,
-                submissionId: this.submission.id,
-                fileId: this.fileId,
-                line: this.line,
-                data: feedback,
-                author: this.author,
-            }).then(response => {
-                response.feedback = feedback;
-                return response;
-            });
-        },
-
-        afterSubmitFeedback({ feedback }) {
-            this.serverFeedback = feedback;
-            this.feedbackDisabled = false;
-            this.snippetKey = '';
-            this.$emit('feedbackChange', this.line);
-        },
-
-        submitFeedabckError() {
-            this.feedbackDisabled = false;
-        },
-
-        newlines(value) {
-            return value.replace(/\n/g, '<br>');
-        },
-
-        deleteFeedback() {
-            this.feedbackDisabled = true;
-            this.snippetKey = '';
-
-            return this.storeDeleteFeedbackLine({
-                assignmentId: this.assignment.id,
-                submissionId: this.submission.id,
-                fileId: this.fileId,
-                line: this.line,
-                onServer: this.serverFeedback !== '',
-            });
-        },
-
-        deleteFilter(err) {
-            if (err.response && err.response.status === 404) {
-                return err;
-            } else {
-                throw err;
-            }
-        },
-
-        deleteFeedbackError() {
-            this.feedbackDisabled = false;
-        },
-
-        confirmSnippet() {
-            this.snippetIndexSelected = null;
-            this.selectedSnippet = null;
-            this.getPossibleSnippets();
-        },
-
-        maybeSelectNextSnippet(reverse) {
-            if (!this.canUseSnippets) {
-                return;
-            }
-            this.ignoreSnippets = null;
-
-            const { selectionStart, selectionEnd } = this.$refs.field;
-
-            if (selectionStart !== selectionEnd) {
-                return;
-            }
-
-            const len = this.possibleSnippets.length;
-            if (!len) {
-                this.getPossibleSnippets(true);
-                return;
-            }
-
-            if (this.snippetIndexSelected === null) {
-                this.snippetIndexSelected = reverse ? len - 1 : 0;
-            } else if (reverse && this.snippetIndexSelected === 0) {
-                this.snippetIndexSelected = null;
-            } else if (reverse) {
-                this.snippetIndexSelected -= 1;
-            } else if (this.snippetIndexSelected + 1 < len) {
-                this.snippetIndexSelected += 1;
-            } else {
-                this.snippetIndexSelected = null;
-            }
-        },
-
-        addSnippet() {
-            const key = this.snippetKey;
-            const value = this.internalFeedback;
-
-            if (key.match(/\s/)) {
-                throw new Error('No spaces allowed!');
-            } else if (!key) {
-                throw new Error('Snippet key cannot be empty');
-            } else if (!value) {
-                throw new Error('Snippet value cannot be empty');
-            }
-
-            this.snippetDisabled = true;
-
-            if (key in this.snippets) {
-                const { id } = this.snippets[key];
-                return this.$http.patch(`/api/v1/snippets/${id}`, { key, value }).then(() => {
-                    this.updateSnippetInStore({ id, key, value });
-                });
-            } else {
-                return this.$http
-                    .put('/api/v1/snippet', { key, value })
-                    .then(({ data: newSnippet }) => {
-                        this.addSnippetToStore(newSnippet);
-                    });
-            }
-        },
-
-        afterAddSnippet() {
-            this.snippetDisabled = false;
-
-            this.$root.$emit('bv::toggle::collapse', `collapse${this.line}`);
-        },
-
-        findSnippet() {
-            if (this.snippetKey !== '' || this.showSnippetDialog) {
-                return;
-            }
-
-            const keys = Object.keys(this.snippets);
-            for (let i = 0, len = keys.length; i < len; i += 1) {
-                if (this.internalFeedback === this.snippets[keys[i]].value) {
-                    this.snippetKey = keys[i];
-                    return;
-                }
-            }
-        },
-    },
-
+@Component({
     components: {
+        FeedbackReply,
         Icon,
-        SubmitButton,
     },
-};
+})
+export default class FeedbackArea extends Vue {
+    @Getter('user/id') myUserId!: number;
+
+    @Action('feedback/addFeedbackLine') addFeedbackLine!: any;
+
+    @Prop({ required: true }) readonly feedback!: FeedbackLine;
+
+    @Prop({ required: true }) readonly canUseSnippets!: boolean;
+
+    @Prop({ required: true }) readonly submission!: Submission;
+
+    @Prop({ required: true }) readonly totalAmountLines!: number;
+
+    editingReplies: Record<string, boolean> = {};
+
+    /*
+     * This is not a computed property on purpose. By having this as a normal
+     * property we can make sure we never start hiding certain replies that were
+     * visible before. For example if a user adds a new reply we do not want to
+     * start hiding the previous last reply, as this reply is probably useful
+     * for the message the user is writing.
+     */
+    hiddenReplies: Set<number> = getRepliesToHide(this.nonDeletedReplies, null);
+
+    get nonDeletedReplies(): FeedbackReplyModel[] {
+        return this.feedback.replies.filter(r => !r.deleted);
+    }
+
+    get amountHiddenReplies(): number {
+        return this.hiddenReplies.size;
+    }
+
+    get replyIdToFocus(): number {
+        const replyId = this.$route.query?.replyToFocus;
+        return parseInt(replyId ?? '', 10);
+    }
+
+    @Watch('replyIdToFocus', { immediate: true })
+    async onReplyToFocus() {
+        if (!Number.isNaN(this.replyIdToFocus)) {
+            if (this.feedback.replies.some(r => r.id === this.replyIdToFocus)) {
+                this.showAllReplies();
+            }
+        }
+    }
+
+    showAllReplies() {
+        this.hiddenReplies = new Set([]);
+    }
+
+    shouldShowReply(idx: number, reply: FeedbackReplyModel): boolean {
+        if (reply.deleted) {
+            return false;
+        }
+        if (!this.hiddenReplies.has(reply.trackingId)) {
+            return true;
+        }
+        return idx === 1;
+    }
+
+    isLastNonDeletedReply(r: FeedbackReplyModel): boolean {
+        const replies = this.nonDeletedReplies;
+        return (
+            !r.deleted &&
+                replies.length > 0 &&
+                replies[replies.length - 1].trackingId === r.trackingId
+        );
+    }
+
+    getReplyIndex(r: FeedbackReplyModel): number | null {
+        const replies = this.nonDeletedReplies;
+        for (let i = 0, len = replies.length; i < len; ++i) {
+            if (replies[i].trackingId === r.trackingId) {
+                return i;
+            }
+        }
+        return null;
+    }
+
+    get showReply(): boolean {
+        const replies = this.nonDeletedReplies;
+        return (
+            FeedbackLine.canAddReply(this.submission) &&
+            replies.length > 0 && !replies[replies.length - 1].isEmpty
+        );
+    }
+
+    get assignment(): Assignment {
+        return this.submission.assignment;
+    }
+
+    get replies(): ReadonlyArray<FeedbackReplyModel> {
+        return this.feedback.replies;
+    }
+
+    isEditing(reply: FeedbackReplyModel): boolean {
+        return this.editingReplies[reply.trackingId] ?? false;
+    }
+
+    updateLine(newLine: FeedbackLine): Promise<void> {
+        // Make sure we don't display that a comment was placed in the future.
+        this.$root.$emit('cg::root::update-now');
+        this.$emit('updated');
+
+        return this.addFeedbackLine({
+            assignmentId: this.assignment.id,
+            submissionId: (this.submission as any).id,
+            fileId: this.feedback.fileId,
+            line: newLine,
+        });
+    }
+
+    replyUpdated(newReply: FeedbackReplyModel): void {
+        const line = this.feedback.updateReply(newReply);
+        this.updateLine(line);
+    }
+
+    async replyDeleted(deletedReply: FeedbackReplyModel): Promise<void> {
+        await this.updateLine(this.feedback.deleteReply(deletedReply));
+        await this.$afterRerender();
+        this.hiddenReplies = getRepliesToHide(this.nonDeletedReplies, this.hiddenReplies);
+    }
+
+    addReply(): void {
+        const line = this.feedback.addReply(
+            FeedbackReplyModel.createEmpty(this.myUserId, this.feedback.id),
+        );
+        this.updateLine(line);
+    }
+
+    onEditingEvent(reply: FeedbackReplyModel, event: any): void {
+        this.$emit('editing');
+        this.$set(this.editingReplies, reply.trackingId, event.isEditing);
+    }
+}
 </script>
 
 <style lang="less" scoped>
 @import '~mixins.less';
 
-.snippet-list-wrapper {
-    .default-text-colors;
-    position: absolute;
-    width: 100%;
-    top: 100%;
-    z-index: 2;
-    margin: 0;
-
-    &.snippets-above {
-        position: absolute;
-        top: -10.3em;
-        height: 10.3em;
-        border-bottom-left-radius: 0;
-        border-bottom-right-radius: 0;
-        box-shadow: 0.2em -0.1em 0.5em 0 rgb(206, 212, 218);
-
-        @{dark-mode} {
-            box-shadow: 0.2em -0.1em 0.5em 0 @color-primary;
-        }
-
-        .snippet-header {
-            height: 2em;
-        }
-
-        ~ .form-control {
-            border-top-left-radius: 0;
-        }
-    }
-    &:not(.snippets-above) {
-        box-shadow: 0.2em 0.1em 0.5em 0 rgb(206, 212, 218);
-
-        @{dark-mode} {
-            box-shadow: 0.2em 0.1em 0.5em 0 @color-primary;
-        }
-
-        border-top-left-radius: 0;
-        border-top-right-radius: 0;
-        border-top: 0;
-
-        ~ .form-control {
-            border-bottom-left-radius: 0;
-        }
+.reply-wrapper {
+    transition: margin @transition-duration;
+    &:not(:first-child) {
+        margin-top: 1rem;
     }
 
-    .card-header {
-        padding: 5px 15px;
-        max-height: 2.3em;
-    }
-    .card-body {
-        padding: 0;
-        height: 100%;
+    &.editing .reply-gutter {
+        opacity: 0;
     }
 }
 
-.snippet-list {
-    margin: 0;
-    max-height: 8em;
-    padding: 0px;
-    overflow-y: auto;
-
-    .snippet-list-wrapper:not(.snippets-above) & {
-        border-bottom-left-radius: @border-radius;
-        border-bottom-right-radius: @border-radius;
-    }
-    &.inline {
-        height: 8em;
-    }
-
-    .snippet-item {
-        background: white;
-
-        @{dark-mode} {
-            background: @color-primary;
-            color: white;
-        }
-
-        padding: 5px 15px;
-        width: 100%;
-        list-style: none;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
-
-        &:hover,
-        &.selected {
-            color: white;
-        }
-        &.selected {
-            background: @color-secondary !important;
-        }
-        &:hover {
-            background: lighten(@color-secondary, 20%) !important;
-        }
-        .snippet-list-wrapper.snippets-above &:first-child {
-            border-top: 0;
-        }
-        .snippet-list-wrapper:not(.snippets-above) &:last-child {
-            border-bottom: 0;
-            padding-bottom: 5px;
-        }
-    }
+.add-reply {
+    cursor: text;
 }
 
-.author {
-    flex: 0 1 auto;
-    padding: 0.5rem 10px;
-    min-width: 6rem;
-    max-width: 20%;
-    overflow-wrap: break-word;
-
-    @media @media-small {
-        max-width: 100%;
-    }
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity @transition-duration;
+}
+.fade-enter,
+.fade-leave-to {
+    opacity: 0;
 }
 
-.feedback-area-wrapper {
-    .default-text-colors;
-    background-color: white;
-    margin-top: @line-spacing;
-
-    @{dark-mode} {
-        background-color: @color-primary-darker;
-    }
-
-    &.non-editable {
-        display: flex;
-        align-items: top;
-        border: 1px solid rgba(0, 0, 0, 0.125);
-        border-radius: @border-radius;
-    }
-
-    @media @media-small {
-        flex-direction: column-reverse;
-    }
-}
-
-.feedback-area {
-    &.non-editable {
-        margin-top: 0;
-        background-color: @footer-color;
-        flex: 1 1 auto;
-
-        @media @media-no-small {
-            &.has-author {
-                border-width: 0 0 0 1px;
-                border-top-left-radius: 0;
-                border-bottom-left-radius: 0;
-            }
-        }
-
-        @media @media-small {
-            &.has-author {
-                border-width: 0 0 1px 0;
-                border-bottom-left-radius: 0;
-                border-bottom-right-radius: 0;
-            }
-        }
-
-        &:not(.has-author) {
-            border: 0;
-        }
-
-        @{dark-mode} {
-            background-color: @color-primary;
-            border-color: @color-primary-darkest;
-            color: @text-color-dark;
-        }
-
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
-
-    &.edit {
-        position: relative;
-        padding-top: @line-spacing;
-        padding-bottom: @line-spacing;
-    }
-}
-
-.card-body {
-    padding: 0.5rem;
-}
-
-button {
-    border: none;
-    box-shadow: none !important;
-}
-
-.minor-buttons {
-    z-index: 1;
-    &:hover {
-        box-shadow: none;
-    }
-    button,
-    .submit-button {
-        flex: 1;
-        &:first-child {
-            border-top-right-radius: 0;
-            border-top-left-radius: 0;
-        }
-    }
-    min-height: 7em;
-}
-
-.collapsep {
-    float: right;
+.reply-wrapper {
     display: flex;
-}
+    flex-direction: row;
 
-.snippet-btn {
-    border-top-width: 1px;
-    border-top-style: solid;
-}
-
-.snippet-btn .fa-icon {
-    transform: translateY(-1px) rotate(0);
-    transition: transform @transition-duration;
-
-    &.rotated {
-        transform: translateY(-1px) rotate(45deg);
-    }
-}
-
-.input.snippet {
-    margin: 0;
-}
-
-.input-snippet-group {
-    padding-top: 0;
-}
-
-.editable-feedback-area {
-    position: relative;
-    min-height: 7em;
-    font-size: 1em;
-}
-
-.snippet-icon {
-    display: inline-block;
-    width: 1rem;
-
-    .fa-icon {
-        vertical-align: middle;
-        margin-top: -3px;
+    .feedback-reply {
+        flex: 1 1 auto;
     }
 }
 </style>

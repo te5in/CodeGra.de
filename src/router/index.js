@@ -16,6 +16,7 @@ import {
     Admin,
     Groups,
     LoginAndRedirect,
+    UnsubscribePage,
 } from '@/pages';
 
 import { PlagiarismOverview, PlagiarismDetail } from '@/components';
@@ -109,6 +110,11 @@ const router = new Router({
             path: '/login_and_redirect/:loginFile',
             name: 'login_and_redirect',
             component: LoginAndRedirect,
+        },
+        {
+            path: '/unsubscribe/email_notifications/',
+            name: 'unsubscribe',
+            component: UnsubscribePage,
         },
     ],
 });

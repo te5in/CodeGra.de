@@ -355,7 +355,11 @@ context('Submission uploader', () => {
                 cy.get('.submission-limiting')
                     .text()
                     .then($txt => {
-                        expect($txt.trim()).to.eq(txt);
+                        if (txt instanceof RegExp) {
+                            expect($txt.trim()).to.match(txt);
+                        } else {
+                            expect($txt.trim()).to.eq(txt);
+                        }
                     });
             }
 
@@ -401,9 +405,9 @@ context('Submission uploader', () => {
                     .contains('.action-button', 'Upload files')
                     .click();
                 checkSubmissionText(
-                    'You have 2 submissions. You may submit twice every minute. ' +
+                    new RegExp('You have 2 submissions. You may submit twice every minute. ' +
                         'You submitted twice in the past few seconds, ' +
-                        'therefore you must wait for a minute.'
+                        'therefore you must wait for (a minute|a few seconds).')
                 );
 
 

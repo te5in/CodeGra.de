@@ -1,6 +1,30 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="sidebar-user-info">
+    <b-card no-body>
+        <div class="card-header py-2 align-items-center justify-content-between d-flex">
+            <div :class="{ 'py-1': !hasUnreadNotifications }">
+                Notifications
+            </div>
+
+            <div>
+                <cg-submit-button :submit="markAllNotificationsAsRead"
+                                  class="py-1"
+                                  v-if="hasUnreadNotifications"
+                                  label="Mark all as read" />
+                <b-btn @click="showNotificationSettings = !showNotificationSettings"
+                       class="py-1"
+                       :variant="showNotificationSettings ? 'primary' : 'secondary'">
+                    <icon name="gear" />
+                </b-btn>
+            </div>
+        </div>
+
+        <div class="user-notifications-card">
+            <user-notifications :show-settings="showNotificationSettings" />
+        </div>
+    </b-card>
+
     <b-card header="Preferences">
         <preference-manager :show-language="false"
                             :show-whitespace="false"
@@ -53,14 +77,18 @@
 import { mapGetters } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
+import 'vue-awesome/icons/gear';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/pencil';
 import 'vue-awesome/icons/plus';
+
+import { NotificationStore } from '@/store/modules/notification';
 
 import UserInfo from '@/components/UserInfo';
 import SnippetManager from '@/components/SnippetManager';
 import PreferenceManager from '@/components/PreferenceManager';
 import DescriptionPopover from '@/components/DescriptionPopover';
+import UserNotifications from '@/components/UserNotifications';
 
 import { waitAtLeast } from '../../utils';
 
@@ -73,12 +101,14 @@ export default {
         SnippetManager,
         PreferenceManager,
         DescriptionPopover,
+        UserNotifications,
     },
 
     data() {
         return {
             snippets: false,
             oldSbloc: null,
+            showNotificationSettings: false,
         };
     },
 
@@ -115,10 +145,18 @@ export default {
                 }),
             });
         },
+
+        markAllNotificationsAsRead() {
+            return NotificationStore.dispatchMarkAllAsRead();
+        },
     },
 
     computed: {
         ...mapGetters('user', ['loggedIn']),
+
+        hasUnreadNotifications() {
+            return NotificationStore.getHasUnreadNotifications();
+        },
     },
 };
 </script>
@@ -147,5 +185,10 @@ export default {
 
 .snippets .snippet-manager {
     margin: -1.25rem;
+}
+
+.user-notifications-card {
+    max-height: 40rem;
+    overflow-y: auto;
 }
 </style>

@@ -1,5 +1,5 @@
 // Exported for testing purposes
-export function nSpaces(n) {
+export function nSpaces(n: number): string {
     const arr = Array(n + 1);
     return `<span class="whitespace space" data-whitespace="${arr.join('&middot;')}">${arr.join(
         ' ',
@@ -9,7 +9,7 @@ export function nSpaces(n) {
 const spacesCache = [1, 2, 3, 4, 5, 6, 7, 8].map(nSpaces);
 
 // Exported for testing purposes
-export function nTabs(n) {
+export function nTabs(n: number): string {
     const arr = Array(n + 1);
     const oneTab = `<span class="whitespace tab" data-whitespace="&#8594;">${'\t'}</span><wbr>`;
     return arr.join(oneTab);
@@ -17,9 +17,10 @@ export function nTabs(n) {
 
 const tabsCache = [1, 2, 3, 4].map(nTabs);
 
-export function visualizeWhitespace(line) {
+export function visualizeWhitespace(line: string): string {
     const newLine = [];
 
+    // eslint-disable-next-line
     for (let i = 0; i < line.length;) {
         const start = i;
         if (line[i] === '<') {

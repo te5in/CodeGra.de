@@ -149,6 +149,24 @@ def add_deprecate_warning(warning: str) -> None:
     )
 
 
+def mark_as_deprecated_route(warning: str) -> t.Callable[[T_CAL], T_CAL]:
+    """Mark a given route as deprecated.
+
+    :param warning: The deprecation warning that should be added to each
+        request to the wrapped route.
+    """
+
+    def __wrapper(fun: T_CAL) -> t.Any:
+        @wraps(fun)
+        def __inner(*args: object, **kwargs: object) -> object:
+            add_deprecate_warning(warning)
+            return fun(*args, **kwargs)
+
+        return t.cast(T_CAL, __inner)
+
+    return __wrapper
+
+
 class Dividable(Protocol):  # pragma: no cover
     """A protocol that for dividable variables.
     """
@@ -412,6 +430,7 @@ def get_in_or_error(
     options: t.Optional[t.List[t.Any]] = None,
     *,
     as_map: Literal[True],
+    also_error: t.Callable[[Y], bool] = None,
 ) -> t.Dict[T, Y]:
     # pylint: disable=missing-function-docstring
     ...
@@ -425,6 +444,7 @@ def get_in_or_error(
     options: t.Optional[t.List[t.Any]] = None,
     *,
     as_map: Literal[False] = False,
+    also_error: t.Callable[[Y], bool] = None,
 ) -> t.List[Y]:
     # pylint: disable=missing-function-docstring
     ...
@@ -436,6 +456,7 @@ def get_in_or_error(
     in_values: t.List[T],
     options: t.Optional[t.List[t.Any]] = None,
     *,
+    also_error: t.Callable[[Y], bool] = None,
     as_map: bool = False,
 ) -> t.Union[t.Dict[T, Y], t.List[Y]]:
     """Get object by doing an ``IN`` query.
@@ -467,13 +488,18 @@ def get_in_or_error(
             query = query.options(*options)
         res = query.all()
 
-    if len(res) != len(in_values):
+    def _raise() -> t.NoReturn:
         raise psef.errors.APIException(
             f'Not all requested {model.__name__.lower()} could be found', (
                 f'Out of the {len(in_values)} requested only {len(res)} were'
                 ' found'
             ), psef.errors.APICodes.OBJECT_ID_NOT_FOUND, 404
         )
+
+    if len(res) != len(in_values):
+        _raise()
+    elif also_error is not None and any(also_error(item[1]) for item in res):
+        _raise()
 
     if as_map:
         return dict(res)
@@ -763,6 +789,13 @@ class TransactionGet(Protocol[T_CONTRA]):
 
     @t.overload
     def __call__(
+        self, to_get: T_CONTRA, typ: t.Type[T], *,
+        transform: t.Callable[[T], TT]
+    ) -> TT:
+        ...
+
+    @t.overload
+    def __call__(
         self,
         to_get: T_CONTRA,
         typ: t.Tuple[t.Type[T], t.Type[TT]],
@@ -818,10 +851,25 @@ def get_from_map_transaction(
     all_keys_requested = []
     keys = []
 
-    def get(key: T, typ: t.Union[t.Type, t.Tuple[t.Type, ...]]) -> TT:
+    def get(
+        key: T,
+        typ: t.Union[t.Type, t.Tuple[t.Type, ...]],
+        *,
+        transform: t.Callable[[TT], TTT] = None,
+    ) -> TTT:
         all_keys_requested.append(key)
         keys.append((key, typ))
-        return t.cast(TT, mapping.get(key, MISSING))
+        value: t.Union[TT, MissingType] = mapping.get(key, MISSING)
+        if (
+            isinstance(typ, type) and issubclass(typ, enum.Enum) and
+            isinstance(value, str)
+        ):
+            value = t.cast(TT, typ.__members__.get(value, MISSING))
+
+        if transform is not None and value is not MISSING:
+            return transform(t.cast(TT, value))
+
+        return t.cast(TTT, value)
 
     def optional_get(
         key: T, typ: t.Union[t.Type, t.Tuple[t.Type, ...]], default: ZZ
@@ -850,6 +898,19 @@ def get_from_map_transaction(
             )
 
 
+def get_from_request_transaction(
+    *,
+    ensure_empty: bool = False,
+) -> t.ContextManager[t.Tuple[TransactionGet[str], TransactionOptionalGet[str]]
+                      ]:
+    """The same as :func:`get_from_map_transaction` but with
+        :func:`get_json_dict_from_request` as first argument.
+    """
+    return get_from_map_transaction(
+        get_json_dict_from_request(), ensure_empty=ensure_empty
+    )
+
+
 def ensure_keys_in_dict(
     mapping: t.Mapping[T, object], keys: t.Sequence[t.Tuple[T, IsInstanceType]]
 ) -> None:
@@ -868,10 +929,25 @@ def ensure_keys_in_dict(
     missing: t.List[t.Union[T, str]] = []
     type_wrong = False
     for key, check_type in keys:
-        if key not in mapping:
+        value = mapping.get(key, MISSING)
+        if value is MISSING:
             missing.append(key)
-        elif (not isinstance(mapping[key], check_type)
-              ) or (check_type == int and isinstance(mapping[key], bool)):
+        elif (
+            isinstance(check_type, type) and
+            issubclass(check_type, enum.Enum) and isinstance(value, str)
+        ):
+            if value not in check_type.__members__:
+                missing.append(
+                    f'{key} was of wrong type'
+                    f' (should be a member of "{_get_type_name(check_type)}"'
+                    f' (= {", ".join(it.name for it in check_type)})'
+                    f', was "{mapping[key]}")'
+                )
+                type_wrong = True
+        elif (
+            (not isinstance(value, check_type)) or
+            (check_type == int and isinstance(value, bool))
+        ):
             missing.append(
                 f'{str(key)} was of wrong type'
                 f' (should be a "{_get_type_name(check_type)}"'

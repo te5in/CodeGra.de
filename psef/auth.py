@@ -3,7 +3,8 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
-from functools import wraps
+import contextlib
+from functools import wraps, partial
 
 import oauth2
 import structlog
@@ -14,7 +15,7 @@ from flask import _app_ctx_stack  # type: ignore
 from sqlalchemy import sql
 from werkzeug.local import LocalProxy
 from mypy_extensions import NoReturn
-from typing_extensions import Literal
+from typing_extensions import Final, Literal
 
 import psef
 from psef import features
@@ -70,6 +71,84 @@ def _handle_jwt_errors(reason: str = 'No user was logged in.') -> t.NoReturn:
 jwt.user_loader_error_loader(
     lambda id: _handle_jwt_errors(f'No user with id "{id}" was found.')
 )
+
+_T_PERM_CHECKER = t.TypeVar('_T_PERM_CHECKER', bound='PermissionChecker')  # pylint: disable=invalid-name
+
+
+class _PermissionCheckFunction(t.Generic[_T_PERM_CHECKER]):
+    __slots__ = ('__fn', )
+
+    class _Inner:
+        __slots__ = ('__fn', )
+
+        def __init__(self, bound_fn: t.Callable[[], None]):
+            self.__fn = bound_fn
+
+        def __call__(self) -> None:
+            self.__fn()
+
+        def as_bool(self) -> bool:
+            """Get the result permission checker as a bool.
+
+            :returns: ``True`` if the function didn't raise a
+                :exc:`.PermissionException` and ``False`` if it did. This can
+                be used to check if somebody has this higher level permission.
+            """
+            try:
+                self()
+            except PermissionException:
+                return False
+            else:
+                return True
+
+    def __init__(self, fn: t.Callable[[_T_PERM_CHECKER], None]) -> None:
+        self.__fn = fn
+
+    def __get__(
+        self, instance: _T_PERM_CHECKER, owner: object
+    ) -> '_PermissionCheckFunction._Inner':
+        return self.__class__._Inner(partial(self.__fn, instance))
+
+
+class PermissionChecker:
+    """The base permission checker class.
+    """
+    __slots__ = ('course_id', )
+
+    def __init__(self, course_id: int) -> None:
+        self.course_id = course_id
+
+    @property
+    def user(self) -> 'psef.models.User':
+        """The current logged in user.
+
+        Accessing this property raises a :exc:`.PermissionException` if no user
+        is logged in.
+        """
+        return _get_cur_user()
+
+    @staticmethod
+    def as_ensure_function(fun: t.Callable[[_T_PERM_CHECKER], None]
+                           ) -> _PermissionCheckFunction[_T_PERM_CHECKER]:
+        """Wrap a permission checker function as a
+            :class:`._PermissionCheckFunction`.
+
+        This adds helper methods to the method like
+        :meth:`._PermissionCheckFunction.as_bool`.
+        """
+        return _PermissionCheckFunction(fun)
+
+    def _ensure_enrolled(self) -> None:
+        ensure_enrolled(self.course_id, self.user)
+
+    def _has_permission(self, perm: CPerm) -> bool:
+        return self.user.has_permission(perm, self.course_id)
+
+    def _ensure(self, perm: CPerm) -> None:
+        ensure_permission(perm, self.course_id, user=self.user)
+
+    def _ensure_any(self, perms: t.List[CPerm]) -> None:
+        ensure_any_of_permissions(perms, self.course_id, user=self.user)
 
 
 @jwt.user_loader_callback_loader
@@ -180,7 +259,24 @@ def ensure_enrolled(
         )
 
 
-def set_current_user(user: t.Union['psef.models.User', LocalProxy]) -> None:
+@contextlib.contextmanager
+def as_current_user(user: t.Union['psef.models.User', LocalProxy]
+                    ) -> t.Generator[None, None, None]:
+    """Execute a block of code while pretending the given user is logged in.
+
+    After the contextmanager exists the original logged in user is restored.
+    """
+    old_user = _get_cur_user(allow_none=True)
+    try:
+        set_current_user(user)
+        yield
+    finally:
+        set_current_user(old_user)
+
+
+def set_current_user(
+    user: t.Union['psef.models.User', LocalProxy, None]
+) -> None:
     """Set the current user for this request.
 
     You probably never should use this method, it is only useful after logging
@@ -461,8 +557,9 @@ def ensure_can_see_grade(work: 'psef.models.Work') -> None:
         )
 
 
-@login_required
-def ensure_can_see_user_feedback(work: 'psef.models.Work') -> None:
+def ensure_can_see_general_feedback(
+    work: 'psef.models.Work', user: t.Optional['psef.models.User'] = None
+) -> None:
     """Ensure the current user can see the grade of the given work.
 
     :param work: The work to check for.
@@ -473,7 +570,7 @@ def ensure_can_see_user_feedback(work: 'psef.models.Work') -> None:
     :raises PermissionException: If the user can not see the grade.
         (INCORRECT_PERMISSION)
     """
-    user = _get_cur_user()
+    user = _get_cur_user() if user is None else user
     course_id = work.assignment.course_id
 
     # Don't check for any state if we simply have all required
@@ -484,13 +581,15 @@ def ensure_can_see_user_feedback(work: 'psef.models.Work') -> None:
     ):
         return
 
-    if not work.has_as_author(user):
-        ensure_permission(CPerm.can_see_others_work, course_id, user=user)
-
+    # This check is faster than the other one, and more common to fail, so lets
+    # check this one first.
     if not work.assignment.is_done:
         ensure_permission(
             CPerm.can_see_user_feedback_before_done, course_id, user=user
         )
+
+    if not work.has_as_author(user):
+        ensure_permission(CPerm.can_see_others_work, course_id, user=user)
 
 
 @login_required
@@ -805,10 +904,168 @@ def ensure_can_edit_members_of_group(
         )
 
 
+class FeedbackBasePermissions(PermissionChecker):
+    """The permission checker for :class:`psef.models.CommentBase`.
+    """
+    __slots__ = ('base', )
+
+    def __init__(self, base: 'psef.models.CommentBase'):
+        super().__init__(course_id=base.work.assignment.course_id)
+        self.base: Final = base
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_add(self) -> None:
+        """Make sure the current user may add a comment base.
+        """
+        perms = [CPerm.can_grade_work]
+        if self.base.work.has_as_author(self.user):
+            perms.append(CPerm.can_add_own_inline_comments)
+        self._ensure_any(perms)
+
+
+class FeedbackReplyPermissions(PermissionChecker):
+    """The permission checker for :class:`psef.models.CommentReply`.
+    """
+    __slots__ = ('reply', )
+
+    def __init__(self, reply: 'psef.models.CommentReply'):
+        super().__init__(
+            course_id=reply.comment_base.work.assignment.course_id
+        )
+        self.reply: Final = reply
+
+    @property
+    def _is_own_reply(self) -> bool:
+        return self.reply.author.contains_user(self.user)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_edit(self) -> None:
+        """Ensure that the current user may edit this reply.
+        """
+        if self._is_own_reply:
+            self._ensure_enrolled()
+        else:
+            self._ensure(CPerm.can_edit_others_comments)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see_edits(self) -> None:
+        """Ensure that the current user may see the edits of this reply.
+
+        .. note::
+
+            A user may always see if a reply is edited, this checks if the user
+            may see the contents of these edits.
+
+        .. note::
+
+            If a user may see the edit, the author may also always be
+            displayed.
+        """
+        self.ensure_may_see()
+
+        if not self._is_own_reply:
+            self._ensure(CPerm.can_view_others_comment_edits)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_add(self) -> None:
+        """Ensure that the current user may add this feedback reply.
+        """
+        FeedbackBasePermissions(self.reply.comment_base).ensure_may_add()
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_delete(self) -> None:
+        """Ensure that the current user may delete this feedback reply.
+        """
+        self.ensure_may_edit()
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see_author(self) -> None:
+        """Ensure that the current user may see the author of this reply.
+
+        .. note::
+
+            You are only allowed to see the author when you are also allowed to
+            see the reply itself.
+        """
+        self.ensure_may_see()
+        if not self.reply.author.contains_user(psef.current_user):
+            self._ensure(CPerm.can_view_feedback_author)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        """Make sure the current user may see this feedback reply.
+        """
+        work = self.reply.comment_base.work
+        if work.deleted:
+            raise PermissionException(
+                'The given work is deleted, so you may not see its feedback',
+                f'The work "{work.id}" was deleted',
+                APICodes.INCORRECT_PERMISSION,
+                403,
+            )
+
+        # Don't check for any state if we simply have all required permissions.
+        if (
+            self._has_permission(CPerm.can_see_others_work) and
+            self._has_permission(CPerm.can_see_user_feedback_before_done)
+        ):
+            return
+
+        if self._is_own_reply:
+            self._ensure_enrolled()
+            return
+
+        # This check is faster than the other one, and more common to fail, so
+        # lets check this one first.
+        if not work.assignment.is_done:
+            self._ensure(CPerm.can_see_user_feedback_before_done)
+
+        if not work.has_as_author(self.user):
+            self._ensure(CPerm.can_see_others_work)
+
+
+class NotificationPermissions(PermissionChecker):
+    """The permission checker for :class:`psef.models.Notification`.
+    """
+    __slots__ = ('notification', 'work')
+
+    def __init__(self, notification: 'psef.models.Notification'):
+        work = notification.comment_reply.comment_base.work
+        super().__init__(course_id=work.assignment.course_id)
+
+        self.work: Final = work
+        self.notification: Final = notification
+
+    def _ensure_my_notification(self) -> None:
+        if self.notification.receiver != self.user:
+            raise PermissionException(
+                'The given notification does not belong to the current user', (
+                    f'The notification {self.notification.id} does not belong'
+                    f' to {self.user.id}'
+                ), APICodes.UNSUPPORTED, 403
+            )
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        """Make sure the current user may see this notification.
+        """
+        FeedbackReplyPermissions(
+            self.notification.comment_reply,
+        ).ensure_may_see()
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_edit(self) -> None:
+        """Make sure the current user may edit this notification.
+        """
+        self.ensure_may_see()
+        self._ensure_my_notification()
+
+
 @login_required
 def ensure_any_of_permissions(
     permissions: t.List[CPerm],
     course_id: int,
+    user: t.Optional['psef.models.User'] = None,
 ) -> None:
     """Make sure that the current user has at least one of the given
         permissions.
@@ -816,6 +1073,8 @@ def ensure_any_of_permissions(
     :param permissions: The permissions to check for.
     :param course_id: The course id of the course that should be used to check
         for the given permissions.
+    :param user: The user param that will be passed to
+        :func:`ensure_permission`.
     :returns: Nothing.
     :raises PermissionException: If the current user has none of the given
         permissions. This will always happen if the list of given permissions
@@ -823,7 +1082,7 @@ def ensure_any_of_permissions(
     """
     for perm in permissions:
         try:
-            ensure_permission(perm, course_id)
+            ensure_permission(perm, course_id, user=user)
         except PermissionException:
             continue
         else:

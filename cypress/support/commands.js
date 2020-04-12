@@ -116,7 +116,7 @@ Cypress.Commands.add('formRequest', (options) => {
     let { url, method, headers, user, data } = options;
 
     return getAuthHeaders(user).then(authHeaders => {
-        headers = Object.assign(headers || {}, authHeaders)
+        headers = Object.assign({}, headers || {}, authHeaders)
         return cy
             .server()
             .route(method, url)

@@ -185,13 +185,13 @@ def get_assignments_feedback(assignment_id: int) -> JSONResponse[
         item: t.MutableMapping[str, t.Union[str, t.Sequence[str]]] = {}
 
         try:
-            auth.ensure_can_see_user_feedback(sub)
+            auth.ensure_can_see_general_feedback(sub)
         except auth.PermissionException:
             item['general'] = ''
-            item['user'] = []
         else:
             item['general'] = sub.comment or ''
-            item['user'] = list(sub.get_user_feedback())
+
+        item['user'] = list(sub.get_user_feedback())
 
         try:
             auth.ensure_can_see_linter_feedback(sub)
@@ -1049,7 +1049,7 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
                 ), APICodes.INVALID_PARAM, 400
             )
         users = helpers.filter_all_or_404(
-            models.User, models.User.id.in_(graders.keys())
+            models.User, models.User.id.in_(list(graders.keys()))
         )
     else:
         models.Work.query.filter_by(assignment_id=assignment.id).update(

@@ -18,7 +18,7 @@ context('Sidebar', () => {
             .should('exist')
             .should('not.have.class', 'fade')
             .within(() => {
-                cy.get('input').type(course);
+                cy.get('input').setText(course);
                 cy.get('.submit-button').click();
             });
 
@@ -40,7 +40,7 @@ context('Sidebar', () => {
             .should('exist')
             .should('not.have.class', 'fade')
             .within(() => {
-                cy.get('input').type(assig);
+                cy.get('input').setText(assig);
                 cy.get('.submit-button').click();
             });
 
@@ -66,12 +66,12 @@ context('Sidebar', () => {
 
             cy.visit('/');
             openProfile();
-            cy.get('input[name=full-name]').clear()
+            cy.get('input[name=full-name]').setText('');
             getSubmit().submit('error', {
                 popoverMsg: 'Your new name cannot be empty'
             });
             cy.get('.sidebar-top-item.sidebar-entry-user .name').text().should('eq', oldName);
-            cy.get('input[name=full-name]').type(newName);
+            cy.get('input[name=full-name]').setText(newName);
             getSubmit().submit('success');
             cy.get('.sidebar-top-item.sidebar-entry-user .name').contains(newName);
 
@@ -79,7 +79,7 @@ context('Sidebar', () => {
             cy.get('.sidebar-top-item.sidebar-entry-user .name').text().should('eq', newName);
             openProfile();
 
-            cy.get('input[name=full-name]').clear().type(oldName);
+            cy.get('input[name=full-name]').focus().setText(oldName);
             getSubmit().submit('success');
             cy.get('.sidebar-top-item.sidebar-entry-user .name').text().should('eq', oldName);
         });
@@ -90,15 +90,8 @@ context('Sidebar', () => {
             const newEmail = `admina-${Math.random()}@example.nl`;
 
             function submitEmail(email, password) {
-                cy.get('input[name=email]').clear()
-                if (email) {
-                    cy.get('input[name=email]').type(email)
-                }
-
-                cy.get('.password-input input[name=old-password]').clear();
-                if (password) {
-                    cy.get('.password-input input[name=old-password]').type(password);
-                }
+                cy.get('input[name=email]').setText(email)
+                cy.get('.password-input input[name=old-password]').setText(password);
                 return getSubmit();
             }
 
@@ -129,7 +122,7 @@ context('Sidebar', () => {
 
             cy.get('.userinfo').find('input').each(($el, $index) => {
                 if ($index > 0) {
-                    cy.wrap($el).clear().type(`HELLO! - ${Math.random()}`);
+                    cy.wrap($el).setText(`HELLO! - ${Math.random()}`);
                 }
             });
 

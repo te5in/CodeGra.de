@@ -1,8 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 const fs = require('fs');
+var path = require('path')
 const ini = require('ini');
 const execFileSync = require('child_process').execFileSync;
 const moment = require('moment');
+
+function resolve (dir) {
+  return path.join(__dirname, '..', dir)
+}
 
 function filterKeys(obj, ...keys) {
     return keys.reduce(
@@ -16,10 +21,13 @@ function filterKeys(obj, ...keys) {
 
 let userConfig = {};
 
+const configIni = resolve('config.ini');
+process.stderr.write(configIni + '\n');
+
 try {
-    userConfig = ini.parse(fs.readFileSync('./config.ini', 'utf-8'));
+    userConfig = ini.parse(fs.readFileSync(configIni, 'utf-8'));
 } catch (err) {
-    process.stderr.write('Config file not found, using default values!\n');
+    process.stderr.write('Config file not found, using default values!\n' + err + '\n');
 }
 
 if (userConfig['Front-end'] === undefined) userConfig['Front-end'] = {};
@@ -29,7 +37,10 @@ if (userConfig.AutoTest === undefined) userConfig.AutoTest = {};
 const config = Object.assign({}, {
     email: 'info@CodeGra.de',
     maxLines: 2500,
+    notificationPollTime: 30000,
 }, userConfig['Front-end']);
+config.maxLines = parseInt(config.maxLines, 10);
+config.notificationPollTime = parseInt(config.notificationPollTime, 10);
 
 let version = execFileSync('git', ['describe', '--abbrev=0', '--tags']).toString().trim();
 const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD']).toString().trim();

@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="code-viewer" :class="{ editable }">
+<div class="code-viewer">
     <inner-code-viewer
         :assignment="assignment"
         :submission="submission"
@@ -9,7 +9,6 @@
         :linter-feedback="linterFeedback"
         :show-whitespace="showWhitespace"
         :show-inline-feedback="showInlineFeedback"
-        :editable="feedbackEditable"
         :can-use-snippets="canUseSnippets"
         :file-id="fileId"/>
 </div>
@@ -50,10 +49,6 @@ export default {
             type: String,
             required: true,
         },
-        editable: {
-            type: Boolean,
-            default: false,
-        },
         language: {
             type: String,
             default: 'Default',
@@ -91,10 +86,6 @@ export default {
                 'permissions',
                 'can_see_assignee',
             );
-        },
-
-        feedbackEditable() {
-            return this.editable && this.studentMode;
         },
 
         extension() {
@@ -158,7 +149,7 @@ export default {
             const lang = language === 'Default' ? this.extension : language;
 
             const res = Object.freeze(highlightCode(this.rawCodeLines, lang));
-            this.$emit('load', this.fileId);
+            this.emitLoad(this.fileId);
             return res;
         },
     },
@@ -202,6 +193,14 @@ export default {
                     this.selectedLanguage = 'Default';
                 }
             });
+        },
+
+        async emitLoad(fileId) {
+            if (this.fileId === fileId) {
+                this.$emit('load', fileId);
+
+                await this.$nextTick();
+            }
         },
     },
 

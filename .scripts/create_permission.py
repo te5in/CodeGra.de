@@ -13,7 +13,9 @@ from collections import OrderedDict
 
 import flask_migrate
 
-BASE_DIR = os.path.abspath(os.path.normpath(os.path.join(os.path.dirname(__file__), '..')))
+BASE_DIR = os.path.abspath(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), '..'))
+)
 PERMS_FILE = os.path.join(BASE_DIR, 'seed_data', 'permissions.json')
 
 os.chdir(BASE_DIR)
@@ -107,10 +109,9 @@ def main() -> None:
 
     print('Generating migration', end=' ...')
     sys.stdout.flush()
-    out = subprocess.check_output(
-        ['python',
-        os.path.join(BASE_DIR, 'manage.py'), 'db', 'heads']
-    ).decode('utf-8').strip().split('\n')[-1]
+    out = subprocess.check_output([
+        'python', os.path.join(BASE_DIR, 'manage.py'), 'db', 'heads'
+    ]).decode('utf-8').strip().split('\n')[-1]
     match = re.match(r'([a-z0-9]+) \(head\)', out)
     assert match is not None, f'{out} does not match'
     old_rev = match.group(1)
@@ -131,9 +132,6 @@ def main() -> None:
             )
         )
     print('Done!')
-
-    subprocess.check_call(['python', os.path.join(BASE_DIR, '.scripts', 'generate_permissions_py.py')])
-    subprocess.check_call(['make', 'db_upgrade'])
 
 
 if __name__ == '__main__':

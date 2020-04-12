@@ -52,9 +52,7 @@ const actions = {
         const run = state.runs[runId];
         if (run.has_more_cases) {
             const { data: cases } = await axios.get(
-                `/api/v1/plagiarism/${runId}/cases/?limit=${LIMIT_PER_REQUEST}&offset=${
-                    state.runs[runId].cases.length
-                }`,
+                `/api/v1/plagiarism/${runId}/cases/?limit=${LIMIT_PER_REQUEST}&offset=${state.runs[runId].cases.length}`,
             );
 
             commit(types.ADD_PLAGIARISM_CASES, {

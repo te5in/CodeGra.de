@@ -83,7 +83,7 @@ export default {
         feedback() {
             return this.$utils.getProps(
                 this.submission,
-                {},
+                null,
                 'feedback',
                 'user',
                 this.id,
@@ -137,7 +137,6 @@ export default {
 
     .img {
         display: inline-block;
-        max-width: 100%;
         max-height: 100%;
     }
 }

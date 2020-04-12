@@ -1,10 +1,14 @@
-# SPDX-License-Identifier: AGPL-3.0-only
 import re
 
 import pytest
+from freezegun import freeze_time
 
+import psef
+import helpers
+import cg_dt_utils
 import psef.models as m
-from helpers import create_marker
+from dotdict import dotdict
+from helpers import get_id, create_marker
 from psef.permissions import CoursePermission as CPerm
 
 perm_error = create_marker(pytest.mark.perm_error)
@@ -13,16 +17,130 @@ late_error = create_marker(pytest.mark.late_error)
 only_own = create_marker(pytest.mark.only_own)
 
 
-@pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
-@pytest.mark.parametrize(
-    'named_user', [
-        'Thomas Schaper',
-        perm_error(error=403)('admin'),
-        perm_error(error=403)('Student1'),
-        perm_error(error=401)('NOT_LOGGED_IN'),
-    ],
-    indirect=True
-)
+@pytest.fixture
+def make_add_reply(session, test_client, error_template):
+    def inner(work_id):
+        code_id = session.query(m.File.id).filter(
+            m.File.work_id == work_id,
+            m.File.parent_id.isnot(None),
+            m.File.name != '__init__',
+        ).first()[0]
+
+        def add_reply(
+            txt,
+            line=0,
+            include_response=False,
+            include_base=False,
+            in_reply_to=None,
+            expect_error=False,
+        ):
+            in_reply_to_id = in_reply_to and get_id(in_reply_to)
+            base = test_client.req(
+                'put',
+                '/api/v1/comments/',
+                200,
+                data={
+                    'file_id': code_id,
+                    'line': line,
+                },
+                result={
+                    'id': int,
+                    '__allow_extra__': True,
+                }
+            )
+
+            res = test_client.req(
+                'post',
+                f'/api/v1/comments/{get_id(base)}/replies/',
+                expect_error or 200,
+                data={
+                    'comment': txt,
+                    'reply_type': 'markdown',
+                    'in_reply_to': in_reply_to_id,
+                },
+                result=error_template if expect_error else {
+                    'id': int,
+                    'reply_type': 'markdown',
+                    'comment': txt,
+                    'in_reply_to_id': in_reply_to_id,
+                    'last_edit': None,
+                    '__allow_extra__': True,
+                },
+                include_response=include_response,
+            )
+            if include_base:
+                base['replies'].append({**res})
+                base['replies'][-1].pop('author')
+                base['replies'][-1].pop('comment_base_id')
+                res = (res, base)
+            return res
+
+        return add_reply
+
+    yield inner
+
+
+@pytest.fixture(autouse=True)
+def mail_functions(
+    monkeypatch, monkeypatch_celery, make_function_spy, stubmailer
+):
+
+    direct = make_function_spy(psef.mail, 'send_direct_notification_email')
+    digest = make_function_spy(psef.mail, 'send_digest_notification_email')
+
+    def any_mails():
+        if direct.called:
+            print('Direct emails send', direct.all_args, stubmailer.args)
+            return True
+        elif digest.called:
+            print('Digest emails send', digest.all_args, stubmailer.args)
+            return True
+        return False
+
+    def assert_mailed(user, amount=1):
+        if amount > 0:
+            assert any_mails() and len(stubmailer.args
+                                       ) > 0, ('Nobody was mailed')
+
+        user_id = helpers.get_id(user)
+        user = m.User.query.get(user_id)
+        assert user is not None, f'Given user {user_id} was not found'
+        msgs = []
+
+        for arg, in stubmailer.args:
+            message = arg._message()
+            recipients = message['To'].split(', ')
+            assert recipients, 'A mail was send to nobody'
+            for recipient in recipients:
+                print(recipient)
+                if '<{}>'.format(user.email) in recipient:
+                    msgs.append(
+                        dotdict(
+                            orig=message,
+                            msg=arg.html,
+                            subject=message['Subject'],
+                            message_id=message['Message-ID'],
+                            in_reply_to=message['In-Reply-To'],
+                            references=(
+                                message['References'] and
+                                message['References'].split(' ')
+                            ),
+                        )
+                    )
+                    amount -= 1
+
+        assert amount == 0, 'The given user was not mailed or mailed to much'
+        return msgs
+
+    yield dotdict(
+        send_mail=stubmailer,
+        direct=direct,
+        digest=digest,
+        any_mails=any_mails,
+        assert_mailed=assert_mailed,
+    )
+
+
 @pytest.mark.parametrize(
     'data', [
         data_error('err'),
@@ -34,33 +152,51 @@ only_own = create_marker(pytest.mark.only_own)
     ]
 )
 def test_add_feedback(
-    named_user, request, logged_in, test_client, assignment_real_works,
-    session, data, error_template, ta_user, teacher_user, monkeypatch_celery
+    request, logged_in, test_client, session, data, error_template, admin_user,
+    mail_functions, describe, tomorrow
 ):
-    assignment, work = assignment_real_works
-    perm_err = request.node.get_closest_marker('perm_error')
-    data_err = request.node.get_closest_marker('data_error') is not None
+    with describe('setup'), logged_in(admin_user):
+        assignment = helpers.create_assignment(
+            test_client, state='open', deadline=tomorrow
+        )
+        course = assignment['course']
+        teacher = admin_user
+        student = helpers.create_user_with_perms(
+            session, [CPerm.can_submit_own_work], course
+        )
+        work = helpers.create_submission(
+            test_client, assignment, for_user=student
+        )
 
-    code_id = session.query(m.File.id).filter(
-        m.File.work_id == work['id'],
-        m.File.parent != None,  # NOQA
-        m.File.name != '__init__',
-    ).first()[0]
+        data_err = request.node.get_closest_marker('data_error') is not None
 
-    if perm_err:
-        code = perm_err.kwargs['error']
-    elif data_err:
-        code = 400
-    else:
-        code = 204
+        code_id = session.query(m.File.id).filter(
+            m.File.work_id == work['id'],
+            m.File.parent_id.isnot(None),
+            m.File.name != '__init__',
+        ).first()[0]
 
-    def get_result():
-        if data_err or perm_err:
-            return {}
-        msg = data.get('expected_result', data['comment'])
-        return {'0': {'line': 0, 'msg': msg, 'author': dict}}
+        if data_err:
+            code = 400
+        else:
+            code = 204
 
-    with logged_in(named_user):
+        def get_result(has_author=True):
+            if data_err:
+                return {}
+            msg = data.get('expected_result', data['comment'])
+            res = {
+                '0': {
+                    'line': 0,
+                    'msg': msg,
+                    'author': {'id': teacher.id, '__allow_extra__': True},
+                }
+            }
+            if not has_author:
+                res['0'].pop('author')
+            return res
+
+    with describe('teacher can place comments'), logged_in(teacher):
         test_client.req(
             'put',
             f'/api/v1/code/{code_id}/comments/0',
@@ -68,8 +204,11 @@ def test_add_feedback(
             data=data,
             result=None if code == 204 else error_template
         )
+        if data_err:
+            assert not mail_functions.any_mails()
+            return
+        assert not mail_functions.any_mails(), 'Student should not be mailed'
 
-    with logged_in(ta_user):
         res = test_client.req(
             'get',
             f'/api/v1/code/{code_id}',
@@ -77,22 +216,19 @@ def test_add_feedback(
             query={'type': 'feedback'},
             result=get_result()
         )
-        if not (data_error or perm_error):
-            assert res['author']['id'] == named_user.id
 
-    with logged_in(named_user):
-        if not data_err:
-            data['comment'] = 'bye'
-            data['expected_result'] = 'bye'
-            test_client.req(
-                'put',
-                f'/api/v1/code/{code_id}/comments/0',
-                code,
-                data=data,
-                result=None if code == 204 else error_template
-            )
+        data = {
+            'comment': 'bye',
+            'expected_result': 'bye',
+        }
+        test_client.req(
+            'put',
+            f'/api/v1/code/{code_id}/comments/0',
+            code,
+            data=data,
+        )
+        assert not mail_functions.any_mails(), 'No mails for updates'
 
-    with logged_in(ta_user):
         test_client.req(
             'get',
             f'/api/v1/code/{code_id}',
@@ -101,16 +237,107 @@ def test_add_feedback(
             result=get_result()
         )
 
-    with logged_in(teacher_user):
+    with describe(
+        'Students cannot place comments if they do not have the permission'
+    ), logged_in(student):
+        test_client.req(
+            'put', f'/api/v1/code/{code_id}/comments/1', 403, data=data
+        )
+
+    with describe('Students can get comments when assignment is done'):
+        with logged_in(student):
+            test_client.req(
+                'get',
+                f'/api/v1/code/{code_id}',
+                200,
+                query={'type': 'feedback'},
+                result={},
+            )
+
+            # We don't have the permission to see the notification
+            test_client.req(
+                'get',
+                '/api/v1/notifications/',
+                200,
+                result={'notifications': []}
+            )
+            test_client.req(
+                'get',
+                '/api/v1/notifications/?has_unread',
+                200,
+                result={'has_unread': False}
+            )
+
+        with logged_in(teacher):
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{assignment["id"]}',
+                200,
+                data={'state': 'done'},
+            )
+            assert not mail_functions.any_mails(), (
+                'Should not send old notifications when state changes'
+            )
+
+        with logged_in(student):
+            test_client.req(
+                'get',
+                f'/api/v1/code/{code_id}',
+                200,
+                query={'type': 'feedback'},
+                result=get_result(has_author=False),
+            )
+            # Now we do have this permission
+            test_client.req(
+                'get',
+                '/api/v1/notifications/',
+                200,
+                result={
+                    'notifications': [{
+                        'id': int,
+                        'reasons': [['author', str]],
+                        '__allow_extra__': True,
+                        'read': False,
+                        'file_id': code_id,
+                    }]
+                }
+            )
+            test_client.req(
+                'get',
+                '/api/v1/notifications/?has_unread',
+                200,
+                result={'has_unread': True}
+            )
+
+    with describe('Cannot get or update feedback after deleting submission'
+                  ), logged_in(teacher):
         test_client.req('delete', f'/api/v1/submissions/{work["id"]}', 204)
 
-        # You cannot comment on deleted submissions
+        test_client.req(
+            'get',
+            f'/api/v1/code/{code_id}',
+            404,
+            query={'type': 'feedback'},
+            result=error_template,
+        )
         test_client.req(
             'put',
             f'/api/v1/code/{code_id}/comments/0',
             404,
-            data=data,
+            data={'comment': 'Any value'},
             result=error_template,
+        )
+
+    with describe('After delete notification should be gone'
+                  ), logged_in(student):
+        test_client.req(
+            'get', '/api/v1/notifications/', 200, result={'notifications': []}
+        )
+        test_client.req(
+            'get',
+            '/api/v1/notifications/?has_unread',
+            200,
+            result={'has_unread': False}
         )
 
 
@@ -119,26 +346,21 @@ def test_add_feedback(
     'named_user', [
         'Thomas Schaper',
         perm_error(error=403)('admin'),
-        pytest.param(
-            'Student1',
-            marks=[
-                pytest.mark.late_error,
-                pytest.mark.list_error,
-            ]
-        ),
+        pytest.param('Student1', marks=[
+            pytest.mark.late_error,
+        ]),
         perm_error(error=401)('NOT_LOGGED_IN'),
     ],
     indirect=True
 )
 def test_get_feedback(
     named_user, request, logged_in, test_client, assignment_real_works,
-    session, error_template, ta_user
+    monkeypatch_celery, session, error_template, ta_user
 ):
     assignment, work = assignment_real_works
     assig_id = assignment.id
     perm_err = request.node.get_closest_marker('perm_error')
     late_err = request.node.get_closest_marker('late_error')
-    list_err = request.node.get_closest_marker('list_error')
 
     code_id = session.query(m.File.id).filter(
         m.File.work_id == work['id'],
@@ -179,9 +401,6 @@ def test_get_feedback(
                     'author': dict,
                 }
             }
-            if list_err:
-                del res['0']['author']
-                del res['1']['author']
 
         test_client.req(
             'get',
@@ -212,9 +431,6 @@ def test_get_feedback(
                     'author': dict,
                 }
             }
-            if list_err:
-                del res['0']['author']
-                del res['1']['author']
 
         test_client.req(
             'get',
@@ -230,13 +446,9 @@ def test_get_feedback(
 @pytest.mark.parametrize('perm_value', [True, False])
 def test_can_see_user_feedback_before_done_permission(
     named_user, request, logged_in, test_client, assignment_real_works,
-    session, error_template, ta_user, perm_value
+    monkeypatch_celery, session, error_template, teacher_user, perm_value
 ):
     assignment, work = assignment_real_works
-    assig_id = assignment.id
-    perm_err = request.node.get_closest_marker('perm_error')
-    late_err = request.node.get_closest_marker('late_error')
-    list_err = request.node.get_closest_marker('list_error')
 
     code_id = session.query(m.File.id).filter(
         m.File.work_id == work['id'],
@@ -244,7 +456,7 @@ def test_can_see_user_feedback_before_done_permission(
         m.File.name != '__init__',
     ).first()[0]
 
-    with logged_in(ta_user):
+    with logged_in(teacher_user):
         test_client.req(
             'put',
             f'/api/v1/code/{code_id}/comments/0',
@@ -298,9 +510,10 @@ def test_can_see_user_feedback_before_done_permission(
 
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
 @pytest.mark.parametrize(
-    'named_user', [
-        'Thomas Schaper',
-        perm_error(error=403)('admin'),
+    'named_user',
+    [
+        'Robin',
+        perm_error(error=404)('admin'),  # not enrolled so 404 on getting com
         perm_error(error=403)(('Student1')),
         perm_error(error=401)('NOT_LOGGED_IN'),
     ],
@@ -308,14 +521,15 @@ def test_can_see_user_feedback_before_done_permission(
 )
 def test_delete_feedback(
     named_user, request, logged_in, test_client, assignment_real_works,
-    session, error_template, ta_user
+    monkeypatch_celery, session, error_template, teacher_user
 ):
     assignment, work = assignment_real_works
+    work_id = work['id']
     perm_err = request.node.get_closest_marker('perm_error')
 
     code_id = session.query(m.File.id).filter(
-        m.File.work_id == work['id'],
-        m.File.parent != None,  # NOQA
+        m.File.work_id == work_id,
+        m.File.parent_id.isnot(None),
         m.File.name != '__init__',
     ).first()[0]
 
@@ -331,7 +545,18 @@ def test_delete_feedback(
         }
     }
 
-    with logged_in(ta_user):
+    feedbacks_result = {
+        '__allow_extra__': True,
+        'user': {str(code_id): {'0': 'for line 0', '1': 'line1'}},
+    }
+
+    with logged_in(teacher_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{helpers.get_id(assignment)}',
+            200,
+            data={'state': 'done'},
+        )
         test_client.req(
             'put',
             f'/api/v1/code/{code_id}/comments/1',
@@ -353,6 +578,13 @@ def test_delete_feedback(
             result=result
         )
 
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{work_id}/feedbacks/',
+            200,
+            result=feedbacks_result,
+        )
+
     with logged_in(named_user):
         test_client.req(
             'delete',
@@ -362,14 +594,21 @@ def test_delete_feedback(
 
     if not perm_err:
         result.pop('0')
+        feedbacks_result['user'][str(code_id)].pop('0')
 
-    with logged_in(ta_user):
+    with logged_in(teacher_user):
         test_client.req(
             'get',
             f'/api/v1/code/{code_id}',
             200,
             query={'type': 'feedback'},
             result=result
+        )
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{work_id}/feedbacks/',
+            200,
+            result=feedbacks_result,
         )
 
 
@@ -397,6 +636,11 @@ def test_get_all_feedback(
     perm_err = request.node.get_closest_marker('perm_error')
     late_err = request.node.get_closest_marker('late_error')
     list_err = request.node.get_closest_marker('list_error')
+    if list_err:
+        named_user.courses[assignment.course_id].set_permission(
+            CPerm.can_view_feedback_author, False
+        )
+        session.commit()
 
     code_id = session.query(m.File.id).filter(
         m.File.work_id == work['id'],
@@ -494,14 +738,14 @@ def test_get_all_feedback(
                 'general': '',
                 'user': {},
                 'linter': {},
-                'authors': None,
+                'authors': {},
             }
         else:
             out = {
                 'user': dict,
                 'general': str,
                 'linter': dict,
-                'authors': None,
+                'authors': {},
             }
             if not list_err:
                 out['authors'] = dict
@@ -581,7 +825,7 @@ def test_get_assignment_all_feedback(
             data={'name': 'Flake8', 'cfg': ''}
         )
 
-    def match_res(res):
+    def match_res(res, only_own_subs=only_own_subs):
         general = 'Niet zo goed'
         user = ['test.py:1:1: for line 0', 'test.py:2:1: for line - 1']
         assert len(res) == 1 if only_own_subs else 3
@@ -640,3 +884,371 @@ def test_get_assignment_all_feedback(
 
         if not perm_err:
             match_res(res)
+
+    with logged_in(
+        helpers.create_user_with_perms(
+            session, [CPerm.can_see_others_work], assig.course
+        )
+    ):
+        res = test_client.req(
+            'get',
+            f'/api/v1/assignments/{assig_id}/feedbacks/',
+            200,
+            result=dict,
+        )
+
+        if not perm_err:
+
+            match_res(res, only_own_subs=False)
+
+
+def test_reply(
+    logged_in, test_client, session, admin_user, mail_functions, describe,
+    tomorrow, make_add_reply
+):
+
+    with describe('setup'), logged_in(admin_user):
+        assignment = helpers.create_assignment(
+            test_client, state='open', deadline=tomorrow
+        )
+        course = assignment['course']
+        teacher = admin_user
+        student = helpers.create_user_with_role(session, 'Student', course)
+
+        work_id = helpers.get_id(
+            helpers.create_submission(
+                test_client, assignment, for_user=student
+            )
+        )
+
+        add_reply = make_add_reply(work_id)
+
+        feedback_url = f'/api/v1/submissions/{work_id}/feedbacks/?with_replies'
+
+    with describe('Teachers can give feedback'), logged_in(teacher):
+        _, rv = add_reply('base comment', include_response=True)
+        assert 'Warning' not in rv.headers
+        assert not mail_functions.any_mails(), (
+            'Nobody should be emailed for the first reply'
+        )
+
+    with describe('Students may not see feedback by default'
+                  ), logged_in(student):
+        test_client.req(
+            'get',
+            feedback_url,
+            200,
+            result={'general': '', 'linter': {}, 'authors': [], 'user': []},
+        )
+
+    with describe('But students can place comments'), logged_in(student):
+        add_reply('A reply')
+        # The teacher should be mailed as a reply was posted
+        mail_functions.assert_mailed(teacher, amount=1)
+        # A direct mail should be send
+        assert mail_functions.direct.called
+        assert not mail_functions.digest.called
+
+    with describe('Students may see own comments'), logged_in(student):
+        test_client.req(
+            'get',
+            feedback_url,
+            200,
+            result={
+                'general': '',
+                'linter': {},
+                'authors': [student],
+                'user': [{
+                    '__allow_extra__': True,
+                    'replies': [{
+                        'comment': 'A reply', '__allow_extra__': True
+                    }],
+                }],
+            },
+        )
+
+    with describe('Teacher may see all comments'), logged_in(teacher):
+        test_client.req(
+            'get',
+            feedback_url,
+            200,
+            result={
+                'general': '',
+                'linter': {},
+                'authors': [student, teacher],
+                'user': [{
+                    '__allow_extra__': True,
+                    'replies': [{
+                        'comment': 'base comment', '__allow_extra__': True
+                    }, {'comment': 'A reply', '__allow_extra__': True}],
+                }],
+            },
+        )
+
+    with describe('A teacher can reply and should get a warning'
+                  ), logged_in(teacher):
+        _, rv = add_reply('another comment', include_response=True)
+        assert 'Warning' in rv.headers
+        assert 'have sufficient permissions' in rv.headers['Warning']
+
+
+def test_delete_feedback(
+    logged_in, test_client, session, admin_user, mail_functions, describe,
+    tomorrow, make_add_reply
+):
+    with describe('setup'), logged_in(admin_user):
+        assignment = helpers.create_assignment(
+            test_client, state='open', deadline=tomorrow
+        )
+        course = assignment['course']
+        teacher = admin_user
+        student = helpers.create_user_with_role(session, 'Student', course)
+        ta = helpers.create_user_with_role(session, 'TA', course)
+
+        work_id = helpers.get_id(
+            helpers.create_submission(
+                test_client, assignment, for_user=student
+            )
+        )
+
+        add_reply = make_add_reply(work_id)
+        feedback_url = f'/api/v1/submissions/{work_id}/feedbacks/?with_replies'
+
+    with describe('Users can delete own replies'):
+        for user in [teacher, student, ta]:
+            with logged_in(user):
+                reply = add_reply('a reply')
+                test_client.req(
+                    'delete', (
+                        f'/api/v1/comments/{reply["comment_base_id"]}/'
+                        f'replies/{reply["id"]}'
+                    ), 204
+                )
+                with logged_in(teacher):
+                    test_client.req(
+                        'get',
+                        feedback_url,
+                        200,
+                        result={
+                            'general': '', 'linter': {}, 'authors': [],
+                            'user': []
+                        },
+                    )
+
+    with describe('Only teachers can delete replies of others'):
+        with logged_in(student):
+            reply, base = add_reply('a reply', include_base=True)
+        with logged_in(ta):
+            test_client.req(
+                'delete', (
+                    f'/api/v1/comments/{reply["comment_base_id"]}/'
+                    f'replies/{reply["id"]}'
+                ), 403
+            )
+        with logged_in(teacher):
+            test_client.req(
+                'get',
+                feedback_url,
+                200,
+                result={
+                    'general': '', 'linter': {}, 'authors': [student],
+                    'user': [base]
+                },
+            )
+
+        with logged_in(teacher):
+            test_client.req(
+                'delete', (
+                    f'/api/v1/comments/{reply["comment_base_id"]}/'
+                    f'replies/{reply["id"]}'
+                ), 204
+            )
+            test_client.req(
+                'get',
+                feedback_url,
+                200,
+                result={
+                    'general': '', 'linter': {}, 'authors': [], 'user': []
+                },
+            )
+
+    with describe('Cannot delete a reply twice'), logged_in(student):
+        reply = add_reply('To delete')
+        test_client.req(
+            'delete', (
+                f'/api/v1/comments/{reply["comment_base_id"]}/'
+                f'replies/{reply["id"]}'
+            ), 204
+        )
+        test_client.req(
+            'delete', (
+                f'/api/v1/comments/{reply["comment_base_id"]}/'
+                f'replies/{reply["id"]}'
+            ), 404
+        )
+
+
+def test_edit_feedback(
+    logged_in, test_client, session, admin_user, mail_functions, describe,
+    tomorrow, make_add_reply
+):
+    with describe('setup'), logged_in(admin_user):
+        assignment = helpers.create_assignment(
+            test_client, state='open', deadline=tomorrow
+        )
+        course = assignment['course']
+        teacher = admin_user
+        student = helpers.create_user_with_role(session, 'Student', course)
+        ta = helpers.create_user_with_role(session, 'TA', course)
+
+        work_id = helpers.get_id(
+            helpers.create_submission(
+                test_client, assignment, for_user=student
+            )
+        )
+
+        add_reply = make_add_reply(work_id)
+        feedback_url = f'/api/v1/submissions/{work_id}/feedbacks/?with_replies'
+        with logged_in(student):
+            reply = add_reply('a reply')
+        reply_url = (
+            f'/api/v1/comments/{reply["comment_base_id"]}/'
+            f'replies/{reply["id"]}'
+        )
+
+    with describe('Editing with the same content does not create an edit'
+                  ), logged_in(teacher):
+        test_client.req('patch', reply_url, 200, data={'comment': 'a reply'})
+        test_client.req(
+            'get',
+            feedback_url,
+            200,
+            result={
+                '__allow_extra__': True, 'user': [{
+                    '__allow_extra__': True,
+                    'replies': [{
+                        'id': reply['id'],
+                        'comment': 'a reply',
+                        'last_edit': None,
+                        '__allow_extra__': True,
+                    }],
+                }]
+            },
+        )
+    with describe('teachers and own user can edit reply'):
+        with logged_in(student):
+            test_client.req(
+                'patch', reply_url, 200, data={'comment': 'updated1'}
+            )
+        with logged_in(teacher):
+            test_client.req(
+                'patch', reply_url, 200, data={'comment': 'updated2'}
+            )
+        with logged_in(ta):
+            test_client.req(
+                'patch', reply_url, 403, data={'comment': 'updated3'}
+            )
+
+        with logged_in(teacher):
+            test_client.req(
+                'get',
+                feedback_url,
+                200,
+                result={
+                    'general': '', 'linter': {}, 'authors': [student],
+                    'user': [{
+                        '__allow_extra__': True,
+                        'replies': [{
+                            'id': reply['id'],
+                            'comment': 'updated2',
+                            'last_edit': str,
+                            '__allow_extra__': True,
+                        }],
+                    }]
+                },
+            )
+
+    with describe('Students can only see own edits'):
+        with logged_in(teacher):
+            other_reply = add_reply('A reply jooo')
+            other_reply_url = (
+                f'/api/v1/comments/{other_reply["comment_base_id"]}/'
+                f'replies/{other_reply["id"]}'
+            )
+
+        with logged_in(student):
+            edits = test_client.req(
+                'get',
+                reply_url + '/edits/',
+                200,
+                result=[
+                    {
+                        'id': int,
+                        'old_text': 'updated1',
+                        'created_at': str,
+                        'new_text': 'updated2',
+                        'editor': teacher,
+                    },
+                    {
+                        'id': int,
+                        'old_text': 'a reply',
+                        'created_at': str,
+                        'new_text': 'updated1',
+                        'editor': student,
+                    },
+                ]
+            )
+
+            test_client.req('get', other_reply_url + '/edits/', 403)
+
+    with describe('teachers can see others edits'), logged_in(teacher):
+        test_client.req('get', reply_url + '/edits/', 200, result=edits)
+        test_client.req('get', other_reply_url + '/edits/', 200, result=[])
+
+    with describe('last_edit should really be the last edit'
+                  ), logged_in(student):
+        last_edit = test_client.req('get', feedback_url,
+                                    200)['user'][0]['replies'][0]['last_edit']
+
+        now = cg_dt_utils.DatetimeWithTimezone.utcnow()
+        with freeze_time(now):
+            test_client.req(
+                'patch', reply_url, 200, data={'comment': 'updated4'}
+            )
+
+        new_last_edit = test_client.req('get', feedback_url, 200
+                                        )['user'][0]['replies'][0]['last_edit']
+        assert new_last_edit > last_edit
+        assert new_last_edit == now.isoformat()
+
+
+def test_reply_to_a_comment(
+    logged_in, test_client, session, admin_user, mail_functions, describe,
+    tomorrow, make_add_reply
+):
+    with describe('setup'), logged_in(admin_user):
+        assignment = helpers.create_assignment(
+            test_client, state='open', deadline=tomorrow
+        )
+        course = assignment['course']
+        teacher = admin_user
+        student = helpers.create_user_with_role(session, 'Student', course)
+        ta = helpers.create_user_with_role(session, 'TA', course)
+
+        work_id = helpers.get_id(
+            helpers.create_submission(
+                test_client, assignment, for_user=student
+            )
+        )
+
+        add_reply = make_add_reply(work_id)
+        feedback_url = f'/api/v1/submissions/{work_id}/feedbacks/?with_replies'
+        with logged_in(student):
+            reply = add_reply('a reply')
+
+    with describe('You set the in_reply_to of a comment'), logged_in(teacher):
+        add_reply('a reply to', in_reply_to=reply)
+
+    with describe('You cannot reply on a comment from a different line'
+                  ), logged_in(teacher):
+        add_reply('a reply to', line=10, in_reply_to=reply, expect_error=404)

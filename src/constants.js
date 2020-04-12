@@ -53,7 +53,12 @@ export const NO_LOGIN_REQUIRED_ROUTES = new Set([
     'register',
     'lti-launch',
     'login_and_redirect',
+    'unsubscribe',
 ]);
+
+export const NO_SIDEBAR_ROUTES = new Set(['lti-launch', 'unsubscribe']);
+
+export const NO_FOOTER_ROUTES = new Set(['submission', 'submission_file', 'plagiarism_detail']);
 
 // Indicates an object in the store that has been requested but not returned by
 // the server, e.g. if it does not exist or the user has no permission to see
