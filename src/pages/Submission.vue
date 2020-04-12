@@ -73,8 +73,11 @@
                      title="Email authors"
                      body-class="p-0"
                      dialog-class="auto-test-result-modal">
-                <student-contact :submission="submission"
+                <student-contact :submit="sendEmail"
+                                 :course="assignment.course"
+                                 :default-subject="defaultEmailSubject"
                                  @hide="() => $refs.contactStudentModal.hide()"
+                                 @emailed="() => $refs.contactStudentModal.hide()"
                                  :can-use-snippets="canUseSnippets"
                                  class="p-3"/>
             </b-modal>
@@ -214,6 +217,8 @@ import { nameOfUser } from '@/utils';
 
 import * as assignmentState from '@/store/assignment-states';
 
+import { TaskResult } from '@/models';
+
 import { setPageTitle } from '@/pages/title';
 
 import {
@@ -297,8 +302,8 @@ export default {
         editable() {
             return !!(
                 this.canGrade &&
-                this.currentSubmissionIsLatest &&
-                this.groupOfCurrentUser == null
+                    this.currentSubmissionIsLatest &&
+                    this.groupOfCurrentUser == null
             );
         },
 
@@ -348,16 +353,16 @@ export default {
 
         prefFileId() {
             switch (this.selectedCat) {
-                case 'code':
-                    return this.fileId;
-                case 'feedback-overview':
-                    return `${this.submissionId}-feedback-overview`;
-                case 'auto-test':
-                    return `${this.submissionId}-auto-test`;
-                case 'teacher-diff':
-                    return `${this.submissionId}-teacher-diff`;
-                default:
-                    return '';
+            case 'code':
+                return this.fileId;
+            case 'feedback-overview':
+                return `${this.submissionId}-feedback-overview`;
+            case 'auto-test':
+                return `${this.submissionId}-auto-test`;
+            case 'teacher-diff':
+                return `${this.submissionId}-teacher-diff`;
+            default:
+                return '';
             }
         },
 
@@ -427,9 +432,9 @@ export default {
 
             return (
                 ((canSeeUserFeedback || canSeeLinterFeedback) && !feedback) ||
-                !fileTree ||
-                !currentFile ||
-                (canViewAutoTest && !autoTest)
+                    !fileTree ||
+                    !currentFile ||
+                    (canViewAutoTest && !autoTest)
             );
         },
 
@@ -492,8 +497,8 @@ export default {
                         // which would cause the CF badge to flicker on page load.
                         if (
                             test &&
-                            test.results_always_visible &&
-                            ((result && result.isFinal === false) || !this.canSeeGrade)
+                                test.results_always_visible &&
+                                ((result && result.isFinal === false) || !this.canSeeGrade)
                         ) {
                             title +=
                                 ' <div class="ml-1 badge badge-warning" title="Continuous Feedback">CF</div>';
@@ -591,6 +596,10 @@ export default {
             }
 
             return title;
+        },
+
+        defaultEmailSubject() {
+            return `A comment about your submission for the assignment "${this.assignment.name}`;
         },
     },
 
@@ -828,6 +837,18 @@ export default {
 
         inlineFeedbackChanged(val) {
             this.showInlineFeedback = val;
+        },
+
+        sendEmail(subject, body) {
+            return this.$http.post(`/api/v1/submissions/${this.submission.id}/email`, {
+                subject,
+                body,
+            }).then(response => (
+                {
+                    ...response,
+                    cgResult: new TaskResult(response.data.id),
+                }
+            ));
         },
     },
 

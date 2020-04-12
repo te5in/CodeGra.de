@@ -1150,7 +1150,8 @@ def create_proxy(submission_id: int) -> JSONResponse[models.Proxy]:
 
 
 @api.route('/submissions/<int:submission_id>/email', methods=['POST'])
-# @limiter.limit('1 per minute', key_func=lambda: current_user.id)
+@limiter.limit('1 per minute', key_func=lambda: current_user.id)
+@features.feature_required(features.Feature.EMAIL_STUDENTS)
 def send_author_email(submission_id: int) -> JSONResponse[models.TaskResult]:
     """Sent the author(s) of a submission an email.
 
@@ -1180,6 +1181,7 @@ def send_author_email(submission_id: int) -> JSONResponse[models.TaskResult]:
     task_result = models.TaskResult(psef.current_user)
     db.session.add(task_result)
     db.session.commit()
+
     psef.tasks.send_email_as_user(
         receiver_ids=[u.id for u in work.user.get_contained_users()],
         subject=subject,
@@ -1187,4 +1189,5 @@ def send_author_email(submission_id: int) -> JSONResponse[models.TaskResult]:
         task_result_hex_id=task_result.id.hex,
         sender_id=current_user.id,
     )
+
     return JSONResponse.make(task_result)

@@ -8,7 +8,7 @@
             <b-tab title="Edit" active>
                 <div>
                     <snippetable-input
-                        :assignment="assignment"
+                        :course="assignment.course"
                         :value="internalReply.message"
                         @input="onInput"
                         :min-initial-height="100"
@@ -174,6 +174,7 @@
                     <icon name="history" />
                 </b-btn>
                 <b-popover :target="`${componentId}-history-btn`"
+                           v-if="canSeeEdits && reply.lastEdit"
                            triggers="click blur"
                            title="Edit history"
                            custom-class="feedback-reply-edit-history-popover p-0"

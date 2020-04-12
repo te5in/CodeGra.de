@@ -46,8 +46,6 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/user-circle-o';
 import 'vue-awesome/icons/book';
 
-import { Assignment } from '@/models';
-
 import { mapActions, mapGetters } from 'vuex';
 
 function lastWhiteSpace(str, start) {
@@ -65,8 +63,8 @@ export default {
     name: 'snippetable-input',
 
     props: {
-        assignment: {
-            type: Assignment,
+        course: {
+            type: Object,
             required: true,
         },
 
@@ -351,7 +349,7 @@ export default {
 
         findSnippetsByPrefix(word) {
             return [
-                ...(this.assignment ? this.assignment.course.snippets : [])
+                ...this.$utils.getProps(this.course, [], 'snippets')
                     .filter(snip => snip.key.startsWith(word))
                     .sort((a, b) => a.key.localeCompare(b.key))
                     .map(snip => Object.assign({}, snip, { course: true })),

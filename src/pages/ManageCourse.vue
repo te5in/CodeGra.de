@@ -44,12 +44,34 @@
                 :course="course"
                 :editable="course.permissions.can_manage_course_snippets"/>
         </span>
+
+        <div :class="{ hidden: selectedCat !== 'contact' }"
+              class="cat-wrapper">
+            <b-form-group>
+                <label>Recipients</label>
+                <user-selector placeholder="Students to email"
+                           v-model="usersToEmail"
+                           :use-selector="canListUsers"
+                           :base-url="`/api/v1/courses/${course.id}/users/`"
+                           multiple />
+            </b-form-group>
+
+            <student-contact
+                :submit="sendEmail"
+                :course="course"
+                :default-subject="defaultEmailSubject"
+                no-cancel
+                @emailed="usersToEmail = []"
+                :can-use-snippets="canUseSnippets"/>
+        </div>
     </div>
 </div>
 </template>
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
+
+import { TaskResult } from '@/models';
 
 import UsersManager from '@/components/UsersManager';
 import PermissionsManager from '@/components/PermissionsManager';
@@ -58,6 +80,8 @@ import Loader from '@/components/Loader';
 import CategorySelector from '@/components/CategorySelector';
 import GroupSetManager from '@/components/GroupSetManager';
 import SnippetManager from '@/components/SnippetManager';
+import UserSelector from '@/components/UserSelector';
+import StudentContact from '@/components/StudentContact';
 
 import { setPageTitle } from './title';
 
@@ -68,11 +92,15 @@ export default {
         return {
             selectedCat: '',
             filter: '',
+            usersToEmail: [],
         };
     },
 
     computed: {
         ...mapGetters('courses', ['courses']),
+        ...mapGetters('user', {
+            userPerms: 'permissions',
+        }),
 
         course() {
             return this.courses[this.$route.params.courseId];
@@ -106,6 +134,13 @@ export default {
             );
         },
 
+        contactEnabled() {
+            return (
+                UserConfig.features.email_students &&
+                    this.$utils.getProps(this.course, false, 'permissions', 'can_email_students')
+            );
+        },
+
         categories() {
             return [
                 {
@@ -128,7 +163,25 @@ export default {
                     name: 'Snippets',
                     enabled: this.snippetsEnabled,
                 },
+                {
+                    id: 'contact',
+                    name: 'Contact students',
+                    enabled: this.contactEnabled,
+                },
             ];
+        },
+
+        canListUsers() {
+            const perms = this.$utils.getProps(this.course, {}, 'permissions');
+            return !!(perms.can_list_course_users);
+        },
+
+        defaultEmailSubject() {
+            return `An email about the "${this.course.name}" course on CodeGrade`;
+        },
+
+        canUseSnippets() {
+            return !!this.userPerms.can_use_snippets;
         },
     },
 
@@ -144,16 +197,36 @@ export default {
 
     methods: {
         ...mapActions('courses', ['loadCourses']),
+
+        sendEmail(subject, body) {
+            const usernames = this.usersToEmail.map(u => u.username).filter(u => u !== '' && u != null);
+            if (usernames.length === 0) {
+                throw new Error('You have to select at least one recipient.');
+            }
+
+            return this.$http.post(`/api/v1/courses/${this.course.id}/email`, {
+                subject,
+                body,
+                usernames,
+            }).then(response => (
+                {
+                    ...response,
+                    cgResult: new TaskResult(response.data.id),
+                }
+            ));
+        },
     },
 
     components: {
         UsersManager,
+        UserSelector,
         PermissionsManager,
         LocalHeader,
         Loader,
         CategorySelector,
         GroupSetManager,
         SnippetManager,
+        StudentContact,
     },
 };
 </script>

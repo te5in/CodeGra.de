@@ -876,11 +876,11 @@ def _send_email_as_user_1(
                     every='every'
                     if len(receivers) != len(failed_receivers) else 'any'
                 ),
-                'Failed to mail some authors of the submission',
+                'Failed to mail some users',
                 p.exceptions.APICodes.MAILING_FAILED,
                 400,
-                all_authors=receivers,
-                failed_authors=failed_receivers,
+                all_users=receivers,
+                failed_users=failed_receivers,
             )
 
     task_result.as_task(__task)

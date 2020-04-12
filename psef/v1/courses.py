@@ -1085,8 +1085,9 @@ def register_user_in_course(course_id: int, link_id: uuid.UUID
     return jsonify({'access_token': token})
 
 
-@api.route('/submissions/<int:submission_id>/email', methods=['POST'])
+@api.route('/courses/<int:course_id>/email', methods=['POST'])
 @limiter.limit('1 per minute', key_func=lambda: current_user.id)
+@features.feature_required(features.Feature.EMAIL_STUDENTS)
 def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
     """Sent the authors in this course an email.
 
@@ -1108,11 +1109,11 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
     with helpers.get_from_request_transaction() as [get, _]:
         subject = get('subject', str)
         body = get('body', str)
-        user_ids = get('user_ids', list)
+        usernames: t.List[str] = get('usernames', list)
 
     receivers = helpers.flatten(
         u.get_contained_users() for u in
-        helpers.get_in_or_error(models.User, models.User.id, user_ids)
+        helpers.get_in_or_error(models.User, models.User.username, usernames)
     )
 
     if any(course_id not in u.courses for u in receivers):
@@ -1133,6 +1134,7 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
     task_result = models.TaskResult(current_user)
     db.session.add(task_result)
     db.session.commit()
+
     psef.tasks.send_email_as_user(
         receiver_ids=[u.id for u in receivers],
         subject=subject,
@@ -1140,4 +1142,5 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
         task_result_hex_id=task_result.id.hex,
         sender_id=current_user.id,
     )
+
     return JSONResponse.make(task_result)
