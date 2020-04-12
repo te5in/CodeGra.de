@@ -550,35 +550,3 @@ code {
     top: 1px;
 }
 </style>
-
-<style lang="less">
-@import '~mixins.less';
-
-ol.lines .btn:not(.btn-success):not(.btn-danger):not(.btn-warning) {
-    @{dark-mode} {
-        background: @color-secondary;
-
-        &:hover {
-            background: darken(@color-secondary, 10%);
-        }
-
-        &.btn-outline-primary {
-            background-color: unset;
-            border: 1px solid @color-secondary;
-
-            &:hover {
-                background: @color-secondary-darker;
-                border-color: @color-secondary-darker;
-            }
-        }
-
-        &.btn-secondary {
-            background-color: @color-primary-darker;
-
-            &:hover {
-                background: @color-primary-darker;
-            }
-        }
-    }
-}
-</style>
