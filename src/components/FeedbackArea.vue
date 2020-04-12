@@ -10,11 +10,12 @@
                  v-if="shouldShowReply(idx, reply)"
                  :class="{ editing: isEditing(reply) }"
                  v-for="reply, idx in nonDeletedReplies">
-                <b-btn v-if="hiddenReplies.has(reply.trackingId) && idx === 1"
-                       @click="showAllReplies"
-                       class="mx-auto mt-n1 mb-n2">
+                <a v-if="hiddenReplies.has(reply.trackingId) && idx === 1"
+                   href="#"
+                   @click.prevent="showAllReplies"
+                   class="inline-link mx-auto mt-n1 mb-n3">
                     Show {{ amountHiddenReplies }} more repl{{ amountHiddenReplies > 1 ? 'ies' : 'y' }}
-                </b-btn>
+                </a>
                 <template v-else>
                     <div v-if="idx !== 0"
                         class="pr-1 reply-gutter">

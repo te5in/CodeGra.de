@@ -920,7 +920,7 @@ export default {
         position: relative;
     }
 
-    .code-wrapper.Resizer {
+    .code-wrapper .Resizer {
         z-index: 0;
     }
 

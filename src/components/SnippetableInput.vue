@@ -90,11 +90,6 @@ export default {
             required: true,
         },
 
-        bounceTime: {
-            type: Number,
-            required: true,
-        },
-
         feedbackDisabled: {
             type: Boolean,
             required: true,

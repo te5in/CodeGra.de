@@ -6,7 +6,7 @@
     </b-alert>
     <cg-loader :scale="2" v-else-if="loading" class="p-3"/>
     <template v-else>
-        <table class="table table-striped">
+        <table class="table">
             <thead>
                 <tr>
                     <th class="shrink">When</th>

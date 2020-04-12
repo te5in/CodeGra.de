@@ -51,7 +51,7 @@
                               ref="submitButton"
                               v-b-popover.top.hover="'Mark as read'"
                               @after-success="afterDismmissNotification">
-                <icon name="check" />
+                <icon name="eye" />
             </cg-submit-button>
         </td>
     </template>
@@ -61,7 +61,7 @@
 <script lang="ts">
     // @ts-ignore
     import Icon from 'vue-awesome/components/Icon';
-import 'vue-awesome/icons/check';
+import 'vue-awesome/icons/eye';
 import 'vue-awesome/icons/commenting';
 
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator';

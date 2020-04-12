@@ -128,6 +128,7 @@
         </b-modal>
 
         <b-popover v-else-if="confirm && confirm.length > 0"
+                   :no-fade="duration < 100"
                    :id="`${btnId}-confirm-popover`"
                    :placement="popoverPlacement"
                    :container="innerContainer"
@@ -366,6 +367,9 @@ export default {
             if (this.duration) {
                 this.state = 'success';
                 setTimeout(done, this.duration);
+            } else if (this.confirm) {
+                this.state = 'success';
+                this.$afterRerender().then(done);
             } else {
                 done();
             }

@@ -3,7 +3,8 @@
 <div class="feedback-reply" :id="componentId" v-b-visible="onVisible"
      :class="{ 'focus': showFocus && replyIdToFocus === reply.id, editing, }">
     <b-card no-body v-if="editing" class="mt-0">
-        <b-tabs card>
+        <b-tabs card
+                class="border-bottom">
             <b-tab title="Edit" active>
                 <div>
                     <snippetable-input
@@ -18,32 +19,7 @@
                         :max-initial-height="300"
                         :line="feedbackLine.line"
                         ref="inputField"
-                        @ctrlEnter="doSubmit"
-                        :bounce-time="300" />
-
-                    <div class="save-button-wrapper mt-2">
-                        <submit-button
-                            ref="deleteButton"
-                            variant="danger"
-                            name="delete-feedback"
-                            :submit="deleteFeedback"
-                            @error="inputDisabled = false"
-                            :confirm="(reply.isEmpty && internalReply.isEmpty) ?  '' : 'Are you sure you want to delete this comment?'"
-                            @after-success="afterDeleteFeedback"
-                            label="Delete" />
-
-                        <b-btn @click="cancelEditing"
-                               variant="outline-primary">
-                            Cancel
-                        </b-btn>
-
-                        <submit-button :submit="submitFeedback"
-                                       @after-success="afterSubmitFeedback"
-                                       @error="inputDisabled = false"
-                                       ref="submitButton"
-                                       name="submit-feedback"
-                                       label="Save"  />
-                    </div>
+                        @ctrlEnter="doSubmit"/>
                 </div>
             </b-tab>
             <b-tab title="Preview"
@@ -84,8 +60,17 @@
                             <template v-if="sortedSnippets.length === 0">
                                 <b-dropdown-item
                                     href="#"
+                                    class="py-2"
                                     disabled>
-                                    You have no snippets yet
+                                    <span class="text-muted font-italic">You have no snippets yet</span>
+                                </b-dropdown-item>
+                            </template>
+                            <template v-else-if="filteredSnippets.length === 0">
+                                <b-dropdown-item
+                                    class="py-2"
+                                    href="#"
+                                    disabled>
+                                    <span class="text-muted font-italic">No snippets found</span>
                                 </b-dropdown-item>
                             </template>
                             <template v-else>
@@ -131,6 +116,34 @@
                 </div>
             </template>
         </b-tabs>
+
+                    <div class="save-button-wrapper">
+                        <submit-button
+                            ref="deleteButton"
+                            variant="danger"
+                            name="delete-feedback"
+                            :submit="deleteFeedback"
+                            @error="inputDisabled = false"
+                            :confirm="(reply.isEmpty && internalReply.isEmpty) ?  '' : 'Are you sure you want to delete this comment?'"
+                            @after-success="afterDeleteFeedback"
+                            label="Delete" />
+
+                        <cg-submit-button :submit="cancelEditing"
+                                          :wait-at-least="0"
+                                          @after-success="afterCancel"
+                                          @after-error="afterCancel"
+                                          :duration="0"
+                                          :confirm="cancelEditingConfirmMessage"
+                                          variant="outline-primary"
+                                          label="Cancel"/>
+
+                        <submit-button :submit="submitFeedback"
+                                       @after-success="afterSubmitFeedback"
+                                       @error="inputDisabled = false"
+                                       ref="submitButton"
+                                       name="submit-feedback"
+                                       label="Save"  />
+                    </div>
     </b-card>
 
     <div v-else>
@@ -156,11 +169,12 @@
             </div>
             <div v-if="editable || canSeeEdits" class="d-flex mb-1 edit-buttons-wrapper">
                 <b-btn v-if="canSeeEdits && reply.lastEdit"
+                       class="state-default"
                        :id="`${componentId}-history-btn`">
                     <icon name="history" />
                 </b-btn>
                 <b-popover :target="`${componentId}-history-btn`"
-                           triggers="click"
+                           triggers="click blur"
                            title="Edit history"
                            custom-class="feedback-reply-edit-history-popover p-0"
                            :container="componentId"
@@ -183,6 +197,7 @@
 
                 <b-btn @click="startEdit"
                        v-if="editable"
+                       class="state-default"
                        name="edit-feedback">
                     <icon name="pencil"/>
                 </b-btn>
@@ -394,6 +409,13 @@ Do you want to overwrite it?`;
         });
     }
 
+    get cancelEditingConfirmMessage(): string {
+        if (this.internalReply.message !== this.reply.message || this.internalReply.id == null) {
+            return 'Are you sure you want to discard your changes?';
+        }
+        return '';
+    }
+
     @Ref() readonly inputField: SnippetableInput | null;
 
     @Ref() readonly submitButton: SubmitButton | null;
@@ -424,7 +446,12 @@ Do you want to overwrite it?`;
         }
     }
 
-    cancelEditing(): void {
+    // eslint-disable-next-line class-methods-use-this
+    cancelEditing(): Promise<{}> {
+        return this.$nextTick().then(() => ({}));
+    }
+
+    afterCancel(): void {
         this.internalReply = this.reply;
         if (this.reply.isEmpty) {
             this.afterDeleteFeedback();
@@ -568,7 +595,7 @@ Do you want to overwrite it?`;
     async selectSnippet(snippet: Snippet) {
         let base = this.internalReply.message;
         if (/[^\s]$/.test(base)) {
-            base += ' ';
+            base += '\n';
         }
         this.internalReply = this.internalReply.update(base + snippet.value);
         this.focusInput();
@@ -589,11 +616,7 @@ Do you want to overwrite it?`;
 
 .feedback-reply {
     .default-text-colors;
-    background-color: white;
-
-    @{dark-mode} {
-        background-color: @color-primary-darker;
-    }
+    .default-background;
 
     display: flex;
     align-items: top;
@@ -642,6 +665,8 @@ Do you want to overwrite it?`;
 
 .save-button-wrapper {
     text-align: right;
+    padding: 0.5rem 1.25rem;
+    background-color: rgba(0, 0, 0, 0.03);
 }
 
 .snippetable-input {
@@ -668,20 +693,23 @@ Do you want to overwrite it?`;
 
 .edit-buttons-wrapper .btn {
     display: inline-block;
-    padding: 0.25rem;
+    padding: 0 0.75rem;
+    margin: -0.25rem;
     margin-top: -0.5rem;
-    margin-bottom: -0.25rem;
     border: none;
-    margin-left: 0.5rem;
+    margin-left: 0;
     box-shadow: none !important;
+    &.state-pending,
+    &.state-default {
+        background-color: transparent !important;
+    }
 
     .fa-icon {
         color: @color-secondary-text-lighter;
     }
 
     &:hover {
-        background-color: initial !important;
-
+        background-color: transparent !important;
         .fa-icon {
             color: @color-primary;
             @{dark-mode} {
@@ -785,6 +813,11 @@ Do you want to overwrite it?`;
     .dropdown-header {
         background: @footer-color;
         border-bottom: 1px solid @border-color;
+
+        @{dark-mode} {
+            background-color: @color-primary-darker;
+            border-color: @color-primary-darkest;
+        }
     }
 
     & > .dropdown-menu {
