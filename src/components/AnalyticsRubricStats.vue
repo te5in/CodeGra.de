@@ -10,13 +10,14 @@
 
         <div class="d-flex flex-grow-0">
             <b-button v-if="selectedStatistic.hasRelative"
-                      :variant="relative ? 'primary' : 'outline-primary'"
-                      @click="relative = !relative"
+                      :variant="settings.relative ? 'primary' : 'outline-primary'"
+                      @click="toggleRelative"
                       v-b-popover.top.hover="relativePopoverText">
                 <icon name="percent" />
             </b-button>
 
-            <b-form-select v-model="metric"
+            <b-form-select :value="settings.metric"
+                           @input="updateMetric"
                            :options="metricOptions"
                            class="ml-2"
                            style="max-width: 7.5rem"/>
@@ -68,6 +69,16 @@ import { BarChart, ScatterPlot } from '@/components/Charts';
 import DatetimePicker from '@/components/DatetimePicker';
 import DescriptionPopover from '@/components/DescriptionPopover';
 
+function fillSettings(settings) {
+    return Object.assign(
+        {
+            relative: true,
+            metric: 'mean',
+        },
+        settings,
+    );
+}
+
 export default {
     name: 'analytics-rubric-stats',
 
@@ -84,7 +95,7 @@ export default {
 
     data() {
         return {
-            ...this.fillSettings(this.value),
+            settings: fillSettings(this.value),
         };
     },
 
@@ -105,7 +116,7 @@ export default {
         },
 
         relativePopoverText() {
-            if (this.relative) {
+            if (this.settings.relative) {
                 return 'Show amount of points';
             } else {
                 return 'Show percentage of points relative to the maximum score in the category';
@@ -139,19 +150,19 @@ export default {
             const baseStats = {
                 mean: {
                     chartComponent: 'bar-chart',
-                    data: this.getHistogramData('mean', this.relative),
+                    data: this.getHistogramData('mean', this.settings.relative),
                     options: this.histogramOptions,
                     hasRelative: true,
                 },
                 median: {
                     chartComponent: 'bar-chart',
-                    data: this.getHistogramData('median', this.relative),
+                    data: this.getHistogramData('median', this.settings.relative),
                     options: this.histogramOptions,
                     hasRelative: true,
                 },
                 mode: {
                     chartComponent: 'bar-chart',
-                    data: this.getHistogramData('mode', this.relative),
+                    data: this.getHistogramData('mode', this.settings.relative),
                     options: this.histogramOptions,
                     hasRelative: true,
                 },
@@ -179,10 +190,10 @@ export default {
         },
 
         selectedStatistic() {
-            if (this.metric == null) {
+            if (this.settings.metric == null) {
                 return null;
             }
-            return this.rubricStatistics[this.metric];
+            return this.rubricStatistics[this.settings.metric];
         },
 
         chartEmpty() {
@@ -194,7 +205,7 @@ export default {
         },
 
         normalizeFactors() {
-            if (!this.relative) {
+            if (!this.settings.relative) {
                 return null;
             }
             return this.rubric.rows.map(row => [row.minPoints, row.maxPoints]);
@@ -224,7 +235,9 @@ export default {
                 ];
             };
 
-            const labelString = this.metricOptions.find(so => so.value === this.metric).text;
+            const labelString = this.metricOptions.find(so =>
+                so.value === this.settings.metric,
+            ).text;
 
             return {
                 scales: {
@@ -269,30 +282,26 @@ export default {
                 },
             };
         },
-
-        settings() {
-            const defaults = this.fillSettings({});
-            const settings = {
-                relative: this.relative,
-                metric: this.metric,
-            };
-            return filterObject(settings, (val, key) => !deepEquals(val, defaults[key]));
-        },
     },
 
     methods: {
-        fillSettings(settings) {
-            return Object.assign(
-                {
-                    relative: true,
-                    metric: 'mean',
-                },
-                settings,
-            );
+        resetParams() {
+            this.settings = fillSettings({});
         },
 
-        resetParams() {
-            Object.assign(this, this.fillSettings({}));
+        toggleRelative() {
+            this.updateSetting('relative', !this.settings.relative);
+        },
+
+        updateMetric(metric) {
+            this.updateSetting('metric', metric);
+        },
+
+        updateSetting(name, value) {
+            if (!this.$utils.hasAttr(this.settings, name)) {
+                throw new Error(`Invalid setting: ${name}`);
+            }
+            this.settings = Object.assign({}, this.settings, { [name]: value });
         },
 
         getHistogramData(key, normalize) {
@@ -391,7 +400,12 @@ export default {
         settings: {
             immediate: true,
             handler() {
-                this.$emit('input', this.settings);
+                const defaults = fillSettings({});
+                const settings = filterObject(
+                    this.settings,
+                    (val, key) => !deepEquals(val, defaults[key]),
+                );
+                this.$emit('input', settings);
             },
         },
     },

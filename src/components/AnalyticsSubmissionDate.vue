@@ -9,14 +9,14 @@
         </div>
 
         <div class="d-flex flex-grow-0">
-            <b-button :variant="relative ? 'primary' : 'outline-primary'"
-                      @click="relative = !relative"
+            <b-button :variant="settings.relative ? 'primary' : 'outline-primary'"
+                      @click="toggleRelative()"
                       v-b-popover.top.hover="relativePopoverText"
                       class="ml-3">
                 <icon name="percent" />
             </b-button>
 
-            <datetime-picker :value="range"
+            <datetime-picker :value="settings.range"
                              @on-close="updateRange"
                              placeholder="Select dates"
                              :config="{
@@ -28,7 +28,7 @@
                              class="ml-2 text-center"/>
 
             <b-input-group class="mb-0">
-                <input :value="binSize"
+                <input :value="settings.binSize"
                         @input="updateBinSize"
                         type="number"
                         min="1"
@@ -36,7 +36,7 @@
                         class="form-control ml-2 pt-1"
                         style="max-width: 4rem;"/>
 
-                <b-form-select :value="binUnit"
+                <b-form-select :value="settings.binUnit"
                                 @input="updateBinUnit"
                                 :options="binUnits"
                                 class="pt-1"
@@ -111,6 +111,18 @@ import { BarChart } from '@/components/Charts';
 import DatetimePicker from '@/components/DatetimePicker';
 import DescriptionPopover from '@/components/DescriptionPopover';
 
+function fillSettings(settings) {
+    return Object.assign(
+        {
+            relative: true,
+            range: [],
+            binSize: 1,
+            binUnit: 'days',
+        },
+        settings,
+    );
+}
+
 export default {
     name: 'analytics-submission-date',
 
@@ -127,7 +139,7 @@ export default {
 
     data() {
         return {
-            ...this.fillSettings(this.value),
+            settings: fillSettings(this.value),
 
             // Changing the submission date bin size can cause a lot of
             // bins to be drawn, especially when typing something like
@@ -155,7 +167,7 @@ export default {
         },
 
         relativePopoverText() {
-            if (this.relative) {
+            if (this.settings.relative) {
                 return 'Show amount of students';
             } else {
                 return 'Show percentage of students';
@@ -193,7 +205,11 @@ export default {
 
         histogramData() {
             const subs = this.submissionSources.map(source =>
-                source.binSubmissionsByDate(this.range, this.binSize, this.binUnit),
+                source.binSubmissionsByDate(
+                    this.settings.range,
+                    this.settings.binSize,
+                    this.settings.binUnit,
+                ),
             );
 
             const format = this.dateFormatter;
@@ -216,7 +232,7 @@ export default {
                     label: this.filterLabels[i],
                     absData,
                     relData,
-                    data: this.relative ? relData : absData,
+                    data: this.settings.relative ? relData : absData,
                 };
             });
 
@@ -227,7 +243,7 @@ export default {
         },
 
         dateFormatter() {
-            const unit = this.binUnit;
+            const unit = this.settings.binUnit;
 
             const format = (d, fmt) =>
                 moment(d)
@@ -270,7 +286,9 @@ export default {
                 ];
             };
 
-            const labelString = this.relative ? 'Percentage of students' : 'Number of students';
+            const labelString = this.settings.relative ?
+                'Percentage of students' :
+                'Number of students';
 
             return {
                 scales: {
@@ -291,42 +309,21 @@ export default {
                 },
             };
         },
-
-        settings() {
-            const defaults = this.fillSettings({});
-            const settings = {
-                relative: this.relative,
-                range: this.range,
-                binSize: this.binSize,
-                binUnit: this.binUnit,
-            };
-
-            return filterObject(settings, (val, key) => !deepEquals(val, defaults[key]));
-        },
     },
 
     methods: {
-        fillSettings(settings) {
-            return Object.assign(
-                {
-                    relative: true,
-                    range: [],
-                    binSize: 1,
-                    binUnit: 'days',
-                },
-                settings,
-            );
-        },
-
         resetParams() {
-            Object.assign(this, this.fillSettings({}));
-
+            this.settings = fillSettings({});
             this.forceRender = false;
             clearTimeout(this.binSizeTimer);
         },
 
+        toggleRelative() {
+            this.updateSetting('relative', !this.settings.relative);
+        },
+
         updateRange(event) {
-            const curRange = this.range;
+            const curRange = this.settings.range;
             const newRange = event.map(d => moment(d));
 
             if (
@@ -338,7 +335,7 @@ export default {
                 !newRange.every((d, i) => d.isSame(curRange[i]))
             ) {
                 this.forceRender = false;
-                this.range = event;
+                this.updateSetting('range', event);
             }
         },
 
@@ -346,8 +343,8 @@ export default {
             clearTimeout(this.binSizeTimer);
             this.binSizeTimer = setTimeout(() => {
                 const newSize = parseFloat(event.target.value);
-                if (!Number.isNaN(newSize) && newSize !== this.binSize && newSize > 0) {
-                    this.binSize = Number(newSize);
+                if (!Number.isNaN(newSize) && newSize !== this.settings.binSize && newSize > 0) {
+                    this.updateSetting('binSize', Number(newSize));
                     this.forceRender = false;
                 }
             }, 500);
@@ -355,7 +352,14 @@ export default {
 
         updateBinUnit(unit) {
             this.forceRender = false;
-            this.binUnit = unit;
+            this.updateSetting('binUnit', unit);
+        },
+
+        updateSetting(name, value) {
+            if (!this.$utils.hasAttr(this.settings, name)) {
+                throw new Error(`Invalid setting: ${name}`);
+            }
+            this.settings = Object.assign({}, this.settings, { [name]: value });
         },
 
         to2Dec(x) {
@@ -367,7 +371,12 @@ export default {
         settings: {
             immediate: true,
             handler() {
-                this.$emit('input', this.settings);
+                const defaults = fillSettings({});
+                const settings = filterObject(
+                    this.settings,
+                    (val, key) => !deepEquals(val, defaults[key]),
+                );
+                this.$emit('input', settings);
             },
         },
     },

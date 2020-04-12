@@ -8,8 +8,8 @@
         </div>
 
         <div class="d-flex flex-grow-0">
-            <b-button :variant="relative ? 'primary' : 'outline-primary'"
-                      @click="relative = !relative"
+            <b-button :variant="settings.relative ? 'primary' : 'outline-primary'"
+                      @click="toggleRelative()"
                       v-b-popover.top.hover="relativePopoverText"
                       class="ml-3">
                 <icon name="percent" />
@@ -56,6 +56,15 @@ import { deepEquals, filterObject } from '@/utils';
 import { BarChart } from '@/components/Charts';
 import DescriptionPopover from '@/components/DescriptionPopover';
 
+function fillSettings(settings) {
+    return Object.assign(
+        {
+            relative: true,
+        },
+        settings,
+    );
+}
+
 export default {
     name: 'analytics-submission-count',
 
@@ -72,7 +81,7 @@ export default {
 
     data() {
         return {
-            ...this.fillSettings(this.value),
+            settings: fillSettings(this.value),
         };
     },
 
@@ -86,7 +95,7 @@ export default {
         },
 
         relativePopoverText() {
-            if (this.relative) {
+            if (this.settings.relative) {
                 return 'Show amount of students';
             } else {
                 return 'Show percentage of students';
@@ -113,7 +122,7 @@ export default {
 
                 return {
                     label: this.filterLabels[i],
-                    data: this.relative ? relData : absData,
+                    data: this.settings.relative ? relData : absData,
                     absData,
                     relData,
                 };
@@ -142,7 +151,9 @@ export default {
                 ];
             };
 
-            const labelString = this.relative ? 'Percentage of students' : 'Number of students';
+            const labelString = this.settings.relative ?
+                'Percentage of students' :
+                'Number of students';
 
             return {
                 scales: {
@@ -163,29 +174,22 @@ export default {
                 },
             };
         },
-
-        settings() {
-            const defaults = this.fillSettings({});
-            const settings = {
-                relative: this.relative,
-            };
-
-            return filterObject(settings, (val, key) => !deepEquals(val, defaults[key]));
-        },
     },
 
     methods: {
-        fillSettings(settings) {
-            return Object.assign(
-                {
-                    relative: true,
-                },
-                settings,
-            );
+        resetParams() {
+            this.settings = fillSettings({});
         },
 
-        resetParams() {
-            Object.assign(this, this.fillSettings({}));
+        toggleRelative() {
+            this.updateSetting('relative', !this.settings.relative);
+        },
+
+        updateSetting(name, value) {
+            if (!this.$utils.hasAttr(this.settings, name)) {
+                throw new Error(`Invalid setting: ${name}`);
+            }
+            this.settings = Object.assign({}, this.settings, { [name]: value });
         },
 
         to2Dec(x) {
@@ -197,7 +201,12 @@ export default {
         settings: {
             immediate: true,
             handler() {
-                this.$emit('input', this.settings);
+                const defaults = fillSettings({});
+                const settings = filterObject(
+                    this.settings,
+                    (val, key) => !deepEquals(val, defaults[key]),
+                );
+                this.$emit('input', settings);
             },
         },
     },
@@ -209,7 +218,3 @@ export default {
     },
 };
 </script>
-
-<style lang="less" scoped>
-
-</style>
