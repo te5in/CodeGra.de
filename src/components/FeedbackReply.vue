@@ -99,7 +99,7 @@
                                            :disabled="inputDisabled"
                                            @keydown.ctrl.enter="() => addSnippetButton.onClick()"/>
                                     <b-input-group-append>
-                                        <submit-button ref="addSnippetButton"
+                                        <cg-submit-button ref="addSnippetButton"
                                                        class="add-snippet-btn"
                                                        :submit="addSnippet"
                                                        :confirm="addSnippetConfirm"
@@ -107,7 +107,7 @@
                                                        @after-success="afterAddSnippet"
                                                        @error="inputDisabled = false">
                                             <icon :scale="1" name="check"/>
-                                        </submit-button>
+                                        </cg-submit-button>
                                     </b-input-group-append>
                                 </b-input-group>
                             </li>
@@ -118,7 +118,7 @@
         </b-tabs>
 
                     <div class="save-button-wrapper">
-                        <submit-button
+                        <cg-submit-button
                             ref="deleteButton"
                             variant="danger"
                             name="delete-feedback"
@@ -137,7 +137,7 @@
                                           variant="outline-primary"
                                           label="Cancel"/>
 
-                        <submit-button :submit="submitFeedback"
+                        <cg-submit-button :submit="submitFeedback"
                                        @after-success="afterSubmitFeedback"
                                        @error="inputDisabled = false"
                                        ref="submitButton"
@@ -182,7 +182,7 @@
                     <feedback-reply-history :reply="reply"/>
                 </b-popover>
 
-                <submit-button
+                <cg-submit-button
                     v-if="editable"
                     ref="deleteButton"
                     variant="secondary"
@@ -193,7 +193,7 @@
                     @success="onDeleteFeedback"
                     @after-success="afterDeleteFeedback">
                     <icon name="times" class="delete-icon"/>
-                </submit-button>
+                </cg-submit-button>
 
                 <b-btn @click="startEdit"
                        v-if="editable"
@@ -267,7 +267,6 @@ import FeedbackReplyHistory from './FeedbackReplyHistory';
     },
     components: {
         Icon,
-        SubmitButton,
         SnippetableInput,
         InnerMarkdownViewer,
         FeedbackReplyHistory,
