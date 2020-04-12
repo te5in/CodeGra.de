@@ -687,10 +687,9 @@ export class WorkspaceFilter {
             if (maxGrade != null && maxGrade <= grade) {
                 throw new Error('Selected grade is less than or equal to the old "Min grade".');
             }
-            result = [].concat(...result.map(f => [
-                f.update('maxGrade', grade),
-                f.update('minGrade', grade),
-            ]));
+            result = [].concat(
+                ...result.map(f => [f.update('maxGrade', grade), f.update('minGrade', grade)]),
+            );
         }
 
         if (date.isValid()) {
@@ -700,17 +699,21 @@ export class WorkspaceFilter {
             if (submittedBefore != null && !submittedBefore.isAfter(date)) {
                 throw new Error('Selected date is after the old "Submitted before".');
             }
-            result = [].concat(...result.map(f => [
-                f.update('submittedBefore', date),
-                f.update('submittedAfter', date),
-            ]));
+            result = [].concat(
+                ...result.map(f => [
+                    f.update('submittedBefore', date),
+                    f.update('submittedAfter', date),
+                ]),
+            );
         }
 
         if (latest) {
-            result = [].concat(...result.map(f => [
-                f.update('onlyLatestSubs', false),
-                f.update('onlyLatestSubs', true),
-            ]));
+            result = [].concat(
+                ...result.map(f => [
+                    f.update('onlyLatestSubs', false),
+                    f.update('onlyLatestSubs', true),
+                ]),
+            );
         }
 
         if (assignees && assignees.length) {

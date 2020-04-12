@@ -235,9 +235,8 @@ export default {
                 ];
             };
 
-            const labelString = this.metricOptions.find(so =>
-                so.value === this.settings.metric,
-            ).text;
+            const labelString = this.metricOptions.find(so => so.value === this.settings.metric)
+                .text;
 
             return {
                 scales: {

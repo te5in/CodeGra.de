@@ -565,10 +565,10 @@ export default {
         graderPopoverText() {
             if (this.assignees.length === 0) {
                 let msg = 'No graders are assigned to any submission.';
-                console.log(this.assignment.course.permissions);
                 if (!this.assignment.course.permissions.can_see_assignee) {
-                    msg += ' You probably cannot see them because you do not have permission to ' +
-                           ' see the  assignee.';
+                    msg +=
+                        ' You probably cannot see them because you do not have permission to ' +
+                        ' see the  assignee.';
                 }
                 return msg;
             } else {

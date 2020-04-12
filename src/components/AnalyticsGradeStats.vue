@@ -183,9 +183,9 @@ export default {
                 ];
             };
 
-            const labelString = this.settings.relative ?
-                'Percentage of students' :
-                'Number of students';
+            const labelString = this.settings.relative
+                ? 'Percentage of students'
+                : 'Number of students';
 
             return {
                 scales: {
