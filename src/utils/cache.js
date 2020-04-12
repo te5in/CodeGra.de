@@ -4,12 +4,12 @@ export function makeCache(...keys) {
     const cache = Object.seal(Object.fromEntries(keys.map(key => [key, UNSET_SENTINEL])));
 
     return Object.freeze({
-        cache,
+        _cache: cache,
         get(key, ifNotPresent) {
-            if (this.cache[key] === UNSET_SENTINEL) {
-                this.cache[key] = ifNotPresent();
+            if (this._cache[key] === UNSET_SENTINEL) {
+                this._cache[key] = ifNotPresent();
             }
-            return this.cache[key];
+            return this._cache[key];
         },
     });
 }

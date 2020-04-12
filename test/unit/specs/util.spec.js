@@ -22,14 +22,28 @@ import {
     coerceToString,
     getNoNull,
     numberToTimes,
-    deepCopy,
     toMaxNDecimals,
+    deepCopy,
+    deepEquals,
+    deepExtend,
+    deepExtendArray,
+    hasAttr,
+    setXor,
+    ensureArray,
+    mapObject,
+    filterObject,
+    isEmpty,
+    zip,
 } from '@/utils';
 
+import { makeCache } from '@/utils/cache';
 import { Counter } from '@/utils/counter';
+import { defaultdict } from '@/utils/defaultdict';
 
 import * as assignmentState from '@/store/assignment-states';
 import * as visualize from '@/utils/visualize';
+
+import { UNSET_SENTINEL } from '@/constants';
 
 import * as highlight from 'highlightjs';
 
@@ -47,6 +61,10 @@ describe('utils.js', () => {
 
         it('should work for without begin', () => {
             expect(range(10)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        });
+
+        it('should return an empty list when end is less than start', () => {
+            expect(range(10, 0)).toEqual([]);
         });
     });
 
@@ -808,6 +826,380 @@ describe('utils.js', () => {
             expect(cmpNoCaseMany(['a', 'a'], ['a', 'A'], ['A', 'a'])).toBe(0);
         });
     });
+
+    describe('setXor', () => {
+        it('should return all elements that are in A or in B but not in both', () => {
+            const A = new Set([1, 2, 3]);
+            const B = new Set([3, 4, 5]);
+            expect(setXor(A, B)).toEqual(new Set([1, 2, 4, 5]));
+        });
+
+        it('should return a copy of B if A is empty', () => {
+            const A = new Set();
+            const B = new Set([1, 2, 3]);
+            expect(setXor(A, B)).toEqual(B);
+        });
+
+        it('should return a copy of A if B is empty', () => {
+            const A = new Set([1, 2, 3]);
+            const B = new Set();
+            expect(setXor(A, B)).toEqual(A);
+        });
+    });
+
+    describe('ensureArray', () => {
+        it('should return an array untouched', () => {
+            expect(ensureArray([])).toEqual([]);
+            expect(ensureArray([1, 2, 3])).toEqual([1, 2, 3]);
+
+            const a = [];
+            a[0] = a;
+            expect(ensureArray(a)).toBe(a);
+        });
+
+        it('should wrap anything other than an array', () => {
+            expect(ensureArray(null)).toEqual([null]);
+            expect(ensureArray(3)).toEqual([3]);
+            expect(ensureArray()).toEqual([undefined]);
+        });
+    });
+
+    describe('deepEquals', () => {
+        it('should return true if the contents of two objects are equal', () => {
+            expect(deepEquals({a: 3}, {a: 3})).toBeTrue();
+            expect(deepEquals({a: 3, b: 3}, {a: 3, b: 3})).toBeTrue();
+            expect(deepEquals({a: 3, b: {c: 3}}, {a: 3, b: {c: 3}})).toBeTrue();
+        });
+
+        it('should return false if the contents of two objects are equal', () => {
+            expect(deepEquals({a: 3}, {b: 3})).toBeFalse();
+            expect(deepEquals({a: 3}, {a: 3, b: 3})).toBeFalse();
+            expect(deepEquals({a: 3, b: 3}, {a: 3})).toBeFalse();
+        });
+
+        it('should not throw when it encounters a null', () => {
+            expect(deepEquals(null, null)).toBeTrue();
+            expect(deepEquals({a: null}, {a: null})).toBeTrue();
+
+            expect(deepEquals({a: 3}, null)).toBeFalse();
+            expect(deepEquals({a: null}, null)).toBeFalse();
+        });
+
+        it('should also work for arrays', () => {
+            expect(deepEquals([1, 2, 3], [1, 2, 3])).toBeTrue();
+            expect(deepEquals({a: [1, 2, 3]}, {a: [1, 2, 3]})).toBeTrue();
+            expect(deepEquals([{a: 3}], [{a: 3}])).toBeTrue();
+
+            expect(deepEquals([1, 2, 3], [1, 2, 4])).toBeFalse();
+        });
+
+        it('should also work for primitive values', () => {
+            expect(deepEquals(1, 1)).toBeTrue();
+            expect(deepEquals("abc", "abc")).toBeTrue();
+
+            expect(deepEquals(1, 2)).toBeFalse();
+            expect(deepEquals("abc", "def")).toBeFalse();
+        });
+    });
+
+    describe('deepExtend', () => {
+        it('should recursively extend objects', () => {
+            expect(deepExtend({a: 3}, {b: 3})).toEqual({a: 3, b: 3});
+            expect(deepExtend({a: 3, c: 3}, {b: 3})).toEqual({a: 3, b: 3, c: 3});
+            expect(deepExtend({a: {b: 3}}, {b: 3})).toEqual({a: {b: 3}, b: 3});
+            expect(deepExtend({a: {b: 3}}, {a: {b: 3}})).toEqual({a: {b: 3}});
+            expect(deepExtend({a: {b: 3}}, {a: {c: 3}})).toEqual({a: {b: 3, c: 3}});
+        });
+
+        it('should overwrite keys in earlier arguments with keys in later arguments', () => {
+            expect(deepExtend({a: 3}, {a: 4})).toEqual({a: 4});
+            expect(deepExtend({a: 3, b: 3}, {b: 4})).toEqual({a: 3, b: 4});
+            expect(deepExtend({a: {b: 3}}, {a: 3})).toEqual({a: 3});
+            expect(deepExtend({a: 3}, {a: {b: 3}})).toEqual({a: {b: 3}});
+            expect(deepExtend({a: {b: 3}}, {a: {b: 4}})).toEqual({a: {b: 4}});
+            expect(deepExtend({a: {b: 3}}, {a: {b: 4}})).toEqual({a: {b: 4}});
+        });
+
+        it('should throw when the target is not an object', () => {
+            const dext = tgt => () => deepExtend(tgt, {a: 3});
+
+            expect(dext(null)).toThrow();
+            expect(dext(1)).toThrow();
+            expect(dext("abc")).toThrow();
+        });
+
+        it('should throw if any of the sources is null', () => {
+            expect(() => deepExtend({a: 3}, null)).toThrow();
+        });
+
+        // TODO: Do we want this behaviour?
+        it('should not throw if any of the sources is a primitive value', () => {
+            expect(deepExtend({a: 3}, 1)).toEqual({a: 3});
+            expect(deepExtend({a: 3}, true)).toEqual({a: 3});
+        });
+
+        it('should not throw when it encounters a null', () => {
+            expect(deepExtend({a: 3}, {b: null})).toEqual({a: 3, b: null});
+            expect(deepExtend({a: null}, {a: 3})).toEqual({a: 3});
+        });
+
+        it('should treat arrays as standard values and not recurse into them', () => {
+            expect(deepExtend({a: [1, 2, 3]}, {a: [4, 5, 6]})).toEqual({a: [4, 5, 6]});
+            expect(deepExtend({a: [{b: 3}]}, {a: [{c: 4}]})).toEqual({a: [{c: 4}]});
+        });
+    });
+
+    describe('deepExtendArray', () => {
+        it('should recursively extend objects', () => {
+            expect(deepExtendArray({a: 3}, {b: 3})).toEqual({a: 3, b: 3});
+            expect(deepExtendArray({a: 3, c: 3}, {b: 3})).toEqual({a: 3, b: 3, c: 3});
+            expect(deepExtendArray({a: {b: 3}}, {b: 3})).toEqual({a: {b: 3}, b: 3});
+            expect(deepExtendArray({a: {b: 3}}, {a: {b: 3}})).toEqual({a: {b: 3}});
+            expect(deepExtendArray({a: {b: 3}}, {a: {c: 3}})).toEqual({a: {b: 3, c: 3}});
+        });
+
+        it('should overwrite keys in earlier arguments with keys in later arguments', () => {
+            expect(deepExtendArray({a: 3}, {a: 4})).toEqual({a: 4});
+            expect(deepExtendArray({a: 3, b: 3}, {b: 4})).toEqual({a: 3, b: 4});
+            expect(deepExtendArray({a: {b: 3}}, {a: 3})).toEqual({a: 3});
+            expect(deepExtendArray({a: 3}, {a: {b: 3}})).toEqual({a: {b: 3}});
+            expect(deepExtendArray({a: {b: 3}}, {a: {b: 4}})).toEqual({a: {b: 4}});
+            expect(deepExtendArray({a: {b: 3}}, {a: {b: 4}})).toEqual({a: {b: 4}});
+        });
+
+        it('should throw when the target is not an object', () => {
+            const dext = tgt => () => deepExtendArray(tgt, {a: 3});
+
+            expect(dext(null)).toThrow();
+            expect(dext(1)).toThrow();
+            expect(dext("abc")).toThrow();
+        });
+
+        it('should throw if any of the sources is null', () => {
+            expect(() => deepExtendArray({a: 3}, null)).toThrow();
+        });
+
+        // TODO: Do we want this behaviour?
+        it('should not throw if any of the sources is a primitive value', () => {
+            expect(deepExtendArray({a: 3}, 1)).toEqual({a: 3});
+            expect(deepExtendArray({a: 3}, true)).toEqual({a: 3});
+        });
+
+        it('should not throw when it encounters a null', () => {
+            expect(deepExtendArray({a: 3}, {b: null})).toEqual({a: 3, b: null});
+            expect(deepExtendArray({a: null}, {a: 3})).toEqual({a: 3});
+        });
+
+        it('should recurse into arrays', () => {
+            expect(deepExtendArray({a: [1, 2, 3]}, {a: [4, 5, 6]})).toEqual({a: [4, 5, 6]});
+            expect(deepExtendArray({a: [1, 2, 3, 4, 5, 6]}, {a: [4, 5, 6]})).toEqual({a: [4, 5, 6, 4, 5, 6]});
+            expect(deepExtendArray({a: [{b: 3}]}, {a: [{c: 4}]})).toEqual({a: [{b: 3, c: 4}]});
+        });
+    });
+
+    describe('hasAttr', () => {
+        it('should return true if the given key is in the object', () => {
+            expect(hasAttr({a: 3}, 'a')).toBeTrue();
+            const o = Object.defineProperty({}, 'a', { enumerable: true, value: 3 });
+            expect(hasAttr(o, 'a')).toBeTrue();
+        });
+
+        it('should return true even if the key is not enumerable', () => {
+            const o = Object.defineProperty({}, 'a', { value: 3 });
+            expect(hasAttr(o, 'a')).toBeTrue();
+        });
+
+        it('should return false if the object does not have the property', () => {
+            expect(hasAttr({a: 3}, 'b')).toBeFalse();
+            const o = Object.defineProperty({}, 'a', { value: 3 });
+            expect(hasAttr(o, 'b')).toBeFalse();
+        });
+
+        it('should throw an error if the target is null', () => {
+            expect(() => hasAttr(null, 'a')).toThrow();
+        });
+
+        // TODO: Do we want this behaviour?
+        it('should not throw an error if the target is not an object', () => {
+            expect(hasAttr(3, 'a')).toBeFalse();
+            expect(hasAttr('abc', 'a')).toBeFalse();
+        });
+    });
+
+    describe('mapObject', () => {
+        const id = x => x;
+
+        it('should return a new object', () => {
+            const o = {};
+            expect(mapObject(o, id)).not.toBe(o);
+        });
+
+        it('should return an equal object when mapping the identity function', () => {
+            const o = {a: 3, b: {c: 3}};
+            expect(mapObject(o, id)).toEqual(o);
+        });
+
+        it('should map over the values of the object', () => {
+            const o = mapObject({a: 1, b: 2, c: 3}, v => {
+                expect(v).toBeNumber();
+                return 2 * v;
+            });
+            expect(o).toEqual({a: 2, b: 4, c: 6});
+        });
+
+        it('should pass the key as the second argument', () => {
+            const o = {a: 'a', b: 'b', c: 'c'};
+            mapObject(o, (v, k) => {
+                expect(v).toEqual(k);
+            });
+        });
+
+        it('should throw an error when mapping over null', () => {
+            expect(() => {
+                mapObject(null, id);
+            }).toThrow();
+        });
+    });
+
+    describe('filterObject', () => {
+        const id = x => x;
+
+        it('should return a new object', () => {
+            const o = {};
+            expect(filterObject(o, id)).not.toBe(o);
+        });
+
+        it('should filter over the values in the object', () => {
+            const o = filterObject({a: 1, b: 2, c: 3 }, v => {
+                expect(v).toBeNumber();
+                return v % 2;
+            });
+            expect(o).toEqual({a: 1, c: 3});
+        });
+
+        it('should pass the key as the second argument', () => {
+            const o = {a: 'a', b: 'b', c: 'c'};
+            filterObject(o, (v, k) => {
+                expect(v).toEqual(k);
+            });
+        });
+
+        it('should throw an error when filtering null', () => {
+            expect(() => {
+                filterObject(null, id);
+            }).toThrow();
+        });
+    });
+
+    describe('zip', () => {
+        it('should zip lists', () => {
+            expect(zip([1, 2, 3], [1, 2, 3])).toEqual([[1, 1], [2, 2], [3, 3]]);
+        });
+
+        it('should zip up to the end of the shortest list', () => {
+            expect(zip([1], [1, 2, 3])).toEqual([[1, 1]]);
+        });
+
+        it('should accept an arbitrary number of lists', () => {
+            expect(zip([1, 2, 3], [1, 2, 3], [1, 2, 3])).toEqual([
+                [1, 1, 1],
+                [2, 2, 2],
+                [3, 3, 3],
+            ]);
+        });
+
+        it('should not throw or loop forever when given an empty list', () => {
+            expect(zip()).toEqual([]);
+        });
+
+        it('should not throw when given a single list', () => {
+            expect(zip([1, 2, 3])).toEqual([[1], [2], [3]]);
+        });
+    });
+
+    describe('isEmpty', () => {
+        it('should return true for objects without keys', () => {
+            expect(isEmpty({})).toBeTrue();
+        });
+
+        it('should return true for arrays without elements', () => {
+            expect(isEmpty([])).toBeTrue();
+            expect(isEmpty(Array(0))).toBeTrue();
+        });
+
+        it('should return true for null and undefined', () => {
+            expect(isEmpty(null)).toBeTrue();
+            expect(isEmpty(undefined)).toBeTrue();
+        });
+
+        it('should return true for falsey primitives', () => {
+            expect(isEmpty(false)).toBeTrue();
+            expect(isEmpty(0)).toBeTrue();
+            expect(isEmpty('')).toBeTrue();
+        });
+
+        it('should return false otherwise', () => {
+            expect(isEmpty({a: 3})).toBeFalse();
+            expect(isEmpty([1])).toBeFalse();
+            expect(isEmpty(true)).toBeFalse();
+            expect(isEmpty(1000)).toBeFalse();
+            expect(isEmpty('abc')).toBeFalse();
+        });
+    });
+});
+
+describe('cache.js', () => {
+    describe('makeCache', () => {
+        it('should return a frozen object', () => {
+            const c = makeCache();
+            expect(c).toBeFrozen();
+        });
+
+        describe('_cache', () => {
+            it('should be sealed', () => {
+                const c = makeCache();
+                expect(c._cache).toBeSealed();
+            });
+
+            it('should include the given keys in its inner store', () => {
+                const c = makeCache('a', 'b');
+                expect(Object.keys(c._cache)).toEqual(['a', 'b']);
+            });
+
+            it('should initialize each key with UNSET_SENTINEL', () => {
+                const c = makeCache('a', 'b');
+                expect(Object.values(c._cache)).toEqual([UNSET_SENTINEL, UNSET_SENTINEL]);
+            });
+        });
+
+        describe('get', () => {
+            it('should call its second argument if the key is not present', () => {
+                const c = makeCache('a');
+                const f = jest.fn(() => 1);
+
+                expect(c.get('a', f)).toBe(1);
+                expect(f).toBeCalled();
+            });
+
+            it('should not call the function more than once', () => {
+                const c = makeCache('a');
+                const f = jest.fn(() => 1);
+                c.get('a', f);
+                c.get('a', f);
+
+                expect(f).toBeCalledTimes(1);
+            });
+
+            it('should keep returning the cached value', () => {
+                const c = makeCache('a');
+                const a = c.get('a', () => 1);
+                const b = c.get('a', () => 2);
+
+                expect(a).toBe(1);
+                expect(b).toBe(1);
+            });
+        });
+    });
 });
 
 describe('counter.js', () => {
@@ -835,4 +1227,42 @@ describe('counter.js', () => {
             expect(c1.getCount(0)).toBe(0);
         });
     })
+});
+
+describe('defaultdict.js', () => {
+    describe('defaultdict', () => {
+        it('should return the default value if a key does not exist', () => {
+            const d = defaultdict(() => 0);
+
+            expect(d.xyz).toBe(0);
+            expect(d[0]).toBe(0);
+            expect(d[null]).toBe(0);
+        });
+
+        it('should be possible to set values', () => {
+            const d = defaultdict(() => 0);
+            d.xyz = 3;
+            d[0] = 3;
+            d[null] = 3;
+
+            expect(d.xyz).toBe(3);
+            expect(d[0]).toBe(3);
+            expect(d[null]).toBe(3);
+        });
+
+        it('should be possible to increment missing values', () => {
+            const d = defaultdict(() => 0);
+            d.x++;
+
+            expect(d.x).toBe(1);
+        });
+
+        it('should throw on the first missing key when the argument is not a function', () => {
+            const d = defaultdict(0);
+
+            expect(() => {
+                d.x;
+            }).toThrow();
+        });
+    });
 });

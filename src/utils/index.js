@@ -465,14 +465,14 @@ export function deepEquals(a, b) {
 export function deepExtend(target, ...sources) {
     sources.forEach(source => {
         Object.entries(source).forEach(([key, val]) => {
-            if (typeof val === 'object' && !Array.isArray(val)) {
-                if (!hasAttr(target, key)) {
-                    target[key] = {};
-                }
-                deepExtend(target[key], val);
-            } else {
+            if (typeof val !== 'object' || Array.isArray(val) || val == null) {
                 target[key] = val;
+                return;
             }
+            if (!hasAttr(target, key) || typeof target[key] !== 'object') {
+                target[key] = {};
+            }
+            deepExtend(target[key], val);
         });
     });
     return target;
@@ -484,11 +484,11 @@ export function deepExtendArray(target, ...sources) {
     // on the property that it doesn't.
     sources.forEach(source => {
         Object.entries(source).forEach(([key, val]) => {
-            if (typeof val !== 'object') {
+            if (typeof val !== 'object' || val == null) {
                 target[key] = val;
                 return;
             }
-            if (typeof target[key] !== 'object' || !hasAttr(target, key)) {
+            if (!hasAttr(target, key) || typeof target[key] !== 'object') {
                 target[key] = Array.isArray(val) ? [] : {};
             }
             deepExtendArray(target[key], val);
