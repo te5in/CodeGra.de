@@ -198,12 +198,18 @@ class CommentReply(IdMixin, TimestampMixin, Base):
                 [n.id for n in self.notifications]
             )
 
-    def update(self, new_comment_text: str) -> 'CommentReplyEdit':
+    def update(self, new_comment_text: str) -> t.Optional['CommentReplyEdit']:
         """Update the contents this reply and create a
             :class:`.CommentReplyEdit` object for this mutation.
 
-        :returns: The created :class:`.CommentReplyEdit`.
+        :param new_comment_text: The new content of the reply.
+        :returns: The created :class:`.CommentReplyEdit` if the given
+            ``new_comment_text`` is different than the existing text, otherwise
+            ``None`` is returned.
         """
+        if new_comment_text == self.comment:
+            return None
+
         edit = CommentReplyEdit(
             self, current_user, new_comment_text=new_comment_text
         )

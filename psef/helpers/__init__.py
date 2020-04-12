@@ -789,6 +789,13 @@ class TransactionGet(Protocol[T_CONTRA]):
 
     @t.overload
     def __call__(
+        self, to_get: T_CONTRA, typ: t.Type[T], *,
+        transform: t.Callable[[T], TT]
+    ) -> TT:
+        ...
+
+    @t.overload
+    def __call__(
         self,
         to_get: T_CONTRA,
         typ: t.Tuple[t.Type[T], t.Type[TT]],
@@ -844,7 +851,12 @@ def get_from_map_transaction(
     all_keys_requested = []
     keys = []
 
-    def get(key: T, typ: t.Union[t.Type, t.Tuple[t.Type, ...]]) -> TT:
+    def get(
+        key: T,
+        typ: t.Union[t.Type, t.Tuple[t.Type, ...]],
+        *,
+        transform: t.Callable[[TT], TTT] = None,
+    ) -> TTT:
         all_keys_requested.append(key)
         keys.append((key, typ))
         value: t.Union[TT, MissingType] = mapping.get(key, MISSING)
@@ -852,8 +864,12 @@ def get_from_map_transaction(
             isinstance(typ, type) and issubclass(typ, enum.Enum) and
             isinstance(value, str)
         ):
-            return t.cast(TT, typ.__members__.get(value, MISSING))
-        return t.cast(TT, value)
+            value = t.cast(TT, typ.__members__.get(value, MISSING))
+
+        if transform is not None and value is not MISSING:
+            return transform(t.cast(TT, value))
+
+        return t.cast(TTT, value)
 
     def optional_get(
         key: T, typ: t.Union[t.Type, t.Tuple[t.Type, ...]], default: ZZ

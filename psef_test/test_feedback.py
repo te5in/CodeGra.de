@@ -1116,6 +1116,25 @@ def test_edit_feedback(
             f'replies/{reply["id"]}'
         )
 
+    with describe('Editing with the same content does not create an edit'
+                  ), logged_in(teacher):
+        test_client.req('patch', reply_url, 200, data={'comment': 'a reply'})
+        test_client.req(
+            'get',
+            feedback_url,
+            200,
+            result={
+                '__allow_extra__': True, 'user': [{
+                    '__allow_extra__': True,
+                    'replies': [{
+                        'id': reply['id'],
+                        'comment': 'a reply',
+                        'last_edit': None,
+                        '__allow_extra__': True,
+                    }],
+                }]
+            },
+        )
     with describe('teachers and own user can edit reply'):
         with logged_in(student):
             test_client.req(

@@ -58,7 +58,9 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
     )
 
     with helpers.get_from_request_transaction() as [get, _]:
-        comment_text = get('comment', str).replace('\0', '')
+        comment_text = get(
+            'comment', str, transform=lambda x: x.replace('\0', '')
+        )
 
     comment_base = models.CommentBase.create_if_not_exists(file, line)
     if comment_base.id is None:
@@ -70,7 +72,9 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
 
     if reply is not None:
         auth.FeedbackReplyPermissions(reply).ensure_may_edit()
-        db.session.add(reply.update(comment_text))
+        edit = reply.update(comment_text)
+        if edit is not None:
+            db.session.add(edit)
     else:
         reply = comment_base.add_reply(
             current_user,

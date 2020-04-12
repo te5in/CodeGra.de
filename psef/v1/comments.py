@@ -67,7 +67,7 @@ def add_reply(comment_base_id: int) -> ExtendedJSONResponse[CommentReply]:
     :returns: The just created reply.
     """
     with helpers.get_from_request_transaction() as [get, opt_get]:
-        reply_message = get('comment', str)
+        message = get('comment', str, transform=lambda x: x.replace('\0', ''))
         in_reply_to_id = opt_get('in_reply_to', (int, type(None)), None)
         reply_type = get('reply_type', models.CommentReplyType)
 
@@ -84,9 +84,7 @@ def add_reply(comment_base_id: int) -> ExtendedJSONResponse[CommentReply]:
             in_reply_to_id,
             also_error=lambda r: r.comment_base != base or r.deleted
         )
-    reply = base.add_reply(
-        current_user, reply_message, reply_type, in_reply_to
-    )
+    reply = base.add_reply(current_user, message, reply_type, in_reply_to)
 
     FeedbackReplyPermissions(reply).ensure_may_add()
     db.session.flush()
@@ -138,17 +136,22 @@ def update_reply(comment_base_id: int,
     :returns: The just updated reply.
     """
     with helpers.get_from_request_transaction() as [get, _]:
-        message = get('comment', str)
+        message = get('comment', str, transform=lambda x: x.replace('\0', ''))
 
     reply = helpers.filter_single_or_404(
         CommentReply,
         CommentReply.id == reply_id,
         CommentReply.comment_base_id == comment_base_id,
         ~CommentReply.deleted,
+        with_for_update=True,
+        with_for_update_of=CommentReply,
     )
     FeedbackReplyPermissions(reply).ensure_may_edit()
 
-    db.session.add(reply.update(message))
+    edit = reply.update(message)
+    if edit is not None:
+        db.session.add(edit)
+
     db.session.commit()
     return ExtendedJSONResponse.make(reply, use_extended=CommentReply)
 
