@@ -262,7 +262,7 @@
                         </b-input-group>
 
                         <!-- Must have a z-index otherwise the reset buttons of the
-                             other options  are visible over the multiselect popup -->
+                             other options are visible over the multiselect popup -->
                         <b-input-group class="flex-wrap-0">
                             <template #prepend>
                                 <b-input-group-text>
@@ -288,11 +288,9 @@
                                 label="name"
                                 :close-on-select="false"
                                 placeholder="Select graders"
-                                internal-search>
-                                <span slot="noResult">
-                                    No graders with this name.
-                                </span>
-                            </multiselect>
+                                internal-search
+                                :disabled="assignees.length === 0"
+                                v-b-popover.top.hover="graderPopoverText"/>
 
                             <template #append>
                                 <b-button variant="warning"
@@ -563,6 +561,20 @@ export default {
                 ...this.assignees,
             ];
         },
+
+        graderPopoverText() {
+            if (this.assignees.length === 0) {
+                let msg = 'No graders are assigned to any submission.';
+                console.log(this.assignment.course.permissions);
+                if (!this.assignment.course.permissions.can_see_assignee) {
+                    msg += ' You probably cannot see them because you do not have permission to ' +
+                           ' see the  assignee.';
+                }
+                return msg;
+            } else {
+                return '';
+            }
+        },
     },
 
     methods: {
@@ -673,6 +685,7 @@ export default {
         },
 
         copyUrlToClipboard(event) {
+            // TODO: Handle possible errors.
             const url = window.location.href;
             this.$copyText(url, this.$refs.copyContainer);
             event.target.blur();

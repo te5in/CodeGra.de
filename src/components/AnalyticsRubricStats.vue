@@ -304,6 +304,7 @@ export default {
             this.settings = Object.assign({}, this.settings, { [name]: value });
         },
 
+        // TODO: Move this to a FilterResultSet model.
         getHistogramData(key, normalize) {
             const labels = this.rubric.rows.map(row => row.header);
 

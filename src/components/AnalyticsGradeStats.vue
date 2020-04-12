@@ -125,6 +125,7 @@ export default {
             }
         },
 
+        // TODO: Move this to a FilterResultSet model.
         histogramData() {
             const maxGrade = this.assignment.maxGrade;
             let binSize = parseFloat(this.settings.binSize);

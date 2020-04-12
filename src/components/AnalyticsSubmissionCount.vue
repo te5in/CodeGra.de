@@ -102,6 +102,7 @@ export default {
             }
         },
 
+        // TODO: Move this to a FilterResultSet model.
         histogramData() {
             const subsPerStudent = this.submissionSources.map(
                 source => source.submissionsPerStudent,

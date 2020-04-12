@@ -178,6 +178,7 @@ export default {
             const firstPerSource = this.submissionSources.map(source => source.firstSubmissionDate);
             return firstPerSource
                 .reduce((f, d) => (f == null || f.isAfter(d) ? d : f), null)
+                .clone()
                 .local()
                 .startOf('day');
         },
@@ -186,6 +187,7 @@ export default {
             const lastPerSource = this.submissionSources.map(source => source.lastSubmissionDate);
             return lastPerSource
                 .reduce((l, d) => (l == null || l.isBefore(d) ? d : l), null)
+                .clone()
                 .local()
                 .endOf('day');
         },
@@ -203,6 +205,7 @@ export default {
             return this.histogramData.labels.length > 100;
         },
 
+        // TODO: Move this to a FilterResultSet model.
         histogramData() {
             const subs = this.submissionSources.map(source =>
                 source.binSubmissionsByDate(
@@ -246,6 +249,7 @@ export default {
             const unit = this.settings.binUnit;
 
             const format = (d, fmt) =>
+                // The times reported per bin are UTC UNIX epoch timestamps.
                 moment(d)
                     .utc()
                     .format(fmt);
@@ -258,7 +262,6 @@ export default {
                 default:
                     return (start, end) => {
                         const fmt = 'ddd DD-MM';
-                        // The times reported per bin are UTC UNIX epoch timestamps.
                         const s = format(start, fmt);
                         const e = format(end, fmt);
                         return s === e ? s : `${s} — ${e}`;
