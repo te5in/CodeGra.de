@@ -16,7 +16,7 @@
         A new comment was placed on a submission by
         {{ work.user.get_readable_name() }} for the assignment
         {{ work.assignment.name }} on line
-        {{ comment_base.line }} of the file
+        {{ comment_base.line + 1 }} of the file
         <code>{{ comment_base.file.get_path() }}</code>.
     {% endcall %}
 

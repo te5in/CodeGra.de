@@ -26,7 +26,7 @@
                     placed a comment on a submission by
                     {{ work.user.get_readable_name() }} for the assignment
                     {{ work.assignment.name }}
-                    (<code>{{ comment_base.file.get_path() }}:{{ comment_base.line }}</code>).
+                    (<code>{{ comment_base.file.get_path() }}:{{ comment_base.line + 1 }}</code>).
                 </li>
             {%- endfor %}
         </ul>
