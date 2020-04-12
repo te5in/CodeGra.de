@@ -204,7 +204,7 @@ export default {
             return this.$utils.deepExtend({}, this.$route, {
                 name: 'submission_file',
                 params,
-                query,
+                query: Object.assign({}, query, { replyToFocus: undefined }),
             });
         },
 

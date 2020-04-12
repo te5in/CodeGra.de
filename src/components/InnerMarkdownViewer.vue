@@ -1,9 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="inner-markdown-viewer">
-    <div class="rendered markdown"
-         :class="{'show-whitespace': showCodeWhitespace}"
-         v-html="html"/>
+<div class="inner-markdown-viewer"
+     :class="{'show-whitespace': showCodeWhitespace}"
+     v-html="html">
 </div>
 </template>
 
@@ -57,6 +56,8 @@ export default {
 </script>
 
 <style lang="less">
+@import '~mixins.less';
+
 .inner-markdown-viewer {
     pre {
         margin-bottom: 1rem;
@@ -69,6 +70,10 @@ export default {
     }
     .MathJax_SVG svg {
         max-width: 100%;
+    }
+
+    a {
+        color: @color-inline-link !important;
     }
 }
 </style>

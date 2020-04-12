@@ -55,7 +55,7 @@ describe('SubmitButton.vue', () => {
         comp = wrapper.vm;
     }
 
-    describe('the button state', async () => {
+    describe('the button state', () => {
         beforeEach(() => mount());
 
         it('should be "default" by default', () => {

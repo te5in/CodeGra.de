@@ -4,6 +4,11 @@ export PYTHONPATH="$PWD"
 export GITHUB_ACTIONS=true
 sudo chown -R "$USER":"$(id -gn)" /tmp/
 
+cat >config.ini <<EOF
+[Back-end]
+external_url = http://localhost:1234
+EOF
+
 create_db() {
     DBNAME="ci_test_gw${1}"
     export SQLALCHEMY_DATABASE_URI="postgresql://postgres:postgres@localhost:5432/${DBNAME}"

@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { User } from '@/models';
+import { makeUser } from '@/models';
 
 describe('User model', () => {
-    const u1 = new User({'id': 1, 'name': 'Piet', 'username': 'pietie', 'group': null, 'is_test_student': false});
-    const u1_copy = new User({'id': 1, 'name': 'Piet', 'username': 'pietie', 'group': null, 'is_test_student': false});
-    const u2 = new User({'id': 2, 'name': 'Piet', 'username': 'pietie', 'group': null, 'is_test_student': false});
-    const g1 = new User({'id': 3, 'name': 'Piet', 'username': 'pietie', 'group': {
+    const u1 = makeUser({'id': 1, 'name': 'Piet', 'username': 'pietie', 'group': null, 'is_test_student': false});
+    const u1_copy = makeUser({'id': 1, 'name': 'Piet', 'username': 'pietie', 'group': null, 'is_test_student': false});
+    const u2 = makeUser({'id': 2, 'name': 'Piet', 'username': 'pietie', 'group': null, 'is_test_student': false});
+    const g1 = makeUser({'id': 3, 'name': 'Piet', 'username': 'pietie', 'group': {
         'members': [{'id': 1}],
         'name': 'MY NAME',
         'created_at': '2020-02-17T12:34:27+00:00',
@@ -26,7 +26,7 @@ describe('User model', () => {
 
     it('should be possible to update a user', () => {
         expect(u1.name).toBe('Piet');
-        expect(new User({'name': 'JAN'}, u1).name).toBe('JAN');
+        expect(makeUser({'name': 'JAN'}, u1).name).toBe('JAN');
         expect(u1.name).toBe('Piet');
     });
 
@@ -42,8 +42,8 @@ describe('User model', () => {
 
     it('should have an attribute indicating if it is a test student', () => {
         expect(u1.isTestStudent).toBe(false);
-        expect(new User({'is_test_student': null}, u1).isTestStudent).toBe(false);
-        expect(new User({'is_test_student': 'THIS WILL BECOME A BOOL'}, u1).isTestStudent).toBe(true);
+        expect(makeUser({'is_test_student': null}, u1).isTestStudent).toBe(false);
+        expect(makeUser({'is_test_student': 'THIS WILL BECOME A BOOL'}, u1).isTestStudent).toBe(true);
         expect(u1.isTestStudent).toBe(false);
     });
 

@@ -31,7 +31,7 @@ from . import assignment as assignment_models
 from .. import auth, helpers, features
 from .linter import LinterState, LinterComment, LinterInstance
 from .rubric import RubricItem, WorkRubricItem
-from .comment import Comment
+from .comment import CommentBase
 from ..helpers import JSONType
 from ..exceptions import PermissionException
 from ..permissions import CoursePermission
@@ -613,13 +613,14 @@ class Work(Base):
             res['rubric_result'] = self.__rubric_to_json__()
 
         try:
-            auth.ensure_can_see_user_feedback(self)
+            auth.ensure_can_see_general_feedback(self)
         except PermissionException:
             pass
         else:
             res['comment'] = self.comment
             if psef.current_user.has_permission(
-                CoursePermission.can_see_assignee, self.assignment.course_id
+                CoursePermission.can_view_feedback_author,
+                self.assignment.course_id
             ):
                 res['comment_author'] = self.comment_author
 
@@ -702,14 +703,17 @@ class Work(Base):
         :returns: An iterator producing human readable representations of the
             feedback given by a person.
         """
-        comments = Comment.query.filter(
-            Comment.file.has(work=self),
+        comments = CommentBase.query.filter(
+            CommentBase.file.has(work=self),
         ).order_by(
-            Comment.file_id.asc(),
-            Comment.line.asc(),
+            CommentBase.file_id.asc(),
+            CommentBase.line.asc(),
         )
         for com in comments:
-            yield f'{com.file.get_path()}:{com.line + 1}:1: {com.comment}'
+            path = com.file.get_path()
+            line = com.line + 1
+            for idx, reply in enumerate(com.user_visible_replies):
+                yield f'{path}:{line}:{idx + 1}: {reply.comment}'
 
     def get_linter_feedback(self) -> t.Iterable[str]:
         """Get all linter feedback for this work.
@@ -753,7 +757,7 @@ class Work(Base):
         self,
         pathname: str,
         exclude: 'file_models.FileOwner',
-    ) -> t.List[t.Any]:
+    ) -> t.List[DbColumn[bool]]:
         """Get the filters needed to search for a file in the this directory
         with a given name.
 
@@ -777,6 +781,7 @@ class Work(Base):
                 file_models.File.parent_id == parent,
                 file_models.File.work_id == self.id,
                 file_models.File.is_directory,
+                ~file_models.File.self_deleted,
             ).subquery(f'parent_{idx}')
 
         if parent is not None:
@@ -788,6 +793,7 @@ class Work(Base):
             file_models.File.parent_id == parent,
             file_models.File.fileowner != exclude,
             file_models.File.is_directory == is_dir,
+            ~file_models.File.self_deleted,
         ]
 
     def search_file(
@@ -829,7 +835,8 @@ class Work(Base):
                          List['file_models.File']] = defaultdict(list)
         files = file_models.File.query.filter(
             file_models.File.work == self,
-            file_models.File.fileowner != exclude
+            file_models.File.fileowner != exclude,
+            ~file_models.File.self_deleted,
         ).all()
         # We sort in Python as this increases consistency between different
         # server platforms, Python also has better defaults.

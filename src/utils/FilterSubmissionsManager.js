@@ -103,9 +103,7 @@ export default class FilterSubmissionsManager {
         return false;
     }
 
-    filter(submissions, {
-        mine, userId, filter, sortBy, asc,
-    } = {}) {
+    filter(submissions, { mine, userId, filter, sortBy, asc } = {}) {
         this.query = filter;
         if (submissions.length === 0) {
             return [];

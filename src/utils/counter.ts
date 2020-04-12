@@ -1,5 +1,7 @@
-export class Counter {
-    constructor(items) {
+export class Counter<T> {
+    private readonly _counts: Map<T, number>;
+
+    constructor(items: T[]) {
         this._counts = items.reduce((acc, item) => {
             if (!acc.has(item)) {
                 acc.set(item, 0);
@@ -12,7 +14,7 @@ export class Counter {
         Object.freeze(this);
     }
 
-    getCount(item) {
+    getCount(item: T): number {
         const amount = this._counts.get(item);
         if (amount === undefined) {
             return 0;

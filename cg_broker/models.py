@@ -15,7 +15,6 @@ import structlog
 import sqlalchemy
 import transip.service
 from suds import WebFault
-from sqlalchemy.types import JSON
 from sqlalchemy_utils import UUIDType
 from botocore.exceptions import ClientError
 
@@ -25,8 +24,7 @@ from cg_logger import bound_to_logger
 from cg_timers import timed_code
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
-from cg_sqlalchemy_helpers import types, mixins, hybrid_property
-from cg_sqlalchemy_helpers.types import ColumnProxy
+from cg_sqlalchemy_helpers import JSONB, types, mixins, hybrid_property
 
 from . import BrokerFlask, app, utils
 
@@ -118,6 +116,9 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
         'state',
         db.Enum(RunnerState),
         nullable=False,
+        # We constantly filter on the state, so it makes to have an index on
+        # this column.
+        index=True,
         default=RunnerState.not_running
     )
     started_at = db.Column(
@@ -526,6 +527,9 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
         'state',
         db.Enum(JobState),
         nullable=False,
+        # We constantly filter on the state, so it makes to have an index on
+        # this column.
+        index=True,
         default=JobState.waiting_for_runner
     )
 
@@ -537,18 +541,10 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
     )
     runners = db.relationship(Runner, back_populates='job', uselist=True)
 
-    _job_metadata: ColumnProxy[t.Optional[t.Dict[str, object]]] = db.Column(
-        'job_metadata', JSON, nullable=True, default={}
-    )
-
-    @property
-    def job_metadata(self) -> t.Dict[str, object]:
-        """Metadata connected to this job.
-        """
-        return self._job_metadata or {}
+    job_metadata = db.Column('job_metadata', JSONB, nullable=True, default={})
 
     def update_metadata(self, new_values: t.Dict[str, object]) -> None:
-        self._job_metadata = {**self.job_metadata, **new_values}
+        self.job_metadata = {**(self.job_metadata or {}), **new_values}
 
     _wanted_runners = db.Column(
         'wanted_runners',
@@ -774,7 +770,7 @@ class Setting(Base, mixins.TimestampMixin):
     setting = db.Column(
         'settting', db.Enum(PossibleSetting), nullable=False, primary_key=True
     )
-    value: object = db.Column('value', JSON, nullable=False)
+    value: object = db.Column('value', JSONB, nullable=False)
 
     # Unfortunately it is not yet possible to create generic enums:
     # https://github.com/python/typing/issues/535

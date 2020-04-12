@@ -4,6 +4,7 @@ import re
 import uuid
 
 import pytest
+from werkzeug.local import LocalProxy
 
 import psef
 import psef.models as m
@@ -777,7 +778,7 @@ def test_add_user_to_group(
 @pytest.mark.parametrize('assignment', ['new'], indirect=True)
 def test_submit_with_group(
     test_client, session, logged_in, teacher_user, course, error_template,
-    assignment
+    assignment, monkeypatch_celery
 ):
     user_full_group = create_user_with_perms(
         session, [CPerm.can_submit_own_work, CPerm.can_see_assignments], course
@@ -1019,10 +1020,14 @@ def test_change_name_of_group(
     new_name = f'NEW_NAME-{uuid.uuid4()}'
 
     def check_name(name):
-        res = g1 if name is None else {**g1, 'name': name}
+        name_to_check = g1['name'] if name is None else name
         with logged_in(teacher_user):
+            assert g_model.get_readable_name() == f'group "{name_to_check}"'
             return test_client.req(
-                'get', f'/api/v1/groups/{g1["id"]}', 200, result=res
+                'get',
+                f'/api/v1/groups/{g1["id"]}',
+                200,
+                result={**g1, 'name': name_to_check}
             )
 
     u1 = create_user_with_perms(
@@ -1041,6 +1046,9 @@ def test_change_name_of_group(
             test_client,
             g_set['id'],
             [u1.id, u2.id],
+        )
+        g_model = LocalProxy(
+            lambda: m.User.query.get(g1['virtual_user']['id'])
         )
 
     with logged_in(u3):

@@ -41,18 +41,18 @@ context('FileViewer', () => {
     function openFile(filename) {
         cy.get('.file-tree').contains('li', filename).click();
         cy.url().should('match', /\/files\/\d+/);
-        cy.get('.file-viewer .loader').should('not.exist');
+        cy.get('.file-viewer .loader').should('not.be.visible');
     }
 
     function addComment(selector, comment = 'comment') {
         cy.get(selector).first().click({ force: true });
-        cy.get('.feedback-area.edit').first().within(() => {
+        cy.get('.feedback-reply.editing').first().within(() => {
             cy.get('textarea').type(comment);
-            cy.get('.submit-feedback .submit-button').submit('success', {
+            cy.get('.submit-button[name=submit-feedback]').submit('success', {
                 waitForDefault: false,
             });
         });
-        cy.get('.feedback-area:not(.edit)').should('exist');
+        cy.get('.feedback-reply.editing').should('not.exist');
     }
 
     context('Inline feedback preference', () => {
@@ -145,7 +145,7 @@ context('FileViewer', () => {
             openFile('timer.c');
             hideComments();
             cy.get('.inner-code-viewer').should('not.have.class', 'editable');
-            cy.get('.inner-code-viewer .line').first().click();
+            cy.get('.inner-code-viewer .line:nth-child(10)').click();
             cy.get('.feedback-area').should('not.exist');
 
             openFile('Graaf vinden');

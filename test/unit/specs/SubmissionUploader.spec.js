@@ -2,7 +2,7 @@
 import moment from 'moment';
 import { store } from '@/store';
 
-import { Submission, User } from '@/models';
+import { Submission, makeUser as makeUserModel } from '@/models';
 import * as mutationTypes from '@/store/mutation-types';
 
 import { getCoolOffPeriodText } from '@/components/SubmissionUploader';
@@ -40,7 +40,7 @@ describe('getCoolOffPeriodText', () => {
     }
 
     function makeUser(data) {
-        return new User(Object.assign({
+        return makeUserModel(Object.assign({
             id: Math.random(),
         }, data));
     }

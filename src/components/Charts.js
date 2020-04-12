@@ -242,15 +242,23 @@ export const BarChart = {
         },
 
         minPerDataset() {
-            return this.valuesPerDataset.map(
-                values => (values.length === 0 ? 0 : stat.min(values)),
-            );
+            return this.valuesPerDataset.map(values => {
+                if (values.length === 0) {
+                    return 0;
+                } else {
+                    return stat.min(values);
+                }
+            });
         },
 
         maxPerDataset() {
-            return this.valuesPerDataset.map(
-                values => (values.length === 0 ? 0 : stat.max(values)),
-            );
+            return this.valuesPerDataset.map(values => {
+                if (values.length === 0) {
+                    return 0;
+                } else {
+                    return stat.max(values);
+                }
+            });
         },
     },
 
@@ -364,7 +372,10 @@ export const ScatterPlot = {
             return Object.assign({}, dataset, {
                 type: 'line',
                 label: `${dataset.label} (Best fit)`,
-                data: [{ x: min, y: f(min) }, { x: max, y: f(max) }],
+                data: [
+                    { x: min, y: f(min) },
+                    { x: max, y: f(max) },
+                ],
                 backgroundColor: 'transparent',
                 borderColor: dataset.lineColor,
             });

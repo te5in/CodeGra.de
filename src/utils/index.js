@@ -290,9 +290,7 @@ export function getOtherAssignmentPlagiarismDesc(item, index) {
         return 'This submission was uploaded during running as part of an archive of old submissions.';
     }
 
-    let desc = `This assignment was submitted to the assignment "${
-        item.assignments[index].name
-    }" of "${item.assignments[index].course.name}"`;
+    let desc = `This assignment was submitted to the assignment "${item.assignments[index].name}" of "${item.assignments[index].course.name}"`;
 
     if (item.submissions != null) {
         // These submissions are not yet submission object, so we don't have

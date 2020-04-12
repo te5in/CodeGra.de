@@ -469,7 +469,7 @@ export class RubricResult {
         if (this.nSelected === 0 || this.maxPoints == null) {
             return null;
         } else {
-            const grade = 10 * this.points / this.maxPoints;
+            const grade = (10 * this.points) / this.maxPoints;
             return formatGrade(Math.max(0, Math.min(grade, 10)));
         }
     }

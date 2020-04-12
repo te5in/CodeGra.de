@@ -13,7 +13,7 @@ from . import user as user_models
 from . import work as work_models
 from . import rubric as rubric_models
 from . import assignment as assignment_models
-from .comment import Comment
+from .comment import CommentBase
 from ..registry import analytics_data_sources
 
 Y = t.TypeVar('Y')
@@ -195,10 +195,10 @@ class _InlineFeedbackDataSource(BaseDataSource[_InlineFeedbackModel]):
         query = self.workspace.work_query.join(
             file_models.File, isouter=True
         ).join(
-            Comment, isouter=True
+            CommentBase, isouter=True
         ).with_entities(
             work_models.Work.id,
-            sqlalchemy.func.count(Comment.file_id),
+            sqlalchemy.func.count(CommentBase.file_id),
         ).group_by(work_models.Work.id)
 
         return dict(query)

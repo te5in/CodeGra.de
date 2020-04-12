@@ -9,7 +9,7 @@ if grep -r '\.only(' ./cypress; then
 fi
 
 make privacy_statement
-npm run start_integration > /dev/null 2>&1  &
+npm run start_integration &
 
 DBNAME="ci_test"
 export SQLALCHEMY_DATABASE_URI="postgresql://postgres:postgres@localhost:5432/${DBNAME}"
@@ -18,6 +18,7 @@ cat >config.ini <<EOF
 [Back-end]
 sqlalchemy_database_uri = $SQLALCHEMY_DATABASE_URI
 DEBUG = true
+external_url = http://localhost:8080
 mirror_upload_dir = /tmp/psef/mirror_uploads
 upload_dir = /tmp/psef/uploads
 
@@ -43,9 +44,11 @@ celery worker --app=runcelery:celery -E > /dev/null &
 python run.py > /dev/null &
 
 ./node_modules/wait-on/bin/wait-on http://localhost:8080/api/v1/about -l
-curl http://localhost:8080
 
-sleep 4
+curl http://localhost:8080/
+curl http://localhost:8080/app.js | tail -c 100
+
+sleep 10
 
 FILES=$(python - <<PYTHON
 import os

@@ -4,6 +4,7 @@ import 'bootstrap-vue/dist/bootstrap-vue.css';
 import 'highlightjs/styles/solarized-dark.css';
 import 'vue-multiselect/dist/vue-multiselect.min.css';
 import '@/style.less';
+import 'reflect-metadata';
 
 import Icon from 'vue-awesome/components/Icon';
 import Vue from 'vue';
@@ -17,12 +18,29 @@ import VueMasonry from 'vue-masonry-css';
 import VueClipboard from 'vue-clipboard2';
 import moment from 'moment';
 
-import '@/polyfills';
 import App from '@/App';
 import router, { setRestoreRoute } from '@/router';
 import * as utils from '@/utils';
 import { store } from './store';
+import { NotificationStore } from './store/modules/notification';
 import * as mutationTypes from './store/mutation-types';
+import './my-vue';
+
+import RelativeTime from './components/RelativeTime';
+import User from './components/User';
+import Loader from './components/Loader';
+import SubmitButton from './components/SubmitButton';
+import DescriptionPopover from './components/DescriptionPopover';
+import CgLogo from './components/CgLogo';
+
+const { polyFilled } = import('@/polyfills');
+
+Vue.component('cg-relative-time', RelativeTime);
+Vue.component('cg-user', User);
+Vue.component('cg-loader', Loader);
+Vue.component('cg-submit-button', SubmitButton);
+Vue.component('cg-description-popover', DescriptionPopover);
+Vue.component('cg-logo', CgLogo);
 
 Vue.use(BootstrapVue);
 Vue.use(Toasted);
@@ -32,6 +50,31 @@ Vue.use(VueClipboard);
 Vue.config.productionTip = false;
 
 moment.relativeTimeThreshold('h', 48);
+moment.defineLocale('en-original', {
+    parentLocale: 'en',
+});
+moment.updateLocale('en', {
+    relativeTime: {
+        past(input) {
+            return input === 'just now' ? input : `${input} ago`;
+        },
+        future(input) {
+            return input === 'just now' ? input : `in ${input}`;
+        },
+        s: 'just now',
+        ss: '%d seconds',
+        m: 'a minute',
+        mm: '%d minutes',
+        h: 'an hour',
+        hh: '%d hours',
+        d: 'a day',
+        dd: '%d days',
+        M: 'a month',
+        MM: '%d months',
+        y: 'a year',
+        yy: '%d years',
+    },
+});
 
 Icon.register({
     tilde: {
@@ -229,7 +272,10 @@ Vue.prototype.$afterRerender = function doubleRequestAnimationFrame(cb) {
 };
 
 // eslint-disable-next-line
-localforage.defineDriver(memoryStorageDriver).then(() => {
+Promise.all([
+    polyFilled,
+    localforage.defineDriver(memoryStorageDriver),
+]).then(() => {
     Vue.prototype.$hlanguageStore = localforage.createInstance({
         name: 'highlightLanguageStore',
         driver: DRIVERS,
@@ -285,6 +331,8 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 // of the sidebar every second.
                 now: moment(),
                 epoch: getUTCEpoch(),
+
+                $loadFullNotifications: false,
             };
         },
 
@@ -305,6 +353,8 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
             setInterval(() => {
                 this.epoch = getUTCEpoch();
             }, 1000);
+
+            this._loadNotifications();
         },
 
         computed: {
@@ -345,6 +395,29 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
 
             $epoch() {
                 return this.epoch;
+            },
+        },
+
+        methods: {
+            async _loadNotifications() {
+                let sleepTime = UserConfig.notificationPollTime;
+                try {
+                    if (this.$store.getters['user/loggedIn']) {
+                        if (this.$loadFullNotifications) {
+                            await NotificationStore.dispatchLoadNotifications();
+                        } else {
+                            await NotificationStore.dispatchLoadHasUnread();
+                        }
+                    }
+                } catch (e) {
+                    // eslint-disable-next-line
+                    console.log('Loading notifications went wrong', e);
+                    sleepTime += sleepTime;
+                }
+
+                setTimeout(() => {
+                    this._loadNotifications();
+                }, sleepTime);
             },
         },
 

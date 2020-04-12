@@ -145,10 +145,10 @@
                         Could not render file: {{ data.message }}
                     </b-alert>
                     <inner-ipython-viewer
-                        :assignment="{}"
+                        :assignment="null"
                         :editable="false"
                         v-else-if="isJupyterRun"
-                        :submission="{}"
+                        :submission="null"
                         :file-id="-1"
                         :output-cells="data"
                         :show-whitespace="false"

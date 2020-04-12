@@ -19,17 +19,21 @@ from .. import app, auth, files, models, helpers, current_user
 from ..errors import APICodes, APIException
 from ..models import FileOwner, db
 from ..helpers import (
-    JSONResponse, EmptyResponse, jsonify, ensure_json_dict,
-    ensure_keys_in_dict, make_empty_response
+    JSONResponse, EmptyResponse, jsonify, ensure_keys_in_dict,
+    make_empty_response
 )
 from ..permissions import CoursePermission as CPerm
 
-_HumanFeedback = models.Comment
+_HumanFeedback = t.Mapping[str, object]
 _LinterFeedback = t.MutableSequence[t.Tuple[str, models.LinterComment]]  # pylint: disable=invalid-name
 _FeedbackMapping = t.Dict[str, t.Union[_HumanFeedback, _LinterFeedback]]  # pylint: disable=invalid-name
 
 
 @api.route("/code/<int:code_id>/comments/<int:line>", methods=['PUT'])
+@helpers.mark_as_deprecated_route(
+    'Please update comments by id and create them by PUTting to'
+    ' /api/v1/comments/'
+)
 def put_comment(code_id: int, line: int) -> EmptyResponse:
     """Create or change a single :class:`.models.Comment` of a code
     :class:`.models.File`.
@@ -46,41 +50,39 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
     :raises PermissionException: If the user can not can grade work in the
                                  attached course. (INCORRECT_PERMISSION)
     """
-    comment = db.session.query(
-        models.Comment
-    ).filter(models.Comment.file_id == code_id,
-             models.Comment.line == line).one_or_none()
-    if comment and comment.file.work.deleted:
-        comment = None
+    file = helpers.filter_single_or_404(
+        models.File,
+        models.File.id == code_id,
+        also_error=lambda f: f.deleted,
+        with_for_update=True,
+    )
 
-    def __get_comment() -> str:
-        content = ensure_json_dict(request.get_json())
-        ensure_keys_in_dict(content, [('comment', str)])
-        return t.cast(str, content['comment']).replace('\0', '')
-
-    if comment:
-        auth.ensure_permission(
-            CPerm.can_grade_work, comment.file.work.assignment.course_id
+    with helpers.get_from_request_transaction() as [get, _]:
+        comment_text = get(
+            'comment', str, transform=lambda x: x.replace('\0', '')
         )
 
-        comment.comment = __get_comment()
+    comment_base = models.CommentBase.create_if_not_exists(file, line)
+    if comment_base.id is None:
+        auth.FeedbackBasePermissions(  # type: ignore[unreachable]
+            comment_base
+        ).ensure_may_add()
+        db.session.add(comment_base)
+    reply = comment_base.first_reply
+
+    if reply is not None:
+        auth.FeedbackReplyPermissions(reply).ensure_may_edit()
+        edit = reply.update(comment_text)
+        if edit is not None:
+            db.session.add(edit)
     else:
-        file = helpers.get_or_404(
-            models.File, code_id, also_error=lambda f: f.work.deleted
+        reply = comment_base.add_reply(
+            current_user,
+            comment_text,
+            models.CommentReplyType.plain_text,
+            None,
         )
-        auth.ensure_permission(
-            CPerm.can_grade_work,
-            file.work.assignment.course_id,
-        )
-
-        db.session.add(
-            models.Comment(
-                file_id=code_id,
-                user_id=current_user.id,
-                line=line,
-                comment=__get_comment(),
-            )
-        )
+        auth.FeedbackReplyPermissions(reply).ensure_may_add()
 
     db.session.commit()
 
@@ -88,8 +90,13 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
 
 
 @api.route("/code/<int:code_id>/comments/<int:line>", methods=['DELETE'])
+@helpers.mark_as_deprecated_route(
+    'Please update comments by id and create them by PUTting to'
+    ' /api/v1/comments/'
+)
+@auth.login_required
 def remove_comment(code_id: int, line: int) -> EmptyResponse:
-    """Removes the given :class:`.models.Comment` in the given
+    """Removes the given :class:`.models.CommentBase` in the given
     :class:`.models.File`
 
     .. :quickref: Code; Remove a comment.
@@ -104,17 +111,18 @@ def remove_comment(code_id: int, line: int) -> EmptyResponse:
     :raises PermissionException: If the user can not can grade work in the
                                  attached course. (INCORRECT_PERMISSION)
     """
-    comment = helpers.filter_single_or_404(
-        models.Comment,
-        models.Comment.file_id == code_id,
-        models.Comment.line == line,
-        also_error=lambda c: c.file.work.deleted,
+    comment_base = helpers.filter_single_or_404(
+        models.CommentBase,
+        models.CommentBase.file_id == code_id,
+        models.CommentBase.line == line,
+        also_error=lambda c: c.first_reply is None or c.file.deleted,
     )
 
-    auth.ensure_permission(
-        CPerm.can_grade_work, comment.file.work.assignment.course_id
-    )
-    db.session.delete(comment)
+    reply = comment_base.first_reply
+    assert reply is not None
+    auth.FeedbackReplyPermissions(reply).ensure_may_delete()
+    reply.delete()
+
     db.session.commit()
 
     return make_empty_response()
@@ -141,7 +149,9 @@ def get_code(file_id: t.Union[int, uuid.UUID]
       :py:func:`.get_file_url`.
     - If ``type == 'feedback'`` or ``type == 'linter-feedback'`` see
       :py:func:`.code.get_feedback`. This will always return an empty mapping
-      for :class:`.models.AutoTestOutputFiles` for now.
+      for :class:`.models.AutoTestOutputFiles` for now. This type is
+      deprecated, please get all feedback of submission in one try using
+      ``/api/v1/submissions/<submission_id>/feedbacks/``.
     - Otherwise the content of the file is returned as plain text.
 
     :param file_id: The id of the file if you want get the data for a
@@ -168,7 +178,7 @@ def get_code(file_id: t.Union[int, uuid.UUID]
         f = helpers.filter_single_or_404(
             models.File,
             models.File.id == file_id,
-            also_error=lambda f: f.work.deleted
+            also_error=lambda f: f.deleted
         )
 
         auth.ensure_can_view_files(f.work, f.fileowner == FileOwner.teacher)
@@ -219,7 +229,7 @@ def get_file_url(file: models.FileMixin[object]) -> str:
 
 
 def get_feedback(file: models.File, linter: bool = False) -> _FeedbackMapping:
-    """Returns the :class:`.models.Comment` objects attached to the given
+    """Returns the :class:`.models.CommentBase` objects attached to the given
     :class:`.models.File` if the user can see them, else returns an empty dict.
 
     .. note::
@@ -234,31 +244,28 @@ def get_feedback(file: models.File, linter: bool = False) -> _FeedbackMapping:
         in the form ``{line: comment}``.
     """
     res: _FeedbackMapping = {}
-    comments: t.Union[t.List[models.Comment], t.List[models.LinterComment]]
-
     try:
         if linter:
             auth.ensure_can_see_linter_feedback(file.work)
 
-            comments = db.session.query(
+            for linter_comment in db.session.query(
                 models.LinterComment,
-            ).filter_by(file_id=file.id).all()
-
-            for linter_comment in comments:  # type: models.LinterComment
+            ).filter_by(file_id=file.id):
                 line = str(linter_comment.line)
                 if line not in res:
                     res[line] = []
                 name = linter_comment.linter.tester.name
                 res[line].append((name, linter_comment))  # type: ignore
         else:
-            auth.ensure_can_see_user_feedback(file.work)
-
-            comments = db.session.query(
-                models.Comment,
-            ).filter_by(file_id=file.id).all()
-
-            for human_comment in comments:  # type: models.Comment
-                res[str(human_comment.line)] = human_comment
+            for human_comment in db.session.query(
+                models.CommentBase,
+            ).filter_by(file_id=file.id):
+                first_reply = human_comment.first_reply
+                if first_reply is not None and auth.FeedbackReplyPermissions(
+                    first_reply
+                ).ensure_may_see.as_bool():
+                    line = str(human_comment.line)
+                    res[line] = first_reply.get_outdated_json()
         return res
 
     except auth.PermissionException:
@@ -291,7 +298,7 @@ def delete_code(file_id: int) -> EmptyResponse:
         file. (INCORRECT_PERMISSION)
     """
     code: models.File = helpers.get_or_404(
-        models.File, file_id, also_error=lambda f: f.work.deleted
+        models.File, file_id, also_error=lambda f: f.deleted
     )
 
     auth.ensure_can_edit_work(code.work)
@@ -320,7 +327,10 @@ def delete_code(file_id: int) -> EmptyResponse:
     elif code.fileowner == current:
         if db.session.query(
             sql.or_(
-                models.Comment.query.filter_by(file_id=code.id).exists(),
+                models.CommentBase.query.filter(
+                    models.CommentBase.file_id == code.id,
+                    models.CommentBase.replies.any(),
+                ).exists(),
                 models.LinterComment.query.filter_by(file_id=code.id).exists(),
             )
         ).scalar():
@@ -351,8 +361,7 @@ def delete_code(file_id: int) -> EmptyResponse:
                 APICodes.INVALID_STATE, 400
             )
 
-        code.delete_from_disk()
-        db.session.delete(code)
+        code.delete()
     elif code.fileowner == models.FileOwner.both:
         code.fileowner = other
 
@@ -484,7 +493,7 @@ def update_code(file_id: int) -> JSONResponse[models.File]:
         models.File,
         models.File.id == file_id,
         models.File.is_directory != dir_filter,
-        also_error=lambda f: f.work.deleted,
+        also_error=lambda f: f.deleted,
     )
 
     auth.ensure_can_edit_work(code.work)

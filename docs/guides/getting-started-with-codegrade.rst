@@ -10,3 +10,4 @@ Select your Learning Management System (LMS):
     In Blackboard <getting-started-with-codegrade-in-blackboard>
     In Moodle <getting-started-with-codegrade-in-moodle>
     In BrightSpace <getting-started-with-codegrade-in-brightspace>
+    Standalone <getting-started-with-codegrade-standalone>

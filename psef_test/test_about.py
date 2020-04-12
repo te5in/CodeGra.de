@@ -2,6 +2,8 @@
 import pytest
 import requests
 
+import psef
+import requests_stubs
 from psef import tasks, models
 
 
@@ -12,8 +14,11 @@ def test_simple_about_with_live_server(live_server):
     assert res.status_code == 200
 
 
-def test_about_health_status(test_client, app, monkeypatch):
+def test_about_health_status(
+    test_client, app, monkeypatch, stub_function_class
+):
     monkeypatch.setitem(app.config, 'HEALTH_KEY', None)
+
     test_client.req(
         'get',
         '/api/v1/about',
@@ -37,16 +42,22 @@ def test_about_health_status(test_client, app, monkeypatch):
         },
     )
 
-    raise_error = False
+    stub_session_cls = requests_stubs.session_maker()
+    stub_broker_ses = stub_function_class(stub_session_cls, with_args=True)
+    monkeypatch.setattr(psef.helpers, 'BrokerSession', stub_broker_ses)
+
+    raise_db_error = False
 
     class Inspect:
         def __call__(self, *args, **kwargs):
-            if raise_error:
+            if raise_db_error:
                 raise Exception('ERR!')
-            return True
+            return psef.permissions.CoursePermission
 
         def ping(self, *args, **kwargs):
             return self()
+
+    monkeypatch.setattr(models.Permission, 'get_all_permissions', Inspect())
 
     test_client.req(
         'get',
@@ -61,13 +72,15 @@ def test_about_health_status(test_client, app, monkeypatch):
                 'database': True,
                 'uploads': True,
                 'mirror_uploads': True,
+                'broker': True,
             },
         }
     )
+    assert len(stub_session_cls.all_calls) == 1
+    assert stub_session_cls.all_calls[0]['args'][0] == '/api/v1/ping'
+    stub_session_cls.reset_cls()
 
-    raise_error = True
-
-    monkeypatch.setattr(models.Permission, 'get_all_permissions', Inspect())
+    raise_db_error = True
 
     test_client.req(
         'get',
@@ -82,6 +95,40 @@ def test_about_health_status(test_client, app, monkeypatch):
                 'database': False,
                 'uploads': True,
                 'mirror_uploads': True,
+                'broker': True,
             },
         },
     )
+
+    # Should even be called when other tests fail
+    assert len(stub_session_cls.all_calls) == 1
+    stub_session_cls.reset_cls()
+    raise_db_error = False
+
+    class ErrorResposne:
+        def raise_for_status(self):
+            raise requests.RequestException()
+
+    stub_session_cls.Response = ErrorResposne
+
+    test_client.req(
+        'get',
+        '/api/v1/about',
+        500,
+        query={'health': 'good key'},
+        result={
+            'version': object,
+            'features': dict,
+            'health': {
+                'application': True,
+                'database': True,
+                'uploads': True,
+                'mirror_uploads': True,
+                'broker': False,
+            },
+        },
+    )
+
+    # We shouldn't do any retrying or anything
+    assert len(stub_session_cls.all_calls) == 1
+    stub_session_cls.reset_cls()

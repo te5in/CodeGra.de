@@ -13,6 +13,12 @@ Version *Next*
   dashboard is a new page with various statistics about an assignment. It gives
   teachers insight in how students are doing on the assignment and where the
   assignment may be improved.
+- Inline feedback replies (`#1305
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1305>`__). It is now possible
+  to reply to inline feedback, which makes distance learning easier to do with
+  CodeGrade. This update also adds markdown formatting to inline feedback, and
+  notifies you when you have received new replies.
+
 
 **Updates**
 

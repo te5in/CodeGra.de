@@ -13,7 +13,7 @@
                               v-if="!small"
                               size="sm"/>
             <small v-else-if="assignment.hasDeadline" class="deadline">
-                Due {{ readableDeadline }}
+                Due <cg-relative-time :date="assignment.deadline" />
             </small>
 
             <small v-else class="deadline text-muted">
@@ -24,7 +24,7 @@
         <small v-if="!small" class="course text-truncate" :title="assignment.course.name">{{ assignment.course.name }}</small>
 
         <small v-if="!small && assignment.hasDeadline" class="deadline">
-            Due {{ readableDeadline }}
+            Due <cg-relative-time :date="assignment.deadline" />
         </small>
         <small v-else-if="!small" class="deadline text-muted">
             <i>No deadline</i>
@@ -80,13 +80,6 @@ export default {
 
         manageSelected() {
             return this.selected && this.$route.name === 'manage_assignment';
-        },
-
-        readableDeadline() {
-            if (this.assignment.hasDeadline) {
-                return this.assignment.deadline.from(this.$root.$now);
-            }
-            return '';
         },
     },
 

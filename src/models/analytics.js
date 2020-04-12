@@ -330,9 +330,7 @@ export class WorkspaceSubmission {
     }
 
     satisfies(filter) {
-        const {
-            minGrade, maxGrade, submittedAfter, submittedBefore, assignees,
-        } = filter;
+        const { minGrade, maxGrade, submittedAfter, submittedBefore, assignees } = filter;
 
         return (
             this.satisfiesGrade(minGrade, maxGrade) &&
@@ -459,13 +457,16 @@ export class WorkspaceSubmissionSet {
     }
 
     binSubmissionsBy(f) {
-        return this.allSubmissions.reduce((acc, sub) => {
-            const bin = f(sub);
-            if (bin != null) {
-                acc[f(sub)].push(sub);
-            }
-            return acc;
-        }, defaultdict(() => []));
+        return this.allSubmissions.reduce(
+            (acc, sub) => {
+                const bin = f(sub);
+                if (bin != null) {
+                    acc[f(sub)].push(sub);
+                }
+                return acc;
+            },
+            defaultdict(() => []),
+        );
     }
 
     binSubmissionsByGrade(binSize = 1) {
@@ -581,15 +582,18 @@ export class WorkspaceSubmissionSet {
             const subsPerStudent = Object.values(this.submissions)
                 .filter(s => s.length > 0)
                 .map(s => s.length);
-            return subsPerStudent.reduce((acc, nSubs) => {
-                // XXX: This can probably be replaced with "acc[nSubs]++;"
-                // but I got a lot of errors, and at the time I thought they
-                // were related to that line. I don't get them anymore when
-                // using that expression, though... Needs further investigation!
-                const amt = acc[nSubs];
-                acc[nSubs] = amt + 1;
-                return acc;
-            }, defaultdict(() => 0));
+            return subsPerStudent.reduce(
+                (acc, nSubs) => {
+                    // XXX: This can probably be replaced with "acc[nSubs]++;"
+                    // but I got a lot of errors, and at the time I thought they
+                    // were related to that line. I don't get them anymore when
+                    // using that expression, though... Needs further investigation!
+                    const amt = acc[nSubs];
+                    acc[nSubs] = amt + 1;
+                    return acc;
+                },
+                defaultdict(() => 0),
+            );
         });
     }
 
@@ -668,9 +672,7 @@ export class WorkspaceFilter {
     }
 
     split(props) {
-        const {
-            minGrade, maxGrade, submittedAfter, submittedBefore,
-        } = this;
+        const { minGrade, maxGrade, submittedAfter, submittedBefore } = this;
 
         const { latest, assignees } = props;
         const grade = parseFloat(props.grade);

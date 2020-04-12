@@ -195,7 +195,7 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
             return True
         if self.base_work_file is None:
             return False
-        return self.base_work_file.work.deleted
+        return self.base_work_file.deleted
 
     @property
     def csp_header(self) -> str:

@@ -14,9 +14,22 @@ export class CgMarkdownIt {
             html: true,
             typographer: false,
             highlight(str, lang) {
-                return highlightCode(str.split('\n'), lang).join('<br>');
+                const inner = highlightCode(str.split('\n'), lang).join('<br>');
+                return `<pre class="code-block"><code>${inner}</code></pre>`;
             },
         });
+
+        // Remember old renderer, if overridden, or proxy to default renderer
+        const defaultRender =
+            this.md.renderer.rules.link_open ||
+            ((tokens, idx, options, env, self) => self.renderToken(tokens, idx, options));
+
+        this.md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+            const token = tokens[idx];
+            token.attrSet('target', '_blank');
+
+            return defaultRender(tokens, idx, options, env, self);
+        };
 
         this.mathBlocks = [];
     }
