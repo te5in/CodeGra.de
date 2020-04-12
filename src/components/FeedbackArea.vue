@@ -59,6 +59,23 @@ import { Submission } from '@/models/submission';
 
 import FeedbackReply from './FeedbackReply';
 
+/**
+ * Get the tracking ids of which replies to hide.
+ *
+ * @param replies - A list of non deleted to replies for which we should find
+ *   the replies you want to hide.
+ * @param base - If not null this is should be a set of tracking ids. This will
+ *   be used as base for the returned set, i.e. the resulting set will be equal to
+ *   or a subset of this base.
+ */
+function getRepliesToHide(replies: FeedbackReplyModel[], base: Set<number> | null): Set<number> {
+    let trackingIds = replies.slice(1, -1).map(r => r.trackingId);
+    if (base != null) {
+        trackingIds = trackingIds.filter(id => base.has(id));
+    }
+    return new Set(trackingIds);
+}
+
 @Component({
     components: {
         FeedbackReply,
@@ -80,9 +97,14 @@ export default class FeedbackArea extends Vue {
 
     editingReplies: Record<string, boolean> = {};
 
-    hiddenReplies: Set<number> = new Set(
-        this.nonDeletedReplies.slice(1, -1).map(r => r.trackingId),
-    );
+    /*
+     * This is not a computed property on purpose. By having this as a normal
+     * property we can make sure we never start hiding certain replies that were
+     * visible before. For example if a user adds a new reply we do not want to
+     * start hiding the previous last reply, as this reply is probably useful
+     * for the message the user is writing.
+     */
+    hiddenReplies: Set<number> = getRepliesToHide(this.nonDeletedReplies, null);
 
     get nonDeletedReplies(): FeedbackReplyModel[] {
         return this.feedback.replies.filter(r => !r.deleted);
@@ -156,15 +178,15 @@ export default class FeedbackArea extends Vue {
     }
 
     isEditing(reply: FeedbackReplyModel): boolean {
-        return this.editingReplies[reply.trackingId] || false;
+        return this.editingReplies[reply.trackingId] ?? false;
     }
 
-    updateLine(newLine: FeedbackLine) {
+    updateLine(newLine: FeedbackLine): Promise<void> {
         // Make sure we don't display that a comment was placed in the future.
         this.$root.$emit('cg::root::update-now');
         this.$emit('updated');
 
-        this.addFeedbackLine({
+        return this.addFeedbackLine({
             assignmentId: this.assignment.id,
             submissionId: (this.submission as any).id,
             fileId: this.feedback.fileId,
@@ -177,8 +199,10 @@ export default class FeedbackArea extends Vue {
         this.updateLine(line);
     }
 
-    replyDeleted(deletedReply: FeedbackReplyModel): void {
-        this.updateLine(this.feedback.deleteReply(deletedReply));
+    async replyDeleted(deletedReply: FeedbackReplyModel): Promise<void> {
+        await this.updateLine(this.feedback.deleteReply(deletedReply));
+        await this.$afterRerender();
+        this.hiddenReplies = getRepliesToHide(this.nonDeletedReplies, this.hiddenReplies);
     }
 
     addReply(): void {
