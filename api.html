@@ -126,6 +126,7 @@
 <li class="toctree-l1"><a class="reference external" href="https://fs-docs.codegra.de">Filesystem</a></li>
 <li class="toctree-l1"><a class="reference internal" href="user/lms.html">LMS Integration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="user/autotest/overview.html">AutoTest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user/analytics-dashboard.html">Analytics Dashboard</a></li>
 </ul>
 <p class="caption"><span class="caption-text">About CodeGrade</span></p>
 <ul>
@@ -354,6 +355,14 @@ working.</p>
 <tr class="row-even"><td><p>About</p></td>
 <td><p><a class="reference external" href="#get--api-v1-about">GET /api/v1/about</a></p></td>
 <td><p>Get the version and features.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Analytics</p></td>
+<td><p><a class="reference external" href="#get--api-v1-analytics-(int-ana_id)-data_sources-(data_source_name)">GET /api/v1/analytics/(int:ana_id)/data_sources/(data_source_name)</a></p></td>
+<td><p>Get a data source of a workspace.</p></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#get--api-v1-analytics-(int-ana_id)">GET /api/v1/analytics/(int:ana_id)</a></p></td>
+<td><p>Get a analytics workspace.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Assignment</p></td>
 <td><p><a class="reference external" href="#get--api-v1-assignments-">GET /api/v1/assignments/</a></p></td>
@@ -922,6 +931,54 @@ feature indicating if the current instance has it enabled.</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">rtype</dt>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>]]]]</p>
+</dd>
+</dl>
+<dl class="get">
+<dt id="get--api-v1-analytics-(int-ana_id)">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/analytics/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">ana_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-analytics-(int-ana_id)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AnalyticsWorkspace</span></code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This route should be considered beta, its behavior and/or existence
+will change.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ana_id</strong> (<em>int</em>) – The id of the workspace to get.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">AnalyticsWorkspace</span></code>]</p>
+</dd>
+</dl>
+<dl class="get">
+<dt id="get--api-v1-analytics-(int-ana_id)-data_sources-(data_source_name)">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/analytics/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">ana_id</em><span class="sig-paren">)</span><code class="sig-name descname">/data_sources/</code><span class="sig-paren">(</span><em class="sig-param">data_source_name</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-analytics-(int-ana_id)-data_sources-(data_source_name)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a data source within a <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AnalyticsWorkspace</span></code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This route should be considered beta, its behavior and/or existence
+will change.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ana_id</strong> (<em>int</em>) – The id of the workspace in which the datasource should
+be retrieved.</p></li>
+<li><p><strong>data_source_name</strong> (<em>string</em>) – The name of the data source to retrieve.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">BaseDataSource</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code>]]</p>
 </dd>
 </dl>
 <dl class="get">

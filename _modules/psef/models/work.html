@@ -124,6 +124,7 @@
 <li class="toctree-l1"><a class="reference external" href="https://fs-docs.codegra.de">Filesystem</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../user/lms.html">LMS Integration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../user/autotest/overview.html">AutoTest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/analytics-dashboard.html">Analytics Dashboard</a></li>
 </ul>
 <p class="caption"><span class="caption-text">About CodeGrade</span></p>
 <ul>
@@ -209,6 +210,7 @@
 <span class="kn">import</span> <span class="nn">tempfile</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
 
+<span class="kn">import</span> <span class="nn">sqlalchemy</span>
 <span class="kn">import</span> <span class="nn">sqlalchemy.sql</span> <span class="k">as</span> <span class="nn">sql</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">orm</span><span class="p">,</span> <span class="n">select</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.orm</span> <span class="kn">import</span> <span class="n">undefer</span><span class="p">,</span> <span class="n">selectinload</span>
@@ -218,7 +220,7 @@
 <span class="kn">import</span> <span class="nn">cg_timers</span>
 <span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
 <span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers</span> <span class="kn">import</span> <span class="n">hybrid_property</span><span class="p">,</span> <span class="n">hybrid_expression</span>
-<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">ColumnProxy</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">ColumnProxy</span><span class="p">,</span> <span class="n">cast_as_non_null</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">db</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">file</span> <span class="k">as</span> <span class="n">file_models</span>
@@ -500,6 +502,79 @@
                 <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">instance</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">LinterState</span><span class="o">.</span><span class="n">done</span></div>
+
+<div class="viewcode-block" id="Work.get_non_rubric_grade_per_work"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.get_non_rubric_grade_per_work">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_non_rubric_grade_per_work</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">assignment</span><span class="p">:</span> <span class="s1">&#39;assignment_models.Assignment&#39;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_MyQuery</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
+        <span class="sd">&quot;&quot;&quot;Get the non rubric grades of submissions for the given assignment.</span>
+
+<span class="sd">        :param assignment: The assignment in which you want to get the grades.</span>
+<span class="sd">        :returns: A query that returns tuples (work_id, non_rubric_grade) for</span>
+<span class="sd">            each submission in the given assignment that has a non rubric</span>
+<span class="sd">            grade.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="c1"># We make sure that it is not ``None`` in the filter</span>
+            <span class="n">cast_as_non_null</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_grade</span><span class="p">),</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">assignment</span> <span class="o">==</span> <span class="n">assignment</span><span class="p">,</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_grade</span><span class="o">.</span><span class="n">isnot</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Work.get_rubric_grade_per_work"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.get_rubric_grade_per_work">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_rubric_grade_per_work</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">assignment</span><span class="p">:</span> <span class="s1">&#39;assignment_models.Assignment&#39;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_MyQuery</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
+        <span class="sd">&quot;&quot;&quot;Get the rubric grades of submissions for the given assignment.</span>
+
+<span class="sd">        .. warning::</span>
+
+<span class="sd">            The returned grade might **not** the final grade for the</span>
+<span class="sd">            submission, as the grade might be overridden.</span>
+
+<span class="sd">        :param assignment: The assignment in which you want to get the rubric</span>
+<span class="sd">            grades.</span>
+<span class="sd">        :returns: A query that returns tuples (work_id, rubric_grade) for</span>
+<span class="sd">            each submission in the given assignment that has at least one</span>
+<span class="sd">            selected rubric item.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">assignment</span><span class="o">.</span><span class="n">max_rubric_points</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># The assignment doesn&#39;t have a rubric, so simply return an empty</span>
+            <span class="c1"># query result. We filter it with `false` so it will never return</span>
+            <span class="c1"># rows.</span>
+            <span class="k">return</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">sqlalchemy</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">null</span><span class="p">())</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+                <span class="n">sqlalchemy</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">false</span><span class="p">()</span>
+            <span class="p">)</span>
+
+        <span class="n">max_rubric_points</span> <span class="o">=</span> <span class="n">assignment</span><span class="o">.</span><span class="n">max_rubric_points</span>
+        <span class="n">min_grade</span> <span class="o">=</span> <span class="n">assignment</span><span class="o">.</span><span class="n">min_grade</span>
+        <span class="n">max_grade</span> <span class="o">=</span> <span class="n">assignment</span><span class="o">.</span><span class="n">max_grade</span>
+        <span class="n">least</span> <span class="o">=</span> <span class="n">sqlalchemy</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">least</span>
+        <span class="n">greatest</span> <span class="o">=</span> <span class="n">sqlalchemy</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">greatest</span>
+
+        <span class="k">return</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="n">least</span><span class="p">(</span>
+                <span class="n">max_grade</span><span class="p">,</span>
+                <span class="n">greatest</span><span class="p">(</span>
+                    <span class="n">min_grade</span><span class="p">,</span> <span class="p">(</span>
+                        <span class="p">(</span><span class="n">sqlalchemy</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">WorkRubricItem</span><span class="o">.</span><span class="n">points</span><span class="p">)</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span> <span class="o">/</span>
+                        <span class="n">max_rubric_points</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="c1"># We want an inner join here as we want to filter out any Work that</span>
+            <span class="c1"># doesn&#39;t have a work rubric item associated with it.</span>
+            <span class="n">WorkRubricItem</span><span class="p">,</span>
+            <span class="n">WorkRubricItem</span><span class="o">.</span><span class="n">work_id</span> <span class="o">==</span> <span class="bp">cls</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="n">isouter</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">assignment</span> <span class="o">==</span> <span class="n">assignment</span><span class="p">,</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_grade</span><span class="o">.</span><span class="n">is_</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">id</span><span class="p">)</span></div>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">grade</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>

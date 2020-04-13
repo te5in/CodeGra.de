@@ -125,6 +125,7 @@
 <li class="toctree-l1"><a class="reference external" href="https://fs-docs.codegra.de">Filesystem</a></li>
 <li class="toctree-l1"><a class="reference internal" href="user/lms.html">LMS Integration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="user/autotest/overview.html">AutoTest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user/analytics-dashboard.html">Analytics Dashboard</a></li>
 </ul>
 <p class="caption"><span class="caption-text">About CodeGrade</span></p>
 <ul>
@@ -261,6 +262,8 @@
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APIWarnings.AMBIGUOUS_COMBINATION">AMBIGUOUS_COMBINATION (psef.exceptions.APIWarnings attribute)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.auth.AnalyticsWorkspacePermissions">AnalyticsWorkspacePermissions (class in psef.auth)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.models.plagiarism.PlagiarismCase.any_work_deleted">any_work_deleted() (psef.models.plagiarism.PlagiarismCase property)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APIException.api_code">api_code (psef.exceptions.APIException attribute)</a>
@@ -344,6 +347,8 @@
       <li><a href="psef_api/psef.html#psef.models.assignment.AssignmentDoneType">AssignmentDoneType (class in psef.models.assignment)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.assignment.AssignmentGraderDone">AssignmentGraderDone (class in psef.models.assignment)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.models.assignment.AssignmentJSON">AssignmentJSON (class in psef.models.assignment)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.assignment.AssignmentLinter">AssignmentLinter (class in psef.models.assignment)</a>
 </li>
@@ -520,6 +525,8 @@
       <li><a href="psef_api/psef.html#psef.permissions.CoursePermission.can_use_linter">can_use_linter (psef.permissions.CoursePermission attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.permissions.GlobalPermission.can_use_snippets">can_use_snippets (psef.permissions.GlobalPermission attribute)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.permissions.CoursePermission.can_view_analytics">can_view_analytics (psef.permissions.CoursePermission attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.permissions.CoursePermission.can_view_autotest_before_done">can_view_autotest_before_done (psef.permissions.CoursePermission attribute)</a>
 </li>
@@ -925,9 +932,11 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="psef_api/psef.html#psef.auth.FeedbackReplyPermissions.ensure_may_see">ensure_may_see (psef.auth.FeedbackReplyPermissions attribute)</a>
+      <li><a href="psef_api/psef.html#psef.auth.AnalyticsWorkspacePermissions.ensure_may_see">ensure_may_see (psef.auth.AnalyticsWorkspacePermissions attribute)</a>
 
       <ul>
+        <li><a href="psef_api/psef.html#psef.auth.FeedbackReplyPermissions.ensure_may_see">(psef.auth.FeedbackReplyPermissions attribute)</a>
+</li>
         <li><a href="psef_api/psef.html#psef.auth.NotificationPermissions.ensure_may_see">(psef.auth.NotificationPermissions attribute)</a>
 </li>
       </ul></li>
@@ -1219,8 +1228,6 @@
 </li>
       <li><a href="psef_api/psef.html#psef.models.role.CourseRole.get_initial_course_role">get_initial_course_role() (psef.models.role.CourseRole class method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTestRun.get_instructions">get_instructions() (psef.models.auto_test.AutoTestRun method)</a>
 
       <ul>
@@ -1229,6 +1236,8 @@
         <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTestSuite.get_instructions">(psef.models.auto_test.AutoTestSuite method)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.helpers.get_json_dict_from_request">get_json_dict_from_request() (in module psef.helpers)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.helpers.get_key_from_dict">get_key_from_dict() (in module psef.helpers)</a>
@@ -1256,6 +1265,8 @@
       <li><a href="psef_api/psef.html#psef.models.permission.Permission.get_name_column">get_name_column() (psef.models.permission.Permission class method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.extract_tree.ExtractFileTreeBase.get_name_list">get_name_list() (psef.extract_tree.ExtractFileTreeBase method)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.models.work.Work.get_non_rubric_grade_per_work">get_non_rubric_grade_per_work() (psef.models.work.Work class method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.assignment.Assignment.get_not_deleted_submissions">get_not_deleted_submissions() (psef.models.assignment.Assignment method)</a>
 </li>
@@ -1300,6 +1311,8 @@
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTestRun.get_results_latest_submissions">get_results_latest_submissions() (psef.models.auto_test.AutoTestRun method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTestRun.get_results_to_run">get_results_to_run() (psef.models.auto_test.AutoTestRun method)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.models.work.Work.get_rubric_grade_per_work">get_rubric_grade_per_work() (psef.models.work.Work class method)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTestRun.get_runs_that_need_runners">get_runs_that_need_runners() (psef.models.auto_test.AutoTestRun class method)</a>
 </li>
@@ -2572,6 +2585,8 @@
       <li><a href="psef_api/psef.html#psef.models.work.WorkOrigin">WorkOrigin (class in psef.models.work)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.rubric.WorkRubricItem">WorkRubricItem (class in psef.models.rubric)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.auth.AnalyticsWorkspacePermissions.workspace">workspace (psef.auth.AnalyticsWorkspacePermissions attribute)</a>
 </li>
   </ul></td>
 </tr></table>

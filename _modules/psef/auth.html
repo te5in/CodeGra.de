@@ -124,6 +124,7 @@
 <li class="toctree-l1"><a class="reference external" href="https://fs-docs.codegra.de">Filesystem</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../user/lms.html">LMS Integration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../user/autotest/overview.html">AutoTest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user/analytics-dashboard.html">Analytics Dashboard</a></li>
 </ul>
 <p class="caption"><span class="caption-text">About CodeGrade</span></p>
 <ul>
@@ -1258,6 +1259,24 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ensure_may_see</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_my_notification</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="AnalyticsWorkspacePermissions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.AnalyticsWorkspacePermissions">[docs]</a><span class="k">class</span> <span class="nc">AnalyticsWorkspacePermissions</span><span class="p">(</span><span class="n">PermissionChecker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The permission checker for :class:`psef.models.AnalyticsWorkspace`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;workspace&#39;</span><span class="p">,</span> <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">analytics_workspace</span><span class="p">:</span> <span class="s1">&#39;psef.models.AnalyticsWorkspace&#39;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">analytics_workspace</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">workspace</span> <span class="o">=</span> <span class="n">analytics_workspace</span>
+
+<div class="viewcode-block" id="AnalyticsWorkspacePermissions.ensure_may_see"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.AnalyticsWorkspacePermissions.ensure_may_see">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_see</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Check if the current user has the permission to see analytics data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_view_analytics</span><span class="p">)</span></div></div>
 
 
 <div class="viewcode-block" id="ensure_any_of_permissions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.ensure_any_of_permissions">[docs]</a><span class="nd">@login_required</span>

@@ -124,6 +124,7 @@
 <li class="toctree-l1"><a class="reference external" href="https://fs-docs.codegra.de">Filesystem</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../user/lms.html">LMS Integration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../user/autotest/overview.html">AutoTest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/analytics-dashboard.html">Analytics Dashboard</a></li>
 </ul>
 <p class="caption"><span class="caption-text">About CodeGrade</span></p>
 <ul>
@@ -216,6 +217,7 @@
 <span class="kn">import</span> <span class="nn">sqlalchemy</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.orm</span> <span class="kn">import</span> <span class="n">validates</span>
 <span class="kn">from</span> <span class="nn">mypy_extensions</span> <span class="kn">import</span> <span class="n">DefaultArg</span>
+<span class="kn">from</span> <span class="nn">typing_extensions</span> <span class="kn">import</span> <span class="n">TypedDict</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.sql.expression</span> <span class="kn">import</span> <span class="n">and_</span><span class="p">,</span> <span class="n">func</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.orm.collections</span> <span class="kn">import</span> <span class="n">attribute_mapped_collection</span>
 
@@ -231,6 +233,7 @@
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">course</span> <span class="k">as</span> <span class="n">course_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">linter</span> <span class="k">as</span> <span class="n">linter_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">rubric</span> <span class="k">as</span> <span class="n">rubric_models</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">analytics</span> <span class="k">as</span> <span class="n">analytics_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">auto_test</span> <span class="k">as</span> <span class="n">auto_test_models</span>
 <span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span><span class="p">,</span> <span class="n">ignore</span><span class="p">,</span> <span class="n">helpers</span>
 <span class="kn">from</span> <span class="nn">.role</span> <span class="kn">import</span> <span class="n">CourseRole</span>
@@ -253,6 +256,65 @@
 <span class="n">Z</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;Z&#39;</span><span class="p">)</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">structlog</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="AssignmentJSON"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentJSON">[docs]</a><span class="k">class</span> <span class="nc">AssignmentJSON</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The serialization of an assignment.</span>
+
+<span class="sd">    See the comments in the source code for the meaning of each field.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span>  <span class="c1"># The id of the assignment.</span>
+    <span class="n">state</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># Current state of the assignment.</span>
+    <span class="n">description</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>  <span class="c1"># Description of the assignment.</span>
+    <span class="n">created_at</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># ISO UTC date.</span>
+    <span class="n">deadline</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>  <span class="c1"># ISO UTC date.</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># The name of the assignment.</span>
+    <span class="n">is_lti</span><span class="p">:</span> <span class="nb">bool</span>  <span class="c1"># Is this an LTI assignment.</span>
+    <span class="n">course</span><span class="p">:</span> <span class="s1">&#39;course_models.Course&#39;</span>  <span class="c1"># Course of this assignment.</span>
+    <span class="n">cgignore</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.helpers.JSONType&#39;</span><span class="p">]</span>  <span class="c1"># The cginore.</span>
+    <span class="n">cgignore_version</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">whitespace_linter</span><span class="p">:</span> <span class="nb">bool</span>  <span class="c1"># Has the whitespace linter run on this assignment.</span>
+
+    <span class="c1"># The fixed value for the maximum that can be achieved in a rubric. This</span>
+    <span class="c1"># can be higher and lower than the actual max. Will be `null` if unset.</span>
+    <span class="n">fixed_max_rubric_points</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+
+    <span class="c1"># The maximum grade you can get for this assignment. This is based around</span>
+    <span class="c1"># the idea that a 10 is a &#39;perfect&#39; score. So if this value is 12 a user</span>
+    <span class="c1"># can score 2 additional bonus points. If this value is `null` it is unset</span>
+    <span class="c1"># and regarded as a 10.</span>
+    <span class="n">max_grade</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+    <span class="n">group_set</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.models.GroupSet&#39;</span><span class="p">]</span>
+    <span class="n">auto_test_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="n">files_upload_enabled</span><span class="p">:</span> <span class="nb">bool</span>  <span class="c1"># Can you upload files to this assignment.</span>
+    <span class="n">webhook_upload_enabled</span><span class="p">:</span> <span class="nb">bool</span>  <span class="c1"># Can you connect git to this assignment.</span>
+
+    <span class="c1"># The maximum amount of submission a student may create, inclusive. The</span>
+    <span class="c1"># value ``null`` indicates that there is no limit.</span>
+    <span class="n">max_submissions</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+
+    <span class="c1"># These two values determine the maximum submissions in an amount of time</span>
+    <span class="c1"># by a user. A user can submit at most `amount_in_cool_off_period`</span>
+    <span class="c1"># submissions in `cool_off_period` seconds. `amount_in_cool_off_period` is</span>
+    <span class="c1"># always &gt;= 1, so this check is disabled if `cool_off_period == 0`.</span>
+    <span class="n">cool_off_period</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">amount_in_cool_off_period</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="c1"># All next values are filled in based on permissions and data availability.</span>
+
+    <span class="c1"># ISO UTC date. This will be `null` if you don&#39;t have the permission to see</span>
+    <span class="c1"># this or if it is unset.</span>
+    <span class="n">reminder_time</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">lms_name</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>  <span class="c1"># The LMS providing this LTI assignment.</span>
+
+    <span class="c1"># The kind of reminder that will be sent.  If you don&#39;t have the permission</span>
+    <span class="c1"># to see this it will always be `null`. If this is not set it will also be</span>
+    <span class="c1"># `null`.</span>
+    <span class="n">done_type</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">done_email</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">division_parent_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="n">analytics_workspace_ids</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span></div>
 
 
 <div class="viewcode-block" id="AssignmentAmbiguousSettingTag"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentAmbiguousSettingTag">[docs]</a><span class="k">class</span> <span class="nc">AssignmentAmbiguousSettingTag</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
@@ -670,6 +732,13 @@
         <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
 
+    <span class="n">analytics_workspaces</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">analytics_models</span><span class="o">.</span><span class="n">AnalyticsWorkspace</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;assignment&#39;</span><span class="p">,</span>
+        <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;delete-orphan, delete, save-update&#39;</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
     <span class="n">group_set_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;group_set_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
@@ -754,14 +823,42 @@
         <span class="p">)</span>
     <span class="p">)</span>
 
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">lti_assignment_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+        <span class="n">course</span><span class="p">:</span> <span class="s1">&#39;course_models.Course&#39;</span><span class="p">,</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">_AssignmentStateEnum</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">deadline</span><span class="p">:</span> <span class="n">DatetimeWithTimezone</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">lti_assignment_id</span><span class="o">=</span><span class="n">lti_assignment_id</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span>
+            <span class="n">course</span><span class="o">=</span><span class="n">course</span><span class="p">,</span>
+            <span class="n">state</span><span class="o">=</span><span class="n">state</span><span class="p">,</span>
+            <span class="n">deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+            <span class="n">analytics_workspaces</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">analytics_models</span><span class="o">.</span><span class="n">AnalyticsWorkspace</span><span class="p">(</span><span class="n">assignment</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+            <span class="p">],</span>
+        <span class="p">)</span>
+
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Check if two Assignments are equal.</span>
 
-<span class="sd">        &gt;&gt;&gt; Assignment() == object()</span>
+<span class="sd">        &gt;&gt;&gt; a1 = Assignment(name=&#39;&#39;, course=None)</span>
+<span class="sd">        &gt;&gt;&gt; a1.id = 5</span>
+<span class="sd">        &gt;&gt;&gt; a1 == object()</span>
 <span class="sd">        False</span>
-<span class="sd">        &gt;&gt;&gt; Assignment(id=5) == Assignment(id=6)</span>
+<span class="sd">        &gt;&gt;&gt; a2 = Assignment(name=&#39;&#39;, course=None)</span>
+<span class="sd">        &gt;&gt;&gt; a2.id = 6</span>
+<span class="sd">        &gt;&gt;&gt; a1_1 = Assignment(name=&#39;&#39;, course=None)</span>
+<span class="sd">        &gt;&gt;&gt; a1_1.id = 5</span>
+<span class="sd">        &gt;&gt;&gt; a1 == a2</span>
 <span class="sd">        False</span>
-<span class="sd">        &gt;&gt;&gt; Assignment(id=5) == Assignment(id=5)</span>
+<span class="sd">        &gt;&gt;&gt; a1_1 == a1</span>
 <span class="sd">        True</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Assignment</span><span class="p">):</span>
@@ -1018,7 +1115,7 @@
     <span class="k">def</span> <span class="nf">deadline_expired</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Has the deadline of this assignment expired.</span>
 
-<span class="sd">        &gt;&gt;&gt; a = Assignment(deadline=None)</span>
+<span class="sd">        &gt;&gt;&gt; a = Assignment(name=&#39;&#39;, deadline=None, course=None)</span>
 <span class="sd">        &gt;&gt;&gt; a.deadline_expired</span>
 <span class="sd">        False</span>
 <span class="sd">        &gt;&gt;&gt; from datetime import datetime</span>
@@ -1133,61 +1230,10 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">whitespace_linter_exists</span>
 
-    <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssignmentJSON</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Creates a JSON serializable representation of this assignment.</span>
 
-<span class="sd">        This object will look like this:</span>
-
-<span class="sd">        .. code:: python</span>
-
-<span class="sd">            {</span>
-<span class="sd">                &#39;id&#39;: int, # The id of this assignment.</span>
-<span class="sd">                &#39;state&#39;: str, # Current state of this assignment.</span>
-<span class="sd">                &#39;description&#39;: str, # Description of this assignment.</span>
-<span class="sd">                &#39;created_at&#39;: str, # ISO UTC date.</span>
-<span class="sd">                &#39;deadline&#39;: str, # ISO UTC date.</span>
-<span class="sd">                &#39;name&#39;: str, # Assignment name.</span>
-<span class="sd">                &#39;is_lti&#39;: bool, # Is this an LTI assignment.</span>
-<span class="sd">                &#39;lms_name&#39;: t.Optional[str], # The LMS providing this LTI</span>
-<span class="sd">                                             # assignment.</span>
-<span class="sd">                &#39;course&#39;: models.Course, # Course of this assignment.</span>
-<span class="sd">                &#39;cgignore&#39;: str, # The cginore of this assignment.</span>
-<span class="sd">                &#39;whitespace_linter&#39;: bool, # Has the whitespace linter</span>
-<span class="sd">                                           # run on this assignment.</span>
-<span class="sd">                &#39;done_type&#39;: str, # The kind of reminder that will be sent.</span>
-<span class="sd">                                  # If you don&#39;t have the permission to see</span>
-<span class="sd">                                  # this it will always be `null`. If this is</span>
-<span class="sd">                                  # not set it will also be `null`.</span>
-<span class="sd">                &#39;reminder_time&#39;: str, # ISO UTC date. This will be `null` if</span>
-<span class="sd">                                      # you don&#39;t have the permission to see</span>
-<span class="sd">                                      # this or if it is unset.</span>
-<span class="sd">                &#39;fixed_max_rubric_points&#39;: float, # The fixed value for the</span>
-<span class="sd">                                                  # maximum that can be</span>
-<span class="sd">                                                  # achieved in a rubric. This</span>
-<span class="sd">                                                  # can be higher and lower</span>
-<span class="sd">                                                  # than the actual max. Will</span>
-<span class="sd">                                                  # be `null` if unset.</span>
-<span class="sd">                &#39;max_grade&#39;: float, # The maximum grade you can get for this</span>
-<span class="sd">                                    # assignment. This is based around the idea</span>
-<span class="sd">                                    # that a 10 is a &#39;perfect&#39; score. So if</span>
-<span class="sd">                                    # this value is 12 a user can score 2</span>
-<span class="sd">                                    # additional bonus points. If this value is</span>
-<span class="sd">                                    # `null` it is unset and regarded as a 10.</span>
-<span class="sd">                &#39;max_submissions&#39;: t.Optional[int], # The maximum amount of</span>
-<span class="sd">                    # submission a student may create, inclusive. The value</span>
-<span class="sd">                    # ``null`` indicates that there is no limit.</span>
-
-
-<span class="sd">                # These two values determine the maximum submissions in an</span>
-<span class="sd">                # amount of time by a user. A user can submit at most</span>
-<span class="sd">                # `amount_in_cool_off_period` submissions in `cool_off_period`</span>
-<span class="sd">                # seconds. `amount_in_cool_off_period` is always &gt;= 1, so this</span>
-<span class="sd">                # check is disabled if `cool_off_period == 0`.</span>
-<span class="sd">                &#39;cool_off_period&#39;: float,</span>
-<span class="sd">                &#39;amount_in_cool_off_period&#39;: int,</span>
-<span class="sd">            }</span>
-
-<span class="sd">        :returns: An object as described above.</span>
+<span class="sd">        :returns: An :class:``.AssignmentJSON`` dictionary.</span>
 
 <span class="sd">        .. todo:: Remove &#39;description&#39; field from Assignment model.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1195,12 +1241,13 @@
         <span class="c1"># times so caching it in a local variable is a good idea.</span>
         <span class="n">cgignore</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cgignore</span>
 
-        <span class="n">res</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">res</span><span class="p">:</span> <span class="n">AssignmentJSON</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
             <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_name</span><span class="p">,</span>
             <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
-            <span class="s1">&#39;created_at&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
-            <span class="s1">&#39;deadline&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">deadline</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">deadline</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+            <span class="s1">&#39;created_at&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+            <span class="s1">&#39;deadline&#39;</span><span class="p">:</span>
+                <span class="kc">None</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">deadline</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">deadline</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
             <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
             <span class="s1">&#39;is_lti&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_lti</span><span class="p">,</span>
             <span class="s1">&#39;course&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">course</span><span class="p">,</span>
@@ -1224,6 +1271,7 @@
             <span class="s1">&#39;done_type&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
             <span class="s1">&#39;done_email&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
             <span class="s1">&#39;division_parent_id&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s1">&#39;analytics_workspace_ids&#39;</span><span class="p">:</span> <span class="p">[],</span>
         <span class="p">}</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1243,6 +1291,11 @@
             <span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_assignee</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_id</span>
         <span class="p">):</span>
             <span class="n">res</span><span class="p">[</span><span class="s1">&#39;division_parent_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">division_parent_id</span>
+
+        <span class="k">for</span> <span class="n">workspace</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">analytics_workspaces</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">auth</span><span class="o">.</span><span class="n">AnalyticsWorkspacePermissions</span><span class="p">(</span><span class="n">workspace</span>
+                                                  <span class="p">)</span><span class="o">.</span><span class="n">ensure_may_see</span><span class="o">.</span><span class="n">as_bool</span><span class="p">():</span>
+                <span class="n">res</span><span class="p">[</span><span class="s1">&#39;analytics_workspace_ids&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">workspace</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">res</span>
 
