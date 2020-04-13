@@ -59,6 +59,11 @@ logger = structlog.get_logger()
 
 
 class AssignmentJSON(TypedDict, total=True):
+    """The serialization of an assignment.
+
+    See the comments in the source code for the meaning of each field.
+    """
+
     id: int  # The id of the assignment.
     state: str  # Current state of the assignment.
     description: t.Optional[str]  # Description of the assignment.

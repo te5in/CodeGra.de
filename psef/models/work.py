@@ -20,7 +20,7 @@ import psef
 import cg_timers
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import hybrid_property, hybrid_expression
-from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy
+from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy, cast_as_non_null
 
 from . import Base, DbColumn, db
 from . import file as file_models
@@ -304,9 +304,42 @@ class Work(Base):
                 instance.state = LinterState.done
 
     @classmethod
+    def get_non_rubric_grade_per_work(
+        cls, assignment: 'assignment_models.Assignment'
+    ) -> _MyQuery[t.Tuple[int, float]]:
+        """Get the non rubric grades of submissions for the given assignment.
+
+        :param assignment: The assignment in which you want to get the grades.
+        :returns: A query that returns tuples (work_id, non_rubric_grade) for
+            each submission in the given assignment that has a non rubric
+            grade.
+        """
+        return db.session.query(
+            cls.id,
+            # We make sure that it is not ``None`` in the filter
+            cast_as_non_null(cls._grade),
+        ).filter(
+            cls.assignment == assignment,
+            cls._grade.isnot(None),
+        )
+
+    @classmethod
     def get_rubric_grade_per_work(
         cls, assignment: 'assignment_models.Assignment'
     ) -> _MyQuery[t.Tuple[int, float]]:
+        """Get the rubric grades of submissions for the given assignment.
+
+        .. warning::
+
+            The returned grade might **not** the final grade for the
+            submission, as the grade might be overridden.
+
+        :param assignment: The assignment in which you want to get the rubric
+            grades.
+        :returns: A query that returns tuples (work_id, rubric_grade) for
+            each submission in the given assignment that has at least one
+            selected rubric item.
+        """
         if assignment.max_rubric_points is None:
             # The assignment doesn't have a rubric, so simply return an empty
             # query result. We filter it with `false` so it will never return

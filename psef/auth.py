@@ -1062,6 +1062,8 @@ class NotificationPermissions(PermissionChecker):
 
 
 class AnalyticsWorkspacePermissions(PermissionChecker):
+    """The permission checker for :class:`psef.models.AnalyticsWorkspace`.
+    """
     __slots__ = ('workspace', )
 
     def __init__(
@@ -1072,6 +1074,8 @@ class AnalyticsWorkspacePermissions(PermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see(self) -> None:
+        """Check if the current user has the permission to see analytics data.
+        """
         self._ensure(CPerm.can_view_analytics)
 
 

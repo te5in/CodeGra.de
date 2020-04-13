@@ -744,6 +744,19 @@ class _MyExistsQuery:
 
 _MyQuery = MyQuery
 
+
+def cast_as_non_null(col: DbColumn[t.Optional[T]]) -> DbColumn[T]:
+    """Get the given nullable column as non nullable.
+
+    This function is useful when you for rows where this column is not
+    ``NULL``, however ``mypy`` will no understand that filter. You can see this
+    function as a safer variant of `typing.cast`.
+
+    :returns: Its input completely unaltered.
+    """
+    return col  # type: ignore
+
+
 MYPY = False
 if t.TYPE_CHECKING and MYPY:
 

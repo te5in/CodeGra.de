@@ -1,3 +1,7 @@
+"""This module defines all models needed for the analytics workspaces
+
+SPDX-License-Identifier: AGPL-3.0-only
+"""
 import abc
 import typing as t
 
@@ -21,7 +25,10 @@ Z = t.TypeVar('Z')
 
 
 def _array_agg_and_order(
-    to_select: DbColumn[Y], order_by: DbColumn[Z], *, remove_nulls: bool = False
+    to_select: DbColumn[Y],
+    order_by: DbColumn[Z],
+    *,
+    remove_nulls: bool = False
 ) -> DbColumn[t.Sequence[Y]]:
     res = sqlalchemy.func.array_agg(
         aggregate_order_by(to_select, order_by).asc()
@@ -39,6 +46,12 @@ class _SubmissionData(TypedDict, total=True):
 
 
 class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
+    """The class that represents an analytics workspace.
+
+    At the moment this class doesn't contain any state, however that will
+    probably change in the future.
+    """
+
     assignment_id = db.Column(
         'assignment_id',
         db.Integer,
@@ -53,6 +66,11 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
 
     @property
     def work_query(self) -> MyQuery['work_models.Work']:
+        """A method to get a query that selects of the submissions in this
+            workspace.
+
+        :returns: A query that contains al submissions in this workspace.
+        """
         return db.session.query(work_models.Work).filter(
             ~db.session.query(user_models.User).filter(
                 user_models.User.is_test_student,
@@ -64,18 +82,21 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
     @property
     def submissions_per_student(self
                                 ) -> t.Mapping[int, t.List[_SubmissionData]]:
+        """Get the submission data for users within this analytics workspace.
+
+        :returns: A mapping between user id and a list of their
+            submissions. Each submission is a dictionary with 4 keys: id (the
+            id the submission), created_at (created at of the submission),
+            grade (the grade of the submission), and assignee_id (the id of the
+            assignee of this submission).
+        """
         grades_per_sub = dict(
             work_models.Work.get_rubric_grade_per_work(self.assignment)
         )
         grades_per_sub.update(
-            (id, grade) for id, grade in db.session.query(
-                work_models.Work.id,
-                work_models.Work._grade,
-            ).filter(
-                work_models.Work.assignment == self.assignment,
-                work_models.Work._grade.isnot(None),
-            ) if grade is not None
-            # this check is for mypy, and will always evaluate to ``True``.
+            work_models.Work.get_non_rubric_grade_per_work(
+                self.assignment,
+            )
         )
 
         query = self.work_query.with_entities(
@@ -115,7 +136,7 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
     def __to_json__(self) -> t.Mapping[str, object]:
         data_sources = [
             source for (source, cls) in analytics_data_sources.get_all()
-            if cls.should_include(workspace=self)
+            if cls(self).should_include()
         ]
 
         return {
@@ -130,13 +151,22 @@ T = t.TypeVar('T')
 
 
 class BaseDataSource(t.Generic[T]):
+    """The base class for all data sources.
+
+    Each subclass should implement the ``get_data``.
+    """
+    __slots__ = ('workspace', )
+
     def __init__(self, workspace: AnalyticsWorkspace) -> None:
         self.workspace = workspace
 
     @abc.abstractmethod
     def get_data(self) -> t.Mapping[int, T]:
         """Get the data, the key in this mapping should be the submission id
-        the data belongs to.
+            the data belongs to.
+
+        :returns: A mapping between a submission id and the data this data
+            source provides.
         """
         raise NotImplementedError
 
@@ -146,8 +176,9 @@ class BaseDataSource(t.Generic[T]):
             'data': self.get_data(),
         }
 
-    @staticmethod
-    def should_include(*, workspace: AnalyticsWorkspace) -> bool:
+    def should_include(self) -> bool:  # pylint: disable=no-self-use
+        """should this data source be included in the associated workspace.
+        """
         return True
 
 
@@ -185,9 +216,8 @@ class _RubricDataSource(BaseDataSource[t.List[_RubricDataSourceModel]]):
             for work_id, item_ids, mults in query
         }
 
-    @staticmethod
-    def should_include(*, workspace: AnalyticsWorkspace) -> bool:
-        return workspace.assignment.max_rubric_points is not None
+    def should_include(self) -> bool:
+        return self.workspace.assignment.max_rubric_points is not None
 
 
 class _InlineFeedbackModel(TypedDict, total=True):
