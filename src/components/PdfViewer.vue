@@ -18,7 +18,7 @@
     add-space
     button-position="bottom-right">
     <template v-slot:default="slotProps">
-        <div class="p-relative d-flex flex-grow flex-column">
+        <div class="p-relative d-flex flex-grow flex-column h-100">
             <div class="resize-div" v-if="slotProps.resizing" />
             <object :data="pdfURL"
                     type="application/pdf"
