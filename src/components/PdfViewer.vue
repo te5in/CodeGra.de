@@ -118,13 +118,13 @@ export default {
     },
 
     methods: {
-        embedPdf(fileId) {
+        async embedPdf(fileId) {
             this.pdfURL = '';
 
             let pdfURL;
 
             if (this.$root.isEdge) {
-                this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(
+                await this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(
                     ({ data }) => {
                         pdfURL = `/api/v1/files/${
                             data.name

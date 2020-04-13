@@ -413,16 +413,10 @@ export default {
     display: flex;
     flex-direction: column;
 
-    &.html-viewer {
-        height: 100%;
-    }
-    &.pdf-viewer:not(.no-data) {
-        height: 100%;
-        flex: 1 1 100%;
-    }
-
+    &.html-viewer,
+    &.image-viewer,
     &.markdown-viewer,
-    &.image-viewer {
+    &.pdf-viewer {
         height: 100%;
     }
 }
