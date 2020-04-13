@@ -73,7 +73,7 @@
                      title="Email authors"
                      body-class="p-0"
                      dialog-class="auto-test-result-modal">
-                <student-contact :submit="sendEmail"
+                <student-contact :users="submission.user.getContainedUsers()"
                                  :course="assignment.course"
                                  :default-subject="defaultEmailSubject"
                                  @hide="() => $refs.contactStudentModal.hide()"
@@ -216,8 +216,6 @@ import { mapGetters, mapActions } from 'vuex';
 import { nameOfUser } from '@/utils';
 
 import * as assignmentState from '@/store/assignment-states';
-
-import { TaskResult } from '@/models';
 
 import { setPageTitle } from '@/pages/title';
 
@@ -837,18 +835,6 @@ export default {
 
         inlineFeedbackChanged(val) {
             this.showInlineFeedback = val;
-        },
-
-        sendEmail(subject, body) {
-            return this.$http.post(`/api/v1/submissions/${this.submission.id}/email`, {
-                subject,
-                body,
-            }).then(response => (
-                {
-                    ...response,
-                    cgResult: new TaskResult(response.data.id),
-                }
-            ));
         },
     },
 

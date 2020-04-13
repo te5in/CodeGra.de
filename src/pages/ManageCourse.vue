@@ -57,7 +57,7 @@
             </b-form-group>
 
             <student-contact
-                :submit="sendEmail"
+                :users="usersToEmail"
                 :course="course"
                 :default-subject="defaultEmailSubject"
                 no-cancel
@@ -70,8 +70,6 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
-
-import { TaskResult } from '@/models';
 
 import UsersManager from '@/components/UsersManager';
 import PermissionsManager from '@/components/PermissionsManager';
@@ -197,24 +195,6 @@ export default {
 
     methods: {
         ...mapActions('courses', ['loadCourses']),
-
-        sendEmail(subject, body) {
-            const usernames = this.usersToEmail.map(u => u.username).filter(u => u !== '' && u != null);
-            if (usernames.length === 0) {
-                throw new Error('You have to select at least one recipient.');
-            }
-
-            return this.$http.post(`/api/v1/courses/${this.course.id}/email`, {
-                subject,
-                body,
-                usernames,
-            }).then(response => (
-                {
-                    ...response,
-                    cgResult: new TaskResult(response.data.id),
-                }
-            ));
-        },
     },
 
     components: {

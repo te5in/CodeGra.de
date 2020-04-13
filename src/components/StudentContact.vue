@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="student-contact p-relative">
     <div class="text-left" >
@@ -73,7 +74,7 @@
 <script lang="ts">
 import { Vue, Component, Prop, Ref } from 'vue-property-decorator';
 
-import { SubmitButtonResult, Snippet } from '@/interfaces';
+import { Snippet } from '@/interfaces';
 import * as models from '@/models';
 
 // @ts-ignore
@@ -85,14 +86,13 @@ import SnippetableInput from './SnippetableInput';
     },
 })
 export default class StudentContact extends Vue {
-    @Prop({ required: true }) submit!: (subject: string, body: string) =>
-        Promise<SubmitButtonResult<models.TaskResult>>;
+    @Prop({ required: true }) users!: ({ username: string } | models.User)[];
 
     @Prop({ required: true }) canUseSnippets!: boolean;
 
     @Prop({ required: true }) defaultSubject!: string;
 
-    @Prop({ required: true }) course!: { snippets: Snippet[] | null };
+    @Prop({ required: true }) course!: { id: number, snippets: Snippet[] | null };
 
     @Prop({ default: false }) noCancel!: boolean;
 
@@ -117,10 +117,19 @@ export default class StudentContact extends Vue {
             destroyed = true;
         };
 
-        return this.submit(this.subject, this.body).then(({ cgResult: taskResult }) => {
+        if (this.users.length === 0) {
+            throw new Error('You have to select at least one recipient.');
+        }
+
+        return this.$http.post(`/api/v1/courses/${this.course.id}/email`, {
+            subject: this.subject,
+            body: this.body,
+            usernames: this.users.map(u => u.username),
+        }).then(response => {
             if (destroyed) {
                 return Promise.resolve();
             }
+            const taskResult = new models.TaskResult(response.data.id);
             const { promise, stop } = taskResult.poll();
 
             this.onDestroyHook = stop;
