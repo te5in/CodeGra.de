@@ -119,9 +119,9 @@ export default {
 
         relativePopoverText() {
             if (this.settings.relative) {
-                return 'Show amount of students';
+                return 'Show amount of students in filter group';
             } else {
-                return 'Show percentage of students';
+                return 'Show percentage of students of filter group';
             }
         },
 
