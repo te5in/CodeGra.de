@@ -1585,9 +1585,9 @@ describe('RubricSource', () => {
     describe('ritPerCat', () => {
         it('should return the rit value per category', () => {
             const srcData = makeRubricSource(
-                [[0, 1], [5, 1], [6, 1]],
+                [[0, 1], [5, 1], [6, 0.5]],
                 [[1, 1], [3, 1], [6, 1]],
-                [[2, 1]],
+                [[2, 1], [4, 1]],
             );
             const ws = Workspace.fromServerData(workspace, [srcData]);
             const src = ws.dataSources.rubric_data;
@@ -1612,14 +1612,28 @@ describe('RubricSource', () => {
             expect(rits[1]).toBeNumber();
             expect(rits[2]).toBeNull();
         });
+
+        it('should return null if all students scored the same in a category', () => {
+            const srcData = makeRubricSource(
+                [[0, 1], [3, 1]],
+                [[1, 1], [3, 1]],
+                [[2, 1]],
+            );
+            const ws = Workspace.fromServerData(workspace, [srcData]);
+            const src = ws.dataSources.rubric_data;
+            const rits = src.ritPerCat;
+
+            expect(rits[0]).toBeNumber();
+            expect(rits[1]).toBeNull();
+        });
     });
 
     describe('rirPerCat', () => {
         it('should return the rir value per category', () => {
             const srcData = makeRubricSource(
-                [[0, 1], [5, 1], [6, 1]],
+                [[0, 1], [5, 1], [6, 0.5]],
                 [[1, 1], [3, 1], [6, 1]],
-                [[2, 1]],
+                [[2, 1], [4, 1]],
             );
             const ws = Workspace.fromServerData(workspace, [srcData]);
             const src = ws.dataSources.rubric_data;
@@ -1643,6 +1657,20 @@ describe('RubricSource', () => {
             expect(rirs[0]).toBeNumber();
             expect(rirs[1]).toBeNumber();
             expect(rirs[2]).toBeNull();
+        });
+
+        it('should return null if all students scored the same in a category', () => {
+            const srcData = makeRubricSource(
+                [[0, 1], [3, 1]],
+                [[1, 1], [3, 1]],
+                [[2, 1]],
+            );
+            const ws = Workspace.fromServerData(workspace, [srcData]);
+            const src = ws.dataSources.rubric_data;
+            const rits = src.ritPerCat;
+
+            expect(rits[0]).toBeNumber();
+            expect(rits[1]).toBeNull();
         });
     });
 });
