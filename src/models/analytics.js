@@ -260,7 +260,8 @@ export class RubricSource extends DataSource {
                 if (zipped.length < 2) {
                     return null;
                 }
-                return stat.sampleCorrelation(...zip(...zipped));
+                const ret = stat.sampleCorrelation(...zip(...zipped));
+                return Number.isNaN(ret) ? null : ret;
             }),
         );
     }
@@ -271,7 +272,8 @@ export class RubricSource extends DataSource {
                 if (zipped.length < 2) {
                     return null;
                 }
-                return stat.sampleCorrelation(...zip(...zipped));
+                const ret = stat.sampleCorrelation(...zip(...zipped));
+                return Number.isNaN(ret) ? null : ret;
             }),
         );
     }
