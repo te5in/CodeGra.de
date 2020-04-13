@@ -3,6 +3,16 @@
 <div class="student-contact p-relative">
     <div class="text-left" >
         <b-form-group>
+            <label>Recipients</label>
+            <user-selector placeholder="Students to email"
+                           v-model="users"
+                           :use-selector="canListUsers"
+                           :base-url="`/api/v1/courses/${course.id}/users/`"
+                           multiple />
+        </b-form-group>
+
+
+        <b-form-group>
             <label>Subject</label>
             <input v-model="subject" class="form-control" />
         </b-form-group>
@@ -38,7 +48,7 @@
             ref="submitButton"
             :submit="sendEmail"
             confirm="Are you sure you want to send this email?"
-            @after-success="$emit('emailed')"
+            @after-success="afterEmail"
             label="Send">
             <template slot="error" slot-scope="e">
                 <div v-if="$utils.getProps(e, null, 'error', 'response', 'data', 'code') === 'MAILING_FAILED'"
@@ -72,21 +82,24 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Prop, Ref } from 'vue-property-decorator';
+    import { Vue, Component, Prop, Ref, Watch } from 'vue-property-decorator';
 
 import { Snippet } from '@/interfaces';
 import * as models from '@/models';
 
+// @ts-ignore
+import UserSelector from './UserSelector';
 // @ts-ignore
 import SnippetableInput from './SnippetableInput';
 
 @Component({
     components: {
         SnippetableInput,
+        UserSelector,
     },
 })
 export default class StudentContact extends Vue {
-    @Prop({ required: true }) users!: ({ username: string } | models.User)[];
+    @Prop({ required: true }) initialUsers!: ({ username: string } | models.User)[];
 
     @Prop({ required: true }) canUseSnippets!: boolean;
 
@@ -96,11 +109,20 @@ export default class StudentContact extends Vue {
 
     @Prop({ default: false }) noCancel!: boolean;
 
+    @Prop({ default: false }) resetOnEmail!: boolean;
+
+    public users: ({ username: string } | models.User)[] = this.initialUsers;
+
     public subject: string = this.defaultSubject;
 
     public body: string = '';
 
     public onDestroyHook = () => { };
+
+    @Watch('initialUsers')
+    onInitialUsersUpdate() {
+        this.users = this.initialUsers;
+    }
 
     destroyed() {
         this.onDestroyHook();
@@ -144,6 +166,18 @@ export default class StudentContact extends Vue {
     }): models.User[] {
         const failed = new Set(data.failed_users.map(x => x.id));
         return data.all_users.filter(u => !failed.has(u.id)).map(u => models.makeUser(u));
+    }
+
+    get canListUsers() {
+        const perms = this.$utils.getProps(this.course, {}, 'permissions');
+        return !!(perms.can_list_course_users);
+    }
+
+    afterEmail(): void {
+        this.$emit('emailed');
+        if (this.resetOnEmail) {
+            this.users = this.initialUsers;
+        }
     }
 }
 </script>

@@ -32,6 +32,12 @@
                     <icon name="gear"/>
                 </b-button>
 
+                <b-button v-if="canEmailStudents"
+                          v-b-popover.top.hover="`Email the authors of the visible submissions`"
+                          v-b-modal.submissions-page-email-students-modal>
+                    <icon name="envelope"/>
+                </b-button>
+
                 <b-button-group v-b-popover.bottom.hover="'Reload submissions'">
                     <submit-button :wait-at-least="500"
                                    name="refresh-button"
@@ -46,6 +52,27 @@
         <cg-logo v-if="isStudent"
                  :inverted="!darkMode" />
     </local-header>
+
+    <b-modal v-if="canEmailStudents"
+             id="submissions-page-email-students-modal"
+             ref="contactStudentModal"
+             size="xl"
+             hide-footer
+             no-close-on-backdrop
+             no-close-on-esc
+             hide-header-close
+             title="Email authors"
+             body-class="p-0"
+             dialog-class="auto-test-result-modal">
+        <student-contact :initial-users="visibleStudents"
+                         :course="assignment.course"
+                         :default-subject="defaultEmailSubject"
+                         reset-on-email
+                         @hide="() => $refs.contactStudentModal.hide()"
+                         @emailed="() => $refs.contactStudentModal.hide()"
+                         :can-use-snippets="canUseSnippets"
+                         class="p-3"/>
+    </b-modal>
 
     <div class="cat-container d-flex flex-column">
         <div v-if="error != null">
@@ -291,6 +318,7 @@ import 'vue-awesome/icons/users';
 import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/code-fork';
 import 'vue-awesome/icons/git';
+import 'vue-awesome/icons/envelope';
 
 import ltiProviders from '@/lti_providers';
 import { NONEXISTENT } from '@/constants';
@@ -311,6 +339,7 @@ import {
     SubmissionsExporter,
     WebhookInstructions,
 } from '@/components';
+import StudentContact from '@/components/StudentContact';
 
 import { setPageTitle, pageTitleSep } from './title';
 
@@ -331,7 +360,10 @@ export default {
     },
 
     computed: {
-        ...mapGetters('user', { userId: 'id' }),
+        ...mapGetters('user', {
+            userId: 'id',
+            userPerms: 'permissions',
+        }),
         ...mapGetters('pref', ['darkMode']),
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('rubrics', { allRubrics: 'rubrics' }),
@@ -618,6 +650,23 @@ export default {
             // When there is a group, only show the add button if you are not a student.
             return !this.isStudent;
         },
+
+        visibleStudents() {
+            return [].concat(...this.filteredSubmissions.map(s => s.user.getContainedUsers()));
+        },
+
+        defaultEmailSubject() {
+            return `A comment for the assignment "${this.assignment.name}`;
+        },
+
+        canUseSnippets() {
+            return !!this.userPerms.can_use_snippets;
+        },
+
+        canEmailStudents() {
+            return this.$utils.getProps(this.coursePermissions, false, 'can_email_students');
+        },
+
     },
 
     watch: {
@@ -772,6 +821,7 @@ export default {
         SubmissionsExporter,
         WebhookInstructions,
         LateSubmissionIcon,
+        StudentContact,
     },
 };
 </script>

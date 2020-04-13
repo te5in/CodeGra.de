@@ -73,7 +73,7 @@
                      title="Email authors"
                      body-class="p-0"
                      dialog-class="auto-test-result-modal">
-                <student-contact :users="submission.user.getContainedUsers()"
+                <student-contact :initial-users="submission.user.getContainedUsers()"
                                  :course="assignment.course"
                                  :default-subject="defaultEmailSubject"
                                  @hide="() => $refs.contactStudentModal.hide()"

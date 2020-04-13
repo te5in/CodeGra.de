@@ -47,21 +47,12 @@
 
         <div :class="{ hidden: selectedCat !== 'contact' }"
               class="cat-wrapper">
-            <b-form-group>
-                <label>Recipients</label>
-                <user-selector placeholder="Students to email"
-                           v-model="usersToEmail"
-                           :use-selector="canListUsers"
-                           :base-url="`/api/v1/courses/${course.id}/users/`"
-                           multiple />
-            </b-form-group>
-
             <student-contact
-                :users="usersToEmail"
+                :initial-users="[]"
+                reset-on-email
                 :course="course"
                 :default-subject="defaultEmailSubject"
                 no-cancel
-                @emailed="usersToEmail = []"
                 :can-use-snippets="canUseSnippets"/>
         </div>
     </div>
@@ -78,7 +69,6 @@ import Loader from '@/components/Loader';
 import CategorySelector from '@/components/CategorySelector';
 import GroupSetManager from '@/components/GroupSetManager';
 import SnippetManager from '@/components/SnippetManager';
-import UserSelector from '@/components/UserSelector';
 import StudentContact from '@/components/StudentContact';
 
 import { setPageTitle } from './title';
@@ -90,7 +80,6 @@ export default {
         return {
             selectedCat: '',
             filter: '',
-            usersToEmail: [],
         };
     },
 
@@ -169,15 +158,9 @@ export default {
             ];
         },
 
-        canListUsers() {
-            const perms = this.$utils.getProps(this.course, {}, 'permissions');
-            return !!(perms.can_list_course_users);
-        },
-
         defaultEmailSubject() {
             return `An email about the "${this.course.name}" course on CodeGrade`;
         },
-
         canUseSnippets() {
             return !!this.userPerms.can_use_snippets;
         },
@@ -199,7 +182,6 @@ export default {
 
     components: {
         UsersManager,
-        UserSelector,
         PermissionsManager,
         LocalHeader,
         Loader,
