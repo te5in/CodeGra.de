@@ -48,6 +48,8 @@
         </h3>
     </template>
 
+    <loader v-else-if="rerendering" />
+
     <component v-else
                :is="selectedStatistic.chartComponent"
                :chart-data="selectedStatistic.data"
@@ -66,6 +68,7 @@ import 'vue-awesome/icons/percent';
 import { deepEquals, filterObject } from '@/utils';
 
 import { BarChart, ScatterPlot } from '@/components/Charts';
+import Loader from '@/components/Loader';
 import DatetimePicker from '@/components/DatetimePicker';
 import DescriptionPopover from '@/components/DescriptionPopover';
 
@@ -96,6 +99,8 @@ export default {
     data() {
         return {
             settings: fillSettings(this.value),
+
+            rerendering: false,
         };
     },
 
@@ -303,6 +308,13 @@ export default {
             this.settings = Object.assign({}, this.settings, { [name]: value });
         },
 
+        forceRerender() {
+            this.rerendering = true;
+            this.$afterRerender(() => {
+                this.rerendering = false;
+            });
+        },
+
         // TODO: Move this to a FilterResultSet model.
         getHistogramData(key, normalize) {
             const labels = this.rubric.rows.map(row => row.header);
@@ -408,10 +420,15 @@ export default {
                 this.$emit('input', settings);
             },
         },
+
+        filterResults() {
+            this.forceRerender();
+        },
     },
 
     components: {
         Icon,
+        Loader,
         BarChart,
         ScatterPlot,
         DatetimePicker,
