@@ -13,17 +13,13 @@
         <label>{{ $utils.capitalize(studentType) }}s</label>
     </div>
 
-    <div class="metric"
-         :class="{ 'border-right': $root.$isMediumWindow }">
+    <div class="border-right metric">
         <component :is="metricTag" class="d-block">
             {{ submissionCount }}
         </component>
 
         <label>Submissions</label>
     </div>
-
-    <hr v-if="!$root.$isMediumWindow"
-        class="w-100 mt-0 mx-3"/>
 
     <div class="border-right metric">
         <component :is="metricTag"
@@ -81,8 +77,7 @@
         </description-popover>
     </div>
 
-    <div class="metric"
-         :class="{ 'border-right': $root.$isMediumWindow }">
+    <div class="border-right metric">
         <component :is="metricTag" class="d-block">
             <span v-if="submissionStats == null">
                 -
@@ -135,10 +130,7 @@
         </description-popover>
     </div>
 
-    <hr v-if="!$root.$isMediumWindow"
-        class="w-100 mt-0 mx-3"/>
-
-    <div class="metric">
+    <div class="border-right metric">
         <component :is="metricTag" class="d-block">
             <span v-if="feedbackStats == null">
                 -
@@ -233,7 +225,7 @@ export default {
         },
 
         cardBodyClass() {
-            let cls = 'd-flex flex-row flex-wrap pb-0';
+            let cls = 'd-flex flex-row flex-wrap px-0 pb-0';
             if (!this.large) {
                 cls += ' p-1';
             }
@@ -292,7 +284,7 @@ export default {
 @import '~mixins.less';
 
 .metric {
-    flex: 0 0 20%;
+    flex: 0 0 auto;
     position: relative;
     text-align: center;
 
@@ -302,6 +294,30 @@ export default {
 
     @media @media-no-medium {
         flex-basis: 50%;
+
+        &:nth-child(2n) {
+            border-right: 0 !important;
+        }
+    }
+
+    @media @media-medium {
+        flex-basis: 33.33%;
+
+        &:nth-child(3n) {
+            border-right-width: 0 !important;
+        }
+    }
+
+    @media @media-large {
+        flex-basis: 20%;
+
+        &:nth-child(3n) {
+            border-right-width: 1px !important;
+        }
+
+        &:nth-child(5n) {
+            border-right: 0 !important;
+        }
     }
 
     label {
