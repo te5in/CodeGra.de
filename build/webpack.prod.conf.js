@@ -24,7 +24,7 @@ var webpackConfig = merge(baseWebpackConfig, {
   devtool: config.build.productionSourceMap ? '#source-map' : false,
   output: {
     path: config.build.assetsRoot,
-    chunkFilename: utils.assetsPath('js/[name].bundle.[chunkhash].js'),
+    chunkFilename: utils.assetsPath('js/[id].bundle.[contenthash].js'),
   },
   plugins: [
     // http://vuejs.github.io/vue-loader/en/workflow/production.html
@@ -83,13 +83,18 @@ var webpackConfig = merge(baseWebpackConfig, {
     ]),
   ],
   optimization: {
+    moduleIds: 'hashed',
     splitChunks: {
       chunks: 'all',
       cacheGroups: {
         vendor: {
           name: 'vendor',
-          test: /[\\/]node_modules[\\/](?!text-encoding|highlightjs|url-search-params|intersection-observer)/,
+          test: /[\\/]node_modules[\\/](?!text-encoding|highlightjs|url-search-params|intersection-observer|simple-statistics|chart.?js.*)/,
           enforce: true,
+        },
+        analytics: {
+          name: 'analytics',
+          test: /[\\/]node_modules[\\/](simple-statistics|chart.?js.*)/,
         },
         highlightjs: {
           name: 'highlightjs',
