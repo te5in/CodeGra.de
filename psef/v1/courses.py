@@ -560,10 +560,14 @@ def get_courses() -> JSONResponse[t.Sequence[t.Mapping[str, t.Any]]]:
 
     extra_loads: t.Optional[t.List[t.Any]] = None
     if helpers.extended_requested():
+        load_assig = selectinload(models.Course.assignments)
         extra_loads = [
             selectinload(models.Course.assignments),
             selectinload(models.Course.snippets),
-            selectinload(models.Course.group_sets)
+            selectinload(models.Course.group_sets),
+            load_assig.selectinload(models.Assignment.analytics_workspaces),
+            load_assig.selectinload(models.Assignment.rubric_rows),
+            load_assig.selectinload(models.Assignment.group_set),
         ]
 
     # We don't use `helpers.get_or_404` here as preloading doesn't seem to work

@@ -13,6 +13,7 @@ import pref from './modules/preference';
 import courses from './modules/courses';
 import rubrics from './modules/rubrics';
 import autotest from './modules/autotest';
+import analytics from './modules/analytics';
 import plagiarism from './modules/plagiarism';
 import submissions from './modules/submissions';
 import code from './modules/code';
@@ -79,6 +80,7 @@ Object.entries({
     courses,
     rubrics,
     autotest,
+    analytics,
     plagiarism,
     submissions,
     code,

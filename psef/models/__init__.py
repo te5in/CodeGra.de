@@ -195,7 +195,7 @@ if True:  # pylint: disable=using-constant-test
     from .webhook import WebhookBase, GitCloneData
     from .blob_storage import BlobStorage
     from .proxy import Proxy, ProxyState
-
+    from .analytics import AnalyticsWorkspace, BaseDataSource
     from .notification import Notification, NotificationReasons
     from .user_setting import (
         NotificationsSetting, SettingBase, EmailNotificationTypes,

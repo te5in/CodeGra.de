@@ -48,13 +48,10 @@ def create_lti_assignment(
     if deadline == 'tomorrow':
         deadline = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
 
-    res = m.Assignment(
-        name=name,
-        course=course,
-        deadline=deadline,
-        lti_assignment_id=str(uuid.uuid4()),
-        lti_outcome_service_url=str(uuid.uuid4()),
-    )
+    res = m.Assignment(name=name, course=course, deadline=deadline)
+    res.lti_assignment_id = str(uuid.uuid4())
+    res.lti_outcome_service_url = str(uuid.uuid4())
+
     res.set_state(state)
     session.add(res)
     session.commit()

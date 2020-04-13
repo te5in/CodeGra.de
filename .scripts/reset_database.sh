@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-only
 
-DEV_DB="codegrade_dev1"
-DEV_BROKER_DB="codegrade_broker_dev1"
+DEV_DB="codegrade_dev"
+DEV_BROKER_DB="codegrade_broker_dev"
 
 if [[ $1 = 'broker' ]]; then
     echo "NOTE THIS IS VERY HACKY AND PROBABLY WON'T WORK WITH YOUR POSTGRESQL INSTALL"

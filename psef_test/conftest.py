@@ -13,6 +13,7 @@ import secrets
 import datetime
 import contextlib
 import subprocess
+import collections
 import multiprocessing
 import multiprocessing.managers
 from urllib.error import URLError
@@ -313,6 +314,10 @@ def assert_similar():
                 ).format(
                     '.'.join(cur_path + [str(k)]), value.pattern, vals[k]
                 )
+            elif callable(value):
+                assert value(vals[k]), (
+                    'The function {} did not return true for {} at the path {}'
+                ).format(value, vals[k], '.'.join(cur_path + [str(k)]))
             else:
                 assert vals[k] == value, (
                     "Wrong value for key '{}', expected '{} (type={})', got '{}'"

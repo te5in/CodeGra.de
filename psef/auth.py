@@ -1068,6 +1068,24 @@ class NotificationPermissions(CoursePermissionChecker):
         self._ensure_my_notification()
 
 
+class AnalyticsWorkspacePermissions(CoursePermissionChecker):
+    """The permission checker for :class:`psef.models.AnalyticsWorkspace`.
+    """
+    __slots__ = ('workspace', )
+
+    def __init__(
+        self, analytics_workspace: 'psef.models.AnalyticsWorkspace'
+    ) -> None:
+        super().__init__(analytics_workspace.assignment.course_id)
+        self.workspace = analytics_workspace
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        """Check if the current user has the permission to see analytics data.
+        """
+        self._ensure(CPerm.can_view_analytics)
+
+
 class TaskResultPermissions(PermissionChecker):
     def __init__(self, task_result: 'psef.models.TaskResult') -> None:
         self.task_result: Final = task_result

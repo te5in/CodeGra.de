@@ -273,7 +273,7 @@
             <div v-if="selectedCat === 'hand-in-instructions'"
                  class="flex-grow-1">
                 <c-g-ignore-file class="border rounded mb-3"
-                                 :assignmentId="assignment.id"
+                                 :assignment-id="assignment.id"
                                  :editable="false"
                                  summary-mode/>
             </div>
@@ -298,6 +298,23 @@
                 <submissions-exporter :get-submissions="filter => filter ? filteredSubmissions : submissions"
                                       :assignment-id="assignment.id"
                                       :filename="exportFilename" />
+            </div>
+
+            <div v-if="selectedCat === 'analytics'"
+                 class="flex-grow-1">
+                <catch-error>
+                    <template slot-scope="scope">
+                        <b-alert show variant="danger" v-if="scope.error">
+                            An unexpected error occurred:
+                            {{ $utils.getErrorMessage(scope.error) }}
+
+                            <pre class="text-wrap-pre">{{ scope.error.stack }}</pre>
+                        </b-alert>
+
+                        <analytics-dashboard v-else
+                                             :assignment-id="assignmentId" />
+                    </template>
+                </catch-error>
             </div>
         </template>
     </div>
@@ -328,6 +345,7 @@ import {
     CgLogo,
     Loader,
     Collapse,
+    CatchError,
     LocalHeader,
     CGIgnoreFile,
     RubricEditor,
@@ -406,6 +424,11 @@ export default {
                     id: 'export',
                     name: 'Export',
                     enabled: !this.isStudent,
+                },
+                {
+                    id: 'analytics',
+                    name: 'Analytics <div class="ml-1 badge">beta</div>',
+                    enabled: this.assignment.analytics_workspace_ids.length > 0,
                 },
             ];
         },
@@ -771,6 +794,7 @@ export default {
         },
 
         submitForceLoadSubmissions() {
+            this.$root.$emit('cg::submissions-page::reload');
             return this.forceLoadSubmissions(this.assignment.id);
         },
 
@@ -810,6 +834,7 @@ export default {
         CgLogo,
         Loader,
         Collapse,
+        CatchError,
         LocalHeader,
         CGIgnoreFile,
         RubricEditor,
@@ -822,6 +847,10 @@ export default {
         WebhookInstructions,
         LateSubmissionIcon,
         StudentContact,
+        AnalyticsDashboard: () => ({
+            component: import('@/components/AnalyticsDashboard'),
+            loading: Loader,
+        }),
     },
 };
 </script>

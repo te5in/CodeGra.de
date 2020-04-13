@@ -164,12 +164,7 @@ def test_send_mails(
         with logged_in(student):
             reply = add_reply('reply that will be deleted')
         with logged_in(teacher):
-            test_client.req(
-                'delete', (
-                    f'/api/v1/comments/{reply["comment_base_id"]}/'
-                    f'replies/{reply["id"]}'
-                ), 204
-            )
+            reply.delete()
 
         psef.tasks._send_daily_notifications()
         mail_functions.assert_mailed(teacher, amount=0)
@@ -318,12 +313,8 @@ def test_updating_notifications(
         # Make sure the notification we are going to update is that of the
         # deleted reply
         assert notis[0]['comment_reply']['id'] == r1['id']
-        test_client.req(
-            'delete', (
-                f'/api/v1/comments/{r1["comment_base_id"]}/'
-                f'replies/{r1["id"]}'
-            ), 204
-        )
+        r1.delete()
+
         test_client.req(
             'patch',
             f'/api/v1/notifications/',

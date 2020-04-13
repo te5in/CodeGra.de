@@ -94,6 +94,7 @@ def main() -> None:
     course_perm = get_yes_or_no('Is it a course permission')
     short_desc = get_input('Short description of permission')
     long_desc = get_input('Long description of permission')
+    warning = get_input('Warning message (leave empty to ignore)', True)
     default_true = get_yes_or_no('Should the default value be True')
     if course_perm:
         perm_to_copy_from = get_input(
@@ -130,6 +131,9 @@ def main() -> None:
         short_description=short_desc,
         long_description=long_desc,
     )
+    if warning:
+        perms[name]['warning'] = warning
+
     with open(PERMS_FILE, 'w') as f:
         json.dump(perms, f, indent=2, separators=(',', ': '))
 

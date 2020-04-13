@@ -866,6 +866,7 @@ def test_add_assignment(
                 'cool_off_period': 0.0,
                 'amount_in_cool_off_period': 1,
                 'max_submissions': None,
+                'analytics_workspace_ids': [int],
             }
         )
 
