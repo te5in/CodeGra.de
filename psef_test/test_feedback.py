@@ -18,7 +18,7 @@ only_own = create_marker(pytest.mark.only_own)
 
 
 @pytest.fixture
-def make_add_reply(session, test_client, error_template):
+def make_add_reply(session, test_client, error_template, mail_functions):
     class Reply(dict):
         def delete(self):
             test_client.req(
