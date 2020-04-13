@@ -591,7 +591,8 @@ class IndexedJSONColumn(DbColumn[Never]):
 
 
 class _ExistsColumn:
-    pass
+    def __invert__(self) -> '_ExistsColumn':
+        ...
 
 
 class Mapper(t.Generic[_T_BASE]):

@@ -7,7 +7,7 @@ from .. import auth, models, helpers, registry
 @api.route("/analytics/<int:ana_id>", methods=['GET'])
 def get_analytics(ana_id: int) -> JSONResponse[models.AnalyticsWorkspace]:
     workspace = helpers.get_or_404(models.AnalyticsWorkspace, ana_id)
-    auth.ensure_can_see_analytics_workspace(workspace)
+    auth.AnalyticsWorkspacePermissions(workspace).ensure_may_see()
     return JSONResponse.make(workspace)
 
 
@@ -19,7 +19,7 @@ def get_data_source(
     data_source_name: str,
 ) -> JSONResponse[models.BaseDataSource]:
     workspace = helpers.get_or_404(models.AnalyticsWorkspace, ana_id)
-    auth.ensure_can_see_analytics_workspace(workspace)
+    auth.AnalyticsWorkspacePermissions(workspace).ensure_may_see()
     data_source = registry.analytics_data_sources[data_source_name]
 
     return JSONResponse.make(data_source(workspace))

@@ -53,7 +53,8 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
             ~db.session.query(user_models.User).filter(
                 user_models.User.is_test_student,
                 user_models.User.id == work_models.Work.user_id,
-            ).exists(), work_models.Work.assignment == self.assignment
+            ).exists(),
+            work_models.Work.assignment == self.assignment,
         )
 
     @property
@@ -63,12 +64,14 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
             work_models.Work.get_rubric_grade_per_work(self.assignment)
         )
         grades_per_sub.update(
-            db.session.query(
-                work_models.Work.id, work_models.Work._grade
+            (id, grade) for id, grade in db.session.query(
+                work_models.Work.id,
+                work_models.Work._grade,
             ).filter(
                 work_models.Work.assignment == self.assignment,
                 work_models.Work._grade.isnot(None),
-            )
+            ) if grade is not None
+            # this check is for mypy, and will always evaluate to ``True``.
         )
 
         query = self.work_query.with_entities(

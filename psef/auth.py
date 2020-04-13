@@ -1061,17 +1061,22 @@ class NotificationPermissions(PermissionChecker):
         self._ensure_my_notification()
 
 
-@login_required
-def ensure_can_see_analytics_workspace(
-    analytics_workspace: 'psef.models.AnalyticsWorkspace'
-) -> None:
-    assignment = analytics_workspace.assignment
-    course_id = assignment.course_id
-    ensure_permission(CPerm.can_see_others_work, course_id)
-    ensure_permission(CPerm.can_view_analytics, course_id)
+class AnalyticsWorkspacePermissions(PermissionChecker):
+    __slots__ = ('workspace', )
 
-    if not assignment.is_done:
-        ensure_permission(CPerm.can_see_grade_before_open, course_id)
+    def __init__(
+        self, analytics_workspace: 'psef.models.AnalyticsWorkspace'
+    ) -> None:
+        super().__init__(analytics_workspace.assignment.course_id)
+        self.workspace = analytics_workspace
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        self._ensure(CPerm.can_see_others_work)
+        self._ensure(CPerm.can_view_analytics)
+
+        if not self.workspace.assignment.is_done:
+            self._ensure(CPerm.can_see_grade_before_open)
 
 
 @login_required
