@@ -4,7 +4,7 @@ import psef
 import helpers
 import psef.models as m
 from helpers import get_id
-from test_feedback import make_add_reply
+from test_feedback import mail_functions, make_add_reply
 
 RUBRIC = {
     'rows': [{
