@@ -20,11 +20,15 @@ Y = t.TypeVar('Y')
 Z = t.TypeVar('Z')
 
 
-def _array_agg_and_order(to_select: DbColumn[Y],
-                         order_by: DbColumn[Z]) -> DbColumn[t.List[Y]]:
-    return sqlalchemy.func.array_agg(
+def _array_agg_and_order(
+    to_select: DbColumn[Y], order_by: DbColumn[Z], *, remove_nulls: bool = False
+) -> DbColumn[t.Sequence[Y]]:
+    res = sqlalchemy.func.array_agg(
         aggregate_order_by(to_select, order_by).asc()
     )
+    if remove_nulls:
+        res = sqlalchemy.func.array_remove(res, sqlalchemy.sql.null())
+    return res
 
 
 class _SubmissionData(TypedDict, total=True):
@@ -111,7 +115,7 @@ class AnalyticsWorkspace(IdMixin, TimestampMixin, Base):
     def __to_json__(self) -> t.Mapping[str, object]:
         data_sources = [
             source for (source, cls) in analytics_data_sources.get_all()
-            if cls.should_include(self)
+            if cls.should_include(workspace=self)
         ]
 
         return {
@@ -143,7 +147,7 @@ class BaseDataSource(t.Generic[T]):
         }
 
     @staticmethod
-    def should_include(_workspace: AnalyticsWorkspace) -> bool:
+    def should_include(*, workspace: AnalyticsWorkspace) -> bool:
         return True
 
 
@@ -155,21 +159,21 @@ class _RubricDataSourceModel(TypedDict, total=True):
 @analytics_data_sources.register('rubric_data')
 class _RubricDataSource(BaseDataSource[t.List[_RubricDataSourceModel]]):
     def get_data(self) -> t.Mapping[int, t.List[_RubricDataSourceModel]]:
-        query = db.session.query(
-            rubric_models.WorkRubricItem.work_id,
+        query = self.workspace.work_query.join(
+            rubric_models.WorkRubricItem, isouter=True
+        ).with_entities(
+            work_models.Work.id,
             _array_agg_and_order(
                 rubric_models.WorkRubricItem.rubricitem_id,
                 rubric_models.WorkRubricItem.rubricitem_id,
+                remove_nulls=True,
             ),
             _array_agg_and_order(
                 rubric_models.WorkRubricItem.multiplier,
                 rubric_models.WorkRubricItem.rubricitem_id,
+                remove_nulls=True,
             ),
-        ).filter(
-            rubric_models.WorkRubricItem.work_id.in_(
-                self.workspace.work_query.with_entities(work_models.Work.id)
-            )
-        ).group_by(rubric_models.WorkRubricItem.work_id)
+        ).group_by(work_models.Work.id)
 
         return {
             work_id: [
@@ -182,8 +186,8 @@ class _RubricDataSource(BaseDataSource[t.List[_RubricDataSourceModel]]):
         }
 
     @staticmethod
-    def should_include(workspace: AnalyticsWorkspace) -> bool:
-        return len(workspace.assignment.rubric_rows) > 0
+    def should_include(*, workspace: AnalyticsWorkspace) -> bool:
+        return workspace.assignment.max_rubric_points is not None
 
 
 class _InlineFeedbackModel(TypedDict, total=True):

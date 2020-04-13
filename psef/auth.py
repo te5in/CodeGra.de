@@ -1072,11 +1072,7 @@ class AnalyticsWorkspacePermissions(PermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see(self) -> None:
-        self._ensure(CPerm.can_see_others_work)
         self._ensure(CPerm.can_view_analytics)
-
-        if not self.workspace.assignment.is_done:
-            self._ensure(CPerm.can_see_grade_before_open)
 
 
 @login_required
