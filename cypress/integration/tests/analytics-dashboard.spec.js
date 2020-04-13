@@ -5,9 +5,13 @@ context('Analytics Dashboard', () => {
     let assignmentNoRubric;
     let assignmentNoSubs;
 
-    function loadPage(assig) {
+    function visitSubmissions(assig) {
         cy.visit(`/courses/${course.id}/assignments/${assig.id}/submissions#analytics`);
         cy.url().should('include', `assignments/${assig.id}`);
+    }
+
+    function loadPage(assig) {
+        visitSubmissions(assig);
         cy.get('.analytics-dashboard')
             .should('be.visible')
             .find('.analytics-general-stats')
@@ -237,45 +241,81 @@ context('Analytics Dashboard', () => {
                     .find('input')
                     .should('have.value', '');
             });
+
+            it('should not exist when there are no submissions', () => {
+                visitSubmissions(assignmentNoSubs);
+                cy.get('.analytics-dashboard .filters-error').should('not.exist');
+                cy.get('.analytics-filters').should('not.exist');
+            });
         });
 
         context('Submission date histogram', () => {
             it('should be visible', () => {
                 cy.get('.analytics-submission-date')
+                    .should('be.visible')
+                    .find('canvas')
                     .should('be.visible');
             });
 
-            it('should be visible when there are no submissions', () => {
+            it('should not exist when there are no submissions', () => {
+                visitSubmissions(assignmentNoSubs);
+                cy.get('.analytics-dashboard .submission-date-error').should('not.exist');
+                cy.get('.analytics-submission-date').should('not.exist');
             });
         });
 
         context('Submission count histogram', () => {
             it('should be visible', () => {
-                cy.get('.analytics-submission-date')
+                cy.get('.analytics-submission-count')
+                    .should('be.visible')
+                    .find('canvas')
                     .should('be.visible');
             });
 
-            it('should be visible when there are no submissions', () => {
+            it('should not exist when there are no submissions', () => {
+                visitSubmissions(assignmentNoSubs);
+                cy.get('.analytics-dashboard .submission-count-error').should('not.exist');
+                cy.get('.analytics-submission-count').should('not.exist');
             });
         });
 
         context('Grade histogram', () => {
             it('should be visible', () => {
                 cy.get('.analytics-grade-stats')
+                    .should('be.visible')
+                    .find('canvas')
                     .should('be.visible');
             });
 
-            it('should be visible when there are no submissions', () => {
+            it('should not exist when there are no submissions', () => {
+                visitSubmissions(assignmentNoSubs);
+                cy.get('.analytics-dashboard .grade-stats-error').should('not.exist');
+                cy.get('.analytics-grade-stats').should('not.exist');
             });
         });
 
         context('Rubric statistics', () => {
             it('should be visible', () => {
                 cy.get('.analytics-rubric-stats')
+                    .should('be.visible')
+                    .find('canvas')
                     .should('be.visible');
             });
 
-            it('should be visible when there are no submissions', () => {
+            it('should not exist when there are no submissions', () => {
+                visitSubmissions(assignmentNoSubs);
+                cy.get('.analytics-dashboard .rubric-stats-error').should('not.exist');
+                cy.get('.analytics-rubric-stats').should('not.exist');
+            });
+
+            it('should not exist when the assignment has no rubric', () => {
+                visitSubmissions(assignmentNoRubric);
+                cy.get('.analytics-dashboard .rubric-stats-error').should('not.exist');
+                cy.get('.analytics-rubric-stats').should('not.exist');
+                cy.get('.analytics-grade-stats').should('exist');
+                cy.get('.analytics-submission-date').should('exist');
+                cy.get('.analytics-submission-count').should('exist');
+                cy.get('.analytics-filters').should('exist');
             });
         });
     });

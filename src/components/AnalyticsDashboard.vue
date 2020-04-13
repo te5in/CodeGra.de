@@ -31,7 +31,7 @@
         <div class="col-12">
             <catch-error capture>
                 <template slot-scope="scope">
-                    <b-alert show variant="danger" v-if="scope.error">
+                    <b-alert show variant="danger" class="general-stats-error" v-if="scope.error">
                         An unexpected error occurred:
                         {{ $utils.getErrorMessage(scope.error) }}
                     </b-alert>
@@ -49,7 +49,7 @@
         <div class="col-12 mt-3">
             <catch-error capture>
                 <template slot-scope="scope">
-                    <b-alert show variant="danger" v-if="scope.error">
+                    <b-alert show variant="danger" class="filters-error" v-if="scope.error">
                         An unexpected error occurred:
                         {{ $utils.getErrorMessage(scope.error) }}
                     </b-alert>
@@ -77,7 +77,7 @@
             <div class="col-12 mt-3">
                 <catch-error capture>
                     <template slot-scope="scope">
-                        <b-alert show variant="danger" v-if="scope.error">
+                        <b-alert show variant="danger" class="submission-date-error" v-if="scope.error">
                             An unexpected error occurred:
                             {{ $utils.getErrorMessage(scope.error) }}
                         </b-alert>
@@ -93,7 +93,7 @@
             <div class="col-12 mt-3">
                 <catch-error capture>
                     <template slot-scope="scope">
-                        <b-alert show variant="danger" v-if="scope.error">
+                        <b-alert show variant="danger" class="submission-count-error" v-if="scope.error">
                             An unexpected error occurred:
                             {{ $utils.getErrorMessage(scope.error) }}
                         </b-alert>
@@ -109,7 +109,7 @@
             <div class="col-12 mt-3">
                 <catch-error capture>
                     <template slot-scope="scope">
-                        <b-alert show variant="danger" v-if="scope.error">
+                        <b-alert show variant="danger" class="grade-stats-error" v-if="scope.error">
                             An unexpected error occurred:
                             {{ $utils.getErrorMessage(scope.error) }}
                         </b-alert>
@@ -126,7 +126,7 @@
                  class="col-12 mt-3">
                 <catch-error capture>
                     <template slot-scope="scope">
-                        <b-alert show variant="danger" v-if="scope.error">
+                        <b-alert show variant="danger" class="rubric-stats-error" v-if="scope.error">
                             An unexpected error occurred:
                             {{ $utils.getErrorMessage(scope.error) }}
                         </b-alert>
