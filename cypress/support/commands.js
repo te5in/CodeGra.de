@@ -73,24 +73,34 @@ Cypress.Commands.add('logout', () => {
     });
 });
 
+const loginCredentials = {};
+
 function getAuthHeaders(user) {
     // Get the authentication header for the given user, or for the user logged
     // in in the frontend if no user is given.
 
-    const mkHeader = token => ({ Authorization: `Bearer ${token}` });
+    const mkHeader = (name, token) => {
+        const header = { Authorization: `Bearer ${token}` };
+        loginCredentials[name] = header;
+        return header;
+    }
 
     if (user != null) {
+        if (loginCredentials[user.username]) {
+            return cy.wrap(loginCredentials[user.username], { log: false });
+        }
+
         return cy.request({
             url: '/api/v1/login',
             method: 'POST',
             body: user,
-        }).its('body').then(user => {
-            return mkHeader(user.access_token);
+        }).its('body').then(res => {
+            return mkHeader(res.user.username, res.access_token);
         });
     } else {
         return cy.window().its('__app__').then(app => {
-            const { jwtToken } = app.$store.state.user;
-            return mkHeader(jwtToken);
+            const { username, jwtToken } = app.$store.state.user;
+            return mkHeader(username, jwtToken);
         });
     }
 }

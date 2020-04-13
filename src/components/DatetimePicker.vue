@@ -3,7 +3,11 @@
 <flat-pickr
     class="form-control datetime-picker"
     :value="value"
-    :config="internalConfig"/>
+    :config="internalConfig"
+    @on-change="$emit('on-change', $event)"
+    @on-close="$emit('on-close', $event)"
+    @on-open="$emit('on-open', $event)"
+    />
 </template>
 
 <script>

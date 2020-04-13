@@ -52,10 +52,10 @@ def downgrade():
 """
 
 
-def get_input(question: str) -> str:
+def get_input(question: str, allow_empty: bool = False) -> str:
     while True:
         user_input = input(question + ': ')
-        if user_input:
+        if user_input or allow_empty:
             return user_input
 
 
@@ -75,6 +75,7 @@ def main() -> None:
     course_perm = get_yes_or_no('Is it a course permission')
     short_desc = get_input('Short description of permission')
     long_desc = get_input('Long description of permission')
+    warning = get_input('Warning message (leave empty to ignore)', True)
     default_true = get_yes_or_no('Should the default value be True')
 
     r_f_name: str
@@ -104,6 +105,9 @@ def main() -> None:
         short_description=short_desc,
         long_description=long_desc,
     )
+    if warning:
+        perms[name]['warning'] = warning
+
     with open(PERMS_FILE, 'w') as f:
         json.dump(perms, f, indent=2, separators=(',', ': '))
 

@@ -221,4 +221,54 @@ describe('assignment model', () => {
         });
     });
 
+    describe('maxGrade', () => {
+        it('should return the value if it is set', () => {
+            const assig = makeAssig({
+                max_grade: 15,
+                course: {},
+            });
+
+            expect(assig.maxGrade).toBe(15);
+        });
+
+        it('should default to 10', () => {
+            const assig = makeAssig({
+                max_grade: null,
+                course: {},
+            });
+
+            expect(assig.maxGrade).toBe(10);
+        });
+    });
+
+    describe('getFormattedDeadline', () => {
+        it('should return the value if it is set', () => {
+            const assig = makeAssig({
+                deadline: moment().toISOString(),
+                course: {},
+            });
+
+            expect(assig.getFormattedDeadline()).toMatch(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/);
+        });
+
+        it('should default to null', () => {
+            const assig = makeAssig({
+                deadline: null,
+                course: {},
+            });
+
+            expect(assig.getFormattedDeadline()).toBe(null);
+        });
+    });
+
+    describe('getFormattedCreatedAt', () => {
+        it('should return always return a value', () => {
+            const assig = makeAssig({
+                created_at: moment().toISOString(),
+                course: {},
+            });
+
+            expect(assig.getFormattedCreatedAt()).toMatch(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/);
+        });
+    });
 });

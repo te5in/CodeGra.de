@@ -142,6 +142,9 @@ import Loader from './Loader';
 import LocalHeader from './LocalHeader';
 import CgLogo from './CgLogo';
 
+// We can't use the COLOR_PAIRS from constants.js because that one is slightly
+// different and because we use hashes to index this list that would change most
+// colors for everyone.
 const COLOR_PAIRS = [
     { background: 'rgb(112, 163, 162)', color: 'dark' },
     { background: 'rgb(223, 211, 170)', color: 'dark' },

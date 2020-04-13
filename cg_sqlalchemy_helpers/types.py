@@ -17,6 +17,7 @@ from typing_extensions import Literal
 import cg_dt_utils
 
 T = t.TypeVar('T')
+ZZ = t.TypeVar('ZZ')
 T_CONTRA = t.TypeVar('T_CONTRA', contravariant=True)
 Z = t.TypeVar('Z')
 Y = t.TypeVar('Y')
@@ -590,7 +591,8 @@ class IndexedJSONColumn(DbColumn[Never]):
 
 
 class _ExistsColumn:
-    pass
+    def __invert__(self) -> '_ExistsColumn':
+        ...
 
 
 class Mapper(t.Generic[_T_BASE]):
@@ -700,7 +702,14 @@ class MyNonOrderableQuery(t.Generic[T]):  # pragma: no cover
     @t.overload
     def with_entities(
         self, __arg1: DbColumn[Z], __arg2: DbColumn[Y], __arg3: DbColumn[U]
-    ) -> 'MyQuery[t.Tuple[Z, Y,U]]':
+    ) -> 'MyQuery[t.Tuple[Z, Y, U]]':
+        ...
+
+    @t.overload
+    def with_entities(
+        self, __arg1: DbColumn[Z], __arg2: DbColumn[Y], __arg3: DbColumn[U],
+        __arg4: DbColumn[ZZ]
+    ) -> 'MyQuery[t.Tuple[Z, Y, U, ZZ]]':
         ...
 
     def with_entities(self, *args: t.Any) -> 'MyQuery[t.Any]':
@@ -734,6 +743,19 @@ class _MyExistsQuery:
 
 
 _MyQuery = MyQuery
+
+
+def cast_as_non_null(col: DbColumn[t.Optional[T]]) -> DbColumn[T]:
+    """Get the given nullable column as non nullable.
+
+    This function is useful when you for rows where this column is not
+    ``NULL``, however ``mypy`` will no understand that filter. You can see this
+    function as a safer variant of `typing.cast`.
+
+    :returns: Its input completely unaltered.
+    """
+    return col  # type: ignore
+
 
 MYPY = False
 if t.TYPE_CHECKING and MYPY:

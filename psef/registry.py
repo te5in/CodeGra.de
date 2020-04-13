@@ -12,6 +12,7 @@ if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     from .models import AutoTestStepBase, RubricItem, WebhookBase
     from .models.rubric import RubricRowBase
     from .models.auto_test import GradeCalculator
+    from .models.analytics import BaseDataSource
 
 Register = register.Register
 
@@ -22,3 +23,5 @@ auto_test_grade_calculators: Register[str, 'GradeCalculator'] = Register()
 webhook_handlers: Register[str, t.Type['WebhookBase']] = Register()
 
 rubric_row_types: Register[str, t.Type['RubricRowBase']] = Register()
+
+analytics_data_sources: Register[str, t.Type['BaseDataSource']] = Register()

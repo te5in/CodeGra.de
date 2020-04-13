@@ -67,9 +67,26 @@ export class RubricRow {
 
         this._cache = Object.seal({
             maxPoints: UNSET_SENTINEL,
+            minPoints: UNSET_SENTINEL,
         });
 
         Object.freeze(this);
+    }
+
+    get minPoints() {
+        if (this._cache.minPoints === UNSET_SENTINEL) {
+            let minPoints = Math.min(
+                ...this.items.map(item => item.points).filter(pts => pts != null),
+            );
+
+            if (minPoints === Infinity) {
+                minPoints = 0;
+            }
+
+            this._cache.minPoints = minPoints;
+        }
+
+        return this._cache.minPoints;
     }
 
     get maxPoints() {
@@ -441,7 +458,6 @@ export class RubricResult {
     }
 
     get maxPoints() {
-        // TODO: Move this to the Rubric model and get it from this.rubric.
         return getProps(
             this.assignment,
             getProps(this.rubric, null, 'maxPoints'),

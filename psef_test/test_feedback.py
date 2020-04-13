@@ -18,7 +18,39 @@ only_own = create_marker(pytest.mark.only_own)
 
 
 @pytest.fixture
-def make_add_reply(session, test_client, error_template):
+def make_add_reply(session, test_client, error_template, mail_functions):
+    class Reply(dict):
+        def delete(self):
+            test_client.req(
+                'delete', (
+                    f'/api/v1/comments/{self["comment_base_id"]}/'
+                    f'replies/{self["id"]}'
+                ), 204
+            )
+
+        def update(self, new_text, now=None):
+            url = (
+                f'/api/v1/comments/{self["comment_base_id"]}/'
+                f'replies/{self["id"]}'
+            )
+            if now is None:
+                now = cg_dt_utils.DatetimeWithTimezone.utcnow()
+
+            with freeze_time(now):
+                return Reply(
+                    test_client.req(
+                        'patch',
+                        url,
+                        200,
+                        data={'comment': new_text},
+                        result={
+                            **self,
+                            'comment': new_text,
+                            'last_edit': now.isoformat(),
+                        },
+                    )
+                )
+
     def inner(work_id):
         code_id = session.query(m.File.id).filter(
             m.File.work_id == work_id,
@@ -49,7 +81,7 @@ def make_add_reply(session, test_client, error_template):
                 }
             )
 
-            res = test_client.req(
+            res, rv = test_client.req(
                 'post',
                 f'/api/v1/comments/{get_id(base)}/replies/',
                 expect_error or 200,
@@ -66,14 +98,18 @@ def make_add_reply(session, test_client, error_template):
                     'last_edit': None,
                     '__allow_extra__': True,
                 },
-                include_response=include_response,
+                include_response=True,
             )
+            reply = Reply(res)
+            result = (reply, rv) if include_response else reply
+
             if include_base:
                 base['replies'].append({**res})
                 base['replies'][-1].pop('author')
                 base['replies'][-1].pop('comment_base_id')
-                res = (res, base)
-            return res
+                result = (result, base)
+
+            return result
 
         return add_reply
 

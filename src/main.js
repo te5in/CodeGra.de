@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { polyFilled } from '@/polyfills';
+
 import 'bootstrap/dist/css/bootstrap.css';
 import 'bootstrap-vue/dist/bootstrap-vue.css';
 import 'highlightjs/styles/solarized-dark.css';
@@ -32,8 +34,6 @@ import Loader from './components/Loader';
 import SubmitButton from './components/SubmitButton';
 import DescriptionPopover from './components/DescriptionPopover';
 import CgLogo from './components/CgLogo';
-
-const { polyFilled } = import('@/polyfills');
 
 Vue.component('cg-relative-time', RelativeTime);
 Vue.component('cg-user', User);
@@ -372,6 +372,10 @@ Promise.all([
 
             $isLargeWindow() {
                 return this.screenWidth >= this.largeWidth;
+            },
+
+            $isXLargeWindow() {
+                return this.screenWidth >= this.xlargeWidth;
             },
 
             isEdge() {

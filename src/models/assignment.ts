@@ -37,6 +37,7 @@ interface AssignmentServerProps {
     max_submissions: number | null;
     amount_in_cool_off_period: number;
     lms_name: string | null;
+    analytics_workspace_ids: number[];
 
     deadline: string;
     created_at: string;
@@ -134,6 +135,8 @@ abstract class AssignmentData {
     readonly reminderTime!: moment.Moment;
 
     readonly graderIds?: number[] | null;
+
+    readonly analytics_workspace_ids!: number[];
 }
 /* eslint-enable camelcase */
 
@@ -221,6 +224,10 @@ export class Assignment extends AssignmentData {
         return null;
     }
 
+    getFormattedCreatedAt(): string {
+        return utils.readableFormatDate(this.createdAt);
+    }
+
     deadlinePassed(now: moment.Moment = moment(), dflt: boolean = false): boolean {
         if (this.deadline == null) {
             return dflt;
@@ -240,6 +247,10 @@ export class Assignment extends AssignmentData {
         } else {
             return true;
         }
+    }
+
+    get maxGrade() {
+        return this.max_grade == null ? 10 : this.max_grade;
     }
 
     get graders() {

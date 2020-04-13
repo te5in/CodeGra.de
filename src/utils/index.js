@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import moment from 'moment';
+
 import { getLanguage, highlight } from 'highlightjs';
 import { visualizeWhitespace } from './visualize';
 
@@ -249,9 +250,12 @@ export function range(start, end) {
         // eslint-disable-next-line
         start = 0;
     }
+    if (end < start) {
+        return [];
+    }
     const len = end - start;
     const res = Array(len);
-    for (let i = 0; i < len; ++i) {
+    for (let i = 0; i < len; i++) {
         res[i] = start + i;
     }
     return res;
@@ -438,17 +442,54 @@ export function downloadFile(data, filename, contentType) {
     }
 }
 
+export function hasAttr(obj, key) {
+    return Object.hasOwnProperty.call(obj, key);
+}
+
+export function deepEquals(a, b) {
+    if (typeof a !== 'object') {
+        return a === b;
+    } else if (a == null || b == null) {
+        // eslint-disable-next-line eqeqeq
+        return a == b;
+    } else if (typeof b !== 'object') {
+        return false;
+    } else {
+        const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+        return [...keys].every(key => deepEquals(a[key], b[key]));
+    }
+}
+
 export function deepExtend(target, ...sources) {
     sources.forEach(source => {
         Object.entries(source).forEach(([key, val]) => {
-            if (typeof val === 'object' && !Array.isArray(val)) {
-                if (!target[key]) {
-                    target[key] = {};
-                }
-                deepExtend(target[key], val);
-            } else {
+            if (typeof val !== 'object' || Array.isArray(val) || val == null) {
                 target[key] = val;
+                return;
             }
+            if (!hasAttr(target, key) || typeof target[key] !== 'object') {
+                target[key] = {};
+            }
+            deepExtend(target[key], val);
+        });
+    });
+    return target;
+}
+
+export function deepExtendArray(target, ...sources) {
+    // deepExtend with support for arrays. We couldn't rewrite deepExtend to
+    // support arrays, because there are places in our codebase where we depend
+    // on the property that it doesn't.
+    sources.forEach(source => {
+        Object.entries(source).forEach(([key, val]) => {
+            if (typeof val !== 'object' || val == null) {
+                target[key] = val;
+                return;
+            }
+            if (!hasAttr(target, key) || typeof target[key] !== 'object') {
+                target[key] = Array.isArray(val) ? [] : {};
+            }
+            deepExtendArray(target[key], val);
         });
     });
     return target;
@@ -513,6 +554,7 @@ export function getNoNull(prop, ...objs) {
     return null;
 }
 
+// Get all items that are either in set A or in set B, but not in both.
 export function setXor(A, B) {
     return new Set([...A, ...B].filter(el => A.has(el) ^ B.has(el)));
 }
@@ -533,4 +575,35 @@ export function numberToTimes(number) {
 
 export function ensureArray(obj) {
     return Array.isArray(obj) ? obj : [obj];
+}
+
+export function mapObject(obj, f) {
+    return Object.fromEntries(Object.entries(obj).map(([key, val]) => [key, f(val, key)]));
+}
+
+export function filterObject(obj, f) {
+    return Object.fromEntries(Object.entries(obj).filter(([key, val]) => f(val, key)));
+}
+
+export function zip(...lists) {
+    if (lists.length === 0) {
+        return [];
+    }
+
+    const acc = [];
+    const end = Math.min(...lists.map(l => l.length));
+    let i = 0;
+    const get = l => l[i];
+    for (; i < end; i++) {
+        acc.push(lists.map(get));
+    }
+    return acc;
+}
+
+export function isEmpty(obj) {
+    if (typeof obj !== 'object' || obj == null) {
+        return !obj;
+    } else {
+        return Object.keys(obj).length === 0;
+    }
 }
