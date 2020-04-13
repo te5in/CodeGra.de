@@ -13,7 +13,7 @@ from . import user as user_models
 from . import work as work_models
 from . import rubric as rubric_models
 from . import assignment as assignment_models
-from .comment import CommentBase
+from .comment import CommentBase, CommentReply
 from ..registry import analytics_data_sources
 
 Y = t.TypeVar('Y')
@@ -190,6 +190,16 @@ class _InlineFeedbackModel(TypedDict, total=True):
 @analytics_data_sources.register('inline_feedback')
 class _InlineFeedbackDataSource(BaseDataSource[_InlineFeedbackModel]):
     def get_data(self) -> t.Mapping[int, _InlineFeedbackModel]:
+        base_with_replies = db.session.query(CommentReply.id).filter(
+            CommentReply.comment_base_id == CommentBase.id,
+            ~CommentReply.deleted,
+        ).exists()
+        replies_amount = sqlalchemy.func.count(
+            sqlalchemy.sql.case([
+                (base_with_replies, 1),
+            ])
+        )
+
         # We want outer joins here as we want to also get the count of
         # submissions without files or without comments.
         query = self.workspace.work_query.join(
@@ -198,7 +208,7 @@ class _InlineFeedbackDataSource(BaseDataSource[_InlineFeedbackModel]):
             CommentBase, isouter=True
         ).with_entities(
             work_models.Work.id,
-            sqlalchemy.func.count(CommentBase.file_id),
+            replies_amount,
         ).group_by(work_models.Work.id)
 
         return dict(query)
