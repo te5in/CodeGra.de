@@ -73,7 +73,7 @@ export const RUBRIC_BADGE_AT =
 
 export const COLOR_PAIRS = Object.freeze(
     [
-        { background: 'rgba(44,  62,  80)', color: 'light' },
+        { background: 'rgb( 44,  62,  80)', color: 'light' },
         { background: 'rgb(112, 163, 162)', color: 'dark' },
         { background: 'rgb(203,  84,  82)', color: 'light' },
         { background: 'rgb(234, 182, 108)', color: 'dark' },

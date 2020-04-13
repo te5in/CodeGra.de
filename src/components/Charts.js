@@ -134,12 +134,22 @@ export const BaseChart = {
 
         processColor(color) {
             return {
-                backgroundColor: color.replace(')', ', 0.6)'),
-                hoverBackgroundColor: color.replace(')', ', 0.8)'),
+                backgroundColor: this.addAlpha(color, 0.6),
+                hoverBackgroundColor: this.addAlpha(color, 0.8),
                 borderColor: color,
                 borderWidth: 2,
-                lineColor: color.replace(')', ', 0.4)'),
+                lineColor: this.addAlpha(color, 0.4),
             };
+        },
+
+        addAlpha(color, alpha) {
+            const [r, g, b] = this.getRGB(color);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        },
+
+        getRGB(color) {
+            const match = color.match(/rgb\(\s*(\d+),\s*(\d+),\s*(\d+)\)/);
+            return [match[1], match[2], match[3]];
         },
 
         darkModeColor(alpha) {
