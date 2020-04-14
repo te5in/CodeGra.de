@@ -1125,7 +1125,7 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
     if helpers.contains_duplicate(usernames):
         raise APIException(
             'The given recipients list contains duplicates',
-            'Each recipient cannot only be mentioned once',
+            'Each recipient can only be mentioned once',
             APICodes.INVALID_PARAM, 400
         )
 
