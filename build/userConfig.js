@@ -86,6 +86,7 @@ config.features = Object.assign({
     incremental_rubric_submission: true,
     register: false,
     groups: false,
+    email_students: false,
 }, userConfig.Features);
 
 config.autoTest = {

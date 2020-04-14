@@ -301,6 +301,9 @@
 # javascript. This is all done in a sandboxed iframe but still.
 # render_html = false
 
+# Should it be possible to email students.
+# email_students = false
+
 # All LTI consumer keys mapped to secret keys. Please add your own, these ARE
 # case sensitive.
 [LTI Consumer keys]
