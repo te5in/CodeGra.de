@@ -165,7 +165,8 @@ def test_searching_test_student(
 
 
 @pytest.mark.parametrize(
-    'username, taken', [
+    'username, taken',
+    [
         data_error(error=400)(('thomas', True)),
         # This exact username is not taken, but case insensitively it is
         data_error(error=400)(('RoBiN', True)),
@@ -200,7 +201,7 @@ def test_searching_test_student(
 )
 def test_register_user(
     username, test_client, error_template, name, password, email, request, app,
-        session, monkeypatch, taken
+    session, monkeypatch, taken
 ):
     monkeypatch.setitem(
         app.config['FEATURES'], p.features.Feature.REGISTER, True
