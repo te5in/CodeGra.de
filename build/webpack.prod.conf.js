@@ -93,7 +93,7 @@ var webpackConfig = merge(baseWebpackConfig, {
           enforce: true,
         },
         statistics: {
-          name: 'analytics',
+          name: 'statistics',
           test: /[\\/]node_modules[\\/](simple-statistics|chart.?js.*)/,
         },
         highlightjs: {
