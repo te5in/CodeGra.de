@@ -170,7 +170,7 @@ export default {
         },
 
         defaultEmailSubject() {
-            return `An email about the "${this.course.name}" course on CodeGrade`;
+            return `[CodeGrade - ${this.course.name}] …`;
         },
         canUseSnippets() {
             return !!this.userPerms.can_use_snippets;

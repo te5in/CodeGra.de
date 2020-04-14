@@ -609,7 +609,7 @@ export default {
         },
 
         defaultEmailSubject() {
-            return `A comment about your submission for the assignment "${this.assignment.name}`;
+            return `[CodeGrade - ${this.assignment.course.name}/${this.assignment.name}] …`;
         },
     },
 

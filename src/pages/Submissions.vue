@@ -690,7 +690,7 @@ export default {
         },
 
         defaultEmailSubject() {
-            return `A comment for the assignment "${this.assignment.name}`;
+            return `[CodeGrade - ${this.assignment.course.name}/${this.assignment.name}] …`;
         },
 
         canUseSnippets() {
