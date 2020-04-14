@@ -287,7 +287,7 @@ export default {
         pointer-events: initial;
     }
 
-    .multiselect__tags {
+    &:not(:last-child) .multiselect__tags {
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
     }
