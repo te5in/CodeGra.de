@@ -1,3 +1,7 @@
+"""This module provides utilities for timing functions
+
+SPDX-License-Identifier: AGPL-3.0-only
+"""
 import time
 import typing as t
 import contextlib

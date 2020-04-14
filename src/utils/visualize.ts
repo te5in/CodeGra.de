@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // Exported for testing purposes
 export function nSpaces(n: number): string {
     const arr = Array(n + 1);

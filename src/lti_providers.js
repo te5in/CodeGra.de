@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 const defaultLTIProvider = Object.create(null, {
     addBorder: {
         value: false,

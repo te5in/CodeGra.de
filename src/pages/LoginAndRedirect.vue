@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="login-and-redirect">
     <b-alert show v-if="err" variant="danger" class="m-5">

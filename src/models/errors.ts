@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 export abstract class ValidationError {
     // eslint-disable-next-line class-methods-use-this
     abstract get hasErrors(): boolean;

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <component :is="showFeedback && !noResize ? 'rs-panes' : 'div'"
            :class="{ 'add-space': addSpace, 'without-hover': visibleWithoutHover }"

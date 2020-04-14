@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import markdownIt from 'markdown-it';
 import { highlightCode, htmlEscape } from '@/utils';
 
