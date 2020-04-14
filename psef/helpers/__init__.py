@@ -42,7 +42,7 @@ from cg_flask_helpers import (
 )
 from cg_sqlalchemy_helpers.types import Base, MyQuery, DbColumn
 
-from . import features, validate, jsonify_options
+from . import validate, jsonify_options
 from .. import errors, current_tester
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
