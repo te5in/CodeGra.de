@@ -13,3 +13,4 @@ export * from './user';
 export * from './feedback';
 export * from './notification';
 export * from './user_setting';
+export * from './task_result';

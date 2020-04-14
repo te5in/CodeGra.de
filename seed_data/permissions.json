@@ -380,5 +380,11 @@
     "course_permission": true,
     "short_description": "View feedback author",
     "long_description": "Users with this permission can view the author of inline and general feedback"
+  },
+  "can_email_students": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Can email students",
+    "long_description": "Users with this permission can email students using the contact student button."
   }
 }

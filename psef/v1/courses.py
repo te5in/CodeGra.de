@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from mypy_extensions import TypedDict
 from flask_limiter.util import get_remote_address
 
+import psef
 import psef.auth as auth
 import psef.models as models
 import psef.helpers as helpers
@@ -1086,3 +1087,93 @@ def register_user_in_course(course_id: int, link_id: uuid.UUID
         fresh=True,
     )
     return jsonify({'access_token': token})
+
+
+@api.route('/courses/<int:course_id>/email', methods=['POST'])
+@limiter.limit('10 per 10 minutes', key_func=lambda: current_user.id)
+@features.feature_required(features.Feature.EMAIL_STUDENTS)
+def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
+    """Sent the authors in this course an email.
+
+    .. :quickref: Course; Send users in this course an email.
+
+    :>json subject: The subject of the email to send, should not be empty.
+    :>json body: The body of the email to send, should not be empty.
+    :>json email_all_users: If true all users are emailed, except for those in
+        ``usernames``. If ``false`` no users are emailed except for those in
+        ``usernames``.
+    :>jsonarr usernames: The usernames of the users to which you want to send
+        an email (or not if ``email_all_users`` is ``true``).
+    :returns: A task result that will send these emails.
+    """
+    course = helpers.filter_single_or_404(
+        models.Course,
+        models.Course.id == course_id,
+        also_error=lambda c: c.virtual,
+    )
+    auth.ensure_permission(CPerm.can_email_students, course.id)
+
+    with helpers.get_from_request_transaction() as [get, _]:
+        subject = get('subject', str)
+        body = get('body', str)
+        email_all_users = get('email_all_users', bool)
+        usernames: t.List[str] = get('usernames', list)
+
+    if helpers.contains_duplicate(usernames):
+        raise APIException(
+            'The given exceptions list contains duplicates',
+            'Each exception can only be mentioned once',
+            APICodes.INVALID_PARAM, 400
+        )
+
+    exceptions = helpers.get_in_or_error(
+        models.User,
+        models.User.username,
+        usernames,
+        same_order_as_given=True,
+    )
+
+    if any(course_id not in u.courses for u in exceptions):
+        raise APIException(
+            'Not all given users are enrolled in this course',
+            f'Some given users are not enrolled in course {course_id}',
+            APICodes.INVALID_PARAM, 400
+        )
+
+    if not (subject and body):
+        raise APIException(
+            'Both a subject and body should be given', (
+                f'One or both of the given subject ({subject}) or body'
+                f' ({body}) is empty'
+            ), APICodes.INVALID_PARAM, 400
+        )
+
+    if email_all_users:
+        recipients = course.get_all_users_in_course(
+            include_test_students=False
+        ).filter(models.User.id.notin_([e.id for e in exceptions])
+                 ).with_entities(models.User).all()
+    else:
+        recipients = exceptions
+
+    recipients = helpers.flatten(r.get_contained_users() for r in recipients)
+
+    if not recipients:
+        raise APIException(
+            'At least one recipient should be given as recipient',
+            'No recipients were selected', APICodes.INVALID_PARAM, 400
+        )
+
+    task_result = models.TaskResult(current_user)
+    db.session.add(task_result)
+    db.session.commit()
+
+    psef.tasks.send_email_as_user(
+        receiver_ids=[u.id for u in recipients],
+        subject=subject,
+        body=body,
+        task_result_hex_id=task_result.id.hex,
+        sender_id=current_user.id,
+    )
+
+    return JSONResponse.make(task_result)

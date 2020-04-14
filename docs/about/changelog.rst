@@ -18,6 +18,10 @@ Version *Next*
   to reply to inline feedback, which makes distance learning easier to do with
   CodeGrade. This update also adds markdown formatting to inline feedback, and
   notifies you when you have received new replies.
+- Contact student button (`#1307
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1307>`__). This makes it
+  possible for teachers to send emails to students of a submission, or to
+  arbitrary students of a course.
 
 
 **Updates**
