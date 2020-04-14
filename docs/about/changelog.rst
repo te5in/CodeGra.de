@@ -1,10 +1,14 @@
 Changelog
 ==========
 
-Version *Next*
+Version LowVoltage
 -----------------
 
-**Released**: *Unreleased*
+**Released**: April 15th, 2020
+
+You can now view assignment statistics in the analytics dashboard, giving you
+insight in how students are doing. Students can now also comment on their own
+code, and they can reply to comments placed by TAs.
 
 **Features**
 
@@ -22,6 +26,11 @@ Version *Next*
 
 **Updates**
 
+- Make usernames case insensitive (`#1310
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1310>`__). This reduces
+  ambiguity in which user you are dealing with, as well as making it easier to
+  login because you do not have to remember if you used an uppercase or not
+  when you registered.
 - Various internal improvements (`#1244
   <https://github.com/CodeGra-de/CodeGra.de/pull/1244>`__). This makes it easier
   to improve CodeGrade in the future.
