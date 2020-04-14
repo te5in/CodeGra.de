@@ -312,8 +312,8 @@ export default {
         editable() {
             return !!(
                 this.canGrade &&
-                    this.currentSubmissionIsLatest &&
-                    this.groupOfCurrentUser == null
+                this.currentSubmissionIsLatest &&
+                this.groupOfCurrentUser == null
             );
         },
 
@@ -363,16 +363,16 @@ export default {
 
         prefFileId() {
             switch (this.selectedCat) {
-            case 'code':
-                return this.fileId;
-            case 'feedback-overview':
-                return `${this.submissionId}-feedback-overview`;
-            case 'auto-test':
-                return `${this.submissionId}-auto-test`;
-            case 'teacher-diff':
-                return `${this.submissionId}-teacher-diff`;
-            default:
-                return '';
+                case 'code':
+                    return this.fileId;
+                case 'feedback-overview':
+                    return `${this.submissionId}-feedback-overview`;
+                case 'auto-test':
+                    return `${this.submissionId}-auto-test`;
+                case 'teacher-diff':
+                    return `${this.submissionId}-teacher-diff`;
+                default:
+                    return '';
             }
         },
 
@@ -442,9 +442,9 @@ export default {
 
             return (
                 ((canSeeUserFeedback || canSeeLinterFeedback) && !feedback) ||
-                    !fileTree ||
-                    !currentFile ||
-                    (canViewAutoTest && !autoTest)
+                !fileTree ||
+                !currentFile ||
+                (canViewAutoTest && !autoTest)
             );
         },
 
@@ -507,8 +507,8 @@ export default {
                         // which would cause the CF badge to flicker on page load.
                         if (
                             test &&
-                                test.results_always_visible &&
-                                ((result && result.isFinal === false) || !this.canSeeGrade)
+                            test.results_always_visible &&
+                            ((result && result.isFinal === false) || !this.canSeeGrade)
                         ) {
                             title +=
                                 ' <div class="ml-1 badge badge-warning" title="Continuous Feedback">CF</div>';
