@@ -5,22 +5,38 @@
         <b-form-group label="Recipients"
                       label-size="lg"
                       label-class="pt-0">
-            <toggle v-model="everybodyByDefault"
-                    v-if="!noEverybodyEmailOption"
-                    class="mb-2"
-                    label-on="Send to all users in the course"
-                    label-off="Only send to the listed users"/>
+            <template v-if="!noEverybodyEmailOption">
+                <b-form-radio v-model="recipients" value="everyone">
+                    All users in the course
+                </b-form-radio>
+                <b-form-radio v-model="recipients" value="selected">
+                    All users selected below
+                </b-form-radio>
+                <b-form-radio v-model="recipients" value="not-selected">
+                    All users in the course except those selected below
+                </b-form-radio>
+            </template>
 
-            <component :is="noEverybodyEmailOption ? 'div' : 'b-form-group'">
+            <component v-if="recipients !== 'everyone'"
+                       :is="noEverybodyEmailOption ? 'div' : 'b-form-group'"
+                       class="mt-2">
                 <label v-if="!noEverybodyEmailOption">
-                    {{ everybodyByDefault ? 'Except' : 'Users' }}
+                    Users
                 </label>
-                <user-selector
-                    :placeholder="userSelectorPlaceholder"
-                    v-model="users"
-                    :use-selector="canListUsers"
-                    :base-url="`/api/v1/courses/${course.id}/users/`"
-                    multiple />
+                <b-input-group>
+                    <user-selector
+                        :placeholder="userSelectorPlaceholder"
+                        v-model="users"
+                        :use-selector="canListUsers"
+                        :base-url="`/api/v1/courses/${course.id}/users/`"
+                        multiple />
+                    <b-input-group-append>
+                        <b-button variant="warning"
+                                @click="clearUsers">
+                            <icon name="reply" />
+                        </b-button>
+                    </b-input-group-append>
+                </b-input-group>
             </component>
         </b-form-group>
 
@@ -103,6 +119,10 @@ import { Snippet } from '@/interfaces';
 import * as models from '@/models';
 
 // @ts-ignore
+import Icon from 'vue-awesome/components/Icon';
+import 'vue-awesome/icons/reply';
+
+// @ts-ignore
 import Toggle from './Toggle';
 // @ts-ignore
 import UserSelector from './UserSelector';
@@ -114,6 +134,7 @@ import SnippetableInput from './SnippetableInput';
         SnippetableInput,
         UserSelector,
         Toggle,
+        Icon,
     },
 })
 export default class StudentContact extends Vue {
@@ -139,17 +160,17 @@ export default class StudentContact extends Vue {
 
     public body: string = '';
 
-    public everybodyByDefault: boolean = this.initiallyEverybodyByDefault;
+    public recipients: string = this.initiallyEverybodyByDefault ? 'not-selected' : 'selected';
 
     public onDestroyHook = () => { };
 
     public deliveryError: Error | null = null;
 
     get userSelectorPlaceholder() {
-        if (this.everybodyByDefault) {
-            return 'Student to not email';
+        if (this.recipients === 'not-selected') {
+            return 'Student not to send an email';
         } else {
-            return 'Students to email';
+            return 'Students to send an email';
         }
     }
 
@@ -180,8 +201,8 @@ export default class StudentContact extends Vue {
         return this.$http.post(`/api/v1/courses/${this.course.id}/email`, {
             subject: this.subject,
             body: this.body,
-            email_all_users: !this.noEverybodyEmailOption && this.everybodyByDefault,
-            usernames: this.users.map(u => u.username),
+            email_all_users: !this.noEverybodyEmailOption && this.shouldEmailAll,
+            usernames: this.recipientUsernames,
         }).then(response => {
             if (destroyed) {
                 return Promise.resolve();
@@ -192,6 +213,18 @@ export default class StudentContact extends Vue {
             this.onDestroyHook = stop;
             return promise;
         });
+    }
+
+    get shouldEmailAll() {
+        return this.recipients !== 'selected';
+    }
+
+    get recipientUsernames(): string[] {
+        if (this.recipients === 'everyone') {
+            return [];
+        } else {
+            return this.users.map(u => u.username);
+        }
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -219,6 +252,10 @@ export default class StudentContact extends Vue {
         if (this.$utils.getProps(e, null, 'response', 'data', 'code') === 'MAILING_FAILED') {
             this.deliveryError = e;
         }
+    }
+
+    clearUsers() {
+        this.users = [];
     }
 }
 </script>
