@@ -439,7 +439,7 @@ export default {
                 {
                     id: 'analytics',
                     name: 'Analytics',
-                    badge: { label: 'beta', variant: 'light' },
+                    badge: { label: 'beta' },
                     enabled: this.assignment.analytics_workspace_ids.length > 0,
                 },
             ];
