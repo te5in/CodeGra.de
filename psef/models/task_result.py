@@ -18,6 +18,7 @@ from ..exceptions import APICodes, APIException
 
 logger = structlog.get_logger()
 
+
 @enum.unique
 class TaskResultState(enum.Enum):
     """The state of a task result.
@@ -36,6 +37,7 @@ class TaskResultState(enum.Enum):
 
     def __to_json__(self) -> str:
         return self.name
+
 
 class TaskResultJSON(TypedDict):
     """The serialization scheme for a :class:`.TaskResult`.
