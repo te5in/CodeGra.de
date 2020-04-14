@@ -64,36 +64,35 @@
             ref="submitButton"
             :submit="sendEmail"
             confirm="Are you sure you want to send this email?"
+            @error="maybeSetDeliveryError"
             @after-success="afterEmail"
             label="Send">
-            <template slot="error" slot-scope="e">
-                <div v-if="$utils.getProps(e, null, 'error', 'response', 'data', 'code') === 'MAILING_FAILED'"
-                      class="text-left">
-                    Failed to email some users:
-
-                    <ul>
-                        <li v-for="user in e.error.response.data.failed_users">
-                            <cg-user :user="user"  />
-                        </li>
-                    </ul>
-
-                    <template v-if="getSuccessfulUsers(e.error.response.data).length > 0">
-                        Please note that emailing these users did succeed:
-
-                        <ul>
-                            <li v-for="user in getSuccessfulUsers(e.error.response.data)">
-                                <cg-user :user="user" />
-                            </li>
-                        </ul>
-                    </template>
-
-                </div>
-                <span v-else>
-                    {{ $utils.getErrorMessage(e.error) }}
-                </span>
-            </template>
         </cg-submit-button>
     </div>
+
+    <b-alert v-if="deliveryError != null"
+             show
+             variant="warning"
+             dismissible
+             @dismissed="deliveryError = null">
+        Failed to email some users:
+
+        <ul>
+            <li v-for="user in deliveryError.response.data.failed_users">
+                <cg-user :user="user"  />
+            </li>
+        </ul>
+
+        <template v-if="getSuccessfulUsers(deliveryError.response.data).length > 0">
+            Please note that emailing these users did succeed:
+
+            <ul>
+                <li v-for="user in getSuccessfulUsers(deliveryError.response.data)">
+                    <cg-user :user="user" />
+                </li>
+            </ul>
+        </template>
+    </b-alert>
 </div>
 </template>
 
@@ -143,6 +142,8 @@ export default class StudentContact extends Vue {
     public everybodyByDefault: boolean = this.initiallyEverybodyByDefault;
 
     public onDestroyHook = () => { };
+
+    public deliveryError: Error | null = null;
 
     get userSelectorPlaceholder() {
         if (this.everybodyByDefault) {
@@ -211,6 +212,12 @@ export default class StudentContact extends Vue {
         this.$emit('emailed');
         if (this.resetOnEmail) {
             this.users = this.initialUsers;
+        }
+    }
+
+    maybeSetDeliveryError(e: Error) {
+        if (this.$utils.getProps(e, null, 'response', 'data', 'code') === 'MAILING_FAILED') {
+            this.deliveryError = e;
         }
     }
 }
