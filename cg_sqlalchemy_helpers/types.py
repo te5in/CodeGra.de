@@ -803,6 +803,8 @@ if t.TYPE_CHECKING and MYPY:
 
     JSONB = DbType[t.Mapping[str, object]]()
 
+    CIText = DbType[str]()
+
     def TIMESTAMP(*, timezone: Literal[True]
                   ) -> DbType[cg_dt_utils.DatetimeWithTimezone]:
         ...
@@ -819,6 +821,7 @@ else:
     from sqlalchemy.ext.hybrid import Comparator as _Comparator
     from sqlalchemy import TypeDecorator, TIMESTAMP
     from sqlalchemy.dialects.postgresql import JSONB
+    from citext import CIText
 
     def hybrid_expression(fun: T) -> T:
         return fun

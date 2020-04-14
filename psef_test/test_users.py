@@ -165,11 +165,14 @@ def test_searching_test_student(
 
 
 @pytest.mark.parametrize(
-    'username', [
-        data_error(error=400)('thomas'),
-        'NOT TAKEN',
-        data_error(error=400)(''),
-        data_error(error=400)(None),
+    'username, taken', [
+        data_error(error=400)(('thomas', True)),
+        # This exact username is not taken, but case insensitively it is
+        data_error(error=400)(('RoBiN', True)),
+        ('NOT TAKEN', False),
+        ('NoT TaKeN!', False),
+        data_error(error=400)(('', False)),
+        data_error(error=400)((None, False)),
     ]
 )
 @pytest.mark.parametrize(
@@ -197,7 +200,7 @@ def test_searching_test_student(
 )
 def test_register_user(
     username, test_client, error_template, name, password, email, request, app,
-    session, monkeypatch
+        session, monkeypatch, taken
 ):
     monkeypatch.setitem(
         app.config['FEATURES'], p.features.Feature.REGISTER, True
@@ -253,7 +256,7 @@ def test_register_user(
             }
         )
 
-    if code >= 400 and username != 'thomas':
+    if code >= 400 and not taken:
         assert session.query(m.User).filter_by(
             username=username
         ).first() is None, ('The new user should not have been created')
