@@ -1430,7 +1430,7 @@ def test_fail_conditions_email_course_members(
                 'usernames': [],
             }
         )
-        assert 'At least one user should be given' in err['message']
+        assert 'At least one recipient should be given' in err['message']
         assert not stubmailer.was_called
 
         # Filtering everybody out should also result in an error.
@@ -1448,7 +1448,7 @@ def test_fail_conditions_email_course_members(
                 ],
             }
         )
-        assert 'At least one user should be given' in err['message']
+        assert 'At least one recipient should be given' in err['message']
         assert not stubmailer.was_called
 
     with describe('given users should all be enrolled in the course'
