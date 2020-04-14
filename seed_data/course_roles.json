@@ -106,7 +106,6 @@
       "can_add_own_inline_comments",
       "can_view_others_comment_edits",
       "can_view_feedback_author",
-      "can_email_students",
       "can_email_students"
     ],
     "admin_role": true,
