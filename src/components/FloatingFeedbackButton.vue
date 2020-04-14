@@ -303,16 +303,4 @@ export default {
 .floating-feedback-button.pane-rs > .Pane.row {
     margin: 0;
 }
-
-.floating-feedback-button.add-space {
-    .feedback-area {
-        textarea {
-            border-top-left-radius: 0 !important;
-        }
-
-        .submit-feedback .submit-button {
-            border-top-right-radius: 0 !important;
-        }
-    }
-}
 </style>
