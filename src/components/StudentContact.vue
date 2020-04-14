@@ -98,7 +98,7 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Vue, Component, Prop, Ref } from 'vue-property-decorator';
 
 import { Snippet } from '@/interfaces';
 import * as models from '@/models';
@@ -150,11 +150,6 @@ export default class StudentContact extends Vue {
         } else {
             return 'Students to email';
         }
-    }
-
-    @Watch('initialUsers')
-    onInitialUsersUpdate() {
-        this.users = this.initialUsers;
     }
 
     destroyed() {
@@ -224,5 +219,12 @@ export default class StudentContact extends Vue {
 <style lang="less" scoped>
 ul {
     padding-left: 1rem;
+}
+</style>
+
+<style lang="less">
+.student-contact .user-selector .multiselect__tags {
+    max-height: 10rem;
+    overflow: auto;
 }
 </style>
