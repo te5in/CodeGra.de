@@ -1384,6 +1384,7 @@ def test_fail_conditions_email_course_members(
                 403,
                 data={
                     'body': 'hello',
+                    'email_all_users': False,
                     'subject': 'no subject',
                     'usernames': [user1.username],
                 }
@@ -1406,6 +1407,7 @@ def test_fail_conditions_email_course_members(
         ]:
             data = {
                 'body': body,
+                'email_all_users': False,
                 'subject': subject,
                 'usernames': [user1.username],
             }
@@ -1422,9 +1424,28 @@ def test_fail_conditions_email_course_members(
             url,
             400,
             data={
+                'email_all_users': False,
                 'body': 'MY BODY',
                 'subject': 'MY SUBJECT',
                 'usernames': [],
+            }
+        )
+        assert 'At least one user should be given' in err['message']
+        assert not stubmailer.was_called
+
+        # Filtering everybody out should also result in an error.
+        err = test_client.req(
+            'post',
+            url,
+            400,
+            data={
+                'email_all_users': True,
+                'body': 'MY BODY',
+                'subject': 'MY SUBJECT',
+                'usernames': [
+                    admin_user.username, user1.username, user2.username,
+                    mail_user.username
+                ],
             }
         )
         assert 'At least one user should be given' in err['message']
@@ -1437,6 +1458,7 @@ def test_fail_conditions_email_course_members(
             url,
             400,
             data={
+                'email_all_users': False,
                 'body': 'MY BODY',
                 'subject': 'MY SUBJECT',
                 'usernames': [user1.username, u_wrong_course.username],
@@ -1452,6 +1474,7 @@ def test_fail_conditions_email_course_members(
             url,
             400,
             data={
+                'email_all_users': False,
                 'body': 'MY BODY',
                 'subject': 'MY SUBJECT',
                 'usernames': [user1.username, user1.username],
@@ -1479,6 +1502,7 @@ def test_fail_conditions_email_course_members(
                     200,
                     data={
                         'body': 'bo',
+                        'email_all_users': False,
                         'subject': 'body',
                         'usernames': [user1.username, user2.username],
                     }
@@ -1537,6 +1561,7 @@ def test_successful_email_course_members(
                     200,
                     data={
                         'body': body,
+                        'email_all_users': False,
                         'subject': subject,
                         'usernames': [user1.username, user2.username],
                     }
@@ -1566,3 +1591,67 @@ def test_successful_email_course_members(
             assert msg.reply_to == (mail_user.name, mail_user.email)
             # It should not send an html email
             assert msg.html is None
+
+    with describe('can email all students except'), logged_in(mail_user):
+        tr_id = str(
+            helpers.get_id(
+                test_client.req(
+                    'post',
+                    url,
+                    200,
+                    data={
+                        'body': body,
+                        'email_all_users': True,
+                        'subject': subject,
+                        'usernames': [user1.username],
+                    }
+                )
+            )
+        )
+        test_client.req(
+            'get',
+            f'/api/v1/task_results/{tr_id}',
+            200,
+            result={
+                'state': 'finished',
+                'id': tr_id,
+                'result': None,
+            }
+        )
+
+        assert stubmailer.was_called
+        # For myself and for user2, and admin user
+        assert stubmailer.times_called == 3
+        assert stubmailer.times_connect_called == 1
+
+        assert set(arg.recipients[0][1] for arg, in stubmailer.args) == set([
+            user2.email, mail_user.email, admin_user.email
+        ])
+
+    with describe('can email all students'), logged_in(mail_user):
+        tr_id = str(
+            helpers.get_id(
+                test_client.req(
+                    'post',
+                    url,
+                    200,
+                    data={
+                        'body': body,
+                        'email_all_users': True,
+                        'subject': subject,
+                        'usernames': [],
+                    }
+                )
+            )
+        )
+        test_client.req(
+            'get',
+            f'/api/v1/task_results/{tr_id}',
+            200,
+            result={
+                'state': 'finished',
+                'id': tr_id,
+                'result': None,
+            }
+        )
+        assert stubmailer.times_called == 4

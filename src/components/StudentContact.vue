@@ -2,23 +2,36 @@
 <template>
 <div class="student-contact p-relative">
     <div class="text-left" >
-        <b-form-group>
-            <label>Recipients</label>
-            <user-selector placeholder="Students to email"
-                           v-model="users"
-                           :use-selector="canListUsers"
-                           :base-url="`/api/v1/courses/${course.id}/users/`"
-                           multiple />
+        <b-form-group label="Recipients"
+                      label-size="lg"
+                      label-class="pt-0">
+            <toggle v-model="everybodyByDefault"
+                    v-if="!noEverybodyEmailOption"
+                    class="mb-2"
+                    label-on="Send to all users in the course"
+                    label-off="Only send to the listed users"/>
+
+            <component :is="noEverybodyEmailOption ? 'div' : 'b-form-group'">
+                <label v-if="!noEverybodyEmailOption">
+                    {{ everybodyByDefault ? 'Except' : 'Users' }}
+                </label>
+                <user-selector
+                    :placeholder="userSelectorPlaceholder"
+                    v-model="users"
+                    :use-selector="canListUsers"
+                    :base-url="`/api/v1/courses/${course.id}/users/`"
+                    multiple />
+            </component>
         </b-form-group>
 
 
-        <b-form-group>
-            <label>Subject</label>
+        <b-form-group label="Subject"
+                      label-size="lg">
             <input v-model="subject" class="form-control" />
         </b-form-group>
 
-        <b-form-group>
-            <label>Body</label>
+        <b-form-group label="Body"
+                      label-size="lg">
             <snippetable-input
                 v-model="body"
                 :course="course"
@@ -82,11 +95,13 @@
 </template>
 
 <script lang="ts">
-    import { Vue, Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Vue, Component, Prop, Ref, Watch } from 'vue-property-decorator';
 
 import { Snippet } from '@/interfaces';
 import * as models from '@/models';
 
+// @ts-ignore
+import Toggle from './Toggle';
 // @ts-ignore
 import UserSelector from './UserSelector';
 // @ts-ignore
@@ -96,6 +111,7 @@ import SnippetableInput from './SnippetableInput';
     components: {
         SnippetableInput,
         UserSelector,
+        Toggle,
     },
 })
 export default class StudentContact extends Vue {
@@ -111,13 +127,27 @@ export default class StudentContact extends Vue {
 
     @Prop({ default: false }) resetOnEmail!: boolean;
 
+    @Prop({ default: false }) noEverybodyEmailOption!: boolean;
+
+    @Prop({ default: false }) initiallyEverybodyByDefault!: boolean;
+
     public users: ({ username: string } | models.User)[] = this.initialUsers;
 
     public subject: string = this.defaultSubject;
 
     public body: string = '';
 
+    public everybodyByDefault: boolean = this.initiallyEverybodyByDefault;
+
     public onDestroyHook = () => { };
+
+    get userSelectorPlaceholder() {
+        if (this.everybodyByDefault) {
+            return 'Student to not email';
+        } else {
+            return 'Students to email';
+        }
+    }
 
     @Watch('initialUsers')
     onInitialUsersUpdate() {
@@ -139,13 +169,10 @@ export default class StudentContact extends Vue {
             destroyed = true;
         };
 
-        if (this.users.length === 0) {
-            throw new Error('You have to select at least one recipient.');
-        }
-
         return this.$http.post(`/api/v1/courses/${this.course.id}/email`, {
             subject: this.subject,
             body: this.body,
+            email_all_users: !this.noEverybodyEmailOption && this.everybodyByDefault,
             usernames: this.users.map(u => u.username),
         }).then(response => {
             if (destroyed) {

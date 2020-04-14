@@ -686,7 +686,19 @@ export default {
         },
 
         visibleStudents() {
-            return [].concat(...this.filteredSubmissions.map(s => s.user.getContainedUsers()));
+            const seen = new Set();
+            return this.filteredSubmissions.reduce((acc, s) => {
+                s.user.getContainedUsers().forEach(u => {
+                    if (seen.has(u.id)) {
+                        return;
+                    }
+
+                    seen.add(u.id);
+                    acc.push(u);
+                });
+
+                return acc;
+            }, []);
         },
 
         defaultEmailSubject() {
@@ -698,7 +710,8 @@ export default {
         },
 
         canEmailStudents() {
-            return this.$utils.getProps(this.coursePermissions, false, 'can_email_students');
+            return (UserConfig.features.email_students &&
+                    this.$utils.getProps(this.coursePermissions, false, 'can_email_students'));
         },
 
     },

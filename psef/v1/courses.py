@@ -1099,8 +1099,11 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
 
     :>json subject: The subject of the email to send, should not be empty.
     :>json body: The body of the email to send, should not be empty.
-    :>jsonarr user_ids: The ids of the users to which you want to send an
-        email.
+    :>json email_all_users: If true all users are emailed, except for those in
+        ``usernames``. If ``false`` no users are emailed except for those in
+        ``usernames``.
+    :>jsonarr usernames: The usernames of the users to which you want to send
+        an email (or not if ``email_all_users`` is ``true``).
     :returns: A task result that will send these emails.
     """
     course = helpers.filter_single_or_404(
@@ -1113,32 +1116,24 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
     with helpers.get_from_request_transaction() as [get, _]:
         subject = get('subject', str)
         body = get('body', str)
+        email_all_users = get('email_all_users', bool)
         usernames: t.List[str] = get('usernames', list)
-
-    if not usernames:
-        raise APIException(
-            'At least one user should be given as recipient',
-            'No usernames were given as recipients', APICodes.INVALID_PARAM,
-            400
-        )
 
     if helpers.contains_duplicate(usernames):
         raise APIException(
-            'The given recipients list contains duplicates',
-            'Each recipient can only be mentioned once',
+            'The given exceptions list contains duplicates',
+            'Each exception can only be mentioned once',
             APICodes.INVALID_PARAM, 400
         )
 
-    receivers = helpers.flatten(
-        u.get_contained_users() for u in helpers.get_in_or_error(
-            models.User,
-            models.User.username,
-            usernames,
-            same_order_as_given=True,
-        )
+    exceptions = helpers.get_in_or_error(
+        models.User,
+        models.User.username,
+        usernames,
+        same_order_as_given=True,
     )
 
-    if any(course_id not in u.courses for u in receivers):
+    if any(course_id not in u.courses for u in exceptions):
         raise APIException(
             'Not all given users are enrolled in this course',
             f'Some given users are not enrolled in course {course_id}',
@@ -1153,12 +1148,28 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
             ), APICodes.INVALID_PARAM, 400
         )
 
+    if email_all_users:
+        recipients = course.get_all_users_in_course(
+            include_test_students=False
+        ).filter(models.User.id.notin_([e.id for e in exceptions])
+                 ).with_entities(models.User).all()
+    else:
+        recipients = exceptions
+
+    recipients = helpers.flatten(r.get_contained_users() for r in recipients)
+
+    if not recipients:
+        raise APIException(
+            'At least one recipient should be given as recipient',
+            'No recipients were selected', APICodes.INVALID_PARAM, 400
+        )
+
     task_result = models.TaskResult(current_user)
     db.session.add(task_result)
     db.session.commit()
 
     psef.tasks.send_email_as_user(
-        receiver_ids=[u.id for u in receivers],
+        receiver_ids=[u.id for u in recipients],
         subject=subject,
         body=body,
         task_result_hex_id=task_result.id.hex,

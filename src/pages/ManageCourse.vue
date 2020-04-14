@@ -58,6 +58,7 @@
                     <student-contact
                         v-else
                         :initial-users="[]"
+                        initially-everybody-by-default
                         reset-on-email
                         :course="course"
                         :default-subject="defaultEmailSubject"

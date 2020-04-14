@@ -82,14 +82,15 @@
                         </b-alert>
 
                         <student-contact
-                              v-else
-                              :initial-users="submission.user.getContainedUsers()"
-                              :course="assignment.course"
-                              :default-subject="defaultEmailSubject"
-                              @hide="() => $refs.contactStudentModal.hide()"
-                              @emailed="() => $refs.contactStudentModal.hide()"
-                              :can-use-snippets="canUseSnippets"
-                              class="p-3"/>
+                            v-else
+                            :initial-users="submission.user.getContainedUsers()"
+                            :course="assignment.course"
+                            :default-subject="defaultEmailSubject"
+                            no-everybody-email-option
+                            @hide="() => $refs.contactStudentModal.hide()"
+                            @emailed="() => $refs.contactStudentModal.hide()"
+                            :can-use-snippets="canUseSnippets"
+                            class="p-3"/>
                     </template>
                 </cg-catch-error>
             </b-modal>
@@ -346,7 +347,8 @@ export default {
         },
 
         canEmailStudents() {
-            return this.coursePerms.can_email_students;
+            return (UserConfig.features.email_students &&
+                    this.$utils.getProps(this.coursePerms, false, 'can_email_students'));
         },
 
         canViewAutoTestBeforeDone() {

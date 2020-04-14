@@ -788,6 +788,7 @@ def stubmailer(monkeypatch):
             self.msg = None
             self.args = []
             self.called = 0
+            self.times_connect_called = 0
 
         @property
         def was_called(self):
