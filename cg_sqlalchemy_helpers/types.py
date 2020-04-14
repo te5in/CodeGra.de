@@ -690,6 +690,13 @@ class MyNonOrderableQuery(t.Generic[T]):  # pragma: no cover
         ...
 
     @t.overload
+    def with_entities(
+        self: 'MyNonOrderableQuery[t.Tuple[_T_BASE, _Y_BASE]]',
+        __arg: t.Type[_T_BASE],
+    ) -> 'MyQuery[_T_BASE]':
+        ...
+
+    @t.overload
     def with_entities(self, __arg: DbColumn[Z]) -> 'MyQueryTuple[Z]':
         ...
 
