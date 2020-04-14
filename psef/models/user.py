@@ -16,7 +16,7 @@ from sqlalchemy.sql.expression import false
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 import psef
-from cg_sqlalchemy_helpers import hybrid_property
+from cg_sqlalchemy_helpers import CIText, hybrid_property
 
 from . import UUID_LENGTH, Base, DbColumn, db, course, _MyQuery
 from .role import Role, CourseRole
@@ -126,7 +126,7 @@ class User(NotEqualMixin, Base):
     )
     _username = db.Column(
         'username',
-        db.Unicode,
+        CIText,
         unique=True,
         nullable=False,
         index=True,

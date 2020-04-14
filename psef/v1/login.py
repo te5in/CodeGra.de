@@ -99,8 +99,25 @@ def login() -> ExtendedJSONResponse[
         ).first()
 
         if user is None or user.password != password:
+            exc_msg = 'The supplied username or password is wrong.'
+
+            # If the given username looks like an email we notify the user that
+            # their username is probably not the same as their email. Note that
+            # this doesn't check if the user was found, so this does not leak
+            # information about the existence of a user with the given
+            # username.
+            try:
+                validate.ensure_valid_email(username)
+            except validate.ValidationException:
+                pass
+            else:
+                exc_msg += (
+                    ' You have to login to CodeGrade using your username,'
+                    ' which is probably not the same as your email.'
+                )
+
             raise APIException(
-                'The supplied username or password is wrong.', (
+                exc_msg, (
                     f'The user with username "{username}" does not exist '
                     'or has a different password'
                 ), APICodes.LOGIN_FAILURE, 400

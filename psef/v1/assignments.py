@@ -1440,7 +1440,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
     subs = []
 
     found_users = {
-        u.username: u
+        u.username.lower(): u
         for u in models.User.query.filter(
             t.cast(
                 models.DbColumn[str],
@@ -1453,7 +1453,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
 
     missing_users: t.List[models.User] = []
     for submission_info, _ in submissions:
-        if found_users.get(submission_info.student_id, None) is None:
+        if submission_info.student_id.lower() not in found_users:
             # TODO: Check if this role still exists
             user = models.User(
                 name=submission_info.student_name,
@@ -1463,14 +1463,14 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
                 password=None,
                 role=global_role,
             )
-            found_users[user.username] = user
+            found_users[user.username.lower()] = user
             missing_users.append(user)
 
     db.session.add_all(missing_users)
     db.session.flush()
 
     for submission_info, submission_tree in submissions:
-        user = found_users[submission_info.student_id]
+        user = found_users[submission_info.student_id.lower()]
         user.courses[assignment.course_id] = student_course_role
 
         work = models.Work(
