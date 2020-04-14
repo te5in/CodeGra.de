@@ -47,13 +47,24 @@
 
         <div :class="{ hidden: selectedCat !== 'contact' }"
               class="cat-wrapper">
-            <student-contact
-                :initial-users="[]"
-                reset-on-email
-                :course="course"
-                :default-subject="defaultEmailSubject"
-                no-cancel
-                :can-use-snippets="canUseSnippets"/>
+            <cg-catch-error capture>
+                <template slot-scope="{ error }">
+                    <b-alert v-if="error"
+                             show
+                             variant="danger">
+                        {{ $utils.getErrorMessage(error) }}
+                    </b-alert>
+
+                    <student-contact
+                        v-else
+                        :initial-users="[]"
+                        reset-on-email
+                        :course="course"
+                        :default-subject="defaultEmailSubject"
+                        no-cancel
+                        :can-use-snippets="canUseSnippets"/>
+                </template>
+            </cg-catch-error>
         </div>
     </div>
 </div>

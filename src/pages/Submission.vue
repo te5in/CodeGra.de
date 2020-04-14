@@ -73,13 +73,25 @@
                      title="Email authors"
                      body-class="p-0"
                      dialog-class="auto-test-result-modal">
-                <student-contact :initial-users="submission.user.getContainedUsers()"
-                                 :course="assignment.course"
-                                 :default-subject="defaultEmailSubject"
-                                 @hide="() => $refs.contactStudentModal.hide()"
-                                 @emailed="() => $refs.contactStudentModal.hide()"
-                                 :can-use-snippets="canUseSnippets"
-                                 class="p-3"/>
+                <cg-catch-error capture>
+                    <template slot-scope="{ error }">
+                        <b-alert v-if="error"
+                                 show
+                                 variant="danger">
+                            {{ $utils.getErrorMessage(error) }}
+                        </b-alert>
+
+                        <student-contact
+                              v-else
+                              :initial-users="submission.user.getContainedUsers()"
+                              :course="assignment.course"
+                              :default-subject="defaultEmailSubject"
+                              @hide="() => $refs.contactStudentModal.hide()"
+                              @emailed="() => $refs.contactStudentModal.hide()"
+                              :can-use-snippets="canUseSnippets"
+                              class="p-3"/>
+                    </template>
+                </cg-catch-error>
             </b-modal>
 
             <b-button v-b-popover.hover.top="'Download assignment or feedback'"

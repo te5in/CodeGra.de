@@ -64,14 +64,26 @@
              title="Email authors"
              body-class="p-0"
              dialog-class="auto-test-result-modal">
-        <student-contact :initial-users="visibleStudents"
-                         :course="assignment.course"
-                         :default-subject="defaultEmailSubject"
-                         reset-on-email
-                         @hide="() => $refs.contactStudentModal.hide()"
-                         @emailed="() => $refs.contactStudentModal.hide()"
-                         :can-use-snippets="canUseSnippets"
-                         class="p-3"/>
+        <cg-catch-error capture>
+            <template slot-scope="{ error }">
+                <b-alert v-if="error"
+                         show
+                         variant="danger">
+                    {{ $utils.getErrorMessage(error) }}
+                </b-alert>
+
+                <student-contact
+                    v-else
+                    :initial-users="visibleStudents"
+                    :course="assignment.course"
+                    :default-subject="defaultEmailSubject"
+                    reset-on-email
+                    @hide="() => $refs.contactStudentModal.hide()"
+                    @emailed="() => $refs.contactStudentModal.hide()"
+                    :can-use-snippets="canUseSnippets"
+                    class="p-3"/>
+            </template>
+        </cg-catch-error>
     </b-modal>
 
     <div class="cat-container d-flex flex-column">
@@ -302,7 +314,7 @@
 
             <div v-if="selectedCat === 'analytics'"
                  class="flex-grow-1">
-                <catch-error>
+                <cg-catch-error>
                     <template slot-scope="scope">
                         <b-alert show variant="danger" v-if="scope.error">
                             An unexpected error occurred:
@@ -314,7 +326,7 @@
                         <analytics-dashboard v-else
                                              :assignment-id="assignmentId" />
                     </template>
-                </catch-error>
+                </cg-catch-error>
             </div>
         </template>
     </div>
@@ -345,7 +357,6 @@ import {
     CgLogo,
     Loader,
     Collapse,
-    CatchError,
     LocalHeader,
     CGIgnoreFile,
     RubricEditor,
@@ -834,7 +845,6 @@ export default {
         CgLogo,
         Loader,
         Collapse,
-        CatchError,
         LocalHeader,
         CGIgnoreFile,
         RubricEditor,
