@@ -376,6 +376,10 @@ def test_send_email_as_user(describe, session, stubmailer):
         session.add(task_result)
         session.commit()
 
+        task_result2 = m.TaskResult(user)
+        session.add(task_result2)
+        session.commit()
+
     with describe('can send the first time'):
         psef.tasks._send_email_as_user_1([user.id], 'd', 'b',
                                          task_result.id.hex, user.id)
@@ -399,3 +403,11 @@ def test_send_email_as_user(describe, session, stubmailer):
         assert m.TaskResult.query.get(
             task_result.id
         ).state == m.TaskResultState.finished
+
+    with describe('task result should indicate failure when function crashes'):
+        psef.tasks._send_email_as_user_1([user.id], 'd', 'b',
+                                         task_result2.id.hex, -user.id)
+        assert not stubmailer.was_called
+        assert m.TaskResult.query.get(
+            task_result2.id
+        ).state == m.TaskResultState.crashed
