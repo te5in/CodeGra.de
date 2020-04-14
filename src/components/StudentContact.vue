@@ -27,7 +27,9 @@
 
         <b-form-group label="Subject"
                       label-size="lg">
-            <input v-model="subject" class="form-control" />
+            <input v-model="subject"
+                   class="form-control"
+                   ref="subjectInput" />
         </b-form-group>
 
         <b-form-group label="Body"
@@ -39,6 +41,7 @@
                 :total-amount-lines="1000"
                 :feedback-disabled="false"
                 :can-use-snippets="canUseSnippets"
+                no-auto-focus
                 :min-initial-height="300"
                 :line="0"
                 @ctrlEnter="() => submitButton.onClick()"
@@ -159,6 +162,15 @@ export default class StudentContact extends Vue {
     }
 
     @Ref() submitButton!: any;
+
+    @Ref() subjectInput!: any;
+
+    async mounted() {
+        await this.$afterRerender();
+        if (this.subjectInput) {
+            this.subjectInput.focus();
+        }
+    }
 
     public sendEmail(): Promise<unknown> {
         if (!this.subject || !this.body) {

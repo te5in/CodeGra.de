@@ -130,11 +130,7 @@ export default {
         ...mapActions('users', ['addOrUpdateUser']),
 
         onSelect(newUser) {
-            let toEmit = newUser;
-            if (toEmit.username === this.myUsername) {
-                toEmit.id = this.myId;
-            }
-            toEmit = this.getUserById(toEmit.id) || toEmit;
+            const toEmit = this.getUserById(newUser.id) || newUser;
 
             if (this.multiple) {
                 this.$emit('input', [...(this.value || []), toEmit]);
