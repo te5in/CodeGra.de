@@ -6,11 +6,11 @@
                       label-size="lg"
                       label-class="pt-0">
             <b-form-radio-group v-if="!noEverybodyEmailOption"
-                                v-model="recipients"
-                                :options="recipientOptions"
+                                v-model="selectedDefaultReceiver"
+                                :options="defaultReceiverOptions"
                                 stacked/>
 
-            <component v-if="recipients !== 'everyone'"
+            <component v-if="showRecipientSelector"
                        :is="noEverybodyEmailOption ? 'div' : 'b-form-group'"
                        class="mt-2">
                 <label v-if="!noEverybodyEmailOption">
@@ -122,7 +122,7 @@ import UserSelector from './UserSelector';
 // @ts-ignore
 import SnippetableInput from './SnippetableInput';
 
-enum Recipient {
+enum DefaultReceiver {
     // Everyone in the course
     Everyone,
     // Users selected in the multiselect.
@@ -162,19 +162,19 @@ export default class StudentContact extends Vue {
 
     public body: string = '';
 
-    public recipients: Recipient = this.initiallyEverybodyByDefault ?
-        Recipient.NotSelected :
-        Recipient.Selected;
+    public selectedDefaultReceiver: DefaultReceiver = this.initiallyEverybodyByDefault ?
+        DefaultReceiver.NotSelected :
+        DefaultReceiver.Selected;
 
     public onDestroyHook = () => { };
 
     public deliveryError: Error | null = null;
 
     get userSelectorPlaceholder() {
-        switch (this.recipients) {
-            case Recipient.NotSelected:
+        switch (this.selectedDefaultReceiver) {
+            case DefaultReceiver.NotSelected:
                 return 'Student not to send an email';
-            case Recipient.Selected:
+            case DefaultReceiver.Selected:
                 return 'Students to send an email';
             default:
                 return '';
@@ -223,31 +223,35 @@ export default class StudentContact extends Vue {
     }
 
     get shouldEmailAll() {
-        return this.recipients !== Recipient.Selected;
+        return this.selectedDefaultReceiver !== DefaultReceiver.Selected;
     }
 
     get recipientUsernames(): string[] {
-        if (this.recipients === Recipient.Everyone) {
+        if (this.selectedDefaultReceiver === DefaultReceiver.Everyone) {
             return [];
         } else {
             return this.users.map(u => u.username);
         }
     }
 
+    get showRecipientSelector() {
+        return this.selectedDefaultReceiver !== DefaultReceiver.Everyone;
+    }
+
     // eslint-disable-next-line class-methods-use-this
-    get recipientOptions(): { text: string, value: Recipient }[] {
+    get defaultReceiverOptions(): { text: string, value: DefaultReceiver }[] {
         return [
             {
                 text: 'All users in the course',
-                value: Recipient.Everyone,
+                value: DefaultReceiver.Everyone,
             },
             {
                 text: 'All users selected below',
-                value: Recipient.Selected,
+                value: DefaultReceiver.Selected,
             },
             {
                 text: 'All users in the course except those selcted below',
-                value: Recipient.NotSelected,
+                value: DefaultReceiver.NotSelected,
             },
         ];
     }
