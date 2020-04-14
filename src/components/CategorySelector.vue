@@ -178,5 +178,10 @@ export default {
         padding: 0.5rem;
         font-size: 0.75rem;
     }
+
+    .badge {
+        text-transform: uppercase;
+        vertical-align: super;
+    }
 }
 </style>
