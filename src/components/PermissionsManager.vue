@@ -38,14 +38,14 @@
 
                 <td v-for="field in fields"
                     class="text-center align-middle"
-                    v-b-popover.hover.top="perm.name === fixedPermission && field.own ? 'You cannot disable this permission for yourself' : ''">
+                    v-b-popover.hover.top="perm.value === fixedPermission && field.own ? 'You cannot disable this permission for yourself.' : ''">
                     <loader v-if="perm[field.key] === 'loading'"
                             :scale="1" />
 
                     <b-form-checkbox v-else
                                      :class="`role-${field.key}`"
                                      :checked="perm[field.key]"
-                                     :disabled="perm.name === fixedPermission && field.own"
+                                     :disabled="perm.value === fixedPermission && field.own"
                                      @change="changeButton(i, field)"/>
                 </td>
             </tr>
