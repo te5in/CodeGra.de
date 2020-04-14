@@ -36,6 +36,7 @@ fi
 
 dropdb "$DEV_DB"
 psql -c "create database $DEV_DB"
+psql "$DEV_DB" -c 'create extension "citext";'
 if [[ "$1" = "prod" ]]; then
     fix_perms
 fi

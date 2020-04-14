@@ -21,7 +21,7 @@ from cg_dt_utils import DatetimeWithTimezone
 
 from . import types, mixins
 from .types import (
-    JSONB, TIMESTAMP, DbEnum, DbType, Comparator, TypeDecorator,
+    JSONB, TIMESTAMP, CIText, DbEnum, DbType, Comparator, TypeDecorator,
     hybrid_property, hybrid_expression
 )
 
