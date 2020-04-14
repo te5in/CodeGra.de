@@ -92,7 +92,7 @@ var webpackConfig = merge(baseWebpackConfig, {
           test: /[\\/]node_modules[\\/](?!text-encoding|highlightjs|url-search-params|intersection-observer|simple-statistics|chart.?js.*)/,
           enforce: true,
         },
-        analytics: {
+        statistics: {
           name: 'analytics',
           test: /[\\/]node_modules[\\/](simple-statistics|chart.?js.*)/,
         },
