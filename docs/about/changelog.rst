@@ -2,7 +2,7 @@ Changelog
 ==========
 
 Version LowVoltage
------------------
+-------------------
 
 **Released**: April 15th, 2020
 
