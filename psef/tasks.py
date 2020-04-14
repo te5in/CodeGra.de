@@ -837,18 +837,20 @@ def _send_email_as_user_1(
 
     if task_result is None:
         logger.error('Could not find task result')
-        return None
+        return
     if task_result.state != p.models.TaskResultState.not_started:
         logger.error('Task already started or done', task_result=task_result)
+        return
 
     def __task() -> None:
         receivers = p.helpers.get_in_or_error(
             p.models.User,
             p.models.User.id,
             receiver_ids,
+            same_order_as_given=True,
         )
         sender = p.models.User.query.get(sender_id)
-        if sender is None:
+        if sender is None:  # pragma: no cover
             raise Exception('Wanted sender was not found')
 
         failed_receivers = []

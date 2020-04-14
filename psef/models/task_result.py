@@ -51,6 +51,10 @@ class TaskResult(Base, UUIDMixin, TimestampMixin):
         super().__init__(user=User.resolve(user))
 
     def as_task(self, fun: t.Callable[[], None]) -> None:
+        assert self.state == TaskResultState.not_started, (
+            'Cannot start task that has already started, state was in {}'
+        ).format(self.state)
+
         self.state = TaskResultState.started
         db.session.commit()
 

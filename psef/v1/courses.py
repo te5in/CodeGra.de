@@ -1090,7 +1090,7 @@ def register_user_in_course(course_id: int, link_id: uuid.UUID
 
 
 @api.route('/courses/<int:course_id>/email', methods=['POST'])
-@limiter.limit('1 per minute', key_func=lambda: current_user.id)
+@limiter.limit('10 per 10 minutes', key_func=lambda: current_user.id)
 @features.feature_required(features.Feature.EMAIL_STUDENTS)
 def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
     """Sent the authors in this course an email.
@@ -1115,9 +1115,27 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
         body = get('body', str)
         usernames: t.List[str] = get('usernames', list)
 
+    if not usernames:
+        raise APIException(
+            'At least one user should be given as recipient',
+            'No usernames were given as recipients', APICodes.INVALID_PARAM,
+            400
+        )
+
+    if helpers.contains_duplicate(usernames):
+        raise APIException(
+            'The given recipients list contains duplicates',
+            'Each recipient cannot only be mentioned once',
+            APICodes.INVALID_PARAM, 400
+        )
+
     receivers = helpers.flatten(
-        u.get_contained_users() for u in
-        helpers.get_in_or_error(models.User, models.User.username, usernames)
+        u.get_contained_users() for u in helpers.get_in_or_error(
+            models.User,
+            models.User.username,
+            usernames,
+            same_order_as_given=True,
+        )
     )
 
     if any(course_id not in u.courses for u in receivers):

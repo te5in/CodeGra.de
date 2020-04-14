@@ -5,6 +5,7 @@ from datetime import timedelta
 import pytest
 
 import psef
+import helpers
 import requests_stubs
 from psef import tasks as t
 from psef import models as m
@@ -366,3 +367,35 @@ def test_notify_broker_kill_single_runner(
             uuid.uuid4().hex
         )
         assert not ses.calls
+
+
+def test_send_email_as_user(describe, session, stubmailer):
+    with describe('setup'):
+        user = helpers.create_user_with_perms(session, [], [])
+        task_result = m.TaskResult(user)
+        session.add(task_result)
+        session.commit()
+
+    with describe('can send the first time'):
+        psef.tasks._send_email_as_user_1([user.id], 'd', 'b',
+                                         task_result.id.hex, user.id)
+        assert stubmailer.was_called
+        assert m.TaskResult.query.get(
+            task_result.id
+        ).state == m.TaskResultState.finished
+
+    with describe('Second call should not send'):
+        psef.tasks._send_email_as_user_1([user.id], 'd', 'b',
+                                         task_result.id.hex, user.id)
+        assert not stubmailer.was_called
+        assert m.TaskResult.query.get(
+            task_result.id
+        ).state == m.TaskResultState.finished
+
+    with describe('Should not crash for non existing task id'):
+        psef.tasks._send_email_as_user_1([user.id], 'd', 'b',
+                                         uuid.uuid4().hex, user.id)
+        assert not stubmailer.was_called
+        assert m.TaskResult.query.get(
+            task_result.id
+        ).state == m.TaskResultState.finished
