@@ -5,17 +5,10 @@
         <b-form-group label="Recipients"
                       label-size="lg"
                       label-class="pt-0">
-            <template v-if="!noEverybodyEmailOption">
-                <b-form-radio v-model="recipients" value="everyone">
-                    All users in the course
-                </b-form-radio>
-                <b-form-radio v-model="recipients" value="selected">
-                    All users selected below
-                </b-form-radio>
-                <b-form-radio v-model="recipients" value="not-selected">
-                    All users in the course except those selected below
-                </b-form-radio>
-            </template>
+            <b-form-radio-group v-if="!noEverybodyEmailOption"
+                                v-model="recipients"
+                                :options="recipientOptions"
+                                stacked/>
 
             <component v-if="recipients !== 'everyone'"
                        :is="noEverybodyEmailOption ? 'div' : 'b-form-group'"
@@ -129,6 +122,15 @@ import UserSelector from './UserSelector';
 // @ts-ignore
 import SnippetableInput from './SnippetableInput';
 
+enum Recipient {
+    // Everyone in the course
+    Everyone,
+    // Users selected in the multiselect.
+    Selected,
+    // All users _not_ selected in the multiselect.
+    NotSelected,
+}
+
 @Component({
     components: {
         SnippetableInput,
@@ -160,17 +162,22 @@ export default class StudentContact extends Vue {
 
     public body: string = '';
 
-    public recipients: string = this.initiallyEverybodyByDefault ? 'not-selected' : 'selected';
+    public recipients: Recipient = this.initiallyEverybodyByDefault ?
+        Recipient.NotSelected :
+        Recipient.Selected;
 
     public onDestroyHook = () => { };
 
     public deliveryError: Error | null = null;
 
     get userSelectorPlaceholder() {
-        if (this.recipients === 'not-selected') {
-            return 'Student not to send an email';
-        } else {
-            return 'Students to send an email';
+        switch (this.recipients) {
+            case Recipient.NotSelected:
+                return 'Student not to send an email';
+            case Recipient.Selected:
+                return 'Students to send an email';
+            default:
+                return '';
         }
     }
 
@@ -216,15 +223,33 @@ export default class StudentContact extends Vue {
     }
 
     get shouldEmailAll() {
-        return this.recipients !== 'selected';
+        return this.recipients !== Recipient.Selected;
     }
 
     get recipientUsernames(): string[] {
-        if (this.recipients === 'everyone') {
+        if (this.recipients === Recipient.Everyone) {
             return [];
         } else {
             return this.users.map(u => u.username);
         }
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    get recipientOptions(): { text: string, value: Recipient }[] {
+        return [
+            {
+                text: 'All users in the course',
+                value: Recipient.Everyone,
+            },
+            {
+                text: 'All users selected below',
+                value: Recipient.Selected,
+            },
+            {
+                text: 'All users in the course except those selcted below',
+                value: Recipient.NotSelected,
+            },
+        ];
     }
 
     // eslint-disable-next-line class-methods-use-this
