@@ -40,6 +40,11 @@ export namespace NotificationStore {
         'commitUpdateHasUnread',
     );
 
+    export const commitClearNotifications = moduleBuilder.commit(state => {
+        state.notifications = {};
+        state.hasUnread = false;
+    }, 'commitClearNotifications');
+
     export const dispatchMarkAllAsRead = moduleBuilder.dispatch(async (_, __: void): Promise<
         SubmitButtonResult<Notification[], NotificationResponseData>
     > => {
