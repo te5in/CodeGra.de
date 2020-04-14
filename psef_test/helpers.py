@@ -225,8 +225,7 @@ def create_user_with_perms(session, perms, courses, gperms=None, name=None):
     role_name = f'NEW-COURSE-ROLE-{",".join(map(str, perms))}-{uuid.uuid4().hex}'
     courses = courses if isinstance(courses, list) else [courses]
     for course in courses:
-        if isinstance(course, dict):
-            course = m.Course.query.get(course['id'])
+        course = m.Course.query.get(get_id(course))
         crole = m.CourseRole(name=role_name, course=course, hidden=False)
         for perm in CPerm:
             crole.set_permission(perm, perm in perms)

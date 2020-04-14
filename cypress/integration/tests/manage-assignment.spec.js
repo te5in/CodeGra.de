@@ -57,11 +57,10 @@ context('Manage Assignment', () => {
             cy.get('.flatpickr-calendar:visible .flatpickr-day:not(.prevMonthDay):not(.nextMonthDay).today')
                 .click();
             cy.get('.flatpickr-calendar:visible input.flatpickr-hour:visible')
-                .clear()
-                .type('23');
+                .should('have.focus')
+                .setText('23');
             cy.get('.flatpickr-calendar:visible input.flatpickr-minute:visible')
-                .clear()
-                .type('59{enter}');
+                .setText('59{enter}');
             cy.get('.assignment-deadline ~ .input-group-append .submit-button')
                 .submit('success');
             cy.reload();

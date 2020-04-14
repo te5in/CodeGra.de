@@ -431,6 +431,7 @@ def get_in_or_error(
     *,
     as_map: Literal[True],
     also_error: t.Callable[[Y], bool] = None,
+    same_order_as_given: Literal[False] = False,
 ) -> t.Dict[T, Y]:
     # pylint: disable=missing-function-docstring
     ...
@@ -445,6 +446,7 @@ def get_in_or_error(
     *,
     as_map: Literal[False] = False,
     also_error: t.Callable[[Y], bool] = None,
+    same_order_as_given: bool = False,
 ) -> t.List[Y]:
     # pylint: disable=missing-function-docstring
     ...
@@ -458,6 +460,7 @@ def get_in_or_error(
     *,
     also_error: t.Callable[[Y], bool] = None,
     as_map: bool = False,
+    same_order_as_given: bool = False
 ) -> t.Union[t.Dict[T, Y], t.List[Y]]:
     """Get object by doing an ``IN`` query.
 
@@ -468,15 +471,30 @@ def get_in_or_error(
     :param model: The objects to get.
     :param in_column: The column of the object to perform the in on.
     :param in_values: The values used for the ``IN`` clause. This may be an
-        empty sequence, which is handled without doing a query.
+        empty sequence, which is handled without doing a query. Each item in
+        the list should be unique.
     :param options: A list of options to give to the executed query. This can
         be used to undefer or eagerly load some columns or relations.
     :param as_map: Should the return value be returned as mapping between the
         `in_column` and the received item from the database.
-    :returns: A list of objects with the same length as ``in_values``.
+    :param same_order_s_given: If this is ``True`` the resulting list will
+        ordered the same as the given list of ``in_values``. This option cannot
+        be combined with ``as_map``. This option is especially useful for
+        testing, as it allows a deterministic order of the returned list.
 
+    :returns: A list of objects with the same length as ``in_values``.
     :raises APIException: If on of the items in ``in_values`` was not found.
     """
+    assert not (as_map and same_order_as_given)
+    if psef.current_app.do_sanity_checks:  # pragma: no cover
+        # This check does some assumptions (that each value in ``in_values`` is
+        # hashable for example), and can be quite slow. So we only do it when
+        # sanity checks are enabled.
+        assert not contains_duplicate(in_values), (
+            'The given ``in_values`` ({}) contains duplicates, which is not'
+            ' supported'
+        ).format(in_values)
+
     res: t.List[t.Tuple[T, Y]]
     if not in_values:
         res = []
@@ -486,6 +504,7 @@ def get_in_or_error(
         )
         if options is not None:
             query = query.options(*options)
+
         res = query.all()
 
     def _raise() -> t.NoReturn:
@@ -503,6 +522,9 @@ def get_in_or_error(
 
     if as_map:
         return dict(res)
+    elif same_order_as_given:
+        lookup = dict(res)
+        return [lookup[given_value] for given_value in in_values]
     return [item[1] for item in res]
 
 
@@ -1644,9 +1666,10 @@ def maybe_wrap_in_list(maybe_lst: t.Union[t.List[T], T]) -> t.List[T]:
     return [maybe_lst]
 
 
-def contains_duplicate(it_to_check: t.Iterator[T_Hashable]) -> bool:
-    """Check if a sequence contains duplicate values.
+def contains_duplicate(it_to_check: t.Iterable[T_Hashable]) -> bool:
+    """Check if an iterable contains duplicate values.
 
+    >>> import itertools as it
     >>> contains_duplicate(range(10))
     False
     >>> contains_duplicate([object(), object()])
@@ -1655,9 +1678,12 @@ def contains_duplicate(it_to_check: t.Iterator[T_Hashable]) -> bool:
     True
     >>> contains_duplicate(list(range(10)) + list(range(10)))
     True
+    >>> contains_duplicate(it.chain(range(5), range(5)))
+    True
 
-    :param it_to_check: The sequence to check for duplicate values.
-    :returns: If it contains any duplicate values.
+    :param it_to_check: The sequence to check for duplicate values. This can be
+        a generator which cannot be rewound.
+    :returns: If ``it_to_check`` contains any duplicate values.
     """
     seen: t.Set[T_Hashable] = set()
     for item in it_to_check:
@@ -1666,3 +1692,22 @@ def contains_duplicate(it_to_check: t.Iterator[T_Hashable]) -> bool:
         seen.add(item)
 
     return False
+
+
+def flatten(it_to_flatten: t.Iterable[t.Iterable[T]]) -> t.List[T]:
+    """Flatten a given iterable of iterables to a list.
+
+    >>> flatten((range(2) for _ in range(4)))
+    [0, 1, 0, 1, 0, 1, 0, 1]
+    >>> flatten((range(i) for i in range(5)))
+    [0, 0, 1, 0, 1, 2, 0, 1, 2, 3]
+    >>> flatten((range(2) for _ in range(0)))
+    []
+    >>> flatten([[[1, 2]], [[1, 2]]])
+    [[1, 2], [1, 2]]
+
+    :param it_to_flatten: The iterable to flatten, which will be iterated
+        completely.
+    :returns: A fresh flattened list.
+    """
+    return [x for wrap in it_to_flatten for x in wrap]

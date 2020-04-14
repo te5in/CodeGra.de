@@ -113,19 +113,6 @@ class _PermissionCheckFunction(t.Generic[_T_PERM_CHECKER]):
 class PermissionChecker:
     """The base permission checker class.
     """
-    __slots__ = ('course_id', )
-
-    def __init__(self, course_id: int) -> None:
-        self.course_id = course_id
-
-    @property
-    def user(self) -> 'psef.models.User':
-        """The current logged in user.
-
-        Accessing this property raises a :exc:`.PermissionException` if no user
-        is logged in.
-        """
-        return _get_cur_user()
 
     @staticmethod
     def as_ensure_function(fun: t.Callable[[_T_PERM_CHECKER], None]
@@ -137,6 +124,26 @@ class PermissionChecker:
         :meth:`._PermissionCheckFunction.as_bool`.
         """
         return _PermissionCheckFunction(fun)
+
+    @property
+    def user(self) -> 'psef.models.User':
+        """The current logged in user.
+
+        Accessing this property raises a :exc:`.PermissionException` if no user
+        is logged in.
+        """
+        return _get_cur_user()
+
+
+class CoursePermissionChecker(PermissionChecker):
+    """The base permission checker class for course related permissions.
+    """
+    __slots__ = ('course_id', )
+
+    def __init__(self, course_id: int) -> None:
+        super().__init__()
+
+        self.course_id = course_id
 
     def _ensure_enrolled(self) -> None:
         ensure_enrolled(self.course_id, self.user)
@@ -904,7 +911,7 @@ def ensure_can_edit_members_of_group(
         )
 
 
-class FeedbackBasePermissions(PermissionChecker):
+class FeedbackBasePermissions(CoursePermissionChecker):
     """The permission checker for :class:`psef.models.CommentBase`.
     """
     __slots__ = ('base', )
@@ -923,7 +930,7 @@ class FeedbackBasePermissions(PermissionChecker):
         self._ensure_any(perms)
 
 
-class FeedbackReplyPermissions(PermissionChecker):
+class FeedbackReplyPermissions(CoursePermissionChecker):
     """The permission checker for :class:`psef.models.CommentReply`.
     """
     __slots__ = ('reply', )
@@ -1024,7 +1031,7 @@ class FeedbackReplyPermissions(PermissionChecker):
             self._ensure(CPerm.can_see_others_work)
 
 
-class NotificationPermissions(PermissionChecker):
+class NotificationPermissions(CoursePermissionChecker):
     """The permission checker for :class:`psef.models.Notification`.
     """
     __slots__ = ('notification', 'work')
@@ -1061,7 +1068,7 @@ class NotificationPermissions(PermissionChecker):
         self._ensure_my_notification()
 
 
-class AnalyticsWorkspacePermissions(PermissionChecker):
+class AnalyticsWorkspacePermissions(CoursePermissionChecker):
     """The permission checker for :class:`psef.models.AnalyticsWorkspace`.
     """
     __slots__ = ('workspace', )
@@ -1077,6 +1084,27 @@ class AnalyticsWorkspacePermissions(PermissionChecker):
         """Check if the current user has the permission to see analytics data.
         """
         self._ensure(CPerm.can_view_analytics)
+
+
+class TaskResultPermissions(PermissionChecker):
+    """The permission checker for :class:`psef.models.TaskResult`
+    """
+
+    def __init__(self, task_result: 'psef.models.TaskResult') -> None:
+        self.task_result: Final = task_result
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        """Check if the current user may see this task result.
+        """
+
+        if self.task_result.user != self.user:
+            raise PermissionException(
+                'This task result does not belong to you', (
+                    f'The task result {self.task_result.id} does not belong to'
+                    f' {self.user}.'
+                ), APICodes.INCORRECT_PERMISSION, 403
+            )
 
 
 @login_required

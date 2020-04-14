@@ -78,6 +78,7 @@
 # mail_use_ssl = false
 # mail_username =
 # mail_password =
+# mail_default_sender_name =
 # mail_default_sender =
 # mail_max_emails =
 
@@ -299,6 +300,9 @@
 # more attack surfaces as it is now possible by design for students to run
 # javascript. This is all done in a sandboxed iframe but still.
 # render_html = false
+
+# Should it be possible to email students.
+# email_students = false
 
 # All LTI consumer keys mapped to secret keys. Please add your own, these ARE
 # case sensitive.

@@ -40,16 +40,35 @@ depends_on = None
 
 def upgrade():
     conn = op.get_bind()
-    conn.execute(text(\"\"\"
-    INSERT INTO "Permission" (name, default_value, course_permission)
-    SELECT '{perm_name}', {default_value}, {course_permission} WHERE NOT EXISTS
-        (SELECT 1 FROM "Permission" WHERE name = '{perm_name}')
-    \"\"\"))
 
+    exists = conn.execute(text(\"\"\"SELECT id from "Permission" where name = :perm_name\"\"\"), perm_name='{perm_name}').fetchall()
+    if exists:
+        True
+
+    new_perm_id = conn.execute(text(\"\"\"
+    INSERT INTO "Permission" (name, default_value, course_permission)
+    SELECT ':perm_name', :default_value, :course_permission RETURNING id
+    \"\"\"), perm_name='{perm_name}', default_value=default_value, course_permission={course_permission}).scalar()
+
+{extra}
 
 def downgrade():
     pass
 """
+
+COPY_TEMPLATE = '\n'.join(
+    ' ' * 4 + line for line in """
+old_perm_id = conn.execute(text(\"\"\"
+SELECT id FROM "Permission" WHERE name = :perm_name LIMIT 1
+\"\"\"), perm_name='{old_perm_name}').scalar()
+
+conn.execute(text(\"\"\"
+INSERT INTO "course_roles-permissions" (permission_id, course_role_id)
+        SELECT :new_perm_id, course_role_id FROM "course_roles-permissions"
+            WHERE permission_id = :old_perm_id
+\"\"\"), old_perm_id=old_perm_id, new_perm_id=new_perm_id)
+""".strip().split('\n')
+)
 
 
 def get_input(question: str, allow_empty: bool = False) -> str:
@@ -77,6 +96,13 @@ def main() -> None:
     long_desc = get_input('Long description of permission')
     warning = get_input('Warning message (leave empty to ignore)', True)
     default_true = get_yes_or_no('Should the default value be True')
+    if course_perm:
+        perm_to_copy_from = get_input(
+            'Which permission does this extend (leave blank for none)',
+            allow_empty=True
+        )
+    else:
+        perm_to_copy_from = ''
 
     r_f_name: str
     if course_perm:
@@ -120,6 +146,14 @@ def main() -> None:
     assert match is not None, f'{out} does not match'
     old_rev = match.group(1)
     new_rev = secrets.token_hex(10)
+
+    extra = ''
+    if perm_to_copy_from:
+        extra = COPY_TEMPLATE.format(
+            new_perm_name=name,
+            old_perm_name=perm_to_copy_from,
+        )
+
     with open(
         os.path.join(
             BASE_DIR, 'migrations', 'versions', '{}_.py'.format(new_rev)
@@ -132,7 +166,8 @@ def main() -> None:
                 perm_name=name,
                 default_value=default_true,
                 course_permission=course_perm,
-                create_date=datetime.datetime.utcnow().isoformat(sep=' ')
+                create_date=datetime.datetime.utcnow().isoformat(sep=' '),
+                extra=extra,
             )
         )
     print('Done!')

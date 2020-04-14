@@ -38,7 +38,7 @@
 
             <b-button v-if="canSeeGradeHistory"
                       id="codeviewer-grade-history"
-                      v-b-popover.hover.top="'Grade history'">
+                      v-b-popover.hover.top="'Show grade history'">
                 <icon name="history"/>
 
                 <b-popover target="codeviewer-grade-history"
@@ -53,6 +53,47 @@
                                    :isLTI="assignment && assignment.course.is_lti"/>
                 </b-popover>
             </b-button>
+
+            <b-button v-if="canEmailStudents"
+                      id="codeviewer-email-student"
+                      v-b-popover.top.hover="`Email the author${submission.user.isGroup ? 's' : ''} of this submission`"
+                      v-b-modal.codeviewer-email-student-modal>
+                <icon name="envelope"/>
+
+            </b-button>
+
+            <b-modal v-if="canEmailStudents"
+                     id="codeviewer-email-student-modal"
+                     ref="contactStudentModal"
+                     size="xl"
+                     hide-footer
+                     no-close-on-backdrop
+                     no-close-on-esc
+                     hide-header-close
+                     title="Email authors"
+                     body-class="p-0"
+                     dialog-class="auto-test-result-modal">
+                <cg-catch-error capture>
+                    <template slot-scope="{ error }">
+                        <b-alert v-if="error"
+                                 show
+                                 variant="danger">
+                            {{ $utils.getErrorMessage(error) }}
+                        </b-alert>
+
+                        <student-contact
+                            v-else
+                            :initial-users="submission.user.getContainedUsers()"
+                            :course="assignment.course"
+                            :default-subject="defaultEmailSubject"
+                            no-everybody-email-option
+                            @hide="() => $refs.contactStudentModal.hide()"
+                            @emailed="() => $refs.contactStudentModal.hide()"
+                            :can-use-snippets="canUseSnippets"
+                            class="p-3"/>
+                    </template>
+                </cg-catch-error>
+            </b-modal>
 
             <b-button v-b-popover.hover.top="'Download assignment or feedback'"
                       id="codeviewer-download-toggle">
@@ -179,6 +220,7 @@ import 'vue-awesome/icons/edit';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/history';
+import 'vue-awesome/icons/envelope';
 import 'vue-awesome/icons/binoculars';
 import ResSplitPane from 'vue-resize-split-pane';
 
@@ -209,6 +251,7 @@ import {
 } from '@/components';
 
 import FileViewer from '@/components/FileViewer';
+import StudentContact from '@/components/StudentContact';
 
 export default {
     name: 'submission-page',
@@ -301,6 +344,11 @@ export default {
 
         canSeeGradeHistory() {
             return this.coursePerms.can_see_grade_history;
+        },
+
+        canEmailStudents() {
+            return (UserConfig.features.email_students &&
+                    this.$utils.getProps(this.coursePerms, false, 'can_email_students'));
         },
 
         canViewAutoTestBeforeDone() {
@@ -561,6 +609,10 @@ export default {
 
             return title;
         },
+
+        defaultEmailSubject() {
+            return `[CodeGrade - ${this.assignment.course.name}/${this.assignment.name}] …`;
+        },
     },
 
     watch: {
@@ -818,6 +870,7 @@ export default {
         Toggle,
         Icon,
         User,
+        StudentContact,
         'rs-panes': ResSplitPane,
     },
 };
@@ -942,6 +995,7 @@ export default {
             position: absolute;
             top: 50%;
             left: 50%;
+            z-index: 10;
         }
 
         &:before {

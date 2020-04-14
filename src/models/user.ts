@@ -64,6 +64,8 @@ export abstract class User implements BaseUserServerData {
         this.readableName = nameOfUser(this);
     }
 
+    abstract getContainedUsers(): NormalUser[];
+
     abstract getGroupMembers(): AnyUser[];
 
     get isTestStudent(): boolean {
@@ -171,6 +173,10 @@ export class NormalUser extends User implements NormalUserServerData {
     }
 
     readonly isGroup: false = false;
+
+    getContainedUsers(): NormalUser[] {
+        return [this];
+    }
 }
 
 export class GroupUser extends User implements GroupUserServerData {
@@ -187,6 +193,10 @@ export class GroupUser extends User implements GroupUserServerData {
     }
 
     readonly isGroup: true = true;
+
+    getContainedUsers(): NormalUser[] {
+        return this.group.members;
+    }
 }
 
 export function makeUser(data: UserServerData, oldObject: any = null): AnyUser {

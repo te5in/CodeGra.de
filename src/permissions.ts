@@ -86,7 +86,8 @@ export type CoursePermissionOptions =
     | 'can_edit_others_comments'
     | 'can_add_own_inline_comments'
     | 'can_view_others_comment_edits'
-    | 'can_view_feedback_author';
+    | 'can_view_feedback_author'
+    | 'can_email_students';
 const makeCPerm = (value: CoursePermissionOptions, name: string, description: string, warning: string | null) => ({ value, name, description, warning });
 export const CoursePermission = {
     canSubmitOthersWork: makeCPerm('can_submit_others_work', 'Submit others work', 'Users with this permission can submit work to an assignment for other users. This means they can submit work that will have another user as the author.', null),
@@ -144,6 +145,7 @@ export const CoursePermission = {
     canAddOwnInlineComments: makeCPerm('can_add_own_inline_comments', 'Add inline comments to own submissions', 'Users with this permission can add and reply to inline comments on subbmission they are the author of', null),
     canViewOthersCommentEdits: makeCPerm('can_view_others_comment_edits', 'View others comment edits', 'Users with this permission may see the edit history of comments placed by others', null),
     canViewFeedbackAuthor: makeCPerm('can_view_feedback_author', 'View feedback author', 'Users with this permission can view the author of inline and general feedback', null),
+    canEmailStudents: makeCPerm('can_email_students', 'Can email students', 'Users with this permission can email students using the contact student button.', null),
 };
 export type CoursePermission = typeof CoursePermission[keyof typeof CoursePermission];
 /* eslint-enable */
