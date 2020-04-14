@@ -192,6 +192,7 @@ class CoursePermission(BasePermission):
     :ivar can_add_own_inline_comments: Users with this permission can add and reply to inline comments on subbmission they are the author of
     :ivar can_view_others_comment_edits: Users with this permission may see the edit history of comments placed by others
     :ivar can_view_feedback_author: Users with this permission can view the author of inline and general feedback
+    :ivar can_email_students: Users with this permission can email students using the contact student button.
     """
 
     @staticmethod
@@ -253,5 +254,6 @@ class CoursePermission(BasePermission):
     can_add_own_inline_comments = _PermissionValue(item=52, default_value=False)
     can_view_others_comment_edits = _PermissionValue(item=53, default_value=False)
     can_view_feedback_author = _PermissionValue(item=54, default_value=True)
+    can_email_students = _PermissionValue(item=55, default_value=False)
 
 # yapf: enable

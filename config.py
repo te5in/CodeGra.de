@@ -13,7 +13,9 @@ from mypy_extensions import TypedDict
 from typing_extensions import Literal
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
-config_file = os.getenv('CODEGRADE_CONFIG_FILE', os.path.join(cur_dir, 'config.ini'))
+config_file = os.getenv(
+    'CODEGRADE_CONFIG_FILE', os.path.join(cur_dir, 'config.ini')
+)
 
 CONFIG: t.Dict[str, t.Any] = dict()
 CONFIG['BASE_DIR'] = cur_dir
@@ -111,7 +113,7 @@ FlaskConfig = TypedDict(
         'MAIL_USE_SSL': bool,
         'MAIL_USERNAME': str,
         'MAIL_PASSWORD': str,
-        'MAIL_DEFAULT_SENDER': str,
+        'MAIL_DEFAULT_SENDER': t.Tuple[str, str],
         'MAIL_MAX_EMAILS': int,
         'RESET_TOKEN_TIME': float,
         'SETTING_TOKEN_TIME': float,
@@ -372,10 +374,20 @@ set_bool(CONFIG, backend_ops, 'MAIL_USE_TLS', False)
 set_bool(CONFIG, backend_ops, 'MAIL_USE_SSL', False)
 set_str(CONFIG, backend_ops, 'MAIL_USERNAME', 'noreply')
 set_str(CONFIG, backend_ops, 'MAIL_PASSWORD', 'nopasswd')
-set_str(CONFIG, backend_ops, 'MAIL_DEFAULT_SENDER', 'noreply')
+sender = (
+    backend_ops.get('MAIL_DEFAULT_SENDER_NAME', 'CodeGrade'),
+    backend_ops.get('MAIL_DEFAULT_SENDER', 'noreply')
+)
+CONFIG['MAIL_DEFAULT_SENDER'] = sender
 set_int(CONFIG, backend_ops, 'MAIL_MAX_EMAILS', 100)
-set_float(CONFIG, backend_ops, 'RESET_TOKEN_TIME', datetime.timedelta(days=1).total_seconds())
-set_float(CONFIG, backend_ops, 'SETTING_TOKEN_TIME', datetime.timedelta(days=2).total_seconds())
+set_float(
+    CONFIG, backend_ops, 'RESET_TOKEN_TIME',
+    datetime.timedelta(days=1).total_seconds()
+)
+set_float(
+    CONFIG, backend_ops, 'SETTING_TOKEN_TIME',
+    datetime.timedelta(days=2).total_seconds()
+)
 set_str(
     CONFIG,
     backend_ops,
@@ -582,6 +594,8 @@ set_bool(CONFIG['__S_FEATURES'], feature_ops, 'GROUPS', False)
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'AUTO_TEST', False)
 
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'RENDER_HTML', False)
+
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'EMAIL_STUDENTS', True)
 
 ############
 # LTI keys #

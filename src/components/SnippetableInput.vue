@@ -46,8 +46,6 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/user-circle-o';
 import 'vue-awesome/icons/book';
 
-import { Assignment } from '@/models';
-
 import { mapActions, mapGetters } from 'vuex';
 
 function lastWhiteSpace(str, start) {
@@ -65,8 +63,8 @@ export default {
     name: 'snippetable-input',
 
     props: {
-        assignment: {
-            type: Assignment,
+        course: {
+            type: Object,
             required: true,
         },
 
@@ -351,7 +349,7 @@ export default {
 
         findSnippetsByPrefix(word) {
             return [
-                ...(this.assignment ? this.assignment.course.snippets : [])
+                ...this.$utils.getProps(this.course, [], 'snippets')
                     .filter(snip => snip.key.startsWith(word))
                     .sort((a, b) => a.key.localeCompare(b.key))
                     .map(snip => Object.assign({}, snip, { course: true })),
@@ -375,9 +373,18 @@ export default {
             }
             if (el != null) {
                 el.focus();
+                await this.$afterRerender();
+
+                // When we animate this element in a modal the first focus fails
+                // for whatever reason, so if we are not focused at this moment
+                // we simply try again.
+                if (document.activeElement !== el) {
+                    el.focus();
+                    await this.$afterRerender();
+                }
+
                 // Put the cursor at the end of the text (Safari puts it at the start
                 // for some reason...
-                await this.$afterRerender();
                 el.setSelectionRange(el.value.length, el.value.length);
             }
         },

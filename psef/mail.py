@@ -302,5 +302,42 @@ def send_direct_notification_email(notification: models.Notification) -> None:
     )
 
 
+def send_student_mail(
+    mailer: Mail,
+    sender: models.User,
+    receiver: models.User,
+    subject: str,
+    text_body: str,
+) -> None:
+    """Send the given student an email as the given sender.
+
+    This sends an email to ``receiver`` and sets the ``Reply-To`` header of the
+    mail to the given ``sender``.
+
+    :param mailer: The mailer with which you want to send the email.
+    :param sender: The user which should be placed in the ``Reply-To`` header.
+    :param receiver: The user to which we should send the email.
+    :param subject: The subject of the email.
+    :param text_body: The plain text body of the email to send.
+    :returns: Nothing.
+    """
+    logger.info(
+        'Sending email to student',
+        subject=subject,
+        text_body=text_body,
+        recipient=sender,
+    )
+
+    message = Message(
+        sender=(sender.name, current_app.config['MAIL_DEFAULT_SENDER'][1]),
+        subject=subject,
+        body=text_body,
+        recipients=[(receiver.name, receiver.email)],
+        reply_to=(sender.name, sender.email),
+    )
+
+    mailer.send(message)
+
+
 def init_app(app: t.Any) -> None:
     mail.init_app(app)

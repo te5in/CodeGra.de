@@ -44,6 +44,29 @@
                 :course="course"
                 :editable="course.permissions.can_manage_course_snippets"/>
         </span>
+
+        <div :class="{ hidden: selectedCat !== 'contact' }"
+              class="cat-wrapper">
+            <cg-catch-error capture>
+                <template slot-scope="{ error }">
+                    <b-alert v-if="error"
+                             show
+                             variant="danger">
+                        {{ $utils.getErrorMessage(error) }}
+                    </b-alert>
+
+                    <student-contact
+                        v-else
+                        :initial-users="[]"
+                        initially-everybody-by-default
+                        reset-on-email
+                        :course="course"
+                        :default-subject="defaultEmailSubject"
+                        no-cancel
+                        :can-use-snippets="canUseSnippets"/>
+                </template>
+            </cg-catch-error>
+        </div>
     </div>
 </div>
 </template>
@@ -58,6 +81,7 @@ import Loader from '@/components/Loader';
 import CategorySelector from '@/components/CategorySelector';
 import GroupSetManager from '@/components/GroupSetManager';
 import SnippetManager from '@/components/SnippetManager';
+import StudentContact from '@/components/StudentContact';
 
 import { setPageTitle } from './title';
 
@@ -73,6 +97,9 @@ export default {
 
     computed: {
         ...mapGetters('courses', ['courses']),
+        ...mapGetters('user', {
+            userPerms: 'permissions',
+        }),
 
         course() {
             return this.courses[this.$route.params.courseId];
@@ -106,6 +133,13 @@ export default {
             );
         },
 
+        contactEnabled() {
+            return (
+                UserConfig.features.email_students &&
+                    this.$utils.getProps(this.course, false, 'permissions', 'can_email_students')
+            );
+        },
+
         categories() {
             return [
                 {
@@ -128,7 +162,19 @@ export default {
                     name: 'Snippets',
                     enabled: this.snippetsEnabled,
                 },
+                {
+                    id: 'contact',
+                    name: 'Contact students',
+                    enabled: this.contactEnabled,
+                },
             ];
+        },
+
+        defaultEmailSubject() {
+            return `[CodeGrade - ${this.course.name}] …`;
+        },
+        canUseSnippets() {
+            return !!this.userPerms.can_use_snippets;
         },
     },
 
@@ -154,6 +200,7 @@ export default {
         CategorySelector,
         GroupSetManager,
         SnippetManager,
+        StudentContact,
     },
 };
 </script>

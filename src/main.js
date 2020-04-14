@@ -34,6 +34,7 @@ import Loader from './components/Loader';
 import SubmitButton from './components/SubmitButton';
 import DescriptionPopover from './components/DescriptionPopover';
 import CgLogo from './components/CgLogo';
+import CatchError from './components/CatchError';
 
 Vue.component('cg-relative-time', RelativeTime);
 Vue.component('cg-user', User);
@@ -41,6 +42,7 @@ Vue.component('cg-loader', Loader);
 Vue.component('cg-submit-button', SubmitButton);
 Vue.component('cg-description-popover', DescriptionPopover);
 Vue.component('cg-logo', CgLogo);
+Vue.component('cg-catch-error', CatchError);
 
 Vue.use(BootstrapVue);
 Vue.use(Toasted);

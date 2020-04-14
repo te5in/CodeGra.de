@@ -780,6 +780,7 @@ def stubmailer(monkeypatch):
             self.called = 0
             self.args = []
             self.kwargs = []
+            self.times_connect_called = 0
             DESCRIBE_HOOKS.append(self.reset)
 
         def send(self, msg):
@@ -793,6 +794,20 @@ def stubmailer(monkeypatch):
             self.msg = None
             self.args = []
             self.called = 0
+            self.times_connect_called = 0
+
+        @property
+        def was_called(self):
+            return self.called > 0
+
+        @contextlib.contextmanager
+        def connect(self):
+            self.times_connect_called += 1
+            yield self
+
+        @property
+        def times_called(self):
+            return self.called
 
     mailer = StubMailer()
 
