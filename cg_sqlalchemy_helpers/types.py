@@ -810,6 +810,8 @@ if t.TYPE_CHECKING and MYPY:
 
     JSONB = DbType[t.Mapping[str, object]]()
 
+    CIText = DbType[str]()
+
     def TIMESTAMP(*, timezone: Literal[True]
                   ) -> DbType[cg_dt_utils.DatetimeWithTimezone]:
         ...
@@ -826,6 +828,22 @@ else:
     from sqlalchemy.ext.hybrid import Comparator as _Comparator
     from sqlalchemy import TypeDecorator, TIMESTAMP
     from sqlalchemy.dialects.postgresql import JSONB
+    from citext import CIText as _CIText
+
+    class CIText(_CIText):
+        # This is not defined in citext.CIText for whatever reason. This is
+        # copied from the `literal_processor` of sqlalchemy's own `String`
+        # type.
+        def literal_processor(self, dialect: t.Any) -> t.Callable[[str], str]:
+            def process(value: str) -> str:
+                value = value.replace("'", "''")
+
+                if dialect.identifier_preparer._double_percents:
+                    value = value.replace("%", "%%")
+
+                return "'%s'" % value
+
+            return process
 
     def hybrid_expression(fun: T) -> T:
         return fun

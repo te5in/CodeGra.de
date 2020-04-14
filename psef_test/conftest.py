@@ -449,6 +449,12 @@ def db(app, request):
                     ),
                     shell=True
                 )
+                subprocess.check_output(
+                    'psql {} -c \'create extension "citext"\''.format(
+                        db_name.replace('postgresql:///', '')
+                    ),
+                    shell=True
+                )
             except subprocess.CalledProcessError as e:
                 print(e.stdout, file=sys.stderr)
                 print(e.stderr, file=sys.stderr)

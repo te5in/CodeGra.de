@@ -31,7 +31,7 @@ needs_password = create_marker(pytest.mark.needs_password)
         data_error(None),
         data_error(5),
         'a-the-a-er',
-        data_error('b@b.nl'),
+        data_error(email_warning=True)('b@b.nl'),
         data_error(wrong=True)('b'),
     ]
 )
@@ -53,10 +53,22 @@ def test_login(
     data_err = request.node.get_closest_marker('data_error')
     if data_err:
         error = 400
-        if data_err.kwargs.get('wrong'):
+        if not isinstance(password, str) or not isinstance(username, str):
+            pass
+        elif data_err.kwargs.get('wrong'):
             error_template = copy.deepcopy(error_template)
-            error_template['message'
-                           ] == 'The supplied email or password is wrong.'
+            error_template['message'] = (
+                'The supplied username or password is wrong.'
+            )
+        elif data_err.kwargs.get('email_warning'):
+            error_template = copy.deepcopy(error_template)
+            error_template['message'] = (
+                'The supplied username or password is wrong. You have to login'
+                ' to CodeGrade using your username, which is probably not the'
+                ' same as your email.'
+            )
+        else:
+            assert False
     elif not active:
         error = 403
     else:
