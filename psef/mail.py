@@ -309,6 +309,18 @@ def send_student_mail(
     subject: str,
     text_body: str,
 ) -> None:
+    """Send the given student an email as the given sender.
+
+    This sends an email to ``receiver`` and sets the ``Reply-To`` header of the
+    mail to the given ``sender``.
+
+    :param mailer: The mailer with which you want to send the email.
+    :param sender: The user which should be placed in the ``Reply-To`` header.
+    :param receiver: The user to which we should send the email.
+    :param subject: The subject of the email.
+    :param text_body: The plain text body of the email to send.
+    :returns: Nothing.
+    """
     logger.info(
         'Sending email to student',
         subject=subject,

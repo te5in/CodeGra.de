@@ -115,6 +115,12 @@ This module defines all the objects in the database in their relation.
     :members:
     :show-inheritance:
 
+``psef.models.task_result``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: psef.models.task_result
+    :members:
+    :show-inheritance:
+
 SPDX-License-Identifier: AGPL-3.0-only
 """
 

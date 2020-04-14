@@ -17,13 +17,12 @@ from sqlalchemy.orm import selectinload, contains_eager
 from mypy_extensions import TypedDict
 from typing_extensions import Protocol
 
-import cg_logger
 import psef.files
 from psef import app, tasks, current_user
 from cg_sqlalchemy_helpers.types import ColumnProxy
 
 from . import api
-from .. import auth, mail, models, helpers, limiter, features
+from .. import auth, models, helpers, features
 from ..errors import APICodes, APIException
 from ..models import DbColumn, FileOwner, db
 from ..helpers import (

@@ -1,3 +1,8 @@
+"""
+This module contains all routes to view :class:`.TaskResult`s.
+
+SPDX-License-Identifier: AGPL-3.0-only
+"""
 import uuid
 
 from cg_json import JSONResponse

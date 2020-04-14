@@ -1087,11 +1087,17 @@ class AnalyticsWorkspacePermissions(CoursePermissionChecker):
 
 
 class TaskResultPermissions(PermissionChecker):
+    """The permission checker for :class:`psef.models.TaskResult`
+    """
+
     def __init__(self, task_result: 'psef.models.TaskResult') -> None:
         self.task_result: Final = task_result
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see(self) -> None:
+        """Check if the current user may see this task result.
+        """
+
         if self.task_result.user != self.user:
             raise PermissionException(
                 'This task result does not belong to you', (

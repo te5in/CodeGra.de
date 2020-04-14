@@ -128,8 +128,10 @@ class JSONResponse(t.Generic[T], flask.Response):  # pylint: disable=too-many-an
 
     @classmethod
     @contextlib.contextmanager
-    def _setup_env(cls, use_extended: _UseExtendedType
-                   ) -> t.Generator[None, None, None]:
+    def _setup_env(
+        cls,
+        use_extended: _UseExtendedType,  # pylint: disable=unused-argument
+    ) -> t.Generator[None, None, None]:
         try:
             old_encoder = current_app.json_encoder
             current_app.json_encoder = CustomJSONEncoder
@@ -148,6 +150,8 @@ class JSONResponse(t.Generic[T], flask.Response):  # pylint: disable=too-many-an
 
     @classmethod
     def dump_to_object(cls, obj: T) -> t.Mapping:
+        """Serialize the given object and parse its serialization.
+        """
         return system_json.loads(cls._dump_to_string(obj, use_extended=object))
 
     @classmethod
@@ -205,8 +209,15 @@ class ExtendedJSONResponse(t.Generic[T], JSONResponse[T]):  # pylint: disable=to
 
     @classmethod
     def dump_to_object(
-        cls, obj: T, use_extended: _UseExtendedType = object
+        cls,
+        obj: T,
+        use_extended: _UseExtendedType = object,
     ) -> t.Mapping:
+        """Serialize the given object and parse its serialization.
+
+        See :meth:`.ExtendedJSONResponse.make` for the meaning of the
+        arguments of this method.
+        """
         return system_json.loads(
             cls._dump_to_string(obj, use_extended=use_extended)
         )
@@ -216,7 +227,7 @@ class ExtendedJSONResponse(t.Generic[T], JSONResponse[T]):  # pylint: disable=to
         cls,
         obj: T,
         status_code: int = 200,
-        use_extended: _UseExtendedType = object
+        use_extended: _UseExtendedType = object,
     ) -> 'ExtendedJSONResponse[T]':
         """Create a response with the given object ``obj`` as json payload.
 
