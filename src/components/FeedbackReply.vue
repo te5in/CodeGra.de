@@ -167,7 +167,7 @@
                     </span>
                 </span>
             </div>
-            <div v-if="editable || canSeeEdits" class="d-flex mb-1 edit-buttons-wrapper">
+            <div v-if="editable || canSeeEdits" class="d-flex edit-buttons-wrapper">
                 <b-btn v-if="canSeeEdits && reply.lastEdit"
                        class="state-default"
                        :id="`${componentId}-history-btn`">
@@ -674,7 +674,6 @@ Do you want to overwrite it?`;
 }
 
 .info-text-wrapper {
-    line-height: 1.5rem;
     display: flex;
     align-items: center;
 }
