@@ -395,7 +395,8 @@ export default {
                 },
                 {
                     id: 'analytics',
-                    name: 'Analytics <div class="ml-1 badge">beta</div>',
+                    name: 'Analytics',
+                    badge: { label: 'beta', variant: 'light' },
                     enabled: this.assignment.analytics_workspace_ids.length > 0,
                 },
             ];

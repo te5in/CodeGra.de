@@ -421,54 +421,19 @@ export default {
                 },
                 {
                     id: 'feedback-overview',
-                    name: () => {
-                        let title = 'Feedback overview';
-                        if (!this.feedback || !this.submission) {
-                            return title;
-                        }
-
-                        const nitems = Object.values(this.feedback.user).reduce(
-                            (acc, file) => Object.values(file).reduce(
-                                (innerAcc, feedback) => {
-                                    if (!feedback.isEmpty && feedback.replies.some(
-                                        r => !r.isEmpty,
-                                    )) {
-                                        return innerAcc + 1;
-                                    }
-                                    return innerAcc;
-                                },
-                                acc,
-                            ),
-                            this.submission.comment ? 1 : 0,
-                        );
-                        if (nitems) {
-                            title += ` <div class="ml-1 badge badge-primary">${nitems}</div>`;
-                        }
-
-                        return title;
+                    name: 'Feedback overview',
+                    badge: this.numFeedbackItems === 0 ? null : {
+                        label: this.numFeedbackItems,
+                        variant: 'primary',
                     },
                     enabled: true,
                 },
                 {
                     id: 'auto-test',
-                    name: () => {
-                        let title = 'AutoTest';
-                        const test = this.autoTest;
-                        const result = this.autoTestResult;
-
-                        // Check that result.isFinal is exactly false, because it may be
-                        // `undefined` when we haven't received the extended result yet,
-                        // which would cause the CF badge to flicker on page load.
-                        if (
-                            test &&
-                            test.results_always_visible &&
-                            ((result && result.isFinal === false) || !this.canSeeGrade)
-                        ) {
-                            title +=
-                                ' <div class="ml-1 badge badge-warning" title="Continuous Feedback">CF</div>';
-                        }
-
-                        return title;
+                    name: 'AutoTest',
+                    badge: !this.showContinuousBadge ? null : {
+                        label: 'CF',
+                        variant: 'warning',
                     },
                     enabled: this.autoTestId != null,
                 },
@@ -484,6 +449,41 @@ export default {
             const fb = this.feedback;
 
             return !!(fb && (fb.general || Object.keys(fb.user).length));
+        },
+
+        numFeedbackItems() {
+            if (!this.feedback || !this.submission) {
+                return null;
+            }
+
+            return Object.values(this.feedback.user).reduce(
+                (acc, file) => Object.values(file).reduce(
+                    (innerAcc, feedback) => {
+                        if (!feedback.isEmpty && feedback.replies.some(
+                            r => !r.isEmpty,
+                        )) {
+                            return innerAcc + 1;
+                        }
+                        return innerAcc;
+                    },
+                    acc,
+                ),
+                this.submission.comment ? 1 : 0,
+            );
+        },
+
+        showContinuousBadge() {
+            const test = this.autoTest;
+            const result = this.autoTestResult;
+
+            // Check that result.isFinal is exactly false, because it may be
+            // `undefined` when we haven't received the extended result yet,
+            // which would cause the CF badge to flicker on page load.
+            return (
+                test &&
+                test.results_always_visible &&
+                ((result && result.isFinal === false) || !this.canSeeGrade)
+            );
         },
 
         assignmentDone() {
