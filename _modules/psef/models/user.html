@@ -424,7 +424,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">group</span><span class="o">.</span><span class="n">has_as_member</span><span class="p">(</span><span class="n">possible_member</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="User.get_contained_users"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.user.User.get_contained_users">[docs]</a>    <span class="k">def</span> <span class="nf">get_contained_users</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="s1">&#39;User&#39;</span><span class="p">]:</span>
+<div class="viewcode-block" id="User.get_contained_users"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.user.User.get_contained_users">[docs]</a>    <span class="k">def</span> <span class="nf">get_contained_users</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="s1">&#39;User&#39;</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Get all contained users of this user.</span>
 
 <span class="sd">        :returns: If this user is the virtual user of this group a list of</span>

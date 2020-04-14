@@ -631,6 +631,7 @@
     <span class="o">*</span><span class="p">,</span>
     <span class="n">as_map</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">True</span><span class="p">],</span>
     <span class="n">also_error</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="n">Y</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">same_order_as_given</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="n">T</span><span class="p">,</span> <span class="n">Y</span><span class="p">]:</span>
     <span class="c1"># pylint: disable=missing-function-docstring</span>
     <span class="o">...</span>
@@ -645,6 +646,7 @@
     <span class="o">*</span><span class="p">,</span>
     <span class="n">as_map</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">False</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">also_error</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="n">Y</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">same_order_as_given</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">Y</span><span class="p">]:</span>
     <span class="c1"># pylint: disable=missing-function-docstring</span>
     <span class="o">...</span>
@@ -658,6 +660,7 @@
     <span class="o">*</span><span class="p">,</span>
     <span class="n">also_error</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="n">Y</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">as_map</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">same_order_as_given</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="n">T</span><span class="p">,</span> <span class="n">Y</span><span class="p">],</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">Y</span><span class="p">]]:</span>
     <span class="sd">&quot;&quot;&quot;Get object by doing an ``IN`` query.</span>
 
@@ -668,15 +671,30 @@
 <span class="sd">    :param model: The objects to get.</span>
 <span class="sd">    :param in_column: The column of the object to perform the in on.</span>
 <span class="sd">    :param in_values: The values used for the ``IN`` clause. This may be an</span>
-<span class="sd">        empty sequence, which is handled without doing a query.</span>
+<span class="sd">        empty sequence, which is handled without doing a query. Each item in</span>
+<span class="sd">        the list should be unique.</span>
 <span class="sd">    :param options: A list of options to give to the executed query. This can</span>
 <span class="sd">        be used to undefer or eagerly load some columns or relations.</span>
 <span class="sd">    :param as_map: Should the return value be returned as mapping between the</span>
 <span class="sd">        `in_column` and the received item from the database.</span>
-<span class="sd">    :returns: A list of objects with the same length as ``in_values``.</span>
+<span class="sd">    :param same_order_s_given: If this is ``True`` the resulting list will</span>
+<span class="sd">        ordered the same as the given list of ``in_values``. This option cannot</span>
+<span class="sd">        be combined with ``as_map``. This option is especially useful for</span>
+<span class="sd">        testing, as it allows a deterministic order of the returned list.</span>
 
+<span class="sd">    :returns: A list of objects with the same length as ``in_values``.</span>
 <span class="sd">    :raises APIException: If on of the items in ``in_values`` was not found.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="p">(</span><span class="n">as_map</span> <span class="ow">and</span> <span class="n">same_order_as_given</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">psef</span><span class="o">.</span><span class="n">current_app</span><span class="o">.</span><span class="n">do_sanity_checks</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+        <span class="c1"># This check does some assumptions (that each value in ``in_values`` is</span>
+        <span class="c1"># hashable for example), and can be quite slow. So we only do it when</span>
+        <span class="c1"># sanity checks are enabled.</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="n">contains_duplicate</span><span class="p">(</span><span class="n">in_values</span><span class="p">),</span> <span class="p">(</span>
+            <span class="s1">&#39;The given ``in_values`` (</span><span class="si">{}</span><span class="s1">) contains duplicates, which is not&#39;</span>
+            <span class="s1">&#39; supported&#39;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">in_values</span><span class="p">)</span>
+
     <span class="n">res</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">T</span><span class="p">,</span> <span class="n">Y</span><span class="p">]]</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">in_values</span><span class="p">:</span>
         <span class="n">res</span> <span class="o">=</span> <span class="p">[]</span>
@@ -686,6 +704,7 @@
         <span class="p">)</span>
         <span class="k">if</span> <span class="n">options</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">query</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">options</span><span class="p">(</span><span class="o">*</span><span class="n">options</span><span class="p">)</span>
+
         <span class="n">res</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_raise</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">NoReturn</span><span class="p">:</span>
@@ -703,6 +722,9 @@
 
     <span class="k">if</span> <span class="n">as_map</span><span class="p">:</span>
         <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">same_order_as_given</span><span class="p">:</span>
+        <span class="n">lookup</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">lookup</span><span class="p">[</span><span class="n">given_value</span><span class="p">]</span> <span class="k">for</span> <span class="n">given_value</span> <span class="ow">in</span> <span class="n">in_values</span><span class="p">]</span>
     <span class="k">return</span> <span class="p">[</span><span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">res</span><span class="p">]</span></div>
 
 
@@ -1844,9 +1866,10 @@
     <span class="k">return</span> <span class="p">[</span><span class="n">maybe_lst</span><span class="p">]</span></div>
 
 
-<div class="viewcode-block" id="contains_duplicate"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.contains_duplicate">[docs]</a><span class="k">def</span> <span class="nf">contains_duplicate</span><span class="p">(</span><span class="n">it_to_check</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterator</span><span class="p">[</span><span class="n">T_Hashable</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-    <span class="sd">&quot;&quot;&quot;Check if a sequence contains duplicate values.</span>
+<div class="viewcode-block" id="contains_duplicate"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.contains_duplicate">[docs]</a><span class="k">def</span> <span class="nf">contains_duplicate</span><span class="p">(</span><span class="n">it_to_check</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="n">T_Hashable</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Check if an iterable contains duplicate values.</span>
 
+<span class="sd">    &gt;&gt;&gt; import itertools as it</span>
 <span class="sd">    &gt;&gt;&gt; contains_duplicate(range(10))</span>
 <span class="sd">    False</span>
 <span class="sd">    &gt;&gt;&gt; contains_duplicate([object(), object()])</span>
@@ -1855,9 +1878,12 @@
 <span class="sd">    True</span>
 <span class="sd">    &gt;&gt;&gt; contains_duplicate(list(range(10)) + list(range(10)))</span>
 <span class="sd">    True</span>
+<span class="sd">    &gt;&gt;&gt; contains_duplicate(it.chain(range(5), range(5)))</span>
+<span class="sd">    True</span>
 
-<span class="sd">    :param it_to_check: The sequence to check for duplicate values.</span>
-<span class="sd">    :returns: If it contains any duplicate values.</span>
+<span class="sd">    :param it_to_check: The sequence to check for duplicate values. This can be</span>
+<span class="sd">        a generator which cannot be rewound.</span>
+<span class="sd">    :returns: If ``it_to_check`` contains any duplicate values.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">seen</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Set</span><span class="p">[</span><span class="n">T_Hashable</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
     <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">it_to_check</span><span class="p">:</span>
@@ -1866,6 +1892,25 @@
         <span class="n">seen</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="flatten"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.flatten">[docs]</a><span class="k">def</span> <span class="nf">flatten</span><span class="p">(</span><span class="n">it_to_flatten</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="n">T</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">T</span><span class="p">]:</span>
+    <span class="sd">&quot;&quot;&quot;Flatten a given iterable of iterables to a list.</span>
+
+<span class="sd">    &gt;&gt;&gt; flatten((range(2) for _ in range(4)))</span>
+<span class="sd">    [0, 1, 0, 1, 0, 1, 0, 1]</span>
+<span class="sd">    &gt;&gt;&gt; flatten((range(i) for i in range(5)))</span>
+<span class="sd">    [0, 0, 1, 0, 1, 2, 0, 1, 2, 3]</span>
+<span class="sd">    &gt;&gt;&gt; flatten((range(2) for _ in range(0)))</span>
+<span class="sd">    []</span>
+<span class="sd">    &gt;&gt;&gt; flatten([[[1, 2]], [[1, 2]]])</span>
+<span class="sd">    [[1, 2], [1, 2]]</span>
+
+<span class="sd">    :param it_to_flatten: The iterable to flatten, which will be iterated</span>
+<span class="sd">        completely.</span>
+<span class="sd">    :returns: A fresh flattened list.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">wrap</span> <span class="ow">in</span> <span class="n">it_to_flatten</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">wrap</span><span class="p">]</span></div>
 </pre></div>
 
            </div>

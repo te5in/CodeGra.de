@@ -502,6 +502,43 @@
     <span class="p">)</span></div>
 
 
+<div class="viewcode-block" id="send_student_mail"><a class="viewcode-back" href="../../psef_api/psef.html#psef.mail.send_student_mail">[docs]</a><span class="k">def</span> <span class="nf">send_student_mail</span><span class="p">(</span>
+    <span class="n">mailer</span><span class="p">:</span> <span class="n">Mail</span><span class="p">,</span>
+    <span class="n">sender</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">User</span><span class="p">,</span>
+    <span class="n">receiver</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">User</span><span class="p">,</span>
+    <span class="n">subject</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">text_body</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Send the given student an email as the given sender.</span>
+
+<span class="sd">    This sends an email to ``receiver`` and sets the ``Reply-To`` header of the</span>
+<span class="sd">    mail to the given ``sender``.</span>
+
+<span class="sd">    :param mailer: The mailer with which you want to send the email.</span>
+<span class="sd">    :param sender: The user which should be placed in the ``Reply-To`` header.</span>
+<span class="sd">    :param receiver: The user to which we should send the email.</span>
+<span class="sd">    :param subject: The subject of the email.</span>
+<span class="sd">    :param text_body: The plain text body of the email to send.</span>
+<span class="sd">    :returns: Nothing.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="s1">&#39;Sending email to student&#39;</span><span class="p">,</span>
+        <span class="n">subject</span><span class="o">=</span><span class="n">subject</span><span class="p">,</span>
+        <span class="n">text_body</span><span class="o">=</span><span class="n">text_body</span><span class="p">,</span>
+        <span class="n">recipient</span><span class="o">=</span><span class="n">sender</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">message</span> <span class="o">=</span> <span class="n">Message</span><span class="p">(</span>
+        <span class="n">sender</span><span class="o">=</span><span class="p">(</span><span class="n">sender</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;MAIL_DEFAULT_SENDER&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="n">subject</span><span class="o">=</span><span class="n">subject</span><span class="p">,</span>
+        <span class="n">body</span><span class="o">=</span><span class="n">text_body</span><span class="p">,</span>
+        <span class="n">recipients</span><span class="o">=</span><span class="p">[(</span><span class="n">receiver</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">receiver</span><span class="o">.</span><span class="n">email</span><span class="p">)],</span>
+        <span class="n">reply_to</span><span class="o">=</span><span class="p">(</span><span class="n">sender</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">sender</span><span class="o">.</span><span class="n">email</span><span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="n">mailer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
+
+
 <span class="k">def</span> <span class="nf">init_app</span><span class="p">(</span><span class="n">app</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="n">mail</span><span class="o">.</span><span class="n">init_app</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
 </pre></div>
