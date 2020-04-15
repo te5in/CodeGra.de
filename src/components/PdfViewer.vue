@@ -3,6 +3,7 @@
 <floating-feedback-button
     :disabled="!showInlineFeedback"
     v-if="pdfURL"
+    @feedback-shown="onFeedbackChange"
     class="pdf-viewer"
     :fileId="id"
     :line="line"
@@ -146,10 +147,20 @@ export default {
                 pdfURL = this.$utils.coerceToString(URL.createObjectURL(blob));
             }
 
-            if (this.id === fileId) {
+            if (this.id === fileId && pdfURL) {
                 this.pdfURL = pdfURL;
                 this.$emit('load', fileId);
             }
+        },
+
+        async onFeedbackChange() {
+            if (!this.$root.isEdge) {
+                return;
+            }
+
+            this.pdfUrl = '';
+            this.$emit('loading', this.id);
+            this.embedPdf(this.id);
         },
     },
 

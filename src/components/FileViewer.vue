@@ -52,6 +52,7 @@
                        :can-use-snippets="canUseSnippets"
                        @force-viewer="setForcedFileComponent"
                        @load="onLoad"
+                       @loading="onLoading"
                        @error="onError" />
         </template>
     </div>
@@ -365,6 +366,15 @@ export default {
                 return;
             }
             this.loading = false;
+            this.error = '';
+        },
+
+        onLoading(fileId) {
+            if (this.fileId !== fileId) {
+                return;
+            }
+
+            this.loading = true;
             this.error = '';
         },
 

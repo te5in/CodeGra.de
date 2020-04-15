@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<component :is="showFeedback && !noResize ? 'rs-panes' : 'div'"
+<component :is="useRsPanes ? 'rs-panes' : 'div'"
            :class="{ 'add-space': addSpace, 'without-hover': visibleWithoutHover }"
            class="floating-feedback-button p-relative"
            :size="initialSize"
@@ -146,6 +146,10 @@ export default {
             });
             return res;
         },
+
+        useRsPanes() {
+            return this.showFeedback && !this.noResize;
+        },
     },
 
     data() {
@@ -161,8 +165,14 @@ export default {
     },
 
     watch: {
-        showFeedback: 'updateSize',
         noResize: 'updateSize',
+
+        showFeedback() {
+            this.updateSize();
+            this.$emit('feedback-shown', {
+                shown: this.showFeedback,
+            });
+        },
     },
 
     methods: {
