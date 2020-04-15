@@ -698,7 +698,7 @@ export class WorkspaceFilter {
                 throw new Error('Selected grade is less than or equal to the old "Min grade".');
             }
             if (maxGrade != null && maxGrade <= grade) {
-                throw new Error('Selected grade is less than or equal to the old "Min grade".');
+                throw new Error('Selected grade is greater than or equal to the old "Min grade".');
             }
             result = [].concat(
                 ...result.map(f => [f.update('maxGrade', grade), f.update('minGrade', grade)]),

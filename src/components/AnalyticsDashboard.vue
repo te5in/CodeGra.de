@@ -59,7 +59,7 @@
                         :assignment-id="assignmentId"
                         :workspace="baseWorkspace"
                         v-model="filters"
-                        @results="filterResults = $event"/>
+                        @results="filterResults = $event" />
                 </template>
             </catch-error>
         </div>
