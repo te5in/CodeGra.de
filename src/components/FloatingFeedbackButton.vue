@@ -40,8 +40,8 @@
                 :feedback="feedback"
                 :total-amount-lines="1"
                 :forceSnippetsAbove="forceSnippetsAbove"
-            :can-use-snippets="canUseSnippets"
-            :submission="submission" />
+                :can-use-snippets="canUseSnippets"
+                :submission="submission" />
         </div>
     </component>
 </div>

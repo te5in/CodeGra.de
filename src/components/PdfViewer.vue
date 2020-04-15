@@ -30,7 +30,7 @@
                     Your browser doesn't support the PDF viewer. Please download
                     the PDF <a class="alert-link" :href="pdfURL">here</a>.
                 </b-alert>
-        </object>
+            </object>
         </div>
     </template>
 </floating-feedback-button>
