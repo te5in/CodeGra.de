@@ -6,16 +6,16 @@ Version LowVoltage
 
 **Released**: April 15th, 2020
 
-You can now view assignment statistics in the analytics dashboard, giving you
-insight in how students are doing. Students can now also comment on their own
-code, and they can reply to comments placed by TAs.
+You can now view assignment statistics on the Analytics Dashboard, giving you
+insights on student performance. Students can now also comment on their own
+code, and they can reply to comments placed by teachers.
 
 **Features**
 
 - Analytics dashboard (`#1300
   <https://github.com/CodeGra-de/CodeGra.de/pull/1300>`__). The analytics
   dashboard is a new page with various statistics about an assignment. It gives
-  teachers insight in how students are doing on the assignment and where the
+  teachers insights in how students are performing on the assignment and where the
   assignment may be improved.
 - Inline feedback replies (`#1305
   <https://github.com/CodeGra-de/CodeGra.de/pull/1305>`__). It is now possible
@@ -25,7 +25,7 @@ code, and they can reply to comments placed by TAs.
 - Contact student button (`#1307
   <https://github.com/CodeGra-de/CodeGra.de/pull/1307>`__). This makes it
   possible for teachers to send emails to students of a submission, or to
-  arbitrary students of a course.
+  multiple students in a course.
 
 
 **Updates**
@@ -41,7 +41,7 @@ code, and they can reply to comments placed by TAs.
 
 **Fixes**
 
-- Make sure that empty markdown files show a useful errors `(#1244)
+- Make sure that empty markdown files show a useful error `(#1244)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1244>`__.
 
 Version Knoet.3
