@@ -132,8 +132,12 @@ export default {
     flex: 0 0 auto;
     padding-top: 4px;
 
-    body.cg-edge & .fa-icon {
-        transform: translateY(-3px);
+    .fa-icon {
+        transform: translateY(-5px) !important;
+
+        body.cg-edge & {
+            transform: translateY(-6px) !important;
+        }
     }
 }
 

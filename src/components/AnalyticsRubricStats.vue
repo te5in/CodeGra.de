@@ -224,6 +224,8 @@ export default {
                 return ds.label;
             };
 
+            const numOrDash = x => (x == null ? '-' : this.to2Dec(x));
+
             const afterLabel = (tooltipItem, data) => {
                 const ds = getDataset(tooltipItem, data);
                 const stats = ds.stats[tooltipItem.index];
@@ -231,12 +233,12 @@ export default {
                 // Do not escape, chart.js does its own escaping.
                 return [
                     `Times filled: ${stats.nTimesFilled}`,
-                    `Mean: ${this.to2Dec(stats.mean)}`,
-                    `Std. deviation: ${this.to2Dec(stats.stdev)}`,
-                    `Median: ${this.to2Dec(stats.median)}`,
-                    `Mode: ${this.to2Dec(stats.mode)}`,
-                    `Rit: ${this.to2Dec(stats.rit) || '-'}`,
-                    `Rir: ${this.to2Dec(stats.rir) || '-'}`,
+                    `Mean: ${numOrDash(stats.mean)}`,
+                    `Std. deviation: ${numOrDash(stats.stdev)}`,
+                    `Median: ${numOrDash(stats.median)}`,
+                    `Mode: ${numOrDash(stats.mode)}`,
+                    `Rit: ${numOrDash(stats.rit) || '-'}`,
+                    `Rir: ${numOrDash(stats.rir) || '-'}`,
                 ];
             };
 
@@ -350,7 +352,13 @@ export default {
                     normalized = this.normalize(data, this.normalizeFactors);
 
                     if (errorBars != null) {
-                        errorBars = stats.map(({ stdev }, j) => normalized[j] / data[j] * stdev);
+                        errorBars = stats.map(({ stdev }, j) => {
+                            if (stdev == null) {
+                                return null;
+                            } else {
+                                return normalized[j] / data[j] * stdev;
+                            }
+                        });
                     }
                 }
 
@@ -390,9 +398,7 @@ export default {
         },
 
         normalize(xs, factors) {
-            if (typeof factors === 'number') {
-                return xs.map(x => 100 * x / factors);
-            } else if (Array.isArray(factors)) {
+            if (Array.isArray(factors)) {
                 return xs.map((x, i) => 100 * this.normalize1(x, factors[i]));
             } else {
                 return xs;
@@ -400,7 +406,19 @@ export default {
         },
 
         normalize1(x, [lower, upper]) {
-            return x <= 0 ? -x / lower : x / upper;
+            if (x === 0) {
+                return 0;
+            }
+            if (lower === upper) {
+                return x === 0 ? 0 : 1;
+            }
+            // If x < 0 then lower must also be, because you can't score less
+            // than the least amount of points.
+            if (x < 0) {
+                return -x / lower;
+            }
+
+            return x / upper;
         },
 
         to2Dec(x) {

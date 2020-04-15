@@ -19,6 +19,7 @@ from typing_extensions import Final, Literal
 
 import psef
 from psef import features
+from cg_json import JSONResponse
 from cg_dt_utils import DatetimeWithTimezone
 from psef.helpers import readable_join
 from psef.exceptions import APICodes, APIException, PermissionException
@@ -59,12 +60,16 @@ def _raise_login_exception(desc: str = 'No user was logged in.') -> NoReturn:
 @jwt.expired_token_loader
 @jwt.invalid_token_loader
 @jwt.needs_fresh_token_loader
-def _handle_jwt_errors(reason: str = 'No user was logged in.') -> t.NoReturn:
-    raise PermissionException(
-        'You need to be logged in to do this.',
-        reason,
-        APICodes.NOT_LOGGED_IN,
-        401,
+def _handle_jwt_errors(reason: str = 'No user was logged in.'
+                       ) -> JSONResponse[PermissionException]:
+    return JSONResponse.make(
+        PermissionException(
+            'You need to be logged in to do this.',
+            reason,
+            APICodes.NOT_LOGGED_IN,
+            401,
+        ),
+        status_code=401,
     )
 
 

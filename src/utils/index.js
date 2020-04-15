@@ -307,8 +307,8 @@ export function getOtherAssignmentPlagiarismDesc(item, index) {
 
 export function nameOfUser(user) {
     if (!user) return '';
-    else if (user.readableName) return user.readableName;
     else if (user.group) return `Group "${user.group.name}"`;
+    else if (user.readableName) return user.readableName;
     else return user.name || '';
 }
 
@@ -606,4 +606,13 @@ export function isEmpty(obj) {
     } else {
         return Object.keys(obj).length === 0;
     }
+}
+
+export function readableJoin(arr) {
+    if (arr.length === 0) {
+        return '';
+    } else if (arr.length === 1) {
+        return arr[0];
+    }
+    return `${arr.slice(0, -1).join(', ')}, and ${arr[arr.length - 1]}`;
 }

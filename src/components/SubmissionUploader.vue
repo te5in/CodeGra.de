@@ -223,9 +223,40 @@
         </span>
     </div>
 
+    <b-alert show
+             variant="warning"
+             class="no-deadline-alert mb-0 rounded-bottom-0"
+             :class="{ 'rounded-0': noBorder }"
+             v-if="disabled">
+        <p v-if="!assignment.hasDeadline">
+            The deadline for this assignment has not yet been set.
+
+            <span v-if="canEditDeadline && deadlineEditable">
+                You can update the deadline
+                <router-link :to="manageAssigURL" class="inline-link">here</router-link>.
+            </span>
+            <span v-else-if="canEditDeadline">
+                Please update the deadline in {{ lmsName }}.
+            </span>
+
+            <span v-else>
+                Please ask your teacher to set a deadline before you
+                can submit your work.
+            </span>
+        </p>
+        <p v-else-if="submitDisabledReasons.length > 0">
+            You cannot upload for this assignment as {{ $utils.readableJoin(submitDisabledReasons) }}.
+        </p>
+
+        <p v-if="ltiUploadDisabledMessage">
+            {{ ltiUploadDisabledMessage }}
+        </p>
+    </b-alert>
+
     <multiple-files-uploader
         no-border
         v-if="assignment.files_upload_enabled"
+        :disabled="disabled"
         v-model="files"
         class="flex-grow-1" />
     <div v-else
@@ -324,6 +355,9 @@ import * as utils from '@/utils';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
 
+import ltiProviders from '@/lti_providers';
+import { CoursePermission as CPerm } from '@/permissions';
+
 import Loader from './Loader';
 import SubmitButton, { SubmitButtonCancelled } from './SubmitButton';
 import UserSelector from './UserSelector';
@@ -415,10 +449,6 @@ export default {
         assignment: {
             required: true,
             type: Object,
-        },
-        disabled: {
-            default: false,
-            type: Boolean,
         },
         forOthers: {
             type: Boolean,
@@ -556,11 +586,11 @@ export default {
         },
 
         authorDisabledPopover() {
-            return this.disabled || this.isTestSubmission ? this.disabledPopover : '';
+            return (!this.disabled && this.isTestSubmission) ? this.disabledPopover : '';
         },
 
         testSubmissionDisabledPopover() {
-            return this.disabled || this.author ? this.disabledPopover : '';
+            return (!this.disabled && this.author) ? this.disabledPopover : '';
         },
 
         currentGroup() {
@@ -619,6 +649,58 @@ export default {
             }
 
             return this.getSubmissionsByUser(this.assignment.id, author.id);
+        },
+
+        isStudent() {
+            return this.$utils.getProps(this.assignment, true, 'course', 'isStudent');
+        },
+
+        ltiUploadDisabledMessage() {
+            if (!this.isStudent) {
+                return null;
+            } else if (this.assignment.is_lti && !this.$inLTI) {
+                return `You can only submit this assignment from within ${this.lmsName}.`;
+            } else if (this.$inLTI && this.$LTIAssignmentId == null) {
+                return (
+                    "You didn't launch the assignment using LTI, please " +
+                    "navigate to the 'Assignments' page and submit your " +
+                    'work there.'
+                );
+            } else if (this.$inLTI && this.assignment.id !== this.$LTIAssignmentId) {
+                return (
+                    'You launched CodeGrade for a different assignment. ' +
+                    'Please retry opening the correct assignment.'
+                );
+            }
+
+            return null;
+        },
+
+        submitDisabledReasons() {
+            return this.assignment.getSubmitDisabledReasons();
+        },
+
+        disabled() {
+            return this.submitDisabledReasons.length > 0 ||
+                this.ltiUploadDisabledMessage != null;
+        },
+
+        deadlineEditable() {
+            return !this.$utils.getProps(ltiProviders, false, this.lmsName, 'supportsDeadline');
+        },
+
+        canEditDeadline() {
+            return this.assignment.hasPermission(CPerm.canEditAssignmentInfo);
+        },
+
+        manageAssigURL() {
+            return {
+                name: 'manage_assignment',
+                params: {
+                    courseId: this.assignment.courseId,
+                    assignmentId: this.assignment.id,
+                },
+            };
         },
     },
 

@@ -167,12 +167,25 @@
                     </span>
                 </span>
             </div>
-            <div v-if="editable || canSeeEdits" class="d-flex mb-1 edit-buttons-wrapper">
+            <div v-if="editable || canSeeEdits || hasExternalImages" class="d-flex edit-buttons-wrapper">
                 <b-btn v-if="canSeeEdits && reply.lastEdit"
                        class="state-default"
                        :id="`${componentId}-history-btn`">
                     <icon name="history" />
                 </b-btn>
+
+                <b-btn @click="showExternalImages = !showExternalImages"
+                       class="state-default"
+                       v-b-popover.top.hover="externalImagesTogglePopover"
+                       v-if="hasExternalImages">
+                    <icon name="picture-o"
+                          v-if="showExternalImages"
+                          class="enabled"/>
+                    <span v-else class="strikethrough disabled">
+                        <icon name="picture-o" />
+                    </span>
+                </b-btn>
+
                 <b-popover :target="`${componentId}-history-btn`"
                            v-if="canSeeEdits && reply.lastEdit"
                            triggers="click blur"
@@ -211,7 +224,9 @@
                      class="plain-text-message p-2"
                      v-if="internalReply.replyType === 'plain_text'"  />
                 <inner-markdown-viewer
+                    :block-external-images="!showExternalImages"
                     :markdown="internalReply.message"
+                    @blocked-external="onExternalBlocked"
                     class="markdown-message py-2 px-3"
                     v-else />
 
@@ -235,6 +250,8 @@ import 'vue-awesome/icons/book';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/pencil';
 import 'vue-awesome/icons/history';
+import 'vue-awesome/icons/picture-o';
+import 'vue-awesome/icons/ban';
 
 import { mapActions, mapGetters } from 'vuex';
 
@@ -315,6 +332,13 @@ export default class FeedbackReply extends Vue {
         return parseInt(replyId ?? '', 10);
     }
 
+    get externalImagesTogglePopover() {
+        if (this.showExternalImages) {
+            return 'Hide external images.';
+        }
+        return 'Show external images, this might leak information to third parties.';
+    }
+
     snippetKey: string = '';
 
     snippetDisabled: boolean = false;
@@ -328,6 +352,10 @@ export default class FeedbackReply extends Vue {
     showFocus: boolean = false;
 
     snippetsFilter: string = '';
+
+    showExternalImages: boolean = false;
+
+    hasExternalImages: boolean = false;
 
     onVisible(nowVisible: boolean) {
         if (nowVisible) {
@@ -600,6 +628,14 @@ Do you want to overwrite it?`;
         this.internalReply = this.internalReply.update(base + snippet.value);
         this.focusInput();
     }
+
+    onExternalBlocked(event: { blocked: boolean }) {
+        if (event.blocked) {
+            this.hasExternalImages = true;
+        } else if (!this.showExternalImages) {
+            this.hasExternalImages = false;
+        }
+    }
 }
 </script>
 
@@ -674,7 +710,6 @@ Do you want to overwrite it?`;
 }
 
 .info-text-wrapper {
-    line-height: 1.5rem;
     display: flex;
     align-items: center;
 }
@@ -699,13 +734,52 @@ Do you want to overwrite it?`;
     border: none;
     margin-left: 0;
     box-shadow: none !important;
+    transition: color @transition-duration ease-out;
     &.state-pending,
     &.state-default {
         background-color: transparent !important;
     }
 
+
+    .strikethrough {
+        padding-left: 4px;
+        margin-left: -4px;
+        padding-right: 4px;
+        margin-right: -4px;
+        position: relative;
+        opacity: 0.65;
+    }
+
+    .strikethrough:before {
+        position: absolute;
+        content: "";
+        left: 0;
+        top: 40%;
+        right: 0;
+        z-index: 100;
+        border-top: 2px solid;
+        border-color: inherit;
+        border-color: @color-secondary-text-lighter;
+
+        transform:rotate(-30deg);
+    }
+
+    &:hover .strikethrough:before {
+        border-color: @color-primary;
+        @{dark-mode} {
+            border-color: @color-secondary;
+        }
+    }
+
     .fa-icon {
         color: @color-secondary-text-lighter;
+    }
+
+    .fa-icon.enabled {
+        color: @color-primary;
+        @{dark-mode} {
+            color: @text-color-dark;
+        }
     }
 
     &:hover {
@@ -721,10 +795,6 @@ Do you want to overwrite it?`;
         .delete-icon {
             color: @color-danger;
         }
-    }
-
-    .fa-icon {
-        transition: color @transition-duration ease-out;
     }
 }
 </style>

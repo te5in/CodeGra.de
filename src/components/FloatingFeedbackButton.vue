@@ -1,5 +1,6 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<component :is="showFeedback && !noResize ? 'rs-panes' : 'div'"
+<component :is="useRsPanes ? 'rs-panes' : 'div'"
            :class="{ 'add-space': addSpace, 'without-hover': visibleWithoutHover }"
            class="floating-feedback-button p-relative"
            :size="initialSize"
@@ -39,8 +40,8 @@
                 :feedback="feedback"
                 :total-amount-lines="1"
                 :forceSnippetsAbove="forceSnippetsAbove"
-            :can-use-snippets="canUseSnippets"
-            :submission="submission" />
+                :can-use-snippets="canUseSnippets"
+                :submission="submission" />
         </div>
     </component>
 </div>
@@ -145,6 +146,10 @@ export default {
             });
             return res;
         },
+
+        useRsPanes() {
+            return this.showFeedback && !this.noResize;
+        },
     },
 
     data() {
@@ -160,8 +165,14 @@ export default {
     },
 
     watch: {
-        showFeedback: 'updateSize',
         noResize: 'updateSize',
+
+        showFeedback() {
+            this.updateSize();
+            this.$emit('feedback-shown', {
+                shown: this.showFeedback,
+            });
+        },
     },
 
     methods: {
@@ -302,17 +313,5 @@ export default {
 }
 .floating-feedback-button.pane-rs > .Pane.row {
     margin: 0;
-}
-
-.floating-feedback-button.add-space {
-    .feedback-area {
-        textarea {
-            border-top-left-radius: 0 !important;
-        }
-
-        .submit-feedback .submit-button {
-            border-top-right-radius: 0 !important;
-        }
-    }
 }
 </style>

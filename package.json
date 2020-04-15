@@ -135,6 +135,7 @@
     "http-proxy-middleware": "^0.17.3",
     "ignore-loader": "^0.1.2",
     "inject-loader": "^4.0.1",
+    "inline-manifest-webpack-plugin": "^4.0.2",
     "jest": "^25.2.7",
     "jest-extended": "^0.11.2",
     "karma": "^1.4.1",

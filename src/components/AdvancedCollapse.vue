@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="advanced-collapse">
     <div class="mt-3 mb-2 d-flex flex-row justify-content-between">

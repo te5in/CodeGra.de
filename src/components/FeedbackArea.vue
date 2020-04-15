@@ -255,4 +255,8 @@ export default class FeedbackArea extends Vue {
         flex: 1 1 auto;
     }
 }
+
+.reply-icon {
+    .default-text-colors;
+}
 </style>

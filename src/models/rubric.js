@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { UNSET_SENTINEL } from '@/constants';
 import { store } from '@/store';
 import { formatGrade, getProps, getUniqueId, toMaxNDecimals, setXor } from '@/utils';

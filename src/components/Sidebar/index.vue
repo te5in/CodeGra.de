@@ -1077,10 +1077,6 @@ export default {
 
         .fa-icon {
             transform: translateY(-1px);
-
-            .cg-edge & {
-                transform: translateY(-3px);
-            }
         }
     }
 
