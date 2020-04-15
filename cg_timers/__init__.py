@@ -29,7 +29,12 @@ def init_app(app: flask.Flask) -> None:
         })
 
     @app.after_request
-    def after_req(res: flask.Response) -> flask.Response:
+    def __after_req(res: flask.Response) -> flask.Response:
+        # This can happen when the request fails before the `__setup_timers`
+        # method is called
+        if not hasattr(flask.g, 'cg_timers_collection'):
+            return res
+
         for key, timer_dict in sorted(flask.g.cg_timers_collection.items()):
             amount = timer_dict['amount']
             total_time = timer_dict['total_time']
