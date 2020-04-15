@@ -225,7 +225,7 @@ export const BarChart = {
 
         suggestedRange() {
             if (this.datasets.length === 0) {
-                return [0, 0];
+                return [0, 1];
             }
 
             const factor = 1 + this.padding;
@@ -332,7 +332,7 @@ export const ScatterPlot = {
         },
 
         emptyRange() {
-            return [0, 0];
+            return [0, 1];
         },
     },
 

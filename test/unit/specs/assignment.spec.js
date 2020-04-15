@@ -85,7 +85,7 @@ describe('assignment model', () => {
         });
     });
 
-    describe('canUploadWork', () => {
+    describe('canSubmitWork', () => {
         it('should return false when you cannot submit work', () => {
             const assig = makeAssig({
                 course: {
@@ -95,15 +95,16 @@ describe('assignment model', () => {
                     },
                 },
             });
-            expect(assig.canUploadWork()).toBe(false);
+            expect(assig.canSubmitWork()).toBe(false);
         });
 
         it.each([
             [false],
             [true],
-        ])('should return false when the assignment is hidden', (submitOwn) => {
+        ])('should return true when the assignment is hidden', (submitOwn) => {
             const assigData = {
                 state: assignmentState.HIDDEN,
+                deadline: formatDate(moment().add(1, 'days')),
                 course: {
                     permissions: {
                         can_submit_own_work: true,
@@ -113,18 +114,18 @@ describe('assignment model', () => {
             };
             let assig = makeAssig(assigData);
 
-            expect(assig.canUploadWork()).toBe(false);
+            expect(assig.canSubmitWork()).toBe(true);
 
             assigData.course.permissions = {
                 can_submit_own_work: false,
                 can_submit_others_work: true,
             };
             assig = makeAssig(assigData);
-            expect(assig.canUploadWork()).toBe(false);
+            expect(assig.canSubmitWork()).toBe(true);
 
             assigData.course.permissions.can_submit_own_work = true;
             assig = makeAssig(assigData);
-            expect(assig.canUploadWork()).toBe(false);
+            expect(assig.canSubmitWork()).toBe(true);
         });
 
         it('should return false when the deadline has passed and you do not have permission to submit after the deadline', () => {
@@ -147,30 +148,30 @@ describe('assignment model', () => {
                 assig = makeAssig(assigData);
             }
 
-            expect(assig.canUploadWork(now)).toBe(false);
+            expect(assig.canSubmitWork(now)).toBe(false);
 
             updatePerms({
                 can_submit_own_work: false,
                 can_submit_others_work: true,
             });
-            expect(assig.canUploadWork(now)).toBe(false);
+            expect(assig.canSubmitWork(now)).toBe(false);
 
             updatePerms({ can_submit_own_work: true });
-            expect(assig.canUploadWork(now)).toBe(false);
+            expect(assig.canSubmitWork(now)).toBe(false);
 
             assigData.state = assignmentState.DONE;
             assigData.course.permissions.can_submit_others_work = false;
             assig = makeAssig(assigData);
-            expect(assig.canUploadWork(now)).toBe(false);
+            expect(assig.canSubmitWork(now)).toBe(false);
 
             updatePerms({
                 can_submit_own_work: false,
                 can_submit_others_work: true,
             });
-            expect(assig.canUploadWork(now)).toBe(false);
+            expect(assig.canSubmitWork(now)).toBe(false);
 
             updatePerms({can_submit_own_work: true});
-            expect(assig.canUploadWork(now)).toBe(false);
+            expect(assig.canSubmitWork(now)).toBe(false);
 
         });
 
@@ -188,11 +189,11 @@ describe('assignment model', () => {
             };
             let assig = makeAssig(assigData);
 
-            expect(assig.canUploadWork(now)).toBe(true);
+            expect(assig.canSubmitWork(now)).toBe(true);
 
             assigData.state = assignmentState.DONE;
             assig = makeAssig(assigData);
-            expect(assig.canUploadWork(now)).toBe(true);
+            expect(assig.canSubmitWork(now)).toBe(true);
         });
     });
 

@@ -25,7 +25,8 @@
                         multiple />
                     <b-input-group-append>
                         <b-button variant="warning"
-                                @click="clearUsers">
+                                  @click="clearUsers"
+                                  v-b-popover.top.hover="'Clear all'">
                             <icon name="reply" />
                         </b-button>
                     </b-input-group-append>

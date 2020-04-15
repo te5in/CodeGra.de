@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 export class Counter<T> {
     private readonly _counts: Map<T, number>;
 

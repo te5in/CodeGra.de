@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import copy
+import datetime
 
 import pytest
+import freezegun
 from werkzeug.local import LocalProxy
 
 import psef
@@ -704,4 +706,27 @@ def test_impersonate(logged_in, describe, test_client, session):
             '/api/v1/login?impersonate',
             401,
             data={'username': active.username, 'own_password': admin_password}
+        )
+
+
+def test_timeout_jwt_token(test_client, session, describe, logged_in, app):
+    with describe('setup'):
+        user = create_user_with_perms(session, [], [])
+
+    with describe('cannot use the same token far in the future'):
+        with logged_in(user):
+            # Can within timeout
+            test_client.req('get', '/api/v1/login', 200)
+
+            future = datetime.datetime.utcnow() + datetime.timedelta(weeks=8)
+
+            with freezegun.freeze_time(future):
+                test_client.req('get', '/api/v1/login', 401)
+
+    with describe('cannot use a garbage jwt token'), app.app_context():
+        test_client.req(
+            'get',
+            '/api/v1/login',
+            401,
+            headers={'Authorization': f'Bearer jdalksfjakldfjlkadjsdlkf'}
         )

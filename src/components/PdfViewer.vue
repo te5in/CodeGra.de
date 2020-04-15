@@ -3,6 +3,7 @@
 <floating-feedback-button
     :disabled="!showInlineFeedback"
     v-if="pdfURL"
+    @feedback-shown="onFeedbackChange"
     class="pdf-viewer"
     :fileId="id"
     :line="line"
@@ -18,7 +19,7 @@
     add-space
     button-position="bottom-right">
     <template v-slot:default="slotProps">
-        <div class="p-relative d-flex flex-grow flex-column">
+        <div class="p-relative d-flex flex-grow flex-column h-100">
             <div class="resize-div" v-if="slotProps.resizing" />
             <object :data="pdfURL"
                     type="application/pdf"
@@ -29,7 +30,7 @@
                     Your browser doesn't support the PDF viewer. Please download
                     the PDF <a class="alert-link" :href="pdfURL">here</a>.
                 </b-alert>
-        </object>
+            </object>
         </div>
     </template>
 </floating-feedback-button>
@@ -118,13 +119,13 @@ export default {
     },
 
     methods: {
-        embedPdf(fileId) {
+        async embedPdf(fileId) {
             this.pdfURL = '';
 
             let pdfURL;
 
             if (this.$root.isEdge) {
-                this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(
+                await this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(
                     ({ data }) => {
                         pdfURL = `/api/v1/files/${
                             data.name
@@ -146,10 +147,20 @@ export default {
                 pdfURL = this.$utils.coerceToString(URL.createObjectURL(blob));
             }
 
-            if (this.id === fileId) {
+            if (this.id === fileId && pdfURL) {
                 this.pdfURL = pdfURL;
                 this.$emit('load', fileId);
             }
+        },
+
+        async onFeedbackChange() {
+            if (!this.$root.isEdge) {
+                return;
+            }
+
+            this.pdfUrl = '';
+            this.$emit('loading', this.id);
+            this.embedPdf(this.id);
         },
     },
 

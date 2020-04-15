@@ -16,6 +16,10 @@ import { makeCache } from '@/utils/cache';
 import { defaultdict } from '@/utils/defaultdict';
 import { NONEXISTENT } from '@/constants';
 
+function numOrNull(x) {
+    return Number.isNaN(x) ? null : x;
+}
+
 function averages(xs) {
     if (xs.length < 1) {
         return null;
@@ -166,7 +170,8 @@ export class RubricSource extends DataSource {
                     return null;
                 } else {
                     const points = items.map(item => item.points);
-                    return stat.mean(points);
+                    const mean = stat.mean(points);
+                    return numOrNull(mean);
                 }
             }),
         );
@@ -181,7 +186,8 @@ export class RubricSource extends DataSource {
                     return 0;
                 } else {
                     const points = items.map(item => item.points);
-                    return stat.sampleStandardDeviation(points);
+                    const stdev = stat.sampleStandardDeviation(points);
+                    return numOrNull(stdev);
                 }
             }),
         );
@@ -193,7 +199,8 @@ export class RubricSource extends DataSource {
                 if (items.length === 0) {
                     return null;
                 } else {
-                    return stat.mode(items.map(item => item.points));
+                    const mode = stat.mode(items.map(item => item.points));
+                    return numOrNull(mode);
                 }
             }),
         );
@@ -205,7 +212,8 @@ export class RubricSource extends DataSource {
                 if (items.length === 0) {
                     return null;
                 } else {
-                    return stat.median(items.map(item => item.points));
+                    const median = stat.median(items.map(item => item.points));
+                    return numOrNull(median);
                 }
             }),
         );
@@ -226,9 +234,10 @@ export class RubricSource extends DataSource {
 
     get totalScorePerSubmission() {
         return this._cache.get('totalScorePerSubmission', () =>
-            mapObject(this.scorePerCatPerSubmission, scorePerCat =>
-                stat.sum(Object.values(scorePerCat)),
-            ),
+            mapObject(this.scorePerCatPerSubmission, scorePerCat => {
+                const score = stat.sum(Object.values(scorePerCat));
+                return numOrNull(score);
+            }),
         );
     }
 
@@ -260,8 +269,8 @@ export class RubricSource extends DataSource {
                 if (zipped.length < 2) {
                     return null;
                 }
-                const ret = stat.sampleCorrelation(...zip(...zipped));
-                return Number.isNaN(ret) ? null : ret;
+                const rit = stat.sampleCorrelation(...zip(...zipped));
+                return numOrNull(rit);
             }),
         );
     }
@@ -272,8 +281,8 @@ export class RubricSource extends DataSource {
                 if (zipped.length < 2) {
                     return null;
                 }
-                const ret = stat.sampleCorrelation(...zip(...zipped));
-                return Number.isNaN(ret) ? null : ret;
+                const rir = stat.sampleCorrelation(...zip(...zipped));
+                return numOrNull(rir);
             }),
         );
     }
@@ -689,7 +698,7 @@ export class WorkspaceFilter {
                 throw new Error('Selected grade is less than or equal to the old "Min grade".');
             }
             if (maxGrade != null && maxGrade <= grade) {
-                throw new Error('Selected grade is less than or equal to the old "Min grade".');
+                throw new Error('Selected grade is greater than or equal to the old "Min grade".');
             }
             result = [].concat(
                 ...result.map(f => [f.update('maxGrade', grade), f.update('minGrade', grade)]),

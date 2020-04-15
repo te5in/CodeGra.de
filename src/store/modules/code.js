@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import snappyJs from 'snappyjs';
 import Vue from 'vue';
 import axios from 'axios';

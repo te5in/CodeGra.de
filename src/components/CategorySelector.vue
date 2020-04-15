@@ -7,7 +7,17 @@
          v-if="cat.enabled"
          @click="processInput(cat.id, false)"
          :key="cat.id">
-        <span v-html="categoryName(cat)"/>
+        <span class="name">
+            {{ cat.name }}
+
+            <!-- Bootstrap-Vue uses variant secondary when no variant is
+                 given, so we can't use it here. -->
+            <div v-if="cat.badge"
+                 class="ml-1 badge"
+                 :class="cat.badge.variant ? `badge-${cat.badge.variant}` : ''">
+                {{ cat.badge.label }}
+            </div>
+        </span>
         <div class="indicator"/>
     </div>
 </div>
@@ -108,14 +118,6 @@ export default {
                 this.$emit('input', catId);
             }
         },
-
-        categoryName(cat) {
-            if (typeof cat.name === 'function') {
-                return cat.name();
-            } else {
-                return cat.name;
-            }
-        },
     },
 };
 </script>
@@ -170,11 +172,16 @@ export default {
         }
     }
 
-    span {
+    .name {
         text-align: center;
         padding-bottom: 0.25rem;
         padding: 0.5rem;
         font-size: 0.75rem;
+    }
+
+    .badge {
+        text-transform: uppercase;
+        vertical-align: super;
     }
 }
 </style>

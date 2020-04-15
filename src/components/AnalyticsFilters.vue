@@ -401,7 +401,14 @@
                             </multiselect>
                         </b-input-group>
 
-                        <template v-for="split in splitResults">
+                        <b-alert v-if="splitFiltersFailed"
+                                 show
+                                 variant="warning">
+                            {{ $utils.getErrorMessage(splitFilters) }}
+                        </b-alert>
+
+                        <template v-for="split in splitResults"
+                                  v-else>
                             <small class="pl-2 text-muted">
                                 {{ split.filter.toString() }}
                             </small>
@@ -410,9 +417,11 @@
                                 class="mb-0" />
                         </template>
 
-                        <div class="mt-3">
+                        <div class="mt-3"
+                             v-b-popover.top.hover="splitFiltersFailed ? 'The split parameters are invalid' : ''">
                             <submit-button class="float-right"
                                         variant="primary"
+                                        :disabled="splitFiltersFailed"
                                         :submit="() => splitFilter(filterIndex)"
                                         @after-success="afterSplitFilter">
                                 <icon name="check" />
@@ -529,22 +538,35 @@ export default {
             return this.filters.length === 1;
         },
 
+        splitFiltersFailed() {
+            return this.splitFilters instanceof Error;
+        },
+
         splitFilters() {
             // The new filters produced by the current split.
+
             if (this.isSplitting == null) {
                 return [];
             }
 
-            return this.filters[this.isSplitting].split({
-                assignees: this.splitAssignees,
-                latest: this.splitLatest,
-                grade: this.splitGrade,
-                date: this.splitDate,
-            });
+            try {
+                return this.filters[this.isSplitting].split({
+                    assignees: this.splitAssignees,
+                    latest: this.splitLatest,
+                    grade: this.splitGrade,
+                    date: this.splitDate,
+                });
+            } catch (e) {
+                return e;
+            }
         },
 
         splitResults() {
-            return this.workspace.filter(this.splitFilters);
+            if (this.splitFiltersFailed) {
+                return [];
+            } else {
+                return this.workspace.filter(this.splitFilters);
+            }
         },
 
         assignees() {

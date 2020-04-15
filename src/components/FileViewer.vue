@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="file-viewer"
      :class="dynamicClasses">
@@ -51,6 +52,7 @@
                        :can-use-snippets="canUseSnippets"
                        @force-viewer="setForcedFileComponent"
                        @load="onLoad"
+                       @loading="onLoading"
                        @error="onError" />
         </template>
     </div>
@@ -120,6 +122,7 @@ export default {
             error: '',
             forcedFileComponent: null,
             fileContent: undefined,
+            loadingCode: false,
             fileTypes: [
                 {
                     cond: () =>
@@ -278,6 +281,16 @@ export default {
             },
         },
 
+        fileData(newVal, oldVal) {
+            if (
+                newVal.needsContent &&
+                (oldVal == null || !oldVal.needsContent) &&
+                this.fileContent == null
+            ) {
+                this.loadFileContent(this.fileId);
+            }
+        },
+
         replyIdToFocus: {
             immediate: true,
             handler: 'tryScrollToReplyToFocus',
@@ -324,10 +337,19 @@ export default {
         },
 
         async loadFileContent(fileId) {
+            // We are already loading this piece of code.
+            if (this.loadingCode === fileId) {
+                return;
+            }
+
             this.fileContent = null;
             this.error = '';
             this.loading = true;
+
             if (this.fileData.needsContent) {
+                if (this.fileId === fileId) {
+                    this.loadingCode = fileId;
+                }
                 let callback = () => {};
                 let content = null;
 
@@ -351,6 +373,7 @@ export default {
                 }
 
                 if (fileId === this.fileId) {
+                    this.loadingCode = false;
                     if (content) {
                         this.fileContent = content;
                     }
@@ -364,6 +387,15 @@ export default {
                 return;
             }
             this.loading = false;
+            this.error = '';
+        },
+
+        onLoading(fileId) {
+            if (this.fileId !== fileId) {
+                return;
+            }
+
+            this.loading = true;
             this.error = '';
         },
 
@@ -413,16 +445,10 @@ export default {
     display: flex;
     flex-direction: column;
 
-    &.html-viewer {
-        height: 100%;
-    }
-    &.pdf-viewer:not(.no-data) {
-        height: 100%;
-        flex: 1 1 100%;
-    }
-
+    &.html-viewer,
+    &.image-viewer,
     &.markdown-viewer,
-    &.image-viewer {
+    &.pdf-viewer {
         height: 100%;
     }
 }

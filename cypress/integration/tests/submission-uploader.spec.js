@@ -129,7 +129,7 @@ context('Submission uploader', () => {
             cy.login('robin', 'Robin');
 
             cy.get('.submission-uploader')
-                .should('not.exist');
+                .should('be.visible');
             cy.get('.page.submissions .no-deadline-alert')
                 .should('be.visible')
                 .text()
@@ -147,7 +147,7 @@ context('Submission uploader', () => {
                 .find('.disabled')
                 .should('exist');
             cy.get('.submission-uploader')
-                .should('not.exist');
+                .should('not.be.visible');
         });
     });
 
