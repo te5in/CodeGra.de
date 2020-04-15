@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import markdownIt from 'markdown-it';
+import Vue from 'vue';
 import { highlightCode, htmlEscape } from '@/utils';
 
 /* Much of this code is copied directly from jupyter with little to no
@@ -8,9 +9,15 @@ import { highlightCode, htmlEscape } from '@/utils';
 
 const MATHSPLIT = /(\$\$?|\\(?:begin|end)\{[a-z]*\*?\}|\\[{}$]|[{}]|(?:\n\s*)+|@@\d+@@|\\\\(?:\(|\)|\[|\]))/i;
 
+const ALLOWED_EXTERNAL_URLS = /^https:\/\/(imgur.com|upload.wikimedia.org)/;
+const THIS_URL = `${UserConfig.externalUrl}/static/img`;
+
 // eslint-disable-next-line
 export class CgMarkdownIt {
     constructor() {
+        this.noExternalImages = false;
+        this.blockedExternal = false;
+
         this.md = markdownIt({
             html: true,
             typographer: false,
@@ -30,6 +37,31 @@ export class CgMarkdownIt {
             token.attrSet('target', '_blank');
 
             return defaultRender(tokens, idx, options, env, self);
+        };
+
+        const oldImage = this.md.renderer.rules.image;
+
+        this.md.renderer.rules.image = (tokens, idx, options, env, self) => {
+            const token = tokens[idx];
+            const src = token.attrGet('src');
+
+            if (this.noExternalImages && src) {
+                if (!src.startsWith(THIS_URL) && !ALLOWED_EXTERNAL_URLS.test(src)) {
+                    Vue.set(this, 'blockedExternal', true);
+                    token.attrSet(
+                        'title',
+                        'External images are disallowed by default, you can enable them on top.',
+                    );
+                    token.attrSet('alt', 'External images are disallowed by default');
+                    token.attrSet('src', `${UserConfig.externalUrl}/static/img/fa-ban.svg`);
+                    token.attrSet('style', 'width: 25px; cursor: help;');
+                }
+            }
+
+            if (oldImage) {
+                return oldImage(tokens, idx, options, env, self);
+            }
+            return self.renderToken(tokens, idx, options, env, self);
         };
 
         this.mathBlocks = [];
@@ -166,8 +198,11 @@ export class CgMarkdownIt {
         return deTilde(blocks.join(''));
     }
 
-    render(md, noMath = false) {
+    render(md, noMath = false, disallowExternalImages = false) {
         this.mathBlocks = [];
+        this.noExternalImages = disallowExternalImages;
+        Vue.set(this, 'blockedExternal', false);
+
         try {
             if (noMath) {
                 return this.md.render(md);

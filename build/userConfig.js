@@ -101,6 +101,7 @@ const backendOpts = userConfig['Back-end'];
 
 config.proxyBaseDomain = backendOpts ? backendOpts.proxy_base_domain : '';
 config.isProduction = process.env.NODE_ENV === 'production';
+config.externalUrl = backendOpts ? backendOpts.external_url : '';
 
 if (!config.proxyBaseDomain && config.isProduction) {
     throw new Error('Production can only be used with a proxy url.');

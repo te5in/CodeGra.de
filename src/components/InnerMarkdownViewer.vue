@@ -10,10 +10,6 @@
 import { CgMarkdownIt } from '@/cg-math';
 import markdownItSanitizer from 'markdown-it-sanitizer';
 
-const md = new CgMarkdownIt();
-
-md.use(markdownItSanitizer);
-
 export default {
     name: 'inner-markdown-viewer',
 
@@ -32,11 +28,29 @@ export default {
             type: Boolean,
             default: false,
         },
+
+        blockExternalImages: {
+            type: Boolean,
+            default: false,
+        },
+    },
+
+    data() {
+        const md = new CgMarkdownIt();
+        md.use(markdownItSanitizer);
+
+        return {
+            md,
+        };
     },
 
     computed: {
         html() {
-            return md.render(this.markdown, this.disableMath);
+            return this.md.render(this.markdown, this.disableMath, this.blockExternalImages);
+        },
+
+        blockedExternal() {
+            return this.md.blockedExternal;
         },
     },
 
@@ -50,6 +64,15 @@ export default {
                 }
             },
             immediate: true,
+        },
+
+        blockedExternal: {
+            immediate: true,
+            handler() {
+                this.$emit('blocked-external', {
+                    blocked: this.blockedExternal,
+                });
+            },
         },
     },
 };
@@ -68,8 +91,13 @@ export default {
         hyphens: auto;
         margin-left: 1.5rem;
     }
+
+    img,
     .MathJax_SVG svg {
         max-width: 100%;
+        @media @media-large {
+            max-width: 30rem;
+        }
     }
 
     a {
