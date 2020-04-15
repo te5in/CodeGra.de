@@ -71,6 +71,7 @@
                      no-close-on-esc
                      hide-header-close
                      title="Email authors"
+                     @show="() => $root.$emit('bv::hide::popover')"
                      body-class="p-0"
                      dialog-class="auto-test-result-modal">
                 <cg-catch-error capture>
@@ -87,7 +88,6 @@
                             :course="assignment.course"
                             :default-subject="defaultEmailSubject"
                             no-everybody-email-option
-                            @show="() => this.$root.$emit('bv::hide::popover')"
                             @hide="() => $refs.contactStudentModal.hide()"
                             @emailed="() => $refs.contactStudentModal.hide()"
                             :can-use-snippets="canUseSnippets"
