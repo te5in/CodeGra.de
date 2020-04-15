@@ -87,6 +87,7 @@
                             :course="assignment.course"
                             :default-subject="defaultEmailSubject"
                             no-everybody-email-option
+                            @show="() => this.$root.$emit('bv::hide::popover')"
                             @hide="() => $refs.contactStudentModal.hide()"
                             @emailed="() => $refs.contactStudentModal.hide()"
                             :can-use-snippets="canUseSnippets"
