@@ -133,7 +133,7 @@
 <li class="toctree-l1 current"><a class="reference internal" href="about.html">About CodeGrade</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="whatis.html">What is CodeGrade?</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Changelog</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#version-next">Version <em>Next</em></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#version-lowvoltage">Version LowVoltage</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#version-knoet-3">Version Knoet.3</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#version-1-19-0-knoet-2">Version 1.19.0 (Knoet.2)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#version-1-17-0-knoet-1">Version 1.17.0 (Knoet.1)</a></li>
@@ -242,14 +242,17 @@
             
   <div class="section" id="changelog">
 <h1>Changelog<a class="headerlink" href="#changelog" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="version-next">
-<h2>Version <em>Next</em><a class="headerlink" href="#version-next" title="Permalink to this headline">¶</a></h2>
-<p><strong>Released</strong>: <em>Unreleased</em></p>
+<div class="section" id="version-lowvoltage">
+<h2>Version LowVoltage<a class="headerlink" href="#version-lowvoltage" title="Permalink to this headline">¶</a></h2>
+<p><strong>Released</strong>: April 15th, 2020</p>
+<p>You can now view assignment statistics on the Analytics Dashboard, giving you
+insight into student performance. Students can now also comment on their own
+code, and they can reply to comments placed by teachers.</p>
 <p><strong>Features</strong></p>
 <ul class="simple">
 <li><p>Analytics dashboard (<a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1300">#1300</a>). The analytics
 dashboard is a new page with various statistics about an assignment. It gives
-teachers insight in how students are doing on the assignment and where the
+teachers insights in how students are performing on the assignment and where the
 assignment may be improved.</p></li>
 <li><p>Inline feedback replies (<a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1305">#1305</a>). It is now possible
 to reply to inline feedback, which makes distance learning easier to do with
@@ -257,16 +260,22 @@ CodeGrade. This update also adds markdown formatting to inline feedback, and
 notifies you when you have received new replies.</p></li>
 <li><p>Contact student button (<a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1307">#1307</a>). This makes it
 possible for teachers to send emails to students of a submission, or to
-arbitrary students of a course.</p></li>
+multiple students in a course.</p></li>
 </ul>
 <p><strong>Updates</strong></p>
 <ul class="simple">
+<li><p>Make usernames case insensitive (<a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1310">#1310</a>). This reduces
+ambiguity in which user you are dealing with, as well as making it easier to
+login because you do not have to remember if you used an uppercase or not
+when you registered.</p></li>
 <li><p>Various internal improvements (<a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1244">#1244</a>). This makes it easier
 to improve CodeGrade in the future.</p></li>
+<li><p>Plagiarism support for newer versions of Java. You can now use the Plagiarism
+checker for newer versions of Java.</p></li>
 </ul>
 <p><strong>Fixes</strong></p>
 <ul class="simple">
-<li><p>Make sure that empty markdown files show a useful errors <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1244">(#1244)</a>.</p></li>
+<li><p>Make sure that empty markdown files show a useful error <a class="reference external" href="https://github.com/CodeGra-de/CodeGra.de/pull/1244">(#1244)</a>.</p></li>
 </ul>
 </div>
 <div class="section" id="version-knoet-3">
