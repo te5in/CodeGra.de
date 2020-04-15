@@ -1,12 +1,40 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { TextDecoder } from 'text-encoding';
-import URLSearchParams from 'url-search-params';
+
+const promises = [];
+
+if (window.TextDecoder == null) {
+    promises.push(
+        import(/* webpackChunkName: 'text-encoding' */ 'text-encoding').then(({ TextDecoder }) => {
+            window.TextDecoder = TextDecoder;
+        }),
+    );
+}
+
+if (window.URLSearchParams == null) {
+    promises.push(
+        import(/* webpackChunkName: 'url-search-params' */ 'url-search-params').then(
+            ({ default: URLSearchParams }) => {
+                window.URLSearchParams = URLSearchParams;
+            },
+        ),
+    );
+}
+
+if (window.IntersectionObserver == null) {
+    promises.push(import(/* webpackChunkName: 'intersection-observer' */ 'intersection-observer'));
+}
 
 Element.prototype.matches = Element.prototype.matches || Element.prototype.msMatchesSelector;
 Math.log10 = Math.log10 || (x => Math.log(x) / Math.LN10);
 
-window.TextDecoder = window.TextDecoder || TextDecoder;
-window.URLSearchParams = window.URLSearchParams || URLSearchParams;
+Object.fromEntries =
+    Object.fromEntries ||
+    function fromEntries(iterable) {
+        return [...iterable].reduce((obj, [key, val]) => {
+            obj[key] = val;
+            return obj;
+        }, {});
+    };
 
 // eslint-disable-next-line
 Array.prototype.findIndex =
@@ -73,3 +101,7 @@ String.prototype.endsWith =
         }
         return this.substring(len - search.length, len) === search;
     };
+
+// eslint-disable-next-line
+const polyFilled = Promise.all(promises);
+export { polyFilled };

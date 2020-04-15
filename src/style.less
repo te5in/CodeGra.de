@@ -274,7 +274,7 @@ body {
 
 .show > .dropdown-menu {
     max-height: 50vh;
-    overflow-y: scroll;
+    overflow-y: auto;
 }
 
 .whitespace {
@@ -533,6 +533,23 @@ hr {
     cursor: help !important;
 }
 
+.placeholder-left {
+    &::-webkit-input-placeholder {
+        text-align: left;
+    }
+    &:-moz-placeholder {
+        /* Firefox 18- */
+        text-align: left;
+    }
+    &::-moz-placeholder {
+        /* Firefox 19+ */
+        text-align: left;
+    }
+    &:-ms-input-placeholder {
+        text-align: left;
+    }
+}
+
 .flatpickr-calendar {
     border-radius: @border-radius;
 
@@ -572,19 +589,38 @@ hr {
             border-top-color: @text-color-dark !important;
         }
 
+        .dayContainer {
+            background-color: @color-primary;
+        }
+
         .flatpickr-day {
-            &:hover {
+            &:not(.disabled):hover {
                 background-color: @color-primary-darker;
                 border-color: @color-primary-darker;
+            }
+
+            &.disabled {
+                color: @text-color-muted;
             }
 
             &.today {
                 border-color: @color-primary-darker;
             }
 
+            &.inRange {
+                background-color: @color-primary-darker;
+                border-color: @color-primary-darker;
+                border-top: 1px solid @color-primary-darker;
+                border-bottom: 1px solid @color-primary-darker;
+                box-shadow: -5px 0 0 @color-primary-darker, 5px 0 0 @color-primary-darker;
+            }
+
+            &.startRannge,
+            &.endRange,
             &.selected {
                 background-color: @color-primary-darkest;
                 border-color: @color-primary-darkest;
+                box-shadow: none;
             }
         }
 

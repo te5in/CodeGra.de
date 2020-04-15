@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="file-tree-inner">
     <div class="directory-label"
@@ -204,7 +205,7 @@ export default {
             return this.$utils.deepExtend({}, this.$route, {
                 name: 'submission_file',
                 params,
-                query,
+                query: Object.assign({}, query, { replyToFocus: undefined }),
             });
         },
 

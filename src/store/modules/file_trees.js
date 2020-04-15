@@ -64,9 +64,7 @@ const actions = {
 
     async updateAutoTestTree(
         { commit, dispatch },
-        {
-            assignmentId, submissionId, autoTest, autoTestTree,
-        },
+        { assignmentId, submissionId, autoTest, autoTestTree },
     ) {
         await dispatch('loadFileTree', {
             assignmentId,

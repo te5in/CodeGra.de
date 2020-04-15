@@ -23,6 +23,7 @@
                     :assignment="assignment"
                     :submission="submission"
                     :editable="editable"
+                    no-resize
                     :can-use-snippets="canUseSnippets">
                     <inner-markdown-viewer
                         :markdown="cell.source"
@@ -60,6 +61,7 @@
                         :line="out.feedback_offset"
                         :feedback="feedback[out.feedback_offset]"
                         :editable="editable"
+                        no-resize
                         :can-use-snippets="canUseSnippets">
                         <div class="inner-result-cell">
                             <span v-if="out.output_type === 'execute_result' || out.output_type === 'display_data'"

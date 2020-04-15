@@ -102,6 +102,11 @@ context('Rubric Viewer', () => {
     }
 
     function deleteGrade() {
+        cy.get('.grade-viewer .delete-button-group')
+            .trigger('mouseenter');
+
+        cy.get('.popover').should('be.visible');
+
         return cy.get('.grade-viewer .delete-button')
             .submit('success', { hasConfirm: true });
     }

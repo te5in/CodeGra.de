@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-button :id="btnId"
           class="submit-button"
@@ -7,7 +8,7 @@
           :style="{ opacity: modalVisible ? 1 : undefined }"
           :variant="currentVariant"
           :size="size"
-          @click.stop="onClick">
+          @click.prevent.stop="onClick">
 
     <span class="label success">
         <slot name="success-label">
@@ -39,7 +40,7 @@
                :placement="popoverPlacement"
                :show="!!error"
                v-if="!mounting"
-               :container="container"
+               :container="innerContainer"
                :target="btnId"
                triggers=""
                variant="danger"
@@ -65,6 +66,7 @@
     <b-popover :id="`${btnId}-warning-popover`"
                :placement="popoverPlacement"
                :show="!!warning"
+               :container="innerContainer"
                v-if="!mounting"
                :target="btnId"
                triggers=""
@@ -127,9 +129,10 @@
         </b-modal>
 
         <b-popover v-else-if="confirm && confirm.length > 0"
+                   :no-fade="duration < 100"
                    :id="`${btnId}-confirm-popover`"
                    :placement="popoverPlacement"
-                   :container="container"
+                   :container="innerContainer"
                    :show="confirmVisible"
                    :target="btnId"
                    triggers=""
@@ -295,6 +298,13 @@ export default {
         isDisabled() {
             return this.disabled || this.state !== 'default' || this.confirmVisible;
         },
+
+        innerContainer() {
+            if (this.container === 'self') {
+                return `#${this.btnId}`;
+            }
+            return this.container;
+        },
     },
 
     methods: {
@@ -358,6 +368,9 @@ export default {
             if (this.duration) {
                 this.state = 'success';
                 setTimeout(done, this.duration);
+            } else if (this.confirm) {
+                this.state = 'success';
+                this.$afterRerender().then(done);
             } else {
                 done();
             }
@@ -508,6 +521,12 @@ export default {
 
 .submit-button .loader {
     display: inline-block !important;
+}
+
+.submit-button .popover {
+    min-width: 15rem;
+    opacity: 1;
+    background: unset;
 }
 
 .submit-button-confirm-modal {

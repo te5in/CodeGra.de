@@ -59,6 +59,7 @@ details on `the CodeGrade website <https://codegrade.com>`_.
    Filesystem <https://fs-docs.codegra.de>
    user/lms.rst
    user/autotest/overview.rst
+   user/analytics-dashboard.rst
 
 .. only:: not latex
 

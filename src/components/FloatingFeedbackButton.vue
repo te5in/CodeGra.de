@@ -1,55 +1,66 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="floating-feedback-button"
-     :class="{ 'add-space': addSpace, 'without-hover': visibleWithoutHover }">
-    <div class="content">
+<component :is="useRsPanes ? 'rs-panes' : 'div'"
+           :class="{ 'add-space': addSpace, 'without-hover': visibleWithoutHover }"
+           class="floating-feedback-button p-relative"
+           :size="initialSize"
+           units="percents"
+           :step="50"
+           :min-size="20"
+           :max-size="90"
+           allow-resize
+           :on-drag-started="() => {resizing = true;}"
+           :on-drag-finished="() => {resizing = false;}"
+           split-to="rows">
+    <div class="content" slot="firstPane"
+         key="content">
         <div class="content-wrapper">
-            <slot/>
+            <slot v-bind:resizing="resizing"/>
         </div>
 
-        <b-button class="feedback-button"
-                  :class="buttonClasses"
-                  @click="startEditingFeedback"
-                  v-b-popover.window.top.hover="`Edit feedback for this ${slotDescription}`"
-                  v-if="editable && !disabled">
+        <submit-button class="feedback-button"
+                       :class="buttonClasses"
+                       :submit="addFeedback"
+                       @success="afterAddFeedback"
+                       variant="secondary"
+                       v-b-popover.window.top.hover="`Edit feedback for this ${slotDescription}`"
+                       v-if="editable && !disabled && !hasFeedback">
             <icon name="edit"/>
-        </b-button>
+        </submit-button>
     </div>
-    <feedback-area
-        :class="{ 'feedback-editable': editable }"
-        ref="feedbackArea"
-        :editing="editingFeedback"
-        :editable="editable"
-        :feedback="feedback.msg"
-        :author="feedback && feedback.author"
-        :line="line"
-        :file-id="fileId"
-        :total-amount-lines="line + 1000"
-        :forceSnippetsAbove="snippetFieldAbove"
-        :can-use-snippets="canUseSnippets"
-        :assignment="assignment"
-        :submission="submission"
-        @editFeedback="editingFeedback = true"
-        @feedbackChange="feedbackChange"
-        v-if="hasFeedback && !disabled"/>
+
+    <div class="feedback-area-wrapper" v-if="showFeedback"
+             slot="secondPane">
+            <feedback-area
+                class="py-1"
+                @updated="updateSize"
+                @editing="updateSize"
+                ref="feedbackArea"
+                :editable="editable"
+                :feedback="feedback"
+                :total-amount-lines="1"
+                :forceSnippetsAbove="forceSnippetsAbove"
+                :can-use-snippets="canUseSnippets"
+                :submission="submission" />
+        </div>
+    </component>
 </div>
 </template>
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
+import { FeedbackLine } from '@/models';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/edit';
 
+import ResSplitPane from 'vue-resize-split-pane';
+
 import FeedbackArea from './FeedbackArea';
+import SubmitButton from './SubmitButton';
 
 export default {
     name: 'floating-feedback-button',
-
-    data() {
-        return {
-            editingFeedback: false,
-        };
-    },
 
     props: {
         fileId: {
@@ -61,8 +72,8 @@ export default {
             required: true,
         },
         feedback: {
-            type: Object,
-            default: () => ({}),
+            type: FeedbackLine,
+            default: null,
         },
         editable: {
             type: Boolean,
@@ -84,7 +95,7 @@ export default {
             type: Boolean,
             default: false,
         },
-        snippetFieldAbove: {
+        forceSnippetsAbove: {
             type: Boolean,
             default: false,
         },
@@ -108,6 +119,11 @@ export default {
             type: String,
             default: 'top-right',
         },
+
+        noResize: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     computed: {
@@ -116,7 +132,11 @@ export default {
         }),
 
         hasFeedback() {
-            return this.feedback && this.feedback.msg != null;
+            return this.feedback != null && !this.feedback.isEmpty;
+        },
+
+        showFeedback() {
+            return this.hasFeedback && !this.disabled;
         },
 
         buttonClasses() {
@@ -126,6 +146,33 @@ export default {
             });
             return res;
         },
+
+        useRsPanes() {
+            return this.showFeedback && !this.noResize;
+        },
+    },
+
+    data() {
+        return {
+            resizing: false,
+            initialSize: 65,
+        };
+    },
+
+    async mounted() {
+        await this.$afterRerender();
+        this.updateSize();
+    },
+
+    watch: {
+        noResize: 'updateSize',
+
+        showFeedback() {
+            this.updateSize();
+            this.$emit('feedback-shown', {
+                shown: this.showFeedback,
+            });
+        },
     },
 
     methods: {
@@ -133,29 +180,44 @@ export default {
             storeAddFeedbackLine: 'addFeedbackLine',
         }),
 
-        feedbackChange() {
-            this.editingFeedback = false;
+        async updateSize() {
+            if (!this.showFeedback && this.noResize) {
+                return;
+            }
+            await this.$nextTick();
+
+            let height;
+            for (let i = 0; i < 10; ++i) {
+                const fbEl = this.$refs.feedbackArea;
+                if (!fbEl) {
+                    return;
+                }
+                height = fbEl.$el.scrollHeight;
+                if (height !== 0) {
+                    break;
+                }
+
+                // eslint-disable-next-line no-await-in-loop
+                await this.$afterRerender();
+            }
+
+            const totalHeight = this.$el.scrollHeight;
+            this.initialSize = Math.max(20, 100 - ((height + 10) / totalHeight) * 100);
         },
 
-        async startEditingFeedback() {
-            this.editingFeedback = true;
-            if (!this.hasFeedback) {
-                await this.storeAddFeedbackLine({
-                    assignmentId: this.assignment.id,
-                    submissionId: this.submission.id,
-                    fileId: this.fileId,
-                    line: this.line,
-                    author: { id: this.myId },
-                });
-            }
-            this.$nextTick(() => {
-                const ref = this.$refs.feedbackArea;
-                if (ref) {
-                    const el = ref.$el.querySelector('textarea');
-                    if (el) {
-                        el.focus();
-                    }
-                }
+        addFeedback() {
+            return FeedbackLine.createFeedbackLine(
+                parseInt(this.fileId, 10),
+                this.line,
+                this.myId,
+            );
+        },
+
+        afterAddFeedback({ cgResult }) {
+            this.storeAddFeedbackLine({
+                assignmentId: this.assignment.id,
+                submissionId: this.submission.id,
+                line: cgResult,
             });
         },
     },
@@ -163,6 +225,8 @@ export default {
     components: {
         Icon,
         FeedbackArea,
+        SubmitButton,
+        'rs-panes': ResSplitPane,
     },
 };
 </script>
@@ -184,26 +248,30 @@ export default {
 .content {
     position: relative;
     flex: 1 1 auto;
-    min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
+    min-height: 0;
+
+    .pane-rs & {
+        height: 100%;
+    }
 }
 
 .content-wrapper {
     width: 100%;
     height: 100%;
     overflow: auto;
+    max-height: 100%;
     display: flex;
     flex-direction: column;
-    flex: 1 1 100%;
+    flex: 1 1 auto;
 }
 
 .feedback-area-wrapper {
-    flex: 0 0 auto;
-}
-
-.feedback-area {
-    padding-top: 0 !important;
+    height: 100%;
+    width: 100%;
+    overflow-y: auto;
 }
 
 .feedback-button.btn {
@@ -237,34 +305,13 @@ export default {
         opacity: 1;
     }
 }
-
-.feedback-editable {
-    cursor: pointer;
-}
 </style>
 
 <style lang="less">
-.floating-feedback-button .feedback-area.edit.feedback-editable {
-    padding-bottom: 0;
+.floating-feedback-button .feedback-area {
+    padding: 0.5rem;
 }
-
-.floating-feedback-button.add-space {
-    .feedback-area-wrapper {
-        margin: 0 -1px -1px;
-        border-top-left-radius: 0 !important;
-        border-top-right-radius: 0 !important;
-    }
-
-    .feedback-area {
-        margin: 0 -1px -1px;
-
-        textarea {
-            border-top-left-radius: 0 !important;
-        }
-
-        .submit-feedback .submit-button {
-            border-top-right-radius: 0 !important;
-        }
-    }
+.floating-feedback-button.pane-rs > .Pane.row {
+    margin: 0;
 }
 </style>

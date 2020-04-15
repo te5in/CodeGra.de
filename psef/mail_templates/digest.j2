@@ -1,0 +1,39 @@
+{% extends "base.j2" %}
+{% import "utils.j2" as utils %}
+
+{% block title %}{{ subject }}{% endblock %}
+
+{% block preview %}A new comment was placed on a thread you are following{% endblock %}
+
+{% block body %}
+    {% call utils.body_row() %}
+        Hi {{ receiver.get_readable_name() }},
+    {% endcall %}
+    {% call utils.body_row() %}
+        Here is your {{ send_type.name }} digest of comments. You received
+        {{ notifications | length }}
+        notification{% if notifications | length != 1 %}s{% endif %}
+        since your previous {{ send_type.name }} digest:
+
+        <ul>
+            {%- for notification in notifications  -%}
+                <li style="Margin:0 0 1em; list-style:disc inside; mso-special-format:bullet;">
+                    {% set comment = notification.comment_reply %}
+                    {% set comment_base = comment.comment_base %}
+                    {% set work = comment_base.work %}
+
+                    {{ comment.author.get_readable_name() if comment.can_see_author else 'A grader' }}
+                    placed a comment on a submission by
+                    {{ work.user.get_readable_name() }} for the assignment
+                    {{ work.assignment.name }}
+                    (<code>{{ comment_base.file.get_path() }}:{{ comment_base.line + 1 }}</code>).
+                </li>
+            {%- endfor %}
+        </ul>
+    {% endcall %}
+{% endblock %}
+
+{% block footer %}
+    You received this email because {{ reasons }}. You can edit your
+    notification preferences {{ utils.footer_link(site_url + '/unsubscribe/email_notifications/?token=' + settings_token, 'here') -}}.
+{% endblock %}

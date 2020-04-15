@@ -43,32 +43,42 @@
             :key="i"
             class="line"
             :class="{
-                'hover': canGiveFeedback,
+                'normal-cursor': hasFeedback(i - 1),
+                'hover': canGiveFeedback && !hasFeedback(i - 1),
                 'linter-feedback-outer': $userConfig.features.linters && linterFeedback[i - 1 + lineFeedbackOffset],
-                'feedback-outer': showFeedback && $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset, 'msg') != null
+                'pb-1': hasFeedback(i - 1),
             }"
             :data-line="i">
 
             <code v-html="innerCodeLines[i - 1]" />
 
+            <span v-if="addingInlineFeedback[i - 1]"
+                  class="add-feedback-loader-wrapper">
+                <cg-loader :scale="1" v-if="addingInlineFeedback[i - 1] === true" />
+
+                <span v-else>
+                    <icon name="times" class="text-danger" :id="`add-feedback-line-error-${i}`"/>
+                    <b-popover :target="`add-feedback-line-error-${i}`"
+                               show>
+                        <icon name="times"
+                                class="hide-button"
+                                @click.native="$delete(addingInlineFeedback, i - 1)"/>
+                        Error adding inline feedback: {{ $utils.getErrorMessage(addingInlineFeedback[i - 1]) }}
+                    </b-popover>
+                </span>
+            </span>
+
             <linter-feedback-area :feedback="linterFeedback[i - 1]"
                                   v-if="$userConfig.features.linters && linterFeedback[i - 1] != null"/>
 
             <feedback-area
-                :key="i"
-                :editing="editing[i - 1]"
-                :feedback="feedback[i - 1 + lineFeedbackOffset].msg"
-                :author="feedback[i - 1 + lineFeedbackOffset].author"
-                :editable="editable"
-                :line="i - 1 + lineFeedbackOffset"
+                class="border-top border-bottom py-2 px-3 mt-1"
+                :key="feedback[i - 1 + lineFeedbackOffset].id"
+                :feedback="feedback[i - 1 + lineFeedbackOffset]"
                 :total-amount-lines="computedEndLine"
-                :file-id="fileId"
                 :can-use-snippets="canUseSnippets"
-                :assignment="assignment"
                 :submission="submission"
-                @editFeedback="editFeedback"
-                @feedbackChange="feedbackChange"
-                v-if="showFeedback && $utils.getProps(feedback, null, i - 1 + lineFeedbackOffset) != null"/>
+                v-if="hasFeedback(i - 1)"/>
         </li>
         <li class="empty-file"
             v-if="innerCodeLines.length === 1 && innerCodeLines[0] === ''">
@@ -111,6 +121,7 @@ import { mapActions, mapGetters } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/level-up';
+import { FeedbackLine } from '@/models';
 
 import Loader from './Loader';
 import FeedbackArea from './FeedbackArea';
@@ -139,10 +150,6 @@ export default {
         linterFeedback: {
             type: Object,
             default: () => ({}),
-        },
-        editable: {
-            type: Boolean,
-            default: false,
         },
         showWhitespace: {
             type: Boolean,
@@ -192,12 +199,12 @@ export default {
 
     data() {
         return {
-            editing: {},
             dragEvent: null,
             confirmedLines: false,
             showLinesLoader: false,
             innerCodeLines: [],
             cursorType: 'pointer',
+            addingInlineFeedback: {},
         };
     },
 
@@ -209,6 +216,7 @@ export default {
         codeLines: {
             immediate: true,
             handler() {
+                this.addingInlineFeedback = {};
                 this.innerCodeLines = Object.freeze(
                     Object.preventExtensions(this.codeLines.map(x => x)),
                 );
@@ -252,7 +260,11 @@ export default {
         },
 
         canGiveFeedback() {
-            return this.editable && this.showInlineFeedback;
+            return (
+                this.showInlineFeedback &&
+                this.submission &&
+                FeedbackLine.canAddReply(this.submission)
+            );
         },
 
         showFeedback() {
@@ -323,52 +335,25 @@ export default {
             }
 
             const line = Number(el.getAttribute('data-line')) - 1;
-            const feedbackLine = line + this.lineFeedbackOffset;
+            if (!this.hasFeedback(line) && this.canGiveFeedback) {
+                this.$set(this.addingInlineFeedback, line, true);
 
-            // We can never be editing this line when there is no feedback to
-            // edit. So this mapping is simply outdated. This happens because we
-            // do not reset the editing back to `false` when deleting
-            // feedback. We do not do this because when deleting a line of
-            // feedback, the line is deleted from the store. This means the
-            // component will stop existing, so it is impossible for it to emit
-            // a `deleted` event.
-            if (this.editing[line] && this.feedback[feedbackLine] != null) {
-                return;
-            }
-
-            if (!this.feedback[feedbackLine] || !this.feedback[feedbackLine].msg) {
-                await this.storeAddFeedbackLine({
-                    assignmentId: this.assignment.id,
-                    submissionId: this.submission.id,
-                    fileId: this.fileId,
-                    line: feedbackLine,
-                    author: { id: this.myId },
+                FeedbackLine.createFeedbackLine(
+                    parseInt(this.fileId, 10),
+                    line + this.lineFeedbackOffset,
+                    this.myId,
+                ).then(({ cgResult }) => {
+                    this.$delete(this.addingInlineFeedback, line);
+                    const args = {
+                        assignmentId: this.assignment.id,
+                        submissionId: this.submission.id,
+                        line: cgResult,
+                    };
+                    this.storeAddFeedbackLine(args);
+                }, err => {
+                    this.$set(this.addingInlineFeedback, line, err);
                 });
             }
-            this.$set(this.editing, line, true);
-
-            await this.$nextTick();
-            const feedbackArea = el.querySelector('.feedback-area textarea');
-
-            if (feedbackArea) {
-                feedbackArea.focus();
-
-                // Put the cursor at the end of the text (Safari puts it at the
-                // start for some reason...
-                await this.$afterRerender();
-                feedbackArea.setSelectionRange(
-                    feedbackArea.value.length,
-                    feedbackArea.value.length,
-                );
-            }
-        },
-
-        feedbackChange(line) {
-            this.$delete(this.editing, line - this.lineFeedbackOffset);
-        },
-
-        editFeedback(line) {
-            this.$set(this.editing, line - this.lineFeedbackOffset, true);
         },
 
         dragStart(event) {
@@ -419,6 +404,13 @@ export default {
             this.confirmedLines += nLines;
             this.showLinesLoader = false;
         },
+
+        hasFeedback(i) {
+            return (
+                this.showFeedback &&
+                this.$utils.getProps(this.feedback, null, i + this.lineFeedbackOffset) != null
+            );
+        },
     },
 };
 </script>
@@ -439,7 +431,6 @@ ol {
     padding: 0;
     overflow-x: visible;
     background: transparent;
-    font-family: monospace;
 
     @{dark-mode} {
         color: @color-secondary-text-lighter !important;
@@ -448,11 +439,15 @@ ol {
 
 li {
     position: relative;
-    padding-left: 0.75em;
-    padding-right: 0.75em;
 
     background-color: lighten(@linum-bg, 1%);
     border-left: 1px solid darken(@linum-bg, 5%);
+
+    code, &.empty-file, &.missing-newline {
+        padding-left: 0.75em;
+        padding-right: 0.75em;
+        font-family: monospace;
+    }
 
     @{dark-mode} {
         background-color: @color-primary-darker;
@@ -461,6 +456,10 @@ li {
 
     &.hover:hover {
         background-color: rgba(0, 0, 0, 0.025);
+    }
+
+    &.normal-cursor {
+        cursor: initial;
     }
 
     &.linter-feedback-outer {
@@ -539,26 +538,15 @@ code {
         }
     }
 }
-</style>
 
-<style lang="less">
-@import '~mixins.less';
+.feedback-area {
+    font-size: 110%;
+    .default-background;
+}
 
-ol.lines .btn:not(.btn-success):not(.btn-danger):not(.btn-warning) {
-    @{dark-mode} {
-        background: @color-secondary;
-
-        &:hover {
-            background: darken(@color-secondary, 10%);
-        }
-
-        &.btn-secondary {
-            background-color: @color-primary-darker;
-
-            &:hover {
-                background: @color-primary-darker;
-            }
-        }
-    }
+.add-feedback-loader-wrapper {
+    position: absolute;
+    right: 5px;
+    top: 1px;
 }
 </style>

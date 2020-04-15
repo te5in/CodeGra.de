@@ -62,6 +62,10 @@ export default {
             type: Object,
             required: true,
         },
+        fileId: {
+            type: String,
+            required: true,
+        },
         showWhitespace: {
             type: Boolean,
             default: true,
@@ -81,13 +85,14 @@ export default {
         };
     },
 
-    mounted() {
-        this.getCode();
-    },
-
     watch: {
-        file(f) {
-            if (f) this.getCode();
+        fileId: {
+            immediate: true,
+            handler(id) {
+                if (id) {
+                    this.getCode(this.fileId);
+                }
+            },
         },
     },
 
@@ -96,7 +101,7 @@ export default {
             storeLoadCode: 'loadCode',
         }),
 
-        getCode() {
+        getCode(fileId) {
             let error = '';
 
             const promises = this.file.ids.map(id => {
@@ -120,7 +125,9 @@ export default {
                             return;
                         }
 
-                        this.diffCode(origCode, revCode);
+                        if (fileId === this.fileId) {
+                            this.diffCode(origCode, revCode);
+                        }
                     },
                     err => {
                         error = err;
@@ -128,9 +135,12 @@ export default {
                 )
                 .then(() => {
                     if (error) {
-                        this.$emit('error', error);
+                        this.$emit('error', {
+                            error,
+                            fileId,
+                        });
                     } else {
-                        this.$emit('load');
+                        this.$emit('load', fileId);
                     }
                 });
         },

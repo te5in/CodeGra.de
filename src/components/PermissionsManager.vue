@@ -19,14 +19,14 @@
                 v-if="filteredIndices.has(i)"
                 :class="{ 'table-danger': perm.warning }">
                 <td>
-                    {{ perm.short_description }}
+                    {{ perm.name }}
 
                     <description-popover
                         hug-text
                         :icon="perm.warning ? 'exclamation-triangle' : undefined"
                         placement="right">
                         <p>
-                            {{ perm.long_description }}
+                            {{ perm.description }}
                         </p>
 
                         <p v-if="perm.warning">
@@ -38,14 +38,14 @@
 
                 <td v-for="field in fields"
                     class="text-center align-middle"
-                    v-b-popover.hover.top="perm.name === fixedPermission && field.own ? 'You cannot disable this permission for yourself' : ''">
+                    v-b-popover.hover.top="perm.value === fixedPermission && field.own ? 'You cannot disable this permission for yourself.' : ''">
                     <loader v-if="perm[field.key] === 'loading'"
                             :scale="1" />
 
                     <b-form-checkbox v-else
                                      :class="`role-${field.key}`"
                                      :checked="perm[field.key]"
-                                     :disabled="perm.name === fixedPermission && field.own"
+                                     :disabled="perm.value === fixedPermission && field.own"
                                      @change="changeButton(i, field)"/>
                 </td>
             </tr>
@@ -102,6 +102,7 @@ import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/times';
 
 import { waitAtLeast } from '@/utils';
+import { CoursePermission, GlobalPermission } from '@/permissions';
 
 import DescriptionPopover from './DescriptionPopover';
 import Loader from './Loader';
@@ -157,12 +158,24 @@ export default {
     },
 
     computed: {
+        permissionLookup() {
+            const res = {};
+            Object.values(CoursePermission).forEach(v => {
+                res[v.value] = v;
+            });
+            Object.values(GlobalPermission).forEach(v => {
+                res[v.value] = v;
+            });
+            return res;
+        },
+
         filteredIndices() {
-            const filter = this.filter.toLocaleLowerCase();
+            const filter = (this.filter || '').toLocaleLowerCase();
             return this.items.reduce((acc, perm, i) => {
                 if (
-                    perm.short_description.toLocaleLowerCase().indexOf(filter) >= 0 ||
-                    perm.long_description.toLocaleLowerCase().indexOf(filter) >= 0 ||
+                    perm.value.toLocaleLowerCase().indexOf(filter) >= 0 ||
+                    perm.name.toLocaleLowerCase().indexOf(filter) >= 0 ||
+                    perm.description.toLocaleLowerCase().indexOf(filter) >= 0 ||
                     (perm.warning && perm.warning.toLocaleLowerCase().indexOf(filter) >= 0)
                 ) {
                     acc.add(i);
@@ -210,7 +223,9 @@ export default {
                     let i = 0;
                     Object.entries(item.perms).forEach(([name, value]) => {
                         if (!this.items[i]) {
-                            this.items[i] = Object.assign({ name }, Permissions[name]);
+                            this.items[i] = Object.assign(
+                                { name },
+                                this.permissionLookup[name]);
                         }
                         this.items[i][item.name] = value;
                         i += 1;
@@ -228,7 +243,7 @@ export default {
             this.$set(this.items, i, item);
             const req = this.$http.patch(this.getChangePermUrl(this.courseId, field.id), {
                 value: newValue,
-                permission: item.name,
+                permission: item.value,
             });
             waitAtLeast(500, req).then(() => {
                 this.hideChanged = false;

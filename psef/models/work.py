@@ -10,6 +10,7 @@ import zipfile
 import tempfile
 from collections import defaultdict
 
+import sqlalchemy
 import sqlalchemy.sql as sql
 from sqlalchemy import orm, select
 from sqlalchemy.orm import undefer, selectinload
@@ -19,7 +20,7 @@ import psef
 import cg_timers
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import hybrid_property, hybrid_expression
-from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy
+from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy, cast_as_non_null
 
 from . import Base, DbColumn, db
 from . import file as file_models
@@ -30,7 +31,7 @@ from . import assignment as assignment_models
 from .. import auth, helpers, features
 from .linter import LinterState, LinterComment, LinterInstance
 from .rubric import RubricItem, WorkRubricItem
-from .comment import Comment
+from .comment import CommentBase
 from ..helpers import JSONType
 from ..exceptions import PermissionException
 from ..permissions import CoursePermission
@@ -302,6 +303,79 @@ class Work(Base):
             else:
                 instance.state = LinterState.done
 
+    @classmethod
+    def get_non_rubric_grade_per_work(
+        cls, assignment: 'assignment_models.Assignment'
+    ) -> _MyQuery[t.Tuple[int, float]]:
+        """Get the non rubric grades of submissions for the given assignment.
+
+        :param assignment: The assignment in which you want to get the grades.
+        :returns: A query that returns tuples (work_id, non_rubric_grade) for
+            each submission in the given assignment that has a non rubric
+            grade.
+        """
+        return db.session.query(
+            cls.id,
+            # We make sure that it is not ``None`` in the filter
+            cast_as_non_null(cls._grade),
+        ).filter(
+            cls.assignment == assignment,
+            cls._grade.isnot(None),
+        )
+
+    @classmethod
+    def get_rubric_grade_per_work(
+        cls, assignment: 'assignment_models.Assignment'
+    ) -> _MyQuery[t.Tuple[int, float]]:
+        """Get the rubric grades of submissions for the given assignment.
+
+        .. warning::
+
+            The returned grade might **not** the final grade for the
+            submission, as the grade might be overridden.
+
+        :param assignment: The assignment in which you want to get the rubric
+            grades.
+        :returns: A query that returns tuples (work_id, rubric_grade) for
+            each submission in the given assignment that has at least one
+            selected rubric item.
+        """
+        if assignment.max_rubric_points is None:
+            # The assignment doesn't have a rubric, so simply return an empty
+            # query result. We filter it with `false` so it will never return
+            # rows.
+            return db.session.query(cls.id, sqlalchemy.sql.null()).filter(
+                sqlalchemy.sql.false()
+            )
+
+        max_rubric_points = assignment.max_rubric_points
+        min_grade = assignment.min_grade
+        max_grade = assignment.max_grade
+        least = sqlalchemy.func.least
+        greatest = sqlalchemy.func.greatest
+
+        return db.session.query(
+            cls.id,
+            least(
+                max_grade,
+                greatest(
+                    min_grade, (
+                        (sqlalchemy.func.sum(WorkRubricItem.points) * 10) /
+                        max_rubric_points
+                    )
+                )
+            )
+        ).join(
+            # We want an inner join here as we want to filter out any Work that
+            # doesn't have a work rubric item associated with it.
+            WorkRubricItem,
+            WorkRubricItem.work_id == cls.id,
+            isouter=False
+        ).filter(
+            cls.assignment == assignment,
+            cls._grade.is_(None),
+        ).group_by(cls.id)
+
     @property
     def grade(self) -> t.Optional[float]:
         """Get the actual current grade for this work.
@@ -572,13 +646,14 @@ class Work(Base):
             res['rubric_result'] = self.__rubric_to_json__()
 
         try:
-            auth.ensure_can_see_user_feedback(self)
+            auth.ensure_can_see_general_feedback(self)
         except PermissionException:
             pass
         else:
             res['comment'] = self.comment
             if psef.current_user.has_permission(
-                CoursePermission.can_see_assignee, self.assignment.course_id
+                CoursePermission.can_view_feedback_author,
+                self.assignment.course_id
             ):
                 res['comment_author'] = self.comment_author
 
@@ -661,14 +736,17 @@ class Work(Base):
         :returns: An iterator producing human readable representations of the
             feedback given by a person.
         """
-        comments = Comment.query.filter(
-            Comment.file.has(work=self),
+        comments = CommentBase.query.filter(
+            CommentBase.file.has(work=self),
         ).order_by(
-            Comment.file_id.asc(),
-            Comment.line.asc(),
+            CommentBase.file_id.asc(),
+            CommentBase.line.asc(),
         )
         for com in comments:
-            yield f'{com.file.get_path()}:{com.line + 1}:1: {com.comment}'
+            path = com.file.get_path()
+            line = com.line + 1
+            for idx, reply in enumerate(com.user_visible_replies):
+                yield f'{path}:{line}:{idx + 1}: {reply.comment}'
 
     def get_linter_feedback(self) -> t.Iterable[str]:
         """Get all linter feedback for this work.
@@ -712,7 +790,7 @@ class Work(Base):
         self,
         pathname: str,
         exclude: 'file_models.FileOwner',
-    ) -> t.List[t.Any]:
+    ) -> t.List[DbColumn[bool]]:
         """Get the filters needed to search for a file in the this directory
         with a given name.
 
@@ -736,6 +814,7 @@ class Work(Base):
                 file_models.File.parent_id == parent,
                 file_models.File.work_id == self.id,
                 file_models.File.is_directory,
+                ~file_models.File.self_deleted,
             ).subquery(f'parent_{idx}')
 
         if parent is not None:
@@ -747,6 +826,7 @@ class Work(Base):
             file_models.File.parent_id == parent,
             file_models.File.fileowner != exclude,
             file_models.File.is_directory == is_dir,
+            ~file_models.File.self_deleted,
         ]
 
     def search_file(
@@ -788,7 +868,8 @@ class Work(Base):
                          List['file_models.File']] = defaultdict(list)
         files = file_models.File.query.filter(
             file_models.File.work == self,
-            file_models.File.fileowner != exclude
+            file_models.File.fileowner != exclude,
+            ~file_models.File.self_deleted,
         ).all()
         # We sort in Python as this increases consistency between different
         # server platforms, Python also has better defaults.

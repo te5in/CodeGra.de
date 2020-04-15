@@ -73,24 +73,34 @@ Cypress.Commands.add('logout', () => {
     });
 });
 
+const loginCredentials = {};
+
 function getAuthHeaders(user) {
     // Get the authentication header for the given user, or for the user logged
     // in in the frontend if no user is given.
 
-    const mkHeader = token => ({ Authorization: `Bearer ${token}` });
+    const mkHeader = (name, token) => {
+        const header = { Authorization: `Bearer ${token}` };
+        loginCredentials[name] = header;
+        return header;
+    }
 
     if (user != null) {
+        if (loginCredentials[user.username]) {
+            return cy.wrap(loginCredentials[user.username], { log: false });
+        }
+
         return cy.request({
             url: '/api/v1/login',
             method: 'POST',
             body: user,
-        }).its('body').then(user => {
-            return mkHeader(user.access_token);
+        }).its('body').then(res => {
+            return mkHeader(res.user.username, res.access_token);
         });
     } else {
         return cy.window().its('__app__').then(app => {
-            const { jwtToken } = app.$store.state.user;
-            return mkHeader(jwtToken);
+            const { username, jwtToken } = app.$store.state.user;
+            return mkHeader(username, jwtToken);
         });
     }
 }
@@ -116,7 +126,7 @@ Cypress.Commands.add('formRequest', (options) => {
     let { url, method, headers, user, data } = options;
 
     return getAuthHeaders(user).then(authHeaders => {
-        headers = Object.assign(headers || {}, authHeaders)
+        headers = Object.assign({}, headers || {}, authHeaders)
         return cy
             .server()
             .route(method, url)
@@ -570,12 +580,16 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
                 .containsAll(opts.confirmMsg)
                 .contains('.btn:visible', opts.doConfirm ? 'Confirm' : 'Cancel')
                 .click();
+            cy.get(`#${id}-modal`)
+                .should('not.exist');
         } else {
             cy.get('.popover .submit-button-confirm')
                 .containsAll(opts.confirmMsg)
                 .should('be.visible')
                 .contains('.btn:visible', opts.doConfirm ? 'Yes' : 'No')
                 .click();
+            cy.get('.popover .submit-button-confirm').should('not.be.visible');
+            cy.get('.popover .submit-button-confirm').should('not.exist');
         }
 
         if (!opts.doConfirm) {
@@ -599,6 +613,8 @@ Cypress.Commands.add('submit', { prevSubject: true }, (subject, state, optsArg =
             .containsAll(opts.popoverMsg)
             .find('.hide-button')
             .click();
+        cy.get(`.popover .submit-button-${state}`).should('not.be.visible')
+        cy.get(`.popover .submit-button-${state}`).should('not.exist');
     }
 
     if (opts.waitForDefault) {

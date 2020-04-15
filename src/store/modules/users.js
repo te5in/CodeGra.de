@@ -2,7 +2,7 @@
 import axios from 'axios';
 import Vue from 'vue';
 
-import { User } from '@/models/user';
+import { makeUser } from '@/models/user';
 import { getProps } from '@/utils';
 
 import * as types from '../mutation-types';
@@ -149,7 +149,7 @@ const mutations = {
         }
 
         const oldObject = state.usersById[serverData.id];
-        const newObject = new User(serverData, oldObject);
+        const newObject = makeUser(serverData, oldObject);
 
         if (oldObject != null && oldObject.isGroup !== newObject.isGroup) {
             throw new Error('Users cannot change their group status');

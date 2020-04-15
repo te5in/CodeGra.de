@@ -187,6 +187,12 @@ class CoursePermission(BasePermission):
     :ivar can_override_submission_limiting: Users with this permission can create new submissions, even if the maximum amount of submissions has been reacher, or if a cool-off period is in effect.
     :ivar can_see_linter_feedback_before_done: Users with this permission can see the output of linters before an assignment is set to "done"
     :ivar can_see_user_feedback_before_done: Users with this permission can see feedback before an assignment is set to "done"
+    :ivar can_view_analytics: Users with this permission can view the analytics dashboard of an assignment.
+    :ivar can_edit_others_comments: Users with this permission can edit inline comments left by other users
+    :ivar can_add_own_inline_comments: Users with this permission can add and reply to inline comments on subbmission they are the author of
+    :ivar can_view_others_comment_edits: Users with this permission may see the edit history of comments placed by others
+    :ivar can_view_feedback_author: Users with this permission can view the author of inline and general feedback
+    :ivar can_email_students: Users with this permission can email students using the contact student button.
     """
 
     @staticmethod
@@ -243,5 +249,11 @@ class CoursePermission(BasePermission):
     can_override_submission_limiting = _PermissionValue(item=47, default_value=False)
     can_see_linter_feedback_before_done = _PermissionValue(item=48, default_value=False)
     can_see_user_feedback_before_done = _PermissionValue(item=49, default_value=False)
+    can_view_analytics = _PermissionValue(item=50, default_value=False)
+    can_edit_others_comments = _PermissionValue(item=51, default_value=False)
+    can_add_own_inline_comments = _PermissionValue(item=52, default_value=False)
+    can_view_others_comment_edits = _PermissionValue(item=53, default_value=False)
+    can_view_feedback_author = _PermissionValue(item=54, default_value=True)
+    can_email_students = _PermissionValue(item=55, default_value=False)
 
 # yapf: enable

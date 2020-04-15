@@ -38,7 +38,7 @@
 
             <b-button v-if="canSeeGradeHistory"
                       id="codeviewer-grade-history"
-                      v-b-popover.hover.top="'Grade history'">
+                      v-b-popover.hover.top="'Show grade history'">
                 <icon name="history"/>
 
                 <b-popover target="codeviewer-grade-history"
@@ -53,6 +53,48 @@
                                    :isLTI="assignment && assignment.course.is_lti"/>
                 </b-popover>
             </b-button>
+
+            <b-button v-if="canEmailStudents"
+                      id="codeviewer-email-student"
+                      v-b-popover.top.hover="`Email the author${submission.user.isGroup ? 's' : ''} of this submission`"
+                      v-b-modal.codeviewer-email-student-modal>
+                <icon name="envelope"/>
+
+            </b-button>
+
+            <b-modal v-if="canEmailStudents"
+                     id="codeviewer-email-student-modal"
+                     ref="contactStudentModal"
+                     size="xl"
+                     hide-footer
+                     no-close-on-backdrop
+                     no-close-on-esc
+                     hide-header-close
+                     title="Email authors"
+                     @show="() => $root.$emit('bv::hide::popover')"
+                     body-class="p-0"
+                     dialog-class="auto-test-result-modal">
+                <cg-catch-error capture>
+                    <template slot-scope="{ error }">
+                        <b-alert v-if="error"
+                                 show
+                                 variant="danger">
+                            {{ $utils.getErrorMessage(error) }}
+                        </b-alert>
+
+                        <student-contact
+                            v-else
+                            :initial-users="submission.user.getContainedUsers()"
+                            :course="assignment.course"
+                            :default-subject="defaultEmailSubject"
+                            no-everybody-email-option
+                            @hide="() => $refs.contactStudentModal.hide()"
+                            @emailed="() => $refs.contactStudentModal.hide()"
+                            :can-use-snippets="canUseSnippets"
+                            class="p-3"/>
+                    </template>
+                </cg-catch-error>
+            </b-modal>
 
             <b-button v-b-popover.hover.top="'Download assignment or feedback'"
                       id="codeviewer-download-toggle">
@@ -121,7 +163,7 @@
                              :editable="canSeeUserFeedback && canGiveLineFeedback"
                              :can-use-snippets="canUseSnippets"
                              :show-whitespace="showWhitespace"
-                             :show-inline-feedback="showInlineFeedback"
+                             :show-inline-feedback="selectedCat === 'code' && showInlineFeedback && revision === 'student'"
                              :language="selectedLanguage"
                              @language="languageChanged" />
 
@@ -139,6 +181,7 @@
                                :assignment="assignment"
                                :submission="submission"
                                :show-whitespace="showWhitespace"
+                               :show-inline-feedback="selectedCat === 'feedback-overview'"
                                :can-see-feedback="canSeeUserFeedback" />
         </div>
 
@@ -178,6 +221,7 @@ import 'vue-awesome/icons/edit';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/history';
+import 'vue-awesome/icons/envelope';
 import 'vue-awesome/icons/binoculars';
 import ResSplitPane from 'vue-resize-split-pane';
 
@@ -208,6 +252,7 @@ import {
 } from '@/components';
 
 import FileViewer from '@/components/FileViewer';
+import StudentContact from '@/components/StudentContact';
 
 export default {
     name: 'submission-page',
@@ -300,6 +345,11 @@ export default {
 
         canSeeGradeHistory() {
             return this.coursePerms.can_see_grade_history;
+        },
+
+        canEmailStudents() {
+            return (UserConfig.features.email_students &&
+                    this.$utils.getProps(this.coursePerms, false, 'can_email_students'));
         },
 
         canViewAutoTestBeforeDone() {
@@ -420,44 +470,19 @@ export default {
                 },
                 {
                     id: 'feedback-overview',
-                    name: () => {
-                        let title = 'Feedback overview';
-                        if (!this.feedback || !this.submission) {
-                            return title;
-                        }
-
-                        const nitems = Object.values(this.feedback.user).reduce(
-                            (acc, file) => acc + Object.values(file).filter(x => x.msg).length,
-                            this.submission.comment ? 1 : 0,
-                        );
-                        if (nitems) {
-                            title += ` <div class="ml-1 badge badge-primary">${nitems}</div>`;
-                        }
-
-                        return title;
+                    name: 'Feedback overview',
+                    badge: this.numFeedbackItems === 0 ? null : {
+                        label: this.numFeedbackItems,
+                        variant: 'primary',
                     },
                     enabled: true,
                 },
                 {
                     id: 'auto-test',
-                    name: () => {
-                        let title = 'AutoTest';
-                        const test = this.autoTest;
-                        const result = this.autoTestResult;
-
-                        // Check that result.isFinal is exactly false, because it may be
-                        // `undefined` when we haven't received the extended result yet,
-                        // which would cause the CF badge to flicker on page load.
-                        if (
-                            test &&
-                            test.results_always_visible &&
-                            ((result && result.isFinal === false) || !this.canSeeGrade)
-                        ) {
-                            title +=
-                                ' <div class="ml-1 badge badge-warning" title="Continuous Feedback">CF</div>';
-                        }
-
-                        return title;
+                    name: 'AutoTest',
+                    badge: !this.showContinuousBadge ? null : {
+                        label: 'CF',
+                        variant: 'warning',
                     },
                     enabled: this.autoTestId != null,
                 },
@@ -473,6 +498,41 @@ export default {
             const fb = this.feedback;
 
             return !!(fb && (fb.general || Object.keys(fb.user).length));
+        },
+
+        numFeedbackItems() {
+            if (!this.feedback || !this.submission) {
+                return null;
+            }
+
+            return Object.values(this.feedback.user).reduce(
+                (acc, file) => Object.values(file).reduce(
+                    (innerAcc, feedback) => {
+                        if (!feedback.isEmpty && feedback.replies.some(
+                            r => !r.isEmpty,
+                        )) {
+                            return innerAcc + 1;
+                        }
+                        return innerAcc;
+                    },
+                    acc,
+                ),
+                this.submission.comment ? 1 : 0,
+            );
+        },
+
+        showContinuousBadge() {
+            const test = this.autoTest;
+            const result = this.autoTestResult;
+
+            // Check that result.isFinal is exactly false, because it may be
+            // `undefined` when we haven't received the extended result yet,
+            // which would cause the CF badge to flicker on page load.
+            return (
+                test &&
+                test.results_always_visible &&
+                ((result && result.isFinal === false) || !this.canSeeGrade)
+            );
         },
 
         assignmentDone() {
@@ -549,6 +609,10 @@ export default {
             }
 
             return title;
+        },
+
+        defaultEmailSubject() {
+            return `[CodeGrade - ${this.assignment.course.name}/${this.assignment.name}] …`;
         },
     },
 
@@ -807,6 +871,7 @@ export default {
         Toggle,
         Icon,
         User,
+        StudentContact,
         'rs-panes': ResSplitPane,
     },
 };
@@ -835,10 +900,12 @@ export default {
     min-height: 0;
     margin: 0 -15px 1rem;
     padding: 0 1rem;
-    transition: opacity 0.25s ease-out;
+    transition: opacity .25s ease-out, visibility .25s ease-out;
     overflow: hidden;
+    visibility: visible;
 
     &.hidden {
+        visibility: hidden;
         padding: 0;
         margin: 0;
         opacity: 0;
@@ -903,15 +970,15 @@ export default {
         max-width: 45em;
     }
 
-    .pane-rs {
+    .code-wrapper.pane-rs {
         position: relative;
     }
 
-    .Resizer {
+    .code-wrapper .Resizer {
         z-index: 0;
     }
 
-    .Resizer.columns {
+    .code-wrapper > .Resizer.columnsres {
         background-color: transparent !important;
         border: none !important;
         width: 1rem !important;
@@ -929,6 +996,7 @@ export default {
             position: absolute;
             top: 50%;
             left: 50%;
+            z-index: 10;
         }
 
         &:before {

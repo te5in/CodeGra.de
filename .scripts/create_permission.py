@@ -13,7 +13,9 @@ from collections import OrderedDict
 
 import flask_migrate
 
-BASE_DIR = os.path.abspath(os.path.normpath(os.path.join(os.path.dirname(__file__), '..')))
+BASE_DIR = os.path.abspath(
+    os.path.normpath(os.path.join(os.path.dirname(__file__), '..'))
+)
 PERMS_FILE = os.path.join(BASE_DIR, 'seed_data', 'permissions.json')
 
 os.chdir(BASE_DIR)
@@ -38,22 +40,41 @@ depends_on = None
 
 def upgrade():
     conn = op.get_bind()
-    conn.execute(text(\"\"\"
-    INSERT INTO "Permission" (name, default_value, course_permission)
-    SELECT '{perm_name}', {default_value}, {course_permission} WHERE NOT EXISTS
-        (SELECT 1 FROM "Permission" WHERE name = '{perm_name}')
-    \"\"\"))
 
+    exists = conn.execute(text(\"\"\"SELECT id from "Permission" where name = :perm_name\"\"\"), perm_name='{perm_name}').fetchall()
+    if exists:
+        True
+
+    new_perm_id = conn.execute(text(\"\"\"
+    INSERT INTO "Permission" (name, default_value, course_permission)
+    SELECT ':perm_name', :default_value, :course_permission RETURNING id
+    \"\"\"), perm_name='{perm_name}', default_value=default_value, course_permission={course_permission}).scalar()
+
+{extra}
 
 def downgrade():
     pass
 """
 
+COPY_TEMPLATE = '\n'.join(
+    ' ' * 4 + line for line in """
+old_perm_id = conn.execute(text(\"\"\"
+SELECT id FROM "Permission" WHERE name = :perm_name LIMIT 1
+\"\"\"), perm_name='{old_perm_name}').scalar()
 
-def get_input(question: str) -> str:
+conn.execute(text(\"\"\"
+INSERT INTO "course_roles-permissions" (permission_id, course_role_id)
+        SELECT :new_perm_id, course_role_id FROM "course_roles-permissions"
+            WHERE permission_id = :old_perm_id
+\"\"\"), old_perm_id=old_perm_id, new_perm_id=new_perm_id)
+""".strip().split('\n')
+)
+
+
+def get_input(question: str, allow_empty: bool = False) -> str:
     while True:
         user_input = input(question + ': ')
-        if user_input:
+        if user_input or allow_empty:
             return user_input
 
 
@@ -73,7 +94,15 @@ def main() -> None:
     course_perm = get_yes_or_no('Is it a course permission')
     short_desc = get_input('Short description of permission')
     long_desc = get_input('Long description of permission')
+    warning = get_input('Warning message (leave empty to ignore)', True)
     default_true = get_yes_or_no('Should the default value be True')
+    if course_perm:
+        perm_to_copy_from = get_input(
+            'Which permission does this extend (leave blank for none)',
+            allow_empty=True
+        )
+    else:
+        perm_to_copy_from = ''
 
     r_f_name: str
     if course_perm:
@@ -102,19 +131,29 @@ def main() -> None:
         short_description=short_desc,
         long_description=long_desc,
     )
+    if warning:
+        perms[name]['warning'] = warning
+
     with open(PERMS_FILE, 'w') as f:
         json.dump(perms, f, indent=2, separators=(',', ': '))
 
     print('Generating migration', end=' ...')
     sys.stdout.flush()
-    out = subprocess.check_output(
-        ['python',
-        os.path.join(BASE_DIR, 'manage.py'), 'db', 'heads']
-    ).decode('utf-8').strip().split('\n')[-1]
+    out = subprocess.check_output([
+        'python', os.path.join(BASE_DIR, 'manage.py'), 'db', 'heads'
+    ]).decode('utf-8').strip().split('\n')[-1]
     match = re.match(r'([a-z0-9]+) \(head\)', out)
     assert match is not None, f'{out} does not match'
     old_rev = match.group(1)
     new_rev = secrets.token_hex(10)
+
+    extra = ''
+    if perm_to_copy_from:
+        extra = COPY_TEMPLATE.format(
+            new_perm_name=name,
+            old_perm_name=perm_to_copy_from,
+        )
+
     with open(
         os.path.join(
             BASE_DIR, 'migrations', 'versions', '{}_.py'.format(new_rev)
@@ -127,13 +166,11 @@ def main() -> None:
                 perm_name=name,
                 default_value=default_true,
                 course_permission=course_perm,
-                create_date=datetime.datetime.utcnow().isoformat(sep=' ')
+                create_date=datetime.datetime.utcnow().isoformat(sep=' '),
+                extra=extra,
             )
         )
     print('Done!')
-
-    subprocess.check_call(['python', os.path.join(BASE_DIR, '.scripts', 'generate_permissions_py.py')])
-    subprocess.check_call(['make', 'db_upgrade'])
 
 
 if __name__ == '__main__':

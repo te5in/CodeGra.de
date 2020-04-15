@@ -3,6 +3,7 @@
 <floating-feedback-button
     :disabled="!showInlineFeedback"
     v-if="pdfURL"
+    @feedback-shown="onFeedbackChange"
     class="pdf-viewer"
     :fileId="id"
     :line="line"
@@ -17,22 +18,25 @@
     :visible-without-hover="$root.isEdge"
     add-space
     button-position="bottom-right">
-    <object :data="pdfURL"
-            type="application/pdf"
-            width="100%"
-            height="100%"
-            v-if="pdfURL !== ''">
-        <b-alert class="mb-0" variant="danger" show>
-            Your browser doesn't support the PDF viewer. Please download
-            the PDF <a class="alert-link" :href="pdfURL">here</a>.
-        </b-alert>
-    </object>
+    <template v-slot:default="slotProps">
+        <div class="p-relative d-flex flex-grow flex-column h-100">
+            <div class="resize-div" v-if="slotProps.resizing" />
+            <object :data="pdfURL"
+                    type="application/pdf"
+                    width="100%"
+                    height="100%"
+                    v-if="pdfURL !== ''">
+                <b-alert class="mb-0 flex-grow" variant="danger" show>
+                    Your browser doesn't support the PDF viewer. Please download
+                    the PDF <a class="alert-link" :href="pdfURL">here</a>.
+                </b-alert>
+            </object>
+        </div>
+    </template>
 </floating-feedback-button>
 </template>
 
 <script>
-import { mapActions } from 'vuex';
-
 import FloatingFeedbackButton from './FloatingFeedbackButton';
 
 export default {
@@ -67,6 +71,9 @@ export default {
             type: Boolean,
             default: true,
         },
+        fileContent: {
+            required: true,
+        },
     },
 
     data() {
@@ -76,11 +83,17 @@ export default {
     },
 
     watch: {
-        id: {
+        fileContent: {
             immediate: true,
             handler() {
-                this.embedPdf();
+                this.embedPdf(this.id);
             },
+        },
+
+        id() {
+            if (this.$root.isEdge) {
+                this.embedPdf(this.id);
+            }
         },
     },
 
@@ -96,7 +109,7 @@ export default {
         feedback() {
             return this.$utils.getProps(
                 this.submission,
-                {},
+                null,
                 'feedback',
                 'user',
                 this.id,
@@ -106,46 +119,48 @@ export default {
     },
 
     methods: {
-        ...mapActions('code', {
-            storeLoadCode: 'loadCode',
-        }),
-
-        async embedPdf() {
+        async embedPdf(fileId) {
             this.pdfURL = '';
-            await this.$afterRerender();
 
-            if (this.revision === 'diff') {
-                this.$emit('error', 'The pdf viewer is not available in diff mode');
+            let pdfURL;
+
+            if (this.$root.isEdge) {
+                await this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(
+                    ({ data }) => {
+                        pdfURL = `/api/v1/files/${
+                            data.name
+                        }?not_as_attachment&mime=application/pdf`;
+                    },
+                    err => {
+                        this.$emit('error', {
+                            error: `An error occured while loading the PDF: ${this.$utils.getErrorMessage(
+                                err,
+                            )}.`,
+                            fileId,
+                        });
+                    },
+                );
+            } else if (this.fileContent == null) {
+                return;
+            } else {
+                const blob = new Blob([this.fileContent], { type: 'application/pdf' });
+                pdfURL = this.$utils.coerceToString(URL.createObjectURL(blob));
+            }
+
+            if (this.id === fileId && pdfURL) {
+                this.pdfURL = pdfURL;
+                this.$emit('load', fileId);
+            }
+        },
+
+        async onFeedbackChange() {
+            if (!this.$root.isEdge) {
                 return;
             }
 
-            let prom;
-            if (this.$root.isEdge) {
-                prom = this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(({ data }) => {
-                    this.pdfURL = `/api/v1/files/${
-                        data.name
-                    }?not_as_attachment&mime=application/pdf`;
-                });
-            } else {
-                prom = this.storeLoadCode(this.id).then(buffer => {
-                    const blob = new Blob([buffer], { type: 'application/pdf' });
-                    this.pdfURL = `${URL.createObjectURL(blob)}`;
-                });
-            }
-
-            prom.then(
-                () => {
-                    this.$emit('load');
-                },
-                err => {
-                    this.$emit(
-                        'error',
-                        `An error occured while loading the PDF: ${this.$utils.getErrorMessage(
-                            err,
-                        )}.`,
-                    );
-                },
-            );
+            this.pdfUrl = '';
+            this.$emit('loading', this.id);
+            this.embedPdf(this.id);
         },
     },
 
@@ -157,7 +172,6 @@ export default {
 
 <style lang="less" scoped>
 .pdf-viewer {
-    position: relative;
     padding: 0 !important;
     height: 100%;
     min-height: 100%;
@@ -171,6 +185,12 @@ object {
     margin: 0;
     padding: 0;
 }
+
+.resize-div {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+}
 </style>
 
 <style lang="less">
@@ -181,5 +201,9 @@ object {
         display: flex;
         flex-direction: column;
     }
+}
+
+.pdf-viewer.floating-feedback-button .feedback-area-wrapper {
+    flex: unset;
 }
 </style>

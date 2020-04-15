@@ -1,19 +1,14 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="inner-markdown-viewer">
-    <div class="rendered markdown"
-         :class="{'show-whitespace': showCodeWhitespace}"
-         v-html="html"/>
+<div class="inner-markdown-viewer"
+     :class="{'show-whitespace': showCodeWhitespace}"
+     v-html="html">
 </div>
 </template>
 
 <script>
 import { CgMarkdownIt } from '@/cg-math';
 import markdownItSanitizer from 'markdown-it-sanitizer';
-
-const md = new CgMarkdownIt();
-
-md.use(markdownItSanitizer);
 
 export default {
     name: 'inner-markdown-viewer',
@@ -33,11 +28,29 @@ export default {
             type: Boolean,
             default: false,
         },
+
+        blockExternalImages: {
+            type: Boolean,
+            default: false,
+        },
+    },
+
+    data() {
+        const md = new CgMarkdownIt();
+        md.use(markdownItSanitizer);
+
+        return {
+            md,
+        };
     },
 
     computed: {
         html() {
-            return md.render(this.markdown, this.disableMath);
+            return this.md.render(this.markdown, this.disableMath, this.blockExternalImages);
+        },
+
+        blockedExternal() {
+            return this.md.blockedExternal;
         },
     },
 
@@ -52,11 +65,22 @@ export default {
             },
             immediate: true,
         },
+
+        blockedExternal: {
+            immediate: true,
+            handler() {
+                this.$emit('blocked-external', {
+                    blocked: this.blockedExternal,
+                });
+            },
+        },
     },
 };
 </script>
 
 <style lang="less">
+@import '~mixins.less';
+
 .inner-markdown-viewer {
     pre {
         margin-bottom: 1rem;
@@ -67,8 +91,17 @@ export default {
         hyphens: auto;
         margin-left: 1.5rem;
     }
+
+    img,
     .MathJax_SVG svg {
         max-width: 100%;
+        @media @media-large {
+            max-width: 30rem;
+        }
+    }
+
+    a {
+        color: @color-inline-link !important;
     }
 }
 </style>

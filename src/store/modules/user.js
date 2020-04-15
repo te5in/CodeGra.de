@@ -86,6 +86,7 @@ const actions = {
             commit(`users/${types.CLEAR_USERS}`, null, { root: true }),
             commit(`fileTrees/${types.DELETE_ALL_FILETREES}`, null, { root: true }),
             commit(`feedback/${types.DELETE_ALL_FEEDBACKS}`, null, { root: true }),
+            commit('notification/commitClearNotifications', null, { root: true }),
             commit(types.LOGOUT),
         ]);
     },
@@ -117,9 +118,7 @@ const actions = {
         });
     },
 
-    updateUserInfo({ commit, dispatch }, {
-        name, email, oldPw, newPw,
-    }) {
+    updateUserInfo({ commit, dispatch }, { name, email, oldPw, newPw }) {
         return axios
             .patch('/api/v1/login', {
                 name,

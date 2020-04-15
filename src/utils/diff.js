@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import DiffMatchPatch from 'diff-match-patch';
 
 import { visualizeWhitespace } from './visualize';

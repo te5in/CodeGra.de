@@ -4,40 +4,45 @@ var webpack = require('webpack')
 var config = require('../config')
 var vueLoaderConfig = require('./vue-loader.conf')
 var userConfig = require('./userConfig')
-var permissions = require('../seed_data/permissions.json')
+const { VueLoaderPlugin } = require('vue-loader')
+const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
+const keysTransformer = require('ts-transformer-keys/transformer').default;
+const CreateFileWebpack = require('./createFile')
 
 function resolve (dir) {
   return path.join(__dirname, '..', dir)
 }
 
 module.exports = {
+  mode: process.env.NODE_ENV === 'development' ? 'development' : 'production',
   entry: {
     app: './src/main.js'
   },
   output: {
     path: config.build.assetsRoot,
-    filename: '[name].js',
+    chunkFilename: '[name].bundle.[chunkhash].js',
     publicPath: process.env.NODE_ENV === 'production'
       ? config.build.assetsPublicPath
       : config.dev.assetsPublicPath
   },
   resolve: {
-    extensions: ['.js', '.vue', '.json'],
+    extensions: ['.js', '.vue', '.json', '.ts'],
     alias: {
       'vue$': 'vue/dist/vue.esm.js',
       '@': resolve('src'),
-      'mixins': path.resolve(__dirname, '../src/mixins.less')
+      'mixins': path.resolve(__dirname, '../src/mixins.less'),
+      'mixins.less': path.resolve(__dirname, '../src/mixins.less')
     }
   },
   module: {
     rules: [
       {
-        test: /\.(js|vue)$/,
+        test: /\.(js|vue|ts)$/,
         loader: 'eslint-loader',
         enforce: 'pre',
           include: [
               resolve('src'),
-              resolve('test')
+              resolve('test'),
           ],
         options: {
           formatter: require('eslint-friendly-formatter')
@@ -49,11 +54,35 @@ module.exports = {
         options: vueLoaderConfig
       },
       {
+        test: /\.d\.ts$/,
+        loader: 'ignore-loader',
+      },
+      {
+        test: /\.tsx?$/,
+        exclude: /node_modules|\.d\.ts$/,
+        use: [
+          {
+            loader: "ts-loader",
+            options: {
+              appendTsSuffixTo: [/\.vue$/],
+              transpileOnly: false,
+              experimentalWatchApi: false,
+              getCustomTransformers: program => ({
+                before: [
+                    keysTransformer(program),
+                ],
+              }),
+            },
+          },
+        ]
+      },
+      {
         test: /\.js$/,
         loader: 'babel-loader',
-          include: [resolve('src'), resolve('test'),
-                    resolve('node_modules/bootstrap-vue')
-                   ]
+          include: [
+              resolve('src'),
+              resolve('test'),
+          ],
       },
       {
         test: /\.(png|jpe?g|gif|svg)(\?.*)?$/,
@@ -78,9 +107,18 @@ module.exports = {
     buffer: false,
   },
   plugins: [
-    new webpack.DefinePlugin({
-        'UserConfig': JSON.stringify(userConfig),
-        'Permissions': JSON.stringify(permissions),
+    new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
+    new VueLoaderPlugin(),
+    new CreateFileWebpack({
+        path: resolve('src'),
+        fileName: 'userConfig.js',
+        content: `// eslint-disable-next-line
+const userConfig = Object.freeze(${JSON.stringify(userConfig)});
+export default userConfig;
+`,
     }),
+      new webpack.ProvidePlugin({
+          'UserConfig': [resolve('src/userConfig.js'), 'default'],
+      }),
   ],
 }

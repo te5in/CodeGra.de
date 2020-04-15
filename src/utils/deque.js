@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import Denque from 'denque';
 
 // This function is weirdly enough not in Denque, so we simply add it

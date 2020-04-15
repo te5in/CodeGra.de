@@ -7,6 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 import numbers
+import itertools
 from collections import Counter, defaultdict
 
 import structlog
@@ -14,9 +15,11 @@ import sqlalchemy.sql as sql
 from flask import request
 from sqlalchemy.orm import selectinload, contains_eager
 from mypy_extensions import TypedDict
+from typing_extensions import Protocol
 
 import psef.files
 from psef import app, tasks, current_user
+from cg_sqlalchemy_helpers.types import ColumnProxy
 
 from . import api
 from .. import auth, models, helpers, features
@@ -32,20 +35,56 @@ from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
 
-Feedback = TypedDict(  # pylint: disable=invalid-name
-    'Feedback', {
-        'user': t.MutableMapping[int, t.MutableMapping[int, str]],
-        'linter': t.MutableMapping[
-            int,
-            t.MutableMapping[int, t.List[t.Tuple[str, models.LinterComment]]],
-        ],
-        'general': str,
-        'authors': t.Optional[t.MutableMapping[
-            int,
-            t.MutableMapping[int, models.User]
-        ]],
-    }
-)
+LinterComments = t.Dict[int,
+                        t.Dict[int, t.List[t.Tuple[str, models.
+                                                   LinterComment]]],
+                        ]
+
+
+class FeedbackBase(TypedDict, total=True):
+    """The base JSON representation for feedback.
+
+    This representation is never send, see the two models below.
+
+    :ivar general: The general feedback given on this submission.
+    :ivar linter: A mapping that is almost the same the user feedback mapping
+        for feedback without replies, only the final key is not a string but a
+        list of tuples where the first item is the linter code and the second
+        item is a :class:`.models.LinterComment`.
+    """
+    general: t.Optional[str]
+    linter: LinterComments
+
+
+class FeedbackWithReplies(FeedbackBase, total=True):
+    """The JSON representation for feedback with replies.
+
+    .. note:: Both lists should be considered unsorted.
+
+    :ivar authors: A list of all authors you have permission to see that placed
+        comments. This list is unique, i.e. each author occurs at most once.
+    :ivar user: A list of user given inline feedback.
+    """
+    user: t.List[models.CommentBase]
+    authors: t.List[models.User]
+
+
+class FeedbackWithoutReplies(FeedbackBase, total=True):
+    """The JSON representation for feedback without replies.
+
+    .. note::
+
+        This representation is considered deprecated, as it doesn't include
+        important information (i.e. replies)
+
+    :ivar user: A mapping between file id and a mapping that is between line
+        and feedback. So for example: ``{5: {0: 'Nice job!'}}`` means that file
+        with ``id`` 5 has feedback on line 0.
+    :ivar authors: The authors of the user feedback. In the example above the
+        author of the feedback 'Nice job!' would be at ``{5: {0: $USER}}``.
+    """
+    user: t.Dict[int, t.Dict[int, str]]
+    authors: t.Dict[int, t.Dict[int, models.User]]
 
 
 @api.route("/submissions/<int:submission_id>", methods=['GET'])
@@ -118,13 +157,13 @@ def get_feedback(work: models.Work) -> t.Mapping[str, str]:
         grade = str(work.grade or '')
 
     try:
-        auth.ensure_can_see_user_feedback(work)
+        auth.ensure_can_see_general_feedback(work)
     except PermissionException:
         general_comment = ''
-        comments = []
     else:
         general_comment = work.comment or ''
-        comments = work.get_user_feedback()
+
+    comments = work.get_user_feedback()
 
     try:
         auth.ensure_can_see_linter_feedback(work)
@@ -253,80 +292,134 @@ def delete_submission(submission_id: int) -> EmptyResponse:
     return make_empty_response()
 
 
+class _WithFileId(Protocol):
+    file_id: ColumnProxy[int]
+
+
+TCom = t.TypeVar('TCom', bound=_WithFileId)
+
+
+def _group_by_file_id(comms: t.List[TCom]
+                      ) -> t.Iterator[t.Tuple[int, t.Iterator[TCom]]]:
+    return itertools.groupby(comms, lambda c: c.file_id)
+
+
+def _get_feedback_without_replies(
+    comments: t.List[models.CommentBase],
+    linter_comments: LinterComments,
+) -> FeedbackWithoutReplies:
+    user: t.Dict[int, t.Dict[int, str]] = defaultdict(dict)
+    authors: t.Dict[int, t.Dict[int, models.User]] = defaultdict(dict)
+
+    for file_id, comms in _group_by_file_id(comments):
+        for com in comms:
+            line = com.line
+            reply = com.first_reply
+            if reply is None:
+                continue
+
+            user[file_id][line] = reply.comment
+            if reply.can_see_author:
+                authors[file_id][line] = reply.author
+
+    return {
+        'general': '',
+        'user': user,
+        'authors': authors,
+        'linter': linter_comments,
+    }
+
+
+def _get_feedback_with_replies(
+    comments: t.List[models.CommentBase],
+    linter_comments: LinterComments,
+) -> FeedbackWithReplies:
+    user_comments = [c for c in comments if c.user_visible_replies]
+    authors = sorted(
+        set(
+            r.author for c in user_comments for r in c.replies
+            if r.can_see_author
+        )
+    )
+
+    return {
+        'general': '',
+        'user': user_comments,
+        'authors': authors,
+        'linter': linter_comments,
+    }
+
+
 @api.route('/submissions/<int:submission_id>/feedbacks/', methods=['GET'])
 @auth.login_required
-def get_feedback_from_submission(submission_id: int) -> JSONResponse[Feedback]:
+def get_feedback_from_submission(
+    submission_id: int
+) -> JSONResponse[t.Union[FeedbackWithoutReplies, FeedbackWithReplies]]:
     """Get all feedback for a submission
 
     .. :quickref: Submission; Get all (linter, user and general) feedback.
 
-    :>json general: The general feedback given on this submission.
-    :>json user: A mapping between file id and a mapping that is between line
-        and feedback. So for example: ``{5: {0: 'Nice job!'}}`` means that file
-        with ``id`` 5 has feedback on line 0.
-    :>json linter: A mapping that is almost the same the user feedback mapping,
-        only the final key is not a string but a list of tuples where the first
-        item is the linter code and the second item is a
-        :class:`.models.LinterComment`.
-    :>json authors: The authors of the user feedback. In the example above the
-        author of the feedback 'Nice job!' would be at ``{5: {0: $USER}}``.
+    :query boolean with_replies: If considered true (see
+        :func:`.helpers.request_arg_true`) feedback is send including
+        replies. Please note that passing this as false is deprecated.
+    :returns: The feedback of this submission.
     """
     work = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
-    course_id = work.assignment.course_id
-    can_view_authors = current_user.has_permission(
-        CPerm.can_see_assignee,
-        course_id,
-    )
-
-    res: Feedback = {
-        'general': '',
-        'user': defaultdict(dict),
-        'authors': None,
-        'linter': defaultdict(lambda: defaultdict(list)),
-    }
-
-    try:
-        auth.ensure_can_see_user_feedback(work)
-    except PermissionException:
-        pass
-    else:
-        authors: t.MutableMapping[int, t.MutableMapping[int, models.User]
-                                  ] = defaultdict(dict)
-
-        res['general'] = work.comment or ''
-        res['authors'] = authors if can_view_authors else None
-
-        comments = models.Comment.query.filter(
-            models.Comment.file.has(work=work),
-        ).order_by(
-            models.Comment.file_id.asc(),
-            models.Comment.line.asc(),
-        )
-
-        for comment in comments:
-            res['user'][comment.file_id][comment.line] = comment.comment
-            if can_view_authors:
-                authors[comment.file_id][comment.line] = comment.user
 
     try:
         auth.ensure_can_see_linter_feedback(work)
     except PermissionException:
-        pass
+        linter_comments = {}
     else:
-        linter_comments = models.LinterComment.query.filter(
+        all_linter_comments = models.LinterComment.query.filter(
             models.LinterComment.file.has(work=work)
         ).order_by(
             models.LinterComment.file_id.asc(),
             models.LinterComment.line.asc(),
-        )
-        for lcomment in linter_comments:
-            res['linter'][lcomment.file_id][lcomment.line].append(
-                (lcomment.linter_code, lcomment)
-            )
+        ).all()
 
-    return jsonify(res)
+        def group_by_line(
+            comms: t.Iterator[models.LinterComment]
+        ) -> t.Iterator[t.Tuple[int, t.Iterator[models.LinterComment]]]:
+            return itertools.groupby(comms, lambda lc: lc.line)
+
+        linter_comments = {
+            file_id: {
+                line: [(com.linter_code, com) for com in comms]
+                for line, comms in group_by_line(lcomms)
+            }
+            for file_id, lcomms in _group_by_file_id(all_linter_comments)
+        }
+
+    comments = models.CommentBase.query.filter(
+        models.File.work == work,
+        ~models.File.self_deleted,
+        # We join the replies using an innerload to make sure we only get
+        # commentbases that have at least one reply.
+    ).join(
+        models.CommentBase.replies, isouter=False
+    ).join(
+        models.CommentBase.file, isouter=False
+    ).order_by(
+        # This order is really important for the `itertools.groupby` call.
+        models.CommentBase.file_id.asc(),
+        models.CommentBase.line.asc(),
+        models.CommentReply.created_at.asc(),
+    ).options(
+        contains_eager(models.CommentBase.replies),
+        contains_eager(models.CommentBase.file),
+    ).all()
+
+    fun: t.Callable[[t.List[models.CommentBase], LinterComments], t.
+                    Union[FeedbackWithoutReplies, FeedbackWithReplies]]
+    if helpers.request_arg_true('with_replies'):
+        fun = _get_feedback_with_replies
+    else:
+        fun = _get_feedback_without_replies
+
+    return jsonify(fun(comments, linter_comments))
 
 
 @api.route("/submissions/<int:submission_id>/rubrics/", methods=['GET'])
@@ -848,6 +941,7 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
         models.File.fileowner != exclude_owner,
         models.File.name == patharr[0],
         models.File.parent_id.is_(None),
+        ~models.File.self_deleted,
     )
 
     code = None
@@ -857,6 +951,7 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
             models.File.fileowner != exclude_owner,
             models.File.name == part,
             models.File.parent == parent,
+            ~models.File.self_deleted,
         ).first()
         end_idx = idx + 1
         if code is None:
@@ -973,15 +1068,18 @@ def get_dir_contents(
             models.File,
             models.File.id == file_id,
             models.File.work_id == work.id,
+            ~models.File.self_deleted,
         )
     elif path:
         found_file = work.search_file(path, exclude_owner)
         return jsonify(psef.files.get_stat_information(found_file))
     else:
         file = helpers.filter_single_or_404(
-            models.File, models.File.work_id == submission_id,
+            models.File,
+            models.File.work_id == submission_id,
             models.File.parent_id.is_(None),
-            models.File.fileowner != exclude_owner
+            models.File.fileowner != exclude_owner,
+            ~models.File.self_deleted,
         )
 
     if not file.is_directory:
@@ -1014,7 +1112,9 @@ def create_proxy(submission_id: int) -> JSONResponse[models.Proxy]:
     :returns: The created proxy.
     """
     submission = helpers.filter_single_or_404(
-        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+        models.Work,
+        models.Work.id == submission_id,
+        ~models.Work.deleted,
     )
 
     with helpers.get_from_map_transaction(
@@ -1034,6 +1134,7 @@ def create_proxy(submission_id: int) -> JSONResponse[models.Proxy]:
         models.File.work == submission,
         models.File.fileowner != exclude_owner,
         models.File.parent_id.is_(None),
+        ~models.File.self_deleted,
     ).one()
 
     proxy = models.Proxy(

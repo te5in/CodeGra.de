@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template functional>
     <i v-if="props.gitOrigins[props.submission.origin]" class="webhook-name git">
         via

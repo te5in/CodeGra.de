@@ -27,7 +27,7 @@ import { mapActions, mapGetters } from 'vuex';
 
 import { setRestoreRoute } from '@/router';
 import { Loader, FooterBar, Sidebar } from '@/components';
-import { NO_LOGIN_ALLOWED_ROUTES, NO_LOGIN_REQUIRED_ROUTES } from '@/constants';
+import { NO_LOGIN_ALLOWED_ROUTES, NO_LOGIN_REQUIRED_ROUTES, NO_SIDEBAR_ROUTES, NO_FOOTER_ROUTES } from '@/constants';
 
 export default {
     name: 'app',
@@ -48,15 +48,12 @@ export default {
         },
 
         showSidebar() {
-            return this.$route.name !== 'lti-launch' && (!this.$inLTI || this.canManageLTICourse);
+            return !(NO_SIDEBAR_ROUTES.has(this.$route.name)
+                     || (this.$inLTI && !this.canManageLTICourse));
         },
 
         showFooter() {
-            return (
-                this.$route.name !== 'submission' &&
-                this.$route.name !== 'submission_file' &&
-                this.$route.name !== 'plagiarism_detail'
-            );
+            return !NO_FOOTER_ROUTES.has(this.$route.name);
         },
 
         showFrameBorder() {

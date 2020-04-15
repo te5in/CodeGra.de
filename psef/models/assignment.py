@@ -17,6 +17,7 @@ import structlog
 import sqlalchemy
 from sqlalchemy.orm import validates
 from mypy_extensions import DefaultArg
+from typing_extensions import TypedDict
 from sqlalchemy.sql.expression import and_, func
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
@@ -32,6 +33,7 @@ from . import work as work_models
 from . import course as course_models
 from . import linter as linter_models
 from . import rubric as rubric_models
+from . import analytics as analytics_models
 from . import auto_test as auto_test_models
 from .. import auth, ignore, helpers
 from .role import CourseRole
@@ -54,6 +56,65 @@ Y = t.TypeVar('Y')
 Z = t.TypeVar('Z')
 
 logger = structlog.get_logger()
+
+
+class AssignmentJSON(TypedDict, total=True):
+    """The serialization of an assignment.
+
+    See the comments in the source code for the meaning of each field.
+    """
+
+    id: int  # The id of the assignment.
+    state: str  # Current state of the assignment.
+    description: t.Optional[str]  # Description of the assignment.
+    created_at: str  # ISO UTC date.
+    deadline: t.Optional[str]  # ISO UTC date.
+    name: str  # The name of the assignment.
+    is_lti: bool  # Is this an LTI assignment.
+    course: 'course_models.Course'  # Course of this assignment.
+    cgignore: t.Optional['psef.helpers.JSONType']  # The cginore.
+    cgignore_version: t.Optional[str]
+    whitespace_linter: bool  # Has the whitespace linter run on this assignment.
+
+    # The fixed value for the maximum that can be achieved in a rubric. This
+    # can be higher and lower than the actual max. Will be `null` if unset.
+    fixed_max_rubric_points: t.Optional[float]
+
+    # The maximum grade you can get for this assignment. This is based around
+    # the idea that a 10 is a 'perfect' score. So if this value is 12 a user
+    # can score 2 additional bonus points. If this value is `null` it is unset
+    # and regarded as a 10.
+    max_grade: t.Optional[float]
+    group_set: t.Optional['psef.models.GroupSet']
+    auto_test_id: t.Optional[int]
+    files_upload_enabled: bool  # Can you upload files to this assignment.
+    webhook_upload_enabled: bool  # Can you connect git to this assignment.
+
+    # The maximum amount of submission a student may create, inclusive. The
+    # value ``null`` indicates that there is no limit.
+    max_submissions: t.Optional[int]
+
+    # These two values determine the maximum submissions in an amount of time
+    # by a user. A user can submit at most `amount_in_cool_off_period`
+    # submissions in `cool_off_period` seconds. `amount_in_cool_off_period` is
+    # always >= 1, so this check is disabled if `cool_off_period == 0`.
+    cool_off_period: float
+    amount_in_cool_off_period: int
+
+    # All next values are filled in based on permissions and data availability.
+
+    # ISO UTC date. This will be `null` if you don't have the permission to see
+    # this or if it is unset.
+    reminder_time: t.Optional[str]
+    lms_name: t.Optional[str]  # The LMS providing this LTI assignment.
+
+    # The kind of reminder that will be sent.  If you don't have the permission
+    # to see this it will always be `null`. If this is not set it will also be
+    # `null`.
+    done_type: t.Optional[str]
+    done_email: t.Optional[str]
+    division_parent_id: t.Optional[int]
+    analytics_workspace_ids: t.List[int]
 
 
 class AssignmentAmbiguousSettingTag(enum.Enum):
@@ -471,6 +532,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         uselist=True,
     )
 
+    analytics_workspaces = db.relationship(
+        lambda: analytics_models.AnalyticsWorkspace,
+        back_populates='assignment',
+        cascade='delete-orphan, delete, save-update',
+        uselist=True,
+    )
+
     group_set_id = db.Column(
         'group_set_id',
         db.Integer,
@@ -555,14 +623,42 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         )
     )
 
+    def __init__(
+        self,
+        *,
+        name: str,
+        lti_assignment_id: str = None,
+        description: str = '',
+        course: 'course_models.Course',
+        state: _AssignmentStateEnum = None,
+        deadline: DatetimeWithTimezone = None,
+    ) -> None:
+        super().__init__(
+            name=name,
+            lti_assignment_id=lti_assignment_id,
+            description=description,
+            course=course,
+            state=state,
+            deadline=deadline,
+            analytics_workspaces=[
+                analytics_models.AnalyticsWorkspace(assignment=self)
+            ],
+        )
+
     def __eq__(self, other: object) -> bool:
         """Check if two Assignments are equal.
 
-        >>> Assignment() == object()
+        >>> a1 = Assignment(name='', course=None)
+        >>> a1.id = 5
+        >>> a1 == object()
         False
-        >>> Assignment(id=5) == Assignment(id=6)
+        >>> a2 = Assignment(name='', course=None)
+        >>> a2.id = 6
+        >>> a1_1 = Assignment(name='', course=None)
+        >>> a1_1.id = 5
+        >>> a1 == a2
         False
-        >>> Assignment(id=5) == Assignment(id=5)
+        >>> a1_1 == a1
         True
         """
         if isinstance(other, Assignment):
@@ -819,7 +915,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     def deadline_expired(self) -> bool:
         """Has the deadline of this assignment expired.
 
-        >>> a = Assignment(deadline=None)
+        >>> a = Assignment(name='', deadline=None, course=None)
         >>> a.deadline_expired
         False
         >>> from datetime import datetime
@@ -934,61 +1030,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         else:
             return self.whitespace_linter_exists
 
-    def __to_json__(self) -> t.Mapping[str, t.Any]:
+    def __to_json__(self) -> AssignmentJSON:
         """Creates a JSON serializable representation of this assignment.
 
-        This object will look like this:
-
-        .. code:: python
-
-            {
-                'id': int, # The id of this assignment.
-                'state': str, # Current state of this assignment.
-                'description': str, # Description of this assignment.
-                'created_at': str, # ISO UTC date.
-                'deadline': str, # ISO UTC date.
-                'name': str, # Assignment name.
-                'is_lti': bool, # Is this an LTI assignment.
-                'lms_name': t.Optional[str], # The LMS providing this LTI
-                                             # assignment.
-                'course': models.Course, # Course of this assignment.
-                'cgignore': str, # The cginore of this assignment.
-                'whitespace_linter': bool, # Has the whitespace linter
-                                           # run on this assignment.
-                'done_type': str, # The kind of reminder that will be sent.
-                                  # If you don't have the permission to see
-                                  # this it will always be `null`. If this is
-                                  # not set it will also be `null`.
-                'reminder_time': str, # ISO UTC date. This will be `null` if
-                                      # you don't have the permission to see
-                                      # this or if it is unset.
-                'fixed_max_rubric_points': float, # The fixed value for the
-                                                  # maximum that can be
-                                                  # achieved in a rubric. This
-                                                  # can be higher and lower
-                                                  # than the actual max. Will
-                                                  # be `null` if unset.
-                'max_grade': float, # The maximum grade you can get for this
-                                    # assignment. This is based around the idea
-                                    # that a 10 is a 'perfect' score. So if
-                                    # this value is 12 a user can score 2
-                                    # additional bonus points. If this value is
-                                    # `null` it is unset and regarded as a 10.
-                'max_submissions': t.Optional[int], # The maximum amount of
-                    # submission a student may create, inclusive. The value
-                    # ``null`` indicates that there is no limit.
-
-
-                # These two values determine the maximum submissions in an
-                # amount of time by a user. A user can submit at most
-                # `amount_in_cool_off_period` submissions in `cool_off_period`
-                # seconds. `amount_in_cool_off_period` is always >= 1, so this
-                # check is disabled if `cool_off_period == 0`.
-                'cool_off_period': float,
-                'amount_in_cool_off_period': int,
-            }
-
-        :returns: An object as described above.
+        :returns: An :class:``.AssignmentJSON`` dictionary.
 
         .. todo:: Remove 'description' field from Assignment model.
         """
@@ -996,12 +1041,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         # times so caching it in a local variable is a good idea.
         cgignore = self.cgignore
 
-        res = {
+        res: AssignmentJSON = {
             'id': self.id,
             'state': self.state_name,
             'description': self.description,
-            'created_at': self.created_at and self.created_at.isoformat(),
-            'deadline': self.deadline and self.deadline.isoformat(),
+            'created_at': self.created_at.isoformat(),
+            'deadline':
+                None if self.deadline is None else self.deadline.isoformat(),
             'name': self.name,
             'is_lti': self.is_lti,
             'course': self.course,
@@ -1025,6 +1071,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             'done_type': None,
             'done_email': None,
             'division_parent_id': None,
+            'analytics_workspace_ids': [],
         }
 
         if self.course.lti_provider is not None:
@@ -1044,6 +1091,11 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             CPerm.can_see_assignee, self.course_id
         ):
             res['division_parent_id'] = self.division_parent_id
+
+        for workspace in self.analytics_workspaces:
+            if auth.AnalyticsWorkspacePermissions(workspace
+                                                  ).ensure_may_see.as_bool():
+                res['analytics_workspace_ids'].append(workspace.id)
 
         return res
 

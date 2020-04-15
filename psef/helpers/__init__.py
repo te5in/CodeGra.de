@@ -42,7 +42,7 @@ from cg_flask_helpers import (
 )
 from cg_sqlalchemy_helpers.types import Base, MyQuery, DbColumn
 
-from . import features, validate, jsonify_options
+from . import validate, jsonify_options
 from .. import errors, current_tester
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
@@ -147,6 +147,24 @@ def add_deprecate_warning(warning: str) -> None:
             psef.exceptions.APIWarnings.DEPRECATED,
         )
     )
+
+
+def mark_as_deprecated_route(warning: str) -> t.Callable[[T_CAL], T_CAL]:
+    """Mark a given route as deprecated.
+
+    :param warning: The deprecation warning that should be added to each
+        request to the wrapped route.
+    """
+
+    def __wrapper(fun: T_CAL) -> t.Any:
+        @wraps(fun)
+        def __inner(*args: object, **kwargs: object) -> object:
+            add_deprecate_warning(warning)
+            return fun(*args, **kwargs)
+
+        return t.cast(T_CAL, __inner)
+
+    return __wrapper
 
 
 class Dividable(Protocol):  # pragma: no cover
@@ -412,6 +430,8 @@ def get_in_or_error(
     options: t.Optional[t.List[t.Any]] = None,
     *,
     as_map: Literal[True],
+    also_error: t.Callable[[Y], bool] = None,
+    same_order_as_given: Literal[False] = False,
 ) -> t.Dict[T, Y]:
     # pylint: disable=missing-function-docstring
     ...
@@ -425,6 +445,8 @@ def get_in_or_error(
     options: t.Optional[t.List[t.Any]] = None,
     *,
     as_map: Literal[False] = False,
+    also_error: t.Callable[[Y], bool] = None,
+    same_order_as_given: bool = False,
 ) -> t.List[Y]:
     # pylint: disable=missing-function-docstring
     ...
@@ -436,7 +458,9 @@ def get_in_or_error(
     in_values: t.List[T],
     options: t.Optional[t.List[t.Any]] = None,
     *,
+    also_error: t.Callable[[Y], bool] = None,
     as_map: bool = False,
+    same_order_as_given: bool = False
 ) -> t.Union[t.Dict[T, Y], t.List[Y]]:
     """Get object by doing an ``IN`` query.
 
@@ -447,15 +471,30 @@ def get_in_or_error(
     :param model: The objects to get.
     :param in_column: The column of the object to perform the in on.
     :param in_values: The values used for the ``IN`` clause. This may be an
-        empty sequence, which is handled without doing a query.
+        empty sequence, which is handled without doing a query. Each item in
+        the list should be unique.
     :param options: A list of options to give to the executed query. This can
         be used to undefer or eagerly load some columns or relations.
     :param as_map: Should the return value be returned as mapping between the
         `in_column` and the received item from the database.
-    :returns: A list of objects with the same length as ``in_values``.
+    :param same_order_s_given: If this is ``True`` the resulting list will
+        ordered the same as the given list of ``in_values``. This option cannot
+        be combined with ``as_map``. This option is especially useful for
+        testing, as it allows a deterministic order of the returned list.
 
+    :returns: A list of objects with the same length as ``in_values``.
     :raises APIException: If on of the items in ``in_values`` was not found.
     """
+    assert not (as_map and same_order_as_given)
+    if psef.current_app.do_sanity_checks:  # pragma: no cover
+        # This check does some assumptions (that each value in ``in_values`` is
+        # hashable for example), and can be quite slow. So we only do it when
+        # sanity checks are enabled.
+        assert not contains_duplicate(in_values), (
+            'The given ``in_values`` ({}) contains duplicates, which is not'
+            ' supported'
+        ).format(in_values)
+
     res: t.List[t.Tuple[T, Y]]
     if not in_values:
         res = []
@@ -465,9 +504,10 @@ def get_in_or_error(
         )
         if options is not None:
             query = query.options(*options)
+
         res = query.all()
 
-    if len(res) != len(in_values):
+    def _raise() -> t.NoReturn:
         raise psef.errors.APIException(
             f'Not all requested {model.__name__.lower()} could be found', (
                 f'Out of the {len(in_values)} requested only {len(res)} were'
@@ -475,8 +515,16 @@ def get_in_or_error(
             ), psef.errors.APICodes.OBJECT_ID_NOT_FOUND, 404
         )
 
+    if len(res) != len(in_values):
+        _raise()
+    elif also_error is not None and any(also_error(item[1]) for item in res):
+        _raise()
+
     if as_map:
         return dict(res)
+    elif same_order_as_given:
+        lookup = dict(res)
+        return [lookup[given_value] for given_value in in_values]
     return [item[1] for item in res]
 
 
@@ -763,6 +811,13 @@ class TransactionGet(Protocol[T_CONTRA]):
 
     @t.overload
     def __call__(
+        self, to_get: T_CONTRA, typ: t.Type[T], *,
+        transform: t.Callable[[T], TT]
+    ) -> TT:
+        ...
+
+    @t.overload
+    def __call__(
         self,
         to_get: T_CONTRA,
         typ: t.Tuple[t.Type[T], t.Type[TT]],
@@ -818,10 +873,25 @@ def get_from_map_transaction(
     all_keys_requested = []
     keys = []
 
-    def get(key: T, typ: t.Union[t.Type, t.Tuple[t.Type, ...]]) -> TT:
+    def get(
+        key: T,
+        typ: t.Union[t.Type, t.Tuple[t.Type, ...]],
+        *,
+        transform: t.Callable[[TT], TTT] = None,
+    ) -> TTT:
         all_keys_requested.append(key)
         keys.append((key, typ))
-        return t.cast(TT, mapping.get(key, MISSING))
+        value: t.Union[TT, MissingType] = mapping.get(key, MISSING)
+        if (
+            isinstance(typ, type) and issubclass(typ, enum.Enum) and
+            isinstance(value, str)
+        ):
+            value = t.cast(TT, typ.__members__.get(value, MISSING))
+
+        if transform is not None and value is not MISSING:
+            return transform(t.cast(TT, value))
+
+        return t.cast(TTT, value)
 
     def optional_get(
         key: T, typ: t.Union[t.Type, t.Tuple[t.Type, ...]], default: ZZ
@@ -850,6 +920,19 @@ def get_from_map_transaction(
             )
 
 
+def get_from_request_transaction(
+    *,
+    ensure_empty: bool = False,
+) -> t.ContextManager[t.Tuple[TransactionGet[str], TransactionOptionalGet[str]]
+                      ]:
+    """The same as :func:`get_from_map_transaction` but with
+        :func:`get_json_dict_from_request` as first argument.
+    """
+    return get_from_map_transaction(
+        get_json_dict_from_request(), ensure_empty=ensure_empty
+    )
+
+
 def ensure_keys_in_dict(
     mapping: t.Mapping[T, object], keys: t.Sequence[t.Tuple[T, IsInstanceType]]
 ) -> None:
@@ -868,10 +951,25 @@ def ensure_keys_in_dict(
     missing: t.List[t.Union[T, str]] = []
     type_wrong = False
     for key, check_type in keys:
-        if key not in mapping:
+        value = mapping.get(key, MISSING)
+        if value is MISSING:
             missing.append(key)
-        elif (not isinstance(mapping[key], check_type)
-              ) or (check_type == int and isinstance(mapping[key], bool)):
+        elif (
+            isinstance(check_type, type) and
+            issubclass(check_type, enum.Enum) and isinstance(value, str)
+        ):
+            if value not in check_type.__members__:
+                missing.append(
+                    f'{key} was of wrong type'
+                    f' (should be a member of "{_get_type_name(check_type)}"'
+                    f' (= {", ".join(it.name for it in check_type)})'
+                    f', was "{mapping[key]}")'
+                )
+                type_wrong = True
+        elif (
+            (not isinstance(value, check_type)) or
+            (check_type == int and isinstance(value, bool))
+        ):
             missing.append(
                 f'{str(key)} was of wrong type'
                 f' (should be a "{_get_type_name(check_type)}"'
@@ -1212,6 +1310,15 @@ def call_external(
             preexec_fn=preexec_fn,
             env=child_env,
         ) as proc:
+            # `stdout` is never `None` as we pass in values for them, but in
+            # typeshed they are annotated as optional:
+            # https://github.com/python/typeshed/issues/3831
+            # https://github.com/python/typeshed/pull/3652
+            if proc.stdout is None:  # pragma: no cover
+                # We use an `if` here so `mypy` will start complaining about
+                # unreachable code if this issue is resolved.
+                assert False
+
             while proc.poll() is None:
                 process_line(
                     proc.stdout.readline().decode('utf8', 'backslashreplace')
@@ -1559,9 +1666,10 @@ def maybe_wrap_in_list(maybe_lst: t.Union[t.List[T], T]) -> t.List[T]:
     return [maybe_lst]
 
 
-def contains_duplicate(it_to_check: t.Iterator[T_Hashable]) -> bool:
-    """Check if a sequence contains duplicate values.
+def contains_duplicate(it_to_check: t.Iterable[T_Hashable]) -> bool:
+    """Check if an iterable contains duplicate values.
 
+    >>> import itertools as it
     >>> contains_duplicate(range(10))
     False
     >>> contains_duplicate([object(), object()])
@@ -1570,9 +1678,12 @@ def contains_duplicate(it_to_check: t.Iterator[T_Hashable]) -> bool:
     True
     >>> contains_duplicate(list(range(10)) + list(range(10)))
     True
+    >>> contains_duplicate(it.chain(range(5), range(5)))
+    True
 
-    :param it_to_check: The sequence to check for duplicate values.
-    :returns: If it contains any duplicate values.
+    :param it_to_check: The sequence to check for duplicate values. This can be
+        a generator which cannot be rewound.
+    :returns: If ``it_to_check`` contains any duplicate values.
     """
     seen: t.Set[T_Hashable] = set()
     for item in it_to_check:
@@ -1581,3 +1692,22 @@ def contains_duplicate(it_to_check: t.Iterator[T_Hashable]) -> bool:
         seen.add(item)
 
     return False
+
+
+def flatten(it_to_flatten: t.Iterable[t.Iterable[T]]) -> t.List[T]:
+    """Flatten a given iterable of iterables to a list.
+
+    >>> flatten((range(2) for _ in range(4)))
+    [0, 1, 0, 1, 0, 1, 0, 1]
+    >>> flatten((range(i) for i in range(5)))
+    [0, 0, 1, 0, 1, 2, 0, 1, 2, 3]
+    >>> flatten((range(2) for _ in range(0)))
+    []
+    >>> flatten([[[1, 2]], [[1, 2]]])
+    [[1, 2], [1, 2]]
+
+    :param it_to_flatten: The iterable to flatten, which will be iterated
+        completely.
+    :returns: A fresh flattened list.
+    """
+    return [x for wrap in it_to_flatten for x in wrap]

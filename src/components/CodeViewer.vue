@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="code-viewer" :class="{ editable }">
+<div class="code-viewer">
     <inner-code-viewer
         :assignment="assignment"
         :submission="submission"
@@ -9,7 +9,6 @@
         :linter-feedback="linterFeedback"
         :show-whitespace="showWhitespace"
         :show-inline-feedback="showInlineFeedback"
-        :editable="feedbackEditable"
         :can-use-snippets="canUseSnippets"
         :file-id="fileId"/>
 </div>
@@ -17,7 +16,7 @@
 
 <script>
 import { listLanguages } from 'highlightjs';
-import { mapGetters, mapActions } from 'vuex';
+import { mapGetters } from 'vuex';
 
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
@@ -50,10 +49,6 @@ export default {
             type: String,
             required: true,
         },
-        editable: {
-            type: Boolean,
-            default: false,
-        },
         language: {
             type: String,
             default: 'Default',
@@ -74,14 +69,23 @@ export default {
             type: Boolean,
             default: true,
         },
+        fileContent: {
+            required: true,
+        },
     },
 
     computed: {
         ...mapGetters('pref', ['fontSize']),
         ...mapGetters('feedback', ['getFeedback']),
 
-        feedbackEditable() {
-            return this.editable && this.studentMode;
+        canSeeAssignee() {
+            return this.$utils.getProps(
+                this.assignment,
+                false,
+                'course',
+                'permissions',
+                'can_see_assignee',
+            );
         },
 
         extension() {
@@ -118,6 +122,36 @@ export default {
 
             return feedback.linter[fileId] || {};
         },
+
+        rawCodeLines() {
+            if (this.fileContent == null) {
+                return [];
+            }
+            let code;
+            try {
+                code = decodeBuffer(this.fileContent);
+            } catch (e) {
+                this.$emit('error', {
+                    error: 'This file cannot be displayed',
+                    fileId: this.fileId,
+                });
+                return [];
+            }
+
+            return Object.freeze(code.split(/\r?\n/));
+        },
+
+        codeLines() {
+            const language = this.selectedLanguage;
+            if (this.rawCodeLines.length === 0 || language == null) {
+                return [];
+            }
+            const lang = language === 'Default' ? this.extension : language;
+
+            const res = Object.freeze(highlightCode(this.rawCodeLines, lang));
+            this.emitLoad(this.fileId);
+            return res;
+        },
     },
 
     data() {
@@ -127,28 +161,17 @@ export default {
         languages.unshift('Default');
 
         return {
-            rawCodeLines: [],
-            codeLines: [],
             selectedLanguage: 'Default',
             languages,
-            canSeeAssignee: false,
         };
     },
 
-    mounted() {
-        Promise.all([
-            this.loadCodeWithSettings(),
-            this.$hasPermission('can_see_assignee', this.assignment.course.id),
-        ]).then(([, assignee]) => {
-            this.canSeeAssignee = assignee;
-        });
-    },
-
     watch: {
-        fileId(newId, oldId) {
-            if (newId != null && (oldId == null || newId !== oldId)) {
-                this.loadCodeWithSettings();
-            }
+        fileId: {
+            immediate: true,
+            handler() {
+                this.loadSettings();
+            },
         },
 
         language(lang) {
@@ -156,61 +179,28 @@ export default {
                 return;
             }
             this.selectedLanguage = lang;
-            if (!this.isLargeFile) {
-                this.highlightCode(lang);
-            }
         },
     },
 
     methods: {
-        ...mapActions('code', {
-            storeLoadCode: 'loadCode',
-        }),
-
-        loadCodeWithSettings() {
-            return this.$hlanguageStore.getItem(`${this.file.id}`).then(lang => {
+        loadSettings() {
+            this.selectedLanguage = null;
+            return this.$hlanguageStore.getItem(this.fileId).then(lang => {
                 if (lang !== null) {
                     this.$emit('language', lang);
                     this.selectedLanguage = lang;
                 } else {
                     this.selectedLanguage = 'Default';
                 }
-
-                return this.getCode();
             });
         },
 
-        async getCode() {
-            this.codeLines = [];
-            this.rawCodeLines = [];
-            await this.$afterRerender();
+        async emitLoad(fileId) {
+            if (this.fileId === fileId) {
+                this.$emit('load', fileId);
 
-            let code;
-
-            try {
-                code = await this.storeLoadCode(this.fileId);
-            } catch (e) {
-                this.$emit('error', e);
-                return;
+                await this.$nextTick();
             }
-
-            try {
-                code = decodeBuffer(code);
-            } catch (e) {
-                this.$emit('error', 'This file cannot be displayed');
-                return;
-            }
-
-            this.rawCodeLines = code.split('\n');
-
-            this.highlightCode(this.selectedLanguage);
-            this.$emit('load');
-        },
-
-        // Highlight this.codeLines.
-        highlightCode(language) {
-            const lang = language === 'Default' ? this.extension : language;
-            this.codeLines = highlightCode(this.rawCodeLines, lang);
         },
     },
 

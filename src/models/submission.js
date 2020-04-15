@@ -1,16 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import {
-    getProps,
-    setProps,
-    cmpNoCase,
-    formatGrade,
-    snakeToCamelCase,
-    readableFormatDate,
-    coerceToString,
-} from '@/utils';
+import { store } from '@/store';
+import { cmpNoCase, formatGrade, snakeToCamelCase, readableFormatDate } from '@/utils';
 import { NONEXISTENT } from '@/constants';
 import moment from 'moment';
-import { store } from '@/store';
 import * as mutationTypes from '@/store/mutation-types';
 
 const REVISIONS = ['student', 'teacher'];
@@ -359,107 +351,15 @@ export class FileTree {
     }
 }
 
-export class FeedbackLine {
-    constructor(fileId, line, message, author) {
-        // a fileId should never be a number.
-        this.fileId = coerceToString(fileId);
-        // A lineNumber should always be a number.
-        this.line = Number(line);
-        this.lineNumber = this.line;
-
-        this.msg = message;
-        this.authorId = null;
-
-        if (author) {
-            this.authorId = author.id;
-            store.commit(`users/${mutationTypes.ADD_OR_UPDATE_USER}`, author);
-        }
-
-        Object.freeze(this);
-    }
-
-    get author() {
-        return store.getters['users/getUser'](this.authorId);
-    }
-}
-
-export class Feedback {
-    constructor(general, linter, userLines) {
-        this.general = general;
-        this.linter = linter;
-        this.userLines = Object.freeze(userLines);
-        this.user = Object.freeze(
-            this.userLines.reduce((acc, line) => {
-                setProps(acc, line, line.fileId, line.lineNumber);
-                return acc;
-            }, {}),
-        );
-
-        Object.freeze(this);
-    }
-
-    static fromServerData(feedback) {
-        const authors = feedback.authors;
-
-        const general = getProps(feedback, null, 'general');
-        const linter = getProps(feedback, {}, 'linter');
-
-        const userLines = Object.entries(getProps(feedback, {}, 'user')).reduce(
-            (lines, [fileId, fileFeedback]) => {
-                lines.push(
-                    ...Object.entries(fileFeedback).map(([line, lineFeedback]) => {
-                        if (line instanceof FeedbackLine) {
-                            return line;
-                        } else {
-                            return new FeedbackLine(
-                                fileId,
-                                line,
-                                lineFeedback,
-                                getProps(authors, null, fileId, line),
-                            );
-                        }
-                    }),
-                );
-                return lines;
-            },
-            [],
-        );
-        return new Feedback(general, linter, userLines);
-    }
-
-    addFeedbackLine(line) {
-        if (!(line instanceof FeedbackLine)) {
-            throw new Error('The given line is not the correct class');
-        }
-
-        const newLines = [...this.userLines];
-        const oldLineIndex = this.userLines.findIndex(
-            l => l.lineNumber === line.lineNumber && l.fileId === line.fileId,
-        );
-        if (oldLineIndex < 0) {
-            newLines.push(line);
-        } else {
-            newLines[oldLineIndex] = line;
-        }
-
-        return new Feedback(this.general, this.linter, newLines);
-    }
-
-    removeFeedbackLine(fileId, lineNumber) {
-        return new Feedback(
-            this.general,
-            this.linter,
-            this.userLines.filter(l => !(l.lineNumber === lineNumber && l.fileId === fileId)),
-        );
-    }
-}
-
 const SUBMISSION_SERVER_PROPS = ['id', 'origin', 'extra_info', 'grade_overridden', 'comment'];
 
-const USER_PROPERTIES = ['user', 'assignee', 'comment_author'].reduce((acc, cur) => {
-    acc[cur] = `${snakeToCamelCase(cur)}Id`;
-    return acc;
-}, {});
+const USER_PROPERTIES = Object.freeze(['user', 'assignee', 'comment_author']);
+const USER_PROPERTIES_CAMELCASE_LOOKUP = Object.freeze(
+    USER_PROPERTIES.reduce((acc, cur) => {
+        acc[cur] = `${snakeToCamelCase(cur)}Id`;
+        return acc;
+    }, {}),
+);
 
 export class Submission {
     constructor(props) {
@@ -479,8 +379,10 @@ export class Submission {
         props.createdAt = moment.utc(serverData.created_at, moment.ISO_8601);
         props.fullGrade = serverData.grade;
 
-        Object.entries(USER_PROPERTIES).forEach(([serverProp, idProp]) => {
+        USER_PROPERTIES.forEach(serverProp => {
             const user = serverData[serverProp];
+            const idProp = USER_PROPERTIES_CAMELCASE_LOOKUP[serverProp];
+
             if (user != null) {
                 props[idProp] = user.id;
                 store.commit(`users/${mutationTypes.ADD_OR_UPDATE_USER}`, user);
@@ -510,8 +412,8 @@ export class Submission {
                         throw TypeError(`Cannot set submission property: ${key}`);
                     } else if (key === 'grade') {
                         acc.fullGrade = val;
-                    } else if (USER_PROPERTIES[key] != null) {
-                        const prop = USER_PROPERTIES[key];
+                    } else if (USER_PROPERTIES_CAMELCASE_LOOKUP[key] != null) {
+                        const prop = USER_PROPERTIES_CAMELCASE_LOOKUP[key];
 
                         if (val) {
                             store.dispatch('users/addOrUpdateUser', { user: val });
@@ -541,8 +443,10 @@ export class Submission {
     }
 }
 
-Object.entries(USER_PROPERTIES).forEach(([serverProp, idProp]) => {
-    Object.defineProperty(Submission.prototype, serverProp, {
+USER_PROPERTIES.forEach(wantedProp => {
+    const idProp = USER_PROPERTIES_CAMELCASE_LOOKUP[wantedProp];
+
+    Object.defineProperty(Submission.prototype, wantedProp, {
         get() {
             return store.getters['users/getUser'](this[idProp]) || { id: null };
         },

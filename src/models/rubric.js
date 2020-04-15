@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { UNSET_SENTINEL } from '@/constants';
 import { store } from '@/store';
 import { formatGrade, getProps, getUniqueId, toMaxNDecimals, setXor } from '@/utils';
@@ -67,9 +68,26 @@ export class RubricRow {
 
         this._cache = Object.seal({
             maxPoints: UNSET_SENTINEL,
+            minPoints: UNSET_SENTINEL,
         });
 
         Object.freeze(this);
+    }
+
+    get minPoints() {
+        if (this._cache.minPoints === UNSET_SENTINEL) {
+            let minPoints = Math.min(
+                ...this.items.map(item => item.points).filter(pts => pts != null),
+            );
+
+            if (minPoints === Infinity) {
+                minPoints = 0;
+            }
+
+            this._cache.minPoints = minPoints;
+        }
+
+        return this._cache.minPoints;
     }
 
     get maxPoints() {
@@ -441,7 +459,6 @@ export class RubricResult {
     }
 
     get maxPoints() {
-        // TODO: Move this to the Rubric model and get it from this.rubric.
         return getProps(
             this.assignment,
             getProps(this.rubric, null, 'maxPoints'),
@@ -453,7 +470,7 @@ export class RubricResult {
         if (this.nSelected === 0 || this.maxPoints == null) {
             return null;
         } else {
-            const grade = 10 * this.points / this.maxPoints;
+            const grade = (10 * this.points) / this.maxPoints;
             return formatGrade(Math.max(0, Math.min(grade, 10)));
         }
     }
