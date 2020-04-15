@@ -1,17 +1,21 @@
 Changelog
 ==========
 
-Version *Next*
------------------
+Version LowVoltage
+-------------------
 
-**Released**: *Unreleased*
+**Released**: April 15th, 2020
+
+You can now view assignment statistics on the Analytics Dashboard, giving you
+insight into student performance. Students can now also comment on their own
+code, and they can reply to comments placed by teachers.
 
 **Features**
 
 - Analytics dashboard (`#1300
   <https://github.com/CodeGra-de/CodeGra.de/pull/1300>`__). The analytics
   dashboard is a new page with various statistics about an assignment. It gives
-  teachers insight in how students are doing on the assignment and where the
+  teachers insights in how students are performing on the assignment and where the
   assignment may be improved.
 - Inline feedback replies (`#1305
   <https://github.com/CodeGra-de/CodeGra.de/pull/1305>`__). It is now possible
@@ -21,18 +25,25 @@ Version *Next*
 - Contact student button (`#1307
   <https://github.com/CodeGra-de/CodeGra.de/pull/1307>`__). This makes it
   possible for teachers to send emails to students of a submission, or to
-  arbitrary students of a course.
+  multiple students in a course.
 
 
 **Updates**
 
+- Make usernames case insensitive (`#1310
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1310>`__). This reduces
+  ambiguity in which user you are dealing with, as well as making it easier to
+  login because you do not have to remember if you used an uppercase or not
+  when you registered.
 - Various internal improvements (`#1244
   <https://github.com/CodeGra-de/CodeGra.de/pull/1244>`__). This makes it easier
   to improve CodeGrade in the future.
+- Plagiarism support for newer versions of Java. You can now use the Plagiarism
+  checker for newer versions of Java.
 
 **Fixes**
 
-- Make sure that empty markdown files show a useful errors `(#1244)
+- Make sure that empty markdown files show a useful error `(#1244)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1244>`__.
 
 Version Knoet.3
