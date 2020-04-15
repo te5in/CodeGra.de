@@ -138,7 +138,7 @@ export default {
                 return [];
             }
 
-            return Object.freeze(code.split('\n'));
+            return Object.freeze(code.split(/\r?\n/));
         },
 
         codeLines() {
