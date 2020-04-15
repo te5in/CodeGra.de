@@ -17,7 +17,7 @@ TEMPLATE = """
             our <a href="https://github.com/CodeGra-de/CodeGra.de"
             target="__blank">github repo</a>, and don't forget to fork and
             star! </p>
-        <small>&copy; {{{{ new Date().getFullYear() }}}} - CodeGra.de - Made
+        <small class="d-block">&copy; {{{{ new Date().getFullYear() }}}} - CodeGra.de - Made
         with ❤️ &amp 🍺</small>
     </div>
 </template>
