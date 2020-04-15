@@ -352,7 +352,13 @@ export default {
                     normalized = this.normalize(data, this.normalizeFactors);
 
                     if (errorBars != null) {
-                        errorBars = stats.map(({ stdev }, j) => normalized[j] / data[j] * stdev);
+                        errorBars = stats.map(({ stdev }, j) => {
+                            if (stdev == null) {
+                                return null;
+                            } else {
+                                return normalized[j] / data[j] * stdev;
+                            }
+                        });
                     }
                 }
 
@@ -403,7 +409,16 @@ export default {
             if (x === 0) {
                 return 0;
             }
-            return x < 0 ? -x / lower : x / upper;
+            if (lower === upper) {
+                return x === 0 ? 0 : 1;
+            }
+            // If x < 0 then lower must also be, because you can't score less
+            // than the least amount of points.
+            if (x < 0) {
+                return -x / lower;
+            }
+
+            return x / upper;
         },
 
         to2Dec(x) {
