@@ -307,8 +307,8 @@ export function getOtherAssignmentPlagiarismDesc(item, index) {
 
 export function nameOfUser(user) {
     if (!user) return '';
-    else if (user.readableName) return user.readableName;
     else if (user.group) return `Group "${user.group.name}"`;
+    else if (user.readableName) return user.readableName;
     else return user.name || '';
 }
 
