@@ -333,10 +333,6 @@ set_str(CONFIG, backend_ops, 'PROXY_BASE_DOMAIN', '')
 CONFIG['EXTERNAL_DOMAIN'] = urllib.parse.urlparse(
     CONFIG['EXTERNAL_URL']
 ).hostname
-if not CONFIG['DEBUG']:
-    import pprint
-    pprint.pprint(CONFIG)
-    assert CONFIG['EXTERNAL_DOMAIN'] is not None
 
 set_str(CONFIG, backend_ops, 'JAVA_PATH', 'java')
 
