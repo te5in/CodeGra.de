@@ -122,6 +122,7 @@ export default {
             error: '',
             forcedFileComponent: null,
             fileContent: undefined,
+            loadingCode: false,
             fileTypes: [
                 {
                     cond: () =>
@@ -280,6 +281,16 @@ export default {
             },
         },
 
+        fileData(newVal, oldVal) {
+            if (
+                newVal.needsContent &&
+                (oldVal == null || !oldVal.needsContent) &&
+                this.fileContent == null
+            ) {
+                this.loadFileContent(this.fileId);
+            }
+        },
+
         replyIdToFocus: {
             immediate: true,
             handler: 'tryScrollToReplyToFocus',
@@ -326,10 +337,19 @@ export default {
         },
 
         async loadFileContent(fileId) {
+            // We are already loading this piece of code.
+            if (this.loadingCode === fileId) {
+                return;
+            }
+
             this.fileContent = null;
             this.error = '';
             this.loading = true;
+
             if (this.fileData.needsContent) {
+                if (this.fileId === fileId) {
+                    this.loadingCode = fileId;
+                }
                 let callback = () => {};
                 let content = null;
 
@@ -353,6 +373,7 @@ export default {
                 }
 
                 if (fileId === this.fileId) {
+                    this.loadingCode = false;
                     if (content) {
                         this.fileContent = content;
                     }
