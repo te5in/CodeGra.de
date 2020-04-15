@@ -7,7 +7,7 @@ Version LowVoltage
 **Released**: April 15th, 2020
 
 You can now view assignment statistics on the Analytics Dashboard, giving you
-insights on student performance. Students can now also comment on their own
+insight into student performance. Students can now also comment on their own
 code, and they can reply to comments placed by teachers.
 
 **Features**
@@ -38,6 +38,8 @@ code, and they can reply to comments placed by teachers.
 - Various internal improvements (`#1244
   <https://github.com/CodeGra-de/CodeGra.de/pull/1244>`__). This makes it easier
   to improve CodeGrade in the future.
+- Plagiarism support for newer versions of Java. You can now use the Plagiarism
+  checker for newer versions of Java.
 
 **Fixes**
 
