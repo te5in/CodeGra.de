@@ -404,7 +404,7 @@
                         <b-alert v-if="splitFiltersFailed"
                                  show
                                  variant="warning">
-                            {{ $utils.getErrorMessage(splitResults) }}
+                            {{ $utils.getErrorMessage(splitFilters) }}
                         </b-alert>
 
                         <template v-for="split in splitResults"
