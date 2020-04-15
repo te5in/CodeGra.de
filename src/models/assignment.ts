@@ -235,18 +235,31 @@ export class Assignment extends AssignmentData {
         return now.isAfter(this.deadline);
     }
 
-    canUploadWork(now: moment.Moment = moment()): boolean {
-        const perms = this.course.permissions;
+    getSubmitDisabledReasons(now: moment.Moment = moment()): string[] {
+        const res = [];
 
-        if (!(perms.can_submit_own_work || perms.can_submit_others_work)) {
-            return false;
-        } else if (this.state === assignmentState.HIDDEN) {
-            return false;
-        } else if (!this.hasPermission(CPerm.canUploadAfterDeadline) && this.deadlinePassed(now)) {
-            return false;
-        } else {
-            return true;
+        if (
+            !(
+                this.hasPermission(CPerm.canSubmitOwnWork) ||
+                this.hasPermission(CPerm.canSubmitOthersWork)
+            )
+        ) {
+            res.push('you cannot submit work for this course');
         }
+
+        if (!this.hasDeadline) {
+            res.push("the assignment's deadline has not yet been set");
+        }
+
+        if (!this.hasPermission(CPerm.canUploadAfterDeadline) && this.deadlinePassed(now)) {
+            res.push("the assignment's deadline has passed");
+        }
+
+        return res;
+    }
+
+    canSubmitWork(now: moment.Moment = moment()): boolean {
+        return this.getSubmitDisabledReasons(now).length === 0;
     }
 
     get maxGrade() {

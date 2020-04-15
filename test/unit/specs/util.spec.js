@@ -34,6 +34,7 @@ import {
     filterObject,
     isEmpty,
     zip,
+    readableJoin,
 } from '@/utils';
 
 import { makeCache } from '@/utils/cache';
@@ -1144,6 +1145,20 @@ describe('utils.js', () => {
             expect(isEmpty(true)).toBeFalse();
             expect(isEmpty(1000)).toBeFalse();
             expect(isEmpty('abc')).toBeFalse();
+        });
+    });
+
+    describe('readableJoin', () => {
+        it('should work for empty arrays', () => {
+            expect(readableJoin([])).toBe('');
+        });
+
+        it('should work for arrays with 1 item', () => {
+            expect(readableJoin(['hello'])).toBe('hello');
+        });
+
+        it('should work for arrays with multiple items', () => {
+            expect(readableJoin(['hello', 'by', 'whoo'])).toBe('hello, by, and whoo');
         });
     });
 });

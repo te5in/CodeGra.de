@@ -98,7 +98,7 @@
         <template v-else>
             <div v-if="selectedCat === 'student-start'"
                  class="action-buttons flex-grow-1 d-flex flex-wrap">
-                <template v-if="canUploadForSelf || canUploadForOthers">
+                <template v-if="canUploadForSomeone">
                     <div class="action-button m-2 m-md-3 rounded text-center"
                          :class="{ 'variant-danger': latestSubmissionAfterDeadline }"
                          v-b-popover.top.hover="latestSubmissionDisabled">
@@ -211,38 +211,7 @@
                     </collapse>
                 </b-card>
 
-                <b-alert show
-                         variant="warning"
-                         class="no-deadline-alert mb-0"
-                         v-if="uploaderDisabled">
-                    <p v-if="!canUploadForSomeone">
-                        You do not have permission to upload work to this assignment.
-                    </p>
-
-                    <p v-if="!assignment.hasDeadline">
-                        The deadline for this assignment has not yet been set.
-
-                        <span v-if="canEditDeadline && deadlineEditable">
-                            You can update the deadline
-                            <router-link :to="manageAssigURL" class="inline-link">here</router-link>.
-                        </span>
-
-                        <span v-else-if="canEditDeadline">
-                            Please update the deadline in {{ lmsName }}.
-                        </span>
-
-                        <span v-else>
-                            Please ask your teacher to set a deadline before you
-                            can submit your work.
-                        </span>
-                    </p>
-
-                    <p v-if="ltiUploadDisabledMessage">
-                        {{ ltiUploadDisabledMessage }}
-                    </p>
-                </b-alert>
-
-                <template v-else>
+                <template>
                     <b-alert show
                              variant="info"
                              class="group-assignment-alert assignment-alert"
@@ -265,11 +234,9 @@
                         group.
                     </b-alert>
 
-                    <submission-uploader v-if="canUpload"
-                                         :assignment="assignment"
+                    <submission-uploader :assignment="assignment"
                                          :for-others="canUploadForOthers"
                                          :can-list-users="canListUsers"
-                                         :disabled="uploaderDisabled"
                                          :maybe-show-git-instructions="!isStudent"
                                          @created="goToSubmission"
                                          :class="isStudent ? 'flex-grow-1' : ''" />
@@ -351,7 +318,6 @@ import 'vue-awesome/icons/envelope';
 
 import ltiProviders from '@/lti_providers';
 import { NONEXISTENT } from '@/constants';
-import * as assignmentState from '@/store/assignment-states';
 import GroupsManagement from '@/components/GroupsManagement';
 import {
     CgLogo,
@@ -499,67 +465,28 @@ export default {
             return this.assignment.lms_name;
         },
 
-        uploadDisabledReason() {
-            const assig = this.assignment;
-            const perms = assig.course.permissions;
+        uploadDisabledMessage() {
+            const reasons = this.assignment.getSubmitDisabledReasons();
 
-            if (!(perms.can_submit_own_work || perms.can_submit_others_work)) {
-                return 'you cannot submit work for this course.';
-            } else if (assig.state === assignmentState.HIDDEN) {
-                return 'the assignment is hidden.';
-            } else if (!assig.hasDeadline) {
-                return "the assignment's deadline has not yet been set.";
-            } else if (!perms.can_upload_after_deadline && assig.deadlinePassed(this.$root.$now)) {
-                return "the assignment's deadline has passed.";
-            } else {
+            if (!this.assignment.files_upload_enabled) {
+                reasons.unshift('file uploads are disabled for this assignment.');
+            }
+
+            if (reasons.length === 0) {
                 return '';
             }
-        },
 
-        uploadDisabledMessage() {
-            let reason = this.uploadDisabledReason;
-
-            if (!reason && !this.assignment.files_upload_enabled) {
-                reason = 'file uploads are disabled for this assignment.';
-            }
-
-            return reason ? `You cannot upload work because ${reason}` : '';
+            return `You cannot upload work because ${this.$utils.readableJoin(reasons)}.`;
         },
 
         webhookDisabledMessage() {
-            const reason = this.uploadDisabledReason;
-            return reason ? `You cannot view the webhook instructions because ${reason}` : '';
-        },
+            const reasons = this.assignment.getSubmitDisabledReasons();
 
-        ltiUploadDisabledMessage() {
-            if (this.assignment.is_lti && !this.$inLTI) {
-                return `You can only submit this assignment from within ${this.lmsName}.`;
-            } else if (this.$inLTI && this.$LTIAssignmentId == null) {
-                return (
-                    "You didn't launch the assignment using LTI, please " +
-                    "navigate to the 'Assignments' page and submit your " +
-                    'work there.'
-                );
-            } else if (this.$inLTI && this.assignmentId !== this.$LTIAssignmentId) {
-                return (
-                    'You launched CodeGrade for a different assignment. ' +
-                    'Please retry opening the correct assignment.'
-                );
+            if (reasons.length === 0) {
+                return '';
             }
 
-            return '';
-        },
-
-        uploaderDisabled() {
-            return !!(
-                this.ltiUploadDisabledMessage ||
-                !this.assignment.hasDeadline ||
-                !this.canUploadForSomeone
-            );
-        },
-
-        deadlineEditable() {
-            return !this.$utils.getProps(ltiProviders, false, this.lmsName, 'supportsDeadline');
+            return `You cannot view the webhook instructions because ${this.$utils.readableJoin(reasons)}.`;
         },
 
         latestSubmissionDisabled() {
@@ -661,16 +588,8 @@ export default {
             return this.coursePermissions.can_list_course_users;
         },
 
-        canUpload() {
-            return this.assignment.canUploadWork(this.$root.$now);
-        },
-
         canSeeOthersWork() {
             return this.coursePermissions.can_see_others_work;
-        },
-
-        canEditDeadline() {
-            return this.coursePermissions.can_edit_assignment_info;
         },
 
         currentGroup() {

@@ -607,3 +607,12 @@ export function isEmpty(obj) {
         return Object.keys(obj).length === 0;
     }
 }
+
+export function readableJoin(arr) {
+    if (arr.length === 0) {
+        return '';
+    } else if (arr.length === 1) {
+        return arr[0];
+    }
+    return `${arr.slice(0, -1).join(', ')}, and ${arr[arr.length - 1]}`;
+}
