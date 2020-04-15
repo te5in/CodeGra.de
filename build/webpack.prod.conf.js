@@ -6,6 +6,7 @@ var merge = require('webpack-merge')
 var baseWebpackConfig = require('./webpack.base.conf')
 var CopyWebpackPlugin = require('copy-webpack-plugin')
 var HtmlWebpackPlugin = require('html-webpack-plugin')
+const InlineManifestWebpackPlugin = require('inline-manifest-webpack-plugin');
 var MiniCssExtractPlugin = require('mini-css-extract-plugin')
 var OptimizeCSSPlugin = require('optimize-css-assets-webpack-plugin')
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
@@ -61,6 +62,8 @@ var webpackConfig = merge(baseWebpackConfig, {
       // necessary to consistently work with multiple chunks
       chunksSortMode: 'dependency'
     }),
+    new InlineManifestWebpackPlugin(),
+
     // keep module.id stable when vendor modules does not change
     new webpack.NamedChunksPlugin(),
     new webpack.HashedModuleIdsPlugin(),
