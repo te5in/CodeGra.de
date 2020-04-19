@@ -1,10 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import Vue from 'vue';
 import axios from 'axios';
+import * as Sentry from '@sentry/browser';
+
 import * as types from '../mutation-types';
 
 const UNLOADED_SNIPPETS = {};
 let snippetsLastReloaded;
+
+function setUser(user) {
+    // Some users might want to block sentry which should be just fine.
+    if (Sentry) {
+        Sentry.setUser(user);
+    }
+}
 
 const getters = {
     loggedIn: state => state.id !== 0,
@@ -159,6 +168,10 @@ const mutations = {
         state.canSeeHidden = userdata.hidden;
         state.username = userdata.username;
         state.permissions = userdata.permissions;
+        setUser({
+            id: state.id,
+            username: state.username,
+        });
     },
 
     [types.SNIPPETS](state, snippets) {
@@ -174,6 +187,7 @@ const mutations = {
         state.jwtToken = null;
         state.username = null;
         state.permissions = null;
+        setUser(null);
     },
 
     [types.NEW_SNIPPET](state, { id, key, value }) {

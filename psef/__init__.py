@@ -149,6 +149,7 @@ def create_app(  # pylint: disable=too-many-statements
     import config as global_config
 
     resulting_app = PsefFlask(__name__, global_config.CONFIG)
+
     resulting_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'  # type: ignore
                          ] = False
 

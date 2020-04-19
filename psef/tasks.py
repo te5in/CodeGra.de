@@ -868,7 +868,9 @@ def _send_email_as_user_1(
                         )
                     except:  # pylint: disable=bare-except
                         logger.info(
-                            'Failed emailing to student', exc_info=True
+                            'Failed emailing to student',
+                            exc_info=True,
+                            report_to_sentry=True,
                         )
                         failed_receivers.append(receiver)
 

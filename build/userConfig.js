@@ -38,6 +38,7 @@ const config = Object.assign({}, {
     email: 'info@CodeGra.de',
     maxLines: 2500,
     notificationPollTime: 30000,
+    sentryDsn: null,
 }, userConfig['Front-end']);
 config.maxLines = parseInt(config.maxLines, 10);
 config.notificationPollTime = parseInt(config.notificationPollTime, 10);
@@ -45,6 +46,7 @@ config.notificationPollTime = parseInt(config.notificationPollTime, 10);
 let version = execFileSync('git', ['describe', '--abbrev=0', '--tags']).toString().trim();
 const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD']).toString().trim();
 const tagMsg = execFileSync('git', ['tag', '-l', '-n400', version]).toString().split('\n');
+const gitCommit = execFileSync('git', ['rev-parse', '--short', 'HEAD']).toString().trim();
 let inCorrectPart = false;
 let done = false;
 let skip = false;
@@ -55,7 +57,7 @@ let skip = false;
 // show a commit hash instead of a version) as this would mean we would show a
 // commit hash on a production server which looks bad.
 if (version.match(/^[^A-Z]/) && branch.indexOf('stable') < 0) {
-    version = '#' + execFileSync('git', ['rev-parse', '--short', 'HEAD']).toString().trim();
+    version = '#' + gitCommit;
 }
 
 config.release = {

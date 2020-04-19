@@ -13,8 +13,10 @@ from flask import (
     make_response, render_template
 )
 from flask_login import (
-    UserMixin, LoginManager, login_user, logout_user, login_required
+    UserMixin, LoginManager, login_user, logout_user, current_user,
+    login_required
 )
+from sqlalchemy.orm import selectinload
 from werkzeug.wrappers import Response
 
 from cg_dt_utils import DatetimeWithTimezone
@@ -47,6 +49,9 @@ def unauthorized_request() -> Response:
         requested_url=request.url
     )
     return redirect(url_for('.login', next_url=request.url))
+
+
+admin.add_app_template_global(lambda: current_user, 'current_user')
 
 
 @admin.add_app_template_global
@@ -171,14 +176,17 @@ def show_all_runners() -> str:
     finished_runners = db.session.query(models.Runner).filter(
         ~t.cast(DbColumn[models.RunnerState], models.Runner.state
                 ).in_(models.RunnerState.get_active_states())
-    ).order_by(t.cast(DbColumn,
-                      models.Runner.created_at).desc()).limit(50).all()
+    ).order_by(models.Runner.created_at.desc()).options(
+        selectinload(models.Runner.job)
+    ).limit(50).all()
 
     active_runners = db.session.query(models.Runner).filter(
         t.cast(DbColumn[models.RunnerState], models.Runner.state).in_(
             models.RunnerState.get_active_states()
         )
-    ).order_by(t.cast(DbColumn, models.Runner.created_at).asc()).all()
+    ).order_by(models.Runner.created_at.asc()).options(
+        selectinload(models.Runner.job)
+    ).all()
 
     return render_template(
         'runners.j2',

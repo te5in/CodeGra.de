@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="feedback-area">
+    {{ (5 + '5').d.e }}
     <div class="replies-wrapper"
          :style="{ 'pb-2': showReply }">
         <transition-group name="fade"
