@@ -138,6 +138,8 @@ def create_app(  # pylint: disable=too-many-statements
     skip_celery: bool = False,
     skip_perm_check: bool = True,
     skip_secret_key_check: bool = False,
+    *,
+    skip_all: bool = False,
 ) -> 'PsefFlask':
     """Create a new psef app.
 
@@ -147,6 +149,9 @@ def create_app(  # pylint: disable=too-many-statements
     """
     # pylint: disable=import-outside-toplevel
     import config as global_config
+
+    if skip_all:  # pragma: no cover
+        skip_celery = skip_perm_check = skip_secret_key_check = True
 
     resulting_app = PsefFlask(__name__, global_config.CONFIG)
 
