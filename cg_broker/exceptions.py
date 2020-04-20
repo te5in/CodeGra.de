@@ -7,7 +7,7 @@ import typing as t
 
 import flask
 import structlog
-from flask import g
+from flask import g, request
 
 from cg_json import JSONResponse, jsonify
 
@@ -60,7 +60,17 @@ def init_app(app: BrokerFlask) -> None:
         return jsonify({'error': error.MESSAGE}, status_code=error.status)
 
     @app.errorhandler(404)
-    def __handle_404(_: object) -> str:  # pragma: no cover
+    def __handle_404(_: object
+                     ) -> t.Union[str, JSONResponse[dict]]:  # pragma: no cover
+        if request.path.startswith('/api/'):
+            return jsonify(
+                {
+                    'error':
+                        'Something unknown went wrong! (request_id: {})'.
+                        format(g.request_id)
+                },
+                status_code=404,
+            )
         return flask.render_template('404.j2')
 
     @app.errorhandler(Exception)

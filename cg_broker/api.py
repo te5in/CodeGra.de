@@ -383,26 +383,3 @@ def about() -> cg_json.JSONResponse[t.Mapping[str, object]]:
         },
         status_code=500 if any(health.values()) else 200,
     )
-
-
-@api.errorhandler(404)
-def handle_api_404() -> cg_json.JSONResponse[dict]:
-    """Handle API 404 errors.
-
-    The ``NotFoundException`` errors are handled differently, but these are
-    simply so that we never display an 404 html page for api 404s.
-    """
-    logger.error(
-        'Unknown exception occurred',
-        exc_info=True,
-        report_to_sentry=True,
-    )
-    return cg_json.JSONResponse.make(
-        {
-            'error':
-                'Something unknown went wrong! (request_id: {})'.format(
-                    g.request_id
-                )
-        },
-        status_code=404,
-    )
