@@ -62,6 +62,7 @@ if (version.match(/^[^A-Z]/) && branch.indexOf('stable') < 0) {
 
 config.release = {
     version,
+    commit: gitCommit,
     date: process.env.CG_FORCE_BUILD_DATE || moment.utc().toISOString(),
     message: tagMsg.reduce((res, cur) => {
         if (done || skip) {
