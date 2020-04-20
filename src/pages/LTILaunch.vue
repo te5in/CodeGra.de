@@ -22,14 +22,7 @@ import { setPageTitle } from './title';
 
 function getToastOptions() {
     return {
-        position: 'bottom-center',
-        closeOnSwipe: false,
-        action: {
-            text: '✖',
-            onClick: (e, toastObject) => {
-                toastObject.goAway(0);
-            },
-        },
+        toaster: 'b-toaster-bottom-center',
     };
 }
 
@@ -79,7 +72,7 @@ export default {
 
                         this.$utils.WarningHeader.fromResponse(response).messages.forEach(
                             warning => {
-                                this.$toasted.info(warning.text, getToastOptions());
+                                this.$bvToast.toast(warning.text, getToastOptions());
                             },
                         );
 
@@ -93,7 +86,7 @@ export default {
                         this.$LTIAssignmentId = data.assignment.id;
 
                         if (data.new_role_created) {
-                            this.$toasted.info(
+                            this.$bvToast.toast(
                                 `You do not have any permissions yet, please ask your teacher to enable them for your role "${
                                     data.new_role_created
                                 }".`,
@@ -101,7 +94,7 @@ export default {
                             );
                         }
                         if (data.updated_email) {
-                            this.$toasted.info(
+                            this.$bvToast.toast(
                                 `Your email was updated to "${
                                     data.updated_email
                                 }" which is the email registered with your ${

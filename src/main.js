@@ -13,7 +13,6 @@ import Vue from 'vue';
 import BootstrapVue from 'bootstrap-vue';
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
-import Toasted from 'vue-toasted';
 import localforage from 'localforage';
 import memoryStorageDriver from 'localforage-memoryStorageDriver';
 import VueMasonry from 'vue-masonry-css';
@@ -23,7 +22,7 @@ import moment from 'moment';
 import App from '@/App';
 import router, { setRestoreRoute } from '@/router';
 import * as utils from '@/utils';
-import { store } from './store';
+import * as store from './store';
 import { NotificationStore } from './store/modules/notification';
 import * as mutationTypes from './store/mutation-types';
 import './my-vue';
@@ -45,7 +44,6 @@ Vue.component('cg-logo', CgLogo);
 Vue.component('cg-catch-error', CatchError);
 
 Vue.use(BootstrapVue);
-Vue.use(Toasted);
 Vue.use(VueMasonry);
 Vue.use(VueClipboard);
 
@@ -100,8 +98,8 @@ Icon.register({
 });
 
 axios.defaults.transformRequest.push((data, headers) => {
-    if (store.state.user.jwtToken) {
-        headers.Authorization = `Bearer ${store.state.user.jwtToken}`;
+    if (store.store.state.user.jwtToken) {
+        headers.Authorization = `Bearer ${store.store.state.user.jwtToken}`;
     }
     return data;
 });
@@ -128,33 +126,39 @@ axios.defaults.transformResponse = [
     },
 ];
 
-axiosRetry(axios, {
-    retries: 3,
-    retryDelay: (retryNumber = 0) => {
-        const delay = 2 ** retryNumber * 500;
-        const randomSum = delay * 0.2 * Math.random(); // 0-20% of the delay
-        return delay + randomSum;
-    },
-});
+function onVueCreated($root) {
+    store.onVueCreated($root);
 
-axios.interceptors.response.use(
-    response => response,
-    (() => {
+    const showToast = (() => {
         let toastVisible = false;
-        return error => {
+
+        return (msg, opts) => {
+            if (toastVisible) {
+                return;
+            }
+
+            // TODO: Use events on the toast when (if?) they become available.
+            toastVisible = true;
+            setTimeout(() => {
+                toastVisible = false;
+            }, 5000);
+
+            $root.$bvToast.toast(msg, opts);
+        };
+    })();
+
+    axios.interceptors.response.use(
+        response => response,
+        error => {
             const { config, response, request } = error;
 
-            if (!toastVisible && !response && request) {
-                toastVisible = true;
-                Vue.toasted.error(
-                    'There was an error connecting to the server... Please try again later',
+            if ((!response || response.status >= 500) && request) {
+                showToast(
+                    'There was an error connecting to the server... Please try again later.',
                     {
-                        position: 'bottom-center',
-                        closeOnSwipe: false,
-                        duration: 3000,
-                        onComplete: () => {
-                            toastVisible = false;
-                        },
+                        title: 'Connection error',
+                        toaster: 'b-toaster-bottom-center',
+                        variant: 'danger',
                     },
                 );
             } else if (
@@ -165,33 +169,32 @@ axios.interceptors.response.use(
             ) {
                 if (router.currentRoute.name !== 'login') {
                     setRestoreRoute(router.currentRoute);
-                    store.dispatch('user/logout').then(() => {
+                    store.store.dispatch('user/logout').then(() => {
                         router.push({ name: 'login' });
                     });
                 }
-                if (!toastVisible) {
-                    toastVisible = true;
-                    Vue.toasted.error(
-                        'You are currently not logged in. Please log in to view this page.',
-                        {
-                            position: 'bottom-center',
-                            closeOnSwipe: false,
-                            action: {
-                                text: '✖',
-                                onClick(_, toastObject) {
-                                    toastObject.goAway(0);
-                                    toastVisible = false;
-                                },
-                            },
-                        },
-                    );
-                }
+                showToast('You are currently not logged in. Please log in to view this page.', {
+                    title: 'Not logged in',
+                    toaster: 'b-toaster-bottom-center',
+                    variant: 'danger',
+                });
             }
 
             throw error;
-        };
-    })(),
-);
+        },
+    );
+
+    // The retry interceptor must be applied _LAST_, because any interceptor
+    // that is installed after it will only be called after all retries.
+    axiosRetry(axios, {
+        retries: 3,
+        retryDelay: (retryNumber = 0) => {
+            const delay = 2 ** retryNumber * 500;
+            const randomSum = delay * 0.2 * Math.random(); // 0-20% of the delay
+            return delay + randomSum;
+        },
+    });
+}
 
 Vue.prototype.$http = axios;
 
@@ -298,12 +301,12 @@ Promise.all([
             }
         }
         if (courseId) {
-            return store.dispatch('courses/loadCourses').then(() => {
-                const map = store.getters['courses/courses'][courseId].permissions;
+            return store.store.dispatch('courses/loadCourses').then(() => {
+                const map = store.store.getters['courses/courses'][courseId].permissions;
                 return makeResponse(map);
             });
         } else {
-            return Promise.resolve(makeResponse(store.getters['user/permissions']));
+            return Promise.resolve(makeResponse(store.store.getters['user/permissions']));
         }
     };
 
@@ -317,7 +320,7 @@ Promise.all([
         router,
         template: '<App/>',
         components: { App },
-        store,
+        store: store.store,
 
         data() {
             return {
@@ -339,6 +342,8 @@ Promise.all([
         },
 
         created() {
+            onVueCreated(this);
+
             window.addEventListener('resize', () => {
                 this.screenWidth = window.innerWidth;
             });

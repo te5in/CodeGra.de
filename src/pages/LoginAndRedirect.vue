@@ -9,13 +9,8 @@
 </template>
 
 <script>
-import Vue from 'vue';
-import Toasted from 'vue-toasted';
-
 import { mapActions } from 'vuex';
 import Loader from '@/components/Loader';
-
-Vue.use(Toasted);
 
 export default {
     name: 'login-and-redirect',
@@ -48,25 +43,23 @@ export default {
             async ({ data }) => {
                 await this.updateAccessToken(data);
                 this.$router.replace(this.nextRoute);
-                this.$toasted.info(
-                    'You are now logged-in on CodeGrade, remember to logout after you finish your session if this is a shared system.',
+                // The toast must be emitted on root because this component
+                // will no longer exist when it is shown.
+                this.$root.$bvToast.toast(
+                    `You are now logged-in on CodeGrade, remember to logout
+                    after you finish your session if this is a shared system.`,
                     {
-                        position: 'bottom-center',
-                        closeOnSwipe: false,
-                        fitToScreen: true,
-                        action: {
-                            text: '✖',
-                            onClick(_, toastObject) {
-                                toastObject.goAway(0);
-                            },
-                        },
+                        title: 'CodeGrade',
+                        toaster: 'b-toaster-bottom-center',
+                        variant: 'info',
                     },
                 );
             },
             err => {
                 if (this.$utils.getProps(err, 0, 'response', 'status') === 404) {
-                    this.err =
-                        'The access code has expired, please click the "New Tab" button again. If this issues persists, contact support.';
+                    this.err = `The access code has expired, please click the
+                        "New Tab" button again. If this issues persists,
+                        contact support.`;
                 } else {
                     this.err = this.$utils.getErrorMessage(err);
                 }
