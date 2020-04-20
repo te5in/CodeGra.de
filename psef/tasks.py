@@ -583,10 +583,14 @@ def _update_latest_results_in_broker_1(auto_test_run_id: int) -> None:
             t.Optional[DatetimeWithTimezone]]],
         oldest: bool = True
     ) -> t.Optional[str]:
-        date = m.db.session.query(col).filter_by(
-            auto_test_run_id=auto_test_run_id,
-            state=state,
-        ).order_by(col if oldest else col.desc()).first()
+        date = m.db.session.query(m.AutoTestResult).filter(
+            m.AutoTestResult.auto_test_run_id == auto_test_run_id,
+            m.AutoTestResult.state == state,
+        ).join(m.Work).filter(
+            ~m.Work.deleted,
+        ).order_by(
+            col if oldest else col.desc(),
+        ).with_entities(col).first()
 
         if date is None or date[0] is None:
             return None
