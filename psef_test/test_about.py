@@ -72,6 +72,7 @@ def test_about_health_status(
                 'database': True,
                 'uploads': True,
                 'mirror_uploads': True,
+                'temp_dir': True,
                 'broker': True,
             },
         }
@@ -95,6 +96,7 @@ def test_about_health_status(
                 'database': False,
                 'uploads': True,
                 'mirror_uploads': True,
+                'temp_dir': True,
                 'broker': True,
             },
         },
@@ -124,6 +126,7 @@ def test_about_health_status(
                 'database': True,
                 'uploads': True,
                 'mirror_uploads': True,
+                'temp_dir': True,
                 'broker': False,
             },
         },
@@ -132,3 +135,23 @@ def test_about_health_status(
     # We shouldn't do any retrying or anything
     assert len(stub_session_cls.all_calls) == 1
     stub_session_cls.reset_cls()
+
+    monkeypatch.setitem(app.config, 'MIN_FREE_DISK_SPACE', float('inf'))
+    test_client.req(
+        'get',
+        '/api/v1/about',
+        500,
+        query={'health': 'good key'},
+        result={
+            'version': object,
+            'features': dict,
+            'health': {
+                'application': True,
+                'database': True,
+                'uploads': False,
+                'mirror_uploads': False,
+                'temp_dir': False,
+                'broker': True,
+            },
+        },
+    )
