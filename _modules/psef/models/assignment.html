@@ -1095,7 +1095,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dynamic_max_points</span>
 
-    <span class="nd">@cached_property</span>
+<div class="viewcode-block" id="Assignment.locked_rubric_rows"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.locked_rubric_rows">[docs]</a>    <span class="nd">@cached_property</span>
     <span class="k">def</span> <span class="nf">locked_rubric_rows</span><span class="p">(</span>
         <span class="bp">self</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="s1">&#39;rubric_models.RubricLockReason&#39;</span><span class="p">]:</span>
@@ -1109,7 +1109,7 @@
         <span class="k">return</span> <span class="p">{</span>
             <span class="n">s</span><span class="o">.</span><span class="n">rubric_row_id</span><span class="p">:</span> <span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricLockReason</span><span class="o">.</span><span class="n">auto_test</span>
             <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">all_suites</span>
-        <span class="p">}</span>
+        <span class="p">}</span></div>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">deadline_expired</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>

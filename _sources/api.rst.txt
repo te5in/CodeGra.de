@@ -133,11 +133,11 @@ working.
 CodeGrade API Documentation
 -----------------------------
 
-.. qrefflask:: psef:create_app(skip_secret_key_check=True)
+.. qrefflask:: psef:create_app(skip_all=True)
   :undoc-static:
   :undoc-blueprints: internal_api
 
-.. autoflask:: psef:create_app(skip_secret_key_check=True)
+.. autoflask:: psef:create_app(skip_all=True)
   :endpoints:
   :order: path
   :undoc-blueprints: internal_api

@@ -1207,6 +1207,7 @@
 
 
 <div class="viewcode-block" id="get_json_dict_from_request"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.get_json_dict_from_request">[docs]</a><span class="k">def</span> <span class="nf">get_json_dict_from_request</span><span class="p">(</span>
+    <span class="o">*</span><span class="p">,</span>
     <span class="n">replace_log</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">log_object</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">JSONType</span><span class="p">]:</span>
@@ -1218,11 +1219,14 @@
 <span class="sd">    :raises psef.errors.APIException: If the found JSON is not a dictionary.</span>
 <span class="sd">        (INVALID_PARAM)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">ensure_json_dict</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">get_json</span><span class="p">(),</span> <span class="n">replace_log</span><span class="p">,</span> <span class="n">log_object</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">ensure_json_dict</span><span class="p">(</span>
+        <span class="n">request</span><span class="o">.</span><span class="n">get_json</span><span class="p">(),</span> <span class="n">replace_log</span><span class="o">=</span><span class="n">replace_log</span><span class="p">,</span> <span class="n">log_object</span><span class="o">=</span><span class="n">log_object</span>
+    <span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="ensure_json_dict"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.ensure_json_dict">[docs]</a><span class="k">def</span> <span class="nf">ensure_json_dict</span><span class="p">(</span>
     <span class="n">json_value</span><span class="p">:</span> <span class="n">JSONType</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
     <span class="n">replace_log</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">log_object</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">JSONType</span><span class="p">]:</span>
