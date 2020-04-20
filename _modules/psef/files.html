@@ -1107,16 +1107,24 @@
     <span class="k">return</span> <span class="n">patharr</span><span class="p">,</span> <span class="n">is_dir</span></div>
 
 
-<div class="viewcode-block" id="check_dir"><a class="viewcode-back" href="../../psef_api/psef.html#psef.files.check_dir">[docs]</a><span class="k">def</span> <span class="nf">check_dir</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-    <span class="sd">&#39;&#39;&#39;Check if the path is a directory that is readable, writable, and</span>
+<div class="viewcode-block" id="check_dir"><a class="viewcode-back" href="../../psef_api/psef.html#psef.files.check_dir">[docs]</a><span class="k">def</span> <span class="nf">check_dir</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">check_size</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Check if the path is a directory that is readable, writable, and</span>
 <span class="sd">    executable for the current user.</span>
 
 <span class="sd">    :param path: Path to check.</span>
+<span class="sd">    :param check_size: Also check if there is enough free space in the given</span>
+<span class="sd">        directory.</span>
 <span class="sd">    :returns: ``True`` if path has the properties described above, ``False``</span>
 <span class="sd">        otherwise.</span>
-<span class="sd">    &#39;&#39;&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">mode</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">R_OK</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">W_OK</span> <span class="o">|</span> <span class="n">os</span><span class="o">.</span><span class="n">X_OK</span>
-    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">res</span> <span class="ow">and</span> <span class="n">check_size</span><span class="p">:</span>
+        <span class="n">free_space</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">disk_usage</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">free</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">free_space</span> <span class="o">&gt;</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;MIN_FREE_DISK_SPACE&#39;</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">res</span></div>
 </pre></div>
 
            </div>

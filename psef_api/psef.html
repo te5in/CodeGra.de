@@ -2153,12 +2153,16 @@ these files as direct children.</p></li>
 
 <dl class="function">
 <dt id="psef.files.check_dir">
-<code class="sig-prename descclassname">psef.files.</code><code class="sig-name descname">check_dir</code><span class="sig-paren">(</span><em class="sig-param">path: str</em><span class="sig-paren">)</span> &#x2192; bool<a class="reference internal" href="../_modules/psef/files.html#check_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.files.check_dir" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">psef.files.</code><code class="sig-name descname">check_dir</code><span class="sig-paren">(</span><em class="sig-param">path: str</em>, <em class="sig-param">*</em>, <em class="sig-param">check_size: bool = False</em><span class="sig-paren">)</span> &#x2192; bool<a class="reference internal" href="../_modules/psef/files.html#check_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.files.check_dir" title="Permalink to this definition">¶</a></dt>
 <dd><p>Check if the path is a directory that is readable, writable, and
 executable for the current user.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Path to check.</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>) – Path to check.</p></li>
+<li><p><strong>check_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>) – Also check if there is enough free space in the given
+directory.</p></li>
+</ul>
 </dd>
 <dt class="field-even">Return type</dt>
 <dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a></p>
