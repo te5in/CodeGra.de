@@ -1007,6 +1007,7 @@ def maybe_apply_sql_slice(sql: 'MyQuery[T]') -> 'MyQuery[T]':
 
 
 def get_json_dict_from_request(
+    *,
     replace_log: t.Optional[t.Callable[[str, object], object]] = None,
     log_object: bool = True,
 ) -> t.Dict[str, JSONType]:
@@ -1018,11 +1019,14 @@ def get_json_dict_from_request(
     :raises psef.errors.APIException: If the found JSON is not a dictionary.
         (INVALID_PARAM)
     """
-    return ensure_json_dict(request.get_json(), replace_log, log_object)
+    return ensure_json_dict(
+        request.get_json(), replace_log=replace_log, log_object=log_object
+    )
 
 
 def ensure_json_dict(
     json_value: JSONType,
+    *,
     replace_log: t.Optional[t.Callable[[str, object], object]] = None,
     log_object: bool = True,
 ) -> t.Dict[str, JSONType]:

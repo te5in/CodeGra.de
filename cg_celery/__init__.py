@@ -47,6 +47,12 @@ if t.TYPE_CHECKING:  # pragma: no cover
             self.conf: t.MutableMapping[t.Any, t.Any] = {}
             self.control: t.Any
 
+        def add_periodic_task(
+            self, schedule: object,
+            signature: CelerySignature[t.Callable[[], None]]
+        ) -> None:
+            pass
+
         @t.overload
         def task(self, _callback: T) -> CeleryTask[T]:
             ...
