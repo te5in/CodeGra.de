@@ -141,7 +141,9 @@ class Runner(Base, mixins.TimestampMixin, mixins.UUIDMixin):
     )
 
     job = db.relationship(
-        lambda: Job, foreign_keys=job_id, back_populates='runners'
+        lambda: Job,
+        foreign_keys=job_id,
+        back_populates='runners',
     )
 
     public_id = db.Column(
@@ -539,7 +541,9 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
     remote_id = db.Column(
         'remote_id', db.Unicode, nullable=False, index=True, unique=True
     )
-    runners = db.relationship(Runner, back_populates='job', uselist=True)
+    runners = db.relationship(
+        Runner, back_populates='job', uselist=True, lazy='selectin'
+    )
 
     job_metadata = db.Column('job_metadata', JSONB, nullable=True, default={})
 

@@ -780,7 +780,7 @@ def start_polling(config: 'psef.FlaskConfig') -> None:
         with open(runner_pass_file, 'r') as f:
             runner_pass = f.read().strip()
     else:
-        logger.warning(
+        logger.error(
             'Could not find runner pass file',
             runner_pass_file=runner_pass_file
         )

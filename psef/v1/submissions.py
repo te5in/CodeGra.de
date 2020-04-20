@@ -270,6 +270,15 @@ def delete_submission(submission_id: int) -> EmptyResponse:
             user_id=user.id
         ).one_or_none()
 
+        if (
+            assignment.auto_test is not None and
+            assignment.auto_test.run is not None
+        ):
+            at_run_id = assignment.auto_test.run.id
+            helpers.callback_after_this_request(
+                lambda: psef.tasks.update_latest_results_in_broker(at_run_id)
+            )
+
         if new_latest:
             if assignment.should_passback:
                 new_latest_id = new_latest.id
