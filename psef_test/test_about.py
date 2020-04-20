@@ -58,6 +58,7 @@ def test_about_health_status(
             return self()
 
     monkeypatch.setattr(models.Permission, 'get_all_permissions', Inspect())
+    monkeypatch.setitem(app.config, 'MIN_FREE_DISK_SPACE', 0)
 
     test_client.req(
         'get',
