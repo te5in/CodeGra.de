@@ -56,7 +56,7 @@
                    append="%">
         <input class="percentage form-control border-bottom-0 border-left-0 rounded-left-0"
                type="number"
-               step="1"
+               step="any"
                min="0"
                max="100"
                placeholder="Percentage"
