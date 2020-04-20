@@ -46,23 +46,22 @@ def init_app(app: Flask) -> None:
     if app.config['CELERY_CONFIG'].get('broker_url') is None:
         logger.error('Celery broker not set', report_to_sentry=True)
         return
-
-    # We cannot really test that we setup these periodic tasks yet.
-    # pragma: no cover
-    logger.info('Setting up periodic tasks')
-    celery.add_periodic_task(
-        crontab(minute='*/15'),
-        _run_autotest_batch_runs_1.si(),
-    )
-    # These times are in UTC
-    celery.add_periodic_task(
-        crontab(minute='0', hour='10'),
-        _send_daily_notifications.si(),
-    )
-    celery.add_periodic_task(
-        crontab(minute='0', hour='18', day_of_month='5'),
-        _send_weekly_notifications.si(),
-    )
+    else:  # pragma: no cover
+        # We cannot really test that we setup these periodic tasks yet.
+        logger.info('Setting up periodic tasks')
+        celery.add_periodic_task(
+            crontab(minute='*/15'),
+            _run_autotest_batch_runs_1.si(),
+        )
+        # These times are in UTC
+        celery.add_periodic_task(
+            crontab(minute='0', hour='10'),
+            _send_daily_notifications.si(),
+        )
+        celery.add_periodic_task(
+            crontab(minute='0', hour='18', day_of_month='5'),
+            _send_weekly_notifications.si(),
+        )
 
 
 @celery.task
