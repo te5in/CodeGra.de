@@ -10,7 +10,7 @@ import typing as t
 import structlog
 from flask import Response, g, request
 
-from cg_json import jsonify
+from cg_json import JSONResponse, jsonify
 
 from .exceptions import APICodes, APIWarnings, APIException
 
@@ -66,22 +66,22 @@ def init_app(app: t.Any) -> None:
     # test them.
 
     @app.errorhandler(404)
-    def handle_404(_: object) -> Response:  # pylint: disable=unused-variable; #pragma: no cover
+    def handle_404(_: object) -> JSONResponse[APIException]:  # pylint: disable=unused-variable; #pragma: no cover
         from . import models  # pylint: disable=import-outside-toplevel
         models.db.session.expire_all()
 
+        logger.warning('A unknown route was requested')
         api_exp = APIException(
             'The request route was not found',
             f'The route "{request.path}" does not exist',
             APICodes.ROUTE_NOT_FOUND, 404
         )
-        response = t.cast(t.Any, jsonify(api_exp))
-        logger.warning('A unknown route was requested')
-        response.status_code = 404
-        return response
+        return jsonify(api_exp, status_code=404)
 
     @app.errorhandler(Exception)
-    def __handle_unknown_error(_: Exception) -> Response:  # pylint: disable=unused-variable; #pragma: no cover
+    def __handle_unknown_error(
+        _: Exception
+    ) -> JSONResponse[APIException]:  # pragma: no cover
         """Handle an unhandled error.
 
         This function should never really be called, as it means our code
@@ -89,6 +89,9 @@ def init_app(app: t.Any) -> None:
         """
         from . import models  # pylint: disable=import-outside-toplevel
         models.db.session.expire_all()
+        logger.error(
+            'Unknown exception occurred', exc_info=True, report_to_sentry=True
+        )
 
         api_exp = APIException(
             f'Something went wrong (id: {g.request_id})', (
@@ -96,7 +99,4 @@ def init_app(app: t.Any) -> None:
                 'please contact the system administrator'
             ), APICodes.UNKOWN_ERROR, 500
         )
-        response = t.cast(t.Any, jsonify(api_exp))
-        response.status_code = 500
-        logger.error('Unknown exception occurred', exc_info=True)
-        return response
+        return jsonify(api_exp, status_code=500)

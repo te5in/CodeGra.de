@@ -43,7 +43,8 @@ BrokerConfig = TypedDict(  # pylint: disable=invalid-name
         'SLOW_TASK_AGE': int,
         'HEALTH_KEY': t.Optional[str],
         'RUNNER_CONFIG_DIR': str,
-        'VERSION': str,
+        'SENTRY_DSN': t.Optional[str],
+        'CUR_COMMIT': t.Optional[str],
     }
 )
 
@@ -152,13 +153,14 @@ class BrokerFlask(flask.Flask):
         self.config['RUNNER_CONFIG_DIR'] = _parser['General'].get(
             'RUNNER_CONFIG_DIR', ''
         )
+        self.config['SENTRY_DSN'] = _parser['General'].get('SENTRY_DSN')
 
         try:
-            self.config['VERSION'] = subprocess.check_output([
+            self.config['CUR_COMMIT'] = subprocess.check_output([
                 'git', 'rev-parse', 'HEAD'
             ]).decode('utf-8').strip()
         except subprocess.SubprocessError:
-            self.config['VERSION'] = 'unknown'
+            self.config['CUR_COMMIT'] = None
 
         # Convert parser to case sensitve
         _parser = make_parser(True)

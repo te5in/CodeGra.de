@@ -8,13 +8,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 import typing as t
 
 import structlog
-from flask import request, current_app
+from flask import request
 from requests import RequestException
 
 from cg_json import JSONResponse
 
 from . import api
-from .. import models, helpers, permissions
+from .. import models, helpers, current_app, permissions
 from ..files import check_dir
 from ..permissions import CoursePermission
 
@@ -43,7 +43,7 @@ def about(
     }
 
     res = {
-        'version': current_app.config['_VERSION'],
+        'version': current_app.config['VERSION'],
         'features': features,
     }
 
@@ -72,15 +72,16 @@ def about(
             else:
                 broker_ok = True
 
-        res['health'] = {
+        health_value = {
             'application': True,
             'database': database,
             'uploads': uploads,
             'broker': broker_ok,
             'mirror_uploads': mirror_uploads,
         }
+        res['health'] = health_value
 
-        if not all(res['health'].values()):
+        if not all(health_value.values()):
             status_code = 500
 
     return JSONResponse.make(res, status_code=status_code)

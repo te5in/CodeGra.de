@@ -92,12 +92,16 @@ var webpackConfig = merge(baseWebpackConfig, {
       cacheGroups: {
         vendor: {
           name: 'vendor',
-          test: /[\\/]node_modules[\\/](?!text-encoding|highlightjs|url-search-params|intersection-observer|simple-statistics|chart.?js.*)/,
+          test: /[\\/]node_modules[\\/](?!text-encoding|highlightjs|url-search-params|intersection-observer|@sentry|simple-statistics|chart.?js.*)/,
           enforce: true,
         },
         statistics: {
           name: 'statistics',
           test: /[\\/]node_modules[\\/](simple-statistics|chart.?js.*)/,
+        },
+        sentry: {
+          name: 'sentry',
+          test: /[\\/]node_modules[\\/]@sentry/,
         },
         highlightjs: {
           name: 'highlightjs',

@@ -379,7 +379,7 @@ def about() -> cg_json.JSONResponse[t.Mapping[str, object]]:
     return cg_json.jsonify(
         {
             'health': health,
-            'version': app.config['VERSION'],
+            'version': app.config.get('CUR_COMMIT', 'unknown'),
         },
         status_code=500 if any(health.values()) else 200,
     )

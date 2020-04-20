@@ -142,7 +142,7 @@ lint: mypy pylint isort_check
 
 .PHONY: mypy
 mypy:
-	mypy $(PY_MODULES)
+	mypy $(PY_MODULES) ./*.py
 
 .PHONY: generate_permission_files
 generate_permission_files:
