@@ -585,6 +585,13 @@ class Job(Base, mixins.TimestampMixin, mixins.IdMixin):
 
     state = hybrid_property(_get_state, _set_state)
 
+    def __init__(self, remote_id: str, cg_url: str, state: JobState = JobState.waiting_for_runner) -> None:
+        super().__init__(
+            remote_id=remote_id,
+            cg_url=cg_url,
+            _state=state,
+        )
+
     def get_active_runners(self) -> t.List[Runner]:
         return [
             r for r in self.runners

@@ -178,9 +178,10 @@ def delete_job(job_id: str) -> EmptyResponse:
 
         # Make sure job will never be able to run
         job = models.Job(
-            cg_url=request.headers['CG-Broker-Instance'], remote_id=job_id
+            cg_url=request.headers['CG-Broker-Instance'],
+            remote_id=job_id,
+            state=models.JobState.finished
         )
-        job.state = models.JobState.finished
         db.session.add(job)
         db.session.commit()
         return EmptyResponse.make()
