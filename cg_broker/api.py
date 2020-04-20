@@ -180,7 +180,7 @@ def delete_job(job_id: str) -> EmptyResponse:
         job = models.Job(
             cg_url=request.headers['CG-Broker-Instance'],
             remote_id=job_id,
-            state=models.JobState.finished
+            state=models.JobState.finished,
         )
         db.session.add(job)
         db.session.commit()
