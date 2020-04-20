@@ -1735,7 +1735,7 @@ def test_update_result_dates_in_broker(
                 }
             }
         )
-        
+
     broker_ses.reset()
     with describe('try task without existing run'):
 
