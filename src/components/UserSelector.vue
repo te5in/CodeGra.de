@@ -122,7 +122,7 @@ export default {
             if (this.multiple) {
                 return (this.value || []).map(x => x.username).join(', ');
             }
-            return this.value ? '' : this.value.username;
+            return this.value ? this.value.username : '';
         },
     },
 

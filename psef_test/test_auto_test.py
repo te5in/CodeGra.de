@@ -20,6 +20,7 @@ import lxc
 import flask
 import pytest
 import requests
+import freezegun
 import pytest_cov
 from werkzeug.local import LocalProxy
 
@@ -28,6 +29,7 @@ import helpers
 import psef.models as m
 import cg_worker_pool
 import requests_stubs
+from helpers import get_id
 from cg_dt_utils import DatetimeWithTimezone
 from psef.exceptions import APICodes, APIException
 
@@ -1636,22 +1638,24 @@ def test_update_result_dates_in_broker(
         session.commit()
 
     with describe('handing in new submission'), logged_in(teacher):
-        sub_id = helpers.create_submission(test_client, assig_id)['id']
-        helpers.create_submission(
-            test_client, assig_id, is_test_submission=True
-        )
+        now = DatetimeWithTimezone.utcnow()
+        with freezegun.freeze_time(now):
+            sub_id = helpers.create_submission(test_client, assig_id)['id']
+            other_sub = helpers.create_submission(
+                test_client, assig_id, is_test_submission=True
+            )
 
-        _, call = broker_ses.calls
-        assert call['method'] == 'put'
-        assert_similar(
-            call['kwargs']['json']['metadata'], {
-                'results': {
-                    'not_started': str,
-                    'running': None,
-                    'passed': None,
+            _, call = broker_ses.calls
+            assert call['method'] == 'put'
+            assert_similar(
+                call['kwargs']['json']['metadata'], {
+                    'results': {
+                        'not_started': now.isoformat(),
+                        'running': None,
+                        'passed': None,
+                    }
                 }
-            }
-        )
+            )
 
     result = LocalProxy(
         lambda: m.AutoTestResult.query.filter_by(work_id=sub_id).one()
@@ -1709,6 +1713,23 @@ def test_update_result_dates_in_broker(
             call['kwargs']['json']['metadata'], {
                 'results': {
                     'not_started': str,
+                    'running': None,
+                    'passed': str,
+                }
+            }
+        )
+    broker_ses.reset()
+
+    with describe('deleting submission should work'), logged_in(teacher):
+        test_client.req(
+            'delete', f'/api/v1/submissions/{get_id(other_sub)}', 204
+        )
+        call, = broker_ses.calls
+        # We no longer have a non started result
+        assert_similar(
+            call['kwargs']['json']['metadata'], {
+                'results': {
+                    'not_started': None,
                     'running': None,
                     'passed': str,
                 }
