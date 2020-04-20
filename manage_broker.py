@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-only
+# mypy: ignore-errors
 
 import alembic_autogenerate_enums
 from flask_script import Manager

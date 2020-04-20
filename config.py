@@ -83,6 +83,7 @@ FlaskConfig = TypedDict(
         'AUTO_TEST_MAX_CONCURRENT_BATCH_RUNS': int,
         'AUTO_TEST_RUNNER_INSTANCE_PASS': str,
         'AUTO_TEST_RUNNER_CONTAINER_URL': t.Optional[str],
+        'VERSION': str,
         'TESTING': bool,
         'Celery': CeleryConfig,
         'LTI Consumer keys': t.Mapping[str, str],
@@ -136,6 +137,7 @@ FlaskConfig = TypedDict(
         'GIT_CLONE_PROGRAM': t.List[str],
         'SESSION_COOKIE_SAMESITE': Literal['None', 'Strict', 'Lax'],
         'SESSION_COOKIE_SECURE': bool,
+        'SENTRY_DSN': t.Optional[str],
     },
     total=True
 )
@@ -338,11 +340,16 @@ set_str(CONFIG, backend_ops, 'JAVA_PATH', 'java')
 
 set_str(CONFIG, backend_ops, 'JPLAG_JAR', 'jplag.jar')
 
+set_str(CONFIG, backend_ops, 'SENTRY_DSN', None)
+
 
 def _set_version() -> None:
-    CONFIG['_VERSION'] = subprocess.check_output([
+    CONFIG['CUR_COMMIT'] = subprocess.check_output([
+        'git', 'rev-parse', 'HEAD'
+    ], text=True).strip()
+    CONFIG['VERSION'] = subprocess.check_output([
         'git', 'describe', '--abbrev=0', '--tags'
-    ]).decode('utf-8').strip()
+    ], text=True).strip()
 
 
 try:
