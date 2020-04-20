@@ -86,7 +86,7 @@ export function disablePersistance() {
     disabledPersistance = true;
 }
 
-export function onVueCreated($root: any) {
+export function onVueCreated($root: Vue) {
     if (!disabledPersistance && toastMessage != null) {
         $root.$bvToast.toast(toastMessage, {
             title: 'Warning',
