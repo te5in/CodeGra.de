@@ -1,4 +1,24 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import * as Sentry from '@sentry/browser';
+import { Vue as VueIntegration } from '@sentry/integrations';
+import Vue from 'vue';
+
+// Some users might want to block sentry which should be just fine.
+if (UserConfig.sentryDsn && Sentry) {
+    Sentry.init({
+        dsn: UserConfig.sentryDsn,
+        integrations: [
+            new VueIntegration({
+                Vue,
+                attachProps: true,
+                logErrors: true,
+            }),
+        ],
+        release: `CodeGra.de@${UserConfig.release.commit}`,
+    });
+}
+
+/* eslint-disable import/first */
 import { polyFilled } from '@/polyfills';
 
 import 'bootstrap/dist/css/bootstrap.css';
@@ -9,7 +29,6 @@ import '@/style.less';
 import 'reflect-metadata';
 
 import Icon from 'vue-awesome/components/Icon';
-import Vue from 'vue';
 import BootstrapVue from 'bootstrap-vue';
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
@@ -34,6 +53,7 @@ import SubmitButton from './components/SubmitButton';
 import DescriptionPopover from './components/DescriptionPopover';
 import CgLogo from './components/CgLogo';
 import CatchError from './components/CatchError';
+/* eslint-enable import/first */
 
 Vue.component('cg-relative-time', RelativeTime);
 Vue.component('cg-user', User);

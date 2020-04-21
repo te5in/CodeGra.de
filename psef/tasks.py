@@ -39,25 +39,29 @@ celery = cg_celery.CGCelery('psef', signals)  # pylint: disable=invalid-name
 
 
 def init_app(app: Flask) -> None:
+    """Setup the tasks for psef.
+    """
     celery.init_flask_app(app)
 
-
-@celery.on_after_configure.connect
-def _setup_periodic_tasks(sender: t.Any, **_: object) -> None:
-    logger.info('Setting up periodic tasks')
-    sender.add_periodic_task(
-        crontab(minute='*/15'),
-        _run_autotest_batch_runs_1.si(),
-    )
-    # These times are in UTC
-    sender.add_periodic_task(
-        crontab(minute='0', hour='10'),
-        _send_daily_notifications.si(),
-    )
-    sender.add_periodic_task(
-        crontab(minute='0', hour='18', day_of_month='5'),
-        _send_weekly_notifications.si(),
-    )
+    if app.config['CELERY_CONFIG'].get('broker_url') is None:
+        logger.error('Celery broker not set', report_to_sentry=True)
+        return
+    else:  # pragma: no cover
+        # We cannot really test that we setup these periodic tasks yet.
+        logger.info('Setting up periodic tasks')
+        celery.add_periodic_task(
+            crontab(minute='*/15'),
+            _run_autotest_batch_runs_1.si(),
+        )
+        # These times are in UTC
+        celery.add_periodic_task(
+            crontab(minute='0', hour='10'),
+            _send_daily_notifications.si(),
+        )
+        celery.add_periodic_task(
+            crontab(minute='0', hour='18', day_of_month='5'),
+            _send_weekly_notifications.si(),
+        )
 
 
 @celery.task
@@ -579,10 +583,14 @@ def _update_latest_results_in_broker_1(auto_test_run_id: int) -> None:
             t.Optional[DatetimeWithTimezone]]],
         oldest: bool = True
     ) -> t.Optional[str]:
-        date = m.db.session.query(col).filter_by(
-            auto_test_run_id=auto_test_run_id,
-            state=state,
-        ).order_by(col if oldest else col.desc()).first()
+        date = m.db.session.query(m.AutoTestResult).filter(
+            m.AutoTestResult.auto_test_run_id == auto_test_run_id,
+            m.AutoTestResult.state == state,
+        ).join(m.Work).filter(
+            ~m.Work.deleted,
+        ).order_by(
+            col if oldest else col.desc(),
+        ).with_entities(col).first()
 
         if date is None or date[0] is None:
             return None
@@ -868,7 +876,9 @@ def _send_email_as_user_1(
                         )
                     except:  # pylint: disable=bare-except
                         logger.info(
-                            'Failed emailing to student', exc_info=True
+                            'Failed emailing to student',
+                            exc_info=True,
+                            report_to_sentry=True,
                         )
                         failed_receivers.append(receiver)
 

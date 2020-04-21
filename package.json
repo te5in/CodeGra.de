@@ -22,6 +22,8 @@
     "check-format": "prettier-eslint --use-tabs false --tab-width 4 --trailing-comma all --single-quote true --list-different src/\\*\\*/\\*.{vue,js,less,ts}"
   },
   "dependencies": {
+    "@sentry/browser": "^5.15.4",
+    "@sentry/integrations": "^5.15.4",
     "@types/moment-duration-format": "^2.2.2",
     "@typescript-eslint/eslint-plugin": "^2.24.0",
     "@typescript-eslint/parser": "^2.24.0",

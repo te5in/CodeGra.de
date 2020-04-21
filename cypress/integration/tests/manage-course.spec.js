@@ -44,6 +44,21 @@ context('Manage Course', () => {
         });
     });
 
+    it('should be possible to add users to the course without the can_search_users permission', () => {
+        cy.setSitePermission('can_search_users', 'Admin', false);
+        cy.reload();
+
+        cy.get('input.user-selector').type('Devin');
+        cy.get('.add-student .dropdown .btn').click();
+        cy.get('.add-student .dropdown-item').contains('Student').click();
+        // Wait for submit button to go back to default.
+        cy.get('.add-student .submit-button').submit('success');
+
+        cy.get('table').contains('tr', 'Devin').should('contain', 'Student');
+
+        cy.setSitePermission('can_search_users', 'Admin', true);
+    });
+
     it('should be possible to create register links', () => {
         cy.openCategory('Members');
         cy.get('.users-manager .registration-link-wrapper .table').within(() => {
