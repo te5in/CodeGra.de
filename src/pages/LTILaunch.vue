@@ -23,6 +23,7 @@ import { setPageTitle } from './title';
 function getToastOptions() {
     return {
         toaster: 'b-toaster-top-right',
+        noAutoHide: true,
         solid: true,
     };
 }
