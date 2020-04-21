@@ -35,7 +35,7 @@
             </td>
             {% if job.job_metadata and job.job_metadata.get('course') and job.job_metadata.get('assignment') %}
             <td>
-                <a href="{{ job.cg_url }}/courses/{{ job.job_metadata['course']['id'] }}/assignments/{{ job.job_metadata['assignment']['id'] }}/submissions/?sortBy=formatted_created_at&sortAsc=false"
+                <a href="{{ job.cg_url }}/courses/{{ job.job_metadata['course']['id'] }}/assignments/{{ job.job_metadata['assignment']['id'] }}/submissions/?sortBy=formattedCreatedAt&sortAsc=false"
                    target="_blank">
                     {{ job.cg_url }}
                 </a>
