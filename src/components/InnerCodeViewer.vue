@@ -78,6 +78,7 @@
                 :total-amount-lines="computedEndLine"
                 :can-use-snippets="canUseSnippets"
                 :submission="submission"
+                :non-editable="nonEditable"
                 v-if="hasFeedback(i - 1)"/>
         </li>
         <li class="empty-file"
@@ -195,6 +196,10 @@ export default {
             type: Number,
             default: UserConfig.maxLines,
         },
+        nonEditable: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     data() {
@@ -261,6 +266,7 @@ export default {
 
         canGiveFeedback() {
             return (
+                !this.nonEditable &&
                 this.showInlineFeedback &&
                 this.submission &&
                 FeedbackLine.canAddReply(this.submission)

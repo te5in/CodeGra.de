@@ -54,12 +54,27 @@
                 </b-popover>
             </b-button>
 
+            <b-button v-b-popover.hover.top="'Feedback on other assignments'"
+                      v-b-toggle.previous-assignments-sidebar>
+                <icon name="history" />
+            </b-button>
+
+            <b-sidebar id="previous-assignments-sidebar"
+                       title="Previous feedback"
+                       width="24rem"
+                       right
+                       shadow="sm"
+                       no-close-on-esc
+                       lazy>
+                <previous-feedback :assignment="assignment"
+                                   :submission="submission" />
+            </b-sidebar>
+
             <b-button v-if="canEmailStudents"
                       id="codeviewer-email-student"
                       v-b-popover.top.hover="`Email the author${submission.user.isGroup ? 's' : ''} of this submission`"
                       v-b-modal.codeviewer-email-student-modal>
                 <icon name="envelope"/>
-
             </b-button>
 
             <b-modal v-if="canEmailStudents"
@@ -181,8 +196,7 @@
                                :assignment="assignment"
                                :submission="submission"
                                :show-whitespace="showWhitespace"
-                               :show-inline-feedback="selectedCat === 'feedback-overview'"
-                               :can-see-feedback="canSeeUserFeedback" />
+                               :show-inline-feedback="selectedCat === 'feedback-overview'" />
         </div>
 
         <div class="cat-wrapper"
@@ -242,6 +256,7 @@ import {
     GradeViewer,
     GradeHistory,
     GeneralFeedbackArea,
+    PreviousFeedback,
     Loader,
     LocalHeader,
     PreferenceManager,
@@ -502,23 +517,10 @@ export default {
 
         numFeedbackItems() {
             if (!this.feedback || !this.submission) {
-                return null;
+                return 0;
             }
 
-            return Object.values(this.feedback.user).reduce(
-                (acc, file) => Object.values(file).reduce(
-                    (innerAcc, feedback) => {
-                        if (!feedback.isEmpty && feedback.replies.some(
-                            r => !r.isEmpty,
-                        )) {
-                            return innerAcc + 1;
-                        }
-                        return innerAcc;
-                    },
-                    acc,
-                ),
-                this.submission.comment ? 1 : 0,
-            );
+            return this.feedback.countEntries() + (this.submission.comment ? 1 : 0);
         },
 
         showContinuousBadge() {
@@ -863,6 +865,7 @@ export default {
         GradeViewer,
         GradeHistory,
         GeneralFeedbackArea,
+        PreviousFeedback,
         Loader,
         LocalHeader,
         PreferenceManager,

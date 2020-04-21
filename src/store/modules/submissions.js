@@ -288,6 +288,22 @@ const actions = {
             submissionProps,
         });
     },
+
+    async loadLatestByUserInCourse(context, { courseId, userId }) {
+        return axios
+            .get(`/api/v1/courses/${courseId}/users/${userId}/submissions/?latest_only`)
+            .then(res =>
+                res.data.map(sub => {
+                    const assignmentId = sub.assignment_id;
+                    const submission = Submission.fromServerData(sub, assignmentId);
+                    context.commit(types.UPDATE_SUBMISSIONS, {
+                        assignmentId,
+                        submissions: [submission],
+                    });
+                    return submission;
+                }),
+            );
+    },
 };
 
 const mutations = {

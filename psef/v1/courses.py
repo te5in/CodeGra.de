@@ -21,8 +21,9 @@ from psef import limiter, current_user
 from psef.errors import APICodes, APIWarnings, APIException
 from psef.models import db
 from psef.helpers import (
-    JSONResponse, EmptyResponse, jsonify, ensure_keys_in_dict,
-    make_empty_response, get_from_map_transaction, get_json_dict_from_request
+    JSONResponse, ExtendedJSONResponse, EmptyResponse, jsonify,
+    ensure_keys_in_dict, make_empty_response, get_from_map_transaction,
+    get_json_dict_from_request
 )
 
 from . import api
@@ -1177,3 +1178,44 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
     )
 
     return JSONResponse.make(task_result)
+
+
+@api.route('/courses/<int:course_id>/users/<int:user_id>/submissions/', methods=['GET'])
+@auth.login_required
+def get_user_submissions(course_id: int, user_id: int) -> ExtendedJSONResponse[t.Sequence[models.Work]]:
+
+    course = helpers.get_or_404(
+        models.Course, course_id
+    )
+    auth.ensure_permission(CPerm.can_see_assignments, course.id)
+    assignments = course.get_all_visible_assignments()
+
+    user = helpers.get_or_404(models.User, user_id)
+    if (
+        user.id != current_user.id and
+        not (user.group and current_user in user.group.members)
+    ):
+        auth.ensure_permission(CPerm.can_see_others_work, course.id)
+
+    latest_only = helpers.request_arg_true('latest_only')
+
+    subs = []
+    for assignment in assignments:
+        if latest_only:
+            obj = assignment.get_all_latest_submissions()
+        else:
+            obj = models.Work.query.filter_by(
+                assignment_id=assignment_id, deleted=False
+            )
+
+        sub = models.Work.update_query_for_extended_jsonify(
+            models.Work.limit_to_user_submissions(obj, user),
+        ).order_by(
+            t.cast(t.Any, models.Work.created_at).desc()
+        ).all()
+        subs.extend(sub)
+
+    return ExtendedJSONResponse.make(
+        subs,
+        use_extended=models.Work,
+    )

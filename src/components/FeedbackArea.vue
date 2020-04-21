@@ -31,7 +31,8 @@
                         @updated="replyUpdated"
                         @deleted="replyDeleted"
                         @editing="onEditingEvent(reply, $event)"
-                        :submission="submission" />
+                        :submission="submission"
+                        :non-editable="nonEditable"/>
                 </template>
             </div>
         </transition-group>
@@ -95,6 +96,8 @@ export default class FeedbackArea extends Vue {
     @Prop({ required: true }) readonly submission!: Submission;
 
     @Prop({ required: true }) readonly totalAmountLines!: number;
+
+    @Prop({ default: false }) readonly nonEditable!: boolean;
 
     editingReplies: Record<string, boolean> = {};
 
@@ -165,6 +168,7 @@ export default class FeedbackArea extends Vue {
     get showReply(): boolean {
         const replies = this.nonDeletedReplies;
         return (
+            !this.nonEditable &&
             FeedbackLine.canAddReply(this.submission) &&
             replies.length > 0 && !replies[replies.length - 1].isEmpty
         );

@@ -44,13 +44,13 @@
 
                     <feedback-area v-if="disabledFileType(id).singleLine && showInlineFeedback"
                                    class="pt-2"
-                                   :editable="false"
                                    :can-use-snippets="false"
                                    :line="0"
                                    :feedback="feedback.user[id][0]"
                                    :total-amount-lines="0"
                                    :assignment="assignment"
-                                   :submission="submission" />
+                                   :submission="submission"
+                                   :nonEditable="nonEditable" />
                 </div>
 
                 <div v-else-if="codeLines[id] == null">
@@ -67,11 +67,11 @@
                                        :code-lines="codeLines[id]"
                                        :feedback="showInlineFeedback ? (feedback.user[id] || {}) : {}"
                                        :linter-feedback="feedback.linter[id]"
-                                       :editable="false"
                                        :file-id="id"
                                        :start-line="part[0]"
                                        :end-line="part[1]"
-                                       :show-whitespace="showWhitespace"/>
+                                       :show-whitespace="showWhitespace"
+                                       :non-editable="nonEditable" />
                 </div>
             </b-card>
         </template>
@@ -104,13 +104,13 @@ export default {
             type: Boolean,
             default: true,
         },
-        canSeeFeedback: {
-            type: Boolean,
-            default: false,
-        },
         showInlineFeedback: {
             type: Boolean,
             default: true,
+        },
+        nonEditable: {
+            type: Boolean,
+            default: false,
         },
     },
 
@@ -161,6 +161,10 @@ export default {
 
         submissionId() {
             return this.submission.id;
+        },
+
+        canSeeFeedback() {
+            return this.assignment.canSeeUserFeedback();
         },
     },
 

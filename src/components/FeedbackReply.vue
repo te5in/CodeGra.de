@@ -174,47 +174,49 @@
                     <icon name="history" />
                 </b-btn>
 
-                <b-btn @click="showExternalImages = !showExternalImages"
-                       class="state-default"
-                       v-b-popover.top.hover="externalImagesTogglePopover"
-                       v-if="hasExternalImages">
-                    <icon name="picture-o"
-                          v-if="showExternalImages"
-                          class="enabled"/>
-                    <span v-else class="strikethrough disabled">
-                        <icon name="picture-o" />
-                    </span>
-                </b-btn>
+                <template v-if="!nonEditable">
+                    <b-btn @click="showExternalImages = !showExternalImages"
+                        class="state-default"
+                        v-b-popover.top.hover="externalImagesTogglePopover"
+                        v-if="hasExternalImages">
+                        <icon name="picture-o"
+                            v-if="showExternalImages"
+                            class="enabled"/>
+                        <span v-else class="strikethrough disabled">
+                            <icon name="picture-o" />
+                        </span>
+                    </b-btn>
 
-                <b-popover :target="`${componentId}-history-btn`"
-                           v-if="canSeeEdits && reply.lastEdit"
-                           triggers="click blur"
-                           title="Edit history"
-                           custom-class="feedback-reply-edit-history-popover p-0"
-                           :container="componentId"
-                           placement="leftbottom">
-                    <feedback-reply-history :reply="reply"/>
-                </b-popover>
+                    <b-popover :target="`${componentId}-history-btn`"
+                            v-if="canSeeEdits && reply.lastEdit"
+                            triggers="click blur"
+                            title="Edit history"
+                            custom-class="feedback-reply-edit-history-popover p-0"
+                            :container="componentId"
+                            placement="leftbottom">
+                        <feedback-reply-history :reply="reply"/>
+                    </b-popover>
 
-                <cg-submit-button
-                    v-if="editable"
-                    ref="deleteButton"
-                    variant="secondary"
-                    name="delete-feedback"
-                    :submit="deleteFeedback"
-                    confirm="Are you sure you want to delete this comment?"
-                    @error="inputDisabled = false"
-                    @success="onDeleteFeedback"
-                    @after-success="afterDeleteFeedback">
-                    <icon name="times" class="delete-icon"/>
-                </cg-submit-button>
+                    <cg-submit-button
+                        v-if="editable"
+                        ref="deleteButton"
+                        variant="secondary"
+                        name="delete-feedback"
+                        :submit="deleteFeedback"
+                        confirm="Are you sure you want to delete this comment?"
+                        @error="inputDisabled = false"
+                        @success="onDeleteFeedback"
+                        @after-success="afterDeleteFeedback">
+                        <icon name="times" class="delete-icon"/>
+                    </cg-submit-button>
 
-                <b-btn @click="startEdit"
-                       v-if="editable"
-                       class="state-default"
-                       name="edit-feedback">
-                    <icon name="pencil"/>
-                </b-btn>
+                    <b-btn @click="startEdit"
+                        v-if="editable"
+                        class="state-default"
+                        name="edit-feedback">
+                        <icon name="pencil"/>
+                    </b-btn>
+                </template>
             </div>
         </div>
         <transition name="fade">
@@ -308,6 +310,8 @@ export default class FeedbackReply extends Vue {
     @Prop({ required: true }) submission!: Submission
 
     @Prop({ required: true }) canUseSnippets!: boolean
+
+    @Prop({ default: false }) readonly nonEditable!: boolean;
 
     get assignment(): Assignment {
         return this.submission.assignment;

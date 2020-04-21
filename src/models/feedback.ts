@@ -433,4 +433,17 @@ export class Feedback {
     getFeedbackLine(fileId: string, lineNumber: number): FeedbackLine {
         return this.user[fileId][lineNumber];
     }
+
+    countEntries(): number {
+        return Object.values(this.user).reduce(
+            (acc, file) =>
+                Object.values(file).reduce((innerAcc, feedback) => {
+                    if (!feedback.isEmpty && feedback.replies.some(r => !r.isEmpty)) {
+                        return innerAcc + 1;
+                    }
+                    return innerAcc;
+                }, acc),
+            0,
+        );
+    }
 }

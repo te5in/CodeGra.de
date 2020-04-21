@@ -13,6 +13,7 @@ export { default as FinishedGraderToggles } from './FinishedGraderToggles';
 export { default as FooterBar } from './FooterBar';
 export { default as GeneralFeedbackArea } from './GeneralFeedbackArea';
 export { default as GradeHistory } from './GradeHistory';
+export { default as PreviousFeedback } from './PreviousFeedback';
 export { default as GradeViewer } from './GradeViewer';
 export { default as ImageViewer } from './ImageViewer';
 export { default as Linter } from './Linter';
