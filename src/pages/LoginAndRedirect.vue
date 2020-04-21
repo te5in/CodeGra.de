@@ -50,8 +50,9 @@ export default {
                     after you finish your session if this is a shared system.`,
                     {
                         title: 'CodeGrade',
-                        toaster: 'b-toaster-bottom-center',
+                        toaster: 'b-toaster-top-right',
                         variant: 'info',
+                        solid: true,
                     },
                 );
             },

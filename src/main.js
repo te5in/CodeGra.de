@@ -157,13 +157,24 @@ function onVueCreated($root) {
                 return;
             }
 
+            const toastOpts = Object.assign(
+                {},
+                {
+                    toaster: 'b-toaster-top-right',
+                    autoHideDelay: 5000,
+                    variant: 'danger',
+                    solid: true,
+                },
+                opts,
+            );
+
             // TODO: Use events on the toast when (if?) they become available.
             toastVisible = true;
             setTimeout(() => {
                 toastVisible = false;
-            }, 5000);
+            }, toastOpts.autoHideDelay);
 
-            $root.$bvToast.toast(msg, opts);
+            $root.$bvToast.toast(msg, toastOpts);
         };
     })();
 
@@ -177,8 +188,6 @@ function onVueCreated($root) {
                     'There was an error connecting to the server... Please try again later.',
                     {
                         title: 'Connection error',
-                        toaster: 'b-toaster-bottom-center',
-                        variant: 'danger',
                     },
                 );
             } else if (
@@ -195,8 +204,6 @@ function onVueCreated($root) {
                 }
                 showToast('You are currently not logged in. Please log in to view this page.', {
                     title: 'Not logged in',
-                    toaster: 'b-toaster-bottom-center',
-                    variant: 'danger',
                 });
             }
 
@@ -225,7 +232,7 @@ const DRIVERS = [
     'memoryStorageDriver',
 ];
 
-let inLTI = false;
+let inLTI = true;
 Vue.util.defineReactive(
     Vue.prototype,
     '$inLTI',
@@ -240,7 +247,7 @@ Vue.util.defineReactive(
     true,
 );
 
-let ltiProvider = null;
+let ltiProvider = 'Canvas';
 Vue.util.defineReactive(
     Vue.prototype,
     '$ltiProvider',
@@ -255,7 +262,7 @@ Vue.util.defineReactive(
     true,
 );
 
-let LTIAssignmentId = null;
+let LTIAssignmentId = 6;
 Vue.util.defineReactive(
     Vue.prototype,
     '$LTIAssignmentId',

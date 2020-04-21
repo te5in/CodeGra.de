@@ -22,7 +22,8 @@ import { setPageTitle } from './title';
 
 function getToastOptions() {
     return {
-        toaster: 'b-toaster-bottom-center',
+        toaster: 'b-toaster-top-right',
+        solid: true,
     };
 }
 

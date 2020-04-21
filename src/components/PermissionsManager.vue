@@ -82,10 +82,11 @@
     </b-form-fieldset>
 
     <b-toast :visible="showChangedMessage"
-             toaster="b-toaster-bottom-right"
+             toaster="b-toaster-top-right"
              title="Permissions have changed"
              variant="info"
-             no-auto-hide>
+             no-auto-hide
+             solid>
         <a class="inline-link"
            href="#"
            @click.prevent="reload">Reload</a> the page to apply the changes.

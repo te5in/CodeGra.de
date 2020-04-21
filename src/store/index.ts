@@ -91,8 +91,9 @@ export function onVueCreated($root: Vue) {
         $root.$bvToast.toast(toastMessage, {
             title: 'Warning',
             variant: 'warning',
-            toaster: 'b-toaster-bottom-full',
+            toaster: 'b-toaster-top-right',
             noAutoHide: true,
+            solid: true,
         });
     }
 }
