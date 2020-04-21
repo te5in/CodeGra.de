@@ -118,6 +118,10 @@ class AttachTimeoutError(StopRunningTestsException):
     pass
 
 
+class FailedToStartError(Exception):
+    pass
+
+
 @dataclasses.dataclass(frozen=True)
 class OutputTail:
     """This class represents the tail of an output stream.
@@ -547,9 +551,14 @@ def _start_container(
         return
 
     with timed_code('start_container'):
-        with _LXC_START_STOP_LOCK:
-            assert cont.start()
-        assert cont.wait('RUNNING', 3)
+        for _ in helpers.retry_loop(
+            amount=10, sleep_time=1, make_exception=FailedToStartError
+        ):
+            with _LXC_START_STOP_LOCK:
+                if cont.start():
+                    break
+        if not cont.wait('RUNNING', 3):  # pragma: no cover
+            raise FailedToStartError
 
         def callback(domain_or_systemd: t.Optional[str]) -> int:
             if domain_or_systemd is None:
@@ -568,7 +577,7 @@ def _start_container(
                 os._exit(0)  # pylint: disable=protected-access
             else:
                 os.execvp('ping', ['ping', '-w', '1', '-c', '1', domain])
-            assert False
+            raise FailedToStartError
 
         with timed_code('wait_for_system_start'):
             out_code = cont.attach_wait(callback, None)
