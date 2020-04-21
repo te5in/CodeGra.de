@@ -86,10 +86,9 @@
              title="Permissions have changed"
              variant="info"
              no-auto-hide
-             solid>
-        <a class="inline-link"
-           href="#"
-           @click.prevent="reload">Reload</a> the page to apply the changes.
+             solid
+             href="javascript:window.location.reload()">
+           Reload the page to apply the changes.
     </b-toast>
 </div>
 </template>
@@ -282,10 +281,6 @@ export default {
                 this.newRole = '';
                 this.newRoleName = '';
             });
-        },
-
-        reload() {
-            window.location.reload();
         },
     },
 
