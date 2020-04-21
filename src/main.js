@@ -205,15 +205,21 @@ function onVueCreated($root) {
                 response.status === 401 &&
                 !config.url.match(/\/api\/v1\/login.*/)
             ) {
+                let msg;
+                if (store.store.getters['user/dangerousJwtToken'] == null) {
+                    msg = 'You are currently not logged in. Please log in to view this page.';
+                } else {
+                    msg = 'Your login token has expired. Please log in again to view this page.';
+                }
+
                 if (router.currentRoute.name !== 'login') {
                     setRestoreRoute(router.currentRoute);
                     store.store.dispatch('user/logout').then(() => {
                         router.push({ name: 'login' });
                     });
                 }
-                showToast('You are currently not logged in. Please log in to view this page.', {
-                    title: 'Not logged in',
-                });
+
+                showToast(msg, { title: 'Not logged in' });
             }
 
             throw error;
