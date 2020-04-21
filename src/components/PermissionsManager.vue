@@ -84,7 +84,6 @@
     <b-toast :visible="showChangedMessage"
              toaster="b-toaster-top-right"
              title="Permissions have changed"
-             variant="info"
              no-auto-hide
              solid
              href="javascript:window.location.reload()">
