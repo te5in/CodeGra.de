@@ -236,7 +236,7 @@ const DRIVERS = [
     'memoryStorageDriver',
 ];
 
-let inLTI = true;
+let inLTI = false;
 Vue.util.defineReactive(
     Vue.prototype,
     '$inLTI',
@@ -251,7 +251,7 @@ Vue.util.defineReactive(
     true,
 );
 
-let ltiProvider = 'Canvas';
+let ltiProvider = null;
 Vue.util.defineReactive(
     Vue.prototype,
     '$ltiProvider',
@@ -266,7 +266,7 @@ Vue.util.defineReactive(
     true,
 );
 
-let LTIAssignmentId = 6;
+let LTIAssignmentId = null;
 Vue.util.defineReactive(
     Vue.prototype,
     '$LTIAssignmentId',
