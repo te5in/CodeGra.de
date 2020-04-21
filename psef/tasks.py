@@ -524,7 +524,11 @@ def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
     p.models.db.session.commit()
 
 
-@celery.task
+@celery.task(
+    autoretry_for=(RequestException, ),
+    retry_backoff=True,
+    retry_kwargs={'max_retries': 15}
+)
 def _adjust_amount_runners_1(auto_test_run_id: int) -> None:
     run = p.models.AutoTestRun.query.filter_by(
         id=auto_test_run_id
