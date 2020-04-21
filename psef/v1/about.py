@@ -6,6 +6,7 @@ running psef.
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
+import tempfile
 
 import structlog
 from flask import request
@@ -58,8 +59,11 @@ def about(
             logger.error('Database not working', exc_info=True)
             database = False
 
-        uploads = check_dir(current_app.config['UPLOAD_DIR'])
-        mirror_uploads = check_dir(current_app.config['MIRROR_UPLOAD_DIR'])
+        uploads = check_dir(current_app.config['UPLOAD_DIR'], check_size=True)
+        mirror_uploads = check_dir(
+            current_app.config['MIRROR_UPLOAD_DIR'], check_size=True
+        )
+        temp_dir = check_dir(tempfile.gettempdir(), check_size=True)
 
         with helpers.BrokerSession() as ses:
             try:
@@ -78,6 +82,7 @@ def about(
             'uploads': uploads,
             'broker': broker_ok,
             'mirror_uploads': mirror_uploads,
+            'temp_dir': temp_dir,
         }
         res['health'] = health_value
 
