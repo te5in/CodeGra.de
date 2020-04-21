@@ -51,7 +51,6 @@ export default {
                     {
                         title: 'CodeGrade',
                         toaster: 'b-toaster-top-right',
-                        variant: 'info',
                         solid: true,
                     },
                 );

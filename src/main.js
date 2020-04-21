@@ -170,7 +170,7 @@ function onVueCreated($root) {
                 {},
                 {
                     toaster: 'b-toaster-top-right',
-                    autoHideDelay: 5000,
+                    noAutoHide: true,
                     variant: 'danger',
                     solid: true,
                 },
@@ -236,7 +236,7 @@ const DRIVERS = [
     'memoryStorageDriver',
 ];
 
-let inLTI = false;
+let inLTI = true;
 Vue.util.defineReactive(
     Vue.prototype,
     '$inLTI',
@@ -251,7 +251,7 @@ Vue.util.defineReactive(
     true,
 );
 
-let ltiProvider = null;
+let ltiProvider = 'Canvas';
 Vue.util.defineReactive(
     Vue.prototype,
     '$ltiProvider',
@@ -266,7 +266,7 @@ Vue.util.defineReactive(
     true,
 );
 
-let LTIAssignmentId = null;
+let LTIAssignmentId = 6;
 Vue.util.defineReactive(
     Vue.prototype,
     '$LTIAssignmentId',
