@@ -146,6 +146,15 @@ axios.defaults.transformResponse = [
     },
 ];
 
+axiosRetry(axios, {
+    retries: 3,
+    retryDelay: (retryNumber = 0) => {
+        const delay = 2 ** retryNumber * 500;
+        const randomSum = delay * 0.2 * Math.random(); // 0-20% of the delay
+        return delay + randomSum;
+    },
+});
+
 function onVueCreated($root) {
     store.onVueCreated($root);
 
@@ -210,17 +219,6 @@ function onVueCreated($root) {
             throw error;
         },
     );
-
-    // The retry interceptor must be applied _LAST_, because any interceptor
-    // that is installed after it will only be called after all retries.
-    axiosRetry(axios, {
-        retries: 3,
-        retryDelay: (retryNumber = 0) => {
-            const delay = 2 ** retryNumber * 500;
-            const randomSum = delay * 0.2 * Math.random(); // 0-20% of the delay
-            return delay + randomSum;
-        },
-    });
 }
 
 Vue.prototype.$http = axios;
