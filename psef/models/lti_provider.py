@@ -29,7 +29,7 @@ class LTIProvider(Base):
     key = db.Column('key', db.Unicode, unique=True, nullable=False)
 
     @staticmethod
-    def _get_sourcedids_to_passback(sub: 'Work') -> t.Iterable[int]:
+    def _get_sourcedids_to_passback(sub: 'Work') -> t.Iterable[str]:
         for user in sub.get_all_authors():
             # We do not need to passback grades for test students, as they are
             # not of a real user.
