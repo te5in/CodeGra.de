@@ -724,7 +724,11 @@
     <span class="n">p</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
 
 
-<span class="nd">@celery</span><span class="o">.</span><span class="n">task</span>
+<span class="nd">@celery</span><span class="o">.</span><span class="n">task</span><span class="p">(</span>
+    <span class="n">autoretry_for</span><span class="o">=</span><span class="p">(</span><span class="n">RequestException</span><span class="p">,</span> <span class="p">),</span>
+    <span class="n">retry_backoff</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">retry_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;max_retries&#39;</span><span class="p">:</span> <span class="mi">15</span><span class="p">}</span>
+<span class="p">)</span>
 <span class="k">def</span> <span class="nf">_adjust_amount_runners_1</span><span class="p">(</span><span class="n">auto_test_run_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="n">run</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">AutoTestRun</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span>
         <span class="nb">id</span><span class="o">=</span><span class="n">auto_test_run_id</span>
