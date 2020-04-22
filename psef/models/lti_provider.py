@@ -28,17 +28,24 @@ class LTIProvider(Base):
     id = db.Column('id', db.String(UUID_LENGTH), primary_key=True)
     key = db.Column('key', db.Unicode, unique=True, nullable=False)
 
+    @staticmethod
+    def _get_sourcedids_to_passback(sub: 'Work') -> t.Iterable[int]:
+        for user in sub.get_all_authors():
+            # We do not need to passback grades for test students, as they are
+            # not of a real user.
+            if user.is_test_student:
+                continue
+            sourcedid = sub.assignment.assignment_results[user.id].sourcedid
+            if sourcedid is not None:
+                yield sourcedid
+
     def delete_grade_for_submission(self, sub: 'Work') -> None:
         """Delete the grade for the given submission.
         """
         if sub.assignment.lti_outcome_service_url is None:  # pragma: no cover
             return
 
-        for user in sub.get_all_authors():
-            sourcedid = sub.assignment.assignment_results[user.id].sourcedid
-            if sourcedid is None:  # pragma: no cover
-                continue
-
+        for sourcedid in self._get_sourcedids_to_passback(sub):
             self.lti_class.passback_grade(
                 key=self.key,
                 secret=self.secret,
@@ -63,11 +70,7 @@ class LTIProvider(Base):
         if sub.assignment.lti_outcome_service_url is None:  # pragma: no cover
             return
 
-        for user in sub.get_all_authors():
-            sourcedid = sub.assignment.assignment_results[user.id].sourcedid
-            if sourcedid is None:  # pragma: no cover
-                continue
-
+        for sourcedid in self._get_sourcedids_to_passback(sub):
             self.lti_class.passback_grade(
                 key=self.key,
                 secret=self.secret,
