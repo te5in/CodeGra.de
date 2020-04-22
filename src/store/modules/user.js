@@ -35,9 +35,20 @@ const getters = {
 };
 
 const actions = {
-    login({ commit }, response) {
+    login({ commit, dispatch }, response) {
         commit(types.LOGIN, response.data);
-        actions.refreshSnippets({ commit });
+        return Promise.all([
+            actions.refreshSnippets({ commit }),
+            dispatch(
+                'users/addOrUpdateUser',
+                {
+                    user: response.data.user,
+                },
+                {
+                    root: true,
+                },
+            ),
+        ]);
     },
 
     addSnippet({ commit }, snippet) {
