@@ -122,7 +122,7 @@
 
             <template slot-scope="{}">
                 <b-card-body class="p-3">
-                    <b-alert v-if="singleResult && (result.isFinal === false || !assignment.canSeeGrade())"
+                    <b-alert v-if="showContinuousWarning"
                              variant="warning"
                              dismissible
                              show>
@@ -648,6 +648,12 @@ export default {
     },
 
     watch: {
+        result() {
+            if (this.singleResult && this.result == null) {
+                this.loadSingleResult();
+            }
+        },
+
         resultSubmissionIds: {
             immediate: true,
             handler(newValue) {
@@ -1286,6 +1292,19 @@ export default {
                 return '';
             }
             return 'This assignment already has a rubric. Importing an AutoTest configuration will also import the rubric of the other assignment and delete the current rubric. Any grade given using the existing rubric will be cleared. Are you sure you want to continue?';
+        },
+
+        showContinuousWarning() {
+            if (!this.singleResult) {
+                return false;
+            }
+            if (this.result && this.result.isFinal === false) {
+                return true;
+            }
+            if (!this.assignment.canSeeGrade()) {
+                return true;
+            }
+            return false;
         },
     },
 
