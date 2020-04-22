@@ -2035,12 +2035,13 @@ class AutoTestRunner:
         return res.get('code', None) == APICodes.NOT_NEWEST_SUBMSSION.name
 
     @timed_function
-    def _run_student(
+    def _run_student(  # pylint: disable=too-many-statements
         self,
         cont: StartedContainer,
         cpu: CpuCores.Core,
         result_id: int,
     ) -> bool:
+        # TODO: Split this function
         result_url = f'{self.base_url}/results/{result_id}'
 
         result_state: t.Optional[models.AutoTestStepResultState]
