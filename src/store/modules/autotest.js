@@ -383,6 +383,11 @@ const actions = {
         );
     },
 
+    // Delete an AT run without sending a delete request to the server.
+    clearAutoTestRun({ commit }, { autoTestId }) {
+        commit(types.CLEAR_AUTO_TEST_RUN, { autoTestId });
+    },
+
     createFixtures({ commit }, { autoTestId, fixtures, delay }) {
         return axios.patch(`/api/v1/auto_tests/${autoTestId}`, fixtures).then(async res => {
             await Promise.resolve([
@@ -490,6 +495,10 @@ const mutations = {
 
     [types.DELETE_AUTO_TEST_SUITE](state, { autoTestSuite }) {
         Vue.set(autoTestSuite, 'deleted', true);
+    },
+
+    [types.CLEAR_AUTO_TEST_RUN](state, { autoTestId }) {
+        Vue.set(state.tests[autoTestId], 'runs', []);
     },
 
     [types.UPDATE_AUTO_TEST_RESULT](state, { result, autoTest }) {
