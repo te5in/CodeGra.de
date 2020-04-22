@@ -118,7 +118,7 @@ class AttachTimeoutError(StopRunningTestsException):
     pass
 
 
-class FailedToStartError(Exception):
+class FailedToStartError(cg_worker_pool.KillWorkerException):
     pass
 
 
