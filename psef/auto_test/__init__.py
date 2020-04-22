@@ -543,6 +543,9 @@ def _stop_container(cont: lxc.Container) -> None:
                 with _LXC_START_STOP_LOCK:
                     if cont.shutdown(10):
                         break
+                logger.warning(
+                    'Failed to shutdown container', last_error=cont.last_error
+                )
             assert cont.wait('STOPPED', 3)
 
 
@@ -562,6 +565,9 @@ def _start_container(
             with _LXC_START_STOP_LOCK:
                 if cont.start():
                     break
+            logger.warning(
+                'Container failed to start', last_error=cont.last_error
+            )
         if not cont.wait('RUNNING', 3):  # pragma: no cover
             raise FailedToStartError
 
@@ -1556,7 +1562,7 @@ class AutoTestContainer:
     def create(self) -> None:
         """Create a backing lxc container for this AutoTestContainer.
         """
-        assert self._cont.create(
+        created = self._cont.create(
             'download',
             0, {
                 'dist': 'ubuntu',
@@ -1565,6 +1571,12 @@ class AutoTestContainer:
             },
             bdevtype=self._config['AUTO_TEST_BDEVTYPE']
         )
+        if not created:  # pragma: no cover
+            raise AssertionError(
+                'Failed to create container, last error {}'.format(
+                    self._cont.last_error
+                )
+            )
 
     @contextlib.contextmanager
     def started_container(self) -> t.Generator[StartedContainer, None, None]:
