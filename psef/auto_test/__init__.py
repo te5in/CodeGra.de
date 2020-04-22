@@ -535,9 +535,14 @@ def _get_base_container(config: 'psef.FlaskConfig') -> 'AutoTestContainer':
 def _stop_container(cont: lxc.Container) -> None:
     if cont.running:
         with timed_code('stop_container'):
-            with _LXC_START_STOP_LOCK:
-                if not cont.shutdown(10):
-                    raise cg_worker_pool.KillWorkerException
+            for _ in helpers.retry_loop(
+                amount=4,
+                sleep_time=1,
+                make_exception=cg_worker_pool.KillWorkerException,
+            ):
+                with _LXC_START_STOP_LOCK:
+                    if cont.shutdown(10):
+                        break
             assert cont.wait('STOPPED', 3)
 
 
@@ -2112,6 +2117,10 @@ class AutoTestRunner:
             result_state = None
             logger.warning('Stop running steps', exc_info=True)
             raise
+        except cg_worker_pool.KillWorkerException:
+            result_state = None
+            logger.error('Worker wanted to be killed', exc_info=True)
+            return False
         except:
             logger.error('Something went wrong', exc_info=True)
             result_state = models.AutoTestStepResultState.failed
