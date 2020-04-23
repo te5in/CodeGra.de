@@ -58,6 +58,7 @@ export const actions = {
         let courses;
         let perms;
         commit(`submissions/${types.CLEAR_SUBMISSIONS}`, null, { root: true });
+        commit(types.CLEAR_COURSES);
 
         try {
             [{ data: courses }, { data: perms }] = await Promise.all([

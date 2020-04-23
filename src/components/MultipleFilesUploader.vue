@@ -102,10 +102,10 @@ export default {
 
     watch: {
         value: {
-            async handler() {
+            async handler(newVal, oldVal) {
                 this.amountOfFiles = this.value.length;
 
-                if (this.ignoreInput) {
+                if (oldVal == null || this.ignoreInput) {
                     return;
                 }
                 await this.$nextTick();
