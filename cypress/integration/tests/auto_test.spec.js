@@ -81,6 +81,20 @@ context('Manage assignment page', () => {
     });
 
     context('Creating an AutoTest configuration', () => {
+        beforeEach(() => {
+            cy.login('admin', 'admin');
+        });
+
+        after(() => {
+            // Delete the AT config.
+            cy.visit(`/courses/${course.id}/assignments/${assignment.id}`);
+            cy.openCategory('AutoTest');
+            cy.get('.auto-test')
+                .contains('.card-header', 'Configuration')
+                .contains('.submit-button', 'Delete')
+                .submit('success', { waitForDefault: false, hasConfirm: true });
+        });
+
         it('should not be possible to create an AutoTest when there is no rubric', () => {
             cy.openCategory('Rubric');
             cy.get('.rubric-editor')
@@ -202,6 +216,8 @@ context('Manage assignment page', () => {
 
     context('Running an AutoTest', () => {
         before(() => {
+            cy.login('admin', 'admin');
+
             createRubric();
 
             cy.openCategory('AutoTest');
@@ -362,6 +378,7 @@ context('Manage assignment page', () => {
             cy.get('@firstResult')
                 .find('span.name-user')
                 .text()
+                .then(text => text.trim())
                 .as('username');
             cy.get('@firstResult')
                 .click();
