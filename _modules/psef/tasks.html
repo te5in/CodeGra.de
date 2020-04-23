@@ -398,7 +398,8 @@
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="s1">&#39;Could not send email&#39;</span><span class="p">,</span>
                     <span class="n">receiving_user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
-                    <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span>
+                    <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">report_to_sentry</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="p">)</span>
 
 
@@ -969,7 +970,8 @@
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="s1">&#39;Could not send notification email&#39;</span><span class="p">,</span>
                     <span class="n">receiving_user_id</span><span class="o">=</span><span class="n">notification</span><span class="o">.</span><span class="n">receiver_id</span><span class="p">,</span>
-                    <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span>
+                    <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">report_to_sentry</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">notification</span><span class="o">.</span><span class="n">email_sent_at</span> <span class="o">=</span> <span class="n">now</span>
@@ -1024,7 +1026,8 @@
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s1">&#39;Could not send digest email&#39;</span><span class="p">,</span>
                 <span class="n">receiving_user_id</span><span class="o">=</span><span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
-                <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span>
+                <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">report_to_sentry</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="p">)</span>
 
 
