@@ -352,7 +352,7 @@ context('Manage assignment page', () => {
                 });
             });
 
-            cy.wait('@getRunRoute').then(res => {
+            cy.wait('@getRunRoute', { requestTimeout: 7500 }).then(res => {
                 expect(res.status).to.equal(404);
             });
 
@@ -392,7 +392,7 @@ context('Manage assignment page', () => {
             // Wait until we have loaded the result before creating a new
             // submission.
             cy.wait('@getResultRoute');
-            cy.wait('@getResultRoute');
+            cy.wait('@getResultRoute', { requestTimeout: 7500 });
             cy.get('@username').then(username => {
                 cy.log('username', username);
                 cy.createSubmission(
@@ -403,7 +403,7 @@ context('Manage assignment page', () => {
             });
 
             // Wait until we have tried to load the result again.
-            cy.wait('@getResultRoute').then(res => {
+            cy.wait('@getResultRoute', { requestTimeout: 7500 }).then(res => {
                 expect(res.response.body.state).to.equal('skipped');
             });
 
