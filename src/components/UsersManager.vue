@@ -352,6 +352,8 @@ export default {
             ]);
 
             this.loading = false;
+            await this.$afterRerender();
+            this.$refs.table.sortBy = 'User';
         },
 
         getRegistrationLinks() {
