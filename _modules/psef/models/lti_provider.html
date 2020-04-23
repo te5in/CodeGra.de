@@ -228,17 +228,24 @@
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="n">UUID_LENGTH</span><span class="p">),</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">key</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_get_sourcedids_to_passback</span><span class="p">(</span><span class="n">sub</span><span class="p">:</span> <span class="s1">&#39;Work&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">sub</span><span class="o">.</span><span class="n">get_all_authors</span><span class="p">():</span>
+            <span class="c1"># We do not need to passback grades for test students, as they are</span>
+            <span class="c1"># not of a real user.</span>
+            <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">is_test_student</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">sourcedid</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">assignment_results</span><span class="p">[</span><span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="p">]</span><span class="o">.</span><span class="n">sourcedid</span>
+            <span class="k">if</span> <span class="n">sourcedid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">sourcedid</span>
+
 <div class="viewcode-block" id="LTIProvider.delete_grade_for_submission"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.lti_provider.LTIProvider.delete_grade_for_submission">[docs]</a>    <span class="k">def</span> <span class="nf">delete_grade_for_submission</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sub</span><span class="p">:</span> <span class="s1">&#39;Work&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Delete the grade for the given submission.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">sub</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">lti_outcome_service_url</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
             <span class="k">return</span>
 
-        <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">sub</span><span class="o">.</span><span class="n">get_all_authors</span><span class="p">():</span>
-            <span class="n">sourcedid</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">assignment_results</span><span class="p">[</span><span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="p">]</span><span class="o">.</span><span class="n">sourcedid</span>
-            <span class="k">if</span> <span class="n">sourcedid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-                <span class="k">continue</span>
-
+        <span class="k">for</span> <span class="n">sourcedid</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_sourcedids_to_passback</span><span class="p">(</span><span class="n">sub</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">lti_class</span><span class="o">.</span><span class="n">passback_grade</span><span class="p">(</span>
                 <span class="n">key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">,</span>
                 <span class="n">secret</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">secret</span><span class="p">,</span>
@@ -263,11 +270,7 @@
         <span class="k">if</span> <span class="n">sub</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">lti_outcome_service_url</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
             <span class="k">return</span>
 
-        <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">sub</span><span class="o">.</span><span class="n">get_all_authors</span><span class="p">():</span>
-            <span class="n">sourcedid</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">assignment_results</span><span class="p">[</span><span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="p">]</span><span class="o">.</span><span class="n">sourcedid</span>
-            <span class="k">if</span> <span class="n">sourcedid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-                <span class="k">continue</span>
-
+        <span class="k">for</span> <span class="n">sourcedid</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_sourcedids_to_passback</span><span class="p">(</span><span class="n">sub</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">lti_class</span><span class="o">.</span><span class="n">passback_grade</span><span class="p">(</span>
                 <span class="n">key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">,</span>
                 <span class="n">secret</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">secret</span><span class="p">,</span>
