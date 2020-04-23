@@ -485,8 +485,8 @@ context('Submissions page', () => {
             return getAction(name).click();
         }
 
-        function goBack() {
-            return cy.get('.local-header .back-button').click();
+        function goBack(opts) {
+            return cy.get('.local-header .back-button', opts).click();
         }
 
         beforeEach(() => {
@@ -528,7 +528,7 @@ context('Submissions page', () => {
                 goBack();
 
                 doAction('Set up Git');
-                goBack();
+                goBack({ timeout: 10000 });
 
                 doAction('Rubric');
                 goBack();

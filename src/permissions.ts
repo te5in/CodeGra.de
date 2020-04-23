@@ -142,7 +142,7 @@ export const CoursePermission = {
     canSeeUserFeedbackBeforeDone: makeCPerm('can_see_user_feedback_before_done', 'See feedback before done', 'Users with this permission can see feedback before an assignment is set to "done"', null),
     canViewAnalytics: makeCPerm('can_view_analytics', 'Can view analytics', 'Users with this permission can view the analytics dashboard of an assignment.', 'With this permission a user can request all the grades, and count all the feedback for all the submissions in this course. Use with caution!'),
     canEditOthersComments: makeCPerm('can_edit_others_comments', 'Edit inline comments by others', 'Users with this permission can edit inline comments left by other users', null),
-    canAddOwnInlineComments: makeCPerm('can_add_own_inline_comments', 'Add inline comments to own submissions', 'Users with this permission can add and reply to inline comments on subbmission they are the author of', null),
+    canAddOwnInlineComments: makeCPerm('can_add_own_inline_comments', 'Add inline comments to own submissions', 'Users with this permission can add and reply to inline comments on submissions they are the author of', null),
     canViewOthersCommentEdits: makeCPerm('can_view_others_comment_edits', 'View others comment edits', 'Users with this permission may see the edit history of comments placed by others', null),
     canViewFeedbackAuthor: makeCPerm('can_view_feedback_author', 'View feedback author', 'Users with this permission can view the author of inline and general feedback', null),
     canEmailStudents: makeCPerm('can_email_students', 'Can email students', 'Users with this permission can email students using the contact student button.', null),
