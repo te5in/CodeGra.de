@@ -39,7 +39,7 @@ Cypress.Commands.add('text', { prevSubject: true }, subject => {
     // Get the text in an element, with all consecutive whitespace replaced
     // with a single space. Returns a cy wrapper so it can be used in an async
     // context.
-    return subject.text().replace(/\s+/g, ' ');
+    return subject.text().trim().replace(/\s+/g, ' ');
 });
 
 Cypress.Commands.add('login', (username, password) => {

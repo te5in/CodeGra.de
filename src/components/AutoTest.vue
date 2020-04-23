@@ -19,8 +19,9 @@
                  show
                  dismissible
                  variant="info"
+                 class="run-deleted"
                  @dismissed="runWasDeleted = false">
-            The AutoTest run was stopped by someone else.
+            The AutoTest run was stopped somewhere else.
         </b-alert>
 
         <auto-test-run v-else-if="currentRun"
@@ -164,7 +165,7 @@
                             </b-card-header>
 
                             <b-card-body slot-scope="{}">
-                                <b-form-fieldset>
+                                <b-form-fieldset class="results-visible-option">
                                     <label :for="alwaysVisibleId">
                                         Make results visible to students
 
@@ -193,7 +194,7 @@
                                     </b-input-group>
                                 </b-form-fieldset>
 
-                                <b-form-fieldset>
+                                <b-form-fieldset class="rubric-calculation-option">
                                     <label :for="gradeCalculationId">
                                         Rubric calculation
 
@@ -452,33 +453,35 @@
                         </collapse>
                     </b-card>
 
-                    <h5 v-if="singleResult" class="my-3">
-                        Categories
-                    </h5>
+                    <div class="auto-test-sets">
+                        <h5 v-if="singleResult" class="my-3">
+                            Categories
+                        </h5>
 
-                    <transition-group name="level-list">
-                        <auto-test-set v-for="set, i in test.sets"
-                                       v-if="!set.deleted"
-                                       :class="{ 'mb-3': !singleResult }"
-                                       :key="set.id"
-                                       :value="set"
-                                       :assignment="assignment"
-                                       :editable="configEditable"
-                                       :result="result"
-                                       :other-suites="allNonDeletedSuites" />
-                        <p class="text-muted font-italic mb-3"
-                        key="no-sets"
-                        v-if="test.sets.filter(s => !s.deleted).length === 0">
-                            You have not created any levels yet. Click the button below to create one.
-                        </p>
+                        <transition-group name="level-list">
+                            <auto-test-set v-for="set, i in test.sets"
+                                           v-if="!set.deleted"
+                                           :class="{ 'mb-3': !singleResult }"
+                                           :key="set.id"
+                                           :value="set"
+                                           :assignment="assignment"
+                                           :editable="configEditable"
+                                           :result="result"
+                                           :other-suites="allNonDeletedSuites" />
+                            <p class="text-muted font-italic mb-3"
+                               key="no-sets"
+                               v-if="test.sets.filter(s => !s.deleted).length === 0">
+                                You have not created any levels yet. Click the button below to create one.
+                            </p>
 
-                    </transition-group>
+                        </transition-group>
 
-                    <b-button-toolbar v-if="configEditable"
-                                      class="justify-content-end">
-                        <submit-button :submit="addSet"
-                                       label="Add level" />
-                    </b-button-toolbar>
+                        <b-button-toolbar v-if="configEditable"
+                                          class="justify-content-end">
+                            <submit-button :submit="addSet"
+                                           label="Add level" />
+                        </b-button-toolbar>
+                    </div>
                 </b-card-body>
             </template>
         </collapse>
@@ -763,6 +766,8 @@ export default {
                     runId: this.currentRun.id,
                 }).then(() => false);
             } else {
+                this.runWasDeleted = false;
+
                 return this.storeCreateAutoTestRun({
                     autoTestId: this.autoTestId,
                 }).then(() => true);
@@ -869,7 +874,7 @@ export default {
 
             // If there previously was a run, we want to show a message why the
             // results suddenly disappeared.
-            if (this.currentRun != null) {
+            if (this.currentRun == null) {
                 this.runWasDeleted = true;
             }
         },
