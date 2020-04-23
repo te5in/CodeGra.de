@@ -203,6 +203,16 @@ jobs:
         with:
           name: frontend-integration-1-coverage
 
+      - name: Download frontend integration 1 test coverage
+        uses: actions/download-artifact@v1
+        with:
+          name: frontend-integration-2-coverage
+
+      - name: Download frontend integration 1 test coverage
+        uses: actions/download-artifact@v1
+        with:
+          name: frontend-integration-3-coverage
+
       - name: Upload combined coverage
         run: ./.github/scripts/merge_and_upload_coverage.bash
         env:
