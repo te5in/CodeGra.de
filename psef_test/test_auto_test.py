@@ -2506,7 +2506,6 @@ def test_failing_starting_container(
             # to shutdown, so we simply ignore that error.
             pass
 
-
         res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
                                                         ).one()
         assert res.state == m.AutoTestStepResultState.passed

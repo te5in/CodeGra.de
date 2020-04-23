@@ -606,7 +606,7 @@ def _start_container(
                     if not cont.get_ips():
                         continue
 
-                    for domain in ['codegra.de', 'docs.codegra.de', 'google.com']:
+                    for domain in ['codegra.de', 'docs.codegra.de']:
                         if cont.attach_wait(callback, domain) == 0:
                             return
 
