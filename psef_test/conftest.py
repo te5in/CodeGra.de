@@ -135,7 +135,7 @@ def app(request):
         ],
         'MIN_PASSWORD_SCORE': 3,
         'AUTO_TEST_PASSWORD': auto_test_password,
-        'AUTO_TEST_CF_SLEEP_TIME': 5,
+        'AUTO_TEST_CF_EXTRA_AMOUNT': 2,
         'AUTO_TEST_RUNNER_INSTANCE_PASS': auto_test_password,
         'AUTO_TEST_DISABLE_ORIGIN_CHECK': True,
         'AUTO_TEST_MAX_TIME_COMMAND': 3,
