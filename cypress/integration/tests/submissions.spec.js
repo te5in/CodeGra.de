@@ -485,8 +485,7 @@ context('Submissions page', () => {
             return getAction(name).click();
         }
 
-        function goBack(timeout) {
-            const opts = timeout ? { timeout } : undefined;
+        function goBack(opts) {
             return cy.get('.local-header .back-button', opts).click();
         }
 
@@ -523,13 +522,13 @@ context('Submissions page', () => {
                 loginStudent();
 
                 doAction('Latest submission');
-                goBack(10000);
+                goBack();
 
                 doAction('Upload files');
                 goBack();
 
                 doAction('Set up Git');
-                goBack();
+                goBack({ timeout: 10000 });
 
                 doAction('Rubric');
                 goBack();
