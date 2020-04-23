@@ -67,9 +67,9 @@ jobs:
       matrix:
         python-version: [3.7]
         # When adding runners, make sure you also download their artifacts below!
-        runner_num: [0, 1]
+        runner_num: [0, 1, 2, 3]
         # This should be the length of the array above.
-        runner_amount: [2]
+        runner_amount: [4]
 
     services:
       redis:
