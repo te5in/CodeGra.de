@@ -675,6 +675,7 @@ export default {
             if (this.assignment == null) {
                 this.loading = true;
                 await this.loadCourses();
+                await this.$afterRerender();
             }
 
             // Always set loading to false, otherwise you'd get an infinite

@@ -61,8 +61,10 @@ export const actions = {
         commit(types.CLEAR_COURSES);
 
         try {
+            const coursePromise = axios.get('/api/v1/courses/?extended=true');
+            commit(types.SET_COURSES_PROMISE, coursePromise);
             [{ data: courses }, { data: perms }] = await Promise.all([
-                axios.get('/api/v1/courses/?extended=true'),
+                coursePromise,
                 axios.get('/api/v1/permissions/?type=course'),
             ]);
         } catch (_) {

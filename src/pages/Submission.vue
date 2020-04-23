@@ -5,7 +5,7 @@
         {{ error }}
     </b-alert>
 </div>
-<loader center v-else-if="loadingPage"/>
+<loader center class="submission-page-loader" v-else-if="loadingPage"/>
 <div class="page submission outer-container" id="submission-page" v-else>
     <local-header :back-route="submissionsRoute"
                   back-popover="Go back to submissions list"

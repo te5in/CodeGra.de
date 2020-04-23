@@ -42,7 +42,7 @@ Cypress.Commands.add('text', { prevSubject: true }, subject => {
     return subject.text().replace(/\s+/g, ' ');
 });
 
-Cypress.Commands.add('login', (username, password) => {
+Cypress.Commands.add('login', (username, password, route = undefined) => {
     Cypress.log({
         name: 'login',
         message: username,
@@ -58,6 +58,8 @@ Cypress.Commands.add('login', (username, password) => {
             app.$store.dispatch('user/login', { data: body });
             if (url) {
                 cy.visit(url.fullPath);
+            } else if (route) {
+                cy.visit(route);
             } else {
                 cy.reload()
             }
@@ -142,6 +144,37 @@ Cypress.Commands.add('formRequest', (options) => {
             })
             .wait('@formRequest');
     });
+});
+
+Cypress.Commands.add('delayRoute', (route, delay = 1000) => {
+    const reqOpts = Object.assign({}, route);
+
+    return cy.authRequest(route).then(
+        response => {
+            return cy.route(Object.assign(
+                {},
+                route,
+                {
+                    delay,
+                    headers: response.headers,
+                    response: response.body,
+                    status: response.status,
+                },
+            ));
+        },
+        err => {
+            return cy.route(Object.assign(
+                {},
+                route,
+                {
+                    delay,
+                    headers: response.headers,
+                    response: response.body,
+                    status: response.status,
+                },
+            ));
+        },
+    );
 });
 
 Cypress.Commands.add('fixtureAsFile', (path, filename, mimeType) => {
