@@ -2434,12 +2434,11 @@ def test_running_old_submission(
         ).filter_by(work_id=res[-1]['work_id']).one().state.name == 'passed'
 
 
-@pytest.mark.parametrize('what_should_fail', ['start', 'shutdown'])
 @pytest.mark.parametrize('use_transaction', [False], indirect=True)
 def test_failing_starting_container(
     monkeypatch_celery, basic, test_client, logged_in, describe, live_server,
     lxc_stub, monkeypatch, app, session, stub_function_class, assert_similar,
-    monkeypatch_broker, what_should_fail, monkeypatch_for_run
+    monkeypatch_broker, monkeypatch_for_run
 ):
     with describe('setup'):
         course, assig_id, teacher, student = basic
@@ -2461,9 +2460,8 @@ def test_failing_starting_container(
         url = f'/api/v1/auto_tests/{test["id"]}'
         failed_at_least_once = False
 
-        def make_failer(amount, max_fails, orig):
+        def make_failer(amount, orig):
             successes = multiprocessing.Value('i', 0)
-            fails = multiprocessing.Value('i', 0)
 
             def failer(*args, **kwargs):
                 nonlocal successes
@@ -2472,18 +2470,13 @@ def test_failing_starting_container(
                     successes.value += 1
                     return orig(*args, **kwargs)
 
-                fails.value += 1
-                if fails.value > max_fails:
-                    fails.value = 0
-                    successes.value = 0
                 failed_at_least_once = True
                 return False
 
             return failer
 
         monkeypatch.setattr(
-            lxc.Container, what_should_fail,
-            make_failer(4, 13, getattr(lxc.Container, what_should_fail))
+            lxc.Container, 'start', make_failer(4, lxc.Container.start)
         )
 
     with describe('start_auto_test'):
@@ -2508,6 +2501,6 @@ def test_failing_starting_container(
 
         res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
                                                         ).one()
-        assert res.state == m.AutoTestStepResultState.passed
+        assert res.state == m.AutoTestStepResultState.not_started
 
         assert failed_at_least_once

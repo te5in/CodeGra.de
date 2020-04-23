@@ -118,7 +118,7 @@ class AttachTimeoutError(StopRunningTestsException):
     pass
 
 
-class FailedToStartError(cg_worker_pool.KillWorkerException):
+class FailedToStartError(StopRunningTestsException):
     pass
 
 
@@ -561,15 +561,12 @@ def _start_container(
         return
 
     with timed_code('start_container'):
-        for _ in helpers.retry_loop(
-            amount=10, sleep_time=1, make_exception=FailedToStartError
-        ):
-            with _LXC_START_STOP_LOCK:
-                if cont.start():
-                    break
-            logger.warning(
-                'Container failed to start', last_error=cont.last_error
-            )
+        with _LXC_START_STOP_LOCK:
+            if not cont.start():
+                logger.error(
+                    'Container failed to start', last_error=cont.last_error
+                )
+                raise FailedToStartError
         if not cont.wait('RUNNING', 3):  # pragma: no cover
             raise FailedToStartError
 
