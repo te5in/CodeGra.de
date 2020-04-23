@@ -280,7 +280,8 @@ class WorkerPool:
         )
 
         self._stop = self._manager.Event()
-        self._sleep_time = sleep_time
+        # This should never be 0, but ``None``
+        self._sleep_time = sleep_time or None
         self._extra_amount = extra_amount
         self._work_queue.put_all(initial_work)
         self._alive_procs: t.List[mp.Process] = []

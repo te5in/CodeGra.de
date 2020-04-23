@@ -122,6 +122,10 @@ class FailedToStartError(cg_worker_pool.KillWorkerException):
     pass
 
 
+class FailedToShutdownError(cg_worker_pool.KillWorkerException):
+    pass
+
+
 @dataclasses.dataclass(frozen=True)
 class OutputTail:
     """This class represents the tail of an output stream.
@@ -536,9 +540,7 @@ def _stop_container(cont: lxc.Container) -> None:
     if cont.running:
         with timed_code('stop_container'):
             for _ in helpers.retry_loop(
-                amount=4,
-                sleep_time=1,
-                make_exception=cg_worker_pool.KillWorkerException,
+                amount=4, sleep_time=1, make_exception=FailedToShutdownError
             ):
                 with _LXC_START_STOP_LOCK:
                     if cont.shutdown(10):
@@ -588,7 +590,7 @@ def _start_container(
                 os._exit(0)  # pylint: disable=protected-access
             else:
                 os.execvp('ping', ['ping', '-w', '1', '-c', '1', domain])
-            raise FailedToStartError
+            assert False
 
         with timed_code('wait_for_system_start'):
             out_code = cont.attach_wait(callback, None)
@@ -604,7 +606,7 @@ def _start_container(
                     if not cont.get_ips():
                         continue
 
-                    for domain in ['codegra.de', 'docs.codegra.de']:
+                    for domain in ['codegra.de', 'docs.codegra.de', 'google.com']:
                         if cont.attach_wait(callback, domain) == 0:
                             return
 
