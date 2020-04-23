@@ -7,6 +7,7 @@ import datetime
 import pytest
 from pytest import approx
 
+import psef
 import psef.tasks as tasks
 import psef.models as m
 from helpers import (
@@ -1669,7 +1670,7 @@ def test_delete_submission(
 
 def test_delete_submission_with_other_work(
     test_client, logged_in, admin_user, session, monkeypatch_celery, describe,
-    monkeypatch, stub_function_class, app
+    monkeypatch, stub_function_class, app, make_function_spy
 ):
     with describe('setup'), logged_in(admin_user):
         course = create_course(test_client)
@@ -1680,11 +1681,12 @@ def test_delete_submission_with_other_work(
         )
         student = create_user_with_role(session, 'Student', course)
 
-        stub_passback = stub_function_class(lambda: 0)
-        monkeypatch.setattr(tasks, 'passback_grades', stub_passback)
+        stub_passback_task = make_function_spy(tasks, 'passback_grades')
 
-        stub_delete_submission = stub_function_class(lambda: 0)
-        monkeypatch.setattr(tasks, 'delete_submission', stub_delete_submission)
+        stub_passback = stub_function_class(lambda: 0)
+        monkeypatch.setattr(psef.lti.LTI, '_passback_grade', stub_passback)
+
+        stub_delete_submission = make_function_spy(tasks, 'delete_submission')
 
         stub_adjust = stub_function_class(lambda: 0)
         monkeypatch.setattr(tasks, 'adjust_amount_runners', stub_adjust)
@@ -1705,6 +1707,14 @@ def test_delete_submission_with_other_work(
             middle = create_submission(test_client, assignment)['id']
             newest = create_submission(test_client, assignment)['id']
 
+        with logged_in(admin_user):
+            from_test_student_oldest = create_submission(
+                test_client, assignment, is_test_submission=True
+            )['id']
+            from_test_student_newest = create_submission(
+                test_client, assignment, is_test_submission=True
+            )['id']
+
         monkeypatch.setattr(m.AutoTest, 'has_hidden_steps', True)
         assignment.auto_test = m.AutoTest(results_always_visible=True)
         run = m.AutoTestRun(
@@ -1716,12 +1726,17 @@ def test_delete_submission_with_other_work(
         run.batch_run_done = True
 
         assignment.set_state('done')
+        assignment.lti_outcome_service_url = 'a url'
         assignment.course.lti_provider = m.LTIProvider(key='my_lti')
+        session.commit()
+        assignment.assignment_results[student.id] = m.AssignmentResult(
+            user_id=student.id, sourcedid='5', assignment_id=assignment.id
+        )
         session.commit()
 
     with describe('delete not newest submission'), logged_in(admin_user):
         test_client.req('delete', f'/api/v1/submissions/{middle}', 204)
-        assert not stub_passback.called
+        assert not stub_passback_task.called
         assert not stub_delete_submission.called
         assert not stub_adjust.called
         assert not stub_clear.called
@@ -1729,7 +1744,8 @@ def test_delete_submission_with_other_work(
     with describe('delete newest submission'), logged_in(admin_user):
         test_client.req('delete', f'/api/v1/submissions/{newest}', 204)
         assert stub_passback.called
-        assert stub_passback.all_args[0][0] == [oldest]
+        assert stub_passback_task.called
+        assert stub_passback_task.all_args[0][0] == [oldest]
         assert not stub_delete_submission.called
         assert stub_adjust.called
         assert not stub_clear.called
@@ -1738,14 +1754,23 @@ def test_delete_submission_with_other_work(
         assert result
         assert result.final_result is True
 
+    with describe('delete submission by test student'), logged_in(admin_user):
+        test_client.req(
+            'delete', f'/api/v1/submissions/{from_test_student_newest}', 204
+        )
+        assert stub_passback_task.called
+        assert stub_passback_task.all_args[0][0] == [from_test_student_oldest]
+        assert not stub_passback.called
+        assert not stub_delete_submission.called
+
     with describe('delete submission with other existing result'
                   ), logged_in(admin_user):
         assert m.AutoTestResult.query.filter_by(work_id=very_oldest
                                                 ).one().final_result is False
         test_client.req('delete', f'/api/v1/submissions/{oldest}', 204)
 
-        assert stub_passback.called
-        assert stub_passback.all_args[0][0] == [very_oldest]
+        assert stub_passback_task.called
+        assert stub_passback_task.all_args[0][0] == [very_oldest]
         assert not stub_delete_submission.called
         assert stub_adjust.called
 
@@ -1762,7 +1787,7 @@ def test_delete_submission_with_other_work(
         session.commit()
         test_client.req('delete', f'/api/v1/submissions/{very_oldest}', 204)
 
-        assert not stub_passback.called
+        assert not stub_passback_task.called
         assert not stub_delete_submission.called
         assert not stub_adjust.called
         assert not stub_clear.called
