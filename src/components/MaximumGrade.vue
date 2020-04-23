@@ -67,8 +67,13 @@ export default {
         };
     },
 
-    mounted() {
-        this.maxGrade = this.assignment.max_grade;
+    watch: {
+        assignment: {
+            immediate: true,
+            handler() {
+                this.maxGrade = this.$utils.getProps(this.assignment, null, 'max_grade');
+            },
+        },
     },
 
     methods: {
@@ -92,7 +97,7 @@ export default {
 
         afterSubmit(maxGrade) {
             this.updateAssignment({
-                assignmentId: this.assignmentId,
+                assignmentId: this.assignment.id,
                 assignmentProps: {
                     max_grade: maxGrade,
                 },
