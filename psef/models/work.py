@@ -482,10 +482,6 @@ class Work(Base):
             result so that the real grade won't show as too late.
         :returns: Nothing
         """
-        if self.user.is_test_student:
-            # We do not need to passback these grades, as they are not of a
-            # real user.
-            return
         lti_provider = self.assignment.course.lti_provider
         assert lti_provider
 
