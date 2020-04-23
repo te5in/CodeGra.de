@@ -149,30 +149,21 @@ Cypress.Commands.add('formRequest', (options) => {
 Cypress.Commands.add('delayRoute', (route, delay = 1000) => {
     const reqOpts = Object.assign({}, route);
 
+    function makeResponse(res) {
+        return Object.assign({}, route, {
+            delay,
+            headers: res.headers,
+            response: res.body,
+            status: res.status,
+        });
+    }
+
     return cy.authRequest(route).then(
-        response => {
-            return cy.route(Object.assign(
-                {},
-                route,
-                {
-                    delay,
-                    headers: response.headers,
-                    response: response.body,
-                    status: response.status,
-                },
-            ));
+        res => {
+            return cy.route(makeResponse(res));
         },
         err => {
-            return cy.route(Object.assign(
-                {},
-                route,
-                {
-                    delay,
-                    headers: response.headers,
-                    response: response.body,
-                    status: response.status,
-                },
-            ));
+            return cy.route(makeResponse(err));
         },
     );
 });
