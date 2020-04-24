@@ -59,12 +59,12 @@ function updatePermissions(courses, perms) {
 }
 
 export const actions = {
-    async loadCourses({ state, commit, dispatch }) {
+    loadCourses({ state, dispatch }) {
         if (state.currentCourseLoader == null) {
-            commit(types.SET_COURSES_PROMISE, dispatch('reloadCourses'));
+            return dispatch('reloadCourses');
+        } else {
+            return state.currentCourseLoader;
         }
-
-        return state.currentCourseLoader;
     },
 
     async forceLoadGraders({ commit, dispatch }, assignmentId) {
@@ -80,27 +80,31 @@ export const actions = {
     },
 
     reloadCourses({ commit, state }) {
-        let courses;
-        let perms;
         commit(`submissions/${types.CLEAR_SUBMISSIONS}`, null, { root: true });
         commit(types.CLEAR_COURSES);
 
-        const coursePromise = new Promise(async resolve => {
-            try {
-                [{ data: courses }, { data: perms }] = await Promise.all([
-                    axios.get('/api/v1/courses/?extended=true'),
-                    axios.get('/api/v1/permissions/?type=course'),
+        const coursePromise = Promise.all([
+            axios.get('/api/v1/courses/?extended=true'),
+            axios.get('/api/v1/permissions/?type=course'),
+        ]).then(
+            ([{ data: courses }, { data: perms }]) => {
+                const [manageCourses, manageAssigs, createAssigs] = updatePermissions(
+                    courses,
+                    perms,
+                );
+
+                commit(types.SET_COURSES, [
+                    courses,
+                    manageCourses,
+                    manageAssigs,
+                    createAssigs,
+                    perms,
                 ]);
-            } catch (_) {
-                return resolve(state.courses);
-            }
 
-            const [manageCourses, manageAssigs, createAssigs] = updatePermissions(courses, perms);
-
-            commit(types.SET_COURSES, [courses, manageCourses, manageAssigs, createAssigs, perms]);
-
-            return resolve(courses);
-        });
+                return courses;
+            },
+            () => state.courses,
+        );
 
         commit(types.SET_COURSES_PROMISE, coursePromise);
 
