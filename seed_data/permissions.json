@@ -367,7 +367,7 @@
     "default_value": false,
     "course_permission": true,
     "short_description": "Add inline comments to own submissions",
-    "long_description": "Users with this permission can add and reply to inline comments on subbmission they are the author of"
+    "long_description": "Users with this permission can add and reply to inline comments on submissions they are the author of"
   },
   "can_view_others_comment_edits": {
     "default_value": false,

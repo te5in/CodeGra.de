@@ -168,9 +168,9 @@ export default {
 
         relativePopoverText() {
             if (this.settings.relative) {
-                return 'Show amount of students in filter group';
+                return 'Show amount of submissions in filter group';
             } else {
-                return 'Show percentage of students of filter group';
+                return 'Show percentage of submissions of filter group';
             }
         },
 
@@ -284,14 +284,14 @@ export default {
 
                 // Do not escape, chart.js does its own escaping.
                 return [
-                    `Number of students: ${abs}`,
-                    `Percentage of students: ${this.to2Dec(rel)}`,
+                    `Number of submissions: ${abs}`,
+                    `Percentage of submissions: ${this.to2Dec(rel)}`,
                 ];
             };
 
             const labelString = this.settings.relative
-                ? 'Percentage of students'
-                : 'Number of students';
+                ? 'Percentage of submissions'
+                : 'Number of submissions';
 
             return {
                 scales: {
