@@ -43,11 +43,11 @@ export function updatePermissions(courses, perms) {
             const entries = Object.entries(val);
 
             assig[key] = entries.some(
-                ([k, v]) => MANAGE_ASSIGNMENT_PERMISSIONS.indexOf(k) !== -1 && v,
+                ([k, v]) => v && MANAGE_ASSIGNMENT_PERMISSIONS.indexOf(k) !== -1,
             );
 
             course[key] = entries.some(
-                ([k, v]) => MANAGE_GENERAL_COURSE_PERMISSIONS.indexOf(k) !== -1 && v,
+                ([k, v]) => v && MANAGE_GENERAL_COURSE_PERMISSIONS.indexOf(k) !== -1,
             );
 
             create[key] = !!val.can_create_assignment;
