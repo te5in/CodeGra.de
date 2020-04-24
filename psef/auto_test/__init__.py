@@ -577,7 +577,11 @@ def _start_container(
         if check_network:
             with timed_code('wait_for_network'):
 
-                for _ in helpers.retry_loop(60, sleep_time=0.5):
+                for _ in helpers.retry_loop(
+                    60,
+                    sleep_time=0.5,
+                    make_exception=StopRunningStudentException
+                ):
                     if not always:
                         _maybe_quit_running()
 
@@ -798,7 +802,11 @@ def start_polling(config: 'psef.FlaskConfig') -> None:
                 retry_amount=4,
             )
 
-        for _ in helpers.retry_loop(sys.maxsize, sleep_time=_REQUEST_TIMEOUT):
+        for _ in helpers.retry_loop(
+            sys.maxsize,
+            sleep_time=_REQUEST_TIMEOUT,
+            make_exception=AssertionError
+        ):
             with get_broker_session() as ses:
                 try:
                     response = ses.post(
@@ -918,7 +926,9 @@ class StartedContainer:
         :raises AssertionError: When the value could not be set successfully.
         """
         with cg_logger.bound_to_logger(cgroup_key=key, cgroup_value=value):
-            for _ in helpers.retry_loop(5):
+            for _ in helpers.retry_loop(
+                5, make_exception=StopRunningTestsException
+            ):
                 success = self._container.set_cgroup_item(key, value)
                 if success:
                     return
@@ -2094,6 +2104,8 @@ class AutoTestRunner:
             result_state = None
             if self._is_old_submission_error(e):
                 logger.warning('Was running old submission', exc_info=True)
+            elif isinstance(e, StopRunningStudentException):
+                logger.error('Stop running student exception', exc_info=True)
             else:
                 logger.warning(
                     'HTTP error, so stopping this student', exc_info=True
@@ -2101,7 +2113,7 @@ class AutoTestRunner:
             return False
         except StopRunningTestsException:
             result_state = None
-            logger.warning('Stop running steps', exc_info=True)
+            logger.error('Stop running steps', exc_info=True)
             raise
         except:
             logger.error('Something went wrong', exc_info=True)
