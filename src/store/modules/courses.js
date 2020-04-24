@@ -33,6 +33,31 @@ function getAssignment(state, assignmentId) {
     return assignment;
 }
 
+function updatePermissions(courses, perms) {
+    courses.forEach(c => {
+        c.permissions = perms[c.id];
+    });
+
+    return Object.entries(perms).reduce(
+        ([course, assig, create], [key, val]) => {
+            const entries = Object.entries(val);
+
+            assig[key] = entries.some(
+                ([k, v]) => MANAGE_ASSIGNMENT_PERMISSIONS.indexOf(k) !== -1 && v,
+            );
+
+            course[key] = entries.some(
+                ([k, v]) => MANAGE_GENERAL_COURSE_PERMISSIONS.indexOf(k) !== -1 && v,
+            );
+
+            create[key] = entries.some(([k, v]) => k === 'can_create_assignment' && v);
+
+            return [course, assig, create];
+        },
+        [{}, {}, {}],
+    );
+}
+
 export const actions = {
     async loadCourses({ state, commit, dispatch }) {
         if (state.currentCourseLoader == null) {
@@ -54,52 +79,32 @@ export const actions = {
         });
     },
 
-    async reloadCourses({ commit }) {
+    reloadCourses({ commit, state }) {
         let courses;
         let perms;
         commit(`submissions/${types.CLEAR_SUBMISSIONS}`, null, { root: true });
         commit(types.CLEAR_COURSES);
 
-        try {
-            const coursePromise = axios.get('/api/v1/courses/?extended=true');
-            commit(types.SET_COURSES_PROMISE, coursePromise);
-            [{ data: courses }, { data: perms }] = await Promise.all([
-                coursePromise,
-                axios.get('/api/v1/permissions/?type=course'),
-            ]);
-        } catch (_) {
-            return commit(types.CLEAR_COURSES);
-        }
-        courses.forEach(c => {
-            c.permissions = perms[c.id];
+        const coursePromise = new Promise(async resolve => {
+            try {
+                [{ data: courses }, { data: perms }] = await Promise.all([
+                    axios.get('/api/v1/courses/?extended=true'),
+                    axios.get('/api/v1/permissions/?type=course'),
+                ]);
+            } catch (_) {
+                return resolve(state.courses);
+            }
+
+            const [manageCourses, manageAssigs, createAssigs] = updatePermissions(courses, perms);
+
+            commit(types.SET_COURSES, [courses, manageCourses, manageAssigs, createAssigs, perms]);
+
+            return resolve(courses);
         });
 
-        const [manageCourses, manageAssigs, createAssigs] = Object.entries(perms).reduce(
-            ([course, assig, create], [key, val]) => {
-                const entries = Object.entries(val);
+        commit(types.SET_COURSES_PROMISE, coursePromise);
 
-                assig[key] = entries.some(
-                    ([k, v]) => MANAGE_ASSIGNMENT_PERMISSIONS.indexOf(k) !== -1 && v,
-                );
-
-                course[key] = entries.some(
-                    ([k, v]) => MANAGE_GENERAL_COURSE_PERMISSIONS.indexOf(k) !== -1 && v,
-                );
-
-                create[key] = entries.some(([k, v]) => k === 'can_create_assignment' && v);
-
-                return [course, assig, create];
-            },
-            [{}, {}, {}],
-        );
-
-        return commit(types.SET_COURSES, [
-            courses,
-            manageCourses,
-            manageAssigs,
-            createAssigs,
-            perms,
-        ]);
+        return coursePromise;
     },
 
     async updateCourse({ commit, dispatch }, data) {
