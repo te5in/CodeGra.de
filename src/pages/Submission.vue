@@ -140,7 +140,9 @@
         </template>
     </local-header>
 
-    <loader page-loader v-if="loadingInner"/>
+    <loader page-loader
+            class="submission-page-inner-loader"
+            v-if="loadingInner"/>
     <template v-else>
         <div class="cat-wrapper"
              :class="{ hidden: selectedCat !== 'code' }">

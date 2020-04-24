@@ -356,7 +356,8 @@ context('Sidebar', () => {
             // Then check that the page loader disappears again.
             cy.get('.submission-page-loader')
                 .should('not.exist');
-            // And that the file viewer is visible again.
+            // And that the file viewer is visible again and that it loads
+            // a file.
             cy.get('.page.submission')
                 .should('be.visible')
                 .find('.file-viewer')
@@ -381,7 +382,8 @@ context('Sidebar', () => {
             // Then check that the page loader disappears again.
             cy.get('.submission-page-loader')
                 .should('not.exist');
-            // And that the file viewer is visible again.
+            // And that the file viewer is visible again and that it loads
+            // a file.
             cy.get('.page.submission')
                 .should('be.visible')
                 .find('.file-viewer')
@@ -395,15 +397,15 @@ context('Sidebar', () => {
                 cy.delayRoute({
                     url: `/api/v1/submissions/${subId}/files/`,
                     method: 'GET',
-                }, 3000);
+                }).as('filesRoute');
                 cy.delayRoute({
                     url: `/api/v1/submissions/${subId}/feedbacks/?with_replies`,
                     method: 'GET',
-                }, 3000).as('feedbackRoute');
+                }).as('feedbackRoute');
                 cy.delayRoute({
                     url: `/api/v1/assignments/${assignment.id}/submissions/?extended&latest_only`,
                     method: 'GET',
-                }, 3000).as('subsRoute');
+                }).as('subsRoute');
             });
 
             // I could not get the timing right for this case (and what good is
@@ -426,10 +428,15 @@ context('Sidebar', () => {
 
             // Wait until the submissions have been reloaded (and make sure
             // this happens _after_ the .file-viewer has disappeared).
+            cy.wait('@filesRoute');
             cy.wait('@feedbackRoute');
             cy.wait('@subsRoute');
 
-            // And that the file viewer is visible again.
+            // Then that the loader disappears again.
+            cy.get('.page.submission .submission-page-inner-loader')
+                .should('not.exist');
+            // And that the file viewer is visible again and that it loads
+            // a file.
             cy.get('.page.submission')
                 .should('be.visible')
                 .find('.file-viewer')
