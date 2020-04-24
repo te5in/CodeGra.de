@@ -198,7 +198,8 @@ def _send_reminder_mails_1(assignment_id: int) -> None:
                 logger.warning(
                     'Could not send email',
                     receiving_user_id=user_id,
-                    exc_info=True
+                    exc_info=True,
+                    report_to_sentry=True,
                 )
 
 
@@ -524,7 +525,11 @@ def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
     p.models.db.session.commit()
 
 
-@celery.task
+@celery.task(
+    autoretry_for=(RequestException, ),
+    retry_backoff=True,
+    retry_kwargs={'max_retries': 15}
+)
 def _adjust_amount_runners_1(auto_test_run_id: int) -> None:
     run = p.models.AutoTestRun.query.filter_by(
         id=auto_test_run_id
@@ -765,7 +770,8 @@ def _send_direct_notification_emails_1(
                 logger.warning(
                     'Could not send notification email',
                     receiving_user_id=notification.receiver_id,
-                    exc_info=True
+                    exc_info=True,
+                    report_to_sentry=True,
                 )
             else:
                 notification.email_sent_at = now
@@ -820,7 +826,8 @@ def _send_delayed_notification_emails(
             logger.warning(
                 'Could not send digest email',
                 receiving_user_id=user.id,
-                exc_info=True
+                exc_info=True,
+                report_to_sentry=True,
             )
 
 

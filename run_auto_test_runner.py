@@ -3,6 +3,8 @@
 
 import typing as t
 
+import sentry_sdk
+
 import psef
 import cg_logger
 # TODO: Fix the complete shit we have done with imports. This requires us to
@@ -12,6 +14,10 @@ import psef.auto_test
 
 if __name__ == '__main__':
     import config
+
+    # It is really useful to have an entire stack trace, and the increased
+    # memory usage is just fine.
+    sentry_sdk.utils.MAX_STRING_LENGTH = 2048
 
     cg_logger.configure_logging(
         config.CONFIG['DEBUG'],
