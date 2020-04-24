@@ -40,6 +40,43 @@ def fail_wget_attach(request):
 
 
 @pytest.fixture
+def make_failer(app, session):
+    def creator(
+        amount, orig, on_first_fail=lambda: False, on_fail=lambda _: False
+    ):
+        successes = multiprocessing.Value('i', 0)
+        failures = multiprocessing.Value('i', 0)
+        failed_at_least_once = False
+
+        def failer(*args, **kwargs):
+            nonlocal successes
+            nonlocal failed_at_least_once
+            if successes.value < amount:
+                successes.value += 1
+                return orig(*args, **kwargs)
+
+            if not failed_at_least_once:
+                failed_at_least_once = True
+                if on_first_fail():
+                    successes.value = 0
+
+            if on_fail(failures.value):
+                failures.value = 0
+                successes.value = 1
+                return orig(*args, **kwargs)
+
+            failures.value += 1
+
+            return False
+
+        failer.failed_at_least_once = lambda: failed_at_least_once
+
+        return failer
+
+    yield creator
+
+
+@pytest.fixture
 def monkeypatch_for_run(
     monkeypatch, lxc_stub, stub_function_class, fail_wget_attach
 ):
@@ -64,6 +101,11 @@ def monkeypatch_for_run(
         elif cmd[0] == '/bin/bash' and cmd[2].startswith('adduser'):
             # Don't make the user, as we cannot do that locally
             cmd[2] = '&&'.join(['whoami'] + cmd[2].split('&&')[1:-2])
+            cmd_user = (cmd, user)
+        elif cmd[0] == '/bin/bash' and cmd[2].startswith('mv'):
+            # Don't mv as this is not automatically restored as it is in the
+            # actual LXC container.
+            cmd[2] = cmd[2].replace('mv', 'cp -R')
             cmd_user = (cmd, user)
         elif cmd == ['grep', '-c', getpass.getuser(), '/etc/sudoers']:
             signal_start()
@@ -2340,6 +2382,147 @@ def test_runner_harakiri(
 
         assert not t.run.runners
         assert runners_in_start.get()
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+def test_failing_container_startup(
+    monkeypatch_celery, basic, test_client, logged_in, describe, live_server,
+    lxc_stub, monkeypatch, app, session, stub_function_class, assert_similar,
+    monkeypatch_broker, monkeypatch_for_run, make_failer
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+
+        with logged_in(teacher):
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig_id, {
+                    'sets': [{
+                        'suites': [{
+                            'steps': [{
+                                'run_p': 'cp -r $STUDENT $AT_OUTPUT',
+                                'name': 'Copy all files',
+                            }]
+                        } for _ in range(7)],
+                    }]
+                }
+            )
+
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+        def on_first_fail():
+            with app.test_request_context('/'):
+                # Make sure the result was running while we first fail
+                # starting the container.
+                res = session.query(m.AutoTestResult
+                                    ).filter_by(work_id=work['id']).one()
+                assert res.state == m.AutoTestStepResultState.running
+            return False
+
+        failer = make_failer(6, lxc.Container.start, on_first_fail)
+        monkeypatch.setattr(lxc.Container, 'start', failer)
+
+    with describe(
+        'Failing startup should stop the runner and reset the result'
+    ):
+        with logged_in(teacher):
+            test_client.req('post', f'{url}/runs/', 200)['id']
+            session.commit()
+
+        with logged_in(teacher):
+            work = helpers.create_submission(
+                test_client, assig_id, for_user=student.username
+            )
+
+            session.commit()
+
+        res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
+                                                        ).one()
+        # Should begin as not started
+        assert res.state == m.AutoTestStepResultState.not_started
+
+        live_server_url, stop_server = live_server(get_stop=True)
+        psef.auto_test.start_polling(app.config)
+        session.expire_all()
+
+        # Make sure starting failed at least once
+        assert failer.failed_at_least_once()
+        # The result should be in the state `not_started` ready for another
+        # runner to pick up.
+        res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
+                                                        ).one()
+        assert res.state == m.AutoTestStepResultState.not_started
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+def test_failing_container_shutdown(
+    monkeypatch_celery, basic, test_client, logged_in, describe, live_server,
+    lxc_stub, monkeypatch, app, session, stub_function_class, assert_similar,
+    monkeypatch_broker, monkeypatch_for_run, make_failer
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+
+        with logged_in(teacher):
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig_id, {
+                    'sets': [{
+                        'suites': [{
+                            'steps': [{
+                                'run_p': 'ls',
+                                'name': f'Simple step {i}',
+                            }]
+                        } for i in range(2)],
+                    }]
+                }
+            )
+
+        url = f'/api/v1/auto_tests/{test["id"]}'
+        failed_at_least_once = False
+
+        def on_fail(amount):
+            nonlocal failed_at_least_once
+
+            if amount > 6 or failed_at_least_once:
+                failed_at_least_once = True
+                return True
+            return False
+
+        monkeypatch.setattr(
+            lxc.Container,
+            'shutdown',
+            # Toggle between success and fail
+            make_failer(4, lxc.Container.shutdown, on_fail=on_fail)
+        )
+
+    with describe('A sometimes failing shutdown should simply work'):
+        with logged_in(teacher):
+            test_client.req('post', f'{url}/runs/', 200)['id']
+            session.commit()
+
+        with logged_in(teacher):
+            work = helpers.create_submission(
+                test_client, assig_id, for_user=student.username
+            )
+
+            session.commit()
+
+        res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
+                                                        ).one()
+        # Should begin as not started
+        assert res.state == m.AutoTestStepResultState.not_started
+
+        live_server_url, stop_server = live_server(get_stop=True)
+        psef.auto_test.start_polling(app.config)
+        session.expire_all()
+
+        # The result should be in the state `not_started` ready for another
+        # runner to pick up.
+        res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
+                                                        ).one()
+        assert res.state == m.AutoTestStepResultState.passed
+
+        # Make sure starting failed at least once
+        assert failed_at_least_once
 
 
 @pytest.mark.parametrize('use_transaction', [False], indirect=True)

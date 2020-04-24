@@ -118,6 +118,14 @@ class AttachTimeoutError(StopRunningTestsException):
     pass
 
 
+class FailedToStartError(StopRunningTestsException):
+    pass
+
+
+class FailedToShutdownError(cg_worker_pool.KillWorkerException):
+    pass
+
+
 @dataclasses.dataclass(frozen=True)
 class OutputTail:
     """This class represents the tail of an output stream.
@@ -531,9 +539,15 @@ def _get_base_container(config: 'psef.FlaskConfig') -> 'AutoTestContainer':
 def _stop_container(cont: lxc.Container) -> None:
     if cont.running:
         with timed_code('stop_container'):
-            with _LXC_START_STOP_LOCK:
-                if not cont.shutdown(10):
-                    raise cg_worker_pool.KillWorkerException
+            for _ in helpers.retry_loop(
+                amount=4, sleep_time=1, make_exception=FailedToShutdownError
+            ):
+                with _LXC_START_STOP_LOCK:
+                    if cont.shutdown(10):
+                        break
+                logger.warning(
+                    'Failed to shutdown container', last_error=cont.last_error
+                )
             assert cont.wait('STOPPED', 3)
 
 
@@ -548,8 +562,13 @@ def _start_container(
 
     with timed_code('start_container'):
         with _LXC_START_STOP_LOCK:
-            assert cont.start()
-        assert cont.wait('RUNNING', 3)
+            if not cont.start():
+                logger.error(
+                    'Container failed to start', last_error=cont.last_error
+                )
+                raise FailedToStartError
+        if not cont.wait('RUNNING', 3):  # pragma: no cover
+            raise FailedToStartError
 
         def callback(domain_or_systemd: t.Optional[str]) -> int:
             if domain_or_systemd is None:
@@ -1542,7 +1561,7 @@ class AutoTestContainer:
     def create(self) -> None:
         """Create a backing lxc container for this AutoTestContainer.
         """
-        assert self._cont.create(
+        created = self._cont.create(
             'download',
             0, {
                 'dist': 'ubuntu',
@@ -1551,6 +1570,12 @@ class AutoTestContainer:
             },
             bdevtype=self._config['AUTO_TEST_BDEVTYPE']
         )
+        if not created:  # pragma: no cover
+            raise AssertionError(
+                'Failed to create container, last error {}'.format(
+                    self._cont.last_error
+                )
+            )
 
     @contextlib.contextmanager
     def started_container(self) -> t.Generator[StartedContainer, None, None]:
@@ -2009,12 +2034,13 @@ class AutoTestRunner:
         return res.get('code', None) == APICodes.NOT_NEWEST_SUBMSSION.name
 
     @timed_function
-    def _run_student(
+    def _run_student(  # pylint: disable=too-many-statements
         self,
         cont: StartedContainer,
         cpu: CpuCores.Core,
         result_id: int,
     ) -> bool:
+        # TODO: Split this function
         result_url = f'{self.base_url}/results/{result_id}'
 
         result_state: t.Optional[models.AutoTestStepResultState]
@@ -2103,6 +2129,10 @@ class AutoTestRunner:
             result_state = None
             logger.warning('Stop running steps', exc_info=True)
             raise
+        except cg_worker_pool.KillWorkerException:
+            result_state = None
+            logger.error('Worker wanted to be killed', exc_info=True)
+            return False
         except:
             logger.error('Something went wrong', exc_info=True)
             result_state = models.AutoTestStepResultState.failed
