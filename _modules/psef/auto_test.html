@@ -318,6 +318,14 @@
     <span class="k">pass</span></div>
 
 
+<div class="viewcode-block" id="FailedToStartError"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.FailedToStartError">[docs]</a><span class="k">class</span> <span class="nc">FailedToStartError</span><span class="p">(</span><span class="n">StopRunningTestsException</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="FailedToShutdownError"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.FailedToShutdownError">[docs]</a><span class="k">class</span> <span class="nc">FailedToShutdownError</span><span class="p">(</span><span class="n">cg_worker_pool</span><span class="o">.</span><span class="n">KillWorkerException</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
 <div class="viewcode-block" id="OutputTail"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.OutputTail">[docs]</a><span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span> <span class="nc">OutputTail</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;This class represents the tail of an output stream.</span>
@@ -731,9 +739,15 @@
 <span class="k">def</span> <span class="nf">_stop_container</span><span class="p">(</span><span class="n">cont</span><span class="p">:</span> <span class="n">lxc</span><span class="o">.</span><span class="n">Container</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="k">if</span> <span class="n">cont</span><span class="o">.</span><span class="n">running</span><span class="p">:</span>
         <span class="k">with</span> <span class="n">timed_code</span><span class="p">(</span><span class="s1">&#39;stop_container&#39;</span><span class="p">):</span>
-            <span class="k">with</span> <span class="n">_LXC_START_STOP_LOCK</span><span class="p">:</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">cont</span><span class="o">.</span><span class="n">shutdown</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
-                    <span class="k">raise</span> <span class="n">cg_worker_pool</span><span class="o">.</span><span class="n">KillWorkerException</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">helpers</span><span class="o">.</span><span class="n">retry_loop</span><span class="p">(</span>
+                <span class="n">amount</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">sleep_time</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">make_exception</span><span class="o">=</span><span class="n">FailedToShutdownError</span>
+            <span class="p">):</span>
+                <span class="k">with</span> <span class="n">_LXC_START_STOP_LOCK</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">cont</span><span class="o">.</span><span class="n">shutdown</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+                        <span class="k">break</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s1">&#39;Failed to shutdown container&#39;</span><span class="p">,</span> <span class="n">last_error</span><span class="o">=</span><span class="n">cont</span><span class="o">.</span><span class="n">last_error</span>
+                <span class="p">)</span>
             <span class="k">assert</span> <span class="n">cont</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="s1">&#39;STOPPED&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
 
 
@@ -748,8 +762,13 @@
 
     <span class="k">with</span> <span class="n">timed_code</span><span class="p">(</span><span class="s1">&#39;start_container&#39;</span><span class="p">):</span>
         <span class="k">with</span> <span class="n">_LXC_START_STOP_LOCK</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="n">cont</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
-        <span class="k">assert</span> <span class="n">cont</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="s1">&#39;RUNNING&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">cont</span><span class="o">.</span><span class="n">start</span><span class="p">():</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                    <span class="s1">&#39;Container failed to start&#39;</span><span class="p">,</span> <span class="n">last_error</span><span class="o">=</span><span class="n">cont</span><span class="o">.</span><span class="n">last_error</span>
+                <span class="p">)</span>
+                <span class="k">raise</span> <span class="n">FailedToStartError</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">cont</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="s1">&#39;RUNNING&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>  <span class="c1"># pragma: no cover</span>
+            <span class="k">raise</span> <span class="n">FailedToStartError</span>
 
         <span class="k">def</span> <span class="nf">callback</span><span class="p">(</span><span class="n">domain_or_systemd</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">domain_or_systemd</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -1742,7 +1761,7 @@
 <div class="viewcode-block" id="AutoTestContainer.create"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.AutoTestContainer.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Create a backing lxc container for this AutoTestContainer.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cont</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+        <span class="n">created</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cont</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
             <span class="s1">&#39;download&#39;</span><span class="p">,</span>
             <span class="mi">0</span><span class="p">,</span> <span class="p">{</span>
                 <span class="s1">&#39;dist&#39;</span><span class="p">:</span> <span class="s1">&#39;ubuntu&#39;</span><span class="p">,</span>
@@ -1750,7 +1769,13 @@
                 <span class="s1">&#39;arch&#39;</span><span class="p">:</span> <span class="s1">&#39;amd64&#39;</span><span class="p">,</span>
             <span class="p">},</span>
             <span class="n">bdevtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_BDEVTYPE&#39;</span><span class="p">]</span>
-        <span class="p">)</span></div>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">created</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to create container, last error </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_cont</span><span class="o">.</span><span class="n">last_error</span>
+                <span class="p">)</span>
+            <span class="p">)</span></div>
 
 <div class="viewcode-block" id="AutoTestContainer.started_container"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.AutoTestContainer.started_container">[docs]</a>    <span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
     <span class="k">def</span> <span class="nf">started_container</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Generator</span><span class="p">[</span><span class="n">StartedContainer</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
@@ -2209,12 +2234,13 @@
         <span class="k">return</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;code&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">NOT_NEWEST_SUBMSSION</span><span class="o">.</span><span class="n">name</span>
 
     <span class="nd">@timed_function</span>
-    <span class="k">def</span> <span class="nf">_run_student</span><span class="p">(</span>
+    <span class="k">def</span> <span class="nf">_run_student</span><span class="p">(</span>  <span class="c1"># pylint: disable=too-many-statements</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">cont</span><span class="p">:</span> <span class="n">StartedContainer</span><span class="p">,</span>
         <span class="n">cpu</span><span class="p">:</span> <span class="n">CpuCores</span><span class="o">.</span><span class="n">Core</span><span class="p">,</span>
         <span class="n">result_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="c1"># TODO: Split this function</span>
         <span class="n">result_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}</span><span class="s1">/results/</span><span class="si">{</span><span class="n">result_id</span><span class="si">}</span><span class="s1">&#39;</span>
 
         <span class="n">result_state</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">models</span><span class="o">.</span><span class="n">AutoTestStepResultState</span><span class="p">]</span>
@@ -2303,6 +2329,10 @@
             <span class="n">result_state</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Stop running steps&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="k">raise</span>
+        <span class="k">except</span> <span class="n">cg_worker_pool</span><span class="o">.</span><span class="n">KillWorkerException</span><span class="p">:</span>
+            <span class="n">result_state</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Worker wanted to be killed&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
         <span class="k">except</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Something went wrong&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="n">result_state</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">AutoTestStepResultState</span><span class="o">.</span><span class="n">failed</span>
