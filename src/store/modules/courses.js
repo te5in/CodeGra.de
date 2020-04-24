@@ -33,7 +33,7 @@ function getAssignment(state, assignmentId) {
     return assignment;
 }
 
-function updatePermissions(courses, perms) {
+export function updatePermissions(courses, perms) {
     courses.forEach(c => {
         c.permissions = perms[c.id];
     });
@@ -50,7 +50,7 @@ function updatePermissions(courses, perms) {
                 ([k, v]) => MANAGE_GENERAL_COURSE_PERMISSIONS.indexOf(k) !== -1 && v,
             );
 
-            create[key] = entries.some(([k, v]) => k === 'can_create_assignment' && v);
+            create[key] = !!val.can_create_assignment;
 
             return [course, assig, create];
         },
@@ -83,11 +83,18 @@ export const actions = {
         commit(`submissions/${types.CLEAR_SUBMISSIONS}`, null, { root: true });
         commit(types.CLEAR_COURSES);
 
+        // TODO: It _may_ be possible that the permissions request is handled
+        // first, and that between it and the course request a new course was
+        // created, in which case the permission mapping does not contain the
+        // permissions for that new course. In that case, newCourse.permissions
+        // is undefined, but everywhere in CodeGrade we assume it never is. So
+        // we should probably add a check for that, and retrieve the
+        // permissions for that course before resolving the promise.
         const coursePromise = Promise.all([
             axios.get('/api/v1/courses/?extended=true'),
             axios.get('/api/v1/permissions/?type=course'),
-        ]).then(
-            ([{ data: courses }, { data: perms }]) => {
+        ])
+            .then(([{ data: courses }, { data: perms }]) => {
                 const [manageCourses, manageAssigs, createAssigs] = updatePermissions(
                     courses,
                     perms,
@@ -102,9 +109,11 @@ export const actions = {
                 ]);
 
                 return courses;
-            },
-            () => state.courses,
-        );
+            })
+            // We make this a catch-all, because if this promise does not
+            // succeed then all of CodeGrade breaks.
+            // TODO: do something more useful when this fails.
+            .catch(() => state.courses);
 
         commit(types.SET_COURSES_PROMISE, coursePromise);
 
