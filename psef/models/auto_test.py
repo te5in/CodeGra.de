@@ -812,6 +812,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         :returns: A mapping that should be send to the broker in the metadata
             under the ``results`` key.
         """
+
         # NOTE: This function does three separate database queries, as each
         # query either sorts by a different column, or sorts in a different
         # direction. It is probably possible to reduce this to two queries,
