@@ -253,14 +253,14 @@ describe('actions', () => {
     describe('load courses', () => {
         it('should reload courses', async () => {
             const obj1 = {};
-            mockDispatch.mockReturnValueOnce(obj1);
+            mockDispatch.mockResolvedValueOnce(obj1);
 
-            await actions.loadCourses(context);
-
-            expect(mockDispatch).toBeCalledTimes(1);
-            expect(mockDispatch).toBeCalledWith('reloadCourses');
-            expect(mockCommit).toBeCalledTimes(1);
-            expect(mockCommit).toBeCalledWith(types.SET_COURSES_PROMISE, obj1);
+            actions.loadCourses(context).then(() => {
+                expect(mockDispatch).toBeCalledTimes(1);
+                expect(mockDispatch).toBeCalledWith('reloadCourses');
+                expect(mockCommit).toBeCalledTimes(1);
+                expect(mockCommit).toBeCalledWith(types.SET_COURSES_PROMISE, obj1);
+            });
         });
 
         it('should return currentCourseLoader', async () => {
