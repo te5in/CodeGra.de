@@ -68,7 +68,7 @@ export default {
     },
 
     watch: {
-        assignment: {
+        assignmentId: {
             immediate: true,
             handler() {
                 this.maxGrade = this.$utils.getProps(this.assignment, null, 'max_grade');
@@ -78,6 +78,10 @@ export default {
 
     methods: {
         ...mapActions('courses', ['updateAssignment']),
+
+        assignmentId() {
+            return this.assignment.id;
+        },
 
         reset() {
             this.maxGrade = null;

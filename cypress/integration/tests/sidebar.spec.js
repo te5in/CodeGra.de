@@ -389,13 +389,30 @@ context('Sidebar', () => {
                 .find('.loader')
                 .should('not.exist');
 
+            cy.url().then(url => {
+                const subId = url.match(/\/submissions\/(\d+)\//)[1];
+
+                cy.delayRoute({
+                    url: `/api/v1/submissions/${subId}/files/`,
+                    method: 'GET',
+                }, 3000);
+                cy.delayRoute({
+                    url: `/api/v1/submissions/${subId}/feedbacks/?with_replies`,
+                    method: 'GET',
+                }, 3000).as('feedbackRoute');
+                cy.delayRoute({
+                    url: `/api/v1/assignments/${assignment.id}/submissions/?extended&latest_only`,
+                    method: 'GET',
+                }, 3000).as('subsRoute');
+            });
+
             // I could not get the timing right for this case (and what good is
             // a test anyway if it depends on very specific timings...); for
-            // some reason the check that the page loader would be visible
-            // always triggered after all reloading was done, even with the
-            // delayRoute command with a very high (5 seconds) delay... So we
-            // just wait a few seconds and check that the file viewer is
-            // visible.
+            // some reason Cypress _can_ detect that the .file-viewer is gone,
+            // but if we check for a .submission-page-loader to be visible
+            // directly after that, that fails because the .file-viewer is
+            // already visible again. Even with the delay set very high (5
+            // seconds).
             cy.get('.sidebar .sidebar-entry-submissions')
                 .click();
             cy.get('.sidebar .submenu:last .submissions-sidebar-list')
@@ -403,10 +420,15 @@ context('Sidebar', () => {
             cy.get('.sidebar .submenu:last .refresh-button')
                 .click();
 
-            cy.wait(3000);
-            // Then check that the page loader disappears again.
-            cy.get('.submission-page-loader')
+            // First check that the file viewer disappears.
+            cy.get('.page.submission .file-viewer')
                 .should('not.exist');
+
+            // Wait until the submissions have been reloaded (and make sure
+            // this happens _after_ the .file-viewer has disappeared).
+            cy.wait('@feedbackRoute');
+            cy.wait('@subsRoute');
+
             // And that the file viewer is visible again.
             cy.get('.page.submission')
                 .should('be.visible')
