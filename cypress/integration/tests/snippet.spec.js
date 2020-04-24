@@ -6,7 +6,7 @@ context('Personal snippet manager', () => {
         cy.get('.sidebar-top-item.sidebar-entry-user').click();
     });
 
-    const seed = `${Math.random()}`;
+    const seed = `${Math.floor(1000000 * Math.random())}`;
     const value = `value\n one_${seed}`;
     const key = `key_one_${seed}`;
 
@@ -55,7 +55,10 @@ context('Personal snippet manager', () => {
         cy.get('.edit-snippet-modal .modal-title')
             .should('be.visible')
             .should('contain', 'Edit snippet')
-        cy.get('textarea[name=snippet-value]').clear().type('NEW VALUE')
+        cy.get('textarea[name=snippet-value]')
+            .should('have.value', value)
+            .clear()
+            .type('NEW VALUE');
         cy.get('.edit-snippet-modal .submit-button').click()
         getSnippet(key).should('contain', 'NEW VALUE')
         getSnippet(key).should('not.contain', value)
