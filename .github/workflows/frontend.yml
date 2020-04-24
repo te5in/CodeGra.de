@@ -67,9 +67,9 @@ jobs:
       matrix:
         python-version: [3.7]
         # When adding runners, make sure you also download their artifacts below!
-        runner_num: [0, 1]
+        runner_num: [0, 1, 2, 3]
         # This should be the length of the array above.
-        runner_amount: [2]
+        runner_amount: [4]
 
     services:
       redis:
@@ -202,6 +202,16 @@ jobs:
         uses: actions/download-artifact@v1
         with:
           name: frontend-integration-1-coverage
+
+      - name: Download frontend integration 1 test coverage
+        uses: actions/download-artifact@v1
+        with:
+          name: frontend-integration-2-coverage
+
+      - name: Download frontend integration 1 test coverage
+        uses: actions/download-artifact@v1
+        with:
+          name: frontend-integration-3-coverage
 
       - name: Upload combined coverage
         run: ./.github/scripts/merge_and_upload_coverage.bash
