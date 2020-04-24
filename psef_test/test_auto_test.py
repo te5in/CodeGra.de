@@ -2452,7 +2452,7 @@ def test_failing_starting_container(
                                 'run_p': 'cp -r $STUDENT $AT_OUTPUT',
                                 'name': 'Copy all files',
                             }]
-                        }],
+                        } for _ in range(7)],
                     }]
                 }
             )
@@ -2470,16 +2470,28 @@ def test_failing_starting_container(
                     successes.value += 1
                     return orig(*args, **kwargs)
 
-                failed_at_least_once = True
+                if not failed_at_least_once:
+                    failed_at_least_once = True
+                    with app.test_request_context('/'):
+                        # Make sure the result was running while we first fail
+                        # starting the container.
+                        res = session.query(
+                            m.AutoTestResult
+                        ).filter_by(work_id=work['id']).one()
+                        assert res.state == m.AutoTestStepResultState.running
                 return False
 
             return failer
 
         monkeypatch.setattr(
-            lxc.Container, 'start', make_failer(4, lxc.Container.start)
+            lxc.Container, 'start', make_failer(6, lxc.Container.start)
         )
 
     with describe('start_auto_test'):
+        with logged_in(teacher):
+            test_client.req('post', f'{url}/runs/', 200)['id']
+            session.commit()
+
         with logged_in(teacher):
             work = helpers.create_submission(
                 test_client, assig_id, for_user=student.username
@@ -2487,20 +2499,18 @@ def test_failing_starting_container(
 
             session.commit()
 
-        with logged_in(teacher):
-            test_client.req('post', f'{url}/runs/', 200)['id']
-            session.commit()
+        res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
+                                                        ).one()
+        # Should begin as not started
+        assert res.state == m.AutoTestStepResultState.not_started
 
         live_server_url, stop_server = live_server(get_stop=True)
-        try:
-            psef.auto_test.start_polling(app.config)
-        except psef.auto_test.FailedToShutdownError:
-            # We might still be failing shutdowns if the base containers tries
-            # to shutdown, so we simply ignore that error.
-            pass
+        psef.auto_test.start_polling(app.config)
 
+        # Make sure starting failed at least once
+        assert failed_at_least_once
+        # The result should be in the state `not_started` ready for another
+        # runner to pick up.
         res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
                                                         ).one()
         assert res.state == m.AutoTestStepResultState.not_started
-
-        assert failed_at_least_once
