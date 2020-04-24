@@ -1,7 +1,7 @@
 // We first need to import the main store, to prevent undefined errors.
 import { store } from '@/store';
 
-import { actions } from '@/store/modules/courses';
+import { actions, updatePermissions } from '@/store/modules/courses';
 
 import * as types from '@/store/mutation-types';
 import * as utils from '@/utils';
@@ -251,15 +251,16 @@ describe('actions', () => {
     });
 
     describe('load courses', () => {
-        it('should reload courses', async () => {
+        it('should reload courses', () => {
             const obj1 = {};
-            mockDispatch.mockResolvedValueOnce(obj1);
+            mockDispatch = jest.fn(() => {
+                return Promise.resolve(obj1);
+            });
+            context.dispatch = mockDispatch;
 
-            actions.loadCourses(context).then(() => {
+            return actions.loadCourses(context).then(() => {
                 expect(mockDispatch).toBeCalledTimes(1);
                 expect(mockDispatch).toBeCalledWith('reloadCourses');
-                expect(mockCommit).toBeCalledTimes(1);
-                expect(mockCommit).toBeCalledWith(types.SET_COURSES_PROMISE, obj1);
             });
         });
 
@@ -304,5 +305,81 @@ describe('actions', () => {
             // Should return the found assignment.
             expect(res).toBe(obj2);
         });
+    });
+});
+
+describe('updatePermissions', () => {
+    it('should copy over the permissions in its second argument to each course in the first argument', () => {
+        const courses = [{ id: 1 }];
+        const perms = { 1: {} };
+
+        updatePermissions(courses, perms);
+
+        expect(courses[0].permissions).toBe(perms[1]);
+    });
+
+    it('should return 3 mappings', () => {
+        const courses = [{ id: 1 }];
+        const perms = { 1: {} };
+        const result = updatePermissions(courses, perms);
+
+        expect(result).toBeArray();
+        expect(result).toHaveLength(3);
+        result.forEach(x => {
+            expect(x).toBeObject();
+        });
+    });
+
+    it('should return a mapping from course id to a special "can manage course" permission', () => {
+        const withCanManageCourse = { can_edit_course_users: true };
+        const withoutCanMangeCourse = {};
+        const courses = [{ id: 1 }, { id: 2 }];
+        const perms = { 1: withCanManageCourse, 2: withoutCanMangeCourse };
+
+        const cs = courses.slice(0, 2);
+
+        const [manageCourse] = updatePermissions(courses, perms);
+
+        expect(manageCourse).toEqual({ 1: true, 2: false });
+    });
+
+    it('should return a mapping from assignment id to a special "can manage assignment" permission', () => {
+        const withCanManageAssig = { can_edit_assignment_info: true };
+        const withoutCanMangeAssig = {};
+        const courses = [{ id: 1 }, { id: 2 }];
+        const perms = { 1: withCanManageAssig, 2: withoutCanMangeAssig };
+
+        const [_, manageAssig] = updatePermissions(courses, perms);
+
+        expect(manageAssig).toEqual({ 1: true, 2: false });
+    });
+
+    it('should return a mapping from course id to a special "can create assignment" permission', () => {
+        const withCanCreateAssignment = { can_create_assignment: true };
+        const withoutCanMangeAssignment = {};
+        const courses = [{ id: 1 }, { id: 2 }];
+        const perms = { 1: withCanCreateAssignment, 2: withoutCanMangeAssignment };
+
+        const [_, __, createAssignment] = updatePermissions(courses, perms);
+
+        expect(createAssignment).toEqual({ 1: true, 2: false });
+    });
+
+    it('should not throw when there are more courses than permission mappings', () => {
+        const courses = [{ id: 1 }, { id: 2 }];
+        const perms = { 1: {} };
+
+        expect(() => {
+            updatePermissions(courses, perms);
+        }).not.toThrow();
+    });
+
+    it('should not throw when there are more permission mappings than courses', () => {
+        const courses = [{ id: 1 }];
+        const perms = { 1: {}, 2: {} };
+
+        expect(() => {
+            updatePermissions(courses, perms);
+        }).not.toThrow();
     });
 });
