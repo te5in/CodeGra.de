@@ -180,6 +180,7 @@ import 'vue-awesome/icons/chevron-down';
 
 import { downloadFile, nameOfUser } from '@/utils';
 import { getOutputCells } from '@/utils/ipython';
+import { PlagiarismDocument } from '@/utils/Document/Plagiarism';
 
 import {
     Loader,
@@ -191,6 +192,8 @@ import {
 } from '@/components';
 
 import Collapse from './Collapse';
+
+console.log(PlagiarismDocument);
 
 const latexEscape = txt => lescape(txt, { preserveFormatting: true });
 
