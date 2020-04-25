@@ -2044,7 +2044,7 @@ class AutoTestRunner:
         return res.get('code', None) == APICodes.NOT_NEWEST_SUBMSSION.name
 
     @timed_function
-    def _run_student(  # pylint: disable=too-many-statements
+    def _run_student(  # pylint: disable=too-many-statements,too-many-branches
         self,
         cont: StartedContainer,
         cpu: CpuCores.Core,
