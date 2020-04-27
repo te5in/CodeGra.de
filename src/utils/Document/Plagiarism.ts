@@ -53,11 +53,11 @@ export interface PlagMatch {
 }
 
 function bgColor(colorElement: number) {
-    return Math.round(Math.min(255, colorElement * 0.4 + 0.6 * 255));
+    return Math.round(Math.min(255, colorElement * 0.2 + 0.8 * 255));
 }
 
 function fgColor(colorElement: number) {
-    return Math.round(colorElement / 1.75);
+    return Math.round(colorElement / 2);
 }
 
 function makeCodeBlock(match: PlagMatch, opts: PlagiarismOptions): [CodeBlock, CodeBlock] {
