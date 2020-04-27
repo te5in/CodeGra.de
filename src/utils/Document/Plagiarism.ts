@@ -4,12 +4,13 @@ import {
     ColumnLayout,
     ContentBlock,
     MonospaceContent,
+    Section,
     DocumentRoot,
     backends,
     NewPage,
     render,
 } from '@/utils/Document';
-import { flatMap1, AssertionError } from '../typed';
+import { AssertionError } from '../typed';
 
 export interface PlagiarismOptions {
     // The number of context lines to render before/after each match. Ignored
@@ -42,18 +43,27 @@ export interface PlagMatch {
     color: [number, number, number];
 }
 
-function makeCodeBlock(match: PlagMatch, context: number): [CodeBlock, CodeBlock] {
+function bgColor(colorElement: number) {
+    return Math.round(Math.min(255, colorElement * 0.4 + 0.6 * 255));
+}
+
+function fgColor(colorElement: number) {
+    return Math.round(colorElement / 1.75);
+}
+
+function makeCodeBlock(match: PlagMatch, opts: PlagiarismOptions): [CodeBlock, CodeBlock] {
     const background = {
-        red: Math.min(255, match.color[0] * 0.4 + 0.6 * 255),
-        green: Math.min(255, match.color[1] * 0.4 + 0.6 * 255),
-        blue: Math.min(255, match.color[2] * 0.4 + 0.6 * 255),
+        red: bgColor(match.color[0]),
+        green: bgColor(match.color[1]),
+        blue: bgColor(match.color[2]),
     };
     const textColor = {
-        red: match.color[0] / 1.75,
-        green: match.color[1] / 1.75,
-        blue: match.color[2] / 1.75,
+        red: fgColor(match.color[0]),
+        green: fgColor(match.color[1]),
+        blue: fgColor(match.color[2]),
     };
     const highlight = new Highlight(background, textColor);
+    const context = opts.contextLines ?? 0;
 
     function maker(innerMatch: FileMatch) {
         return {
@@ -80,28 +90,34 @@ function makeCodeBlock(match: PlagMatch, context: number): [CodeBlock, CodeBlock
     return [maker(match.matchA), maker(match.matchB)];
 }
 
+function makeSection(match: PlagMatch, opts: PlagiarismOptions): Section {
+    const [b1, b2] = makeCodeBlock(match, opts);
+
+    let children;
+    switch (opts.matchesAlign) {
+        case 'sidebyside':
+            children = [new ColumnLayout([b1, b2])];
+            break;
+        case 'sequential':
+            children = [b1, b2];
+            break;
+        case 'newpage':
+            children = [b1, new NewPage(), b2, new NewPage()];
+            break;
+        default:
+            return AssertionError.assert(false, 'unknown matches align found');
+    }
+
+    // TODO: Use actual match index.
+    // TODO: Discuss if we want to change this section header.
+    return new Section('Match X', children);
+}
+
 export class PlagiarismDocument {
     constructor(private readonly backend: keyof typeof backends) {}
 
     render(matches: PlagMatch[], opts: PlagiarismOptions): Promise<Buffer> {
-        const context = opts.contextLines ?? 0;
-        const blocks = flatMap1(matches, (match): (
-            | ColumnLayout<CodeBlock>
-            | NewPage
-            | CodeBlock
-        )[] => {
-            const [b1, b2] = makeCodeBlock(match, context);
-            switch (opts.matchesAlign) {
-                case 'sidebyside':
-                    return [new ColumnLayout([b1, b2])];
-                case 'sequential':
-                    return [b1, b2];
-                case 'newpage':
-                    return [b1, new NewPage(), b2, new NewPage()];
-                default:
-                    return AssertionError.assert(false, 'unknown matches align found');
-            }
-        });
+        const blocks = matches.map((match): Section => makeSection(match, opts));
         const root = DocumentRoot.makeEmpty().addChildren(blocks);
 
         return render(this.backend, root);

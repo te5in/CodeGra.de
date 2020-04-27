@@ -57,22 +57,31 @@
             </tbody>
         </table>
 
-        <div class="export-options-wrapper">
+        <div class="my-3">
             <collapse v-model="advancedOptionsCollapsed">
                 <div slot="handle">
                     <icon class="toggle flex-grow-1" name="chevron-down" :scale="0.75" />
                     <b>Options</b>
                 </div>
-                <div class="export-options-list">
-                    <b-form-checkbox v-model="exportOptions.newPageAfterMatch"
-                                     style="margin-right: 0">
-                        Each listing on a separate page
-                    </b-form-checkbox>
+                <div class="mt-2">
+                    <b-input-group class="mb-3">
+                        <b-form-radio-group v-model="exportOptions.matchesAlign"
+                                            :options="matchesAlignmentOptions" />
+                    </b-input-group>
+
+                    <b-input-group>
+                        <input class="form-control"
+                               placeholder="Number of context lines"
+                               type="number"
+                               step="1"
+                               start="0"
+                               v-model="exportOptions.contextLines" />
+                    </b-input-group>
                 </div>
             </collapse>
         </div>
 
-        <b-button-toolbar justify style="margin-top: 1em;">
+        <b-button-toolbar justify>
             <b-button variant="outline-primary"
                       @click="$root.$emit('bv::hide::modal', 'plagiarism-export');">
                 Cancel
@@ -206,7 +215,10 @@ export default {
             exportMatches: {},
 
             error: '',
-            exportOptions: { newPageAfterMatch: true },
+            exportOptions: {
+                contextLines: 5,
+                matchesAlign: 'newpage',
+            },
             advancedOptionsCollapsed: false,
 
             Error,
@@ -288,6 +300,23 @@ export default {
                     ? background.map(item => Math.min(255, Math.max(25, item) * 4))
                     : background.map(item => item / 1.75),
             }));
+        },
+
+        matchesAlignmentOptions() {
+            return [
+                {
+                    text: 'Each listing on a new page',
+                    value: 'newpage',
+                },
+                {
+                    text: 'Matches side by side',
+                    value: 'sidebyside',
+                },
+                {
+                    text: 'Sequential',
+                    value: 'sequential',
+                },
+            ];
         },
 
         assignmentId() {
@@ -416,10 +445,10 @@ export default {
                 }),
             ));
 
-            return new PlagiarismDocument('LaTeX').render(plagMatches, {
-                contextLines: 4,
-                matchesAlign: 'newpage',
-            });
+            return new PlagiarismDocument('LaTeX').render(plagMatches, this.exportOptions);
+                // contextLines: this.exportOptions,
+                // matchesAlign: 'newpage',
+            // });
         },
 
         getExtension(file) {
@@ -772,14 +801,6 @@ export default {
 
 .plagiarism-detail .input-group-prepend {
     margin-top: 0;
-}
-
-.export-options-wrapper {
-    margin: 1rem 0.75rem;
-
-    .export-options-list {
-        margin-top: 5px;
-    }
 }
 </style>
 

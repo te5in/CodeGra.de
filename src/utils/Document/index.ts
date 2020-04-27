@@ -176,7 +176,7 @@ class LatexDocument extends DocumentBackend {
 \\definecolor{redstrings}{rgb}{0.9, 0, 0}
 \\definecolor{graynumbers}{rgb}{0.5, 0.5, 0.5}
 
-${this._defineColors(flat1(highlights)).join('\n')}
+${this.defineColors(flat1(highlights)).join('\n')}
 
 \\lstset{
     numbers=left,
@@ -207,7 +207,7 @@ ${flat1(lines).join('\n')}
     }
 
     // eslint-disable-next-line class-methods-use-this
-    _defineColors(highlights: Highlight[]): string[] {
+    private defineColors(highlights: Highlight[]): string[] {
         return unique(highlights, h => h.id).reduce(
             (acc: string[], highlight) => {
                 const id = highlight.id;
@@ -265,7 +265,7 @@ ${flat1(lines).join('\n')}
             [
                 '\\begin{lstlisting}[',
                 `    firstnumber=${code.firstLine},`,
-                `    linebackgroundcolor=${this._makeHighlights(code.highlights)},`,
+                `    linebackgroundcolor=${this.makeHighlights(code.highlights)},`,
                 `    caption = {${caption}}]`,
                 ...code.lines.map(line =>
                     line.replace(LatexDocument.endListingRegex, '\\end {lstlisting}'),
@@ -276,12 +276,12 @@ ${flat1(lines).join('\n')}
         ];
     }
 
-    _makeHighlights(ranges: HighlightRange[]): string {
+    private makeHighlights(ranges: HighlightRange[]): string {
         const sorted = ranges.sort((a, b) => a.end - b.end);
-        return this._makeHighlightsSorted(sorted);
+        return this.makeHighlightsSorted(sorted);
     }
 
-    _makeHighlightsSorted(ranges: HighlightRange[]): string {
+    private makeHighlightsSorted(ranges: HighlightRange[]): string {
         // Ranges must be sorted and not overlap. Because there is no "and"
         // operator in TeX that is the only way we can guarantee that the
         // nested if-else below will work correctly.
@@ -306,7 +306,7 @@ ${flat1(lines).join('\n')}
         \\color{bg-color-${cur.highlight.id}}%
     \\fi%
 \\else%
-    ${this._makeHighlightsSorted(rest)}%
+    ${this.makeHighlightsSorted(rest)}%
 \\fi
             `.trim();
         }
