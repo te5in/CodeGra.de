@@ -167,12 +167,39 @@ class LatexDocument extends DocumentBackend {
 
         const base = `\\documentclass{article}
 \\usepackage{listings}
-\\usepackage{lstlinebgrd}
+%\\usepackage{lstlinebgrd}
 \\usepackage{xcolor}
 \\usepackage[T1]{fontenc}
+\\usepackage[utf8]{inputenc}
 \\usepackage{textcomp}
 \\usepackage{paracol}
-\\usepackage[margin=0.5in]{geometry}
+
+% START Fix for incompatibility between newer versions of listings and
+% lstlinebgrd
+% XXX: This may break when the package "lstlinebgrd" is updated. If compilation
+% of this document fails with the error "Error: Numbers none unknown", try to
+% delete everything from "START fix" to "END fix", and uncomment the import of
+% the "lstlinebgrd" package above.
+\\makeatletter
+\\let\\old@lstKV@SwitchCases\\lstKV@SwitchCases
+\\def\\lstKV@SwitchCases#1#2#3{}
+\\makeatother
+\\usepackage{lstlinebgrd}
+\\makeatletter
+\\let\\lstKV@SwitchCases\\old@lstKV@SwitchCases
+
+\\lst@Key{numbers}{none}{%
+    \\def\\lst@PlaceNumber{\\lst@linebgrd}%
+    \\lstKV@SwitchCases{#1}%
+    {none:\\\\%
+     left:\\def\\lst@PlaceNumber{\\llap{\\normalfont
+                \\lst@numberstyle{\\thelstnumber}\\kern\\lst@numbersep}\\lst@linebgrd}\\\\%
+     right:\\def\\lst@PlaceNumber{\\rlap{\\normalfont
+                \\kern\\linewidth \\kern\\lst@numbersep
+                \\lst@numberstyle{\\thelstnumber}}\\lst@linebgrd}%
+    }{\\PackageError{Listings}{Numbers #1 unknown}\\@ehc}}
+\\makeatother\\usepackage[margin=0.5in]{geometry}
+% END fix
 
 \\definecolor{bluekeywords}{rgb}{0.13, 0.13, 1}
 \\definecolor{greencomments}{rgb}{0, 0.5, 0}
