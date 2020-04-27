@@ -65,13 +65,15 @@
             </tbody>
         </table>
 
-        <div class="my-3">
+        <div class="my-3 mx-n3">
             <collapse v-model="advancedOptionsCollapsed">
                 <div slot="handle">
-                    <icon class="toggle flex-grow-1" name="chevron-down" :scale="0.75" />
-                    <b>Options</b>
+                    <div class="px-3">
+                        <icon class="toggle flex-grow-1" name="chevron-down" :scale="0.75" />
+                        <b>Options</b>
+                    </div>
                 </div>
-                <div class="mt-2">
+                <div class="mt-2 px-3">
                     <b-form-group label="Render each listing on a new page">
                         <cg-toggle v-model="exportOptions.newPage" />
                     </b-form-group>
