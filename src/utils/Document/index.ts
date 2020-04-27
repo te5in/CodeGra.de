@@ -114,6 +114,10 @@ export class DocumentRoot {
 abstract class DocumentBackend {
     static backendName: string;
 
+    static fileExtension: string;
+
+    static mimeType: string;
+
     constructor(public doc: DocumentRoot) {}
 
     abstract renderToBuffer(): Promise<Buffer>;
@@ -121,6 +125,10 @@ abstract class DocumentBackend {
 
 class LatexDocument extends DocumentBackend {
     static backendName: 'LaTeX' = 'LaTeX';
+
+    static fileExtension: 'tex' = 'tex';
+
+    static mimeType: 'text/x-tex' = 'text/x-tex';
 
     private static readonly endListingRegex = new RegExp('\\\\end{lstlisting}', 'g');
 
@@ -396,7 +404,12 @@ ${flat1(lines).join('\n')}
 }
 
 class DocxDocument extends DocumentBackend {
-    static backendName = 'DOCX';
+    static backendName: 'DOCX' = 'DOCX';
+
+    static fileExtension: 'docx' = 'docx';
+
+    static mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' =
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
     private codeBlockIndex: number = 0;
 

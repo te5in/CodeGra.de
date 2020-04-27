@@ -26,7 +26,7 @@
     </local-header>
 
     <b-modal id="plagiarism-export"
-             title="Export to LaTeX"
+             title="Export"
              hide-footer
              static>
         <h6 style="text-align: center;">Select which matches should be exported</h6>
@@ -90,6 +90,11 @@
                                start="0"
                                v-model="exportOptions.contextLines" />
                     </b-form-group>
+
+                    <b-form-group label="Output format">
+                        <b-form-select v-model="outputFormat"
+                                       :options="outputOptions" />
+                    </b-form-group>
                 </div>
             </collapse>
         </div>
@@ -102,8 +107,8 @@
             <b-button-group v-b-popover.top.hover="exportDisabled ? 'Select at least one case to export' : ''">
                 <submit-button label="Export"
                                :disabled="exportDisabled"
-                               :submit="exportToLatex"
-                               @success="afterExportToLatex"/>
+                               :submit="exportToDocument"
+                               @success="afterExportToDocument"/>
             </b-button-group>
         </b-button-toolbar>
     </b-modal>
@@ -201,6 +206,7 @@ import 'vue-awesome/icons/chevron-down';
 
 import { downloadFile, nameOfUser } from '@/utils';
 import { getOutputCells } from '@/utils/ipython';
+import { backends as documentBackends } from '@/utils/Document';
 import { PlagiarismDocument } from '@/utils/Document/Plagiarism';
 
 import {
@@ -235,6 +241,7 @@ export default {
                 newPage: true,
                 entireFiles: false,
             },
+            outputFormat: 'LaTeX',
             advancedOptionsCollapsed: false,
 
             Error,
@@ -270,6 +277,13 @@ export default {
 
         numExported() {
             return this.matchIds.filter(id => this.exportMatches[id]).length;
+        },
+
+        outputOptions() {
+            return Object.keys(documentBackends).map(name => ({
+                text: name,
+                value: name,
+            }));
         },
 
         // This is a mapping between file id and object, containing a `name`
@@ -417,7 +431,7 @@ export default {
             return this.colorPairs[this.colorIndicesPerFile[match.files[0].id][match.lines[0][0]]];
         },
 
-        async getTexFile(matches) {
+        async renderPlagiarismDocument(matches) {
             const neededFileIds = matches.reduce((accum, match) => {
                 accum.add(match.files[0].id);
                 accum.add(match.files[1].id);
@@ -460,7 +474,10 @@ export default {
                 }),
             ));
 
-            return new PlagiarismDocument('DOCX').render(plagMatches, this.exportOptions);
+            return new PlagiarismDocument(this.outputFormat).render(
+                plagMatches,
+                this.exportOptions,
+            );
         },
 
         getExtension(file) {
@@ -664,21 +681,22 @@ export default {
             }
         },
 
-        exportToLatex() {
+        exportToDocument() {
             const matches = this.matchesSortedByRange.filter(a => this.exportMatches[a.id]);
 
             if (matches.length === 0) {
                 throw new Error('Select at least one case.');
             }
 
-            return this.getTexFile(matches);
+            return this.renderPlagiarismDocument(matches);
         },
 
-        afterExportToLatex(texData) {
-            this.exportMatches = {};
-            const [user1, user2] = this.detail.users;
-            const fileName = `plagiarism_case_${nameOfUser(user1)}+${nameOfUser(user2)}.tex`;
-            downloadFile(texData, fileName, 'text/x-tex');
+        afterExportToDocument(fileData) {
+            this.$set(this, 'exportMatches', {});
+            const [user1, user2] = this.detail.users.map(nameOfUser);
+            const backend = documentBackends[this.outputFormat];
+            const fileName = `plagiarism_case_${user1}+${user2}.${backend.fileExtension}`;
+            downloadFile(fileData, fileName, backend.mimeType);
         },
 
         toggleExportMatch(id, value = null) {
