@@ -57,6 +57,6 @@ structlog==20.1.0
 transip==2.1.2
 typing-extensions==3.7.4.2
 validate-email==1.3
-Werkzeug==1.0.0
+Werkzeug==1.0.1
 yapf==0.26.0
 zxcvbn==4.4.28
