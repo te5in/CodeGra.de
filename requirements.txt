@@ -52,7 +52,7 @@ Sphinx==3.0.3
 sphinx-rtd-theme==0.4.3
 SQLAlchemy==1.3.16
 sqlalchemy-citext==1.6.3
-SQLAlchemy-Utils==0.36.2
+SQLAlchemy-Utils==0.36.3
 structlog==20.1.0
 transip==2.1.1
 typing-extensions==3.7.4.1
