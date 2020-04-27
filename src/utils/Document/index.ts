@@ -1,6 +1,30 @@
 import { hasAttr, unzip2, flat1, unique } from '@/utils/typed';
 
-type TextBlock = string[];
+type TextBlock = string;
+
+abstract class WrapperContent {
+    constructor(public readonly content: ContentBlock) {}
+
+    abstract wrapperTag: string;
+}
+
+export class EmphasizedContent extends WrapperContent {
+    wrapperTag = 'emph';
+}
+
+export class BoldContent extends WrapperContent {
+    wrapperTag = 'textbf';
+}
+
+export class MonospaceContent extends WrapperContent {
+    wrapperTag = 'texttt';
+}
+
+type ContentChunk = TextBlock | EmphasizedContent | BoldContent | MonospaceContent;
+
+export class ContentBlock {
+    constructor(public readonly chunks: ReadonlyArray<ContentChunk>) {}
+}
 
 export interface CodeBlock {
     // Line number of the first line in the block.
@@ -13,7 +37,7 @@ export interface CodeBlock {
     highlights: HighlightRange[];
 
     // Optional caption.
-    caption?: string;
+    caption?: ContentBlock;
 }
 
 interface HighlightRange {
@@ -63,7 +87,7 @@ export class Section {
 
 export class NewPage {}
 
-type DocumentContentNode = CodeBlock | TextBlock | NewPage;
+type DocumentContentNode = CodeBlock | ContentBlock | NewPage;
 
 type DocumentNode = DocumentContentNode | Section | ColumnLayout<DocumentContentNode | Section>;
 
@@ -126,8 +150,8 @@ class LatexDocument extends DocumentBackend {
             return this.renderSection(el);
         } else if (el instanceof ColumnLayout) {
             return this.renderColumn(el);
-        } else if (Array.isArray(el)) {
-            return [el, []];
+        } else if (el instanceof ContentBlock) {
+            return this.renderContentBlock(el);
         } else if (el instanceof NewPage) {
             return [['\\clearpage{}'], []];
         } else {
@@ -199,6 +223,26 @@ ${flat1(lines).join('\n')}
         );
     }
 
+    renderContentBlock(contentBlock: ContentBlock): [[string], Highlight[]] {
+        const [content, highlights] = contentBlock.chunks.reduce(
+            (acc: [string[], Highlight[]], chunk) => {
+                if (chunk instanceof WrapperContent) {
+                    const toWrap = this.renderContentBlock(chunk.content);
+                    acc[0].push(`\\${chunk.wrapperTag}{`);
+                    acc[0].push(toWrap[0][0]);
+                    acc[0].push('}');
+                    return [acc[0], acc[1].concat(toWrap[1])];
+                } else {
+                    acc[0].push(LatexDocument.escape(chunk));
+                    return acc;
+                }
+            },
+            [[], []],
+        );
+
+        return [[content.join('')], highlights];
+    }
+
     renderSection(section: Section): [string[], Highlight[]] {
         return section.children.reduce(
             (accum: [string[], Highlight[]], child): [string[], Highlight[]] => {
@@ -211,9 +255,10 @@ ${flat1(lines).join('\n')}
 
     private renderCode(code: CodeBlock): [string[], Highlight[]] {
         // TODO: don't render caption when none given.
-        let caption = '';
+        let caption: string = '';
+        let highlights: Highlight[] = [];
         if (code.caption) {
-            caption = LatexDocument.escape(code.caption);
+            [[caption], highlights] = this.renderContentBlock(code.caption);
         }
 
         return [
@@ -221,13 +266,13 @@ ${flat1(lines).join('\n')}
                 '\\begin{lstlisting}[',
                 `    firstnumber=${code.firstLine},`,
                 `    linebackgroundcolor=${this._makeHighlights(code.highlights)},`,
-                `    caption = { ${caption}}]`,
+                `    caption = {${caption}}]`,
                 ...code.lines.map(line =>
                     line.replace(LatexDocument.endListingRegex, '\\end {lstlisting}'),
                 ),
                 '\\end{lstlisting}',
             ],
-            code.highlights.map(range => range.highlight),
+            highlights.concat(code.highlights.map(range => range.highlight)),
         ];
     }
 

@@ -2,6 +2,8 @@ import {
     CodeBlock,
     Highlight,
     ColumnLayout,
+    ContentBlock,
+    MonospaceContent,
     DocumentRoot,
     backends,
     NewPage,
@@ -60,7 +62,11 @@ function makeCodeBlock(match: PlagMatch, context: number): [CodeBlock, CodeBlock
                 Math.max(innerMatch.startLine - context, 0),
                 innerMatch.endLine + context,
             ),
-            caption: `File ${innerMatch.name} of `,
+            caption: new ContentBlock([
+                'File ',
+                new MonospaceContent(new ContentBlock([innerMatch.name])),
+                ' of',
+            ]),
             highlights: [
                 {
                     start: innerMatch.startLine + 1,
