@@ -397,27 +397,28 @@ export default {
                         contents[match.files[1].id],
                     ]);
                     // const [user1, user2] = this.detail.users;
-                    const color = this.getColorForMatch(match).background;
 
-                    return [{
-                        startLine: match.lines[0][0],
-                        endLine: match.lines[0][1] + 1,
-                        lines: left,
-                        name: this.getFromFileTree(this.tree1, match.files[0]),
-                        color,
-                    }, {
-                        startLine: match.lines[1][0],
-                        endLine: match.lines[1][1] + 1,
-                        lines: right,
-                        name: this.getFromFileTree(this.tree1, match.files[1]),
-                        color,
-                    }];
+                    return {
+                        color: this.getColorForMatch(match).background,
+                        matchA: {
+                            startLine: match.lines[0][0],
+                            endLine: match.lines[0][1] + 1,
+                            lines: left,
+                            name: this.getFromFileTree(this.tree1, match.files[0]),
+                        },
+                        matchB: {
+                            startLine: match.lines[1][0],
+                            endLine: match.lines[1][1] + 1,
+                            lines: right,
+                            name: this.getFromFileTree(this.tree1, match.files[1]),
+                        },
+                    };
                 }),
             ));
 
             return new PlagiarismDocument('LaTeX').render(plagMatches, {
                 contextLines: 4,
-                sideBySide: true,
+                matchesAlign: 'newpage',
             });
         },
 

@@ -4,9 +4,10 @@ import {
     ColumnLayout,
     DocumentRoot,
     backends,
+    NewPage,
     render,
 } from '@/utils/Document';
-import { flatMap } from '../typed';
+import { flatMap1, AssertionError } from '../typed';
 
 export interface PlagiarismOptions {
     // The number of context lines to render before/after each match. Ignored
@@ -14,14 +15,14 @@ export interface PlagiarismOptions {
     contextLines?: number;
 
     // Render matches side by side or below each other.
-    sideBySide?: boolean;
+    matchesAlign: 'newpage' | 'sidebyside' | 'sequential';
 
     // Render all files with matches in their entirety. Matches may not be
     // aligned as nicely in this mode.
     entireFiles?: boolean;
 }
 
-export interface FileMatch {
+interface FileMatch {
     startLine: number;
 
     endLine: number;
@@ -29,11 +30,17 @@ export interface FileMatch {
     lines: string[];
 
     name: string;
+}
+
+export interface PlagMatch {
+    matchA: FileMatch;
+
+    matchB: FileMatch;
 
     color: [number, number, number];
 }
 
-function makeCodeBlock(match: FileMatch, context: number): CodeBlock {
+function makeCodeBlock(match: PlagMatch, context: number): [CodeBlock, CodeBlock] {
     const background = {
         red: Math.min(255, match.color[0] * 0.4 + 0.6 * 255),
         green: Math.min(255, match.color[1] * 0.4 + 0.6 * 255),
@@ -44,34 +51,50 @@ function makeCodeBlock(match: FileMatch, context: number): CodeBlock {
         green: match.color[1] / 1.75,
         blue: match.color[2] / 1.75,
     };
+    const highlight = new Highlight(background, textColor);
 
-    return {
-        firstLine: Math.max(match.startLine - context + 1, 1),
-        lines: match.lines.slice(Math.max(match.startLine - context, 0), match.endLine + context),
-        caption: `File ${match.name} of `,
-        highlights: [
-            {
-                start: match.startLine + 1,
-                end: match.endLine,
-                highlight: new Highlight(background, textColor),
-            },
-        ],
-    };
+    function maker(innerMatch: FileMatch) {
+        return {
+            firstLine: Math.max(innerMatch.startLine - context + 1, 1),
+            lines: innerMatch.lines.slice(
+                Math.max(innerMatch.startLine - context, 0),
+                innerMatch.endLine + context,
+            ),
+            caption: `File ${innerMatch.name} of `,
+            highlights: [
+                {
+                    start: innerMatch.startLine + 1,
+                    end: innerMatch.endLine,
+                    highlight,
+                },
+            ],
+        };
+    }
+
+    return [maker(match.matchA), maker(match.matchB)];
 }
 
 export class PlagiarismDocument {
     constructor(private readonly backend: keyof typeof backends) {}
 
-    render(matches: [FileMatch, FileMatch][], opts: PlagiarismOptions): Promise<Buffer> {
+    render(matches: PlagMatch[], opts: PlagiarismOptions): Promise<Buffer> {
         const context = opts.contextLines ?? 0;
-        const blocks = flatMap(matches, ([m1, m2]): (ColumnLayout<CodeBlock> | CodeBlock)[] => {
-            console.log(m1, m2);
-            const b1 = makeCodeBlock(m1, context);
-            const b2 = makeCodeBlock(m2, context);
-            if (opts.sideBySide) {
-                return [new ColumnLayout([b1, b2])];
+        const blocks = flatMap1(matches, (match): (
+            | ColumnLayout<CodeBlock>
+            | NewPage
+            | CodeBlock
+        )[] => {
+            const [b1, b2] = makeCodeBlock(match, context);
+            switch (opts.matchesAlign) {
+                case 'sidebyside':
+                    return [new ColumnLayout([b1, b2])];
+                case 'sequential':
+                    return [b1, b2];
+                case 'newpage':
+                    return [b1, new NewPage(), b2, new NewPage()];
+                default:
+                    return AssertionError.assert(false, 'unknown matches align found');
             }
-            return [b1, b2];
         });
         const root = DocumentRoot.makeEmpty().addChildren(blocks);
 

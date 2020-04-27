@@ -1,4 +1,4 @@
-import { hasAttr, unzip2, flat } from '@/utils/typed';
+import { hasAttr, unzip2, flat1, unique } from '@/utils/typed';
 
 type TextBlock = string[];
 
@@ -61,7 +61,9 @@ export class Section {
     ) {}
 }
 
-type DocumentContentNode = CodeBlock | TextBlock;
+export class NewPage {}
+
+type DocumentContentNode = CodeBlock | TextBlock | NewPage;
 
 type DocumentNode = DocumentContentNode | Section | ColumnLayout<DocumentContentNode | Section>;
 
@@ -126,6 +128,8 @@ class LatexDocument extends DocumentBackend {
             return this.renderColumn(el);
         } else if (Array.isArray(el)) {
             return [el, []];
+        } else if (el instanceof NewPage) {
+            return [['\\clearpage{}'], []];
         } else {
             return this.renderCode(el);
         }
@@ -148,7 +152,7 @@ class LatexDocument extends DocumentBackend {
 \\definecolor{redstrings}{rgb}{0.9, 0, 0}
 \\definecolor{graynumbers}{rgb}{0.5, 0.5, 0.5}
 
-${this._defineColors(flat(highlights)).join('\n')}
+${this._defineColors(flat1(highlights)).join('\n')}
 
 \\lstset{
     numbers=left,
@@ -158,7 +162,6 @@ ${this._defineColors(flat(highlights)).join('\n')}
     breaklines=true,
     showstringspaces=false,
     breakatwhitespace=false,
-    escapeinside={(*@}{@*)},
     commentstyle=\\color{greencomments},
     keywordstyle=\\color{bluekeywords},
     stringstyle=\\color{redstrings},
@@ -173,7 +176,7 @@ ${this._defineColors(flat(highlights)).join('\n')}
 }
 
 \\begin{document}
-${flat(lines).join('\n')}
+${flat1(lines).join('\n')}
 \\end{document}`;
 
         return Buffer.from(base, 'utf8');
@@ -181,21 +184,24 @@ ${flat(lines).join('\n')}
 
     // eslint-disable-next-line class-methods-use-this
     _defineColors(highlights: Highlight[]): string[] {
-        return highlights.reduce((acc: string[], highlight) => {
-            const id = highlight.id;
-            const bg = highlight.background;
-            const fg = highlight.foreground;
-            acc.push(
-                `\\definecolor{bg-color-${id}}{RGB}{${bg.red}, ${bg.green}, ${bg.blue}}`,
-                `\\definecolor{fg-color-${id}}{RGB}{${fg.red}, ${fg.green}, ${fg.blue}}`,
-            );
-            return acc;
-        }, []);
+        return unique(highlights, h => h.id).reduce(
+            (acc: string[], highlight) => {
+                const id = highlight.id;
+                const bg = highlight.background;
+                const fg = highlight.foreground;
+                acc.push(
+                    `\\definecolor{bg-color-${id}}{RGB}{${bg.red}, ${bg.green}, ${bg.blue}}`,
+                    `\\definecolor{fg-color-${id}}{RGB}{${fg.red}, ${fg.green}, ${fg.blue}}`,
+                );
+                return acc;
+            },
+            ['% Unfortunately the foreground colors are not used.'],
+        );
     }
 
     renderSection(section: Section): [string[], Highlight[]] {
         return section.children.reduce(
-            (accum: [string[], Highlight[]], child) => {
+            (accum: [string[], Highlight[]], child): [string[], Highlight[]] => {
                 const res = this.renderLines(child);
                 return [accum[0].concat(res[0]), accum[1].concat(res[1])];
             },
@@ -215,7 +221,7 @@ ${flat(lines).join('\n')}
                 '\\begin{lstlisting}[',
                 `    firstnumber=${code.firstLine},`,
                 `    linebackgroundcolor=${this._makeHighlights(code.highlights)},`,
-                `    caption={${caption}}]`,
+                `    caption = { ${caption}}]`,
                 ...code.lines.map(line =>
                     line.replace(LatexDocument.endListingRegex, '\\end {lstlisting}'),
                 ),
@@ -289,7 +295,7 @@ export function render(
     document: DocumentRoot,
 ): Promise<Buffer> {
     if (!hasAttr(backends, backendName)) {
-        throw new Error(`Invalid backend: ${backendName}`);
+        throw new Error(`Invalid backend: ${backendName} `);
     }
     return Promise.resolve(new backends[backendName](document).renderToBuffer());
 }
