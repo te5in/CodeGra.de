@@ -174,7 +174,6 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 import decodeBuffer from '@/utils/decode';
-import lescape from 'escape-latex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/chevron-down';
 
@@ -192,10 +191,6 @@ import {
 } from '@/components';
 
 import Collapse from './Collapse';
-
-console.log(PlagiarismDocument);
-
-const latexEscape = txt => lescape(txt, { preserveFormatting: true });
 
 export default {
     name: 'plagiarism-detail',
@@ -222,8 +217,8 @@ export default {
         $route(newRoute, oldRoute) {
             if (
                 newRoute.params.assignmentId !== oldRoute.params.assignmentId ||
-                newRoute.params.plagiarismRunId !== oldRoute.params.plagiarismRunId ||
-                newRoute.params.plagiarismCaseId !== oldRoute.params.plagiarismCaseId
+                    newRoute.params.plagiarismRunId !== oldRoute.params.plagiarismRunId ||
+                    newRoute.params.plagiarismCaseId !== oldRoute.params.plagiarismCaseId
             ) {
                 this.loadDetail();
             }
@@ -381,97 +376,49 @@ export default {
         },
 
         async getTexFile(matches) {
-            const header = `\\documentclass{article}
-\\usepackage{listings}
-\\usepackage{color}
-
-\\definecolor{bluekeywords}{rgb}{0.13, 0.13, 1}
-\\definecolor{greencomments}{rgb}{0, 0.5, 0}
-\\definecolor{redstrings}{rgb}{0.9, 0, 0}
-\\definecolor{graynumbers}{rgb}{0.5, 0.5, 0.5}
-
-
-\\lstset{
-    numbers=left,
-    columns=fullflexible,
-    showspaces=false,
-    showtabs=false,
-    breaklines=true,
-    showstringspaces=false,
-    breakatwhitespace=true,
-    escapeinside={(*@}{@*)},
-    commentstyle=\\color{greencomments},
-    keywordstyle=\\color{bluekeywords},
-    stringstyle=\\color{redstrings},
-    numberstyle=\\color{graynumbers},
-    basicstyle=\\ttfamily\\footnotesize,
-    xleftmargin=12pt,
-    rulesepcolor=\\color{graynumbers},
-    tabsize=4,
-    captionpos=b,
-    frame=L
-}
-
-\\begin{document}
-
-\\section{Plagiarism matches}`;
-            const endListingRegex = new RegExp('\\\\end{lstlisting}', 'g');
-
-            const contents = Object.keys(
-                matches.reduce((accum, match) => {
-                    accum[match.files[0].id] = true;
-                    accum[match.files[1].id] = true;
-                    return accum;
-                }, {}),
-            ).reduce((accum, fileId) => {
-                accum[fileId] = this.storeLoadCode(fileId).then(data => {
-                    const content = decodeBuffer(data, true);
-                    return content
-                        .split('\n')
-                        .map(l => l.replace(endListingRegex, '\\end {lstlisting}'));
-                });
+            const neededFileIds = matches.reduce((accum, match) => {
+                accum.add(match.files[0].id);
+                accum.add(match.files[1].id);
                 return accum;
-            }, {});
+            }, new Set());
 
-            const latexNameOfUser = user => latexEscape(nameOfUser(user));
-            const maybeNewPage = this.exportOptions.newPageAfterMatch ? '\\clearpage{}\n' : '';
+            const contents = {};
+            neededFileIds.forEach(fileId => {
+                contents[fileId] = this.storeLoadCode(fileId).then(data => {
+                    const content = decodeBuffer(data, true);
+                    return content.split('\n');
+                });
+            });
 
-            const middle = (await Promise.all(
-                matches.map(async (match, i) => {
-                    const left = (await contents[match.files[0].id]).slice(
-                        match.lines[0][0],
-                        match.lines[0][1] + 1,
-                    );
-                    const right = (await contents[match.files[1].id]).slice(
-                        match.lines[1][0],
-                        match.lines[1][1] + 1,
-                    );
-                    const captionLeft = latexEscape(
-                        this.getFromFileTree(this.tree1, match.files[0]),
-                    );
-                    const captionRight = latexEscape(
-                        this.getFromFileTree(this.tree2, match.files[1]),
-                    );
-                    const [user1, user2] = this.detail.users;
+            const plagMatches = (await Promise.all(
+                matches.map(async match => {
+                    const [left, right] = await Promise.all([
+                        contents[match.files[0].id],
+                        contents[match.files[1].id],
+                    ]);
+                    // const [user1, user2] = this.detail.users;
+                    const color = this.getColorForMatch(match).background;
 
-                    // prettier-ignore-start
-                    return `\\subsection*{Match ${i + 1}}
-\\begin{lstlisting}[firstnumber=${match.lines[0][0] + 1},
-    caption={File \\texttt{${captionLeft}} of ${latexNameOfUser(user1)}}]
-${left.join('\n')}
-\\end{lstlisting}
-${maybeNewPage}
-\\begin{lstlisting}[firstnumber=${match.lines[1][0] + 1},
-    caption={File \\texttt{${captionRight}} of ${latexNameOfUser(user2)}}]
-${right.join('\n')}
-\\end{lstlisting}`;
-                    // prettier-ignore-end
+                    return [{
+                        startLine: match.lines[0][0],
+                        endLine: match.lines[0][1] + 1,
+                        lines: left,
+                        name: this.getFromFileTree(this.tree1, match.files[0]),
+                        color,
+                    }, {
+                        startLine: match.lines[1][0],
+                        endLine: match.lines[1][1] + 1,
+                        lines: right,
+                        name: this.getFromFileTree(this.tree1, match.files[1]),
+                        color,
+                    }];
                 }),
-            )).join('\n\\clearpage{}\n\n');
+            ));
 
-            const footer = '\\end{document}\n';
-
-            return `${header}\n${middle}\n${footer}`;
+            return new PlagiarismDocument('LaTeX').render(plagMatches, {
+                contextLines: 4,
+                sideBySide: true,
+            });
         },
 
         getExtension(file) {

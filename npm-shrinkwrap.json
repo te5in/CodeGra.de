@@ -30357,6 +30357,14 @@
         "node-fetch": "2.6.0",
         "suf-node": "1.1.1",
         "typescript": "3.8.3"
+      },
+      "dependencies": {
+        "typescript": {
+          "version": "3.8.3",
+          "resolved": "https://registry.npmjs.org/typescript/-/typescript-3.8.3.tgz",
+          "integrity": "sha512-MYlEfn5VrLNsgudQTVJeNaQFUAI7DkhnOjdpAp4T+ku1TfQClewlbSuTVHiA+8skNBgaf02TL/kLOvig4y3G8w==",
+          "dev": true
+        }
       }
     },
     "suf-node": {
@@ -31296,7 +31304,7 @@
       "integrity": "sha512-Hk7TRej1hM+p+Fo+Pyb/XK9pe9CAt3Sh5n5YRutxFS8hUgkh2u1Vd2K40kMcNP3WYhiVFBMqXwM/2E8O95Ep6g==",
       "dev": true,
       "requires": {
-        "resolve": "1.15.1"
+        "resolve": "1.17.0"
       },
       "dependencies": {
         "path-parse": {
@@ -31306,9 +31314,9 @@
           "dev": true
         },
         "resolve": {
-          "version": "1.15.1",
-          "resolved": "https://registry.npmjs.org/resolve/-/resolve-1.15.1.tgz",
-          "integrity": "sha512-84oo6ZTtoTUpjgNEr5SJyzQhzL72gaRodsSfyxC/AXRvwu0Yse9H8eF9IpGo7b8YetZhlI6v7ZQ6bKBFV/6S7w==",
+          "version": "1.17.0",
+          "resolved": "https://registry.npmjs.org/resolve/-/resolve-1.17.0.tgz",
+          "integrity": "sha512-ic+7JYiV8Vi2yzQGFWOkiZD5Z9z7O2Zhm9XMaTxdJExKasieFCr+yXZ/WmXsckHiKl12ar0y6XiXDx3m4RHn1w==",
           "dev": true,
           "requires": {
             "path-parse": "1.0.6"
@@ -31376,9 +31384,9 @@
       }
     },
     "typescript": {
-      "version": "3.8.3",
-      "resolved": "https://registry.npmjs.org/typescript/-/typescript-3.8.3.tgz",
-      "integrity": "sha512-MYlEfn5VrLNsgudQTVJeNaQFUAI7DkhnOjdpAp4T+ku1TfQClewlbSuTVHiA+8skNBgaf02TL/kLOvig4y3G8w==",
+      "version": "3.9.0-dev.20200426",
+      "resolved": "https://registry.npmjs.org/typescript/-/typescript-3.9.0-dev.20200426.tgz",
+      "integrity": "sha512-0MRHJbVaaQ0W2pwC1v1Z5u2ucgvXC6nV6tIMZDgRCgwn1Rv+kB/lVMaXPw86Ug+bvrAr+IHprlRTPB56JqYRvA==",
       "dev": true
     },
     "typescript-eslint-parser": {
@@ -33527,6 +33535,12 @@
           "requires": {
             "has-flag": "4.0.0"
           }
+        },
+        "typescript": {
+          "version": "3.8.3",
+          "resolved": "https://registry.npmjs.org/typescript/-/typescript-3.8.3.tgz",
+          "integrity": "sha512-MYlEfn5VrLNsgudQTVJeNaQFUAI7DkhnOjdpAp4T+ku1TfQClewlbSuTVHiA+8skNBgaf02TL/kLOvig4y3G8w==",
+          "dev": true
         },
         "vscode-languageserver": {
           "version": "6.1.1",

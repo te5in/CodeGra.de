@@ -1,37 +1,8 @@
-import { hasAttr, mapObject } from '@/utils';
+import { hasAttr, unzip2, flat } from '@/utils/typed';
 
-export abstract class Document {
-    static backendName: string;
+type TextBlock = string[];
 
-    // Finalize the document and render it as a string.
-    abstract render(): string;
-
-    // Start a new section.
-    abstract section(header: string): void;
-
-    // Insert a paragraph. Multiple paragraphs should be separated by an empty
-    // line.
-    abstract paragraph(text: string): void;
-
-    // Insert a code block.
-    abstract code(code: CodeBlock): void;
-
-    // Change the column layout.
-    abstract columnLayout(nColumns: number): void;
-
-    // Define a highlight that can be used to highlight specific lines in code
-    // blocks.
-    abstract defineHighlight(highlight: Highlight): HighlightID;
-
-    defineHighlights(highlights: Highlight[]): HighlightID[] {
-        return highlights.map(this.defineHighlight.bind(this));
-    }
-}
-
-// Identifier that should uniquely identify a defined highlight.
-type HighlightID = number;
-
-interface CodeBlock {
+export interface CodeBlock {
     // Line number of the first line in the block.
     firstLine: number;
 
@@ -48,38 +19,136 @@ interface CodeBlock {
 interface HighlightRange {
     start: number;
     end: number;
-    highlightId: HighlightID;
+    highlight: Highlight;
 }
 
-interface Highlight {
-    background: Color;
-    foreground: Color;
+type HighlightID = string;
+
+export class Highlight {
+    static getHighlightId: () => HighlightID = (() => {
+        let curId = 0;
+        return () => `${curId++}`;
+    })();
+
+    public id: HighlightID;
+
+    constructor(public background: Color, public foreground: Color) {
+        this.id = Highlight.getHighlightId();
+    }
 }
 
-interface Color {
+export interface Color {
     red: number;
     green: number;
     blue: number;
 }
 
-class LatexDocument extends Document {
-    static backendName = 'LaTeX';
+export class ColumnLayout<T> {
+    constructor(public readonly blocks: ReadonlyArray<T>) {}
+}
 
-    private lines: string[] = [];
+export class SubSection {
+    constructor(
+        public readonly heading: string,
+        public readonly children: ReadonlyArray<DocumentContentNode>,
+    ) {}
+}
 
-    private highlights: Highlight[] = [];
+export class Section {
+    constructor(
+        public readonly heading: string,
+        public readonly children: ReadonlyArray<DocumentContentNode | SubSection>,
+    ) {}
+}
 
-    render() {
-        return `\\documentclass{article}
+type DocumentContentNode = CodeBlock | TextBlock;
+
+type DocumentNode = DocumentContentNode | Section | ColumnLayout<DocumentContentNode | Section>;
+
+export class DocumentRoot {
+    private constructor(public readonly children: ReadonlyArray<DocumentNode>) {}
+
+    public addChildren(children: DocumentNode[]) {
+        return new DocumentRoot([...this.children, ...children]);
+    }
+
+    static makeEmpty() {
+        return new DocumentRoot([]);
+    }
+}
+
+abstract class DocumentBackend {
+    static backendName: string;
+
+    constructor(public doc: DocumentRoot) {}
+
+    abstract renderToBuffer(): Buffer;
+}
+
+class LatexDocument extends DocumentBackend {
+    static backendName: 'LaTeX' = 'LaTeX';
+
+    private static readonly endListingRegex = new RegExp('\\\\end{lstlisting}', 'g');
+
+    private static readonly reUnescapedLatex = /[{}\\#$%&^_~]/g;
+
+    private static readonly reHasUnescapedLatex = RegExp(LatexDocument.reUnescapedLatex.source);
+
+    private static readonly latexEscapes: Record<string, string> = Object.freeze({
+        '{': '\\{',
+        '}': '\\}',
+        '\\': '\\textbackslash{}',
+        '#': '\\#',
+        $: '\\$',
+        '%': '\\%',
+        '&': '\\&',
+        '^': '\\textasciicircum{}',
+        _: '\\_',
+        '~': '\\textasciitilde{}',
+    });
+
+    private static escape(input: string): string {
+        if (input && LatexDocument.reHasUnescapedLatex.test(input)) {
+            const map = LatexDocument.latexEscapes;
+            return input.replace(LatexDocument.reUnescapedLatex, ent => map[ent]);
+        }
+        return input;
+    }
+
+    constructor(public doc: DocumentRoot) {
+        super(doc);
+    }
+
+    renderLines(el: DocumentNode): [string[], Highlight[]] {
+        if (el instanceof Section) {
+            return this.renderSection(el);
+        } else if (el instanceof ColumnLayout) {
+            return this.renderColumn(el);
+        } else if (Array.isArray(el)) {
+            return [el, []];
+        } else {
+            return this.renderCode(el);
+        }
+    }
+
+    renderToBuffer(): Buffer {
+        const [lines, highlights] = unzip2(this.doc.children.map(child => this.renderLines(child)));
+
+        const base = `\\documentclass{article}
 \\usepackage{listings}
+\\usepackage{lstlinebgrd}
 \\usepackage{xcolor}
+\\usepackage[T1]{fontenc}
+\\usepackage{textcomp}
+\\usepackage{paracol}
+\\usepackage[margin=0.5in]{geometry}
 
 \\definecolor{bluekeywords}{rgb}{0.13, 0.13, 1}
 \\definecolor{greencomments}{rgb}{0, 0.5, 0}
 \\definecolor{redstrings}{rgb}{0.9, 0, 0}
 \\definecolor{graynumbers}{rgb}{0.5, 0.5, 0.5}
 
-${this._defineColors().join('\n')}
+${this._defineColors(flat(highlights)).join('\n')}
 
 \\lstset{
     numbers=left,
@@ -88,7 +157,7 @@ ${this._defineColors().join('\n')}
     showtabs=false,
     breaklines=true,
     showstringspaces=false,
-    breakatwhitespace=true,
+    breakatwhitespace=false,
     escapeinside={(*@}{@*)},
     commentstyle=\\color{greencomments},
     keywordstyle=\\color{bluekeywords},
@@ -99,47 +168,61 @@ ${this._defineColors().join('\n')}
     rulesepcolor=\\color{graynumbers},
     tabsize=4,
     captionpos=b,
-    frame=L
+    frame=L,
+    upquote=true
 }
 
 \\begin{document}
-
-${this.lines.join('\n')}
-
+${flat(lines).join('\n')}
 \\end{document}`;
+
+        return Buffer.from(base, 'utf8');
     }
 
-    _defineColors(): string[] {
-        return [].concat(
-            ...this.highlights.map((highlight, id) => {
-                const bg = highlight.background;
-                const fg = highlight.foreground;
-                return [
-                    `\\definecolor{bg-color-${id}}{RGB}{${bg.red}, ${bg.green}, ${bg.blue}}`,
-                    `\\definecolor{fg-color-${id}}{RGB}{${fg.red}, ${fg.green}, ${fg.blue}}`,
-                ];
-            }),
+    // eslint-disable-next-line class-methods-use-this
+    _defineColors(highlights: Highlight[]): string[] {
+        return highlights.reduce((acc: string[], highlight) => {
+            const id = highlight.id;
+            const bg = highlight.background;
+            const fg = highlight.foreground;
+            acc.push(
+                `\\definecolor{bg-color-${id}}{RGB}{${bg.red}, ${bg.green}, ${bg.blue}}`,
+                `\\definecolor{fg-color-${id}}{RGB}{${fg.red}, ${fg.green}, ${fg.blue}}`,
+            );
+            return acc;
+        }, []);
+    }
+
+    renderSection(section: Section): [string[], Highlight[]] {
+        return section.children.reduce(
+            (accum: [string[], Highlight[]], child) => {
+                const res = this.renderLines(child);
+                return [accum[0].concat(res[0]), accum[1].concat(res[1])];
+            },
+            [[`\\section{${LatexDocument.escape(section.heading)}}`], []],
         );
     }
 
-    section(header: string) {
-        this.lines.push(`\\section{${header}}`);
-    }
-
-    paragraph(text: string) {
-        this.lines.push(text, '\\\\');
-    }
-
-    code(code: CodeBlock) {
+    private renderCode(code: CodeBlock): [string[], Highlight[]] {
         // TODO: don't render caption when none given.
-        this.lines.push(
-            '\\begin{lstlisting}[',
-            `    firstnumber=${code.firstLine},`,
-            `    backgroundcolor=${this._makeHighlights(code.highlights)},`,
-            `    caption={${code.caption}}]`,
-            ...code.lines,
-            '\\end{lstlisting}',
-        );
+        let caption = '';
+        if (code.caption) {
+            caption = LatexDocument.escape(code.caption);
+        }
+
+        return [
+            [
+                '\\begin{lstlisting}[',
+                `    firstnumber=${code.firstLine},`,
+                `    linebackgroundcolor=${this._makeHighlights(code.highlights)},`,
+                `    caption={${caption}}]`,
+                ...code.lines.map(line =>
+                    line.replace(LatexDocument.endListingRegex, '\\end {lstlisting}'),
+                ),
+                '\\end{lstlisting}',
+            ],
+            code.highlights.map(range => range.highlight),
+        ];
     }
 
     _makeHighlights(ranges: HighlightRange[]): string {
@@ -159,53 +242,54 @@ ${this.lines.join('\n')}
 
         if (rest.length === 0) {
             return `
-\\ifnum\\value{lstnumber}<${cur.end + 1}
-    \\ifnum\\value{lstnumber}>${cur.start - 1}
-        \\color{bg-color-${cur.highlightId}}
-    \\fi
+\\ifnum\\value{lstnumber}<${cur.end + 1}%
+    \\ifnum\\value{lstnumber}>${cur.start - 1}%
+        \\color{bg-color-${cur.highlight.id}}%
+    \\fi%
 \\fi
             `.trim();
         } else {
             return `
-\\ifnum\\value{lstnumber}<${cur.end + 1}
-    \\ifnum\\value{lstnumber}>${cur.start - 1}
-        \\color{bg-color-${cur.highlightId}}
-    \\fi
-\\else
-    ${this._makeHighlightsSorted(rest)}
+\\ifnum\\value{lstnumber}<${cur.end + 1}%
+    \\ifnum\\value{lstnumber}>${cur.start - 1}%
+        \\color{bg-color-${cur.highlight.id}}%
+    \\fi%
+\\else%
+    ${this._makeHighlightsSorted(rest)}%
 \\fi
             `.trim();
         }
     }
 
-    defineHighlight(highlight: Highlight) {
-        const id = this.highlights.length;
-        this.highlights.push(highlight);
-        return id;
-    }
-
-    columnLayout(nColumns: number) {
-        // TODO
-        console.log(this, nColumns);
+    renderColumn(column: ColumnLayout<DocumentContentNode | Section>): [string[], Highlight[]] {
+        const columns = column.blocks.length;
+        return column.blocks.reduce(
+            (acc: [string[], Highlight[]], block, index) => {
+                const res = this.renderLines(block);
+                acc[0] = acc[0].concat(res[0]);
+                if (index !== column.blocks.length - 1) {
+                    acc[0].push('\\switchcolumn');
+                } else {
+                    acc[0].push('\\end{paracol}');
+                }
+                acc[1] = acc[1].concat(res[1]);
+                return acc;
+            },
+            [[`\\begin{paracol}{${columns}}`], []],
+        );
     }
 }
 
-interface BackendMap {
-    [key: string]: Document;
-}
+export const backends = {
+    [LatexDocument.backendName]: LatexDocument,
+} as const;
 
-const backends: { [key: string]: Document } = {
-    latex: LatexDocument,
-};
-
-export function getBackends(): string[] {
-    return mapObject(backends, (backend: typeof Document) => backend.backendName);
-}
-
-export function getBackend(name: string): Document {
-    if (!hasAttr(backends, name)) {
-        throw new Error(`Invalid backend: ${name}`);
+export function render(
+    backendName: keyof typeof backends,
+    document: DocumentRoot,
+): Promise<Buffer> {
+    if (!hasAttr(backends, backendName)) {
+        throw new Error(`Invalid backend: ${backendName}`);
     }
-
-    return new backends[name]();
+    return Promise.resolve(new backends[backendName](document).renderToBuffer());
 }
