@@ -13,8 +13,8 @@ export function mapObject<T, V>(
     return fromEntries(Object.entries(obj).map(([key, val]) => [key, fun(val, key)]));
 }
 
-export function flatMap<T, TT>(arr: ReadonlyArray<T>, mapper: (val: T) => TT[]): TT[] {
-    return (arr as any).flatMap(mapper);
+export function flatMap1<T, TT>(arr: ReadonlyArray<T>, mapper: (val: T) => TT[]): TT[] {
+    return arr.reduce((acc: TT[], elem: T) => acc.concat(mapper(elem)), []);
 }
 
 export function zip<T, Y>(a: T[], b: Y[]): [T, Y][];
@@ -44,6 +44,28 @@ export function unzip2<T, Y>(arr: [T, Y][]): [T[], Y[]] {
     }, base);
 }
 
-export function flat<T>(arr: T[][]): T[] {
-    return (arr as any).flat(1);
+export function flat1<T>(arr: T[][]): T[] {
+    return arr.reduce((acc, elem) => acc.concat(elem), []);
+}
+
+export function unique<T, V>(arr: ReadonlyArray<T>, getKey: (item: T) => V): T[] {
+    const seen = new Set();
+    return arr.reduce((acc: T[], item: T) => {
+        const key = getKey(item);
+        if (!seen.has(key)) {
+            seen.add(key);
+            acc.push(item);
+        }
+        return acc;
+    }, []);
+}
+
+export class AssertionError extends Error {
+    static assert(condition: false, msg?: string): never;
+
+    static assert(condition: boolean, msg?: string): asserts condition {
+        if (!condition) {
+            throw new AssertionError(msg);
+        }
+    }
 }
