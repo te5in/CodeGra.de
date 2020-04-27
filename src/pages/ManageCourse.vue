@@ -102,11 +102,12 @@ export default {
         }),
 
         course() {
-            return this.courses[this.$route.params.courseId];
+            const id = Number(this.$route.params.courseId);
+            return this.courses[id];
         },
 
         courseId() {
-            return Number(this.$route.params.courseId);
+            return this.$utils.getProps(this.course, null, 'id');
         },
 
         membersEnabled() {
@@ -184,7 +185,9 @@ export default {
 
     watch: {
         course() {
-            setPageTitle(this.course.name);
+            if (this.course != null) {
+                setPageTitle(this.course.name);
+            }
         },
     },
 
