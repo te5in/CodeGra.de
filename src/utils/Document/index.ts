@@ -89,7 +89,10 @@ export class NewPage {}
 
 type DocumentContentNode = CodeBlock | ContentBlock | NewPage;
 
-type DocumentNode = DocumentContentNode | Section | ColumnLayout<DocumentContentNode | Section>;
+export type DocumentNode =
+    | DocumentContentNode
+    | Section
+    | ColumnLayout<DocumentContentNode | Section>;
 
 export class DocumentRoot {
     private constructor(public readonly children: ReadonlyArray<DocumentNode>) {}

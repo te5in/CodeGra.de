@@ -5,12 +5,13 @@ import {
     ContentBlock,
     MonospaceContent,
     Section,
+    DocumentNode,
     DocumentRoot,
     backends,
     NewPage,
     render,
 } from '@/utils/Document';
-import { AssertionError } from '../typed';
+import { flatMap1, AssertionError } from '../typed';
 
 export interface PlagiarismOptions {
     // The number of context lines to render before/after each match. Ignored
@@ -18,7 +19,10 @@ export interface PlagiarismOptions {
     contextLines?: number;
 
     // Render matches side by side or below each other.
-    matchesAlign: 'newpage' | 'sidebyside' | 'sequential';
+    matchesAlign: 'sidebyside' | 'sequential';
+
+    // Render each match on a new page.
+    newPage?: boolean;
 
     // Render all files with matches in their entirety. Matches may not be
     // aligned as nicely in this mode.
@@ -93,7 +97,7 @@ function makeCodeBlock(match: PlagMatch, opts: PlagiarismOptions): [CodeBlock, C
 function makeSection(match: PlagMatch, opts: PlagiarismOptions): Section {
     const [b1, b2] = makeCodeBlock(match, opts);
 
-    let children;
+    let children: DocumentNode[];
     switch (opts.matchesAlign) {
         case 'sidebyside':
             children = [new ColumnLayout([b1, b2])];
@@ -101,11 +105,12 @@ function makeSection(match: PlagMatch, opts: PlagiarismOptions): Section {
         case 'sequential':
             children = [b1, b2];
             break;
-        case 'newpage':
-            children = [b1, new NewPage(), b2, new NewPage()];
-            break;
         default:
             return AssertionError.assert(false, 'unknown matches align found');
+    }
+
+    if (opts.newPage) {
+        children = flatMap1(children, c => [c, new NewPage()]);
     }
 
     // TODO: Use actual match index.

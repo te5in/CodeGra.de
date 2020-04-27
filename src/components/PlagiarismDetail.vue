@@ -64,19 +64,26 @@
                     <b>Options</b>
                 </div>
                 <div class="mt-2">
-                    <b-input-group class="mb-3">
-                        <b-form-radio-group v-model="exportOptions.matchesAlign"
-                                            :options="matchesAlignmentOptions" />
-                    </b-input-group>
+                    <b-form-group title="Render each listing on a new page">
+                        <cg-toggle v-model="exportOptions.newPage" />
+                    </b-form-group>
 
-                    <b-input-group>
+                    <b-form-group title="How to render matches">
+                        <cg-toggle v-model="exportOptions.matchesAlign"
+                                   label-off="Sequential"
+                                   label-on="Side by side"
+                                   value-off="sequential"
+                                   value-on="sidebyside" />
+                    </b-form-group>
+
+                    <b-form-group>
                         <input class="form-control"
                                placeholder="Number of context lines"
                                type="number"
                                step="1"
                                start="0"
                                v-model="exportOptions.contextLines" />
-                    </b-input-group>
+                    </b-form-group>
                 </div>
             </collapse>
         </div>
@@ -217,7 +224,8 @@ export default {
             error: '',
             exportOptions: {
                 contextLines: 5,
-                matchesAlign: 'newpage',
+                matchesAlign: 'sidebyside',
+                newPage: true,
             },
             advancedOptionsCollapsed: false,
 
@@ -300,23 +308,6 @@ export default {
                     ? background.map(item => Math.min(255, Math.max(25, item) * 4))
                     : background.map(item => item / 1.75),
             }));
-        },
-
-        matchesAlignmentOptions() {
-            return [
-                {
-                    text: 'Each listing on a new page',
-                    value: 'newpage',
-                },
-                {
-                    text: 'Matches side by side',
-                    value: 'sidebyside',
-                },
-                {
-                    text: 'Sequential',
-                    value: 'sequential',
-                },
-            ];
         },
 
         assignmentId() {
