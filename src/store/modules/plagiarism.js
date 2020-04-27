@@ -2,6 +2,7 @@
 import axios from 'axios';
 import Vue from 'vue';
 
+import { flatMap1 } from '@/utils/typed';
 import * as types from '../mutation-types';
 
 const LIMIT_FIRST_REQUEST = 250;
@@ -30,15 +31,26 @@ const processCase = (run, serverCase) => {
     return serverCase;
 };
 
+function addUsersToStore(dispatch, cases) {
+    return Promise.all(
+        flatMap1(cases || [], c =>
+            c.users
+                .filter(u => u != null)
+                .map(u => dispatch('users/addOrUpdateUser', { user: u }, { root: true })),
+        ),
+    );
+}
+
 const actions = {
-    loadRun({ state, commit }, runId) {
+    loadRun({ state, commit, dispatch }, runId) {
         if (state.loadRunPromises[runId] == null) {
             const promise = Promise.all([
                 axios.get(`/api/v1/plagiarism/${runId}`),
                 axios.get(`/api/v1/plagiarism/${runId}/cases/?limit=${LIMIT_FIRST_REQUEST}`),
-            ]).then(([{ data: run }, { data: cases }]) => {
+            ]).then(async ([{ data: run }, { data: cases }]) => {
                 run.cases = (cases || []).map(c => processCase(run, c));
                 run.has_more_cases = run.cases.length >= LIMIT_FIRST_REQUEST;
+                await addUsersToStore(dispatch, run.cases);
                 commit(types.SET_PLAGIARISM_RUN, run);
                 return run;
             });
@@ -47,17 +59,18 @@ const actions = {
         return state.loadRunPromises[runId];
     },
 
-    async loadMoreCases({ state, commit }, runId) {
+    async loadMoreCases({ state, commit, dispatch }, runId) {
         await state.loadRunPromises[runId];
         const run = state.runs[runId];
         if (run.has_more_cases) {
             const { data: cases } = await axios.get(
                 `/api/v1/plagiarism/${runId}/cases/?limit=${LIMIT_PER_REQUEST}&offset=${state.runs[runId].cases.length}`,
             );
-
+            const newCases = cases.map(c => processCase(run, c));
+            await addUsersToStore(dispatch, newCases);
             commit(types.ADD_PLAGIARISM_CASES, {
                 runId,
-                newCases: cases.map(c => processCase(run, c)),
+                newCases,
             });
         }
     },

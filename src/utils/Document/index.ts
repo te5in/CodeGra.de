@@ -4,23 +4,26 @@ type TextBlock = string;
 
 abstract class WrapperContent {
     constructor(public readonly content: ContentBlock) {}
-
-    abstract wrapperTag: string;
 }
 
-export class EmphasizedContent extends WrapperContent {
-    wrapperTag = 'emph';
+export class EmphasizedContent extends WrapperContent {}
+
+export class BoldContent extends WrapperContent {}
+
+export class MonospaceContent extends WrapperContent {}
+
+// Force the content of this block to be rendered on a single line if possible
+// and the document format supports it.
+export class NonBreakingContent {
+    constructor(public readonly content: ReadonlyArray<string>) {}
 }
 
-export class BoldContent extends WrapperContent {
-    wrapperTag = 'textbf';
-}
-
-export class MonospaceContent extends WrapperContent {
-    wrapperTag = 'texttt';
-}
-
-type ContentChunk = TextBlock | EmphasizedContent | BoldContent | MonospaceContent;
+type ContentChunk =
+    | TextBlock
+    | EmphasizedContent
+    | BoldContent
+    | MonospaceContent
+    | NonBreakingContent;
 
 export class ContentBlock {
     constructor(public readonly chunks: ReadonlyArray<ContentChunk>) {}
@@ -151,6 +154,8 @@ class LatexDocument extends DocumentBackend {
     renderLines(el: DocumentNode): [string[], Highlight[]] {
         if (el instanceof Section) {
             return this.renderSection(el);
+        } else if (el instanceof SubSection) {
+            return this.renderSubsection(el);
         } else if (el instanceof ColumnLayout) {
             return this.renderColumn(el);
         } else if (el instanceof ContentBlock) {
@@ -257,9 +262,13 @@ ${flat1(lines).join('\n')}
     renderContentBlock(contentBlock: ContentBlock): [[string], Highlight[]] {
         const [content, highlights] = contentBlock.chunks.reduce(
             (acc: [string[], Highlight[]], chunk) => {
-                if (chunk instanceof WrapperContent) {
+                if (chunk instanceof NonBreakingContent) {
+                    const b = chunk.content.join('~');
+                    acc[0].push(LatexDocument.escape(b).replace(/[ \t]+/g, '~'));
+                    return acc;
+                } else if (chunk instanceof WrapperContent) {
                     const toWrap = this.renderContentBlock(chunk.content);
-                    acc[0].push(`\\${chunk.wrapperTag}{`);
+                    acc[0].push(`\\${LatexDocument.wrapperTag(chunk)}{`);
                     acc[0].push(toWrap[0][0]);
                     acc[0].push('}');
                     return [acc[0], acc[1].concat(toWrap[1])];
@@ -274,6 +283,18 @@ ${flat1(lines).join('\n')}
         return [[content.join('')], highlights];
     }
 
+    private static wrapperTag(chunk: WrapperContent): string {
+        if (chunk instanceof EmphasizedContent) {
+            return 'emph';
+        } else if (chunk instanceof BoldContent) {
+            return 'textbf';
+        } else if (chunk instanceof MonospaceContent) {
+            return 'texttt';
+        } else {
+            throw new Error('Unsupported wrapper.');
+        }
+    }
+
     renderSection(section: Section): [string[], Highlight[]] {
         return section.children.reduce(
             (accum: [string[], Highlight[]], child): [string[], Highlight[]] => {
@@ -281,6 +302,16 @@ ${flat1(lines).join('\n')}
                 return [accum[0].concat(res[0]), accum[1].concat(res[1])];
             },
             [[`\\section{${LatexDocument.escape(section.heading)}}`], []],
+        );
+    }
+
+    renderSubsection(subsection: SubSection): [string[], Highlight[]] {
+        return subsection.children.reduce(
+            (accum: [string[], Highlight[]], child): [string[], Highlight[]] => {
+                const res = this.renderLines(child);
+                return [accum[0].concat(res[0]), accum[1].concat(res[1])];
+            },
+            [[`\\subsection{${LatexDocument.escape(subsection.heading)}}`], []],
         );
     }
 

@@ -4,29 +4,32 @@ import {
     ColumnLayout,
     ContentBlock,
     MonospaceContent,
+    NonBreakingContent,
     Section,
+    SubSection,
     DocumentNode,
     DocumentRoot,
     backends,
     NewPage,
     render,
 } from '@/utils/Document';
+import { User } from '@/models';
 import { flatMap1, AssertionError } from '../typed';
 
 export interface PlagiarismOptions {
     // The number of context lines to render before/after each match. Ignored
     // if entireFiles is set.
-    contextLines?: number;
+    contextLines: number;
 
     // Render matches side by side or below each other.
     matchesAlign: 'sidebyside' | 'sequential';
 
     // Render each match on a new page.
-    newPage?: boolean;
+    newPage: boolean;
 
     // Render all files with matches in their entirety. Matches may not be
     // aligned as nicely in this mode.
-    entireFiles?: boolean;
+    entireFiles: boolean;
 }
 
 interface FileMatch {
@@ -37,6 +40,8 @@ interface FileMatch {
     lines: string[];
 
     name: string;
+
+    user: User;
 }
 
 export interface PlagMatch {
@@ -79,7 +84,8 @@ function makeCodeBlock(match: PlagMatch, opts: PlagiarismOptions): [CodeBlock, C
             caption: new ContentBlock([
                 'File ',
                 new MonospaceContent(new ContentBlock([innerMatch.name])),
-                ' of',
+                ' of ',
+                new NonBreakingContent([innerMatch.user.name]),
             ]),
             highlights: [
                 {
@@ -94,7 +100,7 @@ function makeCodeBlock(match: PlagMatch, opts: PlagiarismOptions): [CodeBlock, C
     return [maker(match.matchA), maker(match.matchB)];
 }
 
-function makeSection(match: PlagMatch, opts: PlagiarismOptions): Section {
+function makeSection(match: PlagMatch, idx: number, opts: PlagiarismOptions): SubSection {
     const [b1, b2] = makeCodeBlock(match, opts);
 
     let children: DocumentNode[];
@@ -115,15 +121,16 @@ function makeSection(match: PlagMatch, opts: PlagiarismOptions): Section {
 
     // TODO: Use actual match index.
     // TODO: Discuss if we want to change this section header.
-    return new Section('Match X', children);
+    return new SubSection(`Match ${idx + 1}`, children);
 }
 
 export class PlagiarismDocument {
     constructor(private readonly backend: keyof typeof backends) {}
 
     render(matches: PlagMatch[], opts: PlagiarismOptions): Promise<Buffer> {
-        const blocks = matches.map((match): Section => makeSection(match, opts));
-        const root = DocumentRoot.makeEmpty().addChildren(blocks);
+        const blocks = matches.map((match, i): Section => makeSection(match, i, opts));
+        const section = new Section('Plagiarism matches', blocks);
+        const root = DocumentRoot.makeEmpty().addChildren([section]);
 
         return render(this.backend, root);
     }

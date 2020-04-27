@@ -25,7 +25,10 @@
         </div>
     </local-header>
 
-    <b-modal id="plagiarism-export" title="Export to LaTeX" hide-footer>
+    <b-modal id="plagiarism-export"
+             title="Export to LaTeX"
+             hide-footer
+             static>
         <h6 style="text-align: center;">Select which matches should be exported</h6>
         <table class="range-table table table-striped table-hover">
             <thead>
@@ -224,6 +227,7 @@ export default {
                 contextLines: 5,
                 matchesAlign: 'sidebyside',
                 newPage: true,
+                entireFiles: false,
             },
             advancedOptionsCollapsed: false,
 
@@ -247,6 +251,7 @@ export default {
         ...mapGetters('pref', ['fontSize', 'darkMode']),
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('plagiarism', ['runs']),
+        ...mapGetters('users', ['getUser']),
 
         // This is a mapping between file id and object, containing a `name`
         // key, `id` key, `match` key, and a lines array. This array contains
@@ -414,7 +419,7 @@ export default {
                         contents[match.files[0].id],
                         contents[match.files[1].id],
                     ]);
-                    // const [user1, user2] = this.detail.users;
+                    const [user1, user2] = this.detail.userIds;
 
                     return {
                         color: this.getColorForMatch(match).background,
@@ -423,21 +428,20 @@ export default {
                             endLine: match.lines[0][1] + 1,
                             lines: left,
                             name: this.getFromFileTree(this.tree1, match.files[0]),
+                            user: this.getUser(user1),
                         },
                         matchB: {
                             startLine: match.lines[1][0],
                             endLine: match.lines[1][1] + 1,
                             lines: right,
                             name: this.getFromFileTree(this.tree1, match.files[1]),
+                            user: this.getUser(user2),
                         },
                     };
                 }),
             ));
 
             return new PlagiarismDocument('LaTeX').render(plagMatches, this.exportOptions);
-                // contextLines: this.exportOptions,
-                // matchesAlign: 'newpage',
-            // });
         },
 
         getExtension(file) {
@@ -587,6 +591,9 @@ export default {
                             }
                         }
 
+                        data.userIds = data.users.map(
+                            user => this.$utils.getProps(user, null, 'id'),
+                        );
                         this.detail = data;
 
                         return Promise.all([
