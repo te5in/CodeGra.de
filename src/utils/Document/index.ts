@@ -398,12 +398,18 @@ ${flat1(lines).join('\n')}
 class DocxDocument extends DocumentBackend {
     static backendName = 'DOCX';
 
+    private codeBlockIndex: number = 0;
+
     constructor(public doc: DocumentRoot) {
         super(doc);
     }
 
     renderToBuffer(): Promise<Buffer> {
-        const doc = new docx.Document();
+        const doc = new docx.Document({
+            numbering: {
+                config: [...this.codeBlockNumberings()],
+            },
+        });
 
         this.doc.children.forEach(child => {
             if (child instanceof Section) {
@@ -416,6 +422,49 @@ class DocxDocument extends DocumentBackend {
         });
 
         return docx.Packer.toBuffer(doc);
+    }
+
+    private codeBlockNumberings(): {
+        readonly levels: docx.ILevelsOptions[];
+        readonly reference: string;
+    }[] {
+        return this.getCodeBlocks().map((block, i) => ({
+            levels: [
+                {
+                    level: 0,
+                    format: 'decimal',
+                    start: block.firstLine,
+                    text: '%1',
+                    alignment: docx.AlignmentType.START,
+                    style: {
+                        paragraph: {
+                            indent: { left: 720, hanging: 260 },
+                        },
+                    },
+                },
+            ],
+            reference: `decimal-ordered-${i}`,
+        }));
+    }
+
+    private getCodeBlocks(): CodeBlock[] {
+        function getBlocks(els: ReadonlyArray<DocumentNode | SubSection>): CodeBlock[] {
+            return els.reduce((acc: CodeBlock[], el: DocumentNode | SubSection): CodeBlock[] => {
+                if (el instanceof Section) {
+                    return acc.concat(getBlocks(el.children));
+                } else if (el instanceof SubSection) {
+                    return acc.concat(getBlocks(el.children));
+                } else if (el instanceof ColumnLayout) {
+                    return acc.concat(getBlocks(el.blocks));
+                } else if (el instanceof ContentBlock || el instanceof NewPage) {
+                    return acc;
+                } else {
+                    return acc.concat(el);
+                }
+            }, []);
+        }
+
+        return getBlocks(this.doc.children);
     }
 
     renderSection(el: Section, doc: docx.Document): void {
@@ -488,31 +537,39 @@ class DocxDocument extends DocumentBackend {
 
     // eslint-disable-next-line class-methods-use-this
     renderCode(el: CodeBlock): docx.Paragraph[] {
-        const highlights: { [lnum: number]: string } = {};
+        const shadings: { [lnum: number]: string } = {};
+        const colors: { [lnum: number]: string } = {};
         el.highlights.forEach(hl => {
             for (let i = hl.start; i <= hl.end; i++) {
-                highlights[i] = DocxDocument.colorToString(hl.highlight.background);
+                shadings[i] = DocxDocument.colorToString(hl.highlight.background);
+                colors[i] = DocxDocument.colorToString(hl.highlight.foreground);
             }
         });
 
         const start = el.firstLine;
-        const pars = el.lines.map(
-            (line, lnum) =>
-                new docx.Paragraph({
-                    children: [
-                        new docx.TextRun({
-                            text: line,
-                            font: { name: 'Courier New' },
-                            highlight: highlights[start + lnum],
-                            shading: {
-                                type: docx.ShadingType.SOLID,
-                                fill: 'fill',
-                                color: highlights[start + lnum],
-                            },
-                        }),
-                    ],
-                }),
-        );
+        const blockIdx = this.codeBlockIndex++;
+
+        const pars = el.lines.map((line, offset) => {
+            const lnum = start + offset;
+            return new docx.Paragraph({
+                numbering: {
+                    reference: `decimal-ordered-${blockIdx}`,
+                    level: 0,
+                },
+                children: [
+                    new docx.TextRun({
+                        text: line,
+                        font: { name: 'Courier New' },
+                        color: colors[lnum],
+                        shading: {
+                            type: docx.ShadingType.SOLID,
+                            fill: 'fill',
+                            color: shadings[lnum],
+                        },
+                    }),
+                ],
+            });
+        });
 
         if (el.caption != null) {
             pars.push(
@@ -526,7 +583,7 @@ class DocxDocument extends DocumentBackend {
         return pars;
     }
 
-    static colorToString(color: Color) {
+    static colorToString(color: Color): string {
         const toHex = (x: number) => {
             const s = x.toString(16);
             return s.length === 1 ? `0${s}` : s;
