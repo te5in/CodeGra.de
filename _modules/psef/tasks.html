@@ -635,8 +635,6 @@
             <span class="n">run</span><span class="o">.</span><span class="n">runners_requested</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">wanted_runners</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">p</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
 
-    <span class="n">_update_latest_results_in_broker_1</span><span class="o">.</span><span class="n">delay</span><span class="p">(</span><span class="n">run</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
-
 
 <span class="nd">@celery</span><span class="o">.</span><span class="n">task</span><span class="p">(</span>
     <span class="n">autoretry_for</span><span class="o">=</span><span class="p">(</span><span class="n">RequestException</span><span class="p">,</span> <span class="p">),</span>
@@ -730,7 +728,9 @@
     <span class="n">retry_backoff</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">retry_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;max_retries&#39;</span><span class="p">:</span> <span class="mi">15</span><span class="p">}</span>
 <span class="p">)</span>
-<span class="k">def</span> <span class="nf">_adjust_amount_runners_1</span><span class="p">(</span><span class="n">auto_test_run_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="k">def</span> <span class="nf">_adjust_amount_runners_1</span><span class="p">(</span>
+    <span class="n">auto_test_run_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">always_update_latest_results</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="n">run</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">AutoTestRun</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span>
         <span class="nb">id</span><span class="o">=</span><span class="n">auto_test_run_id</span>
     <span class="p">)</span><span class="o">.</span><span class="n">with_for_update</span><span class="p">()</span><span class="o">.</span><span class="n">one_or_none</span><span class="p">()</span>
@@ -741,23 +741,29 @@
 
     <span class="n">requested_amount</span> <span class="o">=</span> <span class="n">run</span><span class="o">.</span><span class="n">runners_requested</span>
     <span class="n">needed_amount</span> <span class="o">=</span> <span class="n">run</span><span class="o">.</span><span class="n">get_amount_needed_runners</span><span class="p">()</span>
+
+    <span class="n">should_notify_broker</span> <span class="o">=</span> <span class="kc">False</span>
+
     <span class="k">with</span> <span class="n">cg_logger</span><span class="o">.</span><span class="n">bound_to_logger</span><span class="p">(</span>
         <span class="n">requested_amount</span><span class="o">=</span><span class="n">requested_amount</span><span class="p">,</span> <span class="n">needed_amount</span><span class="o">=</span><span class="n">needed_amount</span>
     <span class="p">):</span>
         <span class="k">if</span> <span class="n">needed_amount</span> <span class="o">==</span> <span class="n">requested_amount</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;No new runners needed&#39;</span><span class="p">)</span>
-            <span class="k">return</span>
         <span class="k">elif</span> <span class="n">needed_amount</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">run</span><span class="o">.</span><span class="n">runners_requested</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="c1"># If we have requested more than 2 runners we should decrease this,</span>
             <span class="c1"># so do send this request to the broker.</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;We don&#39;t need any runners&quot;</span><span class="p">)</span>
-            <span class="k">return</span>
         <span class="k">elif</span> <span class="n">needed_amount</span> <span class="o">&gt;</span> <span class="n">requested_amount</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;We need more runners&#39;</span><span class="p">)</span>
+            <span class="n">should_notify_broker</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;We have requested too many runners&#39;</span><span class="p">)</span>
+            <span class="n">should_notify_broker</span> <span class="o">=</span> <span class="kc">True</span>
 
-        <span class="n">_notify_broker_of_new_job_1</span><span class="p">(</span><span class="n">run</span><span class="p">,</span> <span class="n">needed_amount</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">should_notify_broker</span><span class="p">:</span>
+            <span class="n">_notify_broker_of_new_job_1</span><span class="p">(</span><span class="n">run</span><span class="p">,</span> <span class="n">needed_amount</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">always_update_latest_results</span><span class="p">:</span>
+            <span class="n">_update_latest_results_in_broker_1</span><span class="p">(</span><span class="n">run</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
 
 
 <span class="nd">@celery</span><span class="o">.</span><span class="n">task</span>
@@ -782,50 +788,13 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Run not found&#39;</span><span class="p">,</span> <span class="n">run_id</span><span class="o">=</span><span class="n">auto_test_run_id</span><span class="p">)</span>
         <span class="k">return</span>
 
-    <span class="k">def</span> <span class="nf">get_latest_date</span><span class="p">(</span>
-        <span class="n">state</span><span class="p">:</span> <span class="n">m</span><span class="o">.</span><span class="n">AutoTestStepResultState</span><span class="p">,</span>
-        <span class="n">col</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="n">DbColumn</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">],</span> <span class="n">DbColumn</span><span class="p">[</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">]]],</span>
-        <span class="n">oldest</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-        <span class="n">date</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">AutoTestResult</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-            <span class="n">m</span><span class="o">.</span><span class="n">AutoTestResult</span><span class="o">.</span><span class="n">auto_test_run_id</span> <span class="o">==</span> <span class="n">auto_test_run_id</span><span class="p">,</span>
-            <span class="n">m</span><span class="o">.</span><span class="n">AutoTestResult</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="n">state</span><span class="p">,</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">Work</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-            <span class="o">~</span><span class="n">m</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">deleted</span><span class="p">,</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span>
-            <span class="n">col</span> <span class="k">if</span> <span class="n">oldest</span> <span class="k">else</span> <span class="n">col</span><span class="o">.</span><span class="n">desc</span><span class="p">(),</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">with_entities</span><span class="p">(</span><span class="n">col</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
-
-        <span class="k">if</span> <span class="n">date</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">date</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span>
-        <span class="k">return</span> <span class="n">date</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
-
-    <span class="c1"># yapf: disable</span>
-    <span class="n">results</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s1">&#39;not_started&#39;</span><span class="p">:</span> <span class="n">get_latest_date</span><span class="p">(</span>
-            <span class="n">m</span><span class="o">.</span><span class="n">AutoTestStepResultState</span><span class="o">.</span><span class="n">not_started</span><span class="p">,</span>
-            <span class="n">m</span><span class="o">.</span><span class="n">AutoTestResult</span><span class="o">.</span><span class="n">updated_at</span><span class="p">,</span>
-        <span class="p">),</span>
-        <span class="s1">&#39;running&#39;</span><span class="p">:</span> <span class="n">get_latest_date</span><span class="p">(</span>
-            <span class="n">m</span><span class="o">.</span><span class="n">AutoTestStepResultState</span><span class="o">.</span><span class="n">running</span><span class="p">,</span>
-            <span class="n">m</span><span class="o">.</span><span class="n">AutoTestResult</span><span class="o">.</span><span class="n">started_at</span><span class="p">,</span>
-        <span class="p">),</span>
-        <span class="s1">&#39;passed&#39;</span><span class="p">:</span> <span class="n">get_latest_date</span><span class="p">(</span>
-            <span class="n">m</span><span class="o">.</span><span class="n">AutoTestStepResultState</span><span class="o">.</span><span class="n">passed</span><span class="p">,</span>
-            <span class="n">m</span><span class="o">.</span><span class="n">AutoTestResult</span><span class="o">.</span><span class="n">updated_at</span><span class="p">,</span>
-            <span class="kc">False</span><span class="p">,</span>
-        <span class="p">),</span>
-    <span class="p">}</span>
-    <span class="c1"># yapf: enable</span>
-
     <span class="k">with</span> <span class="n">p</span><span class="o">.</span><span class="n">helpers</span><span class="o">.</span><span class="n">BrokerSession</span><span class="p">()</span> <span class="k">as</span> <span class="n">ses</span><span class="p">:</span>
         <span class="n">ses</span><span class="o">.</span><span class="n">put</span><span class="p">(</span>
             <span class="s1">&#39;/api/v1/jobs/&#39;</span><span class="p">,</span>
             <span class="n">json</span><span class="o">=</span><span class="p">{</span>
                 <span class="s1">&#39;job_id&#39;</span><span class="p">:</span> <span class="n">run</span><span class="o">.</span><span class="n">get_job_id</span><span class="p">(),</span>
                 <span class="s1">&#39;metadata&#39;</span><span class="p">:</span> <span class="p">{</span>
-                    <span class="s1">&#39;results&#39;</span><span class="p">:</span> <span class="n">results</span><span class="p">,</span>
+                    <span class="s1">&#39;results&#39;</span><span class="p">:</span> <span class="n">run</span><span class="o">.</span><span class="n">get_broker_result_metadata</span><span class="p">(),</span>
                 <span class="p">},</span>
                 <span class="s1">&#39;error_on_create&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
             <span class="p">},</span>

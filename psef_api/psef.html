@@ -10902,6 +10902,21 @@ this run. This is used for authentication purposes.</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="psef.models.auto_test.AutoTestRun.get_broker_result_metadata">
+<code class="sig-name descname">get_broker_result_metadata</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span> &#x2192; Mapping[str, Optional[str]]<a class="reference internal" href="../_modules/psef/models/auto_test.html#AutoTestRun.get_broker_result_metadata"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test.AutoTestRun.get_broker_result_metadata" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the <code class="docutils literal notranslate"><span class="pre">results</span></code> metadata key for the broker.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A mapping that should be send to the broker in the metadata
+under the <code class="docutils literal notranslate"><span class="pre">results</span></code> key.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
 <dt id="psef.models.auto_test.AutoTestRun.get_instructions">
 <code class="sig-name descname">get_instructions</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">for_runner: psef.models.auto_test.AutoTestRunner</em><span class="sig-paren">)</span> &#x2192; psef.auto_test.RunnerInstructions<a class="reference internal" href="../_modules/psef/models/auto_test.html#AutoTestRun.get_instructions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test.AutoTestRun.get_instructions" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the instructions to run this AutoTestRun.</p>
