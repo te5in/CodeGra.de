@@ -4,6 +4,7 @@ import BootstrapVue from 'bootstrap-vue';
 import { shallowMount, createLocalVue } from '@vue/test-utils';
 import VueRouter from 'vue-router';
 import Vuex from 'vuex';
+import { Assignment } from '@/models';
 
 jest.mock('axios');
 
@@ -29,7 +30,7 @@ describe('MaximumGrade.vue', () => {
             modules: {
                 courses: {
                     state: { },
-                    getters: { assignments: () => ({ '-1': { id: -1 } }) },
+                    getters: { assignments: () => ({ '-1': Assignment.fromServerData({ id: -1 }) }) },
                     actions: { updateAssignment: mockUpdate },
                     namespaced: true,
                 },
@@ -47,7 +48,7 @@ describe('MaximumGrade.vue', () => {
                 $http: { patch: mockPatch },
             },
             propsData: {
-                assignmentId: -1,
+                assignment: store.getters['courses/assignments'][-1],
             },
         });
     });

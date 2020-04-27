@@ -5,7 +5,7 @@
         {{ error }}
     </b-alert>
 </div>
-<loader center v-else-if="loadingPage"/>
+<loader center class="submission-page-loader" v-else-if="loadingPage"/>
 <div class="page submission outer-container" id="submission-page" v-else>
     <local-header :back-route="submissionsRoute"
                   back-popover="Go back to submissions list"
@@ -140,7 +140,9 @@
         </template>
     </local-header>
 
-    <loader page-loader v-if="loadingInner"/>
+    <loader page-loader
+            class="submission-page-inner-loader"
+            v-if="loadingInner"/>
     <template v-else>
         <div class="cat-wrapper"
              :class="{ hidden: selectedCat !== 'code' }">
@@ -284,31 +286,42 @@ export default {
             storeGetSingleSubmission: 'getSingleSubmission',
             storeGetGroupSubmissionOfUser: 'getGroupSubmissionOfUser',
         }),
-        ...mapGetters('courses', ['assignments']),
+        ...mapGetters('courses', ['courses', 'assignments']),
         ...mapGetters('autotest', {
             allAutoTests: 'tests',
         }),
         ...mapGetters('fileTrees', ['getFileTree']),
         ...mapGetters('feedback', ['getFeedback']),
 
+        course() {
+            const id = Number(this.$route.params.courseId);
+            return this.courses[id];
+        },
+
         courseId() {
-            return Number(this.$route.params.courseId);
+            return this.$utils.getProps(this.course, null, 'id');
+        },
+
+        assignment() {
+            const id = Number(this.$route.params.assignmentId);
+            return this.assignments[id];
         },
 
         assignmentId() {
-            return Number(this.$route.params.assignmentId);
+            return this.$utils.getProps(this.assignment, null, 'id');
+        },
+
+        submission() {
+            const id = Number(this.$route.params.submissionId);
+            return this.storeGetSingleSubmission(this.assignmentId, id);
         },
 
         submissionId() {
-            return Number(this.$route.params.submissionId);
+            return this.$utils.getProps(this.submission, null, 'id');
         },
 
         fileId() {
             return this.$route.params.fileId;
-        },
-
-        submission() {
-            return this.storeGetSingleSubmission(this.assignmentId, this.submissionId);
         },
 
         editable() {
@@ -381,10 +394,6 @@ export default {
 
         revision() {
             return this.$route.query.revision || 'student';
-        },
-
-        assignment() {
-            return this.assignments[this.assignmentId] || null;
         },
 
         latestSubmissions() {
@@ -620,7 +629,9 @@ export default {
         assignmentId: {
             immediate: true,
             handler() {
-                this.storeLoadSubmissions(this.assignmentId);
+                if (this.assignmentId != null) {
+                    this.storeLoadSubmissions(this.assignmentId);
+                }
             },
         },
 
@@ -719,6 +730,10 @@ export default {
         },
 
         async loadData() {
+            if (this.submissionId == null) {
+                return;
+            }
+
             if (!this.$route.query.revision) {
                 this.$router.replace(
                     this.$utils.deepExtend({}, this.$route, {

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import Submission from '@/pages/Submission';
+import * as mutationTypes from '@/store/mutation-types';
 import * as assignmentState from '@/store/assignment-states';
 import { FileTree, Feedback } from '@/models/submission';
 import axios from 'axios';
@@ -227,6 +228,9 @@ describe('Submission.vue', () => {
             },
         });
         comp = wrapper.vm;
+
+        await store.dispatch('courses/loadCourses');
+
         await wait();
     });
 
@@ -237,9 +241,11 @@ describe('Submission.vue', () => {
 
     describe('Computed', () => {
         it('ids should be numbers', () => {
-            expect(typeof comp.courseId).toBe('number');
-            expect(typeof comp.assignmentId).toBe('number');
-            expect(typeof comp.submissionId).toBe('number');
+            console.log(comp.course);
+            console.log(comp.courseId);
+            expect(comp.courseId).toBeNumber();
+            expect(comp.assignmentId).toBeNumber();
+            expect(comp.submissionId).toBeNumber();
             expect(comp.courseId).toBe(1);
             expect(comp.assignmentId).toBe(2);
             expect(comp.submissionId).toBe(3);
