@@ -942,7 +942,8 @@ class StartedContainer:
 
         :param key: The cgroup key to be set.
         :param value: The value to set.
-        :raises AssertionError: When the value could not be set successfully.
+        :raises StopRunningTestsException: When the value could not be set
+            successfully.
         """
         with cg_logger.bound_to_logger(cgroup_key=key, cgroup_value=value):
             for _ in helpers.retry_loop(
