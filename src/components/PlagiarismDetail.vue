@@ -33,7 +33,11 @@
         <table class="range-table table table-striped table-hover">
             <thead>
                 <tr>
-                    <th class="shrink text-center">Export</th>
+                    <th class="shrink text-center">
+                        <b-form-checkbox :checked="exportAll"
+                                         @change="toggleAllMatches"
+                                         v-b-popover.top.hover="'Toggle all'"/>
+                    </th>
                     <th class="col-student-name"><user :user="detail.users[0]"/></th>
                     <th class="shrink text-center">Lines</th>
                     <th class="shrink text-center">Color</th>
@@ -44,8 +48,9 @@
 
             <tbody>
                 <tr v-for="match in matchesSortedByRange"
-                    @click="$set(exportMatches, match.id, !exportMatches[match.id])">
-                    <td><b-form-checkbox v-model="exportMatches[match.id]"
+                    @click="toggleExportMatch(match.id)">
+                    <td><b-form-checkbox :checked="exportMatches[match.id]"
+                                         @input="toggleExportMatch(match.id, $event)"
                                          @click.native.prevent /></td>
                     <td class="col-student-name">
                         {{ getFromFileTree(tree1, match.files[0]) }}
@@ -223,6 +228,7 @@ export default {
             exportMatches: {},
 
             error: '',
+            exportAll: false,
             exportOptions: {
                 contextLines: 5,
                 matchesAlign: 'sidebyside',
@@ -245,6 +251,10 @@ export default {
                 this.loadDetail();
             }
         },
+
+        numExported(newVal) {
+            this.exportAll = newVal === this.matchIds.length;
+        },
     },
 
     computed: {
@@ -252,6 +262,15 @@ export default {
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('plagiarism', ['runs']),
         ...mapGetters('users', ['getUser']),
+
+        matchIds() {
+            const matches = this.$utils.getProps(this.detail, [], 'matches');
+            return matches.map(m => m.id);
+        },
+
+        numExported() {
+            return this.matchIds.filter(id => this.exportMatches[id]).length;
+        },
 
         // This is a mapping between file id and object, containing a `name`
         // key, `id` key, `match` key, and a lines array. This array contains
@@ -660,6 +679,19 @@ export default {
             const [user1, user2] = this.detail.users;
             const fileName = `plagiarism_case_${nameOfUser(user1)}+${nameOfUser(user2)}.tex`;
             downloadFile(texData, fileName, 'text/x-tex');
+        },
+
+        toggleExportMatch(id, value = null) {
+            const newVal = value == null ? !this.exportMatches[id] : value;
+            this.$set(this.exportMatches, id, newVal);
+            this.$set(this, 'exportMatches', this.exportMatches);
+        },
+
+        toggleAllMatches(enabled) {
+            this.matchIds.forEach(id => {
+                this.$set(this.exportMatches, id, enabled);
+            });
+            this.$set(this, 'exportMatches', this.exportMatches);
         },
     },
 
