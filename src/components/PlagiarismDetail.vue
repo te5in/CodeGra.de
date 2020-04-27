@@ -64,19 +64,17 @@
                     <b>Options</b>
                 </div>
                 <div class="mt-2">
-                    <b-form-group title="Render each listing on a new page">
+                    <b-form-group label="Render each listing on a new page">
                         <cg-toggle v-model="exportOptions.newPage" />
                     </b-form-group>
 
-                    <b-form-group title="How to render matches">
+                    <b-form-group label="Render matches side by side">
                         <cg-toggle v-model="exportOptions.matchesAlign"
-                                   label-off="Sequential"
-                                   label-on="Side by side"
                                    value-off="sequential"
                                    value-on="sidebyside" />
                     </b-form-group>
 
-                    <b-form-group>
+                    <b-form-group label="Context lines">
                         <input class="form-control"
                                placeholder="Number of context lines"
                                type="number"
