@@ -28,7 +28,7 @@ git+https://github.com/libre-man/HTTPdomain#subdirectory=httpdomain
 git+https://github.com/libre-man/sphinx-autodoc-typehints
 git+https://github.com/libre-man/sphinx_fontawesome
 html2text==2020.1.16
-humanfriendly==8.1
+humanfriendly==8.2
 isort==4.3.21
 itsdangerous==1.1.0
 mistune==0.8.4
