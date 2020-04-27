@@ -37,6 +37,7 @@
     "chartjs-plugin-error-bars": "^1.2.2",
     "denque": "^1.4.1",
     "diff-match-patch": "^1.0.4",
+    "docx": "^5.0.2",
     "escape-latex": "^1.2.0",
     "expect": "^23.6.0",
     "flatpickr": "^4.5.2",

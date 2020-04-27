@@ -441,7 +441,7 @@ export default {
                 }),
             ));
 
-            return new PlagiarismDocument('LaTeX').render(plagMatches, this.exportOptions);
+            return new PlagiarismDocument('DOCX').render(plagMatches, this.exportOptions);
         },
 
         getExtension(file) {

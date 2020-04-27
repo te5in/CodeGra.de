@@ -1,4 +1,6 @@
-import { hasAttr, unzip2, flat1, unique } from '@/utils/typed';
+import * as docx from 'docx';
+
+import { hasAttr, unzip2, flatMap1, flat1, unique } from '@/utils/typed';
 
 type TextBlock = string;
 
@@ -114,7 +116,7 @@ abstract class DocumentBackend {
 
     constructor(public doc: DocumentRoot) {}
 
-    abstract renderToBuffer(): Buffer;
+    abstract renderToBuffer(): Promise<Buffer>;
 }
 
 class LatexDocument extends DocumentBackend {
@@ -167,7 +169,7 @@ class LatexDocument extends DocumentBackend {
         }
     }
 
-    renderToBuffer(): Buffer {
+    renderToBuffer(): Promise<Buffer> {
         const [lines, highlights] = unzip2(this.doc.children.map(child => this.renderLines(child)));
 
         const base = `\\documentclass{article}
@@ -239,7 +241,7 @@ ${this.defineColors(flat1(highlights)).join('\n')}
 ${flat1(lines).join('\n')}
 \\end{document}`;
 
-        return Buffer.from(base, 'utf8');
+        return Promise.resolve(Buffer.from(base, 'utf8'));
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -393,8 +395,149 @@ ${flat1(lines).join('\n')}
     }
 }
 
+class DocxDocument extends DocumentBackend {
+    static backendName = 'DOCX';
+
+    constructor(public doc: DocumentRoot) {
+        super(doc);
+    }
+
+    renderToBuffer(): Promise<Buffer> {
+        const doc = new docx.Document();
+
+        this.doc.children.forEach(child => {
+            if (child instanceof Section) {
+                this.renderSection(child, doc);
+            } else {
+                doc.addSection({
+                    children: this.renderElement(child),
+                });
+            }
+        });
+
+        return docx.Packer.toBuffer(doc);
+    }
+
+    renderSection(el: Section, doc: docx.Document): void {
+        doc.addSection({
+            headers: {
+                default: new docx.Header({
+                    children: [new docx.Paragraph(el.heading)],
+                }),
+            },
+            children: flatMap1(el.children, child => this.renderElement(child)),
+        });
+    }
+
+    renderElement(el: DocumentNode): docx.Paragraph[] {
+        if (el instanceof Section) {
+            throw new Error('Sections should be handled at the top level');
+        } else if (el instanceof SubSection) {
+            return this.renderSubSection(el);
+        } else if (el instanceof ColumnLayout) {
+            return this.renderColumn(el);
+        } else if (el instanceof ContentBlock) {
+            return [new docx.Paragraph({ children: this.renderContentBlock(el) })];
+        } else if (el instanceof NewPage) {
+            return this.renderNewPage();
+        } else {
+            return this.renderCode(el);
+        }
+    }
+
+    renderSubSection(el: SubSection): docx.Paragraph[] {
+        return [
+            new docx.Paragraph({
+                text: el.heading,
+                heading: docx.HeadingLevel.HEADING_3,
+            }),
+            ...flatMap1(el.children, child => this.renderElement(child)),
+        ];
+    }
+
+    renderColumn(el: ColumnLayout<DocumentContentNode | Section>): docx.Paragraph[] {
+        // TODO: Actually render columns...
+        return flatMap1(el.blocks, block => this.renderElement(block));
+    }
+
+    renderContentBlock(el: ContentBlock, opts: docx.IRunOptions = {}): docx.TextRun[] {
+        return flatMap1(el.chunks, chunk => this.renderContentChunk(chunk, opts));
+    }
+
+    renderContentChunk(el: ContentChunk, opts: docx.IRunOptions): docx.TextRun[] {
+        const childOpts = (key: string, value: any) => Object.assign({}, opts, { [key]: value });
+
+        if (el instanceof EmphasizedContent) {
+            return this.renderContentBlock(el.content, childOpts('italics', true));
+        } else if (el instanceof BoldContent) {
+            return this.renderContentBlock(el.content, childOpts('bold', true));
+        } else if (el instanceof MonospaceContent) {
+            return this.renderContentBlock(el.content, childOpts('font', { name: 'Courier new' }));
+        } else if (el instanceof NonBreakingContent) {
+            // TODO: Try to make this non-breaking.
+            return el.content.map(str => new docx.TextRun(childOpts('text', str)));
+        } else {
+            return [new docx.TextRun(childOpts('text', el))];
+        }
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    renderNewPage(): docx.Paragraph[] {
+        return [new docx.Paragraph({ pageBreakBefore: true })];
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    renderCode(el: CodeBlock): docx.Paragraph[] {
+        const highlights: { [lnum: number]: string } = {};
+        el.highlights.forEach(hl => {
+            for (let i = hl.start; i <= hl.end; i++) {
+                highlights[i] = DocxDocument.colorToString(hl.highlight.background);
+            }
+        });
+
+        const start = el.firstLine;
+        const pars = el.lines.map(
+            (line, lnum) =>
+                new docx.Paragraph({
+                    children: [
+                        new docx.TextRun({
+                            text: line,
+                            font: { name: 'Courier New' },
+                            highlight: highlights[start + lnum],
+                            shading: {
+                                type: docx.ShadingType.SOLID,
+                                fill: 'fill',
+                                color: highlights[start + lnum],
+                            },
+                        }),
+                    ],
+                }),
+        );
+
+        if (el.caption != null) {
+            pars.push(
+                new docx.Paragraph({
+                    alignment: docx.AlignmentType.CENTER,
+                    children: this.renderContentBlock(el.caption),
+                }),
+            );
+        }
+
+        return pars;
+    }
+
+    static colorToString(color: Color) {
+        const toHex = (x: number) => {
+            const s = x.toString(16);
+            return s.length === 1 ? `0${s}` : s;
+        };
+        return `${toHex(color.red)}${toHex(color.green)}${toHex(color.blue)}`;
+    }
+}
+
 export const backends = {
     [LatexDocument.backendName]: LatexDocument,
+    [DocxDocument.backendName]: DocxDocument,
 } as const;
 
 export function render(
