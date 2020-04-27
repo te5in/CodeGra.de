@@ -1599,9 +1599,15 @@ def test_clearing_already_started_result(
                 psef.tasks, 'update_latest_results_in_broker', stub_update
             )
 
+            stub_adjust = stub_function_class()
+            monkeypatch.setattr(
+                psef.tasks, 'adjust_amount_runners', stub_adjust
+            )
+
             with logged_in(teacher):
                 sub_id = helpers.create_submission(test_client, assig_id)['id']
-                assert stub_update.called
+                assert stub_adjust.called
+                assert not stub_update.called
 
             result = LocalProxy(
                 lambda: m.AutoTestResult.query.filter_by(work_id=sub_id).one()

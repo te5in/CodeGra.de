@@ -435,8 +435,6 @@ def _notify_broker_of_new_job_1(
             run.runners_requested = max(wanted_runners, 1)
         p.models.db.session.commit()
 
-    _update_latest_results_in_broker_1.delay(run.id)
-
 
 @celery.task(
     autoretry_for=(RequestException, ),
@@ -530,7 +528,9 @@ def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
     retry_backoff=True,
     retry_kwargs={'max_retries': 15}
 )
-def _adjust_amount_runners_1(auto_test_run_id: int) -> None:
+def _adjust_amount_runners_1(
+    auto_test_run_id: int, *, always_update_latest_results: bool = False
+) -> None:
     run = p.models.AutoTestRun.query.filter_by(
         id=auto_test_run_id
     ).with_for_update().one_or_none()
@@ -541,23 +541,29 @@ def _adjust_amount_runners_1(auto_test_run_id: int) -> None:
 
     requested_amount = run.runners_requested
     needed_amount = run.get_amount_needed_runners()
+
+    should_notify_broker = False
+
     with cg_logger.bound_to_logger(
         requested_amount=requested_amount, needed_amount=needed_amount
     ):
         if needed_amount == requested_amount:
             logger.info('No new runners needed')
-            return
         elif needed_amount == 0 and run.runners_requested < 2:
             # If we have requested more than 2 runners we should decrease this,
             # so do send this request to the broker.
             logger.info("We don't need any runners")
-            return
         elif needed_amount > requested_amount:
             logger.info('We need more runners')
+            should_notify_broker = True
         else:
             logger.info('We have requested too many runners')
+            should_notify_broker = True
 
-        _notify_broker_of_new_job_1(run, needed_amount)
+        if should_notify_broker:
+            _notify_broker_of_new_job_1(run, needed_amount)
+        elif always_update_latest_results:
+            _update_latest_results_in_broker_1(run.id)
 
 
 @celery.task
@@ -582,50 +588,13 @@ def _update_latest_results_in_broker_1(auto_test_run_id: int) -> None:
         logger.info('Run not found', run_id=auto_test_run_id)
         return
 
-    def get_latest_date(
-        state: m.AutoTestStepResultState,
-        col: t.Union[DbColumn[DatetimeWithTimezone], DbColumn[
-            t.Optional[DatetimeWithTimezone]]],
-        oldest: bool = True
-    ) -> t.Optional[str]:
-        date = m.db.session.query(m.AutoTestResult).filter(
-            m.AutoTestResult.auto_test_run_id == auto_test_run_id,
-            m.AutoTestResult.state == state,
-        ).join(m.Work).filter(
-            ~m.Work.deleted,
-        ).order_by(
-            col if oldest else col.desc(),
-        ).with_entities(col).first()
-
-        if date is None or date[0] is None:
-            return None
-        return date[0].isoformat()
-
-    # yapf: disable
-    results = {
-        'not_started': get_latest_date(
-            m.AutoTestStepResultState.not_started,
-            m.AutoTestResult.updated_at,
-        ),
-        'running': get_latest_date(
-            m.AutoTestStepResultState.running,
-            m.AutoTestResult.started_at,
-        ),
-        'passed': get_latest_date(
-            m.AutoTestStepResultState.passed,
-            m.AutoTestResult.updated_at,
-            False,
-        ),
-    }
-    # yapf: enable
-
     with p.helpers.BrokerSession() as ses:
         ses.put(
             '/api/v1/jobs/',
             json={
                 'job_id': run.get_job_id(),
                 'metadata': {
-                    'results': results,
+                    'results': run.get_broker_result_metadata(),
                 },
                 'error_on_create': True,
             },
