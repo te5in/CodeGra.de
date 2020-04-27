@@ -588,6 +588,10 @@ class DocxDocument extends DocumentBackend {
             pars.push(
                 new docx.Paragraph({
                     alignment: docx.AlignmentType.CENTER,
+                    spacing: {
+                        before: 200,
+                        after: 200,
+                    },
                     children: this.renderContentBlock(el.caption),
                 }),
             );
