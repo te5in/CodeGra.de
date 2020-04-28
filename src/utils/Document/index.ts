@@ -440,7 +440,7 @@ ${flat1(lines).join('\n')}
 }
 
 class DocxDocument extends DocumentBackend {
-    static readonly backendName = 'DOCX';
+    static readonly backendName = 'Docx';
 
     static readonly fileExtension = 'docx';
 
@@ -480,7 +480,7 @@ class DocxDocument extends DocumentBackend {
     }
 
     private codeBlockNumberings(): Readonly<{
-        levels: ReadonlyArray<docx.ILevelsOptions>;
+        levels: docx.ILevelsOptions[];
         reference: string;
     }>[] {
         return this.getCodeBlocks().map((block, i) => ({
