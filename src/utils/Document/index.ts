@@ -479,10 +479,10 @@ class DocxDocument extends DocumentBackend {
         }
     }
 
-    private codeBlockNumberings(): Readonly<{
+    private codeBlockNumberings(): ReadonlyArray<Readonly<{
         levels: docx.ILevelsOptions[];
         reference: string;
-    }>[] {
+    }>> {
         return this.getCodeBlocks().map((block, i) => ({
             levels: [
                 {
