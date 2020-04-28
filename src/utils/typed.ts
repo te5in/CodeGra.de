@@ -6,6 +6,13 @@ export function hasAttr<T>(obj: T, key: PropertyKey): key is keyof T {
     return Object.hasOwnProperty.call(obj, key);
 }
 
+export function filterObject<T>(
+    obj: { [key: string]: T },
+    f: (v: T, k: string) => boolean,
+): Record<string, T> {
+    return fromEntries(Object.entries(obj).filter(([key, val]) => f(val, key)));
+}
+
 export function mapObject<T, V>(
     obj: { [key: string]: T },
     fun: (v: T, k: string) => V,

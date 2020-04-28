@@ -577,25 +577,6 @@ export function ensureArray(obj) {
     return Array.isArray(obj) ? obj : [obj];
 }
 
-export function filterObject(obj, f) {
-    return Object.fromEntries(Object.entries(obj).filter(([key, val]) => f(val, key)));
-}
-
-export function zip(...lists) {
-    if (lists.length === 0) {
-        return [];
-    }
-
-    const acc = [];
-    const end = Math.min(...lists.map(l => l.length));
-    let i = 0;
-    const get = l => l[i];
-    for (; i < end; i++) {
-        acc.push(lists.map(get));
-    }
-    return acc;
-}
-
 export function isEmpty(obj) {
     if (typeof obj !== 'object' || obj == null) {
         return !obj;
