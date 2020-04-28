@@ -20,6 +20,26 @@ export function mapObject<T, V>(
     return fromEntries(Object.entries(obj).map(([key, val]) => [key, fun(val, key)]));
 }
 
+// Map over an array, allowing to provide a custom map function for the first
+// or last element.
+export function mapCustom<T, V>(
+    arr: Array<T>,
+    fun: (v: T, i: number) => V,
+    first: (v: T, i: number) => V = fun,
+    last: (v: T, i: number) => V = fun,
+): Array<V> {
+    const max = arr.length - 1;
+    return arr.map((v, i) => {
+        if (i === 0) {
+            return first(v, i);
+        } else if (i === max) {
+            return last(v, i);
+        } else {
+            return fun(v, i);
+        }
+    });
+}
+
 export function flatMap1<T, TT>(
     arr: ReadonlyArray<T>,
     mapper: (val: T, index: number) => TT[],

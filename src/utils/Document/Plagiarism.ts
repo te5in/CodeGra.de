@@ -14,7 +14,7 @@ import {
     render,
 } from '@/utils/Document';
 import { User } from '@/models';
-import { flatMap1, AssertionError } from '../typed';
+import { mapCustom, flatMap1, AssertionError } from '../typed';
 
 export interface PlagiarismOptions {
     // The number of context lines to render before/after each match. Ignored
@@ -100,7 +100,7 @@ function makeCodeBlock(match: PlagMatch, opts: PlagiarismOptions): [CodeBlock, C
     return [maker(match.matchA), maker(match.matchB)];
 }
 
-function makeSection(match: PlagMatch, idx: number, opts: PlagiarismOptions): SubSection {
+function makeSubSection(match: PlagMatch, idx: number, opts: PlagiarismOptions): SubSection {
     const [b1, b2] = makeCodeBlock(match, opts);
 
     let children: (ColumnLayout<DocumentContentNode> | DocumentContentNode)[];
@@ -116,7 +116,7 @@ function makeSection(match: PlagMatch, idx: number, opts: PlagiarismOptions): Su
     }
 
     if (opts.newPage) {
-        children = flatMap1(children, c => [c, new NewPage()]).slice(0, -1);
+        children = flatMap1(children, c => [c, new NewPage()]);
     }
 
     // TODO: Discuss if we want to change this section header.
@@ -127,7 +127,19 @@ export class PlagiarismDocument {
     constructor(private readonly backend: keyof typeof backends) {}
 
     render(matches: PlagMatch[], opts: PlagiarismOptions): Promise<Buffer> {
-        const blocks = matches.map((match, i) => makeSection(match, i, opts));
+        const blocks = mapCustom(
+            matches,
+            (match, i) => makeSubSection(match, i, opts),
+            undefined,
+            (match, i) => {
+                const el = makeSubSection(match, i, opts);
+                if (el.children[el.children.length - 1] instanceof NewPage) {
+                    return new SubSection(el.heading, el.children.slice(0, -1));
+                } else {
+                    return el;
+                }
+            },
+        );
         const section = new Section('Plagiarism matches', blocks);
         const root = DocumentRoot.makeEmpty().addChildren([section]);
 
