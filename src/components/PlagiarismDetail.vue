@@ -114,7 +114,8 @@
                                type="number"
                                step="1"
                                start="0"
-                               v-model="exportOptions.contextLines" />
+                               :value="exportOptions.contextLines"
+                               @input="updateContextLines" />
                     </b-form-group>
 
                     <b-form-group label="Output format">
@@ -736,6 +737,14 @@ export default {
                 this.$set(this.exportMatches, id, enabled);
             });
             this.$set(this, 'exportMatches', this.exportMatches);
+        },
+
+        updateContextLines(event) {
+            let context = parseInt(event.target.value, 10);
+            if (Number.isNaN(context)) {
+                context = 0;
+            }
+            this.$set(this.exportOptions, 'contextLines', context);
         },
     },
 
