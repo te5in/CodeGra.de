@@ -14,6 +14,19 @@ Version *Next*
   after each match is configurable, and it is possible to export to a docx
   file.
 
+**Fixes**
+- Miscellaneous fixes:
+  `(#1322) <https://github.com/CodeGra-de/CodeGra.de/pull/1322>`__,
+  `(#1323) <https://github.com/CodeGra-de/CodeGra.de/pull/1323>`__,
+  `(#1324) <https://github.com/CodeGra-de/CodeGra.de/pull/1324>`__,
+  `(#1325) <https://github.com/CodeGra-de/CodeGra.de/pull/1325>`__,
+  `(#1326) <https://github.com/CodeGra-de/CodeGra.de/pull/1326>`__,
+  `(#1327) <https://github.com/CodeGra-de/CodeGra.de/pull/1327>`__,
+  `(#1328) <https://github.com/CodeGra-de/CodeGra.de/pull/1328>`__,
+  `(#1331) <https://github.com/CodeGra-de/CodeGra.de/pull/1331>`__,
+  `(#1332) <https://github.com/CodeGra-de/CodeGra.de/pull/1332>`__,
+  `(#1333) <https://github.com/CodeGra-de/CodeGra.de/pull/1333>`__.
+
 Version LowVoltage
 -------------------
 
