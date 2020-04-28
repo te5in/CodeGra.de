@@ -593,7 +593,6 @@ class DocxDocument extends DocumentBackend {
                 new this.docxType.TableRow({
                     children: el.columns.map(child => new this.docxType.TableCell({
                         children: this.renderElement(child),
-                        verticalAlign: this.docxType.VerticalAlign.CENTER,
                         width: {
                             size: width,
                             type: this.docxType.WidthType.PERCENTAGE,
