@@ -13,8 +13,11 @@ export function mapObject<T, V>(
     return fromEntries(Object.entries(obj).map(([key, val]) => [key, fun(val, key)]));
 }
 
-export function flatMap1<T, TT>(arr: ReadonlyArray<T>, mapper: (val: T) => TT[]): TT[] {
-    return arr.reduce((acc: TT[], elem: T) => acc.concat(mapper(elem)), []);
+export function flatMap1<T, TT>(
+    arr: ReadonlyArray<T>,
+    mapper: (val: T, index: number) => TT[],
+): TT[] {
+    return arr.reduce((acc: TT[], elem: T, index: number) => acc.concat(mapper(elem, index)), []);
 }
 
 export function zip<T, Y>(a: T[], b: Y[]): [T, Y][];

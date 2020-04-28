@@ -7,7 +7,7 @@ import {
     NonBreakingContent,
     Section,
     SubSection,
-    DocumentNode,
+    DocumentContentNode,
     DocumentRoot,
     backends,
     NewPage,
@@ -103,7 +103,7 @@ function makeCodeBlock(match: PlagMatch, opts: PlagiarismOptions): [CodeBlock, C
 function makeSection(match: PlagMatch, idx: number, opts: PlagiarismOptions): SubSection {
     const [b1, b2] = makeCodeBlock(match, opts);
 
-    let children: DocumentNode[];
+    let children: (ColumnLayout<DocumentContentNode> | DocumentContentNode)[];
     switch (opts.matchesAlign) {
         case 'sidebyside':
             children = [new ColumnLayout([b1, b2])];
@@ -128,7 +128,7 @@ export class PlagiarismDocument {
     constructor(private readonly backend: keyof typeof backends) {}
 
     render(matches: PlagMatch[], opts: PlagiarismOptions): Promise<Buffer> {
-        const blocks = matches.map((match, i): Section => makeSection(match, i, opts));
+        const blocks = matches.map((match, i) => makeSection(match, i, opts));
         const section = new Section('Plagiarism matches', blocks);
         const root = DocumentRoot.makeEmpty().addChildren([section]);
 

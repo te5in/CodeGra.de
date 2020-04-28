@@ -1,4 +1,6 @@
-import * as docx from 'docx';
+// Disable eslint for this line as it results in a parse error
+// eslint-disable-next-line
+import type * as docx from 'docx';
 
 import { hasAttr, unzip2, flatMap1, flat1, unique } from '@/utils/typed';
 
@@ -8,15 +10,23 @@ abstract class WrapperContent {
     constructor(public readonly content: ContentBlock) {}
 }
 
-export class EmphasizedContent extends WrapperContent {}
+export class EmphasizedContent extends WrapperContent {
+    readonly brand = 'EmphasizedContent';
+}
 
-export class BoldContent extends WrapperContent {}
+export class BoldContent extends WrapperContent {
+    readonly brand = 'BoldContent';
+}
 
-export class MonospaceContent extends WrapperContent {}
+export class MonospaceContent extends WrapperContent {
+    readonly brand = 'MonospaceContent';
+}
 
 // Force the content of this block to be rendered on a single line if possible
 // and the document format supports it.
 export class NonBreakingContent {
+    readonly brand = 'NonBreakingContent';
+
     constructor(public readonly content: ReadonlyArray<string>) {}
 }
 
@@ -73,26 +83,44 @@ export interface Color {
 }
 
 export class ColumnLayout<T> {
-    constructor(public readonly blocks: ReadonlyArray<T>) {}
+    readonly brand = 'ColumnLayout';
+
+    constructor(public readonly columns: ReadonlyArray<T>) {}
 }
 
-export class SubSection {
+class _SubSection<T> {
+    readonly brand = '_SubSection';
+
     constructor(
         public readonly heading: string,
-        public readonly children: ReadonlyArray<DocumentContentNode>,
+        public readonly children: ReadonlyArray<T>,
     ) {}
 }
+
+export class SubSection extends _SubSection<
+    DocumentContentNode
+    | ColumnLayout<DocumentContentNode>
+    > {}
+export class ColumnSubSection extends _SubSection<DocumentContentNode> {}
 
 export class Section {
+    readonly brand = 'Section';
+
     constructor(
         public readonly heading: string,
-        public readonly children: ReadonlyArray<DocumentContentNode | SubSection>,
+        public readonly children: ReadonlyArray<
+            DocumentContentNode
+            | SubSection
+            | ColumnLayout<DocumentContentNode | ColumnSubSection>
+        >,
     ) {}
 }
 
-export class NewPage {}
+export class NewPage {
+    readonly brand = 'NewPage';
+}
 
-type DocumentContentNode = CodeBlock | ContentBlock | NewPage;
+export type DocumentContentNode = CodeBlock | ContentBlock | NewPage;
 
 export type DocumentNode = DocumentContentNode | Section | ColumnLayout<DocumentContentNode>;
 
@@ -154,11 +182,20 @@ class LatexDocument extends DocumentBackend {
         return input;
     }
 
+    static make(doc: DocumentRoot): Promise<LatexDocument> {
+        return Promise.resolve(new LatexDocument(doc));
+    }
+
     constructor(public doc: DocumentRoot) {
         super(doc);
     }
 
-    renderLines(el: DocumentNode): [string[], Highlight[]] {
+    renderLines(
+        el: DocumentContentNode
+            | DocumentNode
+            | SubSection
+            | ColumnLayout<DocumentContentNode | ColumnSubSection>,
+    ): [string[], Highlight[]] {
         if (el instanceof Section) {
             return this.renderSection(el);
         } else if (el instanceof SubSection) {
@@ -381,13 +418,15 @@ ${flat1(lines).join('\n')}
         }
     }
 
-    renderColumn(column: ColumnLayout<DocumentContentNode>): [string[], Highlight[]] {
-        const columns = column.blocks.length;
-        return column.blocks.reduce(
+    renderColumn(
+        column: ColumnLayout<DocumentContentNode | Section | SubSection>,
+    ): [string[], Highlight[]] {
+        const columns = column.columns.length;
+        return column.columns.reduce(
             (acc: [string[], Highlight[]], block, index) => {
                 const res = this.renderLines(block);
                 acc[0] = acc[0].concat(res[0]);
-                if (index !== column.blocks.length - 1) {
+                if (index !== column.columns.length - 1) {
                     acc[0].push('\\switchcolumn');
                 } else {
                     acc[0].push('\\end{paracol}');
@@ -410,32 +449,35 @@ class DocxDocument extends DocumentBackend {
 
     private codeBlockIndex: number = 0;
 
-    constructor(public doc: DocumentRoot) {
+    static async make(doc: DocumentRoot): Promise<DocxDocument> {
+        const docxType = await import('docx');
+        return new DocxDocument(doc, docxType);
+    }
+
+    constructor(public doc: DocumentRoot, private docxType: typeof docx) {
         super(doc);
     }
 
     renderToBuffer(): Promise<Buffer> {
-        const doc = new docx.Document({
+        const doc = new this.docxType.Document({
             numbering: {
                 config: [...this.codeBlockNumberings()],
             },
         });
 
-        this.doc.children.forEach(child => {
-            if (child instanceof Section) {
-                this.renderSection(child, doc);
-            } else {
-                doc.addSection({
-                    margins: {
-                        left: 720,
-                        right: 720,
-                    },
-                    children: this.renderElement(child),
-                });
-            }
-        });
+        this.doc.children.forEach(child => this.renderDocument(child, doc));
 
-        return docx.Packer.toBuffer(doc);
+        return this.docxType.Packer.toBuffer(doc);
+    }
+
+    renderDocument(child: DocumentNode, document: docx.Document) {
+        if (child instanceof Section) {
+            this.renderSection(child, document);
+        } else {
+            document.addSection({
+                children: this.renderElement(child),
+            });
+        }
     }
 
     private codeBlockNumberings(): {
@@ -449,7 +491,7 @@ class DocxDocument extends DocumentBackend {
                     format: 'decimal',
                     start: block.firstLine,
                     text: '%1',
-                    alignment: docx.AlignmentType.START,
+                    alignment: this.docxType.AlignmentType.START,
                     style: {
                         paragraph: {
                             indent: { left: 720, hanging: 260 },
@@ -462,14 +504,18 @@ class DocxDocument extends DocumentBackend {
     }
 
     private getCodeBlocks(): CodeBlock[] {
-        function getBlocks(els: ReadonlyArray<DocumentNode | SubSection>): CodeBlock[] {
-            return els.reduce((acc: CodeBlock[], el: DocumentNode | SubSection): CodeBlock[] => {
+        function getBlocks(
+            els: ReadonlyArray<
+                DocumentNode | SubSection | ColumnLayout<DocumentContentNode | ColumnSubSection
+                >>,
+        ): CodeBlock[] {
+            return els.reduce((acc: CodeBlock[], el): CodeBlock[] => {
                 if (el instanceof Section) {
                     return acc.concat(getBlocks(el.children));
                 } else if (el instanceof SubSection) {
                     return acc.concat(getBlocks(el.children));
                 } else if (el instanceof ColumnLayout) {
-                    return acc.concat(getBlocks(el.blocks));
+                    return acc.concat(getBlocks(el.columns));
                 } else if (el instanceof ContentBlock || el instanceof NewPage) {
                     return acc;
                 } else {
@@ -488,23 +534,23 @@ class DocxDocument extends DocumentBackend {
                 right: 720,
             },
             headers: {
-                default: new docx.Header({
-                    children: [new docx.Paragraph(el.heading)],
+                default: new this.docxType.Header({
+                    children: [new this.docxType.Paragraph(el.heading)],
                 }),
             },
             children: flatMap1(el.children, child => this.renderElement(child)),
         });
     }
 
-    renderElement(el: DocumentNode): (docx.Paragraph | docx.Table)[] {
-        if (el instanceof Section) {
-            throw new Error('Sections should be handled at the top level');
-        } else if (el instanceof SubSection) {
+    renderElement(
+        el: DocumentContentNode | SubSection | ColumnLayout<DocumentContentNode | ColumnSubSection>,
+    ): (docx.Paragraph | docx.Table)[] {
+        if (el instanceof SubSection) {
             return this.renderSubSection(el);
         } else if (el instanceof ColumnLayout) {
             return this.renderColumn(el);
         } else if (el instanceof ContentBlock) {
-            return [new docx.Paragraph({ children: this.renderContentBlock(el) })];
+            return [new this.docxType.Paragraph({ children: this.renderContentBlock(el) })];
         } else if (el instanceof NewPage) {
             return this.renderNewPage();
         } else {
@@ -514,46 +560,51 @@ class DocxDocument extends DocumentBackend {
 
     renderSubSection(el: SubSection): (docx.Paragraph | docx.Table)[] {
         return [
-            new docx.Paragraph({
+            new this.docxType.Paragraph({
                 text: el.heading,
-                heading: docx.HeadingLevel.HEADING_3,
+                heading: this.docxType.HeadingLevel.HEADING_3,
             }),
             ...flatMap1(el.children, child => this.renderElement(child)),
         ];
     }
 
-    renderColumn(el: ColumnLayout<DocumentContentNode>): docx.Table[] {
-        const noBorder = {
-            style: docx.BorderStyle.NONE,
-            size: 0,
-            color: '000000',
-        };
+    renderColumn(
+        el: ColumnLayout<DocumentContentNode | ColumnSubSection>,
+    ): docx.Table[] {
+        const width = 100 / el.columns.length;
+        const getBorder = () => ({
+            style: this.docxType.BorderStyle.NONE,
+            color: '#000000',
+            size: 1,
+        });
 
-        return [
-            new docx.Table({
-                layout: docx.TableLayoutType.FIXED,
-                width: {
-                    size: 100,
-                    type: docx.WidthType.PERCENTAGE,
-                },
-                rows: [
-                    new docx.TableRow({
-                        children: el.blocks.map(
-                            block =>
-                                new docx.TableCell({
-                                    borders: {
-                                        top: noBorder,
-                                        bottom: noBorder,
-                                        left: noBorder,
-                                        right: noBorder,
-                                    },
-                                    children: this.renderElement(block),
-                                }),
-                        ),
-                    }),
-                ],
-            }),
-        ];
+        const getBorders = () => ({
+            top: getBorder(),
+            bottom: getBorder(),
+            left: getBorder(),
+            right: getBorder(),
+        });
+
+        const table = new this.docxType.Table({
+            rows: [
+                new this.docxType.TableRow({
+                    children: el.columns.map(child => new this.docxType.TableCell({
+                        children: this.renderElement(child),
+                        verticalAlign: this.docxType.VerticalAlign.CENTER,
+                        width: {
+                            size: width,
+                            type: this.docxType.WidthType.PERCENTAGE,
+                        },
+                        borders: getBorders(),
+                    })),
+                }),
+            ],
+            borders: getBorders(),
+            width: { size: 100, type: this.docxType.WidthType.PERCENTAGE },
+            columnWidths: el.columns.map(() => width),
+            layout: this.docxType.TableLayoutType.FIXED,
+        });
+        return [table];
     }
 
     renderContentBlock(el: ContentBlock, opts: docx.IRunOptions = {}): docx.TextRun[] {
@@ -571,15 +622,15 @@ class DocxDocument extends DocumentBackend {
             return this.renderContentBlock(el.content, childOpts('font', { name: 'Courier new' }));
         } else if (el instanceof NonBreakingContent) {
             // TODO: Try to make this non-breaking.
-            return el.content.map(str => new docx.TextRun(childOpts('text', str)));
+            return el.content.map(str => new this.docxType.TextRun(childOpts('text', str)));
         } else {
-            return [new docx.TextRun(childOpts('text', el))];
+            return [new this.docxType.TextRun(childOpts('text', el))];
         }
     }
 
     // eslint-disable-next-line class-methods-use-this
     renderNewPage(): docx.Paragraph[] {
-        return [new docx.Paragraph({ pageBreakBefore: true })];
+        return [new this.docxType.Paragraph({ pageBreakBefore: true })];
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -598,18 +649,18 @@ class DocxDocument extends DocumentBackend {
 
         const pars = el.lines.map((line, offset) => {
             const lnum = start + offset;
-            return new docx.Paragraph({
+            return new this.docxType.Paragraph({
                 numbering: {
                     reference: `decimal-ordered-${blockIdx}`,
                     level: 0,
                 },
                 children: [
-                    new docx.TextRun({
+                    new this.docxType.TextRun({
                         text: line,
                         font: { name: 'Courier New' },
                         color: colors[lnum],
                         shading: {
-                            type: docx.ShadingType.SOLID,
+                            type: this.docxType.ShadingType.SOLID,
                             fill: 'fill',
                             color: shadings[lnum],
                         },
@@ -620,8 +671,8 @@ class DocxDocument extends DocumentBackend {
 
         if (el.caption != null) {
             pars.push(
-                new docx.Paragraph({
-                    alignment: docx.AlignmentType.CENTER,
+                new this.docxType.Paragraph({
+                    alignment: this.docxType.AlignmentType.CENTER,
                     spacing: {
                         before: 200,
                         after: 200,
@@ -648,12 +699,13 @@ export const backends = {
     [DocxDocument.backendName]: DocxDocument,
 } as const;
 
-export function render(
+export async function render(
     backendName: keyof typeof backends,
     document: DocumentRoot,
 ): Promise<Buffer> {
     if (!hasAttr(backends, backendName)) {
         throw new Error(`Invalid backend: ${backendName} `);
     }
-    return Promise.resolve(new backends[backendName](document).renderToBuffer());
+    const backend = await backends[backendName].make(document);
+    return backend.renderToBuffer();
 }

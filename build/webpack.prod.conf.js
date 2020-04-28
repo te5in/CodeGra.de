@@ -92,7 +92,7 @@ var webpackConfig = merge(baseWebpackConfig, {
       cacheGroups: {
         vendor: {
           name: 'vendor',
-          test: /[\\/]node_modules[\\/](?!text-encoding|highlightjs|url-search-params|intersection-observer|@sentry|simple-statistics|chart.?js.*)/,
+          test: /[\\/]node_modules[\\/](?!text-encoding|highlightjs|url-search-params|intersection-observer|@sentry|docx|simple-statistics|chart.?js.*)/,
           enforce: true,
         },
         statistics: {
@@ -102,6 +102,10 @@ var webpackConfig = merge(baseWebpackConfig, {
         sentry: {
           name: 'sentry',
           test: /[\\/]node_modules[\\/]@sentry/,
+        },
+        docx: {
+          name: 'docx',
+          test: /[\\/]node_modules[\\/]@docx/,
         },
         highlightjs: {
           name: 'highlightjs',

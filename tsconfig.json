@@ -7,7 +7,7 @@
     "checkJs": false,
     "target": "es2017",
     "strict": true,
-    "module": "es2015",
+    "module": "esnext",
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
