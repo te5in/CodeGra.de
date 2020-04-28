@@ -11,6 +11,7 @@ import signal
 import string
 import secrets
 import datetime
+import functools
 import contextlib
 import subprocess
 import collections
@@ -632,14 +633,20 @@ def make_function_spy(monkeypatch, stub_function_class):
 @pytest.fixture
 def stub_function_class():
     class StubFunction:
-        def __init__(self, ret_func=lambda: None, with_args=False):
+        def __init__(
+            self, ret_func=lambda: None, with_args=False, pass_self=False
+        ):
             self.args = []
             self.kwargs = []
             self.rets = []
             self.ret_func = ret_func
             self.with_args = with_args
             self.call_dates = []
+            self.pass_self = pass_self
             DESCRIBE_HOOKS.append(self.reset)
+
+        def __call__(self, *args, **kwargs):
+            return self.make_callable(self.ret_func)(*args, **kwargs)
 
         @property
         def all_args(self):
@@ -650,16 +657,26 @@ def stub_function_class():
 
             return [merge(a, k) for a, k in zip(self.args, self.kwargs)]
 
-        def __call__(self, *args, **kwargs):
-            self.args.append(args)
-            self.kwargs.append(kwargs)
-            self.call_dates.append(DatetimeWithTimezone.utcnow())
+        def __get__(self, obj, typ=None):
+            if self.pass_self:
+                func = self.ret_func.__get__(obj, typ)
+                return self.make_callable(func)
+            return self.__call__
 
-            if self.with_args:
-                self.rets.append(self.ret_func(*args, **kwargs))
-            else:
-                self.rets.append(self.ret_func())
-            return self.rets[-1]
+        def make_callable(self, func):
+            def inner(*args, **kwargs):
+                self.args.append(args)
+                self.kwargs.append(kwargs)
+                self.call_dates.append(DatetimeWithTimezone.utcnow())
+
+                if self.with_args:
+                    self.rets.append(func(*args, **kwargs))
+                else:
+                    self.rets.append(func())
+
+                return self.rets[-1]
+
+            return inner
 
         @property
         def called(self):
