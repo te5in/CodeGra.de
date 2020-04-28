@@ -116,10 +116,9 @@ function makeSection(match: PlagMatch, idx: number, opts: PlagiarismOptions): Su
     }
 
     if (opts.newPage) {
-        children = flatMap1(children, c => [c, new NewPage()]);
+        children = flatMap1(children, c => [c, new NewPage()]).slice(0, -1);
     }
 
-    // TODO: Use actual match index.
     // TODO: Discuss if we want to change this section header.
     return new SubSection(`Match ${idx + 1}`, children);
 }
