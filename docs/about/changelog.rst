@@ -15,6 +15,7 @@ Version *Next*
   file.
 
 **Fixes**
+
 - Miscellaneous fixes:
   `(#1322) <https://github.com/CodeGra-de/CodeGra.de/pull/1322>`__,
   `(#1323) <https://github.com/CodeGra-de/CodeGra.de/pull/1323>`__,
