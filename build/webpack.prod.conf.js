@@ -105,7 +105,7 @@ var webpackConfig = merge(baseWebpackConfig, {
         },
         docx: {
           name: 'docx',
-          test: /[\\/]node_modules[\\/]@docx/,
+          test: /[\\/]node_modules[\\/]docx/,
         },
         highlightjs: {
           name: 'highlightjs',
