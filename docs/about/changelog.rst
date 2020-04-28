@@ -1,6 +1,19 @@
 Changelog
 ==========
 
+Version *Next*
+---------------
+
+**Released**: TBD
+
+**Features**
+
+- Improve plagiarism document rendering `(#1335)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1335>`__. Matching blocks of
+  code can now be rendered side by side, the amount of context lines before and
+  after each match is configurable, and it is possible to export to a docx
+  file.
+
 Version LowVoltage
 -------------------
 
