@@ -74,17 +74,41 @@
                     </div>
                 </div>
                 <div class="mt-2 px-3">
-                    <b-form-group label="Render each listing on a new page">
+                    <b-form-group>
+                        <template #label>
+                            Render each listing on a new page
+
+                            <cg-description-popover hug-text>
+                                When turned on each block of code are rendered on a new page.
+                            </cg-description-popover>
+                        </template>
                         <cg-toggle v-model="exportOptions.newPage" />
                     </b-form-group>
 
-                    <b-form-group label="Render matches side by side">
+                    <b-form-group>
+                        <template #label>
+                            Render matches side by side
+
+                            <cg-description-popover hug-text>
+                                When turned on matching blocks of code are rendered side by side
+                                on a single page.
+                            </cg-description-popover>
+                        </template>
+
                         <cg-toggle v-model="exportOptions.matchesAlign"
                                    value-off="sequential"
                                    value-on="sidebyside" />
                     </b-form-group>
 
-                    <b-form-group label="Context lines">
+                    <b-form-group>
+                        <template #label>
+                            Context lines
+
+                            <cg-description-popover hug-text>
+                                Number of lines to be rendered before and after each match.
+                            </cg-description-popover>
+                        </template>
+
                         <input class="form-control"
                                placeholder="Number of context lines"
                                type="number"
