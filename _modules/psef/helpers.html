@@ -1742,17 +1742,17 @@
     <span class="n">amount</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">sleep_time</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="nb">int</span><span class="p">],</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
-    <span class="n">make_exception</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[],</span> <span class="ne">Exception</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">make_exception</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[],</span> <span class="ne">Exception</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterator</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
     <span class="sd">&quot;&quot;&quot;Retry</span>
 
 <span class="sd">    &gt;&gt;&gt; import doctest</span>
 <span class="sd">    &gt;&gt;&gt; doctest.ELLIPSIS_MARKER = &#39;-etc-&#39;</span>
-<span class="sd">    &gt;&gt;&gt; for _ in retry_loop(5): break</span>
-<span class="sd">    &gt;&gt;&gt; for i in retry_loop(2):</span>
+<span class="sd">    &gt;&gt;&gt; for _ in retry_loop(5, make_exception=AssertionError): break</span>
+<span class="sd">    &gt;&gt;&gt; for i in retry_loop(2, make_exception=AssertionError):</span>
 <span class="sd">    ...  if i == 0: break</span>
 <span class="sd">    -etc-Retry loop failed-etc-</span>
-<span class="sd">    &gt;&gt;&gt; for i in retry_loop(1):</span>
+<span class="sd">    &gt;&gt;&gt; for i in retry_loop(1, make_exception=AssertionError):</span>
 <span class="sd">    ...  if i: break</span>
 <span class="sd">    Traceback (most recent call last):</span>
 <span class="sd">    ...</span>
@@ -1764,7 +1764,10 @@
 <span class="sd">    ValueError</span>
 <span class="sd">    &gt;&gt;&gt; doctest.ELLIPSIS_MARKER = &#39;-etc-&#39;</span>
 <span class="sd">    &gt;&gt;&gt; args = []</span>
-<span class="sd">    &gt;&gt;&gt; for _ in retry_loop(10, sleep_time=lambda i: args.append(i) or 0):</span>
+<span class="sd">    &gt;&gt;&gt; for _ in retry_loop(</span>
+<span class="sd">    ...      10,</span>
+<span class="sd">    ...      sleep_time=lambda i: [args.append(i), 0][1],</span>
+<span class="sd">    ...      make_exception=AssertionError):</span>
 <span class="sd">    ...  pass</span>
 <span class="sd">    Traceback (most recent call last):</span>
 <span class="sd">    -etc-</span>
@@ -1797,9 +1800,7 @@
     <span class="k">yield</span> <span class="mi">0</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Retry loop failed&quot;</span><span class="p">,</span> <span class="n">amount_of_tries_left</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">make_exception</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="n">make_exception</span><span class="p">()</span>
-    <span class="k">assert</span> <span class="kc">False</span></div>
+    <span class="k">raise</span> <span class="n">make_exception</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="format_list"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.format_list">[docs]</a><span class="k">def</span> <span class="nf">format_list</span><span class="p">(</span><span class="n">lst</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="o">**</span><span class="n">formatting</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>

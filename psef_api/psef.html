@@ -3855,15 +3855,15 @@ or <code class="docutils literal notranslate"><span class="pre">''</span></code>
 
 <dl class="function">
 <dt id="psef.helpers.retry_loop">
-<code class="sig-prename descclassname">psef.helpers.</code><code class="sig-name descname">retry_loop</code><span class="sig-paren">(</span><em class="sig-param">amount: int, *, sleep_time: Union[float, Callable[[int], float]] = 1, make_exception: Callable[[], Exception] = None</em><span class="sig-paren">)</span> &#x2192; Iterator[int]<a class="reference internal" href="../_modules/psef/helpers.html#retry_loop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.retry_loop" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">psef.helpers.</code><code class="sig-name descname">retry_loop</code><span class="sig-paren">(</span><em class="sig-param">amount: int, *, sleep_time: Union[float, Callable[[int], float]] = 1, make_exception: Callable[[], Exception]</em><span class="sig-paren">)</span> &#x2192; Iterator[int]<a class="reference internal" href="../_modules/psef/helpers.html#retry_loop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.helpers.retry_loop" title="Permalink to this definition">¶</a></dt>
 <dd><p>Retry</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span>&gt;&gt;&gt; import doctest
 &gt;&gt;&gt; doctest.ELLIPSIS_MARKER = &#39;-etc-&#39;
-&gt;&gt;&gt; for _ in retry_loop(5): break
-&gt;&gt;&gt; for i in retry_loop(2):
+&gt;&gt;&gt; for _ in retry_loop(5, make_exception=AssertionError): break
+&gt;&gt;&gt; for i in retry_loop(2, make_exception=AssertionError):
 ...  if i == 0: break
 -etc-Retry loop failed-etc-
-&gt;&gt;&gt; for i in retry_loop(1):
+&gt;&gt;&gt; for i in retry_loop(1, make_exception=AssertionError):
 ...  if i: break
 Traceback (most recent call last):
 ...
@@ -3875,7 +3875,10 @@ Traceback (most recent call last):
 ValueError
 &gt;&gt;&gt; doctest.ELLIPSIS_MARKER = &#39;-etc-&#39;
 &gt;&gt;&gt; args = []
-&gt;&gt;&gt; for _ in retry_loop(10, sleep_time=lambda i: args.append(i) or 0):
+&gt;&gt;&gt; for _ in retry_loop(
+...      10,
+...      sleep_time=lambda i: [args.append(i), 0][1],
+...      make_exception=AssertionError):
 ...  pass
 Traceback (most recent call last):
 -etc-
@@ -13163,7 +13166,8 @@ time taken by the command.</p>
 </ul>
 </dd>
 <dt class="field-even">Raises</dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#AssertionError" title="(in Python v3.8)"><strong>AssertionError</strong></a> – When the value could not be set successfully.</p>
+<dd class="field-even"><p><a class="reference internal" href="#psef.auto_test.StopRunningTestsException" title="psef.auto_test.StopRunningTestsException"><strong>StopRunningTestsException</strong></a> – When the value could not be set
+successfully.</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">None</span></code></p>
