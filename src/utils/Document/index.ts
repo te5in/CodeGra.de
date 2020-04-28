@@ -658,7 +658,7 @@ class DocxDocument extends DocumentBackend {
                 children: [
                     new this.docxType.TextRun({
                         text: line,
-                        size: 9,
+                        size: 18, // This is 9 point
                         font: { name: 'Courier New' },
                         color: colors[lnum] ?? '000000',
                         shading: {
