@@ -492,7 +492,7 @@ class DocxDocument extends DocumentBackend {
                     format: 'decimal',
                     start: block.firstLine,
                     text: '%1',
-                    alignment: this.docxType.AlignmentType.START,
+                    alignment: this.docxType.AlignmentType.END,
                     style: {
                         paragraph: {
                             indent: { left: 720, hanging: 260 },
