@@ -149,11 +149,11 @@ abstract class DocumentBackend {
 }
 
 class LatexDocument extends DocumentBackend {
-    static backendName: 'LaTeX' = 'LaTeX';
+    static readonly backendName = 'LaTeX';
 
-    static fileExtension: 'tex' = 'tex';
+    static readonly fileExtension = 'tex';
 
-    static mimeType: 'text/x-tex' = 'text/x-tex';
+    static readonly mimeType = 'text/x-tex';
 
     private static readonly endListingRegex = new RegExp('\\\\end{lstlisting}', 'g');
 
@@ -161,7 +161,7 @@ class LatexDocument extends DocumentBackend {
 
     private static readonly reHasUnescapedLatex = RegExp(LatexDocument.reUnescapedLatex.source);
 
-    private static readonly latexEscapes: Record<string, string> = Object.freeze({
+    private static readonly latexEscapes: Readonly<Record<string, string>> = Object.freeze({
         '{': '\\{',
         '}': '\\}',
         '\\': '\\textbackslash{}',
@@ -440,12 +440,11 @@ ${flat1(lines).join('\n')}
 }
 
 class DocxDocument extends DocumentBackend {
-    static backendName: 'DOCX' = 'DOCX';
+    static readonly backendName = 'DOCX';
 
-    static fileExtension: 'docx' = 'docx';
+    static readonly fileExtension = 'docx';
 
-    static mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' =
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    static readonly mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
     private codeBlockIndex: number = 0;
 
@@ -454,7 +453,7 @@ class DocxDocument extends DocumentBackend {
         return new DocxDocument(doc, docxType);
     }
 
-    constructor(public doc: DocumentRoot, private docxType: typeof docx) {
+    constructor(public readonly doc: DocumentRoot, private readonly docxType: typeof docx) {
         super(doc);
     }
 
@@ -480,10 +479,10 @@ class DocxDocument extends DocumentBackend {
         }
     }
 
-    private codeBlockNumberings(): {
-        readonly levels: docx.ILevelsOptions[];
-        readonly reference: string;
-    }[] {
+    private codeBlockNumberings(): Readonly<{
+        levels: ReadonlyArray<docx.ILevelsOptions>;
+        reference: string;
+    }>[] {
         return this.getCodeBlocks().map((block, i) => ({
             levels: [
                 {
