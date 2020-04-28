@@ -79,7 +79,7 @@
                             Render each listing on a new page
 
                             <cg-description-popover hug-text>
-                                When turned on each block of code are rendered on a new page.
+                                When turned on each block of code is rendered on a new page.
                             </cg-description-popover>
                         </template>
                         <cg-toggle v-model="exportOptions.newPage" />
