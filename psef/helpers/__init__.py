@@ -1542,17 +1542,17 @@ def retry_loop(
     amount: int,
     *,
     sleep_time: t.Union[float, t.Callable[[int], float]] = 1,
-    make_exception: t.Callable[[], Exception] = None,
+    make_exception: t.Callable[[], Exception],
 ) -> t.Iterator[int]:
     """Retry
 
     >>> import doctest
     >>> doctest.ELLIPSIS_MARKER = '-etc-'
-    >>> for _ in retry_loop(5): break
-    >>> for i in retry_loop(2):
+    >>> for _ in retry_loop(5, make_exception=AssertionError): break
+    >>> for i in retry_loop(2, make_exception=AssertionError):
     ...  if i == 0: break
     -etc-Retry loop failed-etc-
-    >>> for i in retry_loop(1):
+    >>> for i in retry_loop(1, make_exception=AssertionError):
     ...  if i: break
     Traceback (most recent call last):
     ...
@@ -1564,7 +1564,10 @@ def retry_loop(
     ValueError
     >>> doctest.ELLIPSIS_MARKER = '-etc-'
     >>> args = []
-    >>> for _ in retry_loop(10, sleep_time=lambda i: args.append(i) or 0):
+    >>> for _ in retry_loop(
+    ...      10,
+    ...      sleep_time=lambda i: [args.append(i), 0][1],
+    ...      make_exception=AssertionError):
     ...  pass
     Traceback (most recent call last):
     -etc-
@@ -1597,9 +1600,7 @@ def retry_loop(
     yield 0
     logger.warning("Retry loop failed", amount_of_tries_left=0)
 
-    if make_exception is not None:
-        raise make_exception()
-    assert False
+    raise make_exception()
 
 
 def format_list(lst: t.List[str], **formatting: str) -> t.List[str]:
