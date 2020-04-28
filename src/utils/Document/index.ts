@@ -531,8 +531,10 @@ class DocxDocument extends DocumentBackend {
     renderSection(el: Section, doc: docx.Document): void {
         doc.addSection({
             margins: {
-                left: 720,
-                right: 720,
+                left: 360,
+                right: 360,
+                top: 360,
+                bottom: 0,
             },
             headers: {
                 default: new this.docxType.Header({
