@@ -577,7 +577,7 @@ class DocxDocument extends DocumentBackend {
         const width = 100 / el.columns.length;
         const getBorder = () => ({
             style: this.docxType.BorderStyle.NONE,
-            color: '#000000',
+            color: '000000',
             size: 1,
         });
 
