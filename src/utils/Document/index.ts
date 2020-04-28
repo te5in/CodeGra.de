@@ -94,10 +94,7 @@ export class NewPage {}
 
 type DocumentContentNode = CodeBlock | ContentBlock | NewPage;
 
-export type DocumentNode =
-    | DocumentContentNode
-    | Section
-    | ColumnLayout<DocumentContentNode | Section>;
+export type DocumentNode = DocumentContentNode | Section | ColumnLayout<DocumentContentNode>;
 
 export class DocumentRoot {
     private constructor(public readonly children: ReadonlyArray<DocumentNode>) {}
@@ -384,7 +381,7 @@ ${flat1(lines).join('\n')}
         }
     }
 
-    renderColumn(column: ColumnLayout<DocumentContentNode | Section>): [string[], Highlight[]] {
+    renderColumn(column: ColumnLayout<DocumentContentNode>): [string[], Highlight[]] {
         const columns = column.blocks.length;
         return column.blocks.reduce(
             (acc: [string[], Highlight[]], block, index) => {
@@ -429,6 +426,10 @@ class DocxDocument extends DocumentBackend {
                 this.renderSection(child, doc);
             } else {
                 doc.addSection({
+                    margins: {
+                        left: 720,
+                        right: 720,
+                    },
                     children: this.renderElement(child),
                 });
             }
@@ -482,6 +483,10 @@ class DocxDocument extends DocumentBackend {
 
     renderSection(el: Section, doc: docx.Document): void {
         doc.addSection({
+            margins: {
+                left: 720,
+                right: 720,
+            },
             headers: {
                 default: new docx.Header({
                     children: [new docx.Paragraph(el.heading)],
@@ -491,7 +496,7 @@ class DocxDocument extends DocumentBackend {
         });
     }
 
-    renderElement(el: DocumentNode): docx.Paragraph[] {
+    renderElement(el: DocumentNode): (docx.Paragraph | docx.Table)[] {
         if (el instanceof Section) {
             throw new Error('Sections should be handled at the top level');
         } else if (el instanceof SubSection) {
@@ -507,7 +512,7 @@ class DocxDocument extends DocumentBackend {
         }
     }
 
-    renderSubSection(el: SubSection): docx.Paragraph[] {
+    renderSubSection(el: SubSection): (docx.Paragraph | docx.Table)[] {
         return [
             new docx.Paragraph({
                 text: el.heading,
@@ -517,9 +522,38 @@ class DocxDocument extends DocumentBackend {
         ];
     }
 
-    renderColumn(el: ColumnLayout<DocumentContentNode | Section>): docx.Paragraph[] {
-        // TODO: Actually render columns...
-        return flatMap1(el.blocks, block => this.renderElement(block));
+    renderColumn(el: ColumnLayout<DocumentContentNode>): docx.Table[] {
+        const noBorder = {
+            style: docx.BorderStyle.NONE,
+            size: 0,
+            color: '000000',
+        };
+
+        return [
+            new docx.Table({
+                layout: docx.TableLayoutType.FIXED,
+                width: {
+                    size: 100,
+                    type: docx.WidthType.PERCENTAGE,
+                },
+                rows: [
+                    new docx.TableRow({
+                        children: el.blocks.map(
+                            block =>
+                                new docx.TableCell({
+                                    borders: {
+                                        top: noBorder,
+                                        bottom: noBorder,
+                                        left: noBorder,
+                                        right: noBorder,
+                                    },
+                                    children: this.renderElement(block),
+                                }),
+                        ),
+                    }),
+                ],
+            }),
+        ];
     }
 
     renderContentBlock(el: ContentBlock, opts: docx.IRunOptions = {}): docx.TextRun[] {
