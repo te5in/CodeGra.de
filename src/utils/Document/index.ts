@@ -2,7 +2,6 @@
 // eslint-disable-next-line
 import type * as docx from 'docx';
 
-import { getProps } from '@/utils';
 import { hasAttr, unzip2, flatMap1, flat1, unique } from '@/utils/typed';
 
 type TextBlock = string;
@@ -659,12 +658,13 @@ class DocxDocument extends DocumentBackend {
                 children: [
                     new this.docxType.TextRun({
                         text: line,
+                        size: 9,
                         font: { name: 'Courier New' },
-                        color: getProps(colors, '000000', lnum),
+                        color: colors[lnum] ?? '000000',
                         shading: {
                             type: this.docxType.ShadingType.SOLID,
                             fill: 'fill',
-                            color: getProps(shadings, 'FFFFFF', lnum),
+                            color: shadings[lnum] ?? 'FFFFFF',
                         },
                     }),
                 ],
