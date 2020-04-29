@@ -64,10 +64,10 @@ export const NO_FOOTER_ROUTES = new Set(['submission', 'submission_file', 'plagi
 // Indicates an object in the store that has been requested but not returned by
 // the server, e.g. if it does not exist or the user has no permission to see
 // the object.
-export const NONEXISTENT = {};
+export const NONEXISTENT = {} as const;
 
 // Indicates that a value has not yet been set (e.g. in a model cache).
-export const UNSET_SENTINEL = {};
+export const UNSET_SENTINEL = {} as const;
 
 export const RUBRIC_BADGE_AT =
     '<div class="ml-1 badge badge-primary" title="This is an AutoTest category">AT</div>';

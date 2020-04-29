@@ -1,6 +1,6 @@
 export type AllOrNone<T> = T | { [K in keyof T]?: never };
 
-function fromEntries<T>(vals: [string, T][]): Record<string, T> {
+export function fromEntries<T>(vals: [string, T][]): Record<string, T> {
     return (Object as any).fromEntries(vals);
 }
 
@@ -94,6 +94,8 @@ export function unique<T, V>(arr: ReadonlyArray<T>, getKey: (item: T) => V): T[]
 
 export class AssertionError extends Error {
     static assert(condition: false, msg?: string): never;
+
+    static assert(condition: boolean, msg?: string): asserts condition;
 
     static assert(condition: boolean, msg?: string): asserts condition {
         if (!condition) {
