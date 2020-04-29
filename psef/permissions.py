@@ -189,7 +189,7 @@ class CoursePermission(BasePermission):
     :ivar can_see_user_feedback_before_done: Users with this permission can see feedback before an assignment is set to "done"
     :ivar can_view_analytics: Users with this permission can view the analytics dashboard of an assignment.
     :ivar can_edit_others_comments: Users with this permission can edit inline comments left by other users
-    :ivar can_add_own_inline_comments: Users with this permission can add and reply to inline comments on subbmission they are the author of
+    :ivar can_add_own_inline_comments: Users with this permission can add and reply to inline comments on submissions they are the author of
     :ivar can_view_others_comment_edits: Users with this permission may see the edit history of comments placed by others
     :ivar can_view_feedback_author: Users with this permission can view the author of inline and general feedback
     :ivar can_email_students: Users with this permission can email students using the contact student button.

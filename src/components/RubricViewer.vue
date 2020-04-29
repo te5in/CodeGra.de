@@ -208,7 +208,12 @@ export default {
         result: {
             immediate: true,
             handler() {
-                this.$emit('load', this.internalResult);
+                // Do not emit the result while it is still loading. This can
+                // happen, for example, when the "reload submissions" button in
+                // the sidebar is clicked.
+                if (this.result != null) {
+                    this.$emit('load', this.internalResult);
+                }
             },
         },
     },

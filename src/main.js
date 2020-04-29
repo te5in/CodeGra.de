@@ -54,6 +54,7 @@ import SubmitButton from './components/SubmitButton';
 import DescriptionPopover from './components/DescriptionPopover';
 import CgLogo from './components/CgLogo';
 import CatchError from './components/CatchError';
+import Toggle from './components/Toggle';
 /* eslint-enable import/first */
 
 Vue.component('cg-relative-time', RelativeTime);
@@ -63,6 +64,7 @@ Vue.component('cg-submit-button', SubmitButton);
 Vue.component('cg-description-popover', DescriptionPopover);
 Vue.component('cg-logo', CgLogo);
 Vue.component('cg-catch-error', CatchError);
+Vue.component('cg-toggle', Toggle);
 
 Vue.use(BootstrapVue);
 Vue.use(Toasted);
@@ -129,21 +131,22 @@ axios.defaults.transformRequest.push((data, headers) => {
 // Fix axios automatically parsing all responses as JSON... WTF!!!
 axios.defaults.transformResponse = [
     function defaultTransformResponse(data, headers) {
-        switch (headers['content-type']) {
-            case 'application/json':
-                // Somehow axios gives us an ArrayBuffer sometimes, even though
-                // the Content-Type header is application/json. JSON.parse does
-                // not work on ArrayBuffers (they're silently converted to the
-                // string "[object ArrayBuffer]", which is invalid JSON), so we
-                // must do that ourselves.
-                if (data instanceof ArrayBuffer) {
-                    const view = new Int8Array(data);
-                    const dataStr = String.fromCharCode.apply(null, view);
-                    return JSON.parse(dataStr);
-                }
-                return JSON.parse(data);
-            default:
-                return data;
+        const contentType = headers['content-type'];
+
+        if (contentType && contentType.startsWith('application/json')) {
+            // Somehow axios gives us an ArrayBuffer sometimes, even though
+            // the Content-Type header is application/json. JSON.parse does
+            // not work on ArrayBuffers (they're silently converted to the
+            // string "[object ArrayBuffer]", which is invalid JSON), so we
+            // must do that ourselves.
+            if (data instanceof ArrayBuffer) {
+                const view = new Int8Array(data);
+                const dataStr = String.fromCharCode.apply(null, view);
+                return JSON.parse(dataStr);
+            }
+            return JSON.parse(data);
+        } else {
+            return data;
         }
     },
 ];
