@@ -107,6 +107,7 @@ export function buildUrl(
     args: {
         query?: Record<string, string>;
         hash?: string;
+        addTrailingSlash?: boolean,
     } & AllOrNone<{
         host: string;
         protocol: string;
@@ -119,6 +120,9 @@ export function buildUrl(
     } else {
         initialSlash = '/';
         mainPart = parts.map(part => encodeURIComponent(part)).join('/');
+    }
+    if (args.addTrailingSlash) {
+        mainPart = `${mainPart}/`;
     }
 
     let prefix = '';
