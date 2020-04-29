@@ -107,7 +107,7 @@ export function buildUrl(
     args: {
         query?: Record<string, string>;
         hash?: string;
-        addTrailingSlash?: boolean,
+        addTrailingSlash?: boolean;
     } & AllOrNone<{
         host: string;
         protocol: string;
