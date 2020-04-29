@@ -82,6 +82,7 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 
+import { Assignment, Submission } from '@/models';
 import decodeBuffer from '@/utils/decode';
 
 import Loader from './Loader';
@@ -93,11 +94,11 @@ export default {
 
     props: {
         assignment: {
-            type: Object,
+            type: Assignment,
             required: true,
         },
         submission: {
-            type: Object,
+            type: Submission,
             required: true,
         },
         showWhitespace: {
@@ -138,17 +139,19 @@ export default {
         },
 
         feedback() {
-            const feedback = this.submission.feedback;
-
-            if (!feedback || !this.canSeeFeedback) {
-                return {};
-            }
-
-            return feedback;
+            return this.submission.feedback;
         },
 
         fileIds() {
-            return Object.keys(this.$utils.getProps(this.feedback, {}, 'user'));
+            // Because the submission's fileTree and feedback are loaded simultaneously, it is
+            // possible that the fileTree is not set when the feedback changes. The rest of the
+            // component, however, depends on the fact that both are non-null, and because almost
+            // everything works via computed properties, we wait with returning the file ids that
+            // need to be rendered until the fileTree has been loaded.
+            if (this.fileTree == null || this.feedback == null) {
+                return [];
+            }
+            return Object.keys(this.feedback.user);
         },
 
         nonDisabledFileIds() {
@@ -212,10 +215,6 @@ export default {
         },
 
         async loadCode() {
-            if (this.fileIds == null) {
-                return;
-            }
-
             if (this.fileIds.length === 0) {
                 this.codeLines = {};
                 return;

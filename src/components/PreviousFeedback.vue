@@ -146,12 +146,6 @@ export default {
         },
     },
 
-    mounted() {
-    },
-
-    destroyed() {
-    },
-
     components: {
         Collapse,
         FeedbackOverview,
