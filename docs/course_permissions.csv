@@ -51,7 +51,7 @@ Name,Description
 **See feedback before done**,"Users with this permission can see feedback before an assignment is set to ""done"""
 **Can view analytics**,Users with this permission can view the analytics dashboard of an assignment.
 **Edit inline comments by others**,Users with this permission can edit inline comments left by other users
-**Add inline comments to own submissions**,Users with this permission can add and reply to inline comments on subbmission they are the author of
+**Add inline comments to own submissions**,Users with this permission can add and reply to inline comments on submissions they are the author of
 **View others comment edits**,Users with this permission may see the edit history of comments placed by others
 **View feedback author** \*,Users with this permission can view the author of inline and general feedback
 **Can email students**,Users with this permission can email students using the contact student button.

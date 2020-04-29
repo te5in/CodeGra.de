@@ -1,5 +1,6 @@
 import os
 import multiprocessing
+from functools import partial
 
 import lxc
 import pytest
@@ -14,6 +15,18 @@ def lxc_stub(stub_function_class, capsys):
         @staticmethod
         def signal_start():
             return _cont.signal_start()
+
+        @partial(stub_function_class, with_args=True, pass_self=True)
+        def start(self):
+            return self._set_running(True)
+
+        @partial(stub_function_class, with_args=True, pass_self=True)
+        def shutdown(self, timeout):
+            return self._set_running(False)
+
+        @property
+        def last_error(self):
+            return (None, 0)
 
         def __init__(self, name):
             self._name = name
@@ -37,14 +50,14 @@ def lxc_stub(stub_function_class, capsys):
             self.snapshot_destroy = stub_function_class(check)
 
             def set_running(val):
-                self.running = True
+                self.running = val
                 return True
 
-            self.start = stub_function_class(lambda: set_running(True))
+            self._set_running = set_running
+
             self.wait = stub_function_class(lambda: True)
             self.get_ips = stub_function_class(lambda: True)
             self.stop = stub_function_class(lambda: set_running(False))
-            self.shutdown = stub_function_class(lambda: set_running(False))
 
             class StubNetwork:
                 type = 'nw-type-1'

@@ -79,6 +79,13 @@ module.exports = {
         "no-use-before-define": 'off',
         "@typescript-eslint/no-use-before-define": ["error", { "functions": true, "classes": true }],
 
+        "no-useless-constructor": "off",
+        "@typescript-eslint/no-useless-constructor": ["error"],
+
+        "no-empty-function": "off",
+        "@typescript-eslint/no-empty-function": ["error", {
+            'allow': ['arrowFunctions'],
+        }],
 
         // allow vuex
         'no-param-reassign': ["error", { 'props': false }],
