@@ -640,6 +640,20 @@ Cypress.Commands.add('multiselect', { prevSubject: true }, (subject, items) => {
             .click();
     });
 });
+
+Cypress.Commands.add('shouldReload', fn => {
+    // Check that executing the given function causes a page reload.
+
+    // Set a property on window that will be gone after the reload.
+    cy.window().should('not.have.property', 'beforeReload');
+    cy.window().then(w => w.beforeReload = true);
+    cy.window().should('have.property', 'beforeReload', true);
+
+    fn();
+
+    cy.window().should('not.have.property', 'beforeReload');
+});
+
 //
 //
 // -- This is a child command --
