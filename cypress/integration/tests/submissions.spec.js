@@ -395,15 +395,47 @@ context('Submissions page', () => {
                     .should('match', /[?&]sortAsc=true/);
 
                 getStudent('Student2').click();
+                cy.get('.file-viewer')
+                    .should('be.visible');
                 cy.url()
                     .should('match', /[?&]sortBy=grade/)
                     .should('match', /[?&]sortAsc=true/);
 
                 cy.get('.local-header .back-button').click();
+                cy.get('.submissions-table')
+                    .should('be.visible')
                 cy.url()
                     .should('match', /[?&]sortBy=grade/)
                     .should('match', /[?&]sortAsc=true/);
                 gradeOrder(['-', '0.00', '1.00', '5.00', '10.00']);
+            });
+
+            it('should be kept when going to a submission and back after a page reload', () => {
+                cy.get('.submissions-table thead').contains('Grade').click();
+                cy.url()
+                    .should('match', /[?&]sortBy=grade/)
+                    .should('match', /[?&]sortAsc=true/);
+
+                cy.reload();
+
+                cy.get('.submissions-table')
+                    .should('be.visible')
+                    .find('tbody tr')
+                    .first()
+                    .click();
+
+                cy.get('.file-viewer')
+                    .should('be.visible');
+                cy.url()
+                    .should('match', /[?&]sortBy=grade/)
+                    .should('match', /[?&]sortAsc=true/);
+
+                cy.get('.local-header .back-button').click();
+                cy.get('.submissions-table')
+                    .should('be.visible')
+                cy.url()
+                    .should('match', /[?&]sortBy=grade/)
+                    .should('match', /[?&]sortAsc=true/);
             });
 
             it('should be used in the navbar on the submission page', () => {
