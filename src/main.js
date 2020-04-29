@@ -54,6 +54,7 @@ import SubmitButton from './components/SubmitButton';
 import DescriptionPopover from './components/DescriptionPopover';
 import CgLogo from './components/CgLogo';
 import CatchError from './components/CatchError';
+import Toggle from './components/Toggle';
 /* eslint-enable import/first */
 
 Vue.component('cg-relative-time', RelativeTime);
@@ -63,6 +64,7 @@ Vue.component('cg-submit-button', SubmitButton);
 Vue.component('cg-description-popover', DescriptionPopover);
 Vue.component('cg-logo', CgLogo);
 Vue.component('cg-catch-error', CatchError);
+Vue.component('cg-toggle', Toggle);
 
 Vue.use(BootstrapVue);
 Vue.use(Toasted);

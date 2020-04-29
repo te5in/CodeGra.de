@@ -4,6 +4,10 @@ import moment from 'moment';
 import { getLanguage, highlight } from 'highlightjs';
 import { visualizeWhitespace } from './visualize';
 
+import { hasAttr } from './typed';
+
+export * from './typed';
+
 const reUnescapedHtml = /[&<>"'`]/g;
 const reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
 /** Used to map characters to HTML entities. */
@@ -442,10 +446,6 @@ export function downloadFile(data, filename, contentType) {
     }
 }
 
-export function hasAttr(obj, key) {
-    return Object.hasOwnProperty.call(obj, key);
-}
-
 export function deepEquals(a, b) {
     if (typeof a !== 'object') {
         return a === b;
@@ -575,29 +575,6 @@ export function numberToTimes(number) {
 
 export function ensureArray(obj) {
     return Array.isArray(obj) ? obj : [obj];
-}
-
-export function mapObject(obj, f) {
-    return Object.fromEntries(Object.entries(obj).map(([key, val]) => [key, f(val, key)]));
-}
-
-export function filterObject(obj, f) {
-    return Object.fromEntries(Object.entries(obj).filter(([key, val]) => f(val, key)));
-}
-
-export function zip(...lists) {
-    if (lists.length === 0) {
-        return [];
-    }
-
-    const acc = [];
-    const end = Math.min(...lists.map(l => l.length));
-    let i = 0;
-    const get = l => l[i];
-    for (; i < end; i++) {
-        acc.push(lists.map(get));
-    }
-    return acc;
 }
 
 export function isEmpty(obj) {

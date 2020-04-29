@@ -56,9 +56,9 @@ def make_failer(app, session):
                 return orig(*args, **kwargs)
 
             if not failed_at_least_once:
-                failed_at_least_once = True
                 if on_first_fail():
-                    successes.value = 0
+                    return orig(*args, **kwargs)
+                failed_at_least_once = True
 
             if on_fail(failures.value):
                 failures.value = 0
@@ -2419,8 +2419,11 @@ def test_failing_container_startup(
             with app.test_request_context('/'):
                 # Make sure the result was running while we first fail
                 # starting the container.
-                res = session.query(m.AutoTestResult
-                                    ).filter_by(work_id=work['id']).one()
+                res = session.query(
+                    m.AutoTestResult
+                ).filter_by(work_id=work['id']).one_or_none()
+                if res is None:
+                    return True
                 assert res.state == m.AutoTestStepResultState.running
             return False
 
@@ -2440,11 +2443,14 @@ def test_failing_container_startup(
             )
 
             session.commit()
+            session.commit()
 
         res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
                                                         ).one()
+
         # Should begin as not started
         assert res.state == m.AutoTestStepResultState.not_started
+        session.expire_all()
 
         live_server_url, stop_server = live_server(get_stop=True)
         psef.auto_test.start_polling(app.config)
