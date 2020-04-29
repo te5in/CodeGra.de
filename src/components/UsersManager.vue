@@ -489,7 +489,7 @@ export default {
         getRegistrationLinkUrl(link) {
             const { host, protocol } = window.location;
             return this.$utils.buildUrl(
-                ['register'],
+                ['register', ''],
                 {
                     protocol,
                     host,
