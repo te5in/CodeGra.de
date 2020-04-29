@@ -1,3 +1,5 @@
+export type AllOrNone<T> = T | { [K in keyof T]?: never };
+
 function fromEntries<T>(vals: [string, T][]): Record<string, T> {
     return (Object as any).fromEntries(vals);
 }
@@ -97,5 +99,176 @@ export class AssertionError extends Error {
         if (!condition) {
             throw new AssertionError(msg);
         }
+    }
+}
+
+export function buildUrl(
+    parts: ReadonlyArray<string | number> | string,
+    args: {
+        query?: Record<string, string>;
+        hash?: string;
+    } & AllOrNone<{
+        host: string;
+        protocol: string;
+    }> = {},
+): string {
+    let mainPart;
+    let initialSlash = '';
+    if (typeof parts === 'string') {
+        mainPart = parts;
+    } else {
+        initialSlash = '/';
+        mainPart = parts.map(part => encodeURIComponent(part)).join('/');
+    }
+
+    let prefix = '';
+    if (args.protocol != null) {
+        initialSlash = '/';
+        prefix = `${args.protocol.toString()}//${args.host.toString()}`;
+    }
+
+    let query = '';
+    if (args.query) {
+        const params = Object.entries(args.query)
+            .reduce((acc, [key, value]) => {
+                acc.append(key, value);
+                return acc;
+            }, new URLSearchParams())
+            .toString();
+        query = `?${params}`;
+    }
+
+    let hash = '';
+    if (args.hash) {
+        hash = `#${encodeURIComponent(args.hash)}`;
+    }
+
+    return `${prefix}${initialSlash}${mainPart}${query}${hash}`;
+}
+
+export function capitalize(str: string): string {
+    if (str.length === 0) return str;
+    return str[0].toUpperCase() + str.substr(1);
+}
+
+export function titleCase(str: string): string {
+    return str
+        .split(' ')
+        .map(capitalize)
+        .join(' ');
+}
+
+export const getUniqueId = (() => {
+    let id = 0;
+    return () => id++;
+})();
+
+export function waitAtLeast<T>(time: number, promise: Promise<T>): Promise<T>;
+
+export function waitAtLeast<T, Y>(
+    time: number,
+    promise: Promise<T>,
+    ...promises: Promise<Y>[]
+): Promise<[T, ...Y[]]>;
+
+export function waitAtLeast<T>(time: number, ...promises: Promise<T>[]): Promise<T | T[]> {
+    const timeout: Promise<undefined> = new Promise(resolve => setTimeout(resolve, time));
+
+    return Promise.all([timeout, Promise.all(promises)]).then(([_, vals]) => {
+        if (promises.length === 1) {
+            return vals[0];
+        } else {
+            return vals;
+        }
+    });
+}
+
+export function getProps<TObj extends object, TKey extends keyof TObj, TDefault>(
+    object: TObj,
+    defaultValue: TDefault,
+    prop: TKey,
+): Exclude<TObj[TKey], undefined> | TDefault;
+
+export function getProps<TObj extends object, TKey extends keyof TObj, TDefault>(
+    object: TObj,
+    defaultValue: TDefault,
+    prop: Omit<string, TKey>,
+): TDefault;
+
+export function getProps<
+    TObj extends object,
+    TKey1 extends keyof TObj,
+    TKey2 extends keyof TObj[TKey1],
+    TDefault
+>(
+    object: TObj,
+    defaultValue: TDefault,
+    prop1: TKey1,
+    prop2: TKey2,
+): Exclude<TObj[TKey1][TKey2], undefined> | TDefault;
+
+export function getProps<
+    TObj extends object,
+    TKey1 extends keyof TObj,
+    TKey2 extends keyof TObj[TKey1],
+    TKey3 extends keyof TObj[TKey1][TKey2],
+    TDefault
+>(
+    object: TObj,
+    defaultValue: TDefault,
+    prop1: TKey1,
+    prop2: TKey2,
+    prop3: TKey3,
+): Exclude<TObj[TKey1][TKey2][TKey3], undefined> | TDefault;
+
+export function getProps<
+    TObj extends object,
+    TKey1 extends keyof TObj,
+    TKey2 extends keyof TObj[TKey1],
+    TKey3 extends keyof TObj[TKey1][TKey2],
+    TDefault
+>(
+    object: TObj,
+    defaultValue: TDefault,
+    prop1: Omit<string, TKey1>,
+    ...otherProps: string[]
+): TDefault;
+
+export function getProps<T, Y, K extends string>(
+    object: Record<K, T> | null | undefined,
+    defaultValue: Y,
+    ...props: K[]
+): T | Y {
+    let res: Record<string, Object> | undefined | null = object;
+    for (let i = 0; res != null && i < props.length; ++i) {
+        res = res[props[i]];
+    }
+    if (res == null) {
+        return defaultValue;
+    }
+    return res as any;
+}
+
+export function ensureArray<T>(obj: T | ReadonlyArray<T>): T[] {
+    return Array.isArray(obj) ? obj : [obj];
+}
+
+// https://stackoverflow.com/questions/13405129/javascript-create-and-save-file
+export function downloadFile(data: string, filename: string, contentType: string) {
+    const file = new Blob([data], { type: contentType });
+    if (window.navigator.msSaveOrOpenBlob) {
+        // IE10+
+        window.navigator.msSaveOrOpenBlob(file, filename);
+    } else {
+        const url = URL.createObjectURL(file);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 0);
     }
 }

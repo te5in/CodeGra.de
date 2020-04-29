@@ -35,6 +35,7 @@ import {
     isEmpty,
     zip,
     readableJoin,
+    buildUrl,
 } from '@/utils';
 
 import { makeCache } from '@/utils/cache';
@@ -1159,6 +1160,54 @@ describe('utils.js', () => {
 
         it('should work for arrays with multiple items', () => {
             expect(readableJoin(['hello', 'by', 'whoo'])).toBe('hello, by, and whoo');
+        });
+    });
+
+    describe.only('buildUrl', () => {
+        it('should be possible to give the path a raw string', () => {
+            expect(buildUrl('/a/b/c')).toBe('/a/b/c');
+            expect(buildUrl('a/b/')).toBe('a/b/');
+        }),
+
+        it('should give an absolute url if no host is given', () => {
+            expect(buildUrl(['a', 'b', 'c'])).toBe('/a/b/c');
+            expect(buildUrl(['a', 'b', ''])).toBe('/a/b/');
+        }),
+
+        it('should escape parts of the url', () => {
+            expect(buildUrl(['a', '%b%'])).toBe('/a/%25b%25');
+        });
+
+        it('should escape the query of the url', () => {
+            expect(buildUrl(
+                ['a', 'b'],
+                { query: { a: '%b%' }},
+            )).toBe('/a/b?a=%25b%25');
+        });
+
+        it('should escape the given hash', () => {
+            expect(buildUrl(
+                ['a', 'b', ''],
+                { hash: 'ah#ah'},
+            )).toBe('/a/b/#ah%23ah');
+        });
+
+        it('should use the host if given', () => {
+            expect(buildUrl(
+                ['a', 'b'],
+                {
+                    host: 'example.com',
+                    protocol: 'ftp:',
+                },
+            )).toBe('ftp://example.com/a/b');
+
+            expect(buildUrl(
+                'a/b',
+                {
+                    host: 'example.com',
+                    protocol: 'ftp:',
+                },
+            )).toBe('ftp://example.com/a/b');
         });
     });
 });
