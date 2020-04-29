@@ -146,7 +146,7 @@ def second_phase_lti_launch() -> helpers.JSONResponse[
         )
         raise errors.APIException(
             (
-                f'Decoding given JWT token failed, LTI is probably '
+                'Decoding given JWT token failed, LTI is probably '
                 'not configured correctly. Please contact your site admin.'
             ),
             f'The decoding of "{flask.request.headers.get("Jwt")}" failed.',
