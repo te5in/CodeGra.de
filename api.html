@@ -473,11 +473,11 @@ working.</p>
 <td><p>Get all AutoTest results for a given.</p></td>
 </tr>
 <tr class="row-even"><td></td>
-<td><p><a class="reference external" href="#delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">DELETE /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)/hide</a></p></td>
+<td><p><a class="reference external" href="#post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">POST /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)/hide</a></p></td>
 <td><p>Change the hidden state of a fixture.</p></td>
 </tr>
 <tr class="row-odd"><td></td>
-<td><p><a class="reference external" href="#post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">POST /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)/hide</a></p></td>
+<td><p><a class="reference external" href="#delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">DELETE /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)/hide</a></p></td>
 <td></td>
 </tr>
 <tr class="row-even"><td></td>
@@ -918,7 +918,7 @@ working.</p>
 </tr>
 </tbody>
 </table>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-about">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/about</code><a class="headerlink" href="#get--api-v1-about" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the version and features of the currently running instance.</p>
@@ -941,7 +941,7 @@ feature indicating if the current instance has it enabled.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>]]]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-analytics-(int-ana_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/analytics/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">ana_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-analytics-(int-ana_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get a <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AnalyticsWorkspace</span></code>.</p>
@@ -964,7 +964,7 @@ will change.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">AnalyticsWorkspace</span></code>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-analytics-(int-ana_id)-data_sources-(data_source_name)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/analytics/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">ana_id</em><span class="sig-paren">)</span><code class="sig-name descname">/data_sources/</code><span class="sig-paren">(</span><em class="sig-param">data_source_name</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-analytics-(int-ana_id)-data_sources-(data_source_name)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get a data source within a <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AnalyticsWorkspace</span></code>.</p>
@@ -989,7 +989,7 @@ be retrieved.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">BaseDataSource</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">T</span></code>]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-assignments-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/assignments/</code><a class="headerlink" href="#get--api-v1-assignments-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Assignment</span></code> objects that the current user
@@ -1015,7 +1015,7 @@ have a rubric will be loaded.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.assignment.Assignment" title="psef.models.assignment.Assignment"><code class="xref py py-class docutils literal notranslate"><span class="pre">Assignment</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-assignments-(int-assignment_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-assignments-(int-assignment_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete a given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Assignment</span></code>.</p>
@@ -1033,7 +1033,7 @@ have a rubric will be loaded.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-assignments-(int-assignment_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-assignments-(int-assignment_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return the given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Assignment</span></code>.</p>
@@ -1063,7 +1063,7 @@ assignment. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.assignment.Assignment" title="psef.models.assignment.Assignment"><code class="xref py py-class docutils literal notranslate"><span class="pre">Assignment</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-assignments-(int-assignment_id)">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-v1-assignments-(int-assignment_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Assignment</span></code> with new values.</p>
@@ -1127,7 +1127,7 @@ the other values should be given too.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.assignment.Assignment" title="psef.models.assignment.Assignment"><code class="xref py py-class docutils literal notranslate"><span class="pre">Assignment</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-assignments-(int-assignment_id)-divide">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/divide</code><a class="headerlink" href="#patch--api-v1-assignments-(int-assignment_id)-divide" title="Permalink to this definition">¶</a></dt>
 <dd><p>Assign graders to all the latest <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Work</span></code> objects of
@@ -1177,7 +1177,7 @@ submissions for this assignment.  (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-assignments-(int-assignment_id)-division_parent">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/division_parent</code><a class="headerlink" href="#patch--api-v1-assignments-(int-assignment_id)-division_parent" title="Permalink to this definition">¶</a></dt>
 <dd><p>Change the division parent of an assignment.</p>
@@ -1207,7 +1207,7 @@ division parent of this assignment will be cleared.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-assignments-(int-assignment_id)-feedbacks-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/feedbacks/</code><a class="headerlink" href="#get--api-v1-assignments-(int-assignment_id)-feedbacks-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all feedbacks for all latest submissions for a given assignment.</p>
@@ -1232,7 +1232,7 @@ by the current users are returned.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>], <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-assignments-(int-assignment_id)-graders-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/graders/</code><a class="headerlink" href="#get--api-v1-assignments-(int-assignment_id)-graders-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Gets a list of all <code class="xref py py-class docutils literal notranslate"><span class="pre">models.User</span></code> objects who can grade the given
@@ -1272,7 +1272,7 @@ this assignment. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>]]]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-assignments-(int-assignment_id)-graders-(int-grader_id)-done">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/graders/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">grader_id</em><span class="sig-paren">)</span><code class="sig-name descname">/done</code><a class="headerlink" href="#post--api-v1-assignments-(int-assignment_id)-graders-(int-grader_id)-done" title="Permalink to this definition">¶</a></dt>
 <dd><p>Indicate that the given grader is done grading the given
@@ -1307,7 +1307,7 @@ status but does not have the <cite>can_update_grader_status</cite> or the
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-assignments-(int-assignment_id)-graders-(int-grader_id)-done">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/graders/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">grader_id</em><span class="sig-paren">)</span><code class="sig-name descname">/done</code><a class="headerlink" href="#delete--api-v1-assignments-(int-assignment_id)-graders-(int-grader_id)-done" title="Permalink to this definition">¶</a></dt>
 <dd><p>Indicate that the given grader is not yet done grading the given
@@ -1344,7 +1344,7 @@ status but does not have the <cite>can_update_grader_status</cite> or the
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-assignments-(int-assignment_id)-groups-(int-group_id)-member_states-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/groups/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">group_id</em><span class="sig-paren">)</span><code class="sig-name descname">/member_states/</code><a class="headerlink" href="#get--api-v1-assignments-(int-assignment_id)-groups-(int-group_id)-member_states-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the LTI states for the members of a group for the given assignment.</p>
@@ -1370,7 +1370,7 @@ submit anyway will result in a failure.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-assignments-(int-assignment_id)-linter">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/linter</code><a class="headerlink" href="#post--api-v1-assignments-(int-assignment_id)-linter" title="Permalink to this definition">¶</a></dt>
 <dd><p>Starts running a specific linter on all the latest submissions
@@ -1404,7 +1404,7 @@ course. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.assignment.AssignmentLinter" title="psef.models.assignment.AssignmentLinter"><code class="xref py py-class docutils literal notranslate"><span class="pre">AssignmentLinter</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-assignments-(int-assignment_id)-linters-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/linters/</code><a class="headerlink" href="#get--api-v1-assignments-(int-assignment_id)-linters-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all linters for the given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Assignment</span></code>.</p>
@@ -1446,7 +1446,7 @@ course. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-assignments-(int-assignment_id)-plagiarism">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/plagiarism</code><a class="headerlink" href="#post--api-v1-assignments-(int-assignment_id)-plagiarism" title="Permalink to this definition">¶</a></dt>
 <dd><p>Run a plagiarism checker for the given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Assignment</span></code>.</p>
@@ -1498,7 +1498,7 @@ cases for this course. (INCORRECT_PERMISSION)</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.plagiarism.PlagiarismRun" title="psef.models.plagiarism.PlagiarismRun"><code class="xref py py-class docutils literal notranslate"><span class="pre">PlagiarismRun</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-assignments-(int-assignment_id)-plagiarism-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/plagiarism/</code><a class="headerlink" href="#get--api-v1-assignments-(int-assignment_id)-plagiarism-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all plagiarism runs for the given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Assignment</span></code>.</p>
@@ -1524,7 +1524,7 @@ cases for this course. (INCORRECT_PERMISSION)</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.plagiarism.PlagiarismRun" title="psef.models.plagiarism.PlagiarismRun"><code class="xref py py-class docutils literal notranslate"><span class="pre">PlagiarismRun</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-assignments-(int-assignment_id)-rubric">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/rubric</code><a class="headerlink" href="#post--api-v1-assignments-(int-assignment_id)-rubric" title="Permalink to this definition">¶</a></dt>
 <dd><p>Import a rubric from a different assignment.</p>
@@ -1554,7 +1554,7 @@ imported, so the assignment with id <code class="docutils literal notranslate"><
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.rubric.RubricRowBase" title="psef.models.rubric.RubricRowBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRowBase</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="put">
+<dl class="http put">
 <dt id="put--api-v1-assignments-(int-assignment_id)-rubrics-">
 <code class="sig-name descname">PUT </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/rubrics/</code><a class="headerlink" href="#put--api-v1-assignments-(int-assignment_id)-rubrics-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add or update rubric of an assignment.</p>
@@ -1590,7 +1590,7 @@ by not passing it you keep its current value. (OPTIONAL)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.rubric.RubricRowBase" title="psef.models.rubric.RubricRowBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRowBase</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-assignments-(int-assignment_id)-rubrics-">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/rubrics/</code><a class="headerlink" href="#delete--api-v1-assignments-(int-assignment_id)-rubrics-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete the rubric for the given assignment.</p>
@@ -1620,7 +1620,7 @@ rubric should be deleted.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-assignments-(int-assignment_id)-rubrics-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/rubrics/</code><a class="headerlink" href="#get--api-v1-assignments-(int-assignment_id)-rubrics-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return the rubric corresponding to the given <code class="docutils literal notranslate"><span class="pre">assignment_id</span></code>.</p>
@@ -1650,7 +1650,7 @@ rubric should be deleted.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.rubric.RubricRowBase" title="psef.models.rubric.RubricRowBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">RubricRowBase</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-assignments-(int-assignment_id)-submission">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/submission</code><a class="headerlink" href="#post--api-v1-assignments-(int-assignment_id)-submission" title="Permalink to this definition">¶</a></dt>
 <dd><p>Upload one or more files as <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Work</span></code> to the given
@@ -1692,7 +1692,7 @@ is empty. (INVALID_PARAM)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-assignments-(int-assignment_id)-submissions-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/submissions/</code><a class="headerlink" href="#get--api-v1-assignments-(int-assignment_id)-submissions-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return all <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Work</span></code> objects for the given
@@ -1732,7 +1732,7 @@ not allowed to view it. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>]], <code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>]]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-assignments-(int-assignment_id)-submissions-">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/submissions/</code><a class="headerlink" href="#post--api-v1-assignments-(int-assignment_id)-submissions-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add submissions to the  given:class:<cite>.models.Assignment</cite> from a
@@ -1770,7 +1770,7 @@ course attached to the assignment. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-assignments-(int-assignment_id)-users-(int-user_id)-submissions-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/users/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">user_id</em><span class="sig-paren">)</span><code class="sig-name descname">/submissions/</code><a class="headerlink" href="#get--api-v1-assignments-(int-assignment_id)-users-(int-user_id)-submissions-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return all <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Work</span></code> objects for the given
@@ -1797,7 +1797,7 @@ course attached to the assignment. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-assignments-(int-assignment_id)-webhook_settings">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/assignments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">assignment_id</em><span class="sig-paren">)</span><code class="sig-name descname">/webhook_settings</code><a class="headerlink" href="#post--api-v1-assignments-(int-assignment_id)-webhook_settings" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create or get the webhook settings to hand-in submissions.</p>
@@ -1830,7 +1830,7 @@ add the webhook to your provider.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">WebhookBase</span></code>]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-auto_tests-">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/auto_tests/</code><a class="headerlink" href="#post--api-v1-auto_tests-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a new auto test configuration.</p>
@@ -1854,7 +1854,7 @@ add the webhook to your provider.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.auto_test.AutoTest" title="psef.models.auto_test.AutoTest"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTest</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">at_id</em><span class="sig-paren">)</span><code class="sig-name descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">fixture_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the contents of the given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AutoTestFixture</span></code>.</p>
@@ -1876,28 +1876,7 @@ add the webhook to your provider.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></p>
 </dd>
 </dl>
-<dl class="delete">
-<dt id="delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">
-<code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">at_id</em><span class="sig-paren">)</span><code class="sig-name descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">fixture_id</em><span class="sig-paren">)</span><code class="sig-name descname">/hide</code><a class="headerlink" href="#delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
-<dd><p>Change the visibility of the given fixture.</p>
-<p>Doing a <code class="docutils literal notranslate"><span class="pre">POST</span></code> request to this route will hide the fixture, doing a
-<code class="docutils literal notranslate"><span class="pre">DELETE</span></code> request to this route will set <code class="docutils literal notranslate"><span class="pre">hidden</span></code> to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>auto_test_id</strong> – The AutoTest this fixture is linked to.</p></li>
-<li><p><strong>fixture_id</strong> – The fixture which you to hide or show.</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="field-list simple">
-<dt class="field-odd">rtype</dt>
-<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
-</dd>
-</dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">at_id</em><span class="sig-paren">)</span><code class="sig-name descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">fixture_id</em><span class="sig-paren">)</span><code class="sig-name descname">/hide</code><a class="headerlink" href="#post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
 <dd><p>Change the visibility of the given fixture.</p>
@@ -1918,7 +1897,28 @@ add the webhook to your provider.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
+<dt id="delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">
+<code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">at_id</em><span class="sig-paren">)</span><code class="sig-name descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">fixture_id</em><span class="sig-paren">)</span><code class="sig-name descname">/hide</code><a class="headerlink" href="#delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
+<dd><p>Change the visibility of the given fixture.</p>
+<p>Doing a <code class="docutils literal notranslate"><span class="pre">POST</span></code> request to this route will hide the fixture, doing a
+<code class="docutils literal notranslate"><span class="pre">DELETE</span></code> request to this route will set <code class="docutils literal notranslate"><span class="pre">hidden</span></code> to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>auto_test_id</strong> – The AutoTest this fixture is linked to.</p></li>
+<li><p><strong>fixture_id</strong> – The fixture which you to hide or show.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
+</dd>
+</dl>
+<dl class="http delete">
 <dt id="delete--api-v1-auto_tests-(int-auto_test_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-auto_tests-(int-auto_test_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete the given AutoTest.</p>
@@ -1941,7 +1941,7 @@ separately.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-auto_tests-(int-auto_test_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-auto_tests-(int-auto_test_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the extended version of an <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AutoTest</span></code> and its runs.</p>
@@ -1963,7 +1963,7 @@ the extended serialization of its runs.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.auto_test.AutoTest" title="psef.models.auto_test.AutoTest"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTest</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-auto_tests-(int-auto_test_id)">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-v1-auto_tests-(int-auto_test_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the settings of an AutoTest configuration.</p>
@@ -1996,7 +1996,7 @@ from the amount of achieved points (OPTIONAL).</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.auto_test.AutoTest" title="psef.models.auto_test.AutoTest"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTest</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-auto_tests-(int-auto_test_id)-copy">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><code class="sig-name descname">/copy</code><a class="headerlink" href="#post--api-v1-auto_tests-(int-auto_test_id)-copy" title="Permalink to this definition">¶</a></dt>
 <dd><p>Copy the given AutoTest configuration.</p>
@@ -2023,7 +2023,7 @@ AutoTest config.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.auto_test.AutoTest" title="psef.models.auto_test.AutoTest"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTest</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-auto_tests-(int-auto_test_id)-runs-">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><code class="sig-name descname">/runs/</code><a class="headerlink" href="#post--api-v1-auto_tests-(int-auto_test_id)-runs-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Start a run for the given <code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTest</span></code>.</p>
@@ -2049,7 +2049,7 @@ to see AutoTest runs.</p>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<code class="docutils literal notranslate"><span class="pre">None</span></code>, <code class="docutils literal notranslate"><span class="pre">None</span></code>]], <code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.auto_test.AutoTestRun" title="psef.models.auto_test.AutoTestRun"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTestRun</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><code class="sig-name descname">/runs/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">run_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete the given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AutoTestRun</span></code>.</p>
@@ -2070,7 +2070,7 @@ deleted.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><code class="sig-name descname">/runs/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">run_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the extended version of an <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AutoTestRun</span></code>.</p>
@@ -2094,7 +2094,7 @@ that results will not be serialized as an extended version.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.auto_test.AutoTestRun" title="psef.models.auto_test.AutoTestRun"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTestRun</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)-results-(int-result_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><code class="sig-name descname">/runs/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">run_id</em><span class="sig-paren">)</span><code class="sig-name descname">/results/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">result_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)-results-(int-result_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the extended version of an AutoTest result.</p>
@@ -2117,7 +2117,7 @@ that results will not be serialized as an extended version.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.auto_test.AutoTestResult" title="psef.models.auto_test.AutoTestResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTestResult</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)-results-(int-result_id)-suites-(int-suite_id)-proxy">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><code class="sig-name descname">/runs/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">run_id</em><span class="sig-paren">)</span><code class="sig-name descname">/results/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">result_id</em><span class="sig-paren">)</span><code class="sig-name descname">/suites/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">suite_id</em><span class="sig-paren">)</span><code class="sig-name descname">/proxy</code><a class="headerlink" href="#post--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)-results-(int-result_id)-suites-(int-suite_id)-proxy" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a proxy to view the files of the given AT result through.</p>
@@ -2152,7 +2152,7 @@ and allow to usage of ‘eval’.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Proxy</span></code>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)-users-(int-user_id)-results-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><code class="sig-name descname">/runs/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">run_id</em><span class="sig-paren">)</span><code class="sig-name descname">/users/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">user_id</em><span class="sig-paren">)</span><code class="sig-name descname">/results/</code><a class="headerlink" href="#get--api-v1-auto_tests-(int-auto_test_id)-runs-(int-run_id)-users-(int-user_id)-results-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all AutoTest results for a given user.</p>
@@ -2178,7 +2178,7 @@ empty list will be returned.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.auto_test.AutoTestResult" title="psef.models.auto_test.AutoTestResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTestResult</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-auto_tests-(int-auto_test_id)-sets-">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><code class="sig-name descname">/sets/</code><a class="headerlink" href="#post--api-v1-auto_tests-(int-auto_test_id)-sets-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a new set within an AutoTest</p>
@@ -2200,7 +2200,7 @@ set.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.auto_test.AutoTestSet" title="psef.models.auto_test.AutoTestSet"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTestSet</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-auto_tests-(int-auto_test_id)-sets-(int-auto_test_set_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><code class="sig-name descname">/sets/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_set_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-auto_tests-(int-auto_test_id)-sets-(int-auto_test_set_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete an <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AutoTestSet</span></code>.</p>
@@ -2221,7 +2221,7 @@ should be deleted.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-auto_tests-(int-auto_test_id)-sets-(int-auto_test_set_id)">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><code class="sig-name descname">/sets/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_set_id</em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-v1-auto_tests-(int-auto_test_id)-sets-(int-auto_test_set_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AutoTestSet</span></code>.</p>
@@ -2251,7 +2251,7 @@ should be updated.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.auto_test.AutoTestSet" title="psef.models.auto_test.AutoTestSet"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTestSet</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-auto_tests-(int-auto_test_id)-sets-(int-auto_test_set_id)-suites-">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_id</em><span class="sig-paren">)</span><code class="sig-name descname">/sets/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">auto_test_set_id</em><span class="sig-paren">)</span><code class="sig-name descname">/suites/</code><a class="headerlink" href="#patch--api-v1-auto_tests-(int-auto_test_id)-sets-(int-auto_test_set_id)-suites-" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="simple">
@@ -2294,7 +2294,7 @@ this suite should be created.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.auto_test.AutoTestSuite" title="psef.models.auto_test.AutoTestSuite"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTestSuite</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-auto_tests-(int-test_id)-sets-(int-set_id)-suites-(int-suite_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">test_id</em><span class="sig-paren">)</span><code class="sig-name descname">/sets/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">set_id</em><span class="sig-paren">)</span><code class="sig-name descname">/suites/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">suite_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-auto_tests-(int-test_id)-sets-(int-set_id)-suites-(int-suite_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete a <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AutoTestSuite</span></code>.</p>
@@ -2317,7 +2317,7 @@ delete.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="put">
+<dl class="http put">
 <dt id="put--api-v1-code-(int-code_id)-comments-(int-line)">
 <code class="sig-name descname">PUT </code><code class="sig-name descname">/api/v1/code/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">code_id</em><span class="sig-paren">)</span><code class="sig-name descname">/comments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">line</em><span class="sig-paren">)</span><a class="headerlink" href="#put--api-v1-code-(int-code_id)-comments-(int-line)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create or change a single <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Comment</span></code> of a code
@@ -2352,7 +2352,7 @@ attached course. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-code-(int-code_id)-comments-(int-line)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/code/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">code_id</em><span class="sig-paren">)</span><code class="sig-name descname">/comments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">line</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-code-(int-code_id)-comments-(int-line)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Removes the given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.CommentBase</span></code> in the given
@@ -2384,7 +2384,7 @@ attached course. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-code-(int-file_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/code/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">file_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-code-(int-file_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete the given file.</p>
@@ -2418,12 +2418,12 @@ file. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-code-(int-file_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/code/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">file_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-code-(int-file_id)" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-code-(uuid-file_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/code/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">file_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-code-(uuid-file_id)" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="simple">
@@ -2477,7 +2477,7 @@ course. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>], <a class="reference internal" href="psef_api/psef.html#psef.models.file.File" title="psef.models.file.File"><code class="xref py py-class docutils literal notranslate"><span class="pre">File</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.MutableSequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">MutableSequence</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference internal" href="psef_api/psef.html#psef.models.linter.LinterComment" title="psef.models.linter.LinterComment"><code class="xref py py-class docutils literal notranslate"><span class="pre">LinterComment</span></code></a>]]]]]]]</p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-code-(int-file_id)">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/code/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">file_id</em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-v1-code-(int-file_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the content or name of the given file.</p>
@@ -2521,7 +2521,7 @@ size. (REQUEST_TOO_LARGE)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.file.File" title="psef.models.file.File"><code class="xref py py-class docutils literal notranslate"><span class="pre">File</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="put">
+<dl class="http put">
 <dt id="put--api-v1-comments-">
 <code class="sig-name descname">PUT </code><code class="sig-name descname">/api/v1/comments/</code><a class="headerlink" href="#put--api-v1-comments-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a new comment base, or retrieve an existing one.</p>
@@ -2544,7 +2544,7 @@ placed.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.comment.CommentBase" title="psef.models.comment.CommentBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentBase</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-comments-(int-comment_base_id)-replies-">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/comments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">comment_base_id</em><span class="sig-paren">)</span><code class="sig-name descname">/replies/</code><a class="headerlink" href="#post--api-v1-comments-(int-comment_base_id)-replies-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add a reply to a comment base.</p>
@@ -2575,7 +2575,7 @@ reply.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.comment.CommentReply" title="psef.models.comment.CommentReply"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReply</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/comments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">comment_base_id</em><span class="sig-paren">)</span><code class="sig-name descname">/replies/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">reply_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete the given reply.</p>
@@ -2597,7 +2597,7 @@ reply.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/comments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">comment_base_id</em><span class="sig-paren">)</span><code class="sig-name descname">/replies/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">reply_id</em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the content of reply.</p>
@@ -2624,7 +2624,7 @@ reply.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.comment.CommentReply" title="psef.models.comment.CommentReply"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReply</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)-edits-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/comments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">comment_base_id</em><span class="sig-paren">)</span><code class="sig-name descname">/replies/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">reply_id</em><span class="sig-paren">)</span><code class="sig-name descname">/edits/</code><a class="headerlink" href="#get--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)-edits-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the edits of a reply.</p>
@@ -2646,7 +2646,7 @@ reply.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.comment.CommentReplyEdit" title="psef.models.comment.CommentReplyEdit"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReplyEdit</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-courses-">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/courses/</code><a class="headerlink" href="#post--api-v1-courses-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add a new <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Course</span></code>.</p>
@@ -2671,7 +2671,7 @@ reply.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.course.Course" title="psef.models.course.Course"><code class="xref py py-class docutils literal notranslate"><span class="pre">Course</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-courses-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/courses/</code><a class="headerlink" href="#get--api-v1-courses-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return all <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Course</span></code> objects the current user is a member
@@ -2705,7 +2705,7 @@ course.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-courses-(int-course_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-courses-(int-course_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return course data for a given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Course</span></code>.</p>
@@ -2740,7 +2740,7 @@ course.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-courses-(int-course_id)-assignments-">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/assignments/</code><a class="headerlink" href="#post--api-v1-courses-(int-course_id)-assignments-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a new course for the given assignment.</p>
@@ -2770,7 +2770,7 @@ course.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.assignment.Assignment" title="psef.models.assignment.Assignment"><code class="xref py py-class docutils literal notranslate"><span class="pre">Assignment</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-courses-(int-course_id)-assignments-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/assignments/</code><a class="headerlink" href="#get--api-v1-courses-(int-course_id)-assignments-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Assignment</span></code> objects of the given
@@ -2805,7 +2805,7 @@ given course. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.assignment.Assignment" title="psef.models.assignment.Assignment"><code class="xref py py-class docutils literal notranslate"><span class="pre">Assignment</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-courses-(int-course_id)-email">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/email</code><a class="headerlink" href="#post--api-v1-courses-(int-course_id)-email" title="Permalink to this definition">¶</a></dt>
 <dd><p>Sent the authors in this course an email.</p>
@@ -2836,7 +2836,7 @@ an email (or not if <code class="docutils literal notranslate"><span class="pre"
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.task_result.TaskResult" title="psef.models.task_result.TaskResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">TaskResult</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="put">
+<dl class="http put">
 <dt id="put--api-v1-courses-(int-course_id)-group_sets-">
 <code class="sig-name descname">PUT </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/group_sets/</code><a class="headerlink" href="#put--api-v1-courses-(int-course_id)-group_sets-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create or update a <code class="xref py py-class docutils literal notranslate"><span class="pre">models.GroupSet</span></code> in the given course id.</p>
@@ -2867,7 +2867,7 @@ created or updated. The course id of a group set cannot change.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.group.GroupSet" title="psef.models.group.GroupSet"><code class="xref py py-class docutils literal notranslate"><span class="pre">GroupSet</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-courses-(int-course_id)-group_sets-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/group_sets/</code><a class="headerlink" href="#get--api-v1-courses-(int-course_id)-group_sets-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the all the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.GroupSet</span></code> objects in the given course.</p>
@@ -2889,7 +2889,7 @@ be retrieved.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.group.GroupSet" title="psef.models.group.GroupSet"><code class="xref py py-class docutils literal notranslate"><span class="pre">GroupSet</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-courses-(int-course_id)-permissions-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/permissions/</code><a class="headerlink" href="#get--api-v1-courses-(int-course_id)-permissions-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all the course <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Permission</span></code> of the currently logged
@@ -2913,7 +2913,7 @@ the currently logged in user has this permission.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">CoursePermMap</span></code>]</p>
 </dd>
 </dl>
-<dl class="put">
+<dl class="http put">
 <dt id="put--api-v1-courses-(int-course_id)-registration_links-">
 <code class="sig-name descname">PUT </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/registration_links/</code><a class="headerlink" href="#put--api-v1-courses-(int-course_id)-registration_links-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create or edit a registration link.</p>
@@ -2945,7 +2945,7 @@ will be interpret as a UTC date.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.course.CourseRegistrationLink" title="psef.models.course.CourseRegistrationLink"><code class="xref py py-class docutils literal notranslate"><span class="pre">CourseRegistrationLink</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-courses-(int-course_id)-registration_links-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/registration_links/</code><a class="headerlink" href="#get--api-v1-courses-(int-course_id)-registration_links-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the registration links for the given course.</p>
@@ -2966,7 +2966,7 @@ will be interpret as a UTC date.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.course.CourseRegistrationLink" title="psef.models.course.CourseRegistrationLink"><code class="xref py py-class docutils literal notranslate"><span class="pre">CourseRegistrationLink</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-courses-(int-course_id)-registration_links-(uuid-link_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/registration_links/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">link_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-courses-(int-course_id)-registration_links-(uuid-link_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete the given registration link.</p>
@@ -2989,7 +2989,7 @@ connected.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-courses-(int-course_id)-registration_links-(uuid-link_id)-user">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/registration_links/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">link_id</em><span class="sig-paren">)</span><code class="sig-name descname">/user</code><a class="headerlink" href="#post--api-v1-courses-(int-course_id)-registration_links-(uuid-link_id)-user" title="Permalink to this definition">¶</a></dt>
 <dd><p>Register as a new user, and directly enroll in a course.</p>
@@ -3015,7 +3015,7 @@ login.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-courses-(int-course_id)-roles-">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/roles/</code><a class="headerlink" href="#post--api-v1-courses-(int-course_id)-roles-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add a new <code class="xref py py-class docutils literal notranslate"><span class="pre">models.CourseRole</span></code> to the given
@@ -3055,7 +3055,7 @@ given id. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-courses-(int-course_id)-roles-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/roles/</code><a class="headerlink" href="#get--api-v1-courses-(int-course_id)-roles-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get a list of all <code class="xref py py-class docutils literal notranslate"><span class="pre">models.CourseRole</span></code> objects of a given
@@ -3094,7 +3094,7 @@ given id. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.role.CourseRole" title="psef.models.role.CourseRole"><code class="xref py py-class docutils literal notranslate"><span class="pre">CourseRole</span></code></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.MutableMapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">MutableMapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>], <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>]]]]]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-courses-(int-course_id)-roles-(int-role_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/roles/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">role_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-courses-(int-course_id)-roles-(int-role_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Remove a <code class="xref py py-class docutils literal notranslate"><span class="pre">models.CourseRole</span></code> from the given
@@ -3127,7 +3127,7 @@ given id. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-courses-(int-course_id)-roles-(int-role_id)">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/roles/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">role_id</em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-v1-courses-(int-course_id)-roles-(int-role_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Permission</span></code> of a given
@@ -3169,7 +3169,7 @@ given id. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="put">
+<dl class="http put">
 <dt id="put--api-v1-courses-(int-course_id)-snippet">
 <code class="sig-name descname">PUT </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/snippet</code><a class="headerlink" href="#put--api-v1-courses-(int-course_id)-snippet" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add or modify a <code class="xref py py-class docutils literal notranslate"><span class="pre">models.CourseSnippet</span></code> by key.</p>
@@ -3201,7 +3201,7 @@ were not in the request. (MISSING_REQUIRED_PARAM)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.course.CourseSnippet" title="psef.models.course.CourseSnippet"><code class="xref py py-class docutils literal notranslate"><span class="pre">CourseSnippet</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-courses-(int-course_id)-snippets-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/snippets/</code><a class="headerlink" href="#get--api-v1-courses-(int-course_id)-snippets-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all snippets (<code class="xref py py-class docutils literal notranslate"><span class="pre">models.CourseSnippet</span></code>) of the given
@@ -3227,7 +3227,7 @@ course. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.course.CourseSnippet" title="psef.models.course.CourseSnippet"><code class="xref py py-class docutils literal notranslate"><span class="pre">CourseSnippet</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-courses-(int-course_id)-snippets-(int-snippet_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/snippets/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">snippet_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-courses-(int-course_id)-snippets-(int-snippet_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.CourseSnippet</span></code> with the given id.</p>
@@ -3259,7 +3259,7 @@ course. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-courses-(int-course_id)-snippets-(int-snippet_id)">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/snippets/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">snippet_id</em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-v1-courses-(int-course_id)-snippets-(int-snippet_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Modify the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.CourseSnippet</span></code> with the given id.</p>
@@ -3299,7 +3299,7 @@ the request. (MISSING_REQUIRED_PARAM)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-courses-(int-course_id)-users-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/users/</code><a class="headerlink" href="#get--api-v1-courses-(int-course_id)-users-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return a list of all <code class="xref py py-class docutils literal notranslate"><span class="pre">models.User</span></code> objects and their
@@ -3333,7 +3333,7 @@ change the output to a list of users.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">_UserCourse</span></code>], <code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>]]]</p>
 </dd>
 </dl>
-<dl class="put">
+<dl class="http put">
 <dt id="put--api-v1-courses-(int-course_id)-users-">
 <code class="sig-name descname">PUT </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/users/</code><a class="headerlink" href="#put--api-v1-courses-(int-course_id)-users-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Set the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.CourseRole</span></code> of a <code class="xref py py-class docutils literal notranslate"><span class="pre">models.User</span></code> in the
@@ -3377,7 +3377,7 @@ given id. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">_UserCourse</span></code>]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-files-">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/files/</code><a class="headerlink" href="#post--api-v1-files-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Temporarily store some data on the server.</p>
@@ -3405,12 +3405,12 @@ size. (REQUEST_TOO_LARGE)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-files-(file_name)-(path-name)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/files/</code><span class="sig-paren">(</span><em class="sig-param">file_name</em><span class="sig-paren">)</span><code class="sig-name descname">/</code><span class="sig-paren">(</span><em class="property">path: </em><em class="sig-param">name</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-files-(file_name)-(path-name)" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-files-(file_name)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/files/</code><span class="sig-paren">(</span><em class="sig-param">file_name</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-files-(file_name)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Serve some specific file in the uploads folder.</p>
@@ -3438,7 +3438,7 @@ size. (REQUEST_TOO_LARGE)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-group_sets-(int-group_set_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/group_sets/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">group_set_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-group_sets-(int-group_set_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete the given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.GroupSet</span></code>.</p>
@@ -3458,7 +3458,7 @@ assignment is connected to the group set.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-group_sets-(int-group_set_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/group_sets/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">group_set_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-group_sets-(int-group_set_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return the given <code class="xref py py-class docutils literal notranslate"><span class="pre">models.GroupSet</span></code>.</p>
@@ -3479,7 +3479,7 @@ assignment is connected to the group set.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.group.GroupSet" title="psef.models.group.GroupSet"><code class="xref py py-class docutils literal notranslate"><span class="pre">GroupSet</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-group_sets-(int-group_set_id)-group">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/group_sets/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">group_set_id</em><span class="sig-paren">)</span><code class="sig-name descname">/group</code><a class="headerlink" href="#post--api-v1-group_sets-(int-group_set_id)-group" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a group for the given group set.</p>
@@ -3509,7 +3509,7 @@ members of the group. This may be an empty list.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.group.Group" title="psef.models.group.Group"><code class="xref py py-class docutils literal notranslate"><span class="pre">Group</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-group_sets-(int-group_set_id)-groups-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/group_sets/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">group_set_id</em><span class="sig-paren">)</span><code class="sig-name descname">/groups/</code><a class="headerlink" href="#get--api-v1-group_sets-(int-group_set_id)-groups-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all groups for a given group set.</p>
@@ -3530,7 +3530,7 @@ members of the group. This may be an empty list.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.group.Group" title="psef.models.group.Group"><code class="xref py py-class docutils literal notranslate"><span class="pre">Group</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-groups-(int-group_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/groups/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">group_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-groups-(int-group_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete a group by id.</p>
@@ -3559,7 +3559,7 @@ it. (INVALID_PARAM)</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-groups-(int-group_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/groups/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">group_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-groups-(int-group_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get a group by id.</p>
@@ -3580,7 +3580,7 @@ it. (INVALID_PARAM)</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.group.Group" title="psef.models.group.Group"><code class="xref py py-class docutils literal notranslate"><span class="pre">Group</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-groups-(int-group_id)-member">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/groups/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">group_id</em><span class="sig-paren">)</span><code class="sig-name descname">/member</code><a class="headerlink" href="#post--api-v1-groups-(int-group_id)-member" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add a user (member) to a group.</p>
@@ -3606,7 +3606,7 @@ it. (INVALID_PARAM)</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.group.Group" title="psef.models.group.Group"><code class="xref py py-class docutils literal notranslate"><span class="pre">Group</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-groups-(int-group_id)-members-(int-user_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/groups/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">group_id</em><span class="sig-paren">)</span><code class="sig-name descname">/members/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">user_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-groups-(int-group_id)-members-(int-user_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Remove a user (member) from a group.</p>
@@ -3632,7 +3632,7 @@ the given user was the last member. (INVALID_STATE)</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.group.Group" title="psef.models.group.Group"><code class="xref py py-class docutils literal notranslate"><span class="pre">Group</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-groups-(int-group_id)-name">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/groups/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">group_id</em><span class="sig-paren">)</span><code class="sig-name descname">/name</code><a class="headerlink" href="#post--api-v1-groups-(int-group_id)-name" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the name of the group.</p>
@@ -3662,7 +3662,7 @@ characters. (iNVALID_PARAM)</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.group.Group" title="psef.models.group.Group"><code class="xref py py-class docutils literal notranslate"><span class="pre">Group</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-linters-(linter_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/linters/</code><span class="sig-paren">(</span><em class="sig-param">linter_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-linters-(linter_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete the all the output created by the
@@ -3694,7 +3694,7 @@ id. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-linters-(linter_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/linters/</code><span class="sig-paren">(</span><em class="sig-param">linter_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-linters-(linter_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the state of the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AssignmentLinter</span></code> with the given
@@ -3724,7 +3724,7 @@ id. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.assignment.AssignmentLinter" title="psef.models.assignment.AssignmentLinter"><code class="xref py py-class docutils literal notranslate"><span class="pre">AssignmentLinter</span></code></a>], <code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.assignment.AssignmentLinter" title="psef.models.assignment.AssignmentLinter"><code class="xref py py-class docutils literal notranslate"><span class="pre">AssignmentLinter</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-linters-(linter_id)-linter_instances-(linter_instance_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/linters/</code><span class="sig-paren">(</span><em class="sig-param">linter_id</em><span class="sig-paren">)</span><code class="sig-name descname">/linter_instances/</code><span class="sig-paren">(</span><em class="sig-param">linter_instance_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-linters-(linter_id)-linter_instances-(linter_instance_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the state of the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.AssignmentLinter</span></code> with the given
@@ -3746,7 +3746,7 @@ id.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.linter.LinterInstance" title="psef.models.linter.LinterInstance"><code class="xref py py-class docutils literal notranslate"><span class="pre">LinterInstance</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-login">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/login</code><a class="headerlink" href="#patch--api-v1-login" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="simple">
@@ -3803,7 +3803,7 @@ request. (MISSING_REQUIRED_PARAM)</p></li>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]], <code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-login">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/login</code><a class="headerlink" href="#post--api-v1-login" title="Permalink to this definition">¶</a></dt>
 <dd><p>Login a <code class="xref py py-class docutils literal notranslate"><span class="pre">models.User</span></code> if the request is valid.</p>
@@ -3853,7 +3853,7 @@ inactive. (INACTIVE_USER)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.MutableMapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">MutableMapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>], <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-login">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/login</code><a class="headerlink" href="#get--api-v1-login" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the info of the currently logged in <code class="xref py py-class docutils literal notranslate"><span class="pre">models.User</span></code>.</p>
@@ -3884,7 +3884,7 @@ which global permissions this user has.</p></li>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.MutableMapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">MutableMapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>], <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]], <code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.MutableMapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">MutableMapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]]]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-lti-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/lti/</code><a class="headerlink" href="#get--api-v1-lti-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get a LTI config xml for this CodeGrade instance</p>
@@ -3906,7 +3906,7 @@ required.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-lti-launch-1">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/lti/launch/1</code><a class="headerlink" href="#post--api-v1-lti-launch-1" title="Permalink to this definition">¶</a></dt>
 <dd><p>Do a LTI launch.</p>
@@ -3917,7 +3917,7 @@ required.</p></li>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a></p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-lti-launch-2">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/lti/launch/2</code><a class="headerlink" href="#post--api-v1-lti-launch-2" title="Permalink to this definition">¶</a></dt>
 <dd><p>Do the second part of an LTI launch.</p>
@@ -3950,7 +3950,7 @@ also not always available, check!</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference internal" href="psef_api/psef.html#psef.models.assignment.Assignment" title="psef.models.assignment.Assignment"><code class="xref py py-class docutils literal notranslate"><span class="pre">Assignment</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>, <code class="docutils literal notranslate"><span class="pre">None</span></code>]]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-notifications-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/notifications/</code><a class="headerlink" href="#get--api-v1-notifications-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all notifications for the current user.</p>
@@ -3975,7 +3975,7 @@ notifications.</p></li>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">NotificationsJSON</span></code>], <code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">HasUnreadNotifcationJSON</span></code>]]</p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-notifications-">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/notifications/</code><a class="headerlink" href="#patch--api-v1-notifications-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the read status for the given notifications.</p>
@@ -3997,7 +3997,7 @@ notifications.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">NotificationsJSON</span></code>]</p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-notifications-(int-notification_id)">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/notifications/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">notification_id</em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-v1-notifications-(int-notification_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the read status for the given notification.</p>
@@ -4023,7 +4023,7 @@ notifications.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.notification.Notification" title="psef.models.notification.Notification"><code class="xref py py-class docutils literal notranslate"><span class="pre">Notification</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-permissions-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/permissions/</code><a class="headerlink" href="#get--api-v1-permissions-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all the global <code class="xref py py-class docutils literal notranslate"><span class="pre">psef.models.Permission</span></code> or the value of a
@@ -4060,7 +4060,7 @@ returned.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">GlobalPermMap</span></code>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">CoursePermMap</span></code>]]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-plagiarism-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/plagiarism/</code><a class="headerlink" href="#get--api-v1-plagiarism-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all plagiarism providers for this instance.</p>
@@ -4084,7 +4084,7 @@ is an array of JSON serialized <a class="reference internal" href="psef_api/psef
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a>]]]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-plagiarism-(int-plagiarism_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/plagiarism/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">plagiarism_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-plagiarism-(int-plagiarism_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete a given plagiarism run and all its cases.</p>
@@ -4113,7 +4113,7 @@ cases for the course associated with the run. (INCORRECT_PERMISSION)</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-plagiarism-(int-plagiarism_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/plagiarism/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">plagiarism_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-plagiarism-(int-plagiarism_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get a <code class="xref py py-class docutils literal notranslate"><span class="pre">models.PlagiarismRun</span></code>.</p>
@@ -4145,7 +4145,7 @@ cases for the course associated with the run. (INCORRECT_PERMISSION)</p>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.plagiarism.PlagiarismRun" title="psef.models.plagiarism.PlagiarismRun"><code class="xref py py-class docutils literal notranslate"><span class="pre">PlagiarismRun</span></code></a>], <code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.plagiarism.PlagiarismRun" title="psef.models.plagiarism.PlagiarismRun"><code class="xref py py-class docutils literal notranslate"><span class="pre">PlagiarismRun</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-plagiarism-(int-plagiarism_id)-cases-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/plagiarism/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">plagiarism_id</em><span class="sig-paren">)</span><code class="sig-name descname">/cases/</code><a class="headerlink" href="#get--api-v1-plagiarism-(int-plagiarism_id)-cases-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.PlagiarismCase`s</span> <span class="pre">for</span> <span class="pre">the</span> <span class="pre">given</span>
@@ -4178,7 +4178,7 @@ cases for the course associated with the run. (INCORRECT_PERMISSION)</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Iterable</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.plagiarism.PlagiarismCase" title="psef.models.plagiarism.PlagiarismCase"><code class="xref py py-class docutils literal notranslate"><span class="pre">PlagiarismCase</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-plagiarism-(int-plagiarism_id)-cases-(int-case_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/plagiarism/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">plagiarism_id</em><span class="sig-paren">)</span><code class="sig-name descname">/cases/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">case_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-plagiarism-(int-plagiarism_id)-cases-(int-case_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the extended view of a single <code class="xref py py-class docutils literal notranslate"><span class="pre">models.PlagiarismCase</span></code> object.</p>
@@ -4204,22 +4204,22 @@ cases for the course associated with the run. (INCORRECT_PERMISSION)</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.plagiarism.PlagiarismCase" title="psef.models.plagiarism.PlagiarismCase"><code class="xref py py-class docutils literal notranslate"><span class="pre">PlagiarismCase</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-proxies-(uuid-proxy_id)-(path-path_str)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/proxies/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">proxy_id</em><span class="sig-paren">)</span><code class="sig-name descname">/</code><span class="sig-paren">(</span><em class="property">path: </em><em class="sig-param">path_str</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-proxies-(uuid-proxy_id)-(path-path_str)" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-proxies-(uuid-proxy_id)-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/proxies/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">proxy_id</em><span class="sig-paren">)</span><code class="sig-name descname">/</code><a class="headerlink" href="#get--api-v1-proxies-(uuid-proxy_id)-" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-proxies-(path-path_str)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/proxies/</code><span class="sig-paren">(</span><em class="property">path: </em><em class="sig-param">path_str</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-proxies-(path-path_str)" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-proxies-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/proxies/</code><a class="headerlink" href="#get--api-v1-proxies-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get a file for the given proxy.</p>
@@ -4241,7 +4241,7 @@ cases for the course associated with the run. (INCORRECT_PERMISSION)</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-proxies-(uuid-proxy_id)-(path-path_str)">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/proxies/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">proxy_id</em><span class="sig-paren">)</span><code class="sig-name descname">/</code><span class="sig-paren">(</span><em class="property">path: </em><em class="sig-param">path_str</em><span class="sig-paren">)</span><a class="headerlink" href="#post--api-v1-proxies-(uuid-proxy_id)-(path-path_str)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Start using the given proxy.</p>
@@ -4265,7 +4265,7 @@ used for identification and authorization.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-roles-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/roles/</code><a class="headerlink" href="#get--api-v1-roles-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all global roles with their permissions</p>
@@ -4293,7 +4293,7 @@ the following keys added:</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]]]</p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-roles-(int-role_id)">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/roles/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">role_id</em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-v1-roles-(int-role_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Permission</span></code> of a given
@@ -4326,7 +4326,7 @@ specified role has the specified permission).</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-settings-notification_settings-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/settings/notification_settings/</code><a class="headerlink" href="#get--api-v1-settings-notification_settings-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update preferences for notifications.</p>
@@ -4349,7 +4349,7 @@ user.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.user_setting.NotificationSettingJSON" title="psef.models.user_setting.NotificationSettingJSON"><code class="xref py py-class docutils literal notranslate"><span class="pre">NotificationSettingJSON</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-settings-notification_settings-">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/settings/notification_settings/</code><a class="headerlink" href="#patch--api-v1-settings-notification_settings-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update preferences for notifications.</p>
@@ -4380,7 +4380,7 @@ should be the new value.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="put">
+<dl class="http put">
 <dt id="put--api-v1-snippet">
 <code class="sig-name descname">PUT </code><code class="sig-name descname">/api/v1/snippet</code><a class="headerlink" href="#put--api-v1-snippet" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add or modify a <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Snippet</span></code> by key.</p>
@@ -4412,7 +4412,7 @@ the request. (MISSING_REQUIRED_PARAM)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.snippet.Snippet" title="psef.models.snippet.Snippet"><code class="xref py py-class docutils literal notranslate"><span class="pre">Snippet</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-snippets-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/snippets/</code><a class="headerlink" href="#get--api-v1-snippets-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all snippets (<code class="xref py py-class docutils literal notranslate"><span class="pre">models.Snippet</span></code>) of the current
@@ -4437,7 +4437,7 @@ user.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.snippet.Snippet" title="psef.models.snippet.Snippet"><code class="xref py py-class docutils literal notranslate"><span class="pre">Snippet</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-snippets-(int-snippet_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/snippets/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">snippet_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-snippets-(int-snippet_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Snippet</span></code> with the given id.</p>
@@ -4469,7 +4469,7 @@ user.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-snippets-(int-snippet_id)">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/snippets/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">snippet_id</em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-v1-snippets-(int-snippet_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Modify the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Snippet</span></code> with the given id.</p>
@@ -4507,7 +4507,7 @@ the request. (MISSING_REQUIRED_PARAM)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-submissions-(int-submission_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-submissions-(int-submission_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete a submission and all its files.</p>
@@ -4528,7 +4528,7 @@ the request. (MISSING_REQUIRED_PARAM)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-submissions-(int-submission_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-submissions-(int-submission_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the given submission (<code class="xref py py-class docutils literal notranslate"><span class="pre">models.Work</span></code>).</p>
@@ -4576,7 +4576,7 @@ work in the attached course.
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]]</p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-submissions-(int-submission_id)">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-v1-submissions-(int-submission_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the given submission (<code class="xref py py-class docutils literal notranslate"><span class="pre">models.Work</span></code>) if it already
@@ -4616,7 +4616,7 @@ given id (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-submissions-(int-submission_id)-feedbacks-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><code class="sig-name descname">/feedbacks/</code><a class="headerlink" href="#get--api-v1-submissions-(int-submission_id)-feedbacks-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get all feedback for a submission</p>
@@ -4639,7 +4639,7 @@ replies. Please note that passing this as false is deprecated.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">FeedbackWithoutReplies</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">FeedbackWithReplies</span></code>]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-submissions-(int-submission_id)-files-">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><code class="sig-name descname">/files/</code><a class="headerlink" href="#post--api-v1-submissions-(int-submission_id)-files-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a new file or directory for the given submission.</p>
@@ -4667,7 +4667,7 @@ size. (REQUEST_TOO_LARGE)</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-submissions-(int-submission_id)-files-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><code class="sig-name descname">/files/</code><a class="headerlink" href="#get--api-v1-submissions-(int-submission_id)-files-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return the file directory info of a file of the given submission
@@ -4721,7 +4721,7 @@ attached course. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.files.FileTree" title="psef.files.FileTree"><code class="xref py py-class docutils literal notranslate"><span class="pre">FileTree</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>]], <code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-submissions-(int-submission_id)-grade_history-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><code class="sig-name descname">/grade_history/</code><a class="headerlink" href="#get--api-v1-submissions-(int-submission_id)-grade_history-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the grade history for the given submission.</p>
@@ -4742,7 +4742,7 @@ the grade history. (INCORRECT_PERMISSION)</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.work.GradeHistory" title="psef.models.work.GradeHistory"><code class="xref py py-class docutils literal notranslate"><span class="pre">GradeHistory</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-submissions-(int-submission_id)-grader">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><code class="sig-name descname">/grader</code><a class="headerlink" href="#delete--api-v1-submissions-(int-submission_id)-grader" title="Permalink to this definition">¶</a></dt>
 <dd><p>Change the assigned grader of the given submission.</p>
@@ -4762,7 +4762,7 @@ course of the submission. (INCORRECT_PERMISSION)</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-submissions-(int-submission_id)-grader">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><code class="sig-name descname">/grader</code><a class="headerlink" href="#patch--api-v1-submissions-(int-submission_id)-grader" title="Permalink to this definition">¶</a></dt>
 <dd><p>Change the assigned grader of the given submission.</p>
@@ -4791,7 +4791,7 @@ permission to grade this submission. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-submissions-(int-submission_id)-proxy">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><code class="sig-name descname">/proxy</code><a class="headerlink" href="#post--api-v1-submissions-(int-submission_id)-proxy" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a proxy to view the files of the given submission through.</p>
@@ -4824,7 +4824,7 @@ submission.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Proxy</span></code>]</p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-submissions-(int-submission_id)-rubricitems-">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><code class="sig-name descname">/rubricitems/</code><a class="headerlink" href="#patch--api-v1-submissions-(int-submission_id)-rubricitems-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Select the given rubric items for the given submission.</p>
@@ -4869,7 +4869,7 @@ the assignment of the given submission. of the submission
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.work.Work" title="psef.models.work.Work"><code class="xref py py-class docutils literal notranslate"><span class="pre">Work</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="delete">
+<dl class="http delete">
 <dt id="delete--api-v1-submissions-(int-submission_id)-rubricitems-(int-rubric_item_id)">
 <code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><code class="sig-name descname">/rubricitems/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">rubric_item_id</em><span class="sig-paren">)</span><a class="headerlink" href="#delete--api-v1-submissions-(int-submission_id)-rubricitems-(int-rubric_item_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Unselect the given rubric item for the given submission.</p>
@@ -4891,7 +4891,7 @@ the assignment of the given submission. of the submission
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="patch">
+<dl class="http patch">
 <dt id="patch--api-v1-submissions-(int-submission_id)-rubricitems-(int-rubricitem_id)">
 <code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><code class="sig-name descname">/rubricitems/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">rubricitem_id</em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-v1-submissions-(int-submission_id)-rubricitems-(int-rubricitem_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Select a rubric item of the given submission (<code class="xref py py-class docutils literal notranslate"><span class="pre">models.Work</span></code>).</p>
@@ -4930,7 +4930,7 @@ of the submission. (INVALID_PARAM)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-submissions-(int-submission_id)-rubrics-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/submissions/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">submission_id</em><span class="sig-paren">)</span><code class="sig-name descname">/rubrics/</code><a class="headerlink" href="#get--api-v1-submissions-(int-submission_id)-rubrics-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return full rubric of the <code class="xref py py-class docutils literal notranslate"><span class="pre">models.Assignment</span></code> of the given
@@ -4962,7 +4962,7 @@ given submission. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-task_results-(uuid-task_result_id)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/task_results/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">task_result_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-task_results-(uuid-task_result_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the state of a task result.</p>
@@ -4983,7 +4983,7 @@ given submission. (INCORRECT_PERMISSION)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.task_result.TaskResult" title="psef.models.task_result.TaskResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">TaskResult</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-user">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/user</code><a class="headerlink" href="#post--api-v1-user" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a new <code class="xref py py-class docutils literal notranslate"><span class="pre">models.User</span></code>.</p>
@@ -5020,7 +5020,7 @@ email. (INVALID_PARAM)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--api-v1-users-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/users/</code><a class="headerlink" href="#get--api-v1-users-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Search for a user by name and username.</p>
@@ -5056,7 +5056,7 @@ second. (RATE_LIMIT_EXCEEDED)</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<a class="reference internal" href="psef_api/psef.html#psef.models.user.User" title="psef.models.user.User"><code class="xref py py-class docutils literal notranslate"><span class="pre">User</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="post">
+<dl class="http post">
 <dt id="post--api-v1-webhooks-(uuid-webhook_id)">
 <code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/webhooks/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">webhook_id</em><span class="sig-paren">)</span><a class="headerlink" href="#post--api-v1-webhooks-(uuid-webhook_id)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Process a webhook request.</p>
@@ -5084,7 +5084,7 @@ content may change at any moment.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</p>
 </dd>
 </dl>
-<dl class="get">
+<dl class="http get">
 <dt id="get--static-(path-filename)">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/static/</code><span class="sig-paren">(</span><em class="property">path: </em><em class="sig-param">filename</em><span class="sig-paren">)</span><a class="headerlink" href="#get--static-(path-filename)" title="Permalink to this definition">¶</a></dt>
 <dd><p>Function used internally to send static files from the static

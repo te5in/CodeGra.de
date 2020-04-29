@@ -1239,7 +1239,7 @@
 <span class="sd">    :raises psef.errors.APIException: If the given JSON is not a dictionary.</span>
 <span class="sd">        (INVALID_PARAM)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">json_value</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">json_value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">log_object</span><span class="p">:</span>
             <span class="n">to_log</span> <span class="o">=</span> <span class="n">json_value</span>
             <span class="k">if</span> <span class="n">replace_log</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1707,8 +1707,12 @@
             <span class="p">}</span>
         <span class="p">)</span>
 
-<div class="viewcode-block" id="BrokerSession.request"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.BrokerSession.request">[docs]</a>    <span class="k">def</span> <span class="nf">request</span><span class="p">(</span>  <span class="c1"># pylint: disable=arguments-differ</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Text</span><span class="p">],</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span>
+<div class="viewcode-block" id="BrokerSession.request"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.BrokerSession.request">[docs]</a>    <span class="k">def</span> <span class="nf">request</span><span class="p">(</span>  <span class="c1"># pylint: disable=signature-differs</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">url</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Text</span><span class="p">],</span>
+        <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">requests</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Do a request to the AutoTest broker.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
