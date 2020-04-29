@@ -212,7 +212,7 @@ function onVueCreated($root) {
                 if (store.store.getters['user/dangerousJwtToken'] == null) {
                     msg = 'You are currently not logged in. Please log in to view this page.';
                 } else {
-                    msg = 'Your login token has expired. Please log in again to view this page.';
+                    msg = 'Your session has expired. Please log in again to view this page.';
                 }
 
                 if (router.currentRoute.name !== 'login') {
