@@ -155,13 +155,6 @@ export function capitalize(str: string): string {
     return str[0].toUpperCase() + str.substr(1);
 }
 
-export function titleCase(str: string): string {
-    return str
-        .split(' ')
-        .map(capitalize)
-        .join(' ');
-}
-
 export const getUniqueId = (() => {
     let id = 0;
     return () => id++;
