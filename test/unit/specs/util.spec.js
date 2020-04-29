@@ -1163,7 +1163,7 @@ describe('utils.js', () => {
         });
     });
 
-    describe.only('buildUrl', () => {
+    describe('buildUrl', () => {
         it('should be possible to give the path a raw string', () => {
             expect(buildUrl('/a/b/c')).toBe('/a/b/c');
             expect(buildUrl('a/b/')).toBe('a/b/');
@@ -1172,6 +1172,9 @@ describe('utils.js', () => {
         it('should give an absolute url if no host is given', () => {
             expect(buildUrl(['a', 'b', 'c'])).toBe('/a/b/c');
             expect(buildUrl(['a', 'b', ''])).toBe('/a/b/');
+            expect(buildUrl(['a', 'b'], {
+                addTrailingSlash: true,
+            })).toBe('/a/b/');
         }),
 
         it('should escape parts of the url', () => {
