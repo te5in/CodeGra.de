@@ -1039,7 +1039,7 @@ def ensure_json_dict(
     :raises psef.errors.APIException: If the given JSON is not a dictionary.
         (INVALID_PARAM)
     """
-    if isinstance(json_value, t.Dict):
+    if isinstance(json_value, dict):
         if log_object:
             to_log = json_value
             if replace_log is not None:
@@ -1507,8 +1507,12 @@ class BrokerSession(requests.Session):
             }
         )
 
-    def request(  # pylint: disable=arguments-differ
-        self, method: str, url: t.Union[str, bytes, t.Text], *args: t.Any, **kwargs: t.Any,
+    def request(  # pylint: disable=signature-differs
+        self,
+        method: str,
+        url: t.Union[str, bytes, t.Text],
+        *args: t.Any,
+        **kwargs: t.Any,
     ) -> requests.Response:
         """Do a request to the AutoTest broker.
         """
