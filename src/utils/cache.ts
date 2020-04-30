@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { fromEntries, hasAttr, AssertionError } from './typed';
 import { UNSET_SENTINEL } from '@/constants';
+import { fromEntries, hasAttr, AssertionError } from './typed';
 
 class Cache<T extends string> {
     private readonly _cache: Record<T, Object>;
 
     constructor(keys: T[]) {
-        this._cache = Object.seal(
-            fromEntries(keys.map(key => [key, UNSET_SENTINEL])),
-        );
+        this._cache = Object.seal(fromEntries(keys.map(key => [key, UNSET_SENTINEL])));
         Object.freeze(this);
     }
 
