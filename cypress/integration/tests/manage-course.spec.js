@@ -1,5 +1,5 @@
 context('Manage Course', () => {
-    const uniqueName = `ManageCourse ${Math.floor(Math.random() * 100000)}`;
+    const uniqueName = `ManageCourse %%5 / 5/ asdf ${Math.floor(Math.random() * 100000)}`;
     let course;
 
     before(() => {
@@ -85,7 +85,12 @@ context('Manage Course', () => {
 
         cy.get('.registration-links .submit-button').first().submit('success');
 
-        cy.get('.registration-links td:nth-child(2)').contains('/register/?course_register_link_id=');
+        cy.get('.registration-links td:nth-child(2)').then($el => {
+            const url = new URL($el.text());
+            expect(url.pathname).to.equal('/register/');
+            expect(url.searchParams.get('course_id')).to.equal(`${course.id}`);
+            expect(url.searchParams.get('register_for')).to.equal(uniqueName);
+        });
         cy.get('.registration-links td:nth-child(2)').first().find('code').then($code => {
             expect(getComputedStyle($code.get(0)).textDecoration).not.to.contain('line-through');
         });

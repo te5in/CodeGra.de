@@ -4,7 +4,7 @@ import moment from 'moment';
 import { getLanguage, highlight } from 'highlightjs';
 import { visualizeWhitespace } from './visualize';
 
-import { hasAttr } from './typed';
+import { hasAttr, getProps } from './typed';
 
 export * from './typed';
 
@@ -128,17 +128,6 @@ export function convertToUTC(timeStr) {
         .format('YYYY-MM-DDTHH:mm');
 }
 
-export function getProps(object, defaultValue, ...props) {
-    let res = object;
-    for (let i = 0; res != null && i < props.length; ++i) {
-        res = res[props[i]];
-    }
-    if (res == null) {
-        res = defaultValue;
-    }
-    return res;
-}
-
 export function setProps(object, value, ...props) {
     if (object == null) {
         throw new Error('Given object to set props on is null');
@@ -224,18 +213,6 @@ export class WarningHeader {
         }
         return new WarningHeader(this.messages.concat(other.messages));
     }
-}
-
-export function waitAtLeast(time, ...promises) {
-    const timeout = new Promise(resolve => setTimeout(resolve, time));
-
-    return Promise.all([timeout, ...promises]).then(vals => {
-        if (promises.length === 1) {
-            return vals[1];
-        } else {
-            return vals.slice(1);
-        }
-    });
 }
 
 export function getExtension(name) {
@@ -355,11 +332,6 @@ export function highlightCode(sourceArr, language, maxLen = 5000) {
     });
 }
 
-export const getUniqueId = (() => {
-    let id = 0;
-    return () => id++;
-})();
-
 export function deepCopy(value, maxDepth = 10, depth = 1) {
     if (depth > maxDepth) {
         throw new Error('Max depth reached');
@@ -375,18 +347,6 @@ export function deepCopy(value, maxDepth = 10, depth = 1) {
     } else {
         return value;
     }
-}
-
-export function capitalize(str) {
-    if (str.length === 0) return str;
-    return str[0].toUpperCase() + str.substr(1);
-}
-
-export function titleCase(str) {
-    return str
-        .split(' ')
-        .map(capitalize)
-        .join(' ');
 }
 
 export function withOrdinalSuffix(i) {
@@ -424,26 +384,6 @@ export function getErrorMessage(err) {
     }
 
     return msg || 'Something unknown went wrong';
-}
-
-// https://stackoverflow.com/questions/13405129/javascript-create-and-save-file
-export function downloadFile(data, filename, contentType) {
-    const file = new Blob([data], { type: contentType });
-    if (window.navigator.msSaveOrOpenBlob) {
-        // IE10+
-        window.navigator.msSaveOrOpenBlob(file, filename);
-    } else {
-        const url = URL.createObjectURL(file);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 0);
-    }
 }
 
 export function deepEquals(a, b) {
@@ -571,10 +511,6 @@ export function numberToTimes(number) {
     } else {
         return `${number} times`;
     }
-}
-
-export function ensureArray(obj) {
-    return Array.isArray(obj) ? obj : [obj];
 }
 
 export function isEmpty(obj) {
