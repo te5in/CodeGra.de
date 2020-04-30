@@ -54,9 +54,9 @@
                 </b-popover>
             </b-button>
 
-            <b-button v-b-popover.hover.top="'Feedback on other assignments'"
+            <b-button v-b-popover.hover.top="'Feedback on previous assignments'"
                       v-b-toggle.previous-assignments-sidebar>
-                <icon name="history" />
+                <icon name="archive" />
             </b-button>
 
             <b-sidebar id="previous-assignments-sidebar"
@@ -236,6 +236,7 @@ import 'vue-awesome/icons/edit';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/history';
+import 'vue-awesome/icons/archive';
 import 'vue-awesome/icons/envelope';
 import 'vue-awesome/icons/binoculars';
 import ResSplitPane from 'vue-resize-split-pane';
