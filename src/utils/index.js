@@ -1,37 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import moment from 'moment';
 
-import { getLanguage, highlight } from 'highlightjs';
-import { visualizeWhitespace } from './visualize';
-
-import { hasAttr, getProps } from './typed';
+import { hasAttr, getProps, coerceToString } from './typed';
 
 export * from './typed';
-
-const reUnescapedHtml = /[&<>"'`]/g;
-const reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
-/** Used to map characters to HTML entities. */
-const htmlEscapes = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-    '`': '&#96;',
-};
-export function htmlEscape(inputString) {
-    const string = typeof inputString === 'string' ? inputString : `${inputString}`;
-    if (string && reHasUnescapedHtml.test(string)) {
-        return string.replace(reUnescapedHtml, ent => htmlEscapes[ent]);
-    }
-    return string;
-}
-
-export function coerceToString(obj) {
-    if (obj == null) return '';
-    else if (typeof obj === 'string') return obj;
-    return `${obj}`;
-}
 
 export function formatGrade(grade) {
     const g = parseFloat(grade);
@@ -304,32 +276,6 @@ export function userMatches(user, filter) {
     return [nameOfUser(user), ...groupMembers(user)].some(
         name => name.toLocaleLowerCase().indexOf(filter) > -1,
     );
-}
-
-export function highlightCode(sourceArr, language, maxLen = 5000) {
-    if (sourceArr.length > maxLen) {
-        return sourceArr.map(htmlEscape);
-    }
-
-    if (getLanguage(language) === undefined) {
-        return sourceArr.map(htmlEscape).map(visualizeWhitespace);
-    }
-
-    let state = null;
-    const lastLineIdx = sourceArr.length - 1;
-
-    return sourceArr.map((line, idx) => {
-        const { top, value } = highlight(language, line, true, state);
-
-        state = top;
-        // Make sure that if the last line is empty we emit this as an empty
-        // line. We do this to make sure that our detection for trailing
-        // newlines (or actually the absence of them) works correctly.
-        if (idx === lastLineIdx && line === '') {
-            return visualizeWhitespace(htmlEscape(line));
-        }
-        return visualizeWhitespace(value);
-    });
 }
 
 export function deepCopy(value, maxDepth = 10, depth = 1) {

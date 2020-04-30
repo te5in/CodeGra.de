@@ -1,3 +1,36 @@
+// eslint-disable-next-line
+import type { ICompiledMode } from 'highlightjs';
+import { getLanguage, highlight } from 'highlightjs';
+
+import { visualizeWhitespace } from './visualize';
+
+export function coerceToString(obj: Object) {
+    if (obj == null) return '';
+    else if (typeof obj === 'string') return obj;
+    return `${obj}`;
+}
+
+
+const reUnescapedHtml = /[&<>"'`]/g;
+const reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
+/** Used to map characters to HTML entities. */
+const htmlEscapes: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+    '`': '&#96;',
+};
+export function htmlEscape(inputString: string) {
+    const str = coerceToString(inputString);
+    if (str && reHasUnescapedHtml.test(str)) {
+        return str.replace(reUnescapedHtml, ent => htmlEscapes[ent]);
+    }
+    return str;
+}
+
+
 export type AllOrNone<T> = T | { [K in keyof T]?: never };
 
 export function fromEntries<T>(vals: [string, T][]): Record<string, T> {
@@ -270,4 +303,32 @@ export function downloadFile(data: string, filename: string, contentType: string
             URL.revokeObjectURL(url);
         }, 0);
     }
+}
+
+export function highlightCode(
+    sourceArr: ReadonlyArray<string>, language: string, maxLen: number = 5000,
+) {
+    if (sourceArr.length > maxLen) {
+        return sourceArr.map(htmlEscape);
+    }
+
+    if (getLanguage(language) === undefined) {
+        return sourceArr.map(htmlEscape).map(visualizeWhitespace);
+    }
+
+    let state: ICompiledMode | undefined;
+    const lastLineIdx = sourceArr.length - 1;
+
+    return sourceArr.map((line, idx) => {
+        const { top, value } = highlight(language, line, true, state);
+
+        state = top;
+        // Make sure that if the last line is empty we emit this as an empty
+        // line. We do this to make sure that our detection for trailing
+        // newlines (or actually the absence of them) works correctly.
+        if (idx === lastLineIdx && line === '') {
+            return visualizeWhitespace(htmlEscape(line));
+        }
+        return visualizeWhitespace(value);
+    });
 }
