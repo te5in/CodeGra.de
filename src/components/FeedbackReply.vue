@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="feedback-reply" :id="componentId" v-b-visible="onVisible"
-     :class="{ 'focus': showFocus && replyIdToFocus === reply.id, editing, }">
+     :class="{ focus: showFocus && replyIdToFocus === reply.id, editing, }">
     <b-card no-body v-if="editing" class="mt-0">
         <b-tabs card
                 class="border-bottom">

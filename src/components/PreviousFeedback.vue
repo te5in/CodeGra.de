@@ -7,43 +7,57 @@
     {{ error }}
 </b-alert>
 
-<ol v-else
-    class="previous-feedback pl-0 border-top">
-    <li v-for="(sub, i) in sortedOtherSubmissions"
-        v-if="sub.id !== submission.id"
-        :key="sub.id"
-        class="border-bottom">
+<div v-else
+     class="previous-feedback h-100 overflow-auto">
+    <b-input-group class="p-3 border-top border-bottom sticky-top bg-light">
+        <input v-model="filter"
+               class="form-control"
+               placeholder="Filter feedback..."/>
+    </b-input-group>
 
-        <collapse :collapsed="i > 0">
-            <h4 slot="handle"
-                v-b-toggle="`previous-feedback-collapse-${sub.id}`"
-                class="p-3 mb-0 cursor-pointer"
-                :class="{
-                    'text-muted': feedbackCounts[sub.id] === 0,
-                }">
-                <div class="caret mr-2 float-left">+</div>
-                {{ sub.assignment.name }}
-                {{ sub.assignment.readableDeadline }}
+    <ol class="pl-0">
+        <li v-for="(sub, i) in sortedOtherSubmissions"
+            v-if="sub.id !== submission.id"
+            :key="sub.id"
+            class="border-bottom">
 
-                <small class="float-right">
-                    <cg-loader :scale="1" v-if="feedbackCounts[sub.id] == null" />
+            <collapse :collapsed="feedbackCounts[sub.id] === 0">
+                <h4 slot="handle"
+                    v-b-toggle="`previous-feedback-collapse-${sub.id}`"
+                    class="p-3 mb-0 cursor-pointer"
+                    :class="{
+                        'text-muted': feedbackCounts[sub.id] === 0,
+                    }">
+                    <div class="caret mr-2 float-left">+</div>
 
-                    <b-badge v-else
-                             variant="primary"
-                             title="Comments on this submission">
-                        {{ feedbackCounts[sub.id] }}
-                    </b-badge>
-                </small>
-            </h4>
+                    {{ sub.assignment.name }}
 
-            <feedback-overview
-                :assignment="sub.assignment"
-                :submission="sub"
-                show-inline-feedback
-                :non-editable="true" />
-        </collapse>
-    </li>
-</ol>
+                    <small v-if="sub.grade != null"
+                          class="font-italic">
+                        (graded: {{ sub.grade }})
+                    </small>
+
+                    <small class="float-right">
+                        <cg-loader :scale="1" v-if="feedbackCounts[sub.id] == null" />
+
+                        <b-badge v-else
+                                variant="primary"
+                                title="Comments on this submission">
+                            {{ feedbackCounts[sub.id] }}
+                        </b-badge>
+                    </small>
+                </h4>
+
+                <feedback-overview
+                    :assignment="sub.assignment"
+                    :submission="sub"
+                    show-inline-feedback
+                    :non-editable="true"
+                    :filter="filter" />
+            </collapse>
+        </li>
+    </ol>
+</div>
 </template>
 
 <script>
@@ -69,6 +83,7 @@ export default {
         return {
             loading: true,
             error: null,
+            filter: '',
             otherSubmissions: [],
         };
     },

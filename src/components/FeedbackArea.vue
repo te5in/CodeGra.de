@@ -18,11 +18,13 @@
                 </a>
                 <template v-else>
                     <div v-if="idx !== 0"
-                        class="pr-1 reply-gutter">
+                        class="pr-1 reply-gutter"
+                        :class="{ faded: shouldFadeReply(feedback, reply) }">
                         <icon name="caret-right" class="reply-icon" />
                     </div>
                     <feedback-reply
                         class="d-block"
+                        :class="{ faded: shouldFadeReply(feedback, reply) }"
                         :can-use-snippets="canUseSnippets"
                         :reply="reply"
                         :feedback-line="feedback"
@@ -98,6 +100,9 @@ export default class FeedbackArea extends Vue {
     @Prop({ required: true }) readonly totalAmountLines!: number;
 
     @Prop({ default: false }) readonly nonEditable!: boolean;
+
+    @Prop({ default: () => false })
+    readonly shouldFadeReply!: (threadId: number, replyId: number) => boolean;
 
     editingReplies: Record<string, boolean> = {};
 
@@ -235,6 +240,10 @@ export default class FeedbackArea extends Vue {
 
     &.editing .reply-gutter {
         opacity: 0;
+    }
+
+    .faded {
+        opacity: 50%;
     }
 }
 

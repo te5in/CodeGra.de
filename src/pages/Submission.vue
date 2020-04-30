@@ -66,8 +66,7 @@
                        shadow="sm"
                        no-close-on-esc
                        lazy>
-                <previous-feedback :assignment="assignment"
-                                   :submission="submission" />
+                <previous-feedback :submission="submission" />
             </b-sidebar>
 
             <b-button v-if="canEmailStudents"

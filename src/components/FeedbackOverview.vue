@@ -23,10 +23,15 @@
 
         <b-card v-if="fileIds.length === 0"
                 header="Inline feedback"
-                class="inline-feedback">
-            <span class="text-muted font-italic">
+                class="inline-feedback"
+                body-class="text-muted font-italic">
+            <template v-if="filter">
+                No comments found that match the filter.
+            </template>
+
+            <template v-else>
                 This submission has no line comments.
-            </span>
+            </template>
         </b-card>
 
         <template v-else>
@@ -71,7 +76,9 @@
                                        :start-line="part[0]"
                                        :end-line="part[1]"
                                        :show-whitespace="showWhitespace"
-                                       :non-editable="nonEditable" />
+                                       :non-editable="nonEditable"
+                                       :should-render-thread="shouldRenderThread"
+                                       :should-fade-reply="shouldFadeReply"/>
                 </div>
             </b-card>
         </template>
@@ -83,6 +90,7 @@
 import { mapActions, mapGetters } from 'vuex';
 
 import { Assignment, Submission } from '@/models';
+import { mapObject } from '@/utils';
 import decodeBuffer from '@/utils/decode';
 
 import Loader from './Loader';
@@ -113,6 +121,10 @@ export default {
             type: Boolean,
             default: false,
         },
+        filter: {
+            type: String,
+            default: null,
+        },
     },
 
     data() {
@@ -142,6 +154,37 @@ export default {
             return this.submission.feedback;
         },
 
+        filteredUserFeedback() {
+            if (this.feedback == null) {
+                return null;
+            }
+
+            if (this.filter == null || this.filter === '') {
+                return mapObject(this.feedback.user, fileFb =>
+                    mapObject(fileFb, thread => new Set(thread.replies.map(reply => reply.id))),
+                );
+            }
+
+            const regex = new RegExp(this.filter, 'i');
+
+            return Object.entries(this.feedback.user).reduce((fb, [fileId, fileFb]) => {
+                const filteredFileFb = Object.values(fileFb).reduce((acc, thread) => {
+                    const matchingReplies = thread.replies.filter(reply =>
+                        regex.test(reply.message),
+                    );
+                    console.log('matches', thread, matchingReplies);
+                    if (matchingReplies.length > 0) {
+                        acc[thread.line] = new Set(matchingReplies.map(reply => reply.id));
+                    }
+                    return acc;
+                }, {});
+                if (Object.keys(filteredFileFb).length > 0) {
+                    fb[fileId] = filteredFileFb;
+                }
+                return fb;
+            }, {});
+        },
+
         fileIds() {
             // Because the submission's fileTree and feedback are loaded simultaneously, it is
             // possible that the fileTree is not set when the feedback changes. The rest of the
@@ -151,7 +194,7 @@ export default {
             if (this.fileTree == null || this.feedback == null) {
                 return [];
             }
-            return Object.keys(this.feedback.user);
+            return Object.keys(this.filteredUserFeedback);
         },
 
         nonDisabledFileIds() {
@@ -335,7 +378,7 @@ export default {
         getParts(fileId) {
             const last = this.$utils.last;
             const lines = this.codeLines[fileId];
-            const feedback = this.feedback.user[fileId];
+            const feedback = this.filteredUserFeedback[fileId];
 
             const ret = Object.keys(feedback).reduce((res, lineStr) => {
                 const line = Number(lineStr);
@@ -352,6 +395,20 @@ export default {
             }, []);
 
             return ret;
+        },
+
+        shouldRenderThread(thread) {
+            return this.$utils.getProps(
+                this.filteredUserFeedback,
+                null,
+                thread.fileId,
+                thread.line,
+            ) != null;
+        },
+
+        shouldFadeReply(thread, reply) {
+            return this.shouldRenderThread(thread) &&
+                !this.filteredUserFeedback[thread.fileId][thread.line].has(reply.id);
         },
     },
 

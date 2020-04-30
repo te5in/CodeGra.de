@@ -79,7 +79,8 @@
                 :can-use-snippets="canUseSnippets"
                 :submission="submission"
                 :non-editable="nonEditable"
-                v-if="hasFeedback(i - 1)"/>
+                :should-fade-reply="shouldFadeReply"
+                v-if="hasFeedback(i - 1) && shouldRenderThread(feedback[i - 1 + lineFeedbackOffset])"/>
         </li>
         <li class="empty-file"
             v-if="innerCodeLines.length === 1 && innerCodeLines[0] === ''">
@@ -199,6 +200,14 @@ export default {
         nonEditable: {
             type: Boolean,
             default: false,
+        },
+        shouldRenderThread: {
+            type: Function,
+            default: () => true,
+        },
+        shouldFadeReply: {
+            type: Function,
+            default: () => false,
         },
     },
 
