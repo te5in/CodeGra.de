@@ -164,8 +164,8 @@ export default {
     data() {
         return {
             mineOnly: parseBool(this.$route.query.mine, null),
-            sortAsc: true,
-            sortBy: 'user',
+            sortAsc: parseBool(this.$route.query.sortAsc, true),
+            sortBy: this.$route.query.sortBy || 'user',
             filter: this.$route.query.q || '',
             assignees: [],
             assigneeUpdating: [],

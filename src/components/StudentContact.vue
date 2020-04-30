@@ -267,7 +267,7 @@ export default class StudentContact extends Vue {
     }
 
     get canListUsers() {
-        const perms = this.$utils.getProps(this.course, {}, 'permissions');
+        const perms = this.$utils.getProps(this.course, <Record<string, boolean>>{}, 'permissions');
         return !!(perms.can_list_course_users);
     }
 
@@ -278,7 +278,7 @@ export default class StudentContact extends Vue {
         }
     }
 
-    maybeSetDeliveryError(e: Error) {
+    maybeSetDeliveryError(e: Error & { response?: { data?: { code?: string } } }) {
         if (this.$utils.getProps(e, null, 'response', 'data', 'code') === 'MAILING_FAILED') {
             this.deliveryError = e;
         }

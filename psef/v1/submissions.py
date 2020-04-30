@@ -988,7 +988,7 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
 
         raise APIException(
             'Invalid filenames',
-            f'Some requested names are reserved',
+            'Some requested names are reserved',
             APICodes.INVALID_PARAM,
             400,
         )

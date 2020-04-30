@@ -303,7 +303,7 @@ class Checkstyle(Linter):
         if list(prop):
             raise ValidationException(
                 'The given config is not valid',
-                f'A property cannot have children'
+                'A property cannot have children'
             )
 
     @classmethod
