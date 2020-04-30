@@ -19,12 +19,12 @@
                 <template v-else>
                     <div v-if="idx !== 0"
                         class="pr-1 reply-gutter"
-                        :class="{ faded: shouldFadeReply(feedback, reply) }">
+                        :class="{ faded: fadedReplies.has(reply.trackingId) }">
                         <icon name="caret-right" class="reply-icon" />
                     </div>
                     <feedback-reply
                         class="d-block"
-                        :class="{ faded: shouldFadeReply(feedback, reply) }"
+                        :class="{ faded: fadedReplies.has(reply.trackingId) }"
                         :can-use-snippets="canUseSnippets"
                         :reply="reply"
                         :feedback-line="feedback"
@@ -102,7 +102,7 @@ export default class FeedbackArea extends Vue {
     @Prop({ default: false }) readonly nonEditable!: boolean;
 
     @Prop({ default: () => false })
-    readonly shouldFadeReply!: (threadId: number, replyId: number) => boolean;
+    readonly shouldFadeReply!: (thread: FeedbackLine, reply: FeedbackReplyModel) => boolean;
 
     editingReplies: Record<string, boolean> = {};
 
@@ -185,6 +185,23 @@ export default class FeedbackArea extends Vue {
 
     get replies(): ReadonlyArray<FeedbackReplyModel> {
         return this.feedback.replies;
+    }
+
+    get fadedReplies() {
+        return new Set(
+            this.nonDeletedReplies.filter(reply =>
+                this.shouldFadeReply(this.feedback, reply),
+            ).map(reply => reply.trackingId),
+        );
+    }
+
+    @Watch('fadedReplies', { immediate: true })
+    onFadedReplies() {
+        const hasFaded = this.fadedReplies.size > 0;
+        const unfadedHidden = [...this.hiddenReplies].map(r => !this.fadedReplies.has(r));
+        if (hasFaded && unfadedHidden.some(x => x)) {
+            this.showAllReplies();
+        }
     }
 
     isEditing(reply: FeedbackReplyModel): boolean {
