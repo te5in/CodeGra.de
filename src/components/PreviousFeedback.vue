@@ -53,7 +53,8 @@
                     :submission="sub"
                     show-inline-feedback
                     :non-editable="true"
-                    :filter="filter" />
+                    :filter="filter"
+                    hide-empty-general/>
             </collapse>
         </li>
     </ol>

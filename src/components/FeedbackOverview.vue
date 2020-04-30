@@ -10,10 +10,17 @@
     The feedback is not yet available.
 </div>
 
+<div v-else-if="hideEmptyGeneral && !generalFeedback && !hasUserFeedback"
+     class="feedback-overview p-3 border rounded font-italic text-muted"
+     style="background: white">
+    No feedback given.
+</div>
+
 <div v-else class="feedback-overview border rounded">
     <div class="scroller">
         <b-card header="General feedback"
-                class="general-feedback">
+                class="general-feedback"
+                v-if="!hideEmptyGeneral || generalFeedback">
             <pre v-if="generalFeedback"
                  class="text-wrap-pre mb-0">{{ generalFeedback }}</pre>
             <span v-else class="text-muted font-italic">
@@ -26,11 +33,11 @@
                 class="inline-feedback"
                 body-class="text-muted font-italic">
             <template v-if="filter">
-                No comments found that match the filter.
+                No comments match the filter.
             </template>
 
             <template v-else>
-                This submission has no line comments.
+                This submission has no inline feedback.
             </template>
         </b-card>
 
@@ -55,7 +62,8 @@
                                    :total-amount-lines="0"
                                    :assignment="assignment"
                                    :submission="submission"
-                                   :nonEditable="nonEditable" />
+                                   :non-editable="nonEditable"
+                                   :should-fade-reply="shouldFadeReply"/>
                 </div>
 
                 <div v-else-if="codeLines[id] == null">
@@ -125,6 +133,10 @@ export default {
             type: String,
             default: null,
         },
+        hideEmptyGeneral: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     data() {
@@ -172,7 +184,6 @@ export default {
                     const matchingReplies = thread.replies.filter(reply =>
                         regex.test(reply.message),
                     );
-                    console.log('matches', thread, matchingReplies);
                     if (matchingReplies.length > 0) {
                         acc[thread.line] = new Set(matchingReplies.map(reply => reply.id));
                     }
@@ -211,6 +222,10 @@ export default {
 
         canSeeFeedback() {
             return this.assignment.canSeeUserFeedback();
+        },
+
+        hasUserFeedback() {
+            return Object.keys(this.feedback.user).length > 0;
         },
     },
 
