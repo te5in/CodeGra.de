@@ -5,31 +5,8 @@ import { hasAttr, getProps, coerceToString } from './typed';
 
 export * from './typed';
 
-export function formatGrade(grade) {
-    const g = parseFloat(grade);
-    return Number.isNaN(g) ? null : g.toFixed(2);
-}
-
 export function formatTimePart(num) {
     return `${num < 10 ? '0' : ''}${num}`;
-}
-
-export function toMaxNDecimals(num, n) {
-    if (num == null) {
-        return null;
-    }
-
-    let str = num.toFixed(n);
-    if (n === 0) {
-        return str;
-    }
-    while (str[str.length - 1] === '0') {
-        str = str.slice(0, -1);
-    }
-    if (str[str.length - 1] === '.') {
-        str = str.slice(0, -1);
-    }
-    return str;
 }
 
 export function cmpOneNull(first, second) {
@@ -72,26 +49,6 @@ export function parseBool(value, dflt = true) {
     else if (value === 'true') return true;
 
     return dflt;
-}
-
-function toMoment(date) {
-    if (moment.isMoment(date)) {
-        return date.clone();
-    } else {
-        return moment.utc(date, moment.ISO_8601);
-    }
-}
-
-export function formatDate(date) {
-    return toMoment(date)
-        .local()
-        .format('YYYY-MM-DDTHH:mm');
-}
-
-export function readableFormatDate(date) {
-    return toMoment(date)
-        .local()
-        .format('YYYY-MM-DD HH:mm');
 }
 
 export function convertToUTC(timeStr) {
@@ -332,20 +289,6 @@ export function getErrorMessage(err) {
     return msg || 'Something unknown went wrong';
 }
 
-export function deepEquals(a, b) {
-    if (typeof a !== 'object') {
-        return a === b;
-    } else if (a == null || b == null) {
-        // eslint-disable-next-line eqeqeq
-        return a == b;
-    } else if (typeof b !== 'object') {
-        return false;
-    } else {
-        const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-        return [...keys].every(key => deepEquals(a[key], b[key]));
-    }
-}
-
 export function deepExtend(target, ...sources) {
     sources.forEach(source => {
         Object.entries(source).forEach(([key, val]) => {
@@ -438,11 +381,6 @@ export function getNoNull(prop, ...objs) {
         }
     }
     return null;
-}
-
-// Get all items that are either in set A or in set B, but not in both.
-export function setXor(A, B) {
-    return new Set([...A, ...B].filter(el => A.has(el) ^ B.has(el)));
 }
 
 export function numberToTimes(number) {

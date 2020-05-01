@@ -1,12 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
-export const MANAGE_AUTOTEST_PERMISSIONS = Object.freeze([
+export const MANAGE_AUTOTEST_PERMISSIONS = Object.freeze(<const>[
     'can_run_autotest',
     'can_delete_autotest_run',
     'can_edit_autotest',
 ]);
 
-export const MANAGE_ASSIGNMENT_PERMISSIONS = Object.freeze([
+export const MANAGE_ASSIGNMENT_PERMISSIONS = Object.freeze(<const>[
     'can_edit_assignment_info',
     'can_assign_graders',
     'can_edit_cgignore',
@@ -24,7 +23,7 @@ export const MANAGE_ASSIGNMENT_PERMISSIONS = Object.freeze([
     ...MANAGE_AUTOTEST_PERMISSIONS,
 ]);
 
-export const MANAGE_GENERAL_COURSE_PERMISSIONS = Object.freeze([
+export const MANAGE_GENERAL_COURSE_PERMISSIONS = Object.freeze(<const>[
     'can_edit_course_users',
     'can_edit_course_roles',
     'can_edit_group_set',
@@ -33,11 +32,11 @@ export const MANAGE_GENERAL_COURSE_PERMISSIONS = Object.freeze([
     'can_email_students',
 ]);
 
-export const MANAGE_COURSE_PERMISSIONS = Object.freeze([
+export const MANAGE_COURSE_PERMISSIONS = Object.freeze(<const>[
     ...new Set([...MANAGE_ASSIGNMENT_PERMISSIONS, ...MANAGE_GENERAL_COURSE_PERMISSIONS]),
 ]);
 
-export const MANAGE_SITE_PERIMSSIONS = Object.freeze([
+export const MANAGE_SITE_PERIMSSIONS = Object.freeze(<const>[
     'can_manage_site_users',
     'can_impersonate_users',
 ]);
@@ -45,9 +44,9 @@ export const MANAGE_SITE_PERIMSSIONS = Object.freeze([
 export const PASSWORD_UNIQUE_MESSAGE =
     'Please make sure you use a unique password, and at least different from the password you use for your LMS.';
 
-export const NO_LOGIN_ALLOWED_ROUTES = new Set(['login', 'register']);
+export const NO_LOGIN_ALLOWED_ROUTES = new Set(<const>['login', 'register']);
 
-export const NO_LOGIN_REQUIRED_ROUTES = new Set([
+export const NO_LOGIN_REQUIRED_ROUTES = new Set(<const>[
     'login',
     'forgot',
     'reset-password',
@@ -57,43 +56,47 @@ export const NO_LOGIN_REQUIRED_ROUTES = new Set([
     'unsubscribe',
 ]);
 
-export const NO_SIDEBAR_ROUTES = new Set(['lti-launch', 'unsubscribe']);
+export const NO_SIDEBAR_ROUTES = new Set(<const>['lti-launch', 'unsubscribe']);
 
-export const NO_FOOTER_ROUTES = new Set(['submission', 'submission_file', 'plagiarism_detail']);
+export const NO_FOOTER_ROUTES = new Set(<const>[
+    'submission',
+    'submission_file',
+    'plagiarism_detail',
+]);
 
 // Indicates an object in the store that has been requested but not returned by
 // the server, e.g. if it does not exist or the user has no permission to see
 // the object.
-export const NONEXISTENT = {} as const;
+export const NONEXISTENT = Object.freeze({ _NONEXISTANT: true });
 
 // Indicates that a value has not yet been set (e.g. in a model cache).
-export const UNSET_SENTINEL = {} as const;
+export const UNSET_SENTINEL = Object.freeze({ _UNSET_SENTINEL: true });
 
 export const RUBRIC_BADGE_AT =
     '<div class="ml-1 badge badge-primary" title="This is an AutoTest category">AT</div>';
 
 export const COLOR_PAIRS = Object.freeze(
     [
-        { background: 'rgb( 44,  62,  80)', color: 'light' },
-        { background: 'rgb(112, 163, 162)', color: 'dark' },
-        { background: 'rgb(203,  84,  82)', color: 'light' },
-        { background: 'rgb(234, 182, 108)', color: 'dark' },
-        { background: 'rgb(214, 206,  91)', color: 'dark' },
-        { background: 'rgb(167, 174, 145)', color: 'dark' },
-        { background: 'rgb(223, 211, 170)', color: 'dark' },
-        { background: 'rgb(149, 111,  72)', color: 'light' },
-        { background: 'rgb(101, 104, 108)', color: 'light' },
-        { background: 'rgb( 89, 141, 134)', color: 'light' },
-        { background: 'rgb(217, 126, 113)', color: 'dark' },
-        { background: 'rgb(223, 184, 121)', color: 'dark' },
-        { background: 'rgb( 79,  95,  86)', color: 'light' },
-        { background: 'rgb(234, 219, 147)', color: 'dark' },
-        { background: 'rgb(204,  58,  40)', color: 'light' },
-        { background: 'rgb(215, 206, 166)', color: 'dark' },
-        { background: 'rgb( 93, 141, 125)', color: 'light' },
-        { background: 'rgb(230, 220, 205)', color: 'dark' },
-        { background: 'rgb(180, 174, 164)', color: 'dark' },
-        { background: 'rgb(210, 207, 159)', color: 'dark' },
-        { background: 'rgb(231, 238, 233)', color: 'dark' },
-    ].map(Object.freeze),
+        <const>{ background: 'rgb( 44,  62,  80)', color: 'light' },
+        <const>{ background: 'rgb(112, 163, 162)', color: 'dark' },
+        <const>{ background: 'rgb(203,  84,  82)', color: 'light' },
+        <const>{ background: 'rgb(234, 182, 108)', color: 'dark' },
+        <const>{ background: 'rgb(214, 206,  91)', color: 'dark' },
+        <const>{ background: 'rgb(167, 174, 145)', color: 'dark' },
+        <const>{ background: 'rgb(223, 211, 170)', color: 'dark' },
+        <const>{ background: 'rgb(149, 111,  72)', color: 'light' },
+        <const>{ background: 'rgb(101, 104, 108)', color: 'light' },
+        <const>{ background: 'rgb( 89, 141, 134)', color: 'light' },
+        <const>{ background: 'rgb(217, 126, 113)', color: 'dark' },
+        <const>{ background: 'rgb(223, 184, 121)', color: 'dark' },
+        <const>{ background: 'rgb( 79,  95,  86)', color: 'light' },
+        <const>{ background: 'rgb(234, 219, 147)', color: 'dark' },
+        <const>{ background: 'rgb(204,  58,  40)', color: 'light' },
+        <const>{ background: 'rgb(215, 206, 166)', color: 'dark' },
+        <const>{ background: 'rgb( 93, 141, 125)', color: 'light' },
+        <const>{ background: 'rgb(230, 220, 205)', color: 'dark' },
+        <const>{ background: 'rgb(180, 174, 164)', color: 'dark' },
+        <const>{ background: 'rgb(210, 207, 159)', color: 'dark' },
+        <const>{ background: 'rgb(231, 238, 233)', color: 'dark' },
+    ].map(x => Object.freeze(x)), // This `x` is needed for type inference.
 );

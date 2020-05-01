@@ -1,15 +1,33 @@
+import moment from 'moment';
 // eslint-disable-next-line
 import type { ICompiledMode } from 'highlightjs';
 import { getLanguage, highlight } from 'highlightjs';
 
 import { visualizeWhitespace } from './visualize';
 
-export function coerceToString(obj: Object) {
+export class Right<T> {
+    static readonly tag = 'right';
+
+    constructor(public result: T) {
+        Object.freeze(this);
+    }
+}
+export class Left<T> {
+    static readonly tag = 'left';
+
+    constructor(public error: T) {
+        Object.freeze(this);
+    }
+}
+export type Either<T, TT> = Left<T> | Right<TT>;
+
+export type ValueOf<T> = T[keyof T];
+
+export function coerceToString(obj: Object | null | undefined) {
     if (obj == null) return '';
     else if (typeof obj === 'string') return obj;
     return `${obj}`;
 }
-
 
 const reUnescapedHtml = /[&<>"'`]/g;
 const reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
@@ -33,7 +51,7 @@ export function htmlEscape(inputString: string) {
 
 export type AllOrNone<T> = T | { [K in keyof T]?: never };
 
-export function fromEntries<T>(vals: [string, T][]): Record<string, T> {
+export function fromEntries<T>(vals: [string | number, T][]): Record<string, T> {
     return (Object as any).fromEntries(vals);
 }
 
@@ -48,8 +66,17 @@ export function filterObject<T>(
     return fromEntries(Object.entries(obj).filter(([key, val]) => f(val, key)));
 }
 
-export function mapObject<T, V>(
+export function forEachObject<T, V>(
     obj: { [key: string]: T },
+    fun: (v: T, k: string) => V,
+): void {
+    Object.entries(obj).forEach(([key, val]) => [key, fun(val, key)]);
+}
+
+type KeyLike = string | number;
+
+export function mapObject<T, V>(
+    obj: Record<KeyLike, T>,
     fun: (v: T, k: string) => V,
 ): Record<string, V> {
     return fromEntries(Object.entries(obj).map(([key, val]) => [key, fun(val, key)]));
@@ -83,6 +110,7 @@ export function flatMap1<T, TT>(
 }
 
 export function zip<T, Y>(a: T[], b: Y[]): [T, Y][];
+export function zip<T, Y>(...a: [T, Y][]): [T[], Y[]];
 export function zip(...lists: any[][]): any {
     if (lists.length === 0) {
         return [];
@@ -99,17 +127,17 @@ export function zip(...lists: any[][]): any {
     return acc;
 }
 
-export function unzip2<T, Y>(arr: [T, Y][]): [T[], Y[]] {
+export function unzip2<T, Y>(arr: readonly (readonly [T, Y])[]): [T[], Y[]] {
     const base: [T[], Y[]] = [[], []];
 
-    return arr.reduce((acc, item: [T, Y]) => {
+    return arr.reduce((acc, item: readonly [T, Y]) => {
         acc[0].push(item[0]);
         acc[1].push(item[1]);
         return acc;
     }, base);
 }
 
-export function flat1<T>(arr: T[][]): T[] {
+export function flat1<T>(arr: readonly (readonly T[])[]): Readonly<T[]> {
     return arr.reduce((acc, elem) => acc.concat(elem), []);
 }
 
@@ -216,10 +244,10 @@ export function waitAtLeast<T>(time: number, ...promises: Promise<T>[]): Promise
 }
 
 export function getProps<TObj extends object, TKey extends keyof TObj, TDefault>(
-    object: TObj,
+    object: TObj | null | undefined,
     defaultValue: TDefault,
     prop: TKey,
-): Exclude<TObj[TKey], undefined> | TDefault;
+): Exclude<TObj[TKey], undefined | null> | TDefault;
 
 export function getProps<TObj extends object, TKey extends keyof TObj, TDefault>(
     object: TObj,
@@ -331,4 +359,132 @@ export function highlightCode(
         }
         return visualizeWhitespace(value);
     });
+}
+
+export function deepEquals(a: any, b: any): boolean {
+    if (typeof a !== 'object') {
+        return a === b;
+    } else if (a == null || b == null) {
+        // eslint-disable-next-line eqeqeq
+        return a == b;
+    } else if (typeof b !== 'object') {
+        return false;
+    } else {
+        const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+        return [...keys].every(key => deepEquals(a[key], b[key]));
+    }
+}
+
+function toMoment(date: moment.Moment | string): moment.Moment {
+    if (moment.isMoment(date)) {
+        return date.clone();
+    } else {
+        return moment.utc(date, moment.ISO_8601);
+    }
+}
+
+export function readableFormatDate(date: moment.Moment | string): string {
+    return toMoment(date)
+        .local()
+        .format('YYYY-MM-DD HH:mm');
+}
+
+export function filterMap<T, TT>(
+    arr: ReadonlyArray<T>, filterMapper: (arg: T) => Either<unknown, TT>,
+): TT[] {
+    return arr.reduce((acc: TT[], item) => {
+        const toAdd = filterMapper(item);
+        if (toAdd instanceof Right) {
+            acc.push(toAdd.result);
+        }
+        return acc;
+    }, []);
+}
+
+export function formatGrade(grade: string | number): string | null {
+    let g;
+    if (typeof grade !== 'number') {
+        g = parseFloat(grade);
+    } else {
+        g = grade;
+    }
+    return Number.isNaN(g) ? null : g.toFixed(2);
+}
+
+
+// Get all items that are either in set A or in set B, but not in both.
+export function setXor<T>(A: Set<T>, B: Set<T>): Set<T> {
+    return new Set([...A, ...B].filter(el => {
+        const hasA = A.has(el);
+        if (hasA) {
+            return !B.has(el);
+        } else {
+            return B.has(el);
+        }
+    }));
+}
+
+export function toMaxNDecimals<T extends number | number | undefined>(
+    num: T, n: number
+): T extends number ? string : null;
+export function toMaxNDecimals(num: number | null | undefined, n: number): string | null {
+    if (num == null) {
+        return null;
+    }
+
+    let str = num.toFixed(n);
+    if (n === 0) {
+        return str;
+    }
+    while (str[str.length - 1] === '0') {
+        str = str.slice(0, -1);
+    }
+    if (str[str.length - 1] === '.') {
+        str = str.slice(0, -1);
+    }
+    return str;
+}
+
+export function parseOrKeepFloat(num: string | number | null | undefined): number {
+    if (typeof num === 'number') {
+        return num;
+    } else if (num == null) {
+        return NaN;
+    }
+    return parseFloat(num);
+}
+
+export function formatDate(date: string | moment.Moment): string {
+    return toMoment(date)
+        .local()
+        .format('YYYY-MM-DDTHH:mm');
+}
+
+export function mapToObject<T extends Object, KK extends keyof T = keyof T>(
+    arr: ReadonlyArray<KK>,
+    // eslint-disable-next-line no-undef
+    mapper: (el: KK, index: number) => [KK, T[typeof el]],
+    initial: T = <T>{},
+): T {
+    return arr.reduce((acc, el, index) => {
+        const [key, value] = mapper(el, index);
+        acc[key] = value;
+        return acc;
+    }, initial);
+}
+
+export function mapFilterObject<T, V>(
+    obj: Record<KeyLike, T>,
+    fun: (v: T, k: string) => Either<unknown, V>,
+): Record<string, V> {
+    return fromEntries(filterMap(
+        Object.entries(obj),
+        ([key, val]) => {
+            const either = fun(val, key);
+            if (either instanceof Right) {
+                return new Right([key, either.result]);
+            }
+            return either;
+        },
+    ));
 }
