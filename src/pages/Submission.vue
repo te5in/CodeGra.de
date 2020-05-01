@@ -178,6 +178,10 @@
                            :class="{ active: currentSidebarTab === tab.id }"
                            v-b-popover.top.hover.window="tab.help"
                            @click.prevent="currentSidebarTab = tab.id">
+                            <icon v-if="tab.icon"
+                                  :name="tab.icon"
+                                  class="mr-1"
+                                  style="transform: translateY(-2px);"/>
                             {{ tab.name }}
                         </a>
                     </div>
@@ -241,7 +245,8 @@ import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/history';
 import 'vue-awesome/icons/archive';
 import 'vue-awesome/icons/envelope';
-import 'vue-awesome/icons/binoculars';
+import 'vue-awesome/icons/comment';
+import 'vue-awesome/icons/folder';
 import ResSplitPane from 'vue-resize-split-pane';
 
 import { mapGetters, mapActions } from 'vuex';
@@ -529,6 +534,7 @@ export default {
                     id: 'files',
                     name: 'Files',
                     help: 'Show the files of this submission.',
+                    icon: 'folder',
                 },
             ];
 
@@ -537,6 +543,7 @@ export default {
                     id: 'feedback',
                     name: 'Feedback',
                     help: 'Show feedback given on previous assignments in this course.',
+                    icon: 'comment',
                 });
             }
 
