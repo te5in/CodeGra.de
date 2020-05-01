@@ -149,7 +149,8 @@
                        :is="$root.$isLargeWindow ? 'rs-panes' : 'div'"
                        allow-resize
                        split-to="columns"
-                       :size="75"
+                       @update:size="splitRatio = $event"
+                       :size="splitRatio"
                        :step="50"
                        units="percents"
                        class="code-wrapper"
@@ -289,6 +290,7 @@ export default {
             selectedCat: '',
             hiddenCats: new Set(),
 
+            splitRatio: 75,
             currentSidebarTab: 'files',
 
             showWhitespace: true,
@@ -723,6 +725,15 @@ export default {
             immediate: true,
             handler() {
                 this.hiddenCats.delete(this.selectedCat);
+            },
+        },
+
+        currentSidebarTab: {
+            immediate: true,
+            handler(newVal) {
+                if (newVal === 'feedback') {
+                    this.splitRatio = Math.min(50, this.splitRatio);
+                }
             },
         },
     },
