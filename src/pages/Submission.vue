@@ -168,7 +168,8 @@
                              :language="selectedLanguage"
                              @language="languageChanged" />
 
-                <div class="submission-sidebar d-flex flex-column border rounded p-0 mt-3 mt-lg-0" slot="secondPane">
+                <div class="submission-sidebar d-flex flex-column border rounded p-0 mt-3 mt-lg-0"
+                     slot="secondPane">
                     <div v-if="sidebarTabs.length > 0"
                          class="flex-grow-0 d-flex flex-row border-bottom text-center cursor-pointer">
                         <a v-for="tab in sidebarTabs"
@@ -181,15 +182,14 @@
                         </a>
                     </div>
 
-                    <div class="flex-grow-1 overflow-auto">
-                        <file-tree v-if="currentSidebarTab === 'files'"
-                                   :assignment="assignment"
-                                   :submission="submission"
-                                   :revision="revision" />
+                    <file-tree v-if="currentSidebarTab === 'files'"
+                               class="flex-grow-1"
+                               :assignment="assignment"
+                               :submission="submission"
+                               :revision="revision" />
 
-                        <previous-feedback v-if="currentSidebarTab === 'feedback'"
-                                           :submission="submission" />
-                    </div>
+                    <previous-feedback v-if="currentSidebarTab === 'feedback'"
+                                       :submission="submission" />
                 </div>
             </component>
         </div>
@@ -986,7 +986,6 @@ export default {
 
 .submission-sidebar {
     max-height: 100%;
-    overflow: auto;
 
     @media @media-no-large {
         flex: 0 0 auto;
@@ -995,6 +994,10 @@ export default {
     & .submission-sidebar-tab {
         flex: 0 0 50%;
         color: @color-secondary;
+
+        &.active {
+            background-color: rgba(0, 0, 0, 0.025);
+        }
 
         &:hover {
             background-color: rgba(0, 0, 0, 0.05);
@@ -1006,12 +1009,22 @@ export default {
     }
 }
 
-.file-tree {
+.file-tree,
+.previous-feedback {
+    min-height: 0;
     max-height: 100%;
 
     @media @media-no-large {
         max-height: 15vh;
     }
+}
+
+.file-tree {
+    overflow: auto;
+}
+
+.previous-feedback {
+    overflow: hidden;
 }
 
 .grade-viewer {
