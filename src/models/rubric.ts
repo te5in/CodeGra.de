@@ -147,20 +147,14 @@ export class RubricRow<T extends number | undefined | null> {
 
     get minPoints() {
         return this._cache.get('minPoints', () => {
-            const minPoints = Math.min(
-                ...filterMap(this.items, item => {
-                    const pts: number | null | '' = item.points;
-                    if (pts != null && pts !== '') {
-                        return new Right(pts);
-                    }
-                    return new Left(null);
-                }),
-            );
-
-            if (minPoints === Infinity) {
-                return 0;
-            }
-            return minPoints;
+            const found = this.items.reduce((minFound, item) => {
+                const pts: number | null | '' = item.points;
+                if (pts != null && pts !== '') {
+                    return Math.min(minFound, pts);
+                }
+                return minFound;
+            }, Infinity);
+            return found === Infinity ? 0 : found;
         });
     }
 
@@ -444,6 +438,11 @@ export class ContinuousRubricRow<T extends number | undefined | null> extends Ru
             locked: false,
             items: [RubricItem.createEmpty().update({ header: 'Continuous' })],
         });
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    get minPoints() {
+        return 0;
     }
 
     validate(prevErrors: RubricRowValidationError | null = null) {
