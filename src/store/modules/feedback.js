@@ -74,6 +74,32 @@ const actions = {
     deleteFeedback({ commit }, { assignmentId }) {
         commit(types.DELETE_FEEDBACK, { assignmentId });
     },
+
+    async updateGeneralFeedback({ commit, dispatch }, { assignmentId, submissionId, feedback }) {
+        await dispatch('loadFeedback', { assignmentId, submissionId });
+
+        return axios
+            .patch(`/api/v1/submissions/${submissionId}`, {
+                feedback: feedback || '',
+            })
+            .then(res => {
+                // eslint-disable-next-line camelcase
+                const { comment, comment_author } = res.data;
+                commit(types.UPDATE_GENERAL_FEEDBACK, { assignmentId, submissionId, comment });
+                commit(
+                    `submissions/${types.UPDATE_SUBMISSION}`,
+                    {
+                        submissionId,
+                        submissionProps: {
+                            comment,
+                            comment_author,
+                        },
+                    },
+                    { root: true },
+                );
+                return res;
+            });
+    },
 };
 
 const mutations = {
@@ -104,6 +130,12 @@ const mutations = {
 
         Vue.set(state.feedbacks[assignmentId], submissionId, newFeedback);
     },
+
+    [types.UPDATE_GENERAL_FEEDBACK](state, { assignmentId, submissionId, comment }) {
+        const fb = state.feedbacks[assignmentId][submissionId];
+        const newFb = fb.updateGeneralFeedback(comment);
+        Vue.set(state.feedbacks[assignmentId], submissionId, newFb);
+    },
 };
 
 export default {
@@ -111,7 +143,6 @@ export default {
     state: {
         feedbacks: {},
     },
-
     getters,
     actions,
     mutations,

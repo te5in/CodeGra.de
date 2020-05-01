@@ -163,7 +163,7 @@ export default {
         },
 
         feedback() {
-            return this.submission.feedback;
+            return this.submission && this.submission.feedback;
         },
 
         filteredUserFeedback() {
@@ -213,7 +213,7 @@ export default {
         },
 
         generalFeedback() {
-            return this.submission.comment || '';
+            return this.feedback.general;
         },
 
         submissionId() {

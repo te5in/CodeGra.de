@@ -553,8 +553,7 @@ export default {
             if (!this.feedback || !this.submission) {
                 return 0;
             }
-
-            return this.feedback.countEntries() + (this.submission.comment ? 1 : 0);
+            return this.feedback.countEntries();
         },
 
         showContinuousBadge() {

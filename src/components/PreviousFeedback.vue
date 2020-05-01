@@ -157,13 +157,6 @@ export default {
                 },
             );
         },
-
-        countEntries(feedback) {
-            if (feedback == null) {
-                return null;
-            }
-            return feedback.countEntries();
-        },
     },
 
     components: {

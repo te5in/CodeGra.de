@@ -44,7 +44,7 @@ LinterComments = t.Dict[int,
 class FeedbackBase(TypedDict, total=True):
     """The base JSON representation for feedback.
 
-    This representation is never send, see the two models below.
+    This representation is never sent, see the two models below.
 
     :ivar general: The general feedback given on this submission.
     :ivar linter: A mapping that is almost the same the user feedback mapping
@@ -316,6 +316,7 @@ def _group_by_file_id(comms: t.List[TCom]
 def _get_feedback_without_replies(
     comments: t.List[models.CommentBase],
     linter_comments: LinterComments,
+    general: str,
 ) -> FeedbackWithoutReplies:
     user: t.Dict[int, t.Dict[int, str]] = defaultdict(dict)
     authors: t.Dict[int, t.Dict[int, models.User]] = defaultdict(dict)
@@ -332,7 +333,7 @@ def _get_feedback_without_replies(
                 authors[file_id][line] = reply.author
 
     return {
-        'general': '',
+        'general': general,
         'user': user,
         'authors': authors,
         'linter': linter_comments,
@@ -342,6 +343,7 @@ def _get_feedback_without_replies(
 def _get_feedback_with_replies(
     comments: t.List[models.CommentBase],
     linter_comments: LinterComments,
+    general: str,
 ) -> FeedbackWithReplies:
     user_comments = [c for c in comments if c.user_visible_replies]
     authors = sorted(
@@ -352,7 +354,7 @@ def _get_feedback_with_replies(
     )
 
     return {
-        'general': '',
+        'general': general,
         'user': user_comments,
         'authors': authors,
         'linter': linter_comments,
@@ -421,14 +423,14 @@ def get_feedback_from_submission(
         contains_eager(models.CommentBase.file),
     ).all()
 
-    fun: t.Callable[[t.List[models.CommentBase], LinterComments], t.
+    fun: t.Callable[[t.List[models.CommentBase], LinterComments, str], t.
                     Union[FeedbackWithoutReplies, FeedbackWithReplies]]
     if helpers.request_arg_true('with_replies'):
         fun = _get_feedback_with_replies
     else:
         fun = _get_feedback_without_replies
 
-    return jsonify(fun(comments, linter_comments))
+    return jsonify(fun(comments, linter_comments, work.comment))
 
 
 @api.route("/submissions/<int:submission_id>/rubrics/", methods=['GET'])

@@ -1205,7 +1205,7 @@ def get_user_submissions(course_id: int, user_id: int) -> ExtendedJSONResponse[t
             obj = assignment.get_all_latest_submissions()
         else:
             obj = models.Work.query.filter_by(
-                assignment_id=assignment_id, deleted=False
+                assignment_id=assignment.id, deleted=False
             )
 
         sub = models.Work.update_query_for_extended_jsonify(
