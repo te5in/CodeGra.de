@@ -402,7 +402,7 @@ export default {
         },
 
         dragStop(event) {
-            if ((this.dragEvent != null || event.button === 0) && !this.movedTooFar(event)) {
+            if (this.dragEvent != null && event.button === 0 && !this.movedTooFar(event)) {
                 this.addFeedback(event);
             }
 
