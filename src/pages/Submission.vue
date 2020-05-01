@@ -187,13 +187,14 @@
                         </a>
                     </div>
 
-                    <file-tree v-if="currentSidebarTab === 'files'"
+                    <file-tree v-show="currentSidebarTab === 'files'"
                                class="flex-grow-1"
                                :assignment="assignment"
                                :submission="submission"
                                :revision="revision" />
 
-                    <previous-feedback v-if="currentSidebarTab === 'feedback'"
+                    <previous-feedback v-if="!hiddenSidebarTabs.has('feedback')"
+                                       :class="{ hidden: currentSidebarTab !== 'feedback' }"
                                        :submission="submission" />
                 </div>
             </component>
@@ -292,6 +293,7 @@ export default {
 
             splitRatio: 75,
             currentSidebarTab: 'files',
+            hiddenSidebarTabs: new Set(['feedback']),
 
             showWhitespace: true,
             selectedLanguage: 'Default',
@@ -731,6 +733,7 @@ export default {
         currentSidebarTab: {
             immediate: true,
             handler(newVal) {
+                this.hiddenSidebarTabs.delete(newVal);
                 if (newVal === 'feedback') {
                     this.splitRatio = Math.min(50, this.splitRatio);
                 }
@@ -792,6 +795,10 @@ export default {
             this.hiddenCats = new Set(
                 this.categories.filter(c => c.id !== this.selectedCat).map(c => c.id),
             );
+
+            // Reset the hidden tabs so the feedback of other submissions will
+            // not be loaded until the feedback tab is clicked.
+            this.hiddenSidebarTabs = new Set(['feedback']);
 
             const promises = [
                 this.storeLoadFileTree({
@@ -1034,6 +1041,10 @@ export default {
 
     @media @media-no-large {
         max-height: 15vh;
+    }
+
+    &.hidden {
+        display: none !important;
     }
 }
 
