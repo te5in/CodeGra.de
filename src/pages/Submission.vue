@@ -169,7 +169,7 @@
                              :language="selectedLanguage"
                              @language="languageChanged" />
 
-                <div class="submission-sidebar d-flex flex-column border rounded p-0 mt-3 mt-lg-0"
+                <div class="submission-sidebar d-flex flex-column border rounded p-0 mt-3 mt-lg-0 overflow-hidden"
                      slot="secondPane">
                     <div v-if="sidebarTabs.length > 0"
                          class="flex-grow-0 d-flex flex-row border-bottom text-center cursor-pointer">
