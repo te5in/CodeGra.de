@@ -296,10 +296,7 @@ const actions = {
                 res.data.map(sub => {
                     const assignmentId = sub.assignment_id;
                     const submission = Submission.fromServerData(sub, assignmentId);
-                    context.commit(types.UPDATE_SUBMISSIONS, {
-                        assignmentId,
-                        submissions: [submission],
-                    });
+                    context.commit(types.ADD_SINGLE_SUBMISSION, { submission });
                     return submission;
                 }),
             );
