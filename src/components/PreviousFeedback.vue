@@ -1,30 +1,31 @@
 <template>
-<cg-loader v-if="loading" />
-
-<b-alert show
-         variant="danger"
-         v-else-if="error != null">
-    {{ error }}
-</b-alert>
-
-<div v-else
-     class="previous-feedback h-100 overflow-auto">
-    <b-input-group class="p-3 border-top border-bottom sticky-top bg-light">
+<div class="previous-feedback h-100 overflow-auto">
+    <b-input-group class="p-3 sticky-top bg-light">
         <input v-model="filter"
                class="form-control"
                placeholder="Filter feedback..."/>
     </b-input-group>
 
-    <ol class="pl-0">
+    <b-alert show
+             variant="danger"
+             v-if="error != null">
+        {{ error }}
+    </b-alert>
+
+    <cg-loader v-else-if="loading"
+               class="p-3" />
+
+    <ol v-else
+        class="mb-0 pl-0">
         <li v-for="(sub, i) in sortedOtherSubmissions"
             v-if="sub.id !== submission.id"
             :key="sub.id"
-            class="border-bottom">
+            class="border-top">
 
             <collapse :collapsed="feedbackCounts[sub.id] === 0">
-                <h4 slot="handle"
+                <h6 slot="handle"
                     v-b-toggle="`previous-feedback-collapse-${sub.id}`"
-                    class="p-3 mb-0 cursor-pointer"
+                    class="assignment-name p-3 mb-0 cursor-pointer"
                     :class="{
                         'text-muted': feedbackCounts[sub.id] === 0,
                     }">
@@ -32,12 +33,12 @@
 
                     {{ sub.assignment.name }}
 
-                    <small v-if="sub.grade != null"
+                    <span v-if="sub.grade != null"
                           class="font-italic">
                         (graded: {{ sub.grade }})
-                    </small>
+                    </span>
 
-                    <small class="float-right">
+                    <span class="float-right">
                         <cg-loader :scale="1" v-if="feedbackCounts[sub.id] == null" />
 
                         <b-badge v-else
@@ -45,8 +46,8 @@
                                 title="Comments on this submission">
                             {{ feedbackCounts[sub.id] }}
                         </b-badge>
-                    </small>
-                </h4>
+                    </span>
+                </h6>
 
                 <feedback-overview
                     :assignment="sub.assignment"
@@ -112,7 +113,10 @@ export default {
 
         feedbackCounts() {
             return this.otherSubmissions.reduce((acc, sub) => {
-                acc[sub.id] = this.countEntries(sub.feedback);
+                const fb = this.$utils.getProps(sub, null, 'feedback');
+                if (fb != null) {
+                    acc[sub.id] = fb.countEntries();
+                }
                 return acc;
             }, {});
         },
@@ -158,7 +162,7 @@ export default {
             if (feedback == null) {
                 return null;
             }
-            return feedback.countEntries() + (this.submission.comment ? 1 : 0);
+            return feedback.countEntries();
         },
     },
 

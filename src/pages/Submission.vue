@@ -54,21 +54,6 @@
                 </b-popover>
             </b-button>
 
-            <b-button v-b-popover.hover.top="'Feedback on previous assignments'"
-                      v-b-toggle.previous-assignments-sidebar>
-                <icon name="archive" />
-            </b-button>
-
-            <b-sidebar id="previous-assignments-sidebar"
-                       title="Previous feedback"
-                       width="24rem"
-                       right
-                       shadow="sm"
-                       no-close-on-esc
-                       lazy>
-                <previous-feedback :submission="submission" />
-            </b-sidebar>
-
             <b-button v-if="canEmailStudents"
                       id="codeviewer-email-student"
                       v-b-popover.top.hover="`Email the author${submission.user.isGroup ? 's' : ''} of this submission`"
@@ -183,10 +168,28 @@
                              :language="selectedLanguage"
                              @language="languageChanged" />
 
-                <div class="file-tree-container border rounded p-0 mt-3 mt-lg-0" slot="secondPane">
-                    <file-tree :assignment="assignment"
-                               :submission="submission"
-                               :revision="revision" />
+                <div class="submission-sidebar d-flex flex-column border rounded p-0 mt-3 mt-lg-0" slot="secondPane">
+                    <div v-if="sidebarTabs.length > 0"
+                         class="flex-grow-0 d-flex flex-row border-bottom text-center cursor-pointer">
+                        <a v-for="tab in sidebarTabs"
+                           :key="tab.id"
+                           class="submission-sidebar-tab p-1 border-right"
+                           :class="{ active: currentSidebarTab === tab.id }"
+                           v-b-popover.top.hover.window="tab.help"
+                           @click.prevent="currentSidebarTab = tab.id">
+                            {{ tab.name }}
+                        </a>
+                    </div>
+
+                    <div class="flex-grow-1 overflow-auto">
+                        <file-tree v-if="currentSidebarTab === 'files'"
+                                   :assignment="assignment"
+                                   :submission="submission"
+                                   :revision="revision" />
+
+                        <previous-feedback v-if="currentSidebarTab === 'feedback'"
+                                           :submission="submission" />
+                    </div>
                 </div>
             </component>
         </div>
@@ -280,6 +283,8 @@ export default {
 
             selectedCat: '',
             hiddenCats: new Set(),
+
+            currentSidebarTab: 'files',
 
             showWhitespace: true,
             selectedLanguage: 'Default',
@@ -516,6 +521,26 @@ export default {
                     enabled: this.showTeacherDiff,
                 },
             ];
+        },
+
+        sidebarTabs() {
+            const tabs = [
+                {
+                    id: 'files',
+                    name: 'Files',
+                    help: 'Show the files of this submission.',
+                },
+            ];
+
+            if (this.canSeeUserFeedback) {
+                tabs.push({
+                    id: 'feedback',
+                    name: 'Feedback',
+                    help: 'Show feedback given on previous assignments in this course.',
+                });
+            }
+
+            return tabs;
         },
 
         hasFeedback() {
@@ -960,12 +985,25 @@ export default {
     }
 }
 
-.file-tree-container {
+.submission-sidebar {
     max-height: 100%;
     overflow: auto;
 
     @media @media-no-large {
         flex: 0 0 auto;
+    }
+
+    & .submission-sidebar-tab {
+        flex: 0 0 50%;
+        color: @color-secondary;
+
+        &:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        &:last-child {
+            border-right: 0 !important;
+        }
     }
 }
 

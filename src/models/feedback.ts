@@ -443,7 +443,7 @@ export class Feedback {
                     }
                     return innerAcc;
                 }, acc),
-            0,
+            this.general != null ? 1 : 0,
         );
     }
 }
