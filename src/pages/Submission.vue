@@ -798,6 +798,8 @@ export default {
 
             // Reset the hidden tabs so the feedback of other submissions will
             // not be loaded until the feedback tab is clicked.
+            this.splitRatio = 75;
+            this.currentSidebarTab = 'files';
             this.hiddenSidebarTabs = new Set(['feedback']);
 
             const promises = [
