@@ -9,6 +9,7 @@ import typing as t
 import werkzeug
 import structlog
 from flask import request, make_response
+from sqlalchemy import orm
 
 from . import api
 from .. import app, auth, files, tasks, models, helpers, registry, exceptions
@@ -638,6 +639,17 @@ def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
         models.AutoTestRun.id == run_id,
         also_error=lambda obj: obj.auto_test_id != auto_test_id,
         with_for_update=True,
+        options=[
+            orm.joinedload(
+                models.AutoTestRun.auto_test
+            ).selectinload(
+                models.AutoTest.sets
+            ).selectinload(
+                models.AutoTestSet.suites
+            ).selectinload(
+                models.AutoTestSuite.steps
+            ),
+        ]
     )
     auth.ensure_permission(
         CPerm.can_delete_autotest_run, run.auto_test.assignment.course_id
@@ -651,7 +663,8 @@ def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
         )
     )
 
-    run.delete_and_clear_rubric()
+    histories = run.delete_and_clear_rubric()
+    db.session.bulk_save_objects(histories)
     db.session.commit()
 
     return make_empty_response()

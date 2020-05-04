@@ -415,6 +415,7 @@ class Work(Base):
         *,
         never_passback: bool = False,
         grade_origin: GradeOrigin,
+        add_history_to_session: bool = True,
     ) -> GradeHistory:
         ...
 
@@ -424,6 +425,8 @@ class Work(Base):
         user: t.Optional['user_models.User'] = None,
         never_passback: bool = False,
         grade_origin: GradeOrigin = GradeOrigin.human,
+        *,
+        add_history_to_session: bool = True,
     ) -> GradeHistory:
         """Set the grade to the new grade.
 
@@ -436,6 +439,10 @@ class Work(Base):
         :param user: The user setting the new grade.
         :param grade_origin: The way this grade was given.
         :param never_passback: Never passback the new grade.
+        :param add_history_to_session: Should the created history be added to
+            the session. Warning: if you pass ``False`` make SURE that you add
+            it yourself. This parameter is very useful if you want to bulk set
+            grades, and want to add these histories in bulk.
         :returns: Nothing
         """
         assert grade_origin != GradeOrigin.human or user is not None
@@ -449,11 +456,12 @@ class Work(Base):
             is_rubric=self._grade is None and grade is not None,
             grade=-1 if grade is None else grade,
             passed_back=False,
-            work=self,
+            work_id=self.id,
             user=user,
             grade_origin=grade_origin,
         )
-        self.grade_histories.append(history)
+        if add_history_to_session:
+            self.grade_histories.append(history)
 
         if not never_passback and passback:
             work_id = self.id

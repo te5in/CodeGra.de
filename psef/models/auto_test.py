@@ -2,6 +2,7 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import os
 import math
 import uuid
 import typing as t
@@ -21,6 +22,7 @@ from cg_sqlalchemy_helpers import UUIDType, deferred, hybrid_property
 from cg_sqlalchemy_helpers.mixins import IdMixin, UUIDMixin, TimestampMixin
 
 from . import Base, MyQuery, DbColumn, db
+from . import file as file_models
 from . import work as work_models
 from . import auto_test_step as auto_test_step_models
 from .. import auth
@@ -320,7 +322,7 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
     final_result = db.Column('final_result', db.Boolean, nullable=False)
 
     # This variable is generated from the backref from all files
-    files: MyQuery["psef.models.AutoTestOutputFile"]
+    files: MyQuery["file_models.AutoTestOutputFile"]
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, AutoTestResult):
@@ -410,22 +412,39 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
             id=self.work_id,
         ).with_for_update(of=work_models.Work).one()
 
-    def clear_rubric(self) -> None:
+    def clear_rubric(
+        self,
+        locked_work: t.Optional['work_models.Work'] = None,
+        *,
+        add_history_to_session: bool = True,
+    ) -> 'work_models.GradeHistory':
         """Clear all the rubric categories connected to this AutoTest for this
         result.
 
+        :param locked_work: The locked of this result. If not given this will
+            be loaded.
+        :param add_history_to_session: Add the created grade history to the
+            session, see :meth:`.work_models.Work.set_grade` for its meaning.
+
         :returns: Nothing
         """
-        work = self.get_locked_work()
+        if locked_work is None:
+            locked_work = self.get_locked_work()
+        else:
+            assert locked_work.id == self.work_id
+
         own_rubric_rows = set(
             suite.rubric_row_id for suite in self.run.auto_test.all_suites
         )
 
-        work.selected_items = [
-            i for i in work.selected_items
+        locked_work.selected_items = [
+            i for i in locked_work.selected_items
             if i.rubric_item.rubricrow_id not in own_rubric_rows
         ]
-        work.set_grade(grade_origin=work_models.GradeOrigin.auto_test)
+        return locked_work.set_grade(
+            grade_origin=work_models.GradeOrigin.auto_test,
+            add_history_to_session=add_history_to_session,
+        )
 
     def update_rubric(self) -> None:
         """Update the rubric of the connected submission according to this
@@ -1061,12 +1080,68 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             'setup_stderr': self.setup_stderr or '',
         }
 
-    def delete_and_clear_rubric(self) -> None:
+    def delete_and_clear_rubric(self) -> t.List['work_models.GradeHistory']:
         """Delete this AutoTestRun and clear all the results and rubrics.
         """
+        locked_works = {
+            work.id: work
+            for work in work_models.Work.query.filter(
+                work_models.Work.id.in_([r.work_id for r in self.results])
+            ).options(
+                orm.selectinload(work_models.Work.selected_items),
+            ).with_for_update(of=work_models.Work)
+        }
+
+        histories = []
         for result in self.results:
-            result.clear_rubric()
+            hist = result.clear_rubric(
+                locked_work=locked_works.get(result.work_id),
+                add_history_to_session=False,
+            )
+            histories.append(hist)
+
+        # We will now get all the disknames for the output files, schedule a
+        # callback to delete them from disk, and then manually delete all
+        # output file rows before manually deleting all results. We do this in
+        # this convoluted way as relying on sqlalchemy to efficiently delete
+        # all output files is unfortunately not possible, as it will query all
+        # output files for each result one by one (and do that twice).
+        result_ids = [r.id for r in self.results]
+        disknames = [
+            f.get_diskname()
+            for f in db.session.query(file_models.AutoTestOutputFile).filter(
+                file_models.AutoTestOutputFile.auto_test_result_id.in_(
+                    result_ids,
+                )
+            )
+        ]
+
+        def delete_all_files():
+            for diskname in disknames:
+                try:
+                    os.remove(diskname)
+                except FileNotFoundError:  # pragma: no cover
+                    pass
+
+        callback_after_this_request(delete_all_files)
+
+        # Delete all output files
+        db.session.query(file_models.AutoTestOutputFile).filter(
+            file_models.AutoTestOutputFile.auto_test_result_id.in_(result_ids)
+        ).delete(synchronize_session=False)
+
+        # Delete all results
+        db.session.query(AutoTestResult).filter(
+            AutoTestResult.auto_test_run_id == self.id
+        ).delete()
+
+        # This is really important, if we don't set the results here we still
+        # query the output files for each result.
+        self.results = []
+
         db.session.delete(self)
+
+        return histories
 
     @property
     def new_results_should_be_final(self) -> bool:
