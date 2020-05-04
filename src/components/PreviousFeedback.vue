@@ -16,20 +16,23 @@
         <cg-loader v-else-if="loading"
                    class="p-3" />
 
+
         <ol v-else
             class="mb-0 pl-0">
             <li v-for="(sub, i) in sortedOtherSubmissions"
                 v-if="sub.id !== submission.id"
                 :key="sub.id"
                 class="border-top">
-                <collapse :collapsed="feedbackCounts[sub.id] === 0">
+                <collapse :collapsed="shouldCollapse(sub)">
                     <h6 slot="handle"
                         v-b-toggle="`previous-feedback-collapse-${sub.id}`"
                         class="assignment-name p-3 mb-0 cursor-pointer"
                         :class="{
-                            'text-muted': feedbackCounts[sub.id] === 0,
+                            'text-muted': shouldCollapse(sub),
                         }">
-                        <div class="caret mr-2 float-left">+</div>
+                        <div class="caret mr-2 float-left">
+                            <fa-icon name="chevron-down" :scale="0.75" />
+                        </div>
 
                         {{ sub.assignment.name }}
 
@@ -39,12 +42,16 @@
                         </span>
 
                         <span class="float-right">
-                            <cg-loader :scale="1" v-if="feedbackCounts[sub.id] == null" />
+                            <cg-loader :scale="1" v-if="totalFeedbackCounts[sub.id] == null" />
 
                             <b-badge v-else
-                                    variant="primary"
-                                    title="Comments on this submission">
-                                {{ feedbackCounts[sub.id] }}
+                                     :variant="shouldCollapse(sub) ? 'secondary' : 'primary'"
+                                     title="Comments on this submission">
+                                <template v-if="filter">
+                                    {{ filteredFeedbackCounts[sub.id] }} /
+                                </template>
+
+                                {{ totalFeedbackCounts[sub.id] }}
                             </b-badge>
                         </span>
                     </h6>
@@ -55,7 +62,9 @@
                         show-inline-feedback
                         :non-editable="true"
                         :filter="filter"
-                        hide-empty-general/>
+                        hide-empty-general
+                        :should-render-thread="shouldRenderThread"
+                        :should-fade-reply="shouldFadeReply"/>
                 </collapse>
             </li>
         </ol>
@@ -65,6 +74,8 @@
 
 <script>
 import { mapActions } from 'vuex';
+
+import 'vue-awesome/icons/chevron-down';
 
 import { Submission } from '@/models';
 
@@ -112,7 +123,30 @@ export default {
             );
         },
 
-        feedbackCounts() {
+        filteredUserFeedback() {
+            return this.sortedOtherSubmissions.reduce(
+                (acc, sub) => Object.assign(acc, this.filterUserFeedback(sub.feedback)),
+                {},
+            );
+        },
+
+        filteredFeedbackCounts() {
+            return this.otherSubmissions.reduce((acc, sub) => {
+                if (sub.feedback == null) {
+                    return acc;
+                }
+                const threads = this.$utils.flatMap1(
+                    Object.values(sub.feedback.user),
+                    fileFb => Object.values(fileFb),
+                ).filter(thread =>
+                    this.shouldRenderThread(thread),
+                );
+                acc[sub.id] = threads.length;
+                return acc;
+            }, {});
+        },
+
+        totalFeedbackCounts() {
             return this.otherSubmissions.reduce((acc, sub) => {
                 const fb = this.$utils.getProps(sub, null, 'feedback');
                 if (fb != null) {
@@ -138,6 +172,9 @@ export default {
         ...mapActions('submissions', [
             'loadLatestByUserInCourse',
         ]),
+        ...mapActions('feedback', [
+            'loadFeedback',
+        ]),
 
         loadOtherFeedback() {
             this.loading = true;
@@ -150,6 +187,16 @@ export default {
             }).then(
                 subs => {
                     this.otherSubmissions = subs;
+                    return Promise.all(
+                        subs.map(sub =>
+                            this.loadFeedback({
+                                assignmentId: this.assignmentId,
+                                submissionId: sub.id,
+                            }),
+                        ),
+                    );
+                },
+            ).then(() => {
                     this.loading = false;
                 },
                 err => {
@@ -157,6 +204,60 @@ export default {
                     this.loading = false;
                 },
             );
+        },
+
+        filterUserFeedback(feedback) {
+            if (feedback == null) {
+                return null;
+            }
+
+            if (this.filter == null || this.filter === '') {
+                const mapObj = this.$utils.mapObject;
+                return mapObj(feedback.user, fileFb =>
+                    mapObj(fileFb, thread => new Set(thread.replies.map(reply => reply.id))),
+                );
+            }
+
+            const regex = new RegExp(this.filter, 'i');
+
+            return Object.entries(feedback.user).reduce((fb, [fileId, fileFb]) => {
+                const filteredFileFb = Object.values(fileFb).reduce((acc, thread) => {
+                    const matchingReplies = thread.replies.filter(reply =>
+                        regex.test(reply.message),
+                    );
+                    if (matchingReplies.length > 0) {
+                        acc[thread.line] = new Set(matchingReplies.map(reply => reply.id));
+                    }
+                    return acc;
+                }, {});
+                if (Object.keys(filteredFileFb).length > 0) {
+                    fb[fileId] = filteredFileFb;
+                }
+                return fb;
+            }, {});
+        },
+
+        shouldRenderThread(thread) {
+            console.log(thread, this.filteredUserFeedback);
+            return this.$utils.getProps(
+                this.filteredUserFeedback,
+                null,
+                thread.fileId,
+                thread.line,
+            ) != null;
+        },
+
+        shouldFadeReply(thread, reply) {
+            return this.shouldRenderThread(thread) &&
+                !this.filteredUserFeedback[thread.fileId][thread.line].has(reply.id);
+        },
+
+        shouldCollapse(sub) {
+            if (this.filter) {
+                return this.filteredFeedbackCounts[sub.id] === 0;
+            } else {
+                return this.totalFeedbackCounts[sub.id] === 0;
+            }
         },
     },
 

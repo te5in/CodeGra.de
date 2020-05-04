@@ -66,6 +66,7 @@ Vue.component('cg-logo', CgLogo);
 Vue.component('cg-catch-error', CatchError);
 Vue.component('cg-toggle', Toggle);
 
+Vue.component('fa-icon', Icon);
 Vue.use(BootstrapVue);
 Vue.use(Toasted);
 Vue.use(VueMasonry);

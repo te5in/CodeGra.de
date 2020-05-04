@@ -98,7 +98,6 @@
 import { mapActions, mapGetters } from 'vuex';
 
 import { Assignment, Submission } from '@/models';
-import { mapObject } from '@/utils';
 import decodeBuffer from '@/utils/decode';
 
 import Loader from './Loader';
@@ -137,6 +136,14 @@ export default {
             type: Boolean,
             default: false,
         },
+        shouldRenderThread: {
+            type: Function,
+            default: () => true,
+        },
+        shouldFadeReply: {
+            type: Function,
+            default: () => false,
+        },
     },
 
     data() {
@@ -166,36 +173,6 @@ export default {
             return this.submission && this.submission.feedback;
         },
 
-        filteredUserFeedback() {
-            if (this.feedback == null) {
-                return null;
-            }
-
-            if (this.filter == null || this.filter === '') {
-                return mapObject(this.feedback.user, fileFb =>
-                    mapObject(fileFb, thread => new Set(thread.replies.map(reply => reply.id))),
-                );
-            }
-
-            const regex = new RegExp(this.filter, 'i');
-
-            return Object.entries(this.feedback.user).reduce((fb, [fileId, fileFb]) => {
-                const filteredFileFb = Object.values(fileFb).reduce((acc, thread) => {
-                    const matchingReplies = thread.replies.filter(reply =>
-                        regex.test(reply.message),
-                    );
-                    if (matchingReplies.length > 0) {
-                        acc[thread.line] = new Set(matchingReplies.map(reply => reply.id));
-                    }
-                    return acc;
-                }, {});
-                if (Object.keys(filteredFileFb).length > 0) {
-                    fb[fileId] = filteredFileFb;
-                }
-                return fb;
-            }, {});
-        },
-
         fileIds() {
             // Because the submission's fileTree and feedback are loaded simultaneously, it is
             // possible that the fileTree is not set when the feedback changes. The rest of the
@@ -205,7 +182,11 @@ export default {
             if (this.fileTree == null || this.feedback == null) {
                 return [];
             }
-            return Object.keys(this.filteredUserFeedback);
+            return Object.keys(this.feedback.user).filter(fileId =>
+                Object.values(this.feedback.user[fileId]).some(thread =>
+                    this.shouldRenderThread(thread),
+                ),
+            );
         },
 
         nonDisabledFileIds() {
@@ -393,9 +374,13 @@ export default {
         getParts(fileId) {
             const last = this.$utils.last;
             const lines = this.codeLines[fileId];
-            const feedback = this.filteredUserFeedback[fileId];
+            const feedback = this.feedback.user[fileId];
 
-            const ret = Object.keys(feedback).reduce((res, lineStr) => {
+            const ret = Object.entries(feedback).reduce((res, [lineStr, thread]) => {
+                if (!this.shouldRenderThread(thread)) {
+                    return res;
+                }
+
                 const line = Number(lineStr);
                 const startLine = Math.max(line - this.contextAmount, 0);
                 const endLine = Math.min(line + this.contextAmount + 1, lines.length);
@@ -410,20 +395,6 @@ export default {
             }, []);
 
             return ret;
-        },
-
-        shouldRenderThread(thread) {
-            return this.$utils.getProps(
-                this.filteredUserFeedback,
-                null,
-                thread.fileId,
-                thread.line,
-            ) != null;
-        },
-
-        shouldFadeReply(thread, reply) {
-            return this.shouldRenderThread(thread) &&
-                !this.filteredUserFeedback[thread.fileId][thread.line].has(reply.id);
         },
     },
 
