@@ -7,6 +7,7 @@ import { visualizeWhitespace } from './visualize';
 import { hasAttr, getProps } from './typed';
 
 export * from './typed';
+export * from './error';
 
 const reUnescapedHtml = /[&<>"'`]/g;
 const reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
@@ -366,24 +367,6 @@ export function withOrdinalSuffix(i) {
     }
 
     return `${i}${suffix}`;
-}
-
-export function getErrorMessage(err) {
-    let msg;
-
-    if (err == null) {
-        return '';
-    } else if (err.response && err.response.data) {
-        msg = err.response.data.message;
-    } else if (err instanceof Error) {
-        // eslint-disable-next-line
-        console.error(err);
-        msg = err.message;
-    } else {
-        msg = err.toString();
-    }
-
-    return msg || 'Something unknown went wrong';
 }
 
 export function deepEquals(a, b) {
