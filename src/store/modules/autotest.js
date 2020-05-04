@@ -369,17 +369,18 @@ const actions = {
 
         return axios.delete(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`).then(
             () => c(),
-            err => {
-                switch (getProps(err, null, 'response', 'status')) {
-                    case 404:
-                        c();
-                        throw new Error(
-                            'AutoTest results were already deleted. Please reload the page.',
-                        );
-                    default:
-                        throw err;
-                }
-            },
+            err =>
+                this.handleHttpError(
+                    {
+                        404: () => {
+                            c();
+                            throw new Error(
+                                'AutoTest results were already deleted. Please reload the page.',
+                            );
+                        },
+                    },
+                    err,
+                ),
         );
     },
 

@@ -810,24 +810,22 @@ export default {
                         this.configCollapsed = !!this.currentRun && !this.singleResult;
                         return this.singleResult ? this.loadSingleResult() : this.loadAutoTestRun();
                     },
-                    err => {
-                        switch (this.$utils.getProps(err, null, 'response', 'status')) {
-                            case 403:
-                                this.message = {
-                                    text: 'The AutoTest results are not yet available.',
-                                    isError: false,
-                                };
-                                break;
-                            default:
-                                this.message = {
-                                    text: `Could not load AutoTest: ${this.$utils.getErrorMessage(
-                                        err,
-                                    )}`,
-                                    isError: true,
-                                };
-                                break;
-                        }
-                    },
+                    err => this.$utils.handleHttpError({
+                        403: () => {
+                            this.message = {
+                                text: 'The AutoTest results are not yet available.',
+                                isError: false,
+                            };
+                        },
+                        default: () => {
+                            this.message = {
+                                text: `Could not load AutoTest: ${this.$utils.getErrorMessage(
+                                    err,
+                                )}`,
+                                isError: true,
+                            };
+                        },
+                    }, err),
                 ),
             ]).then(
                 () => {
@@ -849,18 +847,11 @@ export default {
                 () => {
                     this.setPollingTimer(this.loadAutoTestRun);
                 },
-                err => {
-                    switch (this.$utils.getProps(err, 500, 'response', 'status')) {
-                        case 500:
-                            this.setPollingTimer(this.loadAutoTestRun);
-                            break;
-                        case 404:
-                            this.onRun404();
-                            break;
-                        default:
-                            throw err;
-                    }
-                },
+                err => this.$utils.handleHttpError({
+                    noResponse: () => this.setPollingTimer(this.loadAutoTestRun),
+                    500: () => this.setPollingTimer(this.loadAutoTestRun),
+                    404: () => this.onRun404(),
+                }, err),
             );
         },
 

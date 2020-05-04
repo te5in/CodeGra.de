@@ -36,13 +36,12 @@ const actions = {
                     .get(`/api/v1/submissions/${submissionId}/feedbacks/?with_replies`)
                     .catch(err => {
                         delete loaders.feedback[submissionId];
-
-                        switch (utils.getProps(err, null, 'response', 'status')) {
-                            case 403:
-                                return {};
-                            default:
-                                throw err;
-                        }
+                        return utils.handleHttpError(
+                            {
+                                403: () => ({}),
+                            },
+                            err,
+                        );
                     }),
             ]).then(([, { data }]) => {
                 delete loaders.feedback[submissionId];
