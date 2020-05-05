@@ -238,7 +238,6 @@ export default {
         },
 
         shouldRenderThread(thread) {
-            console.log(thread, this.filteredUserFeedback);
             return this.$utils.getProps(
                 this.filteredUserFeedback,
                 null,
