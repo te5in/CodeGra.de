@@ -452,17 +452,18 @@ export class WorkspaceSubmission {
         // exactly 9, but that a maxGrade of 10 _will_ include
         // submissions graded exactly 10.
 
-        if ((minGrade != null || maxGrade != null) && this.grade == null) {
-            return false;
+        if (this.grade == null) {
+            // If grade is `null` we don't want to include it if we filter on
+            // `minGrade` or `maxGrade``. In the future we probably want an
+            // extra option that allows users to manually filter out submissions
+            // without a grade.
+            return (minGrade != null && maxGrade != null);
         }
-        if (minGrade != null && (this.grade == null || this.grade < minGrade)) {
+
+        if (minGrade != null && this.grade < minGrade) {
             return false;
         }
         if (maxGrade != null) {
-            // Keep grade null as these are below this maxGrade
-            if (this.grade == null) {
-                return true;
-            }
             if (maxGrade === 10 && this.grade === 10) {
                 return true;
             }
