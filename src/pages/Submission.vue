@@ -139,24 +139,24 @@
         </template>
     </local-header>
 
+    {{ $root.isLargeWindow }}
     <loader page-loader
             class="submission-page-inner-loader"
             v-if="loadingInner"/>
     <template v-else>
         <div class="cat-wrapper"
              :class="{ hidden: selectedCat !== 'code' }">
-            <component v-if="!hiddenCats.has('code')"
-                       :is="$root.$isLargeWindow ? 'rs-panes' : 'div'"
-                       allow-resize
-                       split-to="columns"
-                       @update:size="splitRatio = $event"
-                       :size="splitRatio"
-                       :step="50"
-                       units="percents"
-                       class="code-wrapper"
-                       id="submission-page-inner"
-                       :min-size="30"
-                       :max-size="85">
+            <rs-panes v-if="!hiddenCats.has('code')"
+                      allow-resize
+                      :split-to="$root.$isLargeWindow ? 'columns' : 'rows'"
+                      @update:size="splitRatio = $event"
+                      :size="splitRatio"
+                      :step="50"
+                      units="percents"
+                      class="code-wrapper"
+                      id="submission-page-inner"
+                      :min-size="30"
+                      :max-size="85">
                 <file-viewer slot="firstPane"
                              :assignment="assignment"
                              :submission="submission"
@@ -169,7 +169,7 @@
                              :language="selectedLanguage"
                              @language="languageChanged" />
 
-                <div class="submission-sidebar d-flex flex-column border rounded p-0 mt-3 mt-lg-0 overflow-hidden"
+                <div class="submission-sidebar w-100 d-flex flex-column border rounded p-0 mt-lg-0 overflow-hidden"
                      slot="secondPane">
                     <div v-if="sidebarTabs.length > 0"
                          class="flex-grow-0 d-flex flex-row border-bottom text-center cursor-pointer">
@@ -197,7 +197,7 @@
                                        :class="{ hidden: currentSidebarTab !== 'feedback' }"
                                        :submission="submission" />
                 </div>
-            </component>
+            </rs-panes>
         </div>
 
         <div class="cat-wrapper"
@@ -1007,6 +1007,7 @@ export default {
     max-height: 100%;
 
     @media @media-no-large {
+        width: 100%;
         height: 100%;
     }
 }
@@ -1041,10 +1042,6 @@ export default {
     min-height: 0;
     max-height: 100%;
 
-    @media @media-no-large {
-        max-height: 15vh;
-    }
-
     &.hidden {
         display: none !important;
     }
@@ -1073,16 +1070,20 @@ export default {
 
     .code-wrapper.pane-rs {
         position: relative;
+
+        &.rows {
+            padding-left: 15px;
+            padding-right: 15px;
+        }
     }
 
     .code-wrapper .Resizer {
         z-index: 0;
     }
 
-    .code-wrapper > .Resizer.columnsres {
+    .code-wrapper > .Resizer {
         background-color: transparent !important;
         border: none !important;
-        width: 1rem !important;
         margin: 0 !important;
         position: relative;
 
@@ -1100,12 +1101,29 @@ export default {
             z-index: 10;
         }
 
-        &:before {
-            transform: translate(-2px, -4px);
+        &.columnsres {
+            width: 1rem !important;
+
+            &:before {
+                transform: translate(-2px, -4px);
+            }
+
+            &:after {
+                transform: translate(-2px, +1px);
+            }
         }
 
-        &:after {
-            transform: translate(-2px, +1px);
+        &.rowsres {
+            width: 100% !important;
+            height: 1rem !important;
+
+            &:before {
+                transform: translate(-4px, -2px);
+            }
+
+            &:after {
+                transform: translate(+1px, -2px);
+            }
         }
     }
 
