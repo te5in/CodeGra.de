@@ -16,7 +16,6 @@
         <cg-loader v-else-if="loading"
                    class="p-3" />
 
-
         <ol v-else
             class="mb-0 pl-0">
             <li v-for="(sub, i) in sortedOtherSubmissions"
@@ -56,13 +55,25 @@
                         </span>
                     </h6>
 
+                    <div v-if="shouldCollapse(sub)"
+                         class="p-3 border-top text-muted font-italic">
+                        <template v-if="filter" >
+                            No comments match the filter.
+                        </template>
+
+                        <template v-else>
+                            No feedback given.
+                        </template>
+                    </div>
+
                     <feedback-overview
+                        v-else
                         :assignment="sub.assignment"
                         :submission="sub"
                         show-inline-feedback
                         :non-editable="true"
                         :filter="filter"
-                        hide-empty-general
+                        :should-render-general="shouldRenderGeneral"
                         :should-render-thread="shouldRenderThread"
                         :should-fade-reply="shouldFadeReply"/>
                 </collapse>
@@ -116,11 +127,30 @@ export default {
         },
 
         sortedOtherSubmissions() {
+            // TODO: Should we sort by amount of matching comments if the
+            // filter is not empty, so that all submissions with no matches
+            // end up below submissions with matches?
             return this.otherSubmissions.sort((a, b) =>
                 (a.assignment.deadline.isBefore(
                     b.assignment.deadline,
                 ) ? 1 : -1),
             );
+        },
+
+        filterRegex() {
+            const filter = this.$utils.regexEscape(this.filter);
+            return new RegExp(filter, 'i');
+        },
+
+        filteredGeneralFeedback() {
+            const x = this.sortedOtherSubmissions.reduce((acc, sub) => {
+                const fb = sub.feedback;
+                if (fb != null && this.filterRegex.test(fb.general)) {
+                    acc.add(sub.id);
+                }
+                return acc;
+            }, new Set());
+            return x;
         },
 
         filteredUserFeedback() {
@@ -132,16 +162,19 @@ export default {
 
         filteredFeedbackCounts() {
             return this.otherSubmissions.reduce((acc, sub) => {
-                if (sub.feedback == null) {
+                const fb = sub.feedback;
+                if (fb == null) {
                     return acc;
                 }
+
+                const general = this.shouldRenderGeneral(sub) ? 1 : 0;
                 const threads = this.$utils.flatMap1(
                     Object.values(sub.feedback.user),
                     fileFb => Object.values(fileFb),
                 ).filter(thread =>
                     this.shouldRenderThread(thread),
                 );
-                acc[sub.id] = threads.length;
+                acc[sub.id] = general + threads.length;
                 return acc;
             }, {});
         },
@@ -207,6 +240,10 @@ export default {
         },
 
         filterUserFeedback(feedback) {
+            // TODO: We filter only on the content of comments. Do we also
+            // want to filter on filename? Or on username, so you can quickly
+            // see all comments by a user? Or on other things?
+
             if (feedback == null) {
                 return null;
             }
@@ -218,12 +255,10 @@ export default {
                 );
             }
 
-            const regex = new RegExp(this.filter, 'i');
-
             return Object.entries(feedback.user).reduce((fb, [fileId, fileFb]) => {
                 const filteredFileFb = Object.values(fileFb).reduce((acc, thread) => {
                     const matchingReplies = thread.replies.filter(reply =>
-                        regex.test(reply.message),
+                        this.filterRegex.test(reply.message),
                     );
                     if (matchingReplies.length > 0) {
                         acc[thread.line] = new Set(matchingReplies.map(reply => reply.id));
@@ -235,6 +270,10 @@ export default {
                 }
                 return fb;
             }, {});
+        },
+
+        shouldRenderGeneral(sub) {
+            return this.filteredGeneralFeedback.has(sub.id);
         },
 
         shouldRenderThread(thread) {

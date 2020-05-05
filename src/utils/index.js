@@ -27,6 +27,12 @@ export function htmlEscape(inputString) {
     return string;
 }
 
+const regexSpecial = /[\\.^$?*+([|{]/g;
+
+export function regexEscape(str) {
+    return str.replace(regexSpecial, c => `\\${c}`);
+}
+
 export function coerceToString(obj) {
     if (obj == null) return '';
     else if (typeof obj === 'string') return obj;

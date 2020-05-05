@@ -10,17 +10,12 @@
     The feedback is not yet available.
 </div>
 
-<div v-else-if="hideEmptyGeneral && !generalFeedback && !hasUserFeedback"
-     class="feedback-overview p-3 border rounded font-italic text-muted"
-     style="background: white">
-    No feedback given.
-</div>
-
-<div v-else class="feedback-overview border rounded">
+<div v-else
+     class="feedback-overview border rounded">
     <div class="scroller">
         <b-card header="General feedback"
                 class="general-feedback"
-                v-if="!hideEmptyGeneral || generalFeedback">
+                v-if="shouldRenderGeneral(submission) && generalFeedback">
             <pre v-if="generalFeedback"
                  class="text-wrap-pre mb-0">{{ generalFeedback }}</pre>
             <span v-else class="text-muted font-italic">
@@ -32,13 +27,7 @@
                 header="Inline feedback"
                 class="inline-feedback"
                 body-class="text-muted font-italic">
-            <template v-if="filter">
-                No comments match the filter.
-            </template>
-
-            <template v-else>
-                This submission has no inline feedback.
-            </template>
+            This submission has no inline feedback.
         </b-card>
 
         <template v-else>
@@ -128,13 +117,9 @@ export default {
             type: Boolean,
             default: false,
         },
-        filter: {
-            type: String,
-            default: null,
-        },
-        hideEmptyGeneral: {
-            type: Boolean,
-            default: false,
+        shouldRenderGeneral: {
+            type: Function,
+            default: () => true,
         },
         shouldRenderThread: {
             type: Function,
