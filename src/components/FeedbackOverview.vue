@@ -117,6 +117,10 @@ export default {
             type: Boolean,
             default: false,
         },
+        contextLines: {
+            type: Number,
+            default: 3,
+        },
         shouldRenderGeneral: {
             type: Function,
             default: () => true,
@@ -139,7 +143,7 @@ export default {
     },
 
     computed: {
-        ...mapGetters('pref', ['contextAmount', 'fontSize']),
+        ...mapGetters('pref', ['fontSize']),
         ...mapGetters('courses', ['assignments']),
 
         loading() {
@@ -367,8 +371,8 @@ export default {
                 }
 
                 const line = Number(lineStr);
-                const startLine = Math.max(line - this.contextAmount, 0);
-                const endLine = Math.min(line + this.contextAmount + 1, lines.length);
+                const startLine = Math.max(line - this.contextLines, 0);
+                const endLine = Math.min(line + this.contextLines + 1, lines.length);
 
                 if (res.length === 0 || last(last(res)) <= startLine - 2) {
                     res.push([startLine, endLine]);

@@ -1,11 +1,33 @@
 <template>
 <div class="previous-feedback d-flex flex-column">
     <div class="overflow-auto h-100">
-        <b-input-group class="p-3 sticky-top bg-light border-bottom">
-            <input v-model="filter"
-                   class="form-control"
-                   placeholder="Filter feedback..."/>
-        </b-input-group>
+        <div class="p-3 sticky-top bg-light border-bottom">
+            <b-input-group>
+                <input v-model="filter"
+                    class="form-control"
+                    placeholder="Filter feedback..."/>
+
+                <b-input-group-append>
+                    <b-button variant="primary"
+                              class="settings-button"
+                              @click="settingsCollapsed = !settingsCollapsed">
+                        <fa-icon name="gear"
+                                 :class="{ rotate: settingsCollapsed }"/>
+                    </b-button>
+                </b-input-group-append>
+            </b-input-group>
+
+            <collapse :collapsed="settingsCollapsed">
+                <hr class="mb-2"/>
+
+                <b-form-group class="mb-0"
+                              label="Context lines">
+                    <cg-number-input
+                        v-model="contextLines"
+                        placeholder="Context lines"/>
+                </b-form-group>
+            </collapse>
+        </div>
 
         <b-alert show
                  variant="danger"
@@ -72,7 +94,7 @@
                         :submission="sub"
                         show-inline-feedback
                         :non-editable="true"
-                        :filter="filter"
+                        :context-lines="contextLines"
                         :should-render-general="shouldRenderGeneral"
                         :should-render-thread="shouldRenderThread"
                         :should-fade-reply="shouldFadeReply"/>
@@ -87,6 +109,7 @@
 import { mapActions } from 'vuex';
 
 import 'vue-awesome/icons/chevron-down';
+import 'vue-awesome/icons/gear';
 
 import { Submission } from '@/models';
 
@@ -110,6 +133,8 @@ export default {
             error: null,
             filter: '',
             otherSubmissions: [],
+            settingsCollapsed: true,
+            contextLines: 3,
         };
     },
 
@@ -325,6 +350,17 @@ ol {
 .x-collapsed .caret,
 .x-collapsing .caret {
     transform: rotate(-90deg);
+}
+
+.settings-button {
+    .fa-icon {
+        transform: translateY(-1px) rotate(0);
+        transition: transform (2 * @transition-duration);
+
+        &.rotate {
+            transform: translateY(-1px) rotate(-90deg);
+        }
+    }
 }
 </style>
 

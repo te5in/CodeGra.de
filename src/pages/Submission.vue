@@ -205,6 +205,7 @@
             <feedback-overview v-if="!hiddenCats.has('feedback-overview')"
                                :assignment="assignment"
                                :submission="submission"
+                               :context-lines="contextAmount"
                                :show-whitespace="showWhitespace"
                                :show-inline-feedback="selectedCat === 'feedback-overview'" />
         </div>
@@ -305,7 +306,7 @@ export default {
     },
 
     computed: {
-        ...mapGetters('pref', ['contextAmount', 'fontSize']),
+        ...mapGetters('pref', ['contextAmount']),
         ...mapGetters('user', {
             userId: 'id',
             userPerms: 'permissions',
