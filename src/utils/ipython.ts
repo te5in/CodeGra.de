@@ -21,7 +21,7 @@ interface IPythonRawCell extends IPythonBaseCell {
 
 interface IPythonCodeCell extends IPythonBaseCell {
     cell_type: 'code';
-    source: string;
+    source: string | string[];
     outputs: (
         | {
               output_type?: Exclude<'stream', string>;
@@ -106,39 +106,44 @@ export function getOutputCells(
         }
 
         if (cell.cell_type === 'code') {
-            const splitted = cell.source.split('\n');
+            const splitted = maybeJoinText(cell.source).split('\n');
             const initialOffset = curOffset;
             curOffset += splitted.length;
 
-            const codeCell: CGIPythonCodeCell = Object.assign(cell, {
+            const codeCell: CGIPythonCodeCell = {
+                ...cell,
                 feedback_offset: initialOffset,
                 source: highlight(splitted, language, initialOffset),
                 outputs: cell.outputs.map(out => {
                     let newOut: CGIPythonCodeCellOutput;
                     if (out.output_type === 'stream') {
-                        newOut = Object.assign(out, {
+                        newOut = {
+                            ...out,
                             text: maybeJoinText(out.text),
                             feedback_offset: curOffset,
-                        });
+                        };
                     } else {
-                        newOut = Object.assign(out, {
+                        newOut = {
+                            ...out,
                             feedback_offset: curOffset,
-                        });
+                        };
                     }
                     curOffset += 1;
                     return processOther(newOut);
                 }),
-            });
+            };
 
             res.push(codeCell);
         } else {
-            const genericCell: CGIPythonGenericCell = Object.assign(cell, {
+            const genericCell: CGIPythonGenericCell = {
+                ...cell,
                 source: maybeJoinText(cell.source || cell.input || ''),
                 feedback_offset: curOffset,
-            });
+            };
             res.push(processOther(genericCell));
             curOffset += 1;
         }
+
         return res;
     }, []);
 }

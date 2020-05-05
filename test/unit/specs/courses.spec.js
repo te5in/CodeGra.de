@@ -4,7 +4,7 @@ import { store } from '@/store';
 import { actions, updatePermissions } from '@/store/modules/courses';
 
 import * as types from '@/store/mutation-types';
-import * as utils from '@/utils';
+import * as utils from '@/utils/typed';
 import Vuex from 'vuex';
 import Vue from 'vue';
 import { Assignment } from '@/models/assignment';

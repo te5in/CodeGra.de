@@ -23,6 +23,7 @@ import {
     Left,
     parseOrKeepFloat,
     mapToObject,
+    nonenumerable
 } from '@/utils/typed';
 import { makeCache } from '@/utils/cache';
 import { defaultdict } from '@/utils/defaultdict';
@@ -105,7 +106,8 @@ type RubricDataSourceValue = {
 export class RubricSource extends DataSource<RubricDataSourceValue> {
     static readonly sourceName = 'rubric_data';
 
-    private _cache = makeCache(
+    @nonenumerable
+    private readonly _cache = makeCache(
         'rubricItems',
         'rubricRowPerItem',
         'itemsPerCat',
@@ -354,7 +356,8 @@ type InlineFeedbackDataSourceValue = {
 export class InlineFeedbackSource extends DataSource<InlineFeedbackDataSourceValue> {
     static readonly sourceName = 'inline_feedback';
 
-    private _cache = makeCache('entryStats', 'entriesStdev');
+    @nonenumerable
+    private readonly _cache = makeCache('entryStats', 'entriesStdev');
 
     constructor(data: InlineFeedbackDataSourceValue['data'], workspace: Workspace) {
         super(data, workspace);
@@ -501,6 +504,7 @@ export class WorkspaceSubmissionSet {
         return new WorkspaceSubmissionSet(subs);
     }
 
+    @nonenumerable
     private readonly _cache = makeCache(
         'allSubmissions',
         'firstSubmission',
@@ -771,6 +775,7 @@ type IWorkspaceFilter = {
 export interface WorkspaceFilter extends IWorkspaceFilter {}
 
 export class WorkspaceFilter {
+    @nonenumerable
     private readonly _cache = makeCache('string');
 
     constructor(props: IWorkspaceFilterInput | IWorkspaceFilter) {

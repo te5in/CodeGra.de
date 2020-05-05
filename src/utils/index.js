@@ -9,19 +9,6 @@ export function formatTimePart(num) {
     return `${num < 10 ? '0' : ''}${num}`;
 }
 
-/**
- * Parse the given value as a boolean.
- * If it is a boolean return it, if it is 'false' or 'true' convert
- * that to its correct boolean value, otherwise return `dflt`.
- */
-export function parseBool(value, dflt = true) {
-    if (typeof value === 'boolean') return value;
-    else if (value === 'false') return false;
-    else if (value === 'true') return true;
-
-    return dflt;
-}
-
 export function convertToUTC(timeStr) {
     return moment(timeStr, moment.ISO_8601)
         .utc()
@@ -145,23 +132,6 @@ export function getOtherAssignmentPlagiarismDesc(item, index) {
     }
 
     return desc;
-}
-
-export function deepCopy(value, maxDepth = 10, depth = 1) {
-    if (depth > maxDepth) {
-        throw new Error('Max depth reached');
-    }
-
-    if (Array.isArray(value)) {
-        return value.map(v => deepCopy(v, maxDepth, depth + 1));
-    } else if (value && typeof value === 'object') {
-        return Object.entries(value).reduce((res, [k, v]) => {
-            res[k] = deepCopy(v, maxDepth, depth + 1);
-            return res;
-        }, {});
-    } else {
-        return value;
-    }
 }
 
 export function withOrdinalSuffix(i) {

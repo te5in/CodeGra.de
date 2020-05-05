@@ -638,3 +638,54 @@ export function getNoNull<T>(prop: keyof T, ...objs: (T | null)[]) {
     }
     return null;
 }
+
+export function deepCopy<T>(value: T, maxDepth?: number, depth?: number): T;
+export function deepCopy<T>(value: readonly T[], maxDepth?: number, depth?: number): readonly T[];
+export function deepCopy<T>(value: T | readonly T[], maxDepth = 10, depth = 1): T | readonly T[] {
+    if (depth > maxDepth) {
+        throw new Error('Max depth reached');
+    }
+
+    if (Array.isArray(value)) {
+        return value.map(v => deepCopy(v, maxDepth, depth + 1));
+    } else if (value && typeof value === 'object') {
+        return Object.entries(value).reduce((res, [k, v]) => {
+            res[k] = deepCopy(v, maxDepth, depth + 1);
+            return res;
+        }, <any>{});
+    } else {
+        return value;
+    }
+}
+
+export function nonenumerable(target: Object, propertyKey: string) {
+    let descriptor = Object.getOwnPropertyDescriptor(target, propertyKey) || {};
+    if (descriptor.enumerable !== false) {
+        Object.defineProperty(target, propertyKey, {
+            enumerable: false,
+            set(value: any) {
+                Object.defineProperty(this, propertyKey, {
+                    enumerable: false,
+                    writable: true,
+                    value
+                });
+            }
+        })
+    }
+}
+
+
+/**
+ * Parse the given value as a boolean.
+ * If it is a boolean return it, if it is 'false' or 'true' convert
+ * that to its correct boolean value, otherwise return `dflt`.
+ */
+type IsA<T, Y> = T extends Y ? true : false;
+export function parseBool<T extends string | boolean>(value: T, dflt?: boolean): IsA<T, boolean> extends true ? T : boolean;
+export function parseBool<T extends string | boolean>(value: T, dflt = true): boolean {
+    if (typeof value === 'boolean') return value;
+    else if (value === 'false') return false;
+    else if (value === 'true') return true;
+
+    return dflt;
+}
