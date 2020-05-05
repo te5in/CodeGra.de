@@ -180,16 +180,23 @@ export function waitAtLeast<T>(time: number, ...promises: Promise<T>[]): Promise
     });
 }
 
-export function getProps<TObj extends object, TKey extends keyof TObj, TDefault>(
-    object: TObj,
-    defaultValue: TDefault,
-    prop: TKey,
-): Exclude<TObj[TKey], undefined> | TDefault;
+type isA<T, Y, True, False> = T extends Y ? True : False;
 
 export function getProps<TObj extends object, TKey extends keyof TObj, TDefault>(
     object: TObj,
     defaultValue: TDefault,
-    prop: Omit<string, TKey>,
+    prop: TKey,
+): isA<
+    TObj[TKey],
+    null | undefined,
+    Exclude<TObj[TKey], null | undefined> | TDefault,
+    Exclude<TObj[TKey], null | undefined>
+>;
+
+export function getProps<TDefault>(
+    object: undefined | null,
+    defaultValue: TDefault,
+    ...prop: string[]
 ): TDefault;
 
 export function getProps<
@@ -218,17 +225,12 @@ export function getProps<
     prop3: TKey3,
 ): Exclude<TObj[TKey1][TKey2][TKey3], undefined> | TDefault;
 
-export function getProps<
-    TObj extends object,
-    TKey1 extends keyof TObj,
-    TKey2 extends keyof TObj[TKey1],
-    TKey3 extends keyof TObj[TKey1][TKey2],
-    TDefault
->(
+export function getProps<TObj extends object, TKey1 extends keyof TObj, TDefault>(
     object: TObj,
     defaultValue: TDefault,
     prop1: Omit<string, TKey1>,
-    ...otherProps: string[]
+    prop2: string,
+    prop3: string,
 ): TDefault;
 
 export function getProps<T, Y, K extends string>(

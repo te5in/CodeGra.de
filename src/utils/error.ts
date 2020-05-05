@@ -2,8 +2,23 @@ import { AxiosError } from 'axios';
 
 import { hasAttr } from '@/utils/typed';
 
-export function getErrorMessage(err: Error | AxiosError<any> | any): string {
-    let msg;
+function isAxiosError(err: Object): err is AxiosError<Object> {
+    const attr = 'isAxiosError';
+    return hasAttr(err, attr) && err[attr];
+}
+
+interface APIExceptionData {
+    message: string;
+
+    description: string;
+
+    code: string;
+}
+
+export function getErrorMessage(
+    err: Error | AxiosError<APIExceptionData | Object> | Object,
+): string {
+    let msg: string | null;
 
     if (err == null) {
         // TODO: Find out why we have this case, and eliminate it because it
@@ -11,10 +26,17 @@ export function getErrorMessage(err: Error | AxiosError<any> | any): string {
         return '';
     }
 
-    const httpErr = (err as AxiosError<any>)?.response?.data?.message;
-    if (httpErr != null) {
+    if (isAxiosError(err)) {
         // TODO: Should we rewrite this case in terms of instanceof?
-        msg = httpErr;
+        const errData = err.response?.data;
+        const msgAttr = 'message';
+        if (errData != null && hasAttr(errData, msgAttr)) {
+            msg = errData[msgAttr];
+        } else if (errData != null) {
+            msg = `Something unknown went wrong: "${errData}"`;
+        } else {
+            msg = null;
+        }
     } else if (err instanceof Error) {
         // TODO: Why do we log the error in this case, but not in the other
         // cases?
