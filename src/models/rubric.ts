@@ -359,7 +359,7 @@ export class RubricRow<T extends number | undefined | null> {
 export class NormalRubricRow<T extends number | undefined | null> extends RubricRow<T> {
     static readonly tag = 'normal';
 
-    readonly tag = 'normal';
+    readonly type!: 'normal';
 
     static fromServerData(data: NormalRubricRowServerData) {
         if (data.type !== 'normal') {
@@ -412,7 +412,7 @@ export class NormalRubricRow<T extends number | undefined | null> extends Rubric
 export class ContinuousRubricRow<T extends number | undefined | null> extends RubricRow<T> {
     static readonly tag = 'continuous';
 
-    readonly tag = 'continuous';
+    readonly type!: 'continuous';
 
     static fromServerData(data: ContinuousRubricRowServerData): ContinuousRubricRow<number> {
         if (data.type !== 'continuous') {

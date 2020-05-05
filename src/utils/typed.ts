@@ -3,6 +3,7 @@ import moment from 'moment';
 import type { ICompiledMode } from 'highlightjs';
 import { getLanguage, highlight } from 'highlightjs';
 
+import { AnyUser } from '@/models';
 import { visualizeWhitespace } from './visualize';
 
 export class Right<T> {
@@ -87,15 +88,15 @@ export function mapObject<T, V>(
 export function mapCustom<T, V>(
     arr: Array<T>,
     fun: (v: T, i: number) => V,
-    first: (v: T, i: number) => V = fun,
-    last: (v: T, i: number) => V = fun,
+    funFirst: (v: T, i: number) => V = fun,
+    funLast: (v: T, i: number) => V = fun,
 ): Array<V> {
     const max = arr.length - 1;
     return arr.map((v, i) => {
         if (i === 0) {
-            return first(v, i);
+            return funFirst(v, i);
         } else if (i === max) {
-            return last(v, i);
+            return funLast(v, i);
         } else {
             return fun(v, i);
         }
@@ -487,4 +488,129 @@ export function mapFilterObject<T, V>(
             return either;
         },
     ));
+}
+
+export function range(start: number, end: number): number[] {
+    if (end == null) {
+        // eslint-disable-next-line
+        end = start;
+        // eslint-disable-next-line
+        start = 0;
+    }
+    if (end < start) {
+        return [];
+    }
+    const len = end - start;
+    const res = <number[]>Array(len);
+    for (let i = 0; i < len; i++) {
+        res[i] = start + i;
+    }
+    return res;
+}
+
+export function last<T>(arr: readonly T[]): T {
+    return arr[arr.length - 1];
+}
+
+
+export function isEmpty(obj: Object | null | undefined | boolean | string): boolean {
+    if (typeof obj !== 'object' || obj == null) {
+        return !obj;
+    } else {
+        return Object.keys(obj).length === 0;
+    }
+}
+
+export function nameOfUser(user: AnyUser | null) {
+    if (!user) return '';
+    else if (user.group) return `Group "${user.group.name}"`;
+    else if (user.readableName) return user.readableName;
+    else return user.name || '';
+}
+
+export function groupMembers(user: AnyUser | null) {
+    if (!user || !user.group) return [];
+    return user.group.members.map(nameOfUser);
+}
+
+export function userMatches(user: AnyUser, filter: string): boolean {
+    // The given user might not be an actual user object, as this function is
+    // also used by the plagiarism list.
+    return [nameOfUser(user), ...groupMembers(user)].some(
+        name => name.toLocaleLowerCase().indexOf(filter) > -1,
+    );
+}
+
+export function getExtension(name: string): string | null {
+    const fileParts = name.split('.');
+    return fileParts.length > 1 ? fileParts[fileParts.length - 1] : null;
+}
+
+export function hashString(str: string): number {
+    let hash = 0;
+    if (str.length === 0) return hash;
+
+    for (let i = 0; i < str.length; i++) {
+        const character = str.charCodeAt(i);
+        hash = (hash << 5) - hash + character;
+        hash &= hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash << 0);
+}
+
+export function cmpOneNull(first: string | null, second: string | null): -1 | 0 | 1 | null {
+    if (first == null && second == null) {
+        return 0;
+    } else if (first == null) {
+        return -1;
+    } else if (second == null) {
+        return 1;
+    }
+    return null;
+}
+
+export function cmpNoCase(first: string, second: string): number {
+    return coerceToString(first).localeCompare(coerceToString(second), undefined, {
+        sensitivity: 'base',
+    });
+}
+
+/**
+ * Compare many 2-tuples of strings stopping at the first tuple that is not
+ * equal. The `opts` param should be an array of arrays with two items.
+ */
+export function cmpNoCaseMany(...opts: [string, string][]) {
+    let res = 0;
+    for (let i = 0; res === 0 && i < opts.length; ++i) {
+        res = cmpNoCase(...opts[i]);
+    }
+    return res;
+}
+
+export function readableJoin(arr: readonly string[]): string {
+    if (arr.length === 0) {
+        return '';
+    } else if (arr.length === 1) {
+        return arr[0];
+    }
+    return `${arr.slice(0, -1).join(', ')}, and ${arr[arr.length - 1]}`;
+}
+
+export function numberToTimes(number: number): string {
+    if (typeof number !== 'number') {
+        throw new Error('The given argument should be a number');
+    }
+
+    if (number === 1) {
+        return 'once';
+    } else if (number === 2) {
+        return 'twice';
+    } else {
+        return `${number} times`;
+    }
+}
+
+// Divide a by b, or return dfl if b == 0.
+export function safeDivide<T>(a: number, b: number, dfl: T): number | T {
+    return b === 0 ? dfl : a / b;
 }

@@ -399,9 +399,9 @@ interface WorkspaceSubmissionServerData {
     created_at: string;
 
     // eslint-disable-next-line camelcase
-    assignee_id?: number;
+    assignee_id: number | undefined;
 
-    grade?: number;
+    grade: number | undefined;
 }
 
 interface IWorkspaceSubmission extends WorkspaceSubmissionServerData {
@@ -414,12 +414,13 @@ export class WorkspaceSubmission {
     readonly tag = 'workspace_submission';
 
     static fromServerData(data: WorkspaceSubmissionServerData) {
-        const props = Object.assign(
-            {
-                createdAt: moment.utc(data.created_at, moment.ISO_8601),
-            },
-            data,
-        );
+        const props: IWorkspaceSubmission = {
+            id: data.id,
+            created_at: data.created_at,
+            assignee_id: data.assignee_id,
+            grade: data.grade,
+            createdAt: moment.utc(data.created_at, moment.ISO_8601),
+        };
 
         return new WorkspaceSubmission(props);
     }
