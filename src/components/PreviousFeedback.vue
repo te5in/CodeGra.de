@@ -8,9 +8,16 @@
                     placeholder="Filter feedback..."/>
 
                 <b-input-group-append>
+                    <b-button :variant="useRegex ? 'success' : 'secondary'"
+                              @click="useRegex = !useRegex"
+                              v-b-popover.top.hover.window="`${useRegex ? 'Do not use' : 'Use'} regular expressions`">
+                        <fa-icon name="asterisk" />
+                    </b-button>
+
                     <b-button variant="primary"
                               class="settings-button"
-                              @click="settingsCollapsed = !settingsCollapsed">
+                              @click="settingsCollapsed = !settingsCollapsed"
+                              v-b-popover.top.hover.window="'Show settings'">
                         <fa-icon name="gear"
                                  :class="{ rotate: settingsCollapsed }"/>
                     </b-button>
@@ -108,6 +115,7 @@
 <script>
 import { mapActions } from 'vuex';
 
+import 'vue-awesome/icons/asterisk';
 import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/gear';
 
@@ -134,6 +142,7 @@ export default {
             filter: '',
             otherSubmissions: [],
             settingsCollapsed: true,
+            useRegex: false,
             contextLines: 3,
         };
     },
@@ -163,7 +172,10 @@ export default {
         },
 
         filterRegex() {
-            const filter = this.$utils.regexEscape(this.filter);
+            let filter = this.filter;
+            if (!this.useRegex) {
+                filter = this.$utils.regexEscape(filter);
+            }
             return new RegExp(filter, 'i');
         },
 
