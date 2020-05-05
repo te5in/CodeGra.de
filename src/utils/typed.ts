@@ -3,7 +3,7 @@ import moment from 'moment';
 import type { ICompiledMode } from 'highlightjs';
 import { getLanguage, highlight } from 'highlightjs';
 
-import { AnyUser } from '@/models';
+import { User } from '@/models';
 import { visualizeWhitespace } from './visualize';
 
 export class Right<T> {
@@ -521,19 +521,19 @@ export function isEmpty(obj: Object | null | undefined | boolean | string): bool
     }
 }
 
-export function nameOfUser(user: AnyUser | null) {
+export function nameOfUser(user: User | null) {
     if (!user) return '';
     else if (user.group) return `Group "${user.group.name}"`;
     else if (user.readableName) return user.readableName;
     else return user.name || '';
 }
 
-export function groupMembers(user: AnyUser | null) {
+export function groupMembers(user: User | null) {
     if (!user || !user.group) return [];
     return user.group.members.map(nameOfUser);
 }
 
-export function userMatches(user: AnyUser, filter: string): boolean {
+export function userMatches(user: User, filter: string): boolean {
     // The given user might not be an actual user object, as this function is
     // also used by the plagiarism list.
     return [nameOfUser(user), ...groupMembers(user)].some(
@@ -613,4 +613,28 @@ export function numberToTimes(number: number): string {
 // Divide a by b, or return dfl if b == 0.
 export function safeDivide<T>(a: number, b: number, dfl: T): number | T {
     return b === 0 ? dfl : a / b;
+}
+
+
+/**
+ * Get the `prop` from the first object in `objs` where `objs[i][prop]` is not
+ * `null`.
+ */
+
+type NonNull<T, Y = never> = T extends null | undefined ? Y : T;
+
+export function getNoNull<T, K extends keyof T>(
+    prop: K, obj1: T, obj2: T | null
+): NonNull<T[K], Exclude<T[K], undefined> | null>;
+export function getNoNull<T, K extends keyof T>(
+    prop: K, ...objs: (T | null)[]
+): NonNull<T[K], Exclude<T[K], undefined> | null>;
+export function getNoNull<T>(prop: keyof T, ...objs: (T | null)[]) {
+    for (let i = 0; i < objs.length; ++i) {
+        const obj = objs[i];
+        if (obj && obj[prop] != null) {
+            return obj[prop];
+        }
+    }
+    return null;
 }

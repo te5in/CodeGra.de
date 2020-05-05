@@ -276,16 +276,3 @@ export function autoTestHasCheckpointAfterHiddenStep(autoTest) {
 export function snakeToCamelCase(val) {
     return val.replace(/[-_]([a-z])/gi, inner => inner[1].toUpperCase());
 }
-
-/**
- * Get the `prop` from the first object in `objs` where `objs[i][prop]` is not
- * `null`.
- */
-export function getNoNull(prop, ...objs) {
-    for (let i = 0; i < objs.length; ++i) {
-        if (objs[i] && objs[i][prop] != null) {
-            return objs[i][prop];
-        }
-    }
-    return null;
-}
