@@ -13,6 +13,7 @@ import {
     AssertionError,
     parseOrKeepFloat,
     coerceToString,
+    nonenumerable,
 } from '@/utils/typed';
 import { makeCache } from '@/utils/cache';
 import { AutoTestRun, AutoTestResult } from '@/models';
@@ -132,6 +133,7 @@ export class RubricRow<T extends number | undefined | null> {
         });
     }
 
+    @nonenumerable
     protected _cache = makeCache('maxPoints', 'minPoints');
 
     constructor(row: IRubricRow<T, T>) {
@@ -243,10 +245,6 @@ export class RubricRow<T extends number | undefined | null> {
     createItem<T extends number | null | undefined>(
         this: NormalRubricRow<T>,
     ): NormalRubricRow<T | undefined>;
-
-    createItem<T extends number | null | undefined>(
-        this: ContinuousRubricRow<T>,
-    ): ContinuousRubricRow<T | undefined>;
 
     createItem<T extends number | null | undefined>(this: RubricRow<T>) {
         return this.update({
@@ -473,7 +471,8 @@ export class Rubric<T extends number | undefined | null> {
         return new Rubric(rows);
     }
 
-    public _cache = makeCache('maxPoints', 'rowsById');
+    @nonenumerable
+    private _cache = makeCache('maxPoints', 'rowsById');
 
     constructor(public readonly rows: ReadonlyArray<RubricRow<T>>) {
         this.rows = Object.freeze(rows);
@@ -590,10 +589,6 @@ export class RubricResult {
                 }, 0);
             }
         });
-    }
-
-    get nSelected() {
-        return Object.keys(this.selected).length;
     }
 
     get submission(): Submission {

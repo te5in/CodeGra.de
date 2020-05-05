@@ -24,7 +24,7 @@ export type Either<T, TT> = Left<T> | Right<TT>;
 
 export type ValueOf<T> = T[keyof T];
 
-export function coerceToString(obj: Object | null | undefined) {
+export function coerceToString(obj: Object | null | undefined): string {
     if (obj == null) return '';
     else if (typeof obj === 'string') return obj;
     return `${obj}`;
@@ -111,7 +111,6 @@ export function flatMap1<T, TT>(
 }
 
 export function zip<T, Y>(a: T[], b: Y[]): [T, Y][];
-export function zip<T, Y>(...a: [T, Y][]): [T[], Y[]];
 export function zip(...lists: any[][]): any {
     if (lists.length === 0) {
         return [];
@@ -659,7 +658,7 @@ export function deepCopy<T>(value: T | readonly T[], maxDepth = 10, depth = 1): 
 }
 
 export function nonenumerable(target: Object, propertyKey: string) {
-    let descriptor = Object.getOwnPropertyDescriptor(target, propertyKey) || {};
+    const descriptor = Object.getOwnPropertyDescriptor(target, propertyKey) || {};
     if (descriptor.enumerable !== false) {
         Object.defineProperty(target, propertyKey, {
             enumerable: false,
@@ -667,10 +666,10 @@ export function nonenumerable(target: Object, propertyKey: string) {
                 Object.defineProperty(this, propertyKey, {
                     enumerable: false,
                     writable: true,
-                    value
+                    value,
                 });
-            }
-        })
+            },
+        });
     }
 }
 
@@ -681,7 +680,9 @@ export function nonenumerable(target: Object, propertyKey: string) {
  * that to its correct boolean value, otherwise return `dflt`.
  */
 type IsA<T, Y> = T extends Y ? true : false;
-export function parseBool<T extends string | boolean>(value: T, dflt?: boolean): IsA<T, boolean> extends true ? T : boolean;
+export function parseBool<T extends string | boolean>(
+    value: T, dflt?: boolean
+): IsA<T, boolean> extends true ? T : boolean;
 export function parseBool<T extends string | boolean>(value: T, dflt = true): boolean {
     if (typeof value === 'boolean') return value;
     else if (value === 'false') return false;

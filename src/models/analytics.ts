@@ -23,7 +23,7 @@ import {
     Left,
     parseOrKeepFloat,
     mapToObject,
-    nonenumerable
+    nonenumerable,
 } from '@/utils/typed';
 import { makeCache } from '@/utils/cache';
 import { defaultdict } from '@/utils/defaultdict';
@@ -177,7 +177,7 @@ export class RubricSource extends DataSource<RubricDataSourceValue> {
 
     get rubricRowPerItem() {
         return this._cache.get('rubricRowPerItem', () =>
-            this.rubric.rows.reduce((acc: Record<string, RubricRow<number>>, row) => {
+            this.rubric.rows.reduce((acc: Record<number, RubricRow<number>>, row) => {
                 row.items.forEach(item => {
                     acc[item.id] = row;
                 });
@@ -190,7 +190,7 @@ export class RubricSource extends DataSource<RubricDataSourceValue> {
         return this._cache.get('itemsPerCat', () => {
             const rowPerItem = this.rubricRowPerItem;
             return Object.values(this.data).reduce(
-                (acc: Record<string, RubricDataSourceInnerValue[]>, items) => {
+                (acc: Record<number, RubricDataSourceInnerValue[]>, items) => {
                     items.forEach(item => {
                         const rowId = rowPerItem[item.item_id].id;
                         acc[rowId].push(item);
@@ -281,7 +281,7 @@ export class RubricSource extends DataSource<RubricDataSourceValue> {
         return this._cache.get('totalScorePerSubmission', () =>
             mapFilterObject(this.scorePerCatPerSubmission, scorePerCat => {
                 const score = stat.sum(Object.values(scorePerCat));
-                // TODO: Figure out why this should sometimes return `null`
+                // TODO: Figure out why score can sometimes be a `NaN` here.
                 const res = numOrNull(score);
                 return res == null ? new Left(null) : new Right(res);
             }),
@@ -321,8 +321,6 @@ export class RubricSource extends DataSource<RubricDataSourceValue> {
                 if (zipped.length < 2) {
                     return null;
                 }
-                // TODO: The second array in the unzipped value here can have
-                // nulls, what to do with them?
                 const rit = stat.sampleCorrelation(...unzip2(zipped));
                 return numOrNull(rit);
             }),
@@ -343,7 +341,6 @@ export class RubricSource extends DataSource<RubricDataSourceValue> {
 }
 
 type InlineFeedbackDataSourceValue = {
-    // eslint-disable-next-line camelcase
     name: 'inline_feedback';
     data: {
         [submission: number]: {
