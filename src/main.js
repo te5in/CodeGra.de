@@ -55,6 +55,7 @@ import DescriptionPopover from './components/DescriptionPopover';
 import CgLogo from './components/CgLogo';
 import CatchError from './components/CatchError';
 import Toggle from './components/Toggle';
+import NumberInput from './components/NumberInput';
 /* eslint-enable import/first */
 
 Vue.component('cg-relative-time', RelativeTime);
@@ -65,6 +66,7 @@ Vue.component('cg-description-popover', DescriptionPopover);
 Vue.component('cg-logo', CgLogo);
 Vue.component('cg-catch-error', CatchError);
 Vue.component('cg-toggle', Toggle);
+Vue.component('cg-number-input', NumberInput);
 
 Vue.component('fa-icon', Icon);
 Vue.use(BootstrapVue);

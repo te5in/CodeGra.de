@@ -269,3 +269,12 @@ export function downloadFile(data: string, filename: string, contentType: string
         }, 0);
     }
 }
+
+export function parseOrKeepFloat(num: string | number | null | undefined): number {
+    if (typeof num === 'number') {
+        return num;
+    } else if (num == null) {
+        return NaN;
+    }
+    return parseFloat(num);
+}
