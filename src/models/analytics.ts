@@ -457,7 +457,7 @@ export class WorkspaceSubmission {
             // `minGrade` or `maxGrade``. In the future we probably want an
             // extra option that allows users to manually filter out submissions
             // without a grade.
-            return (minGrade != null && maxGrade != null);
+            return (minGrade == null && maxGrade == null);
         }
 
         if (minGrade != null && this.grade < minGrade) {
