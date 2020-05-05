@@ -2,7 +2,7 @@
 import Vue from 'vue';
 import axios from 'axios';
 
-import { deepCopy, getProps } from '@/utils';
+import { deepCopy, getProps, makeHttpErrorHandler } from '@/utils';
 import { AutoTestSuiteData, AutoTestRun, FINISHED_STATES } from '@/models/auto_test';
 import * as types from '../mutation-types';
 
@@ -369,18 +369,14 @@ const actions = {
 
         return axios.delete(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`).then(
             () => c(),
-            err =>
-                this.handleHttpError(
-                    {
-                        404: () => {
-                            c();
-                            throw new Error(
-                                'AutoTest results were already deleted. Please reload the page.',
-                            );
-                        },
-                    },
-                    err,
-                ),
+            makeHttpErrorHandler({
+                404: () => {
+                    c();
+                    throw new Error(
+                        'AutoTest results were already deleted. Please reload the page.',
+                    );
+                },
+            }),
         );
     },
 

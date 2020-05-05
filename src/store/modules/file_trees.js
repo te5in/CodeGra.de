@@ -33,13 +33,10 @@ const actions = {
                     .get(`/api/v1/submissions/${submissionId}/files/`, {
                         params: { owner: 'teacher' },
                     })
-                    .catch(err =>
-                        utils.handleHttpError(
-                            {
-                                403: () => ({ data: null }),
-                            },
-                            err,
-                        ),
+                    .catch(
+                        utils.makeHttpErrorHandler({
+                            403: () => ({ data: null }),
+                        }),
                     ),
             ]).then(
                 ([, student, teacher]) => {

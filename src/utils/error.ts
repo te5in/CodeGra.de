@@ -94,3 +94,7 @@ export function handleHttpError<T>(handlers: HttpErrorHandlers<T>, err: AxiosErr
 
     throw err;
 }
+
+export function makeHttpErrorHandler<T>(handlers: HttpErrorHandlers<T>): (err: AxiosError<T>) => T {
+    return err => handleHttpError(handlers, err);
+}
