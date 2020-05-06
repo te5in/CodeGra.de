@@ -3,38 +3,14 @@ import moment from 'moment';
 import type { ICompiledMode } from 'highlightjs';
 import { getLanguage, highlight } from 'highlightjs';
 
+import { Maybe } from 'purify-ts/Maybe';
+
 import { User } from '@/models';
 import { visualizeWhitespace } from './visualize';
 
-export function identity<T>(x: T): T {
-    return x;
-}
-
-type Nothing = null | undefined;
-
-type Just<T> = T;
-
-export type Maybe<T> = Nothing | Just<T>;
-
-export function maybe<S, T>(m: Maybe<S>, f: (a: S) => T, dflt: Maybe<T> = null): Maybe<T> {
-    return m == null ? dflt : f(m);
-}
-
-export class Right<T> {
-    static readonly tag = 'right';
-
-    constructor(public result: T) {
-        Object.freeze(this);
-    }
-}
-export class Left<T> {
-    static readonly tag = 'left';
-
-    constructor(public error: T) {
-        Object.freeze(this);
-    }
-}
-export type Either<T, TT> = Left<T> | Right<TT>;
+export * from 'purify-ts/Either';
+export * from 'purify-ts/EitherAsync';
+export * from 'purify-ts/Maybe';
 
 export type ValueOf<T> = T[keyof T];
 
@@ -406,13 +382,11 @@ export function readableFormatDate(date: moment.Moment | string): string {
 }
 
 export function filterMap<T, TT>(
-    arr: ReadonlyArray<T>, filterMapper: (arg: T) => Either<unknown, TT>,
+    arr: ReadonlyArray<T>, filterMapper: (arg: T) => Maybe<TT>,
 ): TT[] {
     return arr.reduce((acc: TT[], item) => {
         const toAdd = filterMapper(item);
-        if (toAdd instanceof Right) {
-            acc.push(toAdd.result);
-        }
+        toAdd.ifJust(x => acc.push(x));
         return acc;
     }, []);
 }
@@ -491,17 +465,11 @@ export function mapToObject<T extends Object, KK extends keyof T = keyof T>(
 
 export function mapFilterObject<T, V>(
     obj: Record<KeyLike, T>,
-    fun: (v: T, k: string) => Either<unknown, V>,
+    fun: (v: T, k: string) => Maybe<V>,
 ): Record<string, V> {
     return fromEntries(filterMap(
         Object.entries(obj),
-        ([key, val]) => {
-            const either = fun(val, key);
-            if (either instanceof Right) {
-                return new Right([key, either.result]);
-            }
-            return either;
-        },
+        ([key, val]) => fun(val, key).map(result => [key, result]),
     ));
 }
 

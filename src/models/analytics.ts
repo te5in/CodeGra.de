@@ -19,8 +19,7 @@ import {
     AssertionError,
     mapFilterObject,
     filterMap,
-    Right,
-    Left,
+    Maybe,
     parseOrKeepFloat,
     mapToObject,
     nonenumerable,
@@ -284,8 +283,7 @@ export class RubricSource extends DataSource<RubricDataSourceValue> {
             mapFilterObject(this.scorePerCatPerSubmission, scorePerCat => {
                 const score = stat.sum(Object.values(scorePerCat));
                 // TODO: Figure out why score can sometimes be a `NaN` here.
-                const res = numOrNull(score);
-                return res == null ? new Left(null) : new Right(res);
+                return Maybe.fromNullable(numOrNull(score));
             }),
         );
     }
@@ -688,12 +686,7 @@ export class WorkspaceSubmissionSet {
 
     get gradeStats() {
         return this._cache.get('gradeStats', () => {
-            const grades = filterMap(this.allSubmissions, sub => {
-                if (sub.grade != null) {
-                    return new Right(sub.grade);
-                }
-                return new Left(null);
-            });
+            const grades = filterMap(this.allSubmissions, sub => Maybe.fromNullable(sub.grade));
             return averages(grades);
         });
     }

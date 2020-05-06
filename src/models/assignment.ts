@@ -273,10 +273,7 @@ export class Assignment extends AssignmentData {
         }
         return utils.filterMap(this.graderIds, id => {
             const user = User.findUserById(id);
-            if (user != null) {
-                return new utils.Right(user);
-            }
-            return new utils.Left(null);
+            return utils.Maybe.fromNullable(user);
         });
     }
 

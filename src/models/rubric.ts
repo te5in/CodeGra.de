@@ -8,11 +8,7 @@ import {
     setXor,
     hasAttr,
     filterMap,
-    identity,
-    maybe,
     Maybe,
-    Left,
-    Right,
     AssertionError,
     parseOrKeepFloat,
     coerceToString,
@@ -150,7 +146,7 @@ export class RubricRow<T extends number | undefined | null> {
         Object.freeze(this);
     }
 
-    get minPoints() {
+    get minPoints(): number {
         return this._cache.get('minPoints', () => {
             const found = this.items.reduce((minFound, item) => {
                 const pts: number | null | '' = item.points;
@@ -163,16 +159,16 @@ export class RubricRow<T extends number | undefined | null> {
         });
     }
 
-    get maxPoints() {
+    get maxPoints(): number {
         return this._cache.get('maxPoints', () => {
             const maxPoints = Math.max(
-                ...filterMap(this.items, item => {
-                    const pts: number | null | '' = item.points;
-                    if (pts != null && pts !== '') {
-                        return new Right(pts);
-                    }
-                    return new Left(null);
-                }),
+                ...filterMap(
+                    this.items,
+                    item =>
+                        Maybe.fromPredicate(pts => pts != null && pts !== '', item.points) as Maybe<
+                            number
+                        >,
+                ),
             );
 
             if (maxPoints === -Infinity) {
@@ -614,17 +610,19 @@ export class RubricResult {
     }
 
     get maxPoints(): Maybe<number> {
-        // eslint-disable-next-line camelcase
-        const pts = this.assignment?.fixed_max_rubric_points;
-        return maybe(pts, identity, this.rubric?.maxPoints);
+        return Maybe.fromNullable(
+            // eslint-disable-next-line camelcase
+            this.assignment?.fixed_max_rubric_points,
+        ).alt(Maybe.fromNullable(this.rubric?.maxPoints));
     }
 
     get grade(): string | null {
         const points = this.points;
-        if (points == null || this.maxPoints == null) {
+        const maxPoints = this.maxPoints.extractNullable();
+        if (points == null || maxPoints == null) {
             return null;
         } else {
-            const grade = (10 * points) / this.maxPoints;
+            const grade = (10 * points) / maxPoints;
             return formatGrade(Math.max(0, Math.min(grade, 10)));
         }
     }
