@@ -287,7 +287,7 @@ ${flat1(lines).join('\n')}
     }
 
     // eslint-disable-next-line class-methods-use-this
-    private defineColors(highlights: Highlight[]): string[] {
+    private defineColors(highlights: ReadonlyArray<Highlight>): string[] {
         return unique(highlights, h => h.id).reduce(
             (acc: string[], highlight) => {
                 const id = highlight.id;

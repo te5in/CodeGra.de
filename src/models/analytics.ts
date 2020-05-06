@@ -2,25 +2,40 @@
 import moment from 'moment';
 import * as stat from 'simple-statistics';
 
+import { keys } from 'ts-transformer-keys';
+
 import { store } from '@/store';
 import {
+    flat1,
     hasAttr,
+    fromEntries,
     getProps,
     deepEquals,
     mapObject,
+    forEachObject,
     filterObject,
     readableFormatDate,
-    zip,
-} from '@/utils';
+    unzip2,
+    AssertionError,
+    mapFilterObject,
+    filterMap,
+    Right,
+    Left,
+    parseOrKeepFloat,
+    mapToObject,
+    nonenumerable,
+} from '@/utils/typed';
 import { makeCache } from '@/utils/cache';
 import { defaultdict } from '@/utils/defaultdict';
 import { NONEXISTENT } from '@/constants';
 
-function numOrNull(x) {
+import { Assignment, RubricItem, RubricRow, AnyUser, User } from '@/models';
+
+function numOrNull(x: number): number | null {
     return Number.isNaN(x) ? null : x;
 }
 
-function averages(xs) {
+function averages(xs: number[]) {
     if (xs.length < 1) {
         return null;
     }
@@ -33,10 +48,21 @@ function averages(xs) {
     };
 }
 
-export class DataSource {
+interface DataSourceValue {
+    name: string;
+    data: {
+        [submissionId: number]: Object;
+    };
+}
+
+export class DataSource<T extends DataSourceValue> {
     static sourceName = '__base_data_source';
 
-    static fromServerData(dataSource, workspace) {
+    protected data: Readonly<T['data']>;
+
+    private workspace: Workspace;
+
+    static fromServerData<T extends DataSourceValue>(dataSource: T, workspace: Workspace) {
         if (dataSource.name !== this.sourceName) {
             throw new TypeError('Invalid DataSource type');
         }
@@ -46,7 +72,7 @@ export class DataSource {
         return new this(dataSource.data, workspace);
     }
 
-    constructor(data, workspace) {
+    constructor(data: T['data'], workspace: Workspace) {
         if (this.constructor === DataSource) {
             throw new TypeError('DataSource should not be instantiated directly');
         }
@@ -54,43 +80,57 @@ export class DataSource {
         this.workspace = workspace;
     }
 
-    get assignment() {
+    get assignment(): Assignment | undefined | null {
         return getProps(this.workspace, null, 'assignment');
     }
 
-    filter(subIds) {
+    filter(subIds: Set<number>): this {
         const data = filterObject(this.data, (_, id) => subIds.has(parseInt(id, 10)));
-        return new this.constructor(data, this.workspace);
+        return new (this.constructor as any)(data, this.workspace);
     }
 }
 
-export class RubricSource extends DataSource {
-    static sourceName = 'rubric_data';
+type RubricDataSourceInnerValue = {
+    points: number;
+    multiplier: number;
+    // eslint-disable-next-line camelcase
+    item_id: number;
+};
+type RubricDataSourceValue = {
+    name: 'rubric_data';
+    data: {
+        [submissionId: number]: RubricDataSourceInnerValue[];
+    };
+};
 
-    constructor(data, workspace) {
+export class RubricSource extends DataSource<RubricDataSourceValue> {
+    static readonly sourceName = 'rubric_data';
+
+    @nonenumerable
+    private readonly _cache = makeCache(
+        'rubricItems',
+        'rubricRowPerItem',
+        'itemsPerCat',
+        'meanPerCat',
+        'stdevPerCat',
+        'modePerCat',
+        'medianPerCat',
+        'nTimesFilledPerCat',
+        'scorePerCatPerSubmission',
+        'totalScorePerSubmission',
+        'scorePerSubmissionPerCat',
+        'ritItemsPerCat',
+        'rirItemsPerCat',
+        'ritPerCat',
+        'rirPerCat',
+    );
+
+    constructor(data: RubricDataSourceValue['data'], workspace: Workspace) {
         super(data, workspace);
 
         if (getProps(this.assignment, NONEXISTENT, 'rubric') === NONEXISTENT) {
             throw new Error('This assignment does not have a rubric');
         }
-
-        this._cache = makeCache(
-            'rubricItems',
-            'rubricRowPerItem',
-            'itemsPerCat',
-            'meanPerCat',
-            'stdevPerCat',
-            'modePerCat',
-            'medianPerCat',
-            'nTimesFilledPerCat',
-            'scorePerCatPerSubmission',
-            'totalScorePerSubmission',
-            'scorePerSubmissionPerCat',
-            'ritItemsPerCat',
-            'rirItemsPerCat',
-            'ritPerCat',
-            'rirPerCat',
-        );
 
         this.updateItemPoints();
 
@@ -102,7 +142,7 @@ export class RubricSource extends DataSource {
             items.forEach(item => {
                 if (!hasAttr(item, 'points')) {
                     const rubricItem = this.rubricItems[item.item_id];
-                    item.points = item.multiplier * rubricItem.points;
+                    item.points = item.multiplier * (rubricItem.points as number);
                     Object.freeze(item);
                 }
             });
@@ -111,10 +151,12 @@ export class RubricSource extends DataSource {
     }
 
     get rubric() {
-        return getProps(this.assignment, null, 'rubric');
+        const rubric = getProps(this.assignment, null, 'rubric');
+        AssertionError.assert(rubric != null, 'This assignment does not have a rubric');
+        return rubric;
     }
 
-    get rowIds() {
+    get rowIds(): ReadonlyArray<number> {
         return this.rubric.rows.map(row => row.id);
     }
 
@@ -124,7 +166,7 @@ export class RubricSource extends DataSource {
 
     get rubricItems() {
         return this._cache.get('rubricItems', () =>
-            this.rubric.rows.reduce((acc, row) => {
+            this.rubric.rows.reduce((acc: Record<string, RubricItem>, row) => {
                 row.items.forEach(item => {
                     acc[item.id] = item;
                 });
@@ -135,7 +177,7 @@ export class RubricSource extends DataSource {
 
     get rubricRowPerItem() {
         return this._cache.get('rubricRowPerItem', () =>
-            this.rubric.rows.reduce((acc, row) => {
+            this.rubric.rows.reduce((acc: Record<number, RubricRow<number>>, row) => {
                 row.items.forEach(item => {
                     acc[item.id] = row;
                 });
@@ -147,13 +189,16 @@ export class RubricSource extends DataSource {
     get itemsPerCat() {
         return this._cache.get('itemsPerCat', () => {
             const rowPerItem = this.rubricRowPerItem;
-            return Object.values(this.data).reduce((acc, items) => {
-                items.forEach(item => {
-                    const rowId = rowPerItem[item.item_id].id;
-                    acc[rowId].push(item);
-                });
-                return acc;
-            }, Object.fromEntries(this.rowIds.map(id => [id, []])));
+            return Object.values(this.data).reduce(
+                (acc: Record<number, RubricDataSourceInnerValue[]>, items) => {
+                    items.forEach(item => {
+                        const rowId = rowPerItem[item.item_id].id;
+                        acc[rowId].push(item);
+                    });
+                    return acc;
+                },
+                fromEntries(this.rowIds.map(id => [id, []])),
+            );
         });
     }
 
@@ -223,7 +268,7 @@ export class RubricSource extends DataSource {
         return this._cache.get('scorePerCatPerSubmission', () => {
             const rowPerItem = this.rubricRowPerItem;
             return mapObject(this.data, items =>
-                items.reduce((acc, item) => {
+                items.reduce((acc: Record<string, number>, item) => {
                     const rowId = rowPerItem[item.item_id].id;
                     acc[rowId] = item.points;
                     return acc;
@@ -234,9 +279,11 @@ export class RubricSource extends DataSource {
 
     get totalScorePerSubmission() {
         return this._cache.get('totalScorePerSubmission', () =>
-            mapObject(this.scorePerCatPerSubmission, scorePerCat => {
+            mapFilterObject(this.scorePerCatPerSubmission, scorePerCat => {
                 const score = stat.sum(Object.values(scorePerCat));
-                return numOrNull(score);
+                // TODO: Figure out why score can sometimes be a `NaN` here.
+                const res = numOrNull(score);
+                return res == null ? new Left(null) : new Right(res);
             }),
         );
     }
@@ -246,19 +293,24 @@ export class RubricSource extends DataSource {
             const scoresPerSub = this.scorePerCatPerSubmission;
             const totalsPerSub = this.totalScorePerSubmission;
 
-            return Object.entries(scoresPerSub).reduce((acc, [subId, scores]) => {
-                Object.entries(scores).forEach(([rowId, score]) => {
-                    acc[rowId].push([score, totalsPerSub[subId]]);
-                });
-                return acc;
-            }, Object.fromEntries(this.rowIds.map(id => [id, []])));
+            return Object.entries(scoresPerSub).reduce(
+                (acc: Record<string, [number, number][]>, [subId, scores]) => {
+                    Object.entries(scores).forEach(([rowId, score]) => {
+                        if (hasAttr(totalsPerSub, subId)) {
+                            acc[rowId].push([score, totalsPerSub[subId]]);
+                        }
+                    });
+                    return acc;
+                },
+                fromEntries(this.rowIds.map(id => [id, []])),
+            );
         });
     }
 
     get rirItemsPerCat() {
         return this._cache.get('rirItemsPerCat', () =>
             mapObject(this.ritItemsPerCat, ritItems =>
-                ritItems.map(([score, total]) => [score, total - score]),
+                ritItems.map(([score, total]) => <const>[score, total - score]),
             ),
         );
     }
@@ -269,7 +321,7 @@ export class RubricSource extends DataSource {
                 if (zipped.length < 2) {
                     return null;
                 }
-                const rit = stat.sampleCorrelation(...zip(...zipped));
+                const rit = stat.sampleCorrelation(...unzip2(zipped));
                 return numOrNull(rit);
             }),
         );
@@ -281,66 +333,104 @@ export class RubricSource extends DataSource {
                 if (zipped.length < 2) {
                     return null;
                 }
-                const rir = stat.sampleCorrelation(...zip(...zipped));
+                const rir = stat.sampleCorrelation(...unzip2(zipped));
                 return numOrNull(rir);
             }),
         );
     }
 }
 
-export class InlineFeedbackSource extends DataSource {
-    static sourceName = 'inline_feedback';
+type InlineFeedbackDataSourceValue = {
+    name: 'inline_feedback';
+    data: {
+        [submission: number]: {
+            // eslint-disable-next-line camelcase
+            total_amount: number;
+        };
+    };
+};
 
-    constructor(data, workspace) {
+export class InlineFeedbackSource extends DataSource<InlineFeedbackDataSourceValue> {
+    static readonly sourceName = 'inline_feedback';
+
+    @nonenumerable
+    private readonly _cache = makeCache('entryStats', 'entriesStdev');
+
+    constructor(data: InlineFeedbackDataSourceValue['data'], workspace: Workspace) {
         super(data, workspace);
-        this._cache = makeCache('entryStats', 'entriesStdev');
         Object.freeze(this);
     }
 
     get entryStats() {
         return this._cache.get('entryStats', () => {
             const allEntries = Object.values(this.data);
-            return averages(allEntries);
+            return averages(allEntries.map(x => x.total_amount));
         });
     }
 }
 
-function createDataSource(data, workspace) {
-    switch (data.name) {
-        case 'rubric_data':
-            return RubricSource.fromServerData(data, workspace);
-        case 'inline_feedback':
-            return InlineFeedbackSource.fromServerData(data, workspace);
-        default:
-            throw new TypeError('Invalid DataSource');
+type AnyDataSourceValue = RubricDataSourceValue | InlineFeedbackDataSourceValue;
+
+const PossibleDataSources = <const>{
+    [RubricSource.sourceName]: RubricSource,
+    [InlineFeedbackSource.sourceName]: InlineFeedbackSource,
+};
+type PossibleDataSourceName = keyof typeof PossibleDataSources;
+
+type PossibleDataSourcesMapping = {
+    [key in PossibleDataSourceName]: InstanceType<typeof PossibleDataSources[key]>;
+};
+
+function createDataSource<T extends AnyDataSourceValue>(
+    data: T,
+    workspace: Workspace,
+): PossibleDataSourcesMapping[T['name']] {
+    if (!hasAttr(PossibleDataSources, data.name)) {
+        throw new TypeError('Invalid DataSource');
     }
+    // @ts-ignore
+    return PossibleDataSources[data.name].fromServerData(data, workspace);
 }
 
-const WORKSPACE_SUBMISSION_SERVER_PROPS = Object.freeze([
-    'id',
-    'assignee_id',
-    'created_at',
-    'grade',
-]);
+interface WorkspaceSubmissionServerData {
+    id: number;
+
+    // eslint-disable-next-line camelcase
+    created_at: string;
+
+    // eslint-disable-next-line camelcase
+    assignee_id: number | undefined;
+
+    grade: number | undefined;
+}
+
+interface IWorkspaceSubmission extends WorkspaceSubmissionServerData {
+    createdAt: moment.Moment;
+}
+
+export interface WorkspaceSubmission extends IWorkspaceSubmission {}
 
 export class WorkspaceSubmission {
-    static fromServerData(data) {
-        const props = WORKSPACE_SUBMISSION_SERVER_PROPS.reduce((acc, prop) => {
-            acc[prop] = data[prop];
-            return acc;
-        }, {});
+    readonly tag = 'workspace_submission';
 
-        props.createdAt = moment.utc(data.created_at, moment.ISO_8601);
+    static fromServerData(data: WorkspaceSubmissionServerData) {
+        const props: IWorkspaceSubmission = {
+            id: data.id,
+            created_at: data.created_at,
+            assignee_id: data.assignee_id,
+            grade: data.grade,
+            createdAt: moment.utc(data.created_at, moment.ISO_8601),
+        };
 
         return new WorkspaceSubmission(props);
     }
 
-    constructor(props) {
+    constructor(props: IWorkspaceSubmission) {
         Object.assign(this, props);
         Object.freeze(this);
     }
 
-    satisfies(filter) {
+    satisfies(filter: WorkspaceFilter) {
         const { minGrade, maxGrade, submittedAfter, submittedBefore, assignees } = filter;
 
         return (
@@ -350,7 +440,7 @@ export class WorkspaceSubmission {
         );
     }
 
-    satisfiesGrade(minGrade, maxGrade) {
+    satisfiesGrade(minGrade: number | null, maxGrade: number | null) {
         // We do not want a submission to be in both filter A and
         // filter B if A has maxGrade=6 and B has minGrade=6, so we
         // need to check exclusively at one end. However, we need to be
@@ -362,9 +452,14 @@ export class WorkspaceSubmission {
         // exactly 9, but that a maxGrade of 10 _will_ include
         // submissions graded exactly 10.
 
-        if ((minGrade != null || maxGrade != null) && this.grade == null) {
-            return false;
+        if (this.grade == null) {
+            // If grade is `null` we don't want to include it if we filter on
+            // `minGrade` or `maxGrade``. In the future we probably want an
+            // extra option that allows users to manually filter out submissions
+            // without a grade.
+            return minGrade == null && maxGrade == null;
         }
+
         if (minGrade != null && this.grade < minGrade) {
             return false;
         }
@@ -379,7 +474,7 @@ export class WorkspaceSubmission {
         return true;
     }
 
-    satisfiesDate(submittedAfter, submittedBefore) {
+    satisfiesDate(submittedAfter: moment.Moment | null, submittedBefore: moment.Moment | null) {
         // Same as with the grade, but we do not have a maximum value to check for.
 
         if (submittedAfter != null && this.createdAt.isBefore(submittedAfter)) {
@@ -391,7 +486,7 @@ export class WorkspaceSubmission {
         return true;
     }
 
-    satisfiesAssignees(assignees) {
+    satisfiesAssignees(assignees: readonly AnyUser[]) {
         if (assignees.length > 0) {
             return assignees.some(a => a.id === this.assignee_id);
         }
@@ -399,38 +494,41 @@ export class WorkspaceSubmission {
     }
 }
 
+type WorkspaceSubmissionSetServerData = Record<number, readonly WorkspaceSubmissionServerData[]>;
+
 export class WorkspaceSubmissionSet {
-    static fromServerData(data) {
+    static fromServerData(data: WorkspaceSubmissionSetServerData) {
         const subs = mapObject(data, ss => ss.map(WorkspaceSubmission.fromServerData));
         return new WorkspaceSubmissionSet(subs);
     }
 
-    constructor(subs) {
-        this.submissions = subs;
-        this._cache = makeCache(
-            'allSubmissions',
-            'firstSubmission',
-            'lastSubmission',
-            'gradeStats',
-            'submissionStats',
-            'submissionsPerStudent',
-            'submissionIds',
-            'assigneeIds',
-        );
-        mapObject(this.submissions, Object.freeze);
+    @nonenumerable
+    private readonly _cache = makeCache(
+        'allSubmissions',
+        'firstSubmission',
+        'lastSubmission',
+        'gradeStats',
+        'submissionStats',
+        'submissionsPerStudent',
+        'submissionIds',
+        'assigneeIds',
+    );
+
+    constructor(
+        public readonly submissions: { [userId: number]: ReadonlyArray<WorkspaceSubmission> },
+    ) {
+        forEachObject(this.submissions, sub => Object.freeze(sub));
         Object.freeze(this.submissions);
         Object.freeze(this);
     }
 
     get allSubmissions() {
-        return this._cache.get('allSubmissions', () =>
-            [].concat(...Object.values(this.submissions)),
-        );
+        return this._cache.get('allSubmissions', () => flat1(Object.values(this.submissions)));
     }
 
     get firstSubmissionDate() {
         return this._cache.get('firstSubmission', () =>
-            this.allSubmissions.reduce((first, sub) => {
+            this.allSubmissions.reduce((first: null | moment.Moment, sub) => {
                 if (first == null || first.isAfter(sub.createdAt)) {
                     return sub.createdAt;
                 } else {
@@ -442,7 +540,7 @@ export class WorkspaceSubmissionSet {
 
     get lastSubmissionDate() {
         return this._cache.get('lastSubmission', () =>
-            this.allSubmissions.reduce((last, sub) => {
+            this.allSubmissions.reduce((last: null | moment.Moment, sub) => {
                 if (last == null || last.isBefore(sub.createdAt)) {
                     return sub.createdAt;
                 } else {
@@ -467,16 +565,18 @@ export class WorkspaceSubmissionSet {
         );
     }
 
-    binSubmissionsBy(f) {
+    binSubmissionsBy<K extends string | number>(
+        f: (sub: WorkspaceSubmission) => K | null,
+    ): Record<K, WorkspaceSubmission[]> {
         return this.allSubmissions.reduce(
-            (acc, sub) => {
+            (acc: Record<K, WorkspaceSubmission[]>, sub: WorkspaceSubmission) => {
                 const bin = f(sub);
                 if (bin != null) {
-                    acc[f(sub)].push(sub);
+                    acc[bin].push(sub);
                 }
                 return acc;
             },
-            defaultdict(() => []),
+            <Record<K, WorkspaceSubmission[]>>defaultdict(() => []),
         );
     }
 
@@ -487,7 +587,11 @@ export class WorkspaceSubmissionSet {
         });
     }
 
-    binSubmissionsByDate(range, binSize, binUnit) {
+    binSubmissionsByDate(
+        range: readonly moment.Moment[],
+        binSize: number,
+        binUnit: moment.DurationInputArg2,
+    ) {
         const [start, end] = WorkspaceSubmissionSet.getDateRange(range);
         const binStep = moment.duration(binSize, binUnit).asMilliseconds();
 
@@ -495,7 +599,7 @@ export class WorkspaceSubmissionSet {
             return {};
         }
 
-        const getBin = d => {
+        const getBin = (d: moment.Moment) => {
             // We use unix timestamp for binning. Each bin starts at an integer
             // multiple of the bin size.
             // Correction term for the timezone offset.
@@ -517,10 +621,18 @@ export class WorkspaceSubmissionSet {
             return getBin(createdAt);
         });
 
-        const first = start == null ? Math.min(...Object.keys(binned)) : getBin(start);
-        const last = end == null ? Math.max(...Object.keys(binned)) : getBin(end);
+        const binKeys = Object.keys(binned).map(parseFloat);
+        const first = start == null ? stat.min(binKeys) : getBin(start);
+        const last = end == null ? stat.max(binKeys) : getBin(end);
 
-        const result = {};
+        const result: Record<
+            number,
+            {
+                start: number;
+                end: number;
+                data: WorkspaceSubmission[];
+            }
+        > = {};
 
         for (let i = first; i <= last; i++) {
             const binStart = i * binStep;
@@ -534,7 +646,7 @@ export class WorkspaceSubmissionSet {
         return result;
     }
 
-    static getDateRange(range) {
+    static getDateRange(range: readonly moment.Moment[]) {
         let start;
         let end;
 
@@ -574,7 +686,12 @@ export class WorkspaceSubmissionSet {
 
     get gradeStats() {
         return this._cache.get('gradeStats', () => {
-            const grades = this.allSubmissions.map(sub => sub.grade).filter(grade => grade != null);
+            const grades = filterMap(this.allSubmissions, sub => {
+                if (sub.grade != null) {
+                    return new Right(sub.grade);
+                }
+                return new Left(null);
+            });
             return averages(grades);
         });
     }
@@ -594,7 +711,7 @@ export class WorkspaceSubmissionSet {
                 .filter(s => s.length > 0)
                 .map(s => s.length);
             return subsPerStudent.reduce(
-                (acc, nSubs) => {
+                (acc: Record<number, number>, nSubs) => {
                     // XXX: This can probably be replaced with "acc[nSubs]++;"
                     // but I got a lot of errors, and at the time I thought they
                     // were related to that line. I don't get them anymore when
@@ -608,7 +725,7 @@ export class WorkspaceSubmissionSet {
         });
     }
 
-    filter(filter) {
+    filter(filter: WorkspaceFilter) {
         let filtered = filter.onlyLatestSubs ? this.getLatestSubmissions() : this.submissions;
 
         filtered = mapObject(filtered, subs => subs.filter(s => s.satisfies(filter)));
@@ -626,49 +743,93 @@ export class WorkspaceSubmissionSet {
         });
     }
 }
+type IWorkspaceFilterInput = {
+    onlyLatestSubs?: boolean;
+    minGrade?: null | number | string;
+    maxGrade?: null | number | string;
+    submittedAfter?: null | moment.Moment | string;
+    submittedBefore?: null | moment.Moment | string;
+    assignees?: ReadonlyArray<number | AnyUser>;
+};
 
-const WORKSPACE_FILTER_DEFAULT_PROPS = Object.freeze({
+const WORKSPACE_FILTER_DEFAULT_PROPS: Required<IWorkspaceFilterInput> = {
     onlyLatestSubs: true,
     minGrade: null,
     maxGrade: null,
     submittedAfter: null,
     submittedBefore: null,
-    assignees: [],
-});
+    assignees: <readonly AnyUser[]>[],
+};
+
+type IWorkspaceFilter = {
+    onlyLatestSubs: boolean;
+    minGrade: null | number;
+    maxGrade: null | number;
+    submittedAfter: null | moment.Moment;
+    submittedBefore: null | moment.Moment;
+    assignees: ReadonlyArray<AnyUser>;
+};
+
+export interface WorkspaceFilter extends IWorkspaceFilter {}
 
 export class WorkspaceFilter {
-    constructor(props) {
+    @nonenumerable
+    private readonly _cache = makeCache('string');
+
+    constructor(props: IWorkspaceFilterInput | IWorkspaceFilter) {
+        // First check that the given ``props`` object doesn't contain extra
+        // keys.
         Object.keys(props).forEach(key => {
             if (!hasAttr(WORKSPACE_FILTER_DEFAULT_PROPS, key)) {
                 throw new Error(`Invalid filter: ${key}`);
             }
-            this[key] = props[key];
         });
 
-        Object.entries(WORKSPACE_FILTER_DEFAULT_PROPS).forEach(([key, defaultValue]) => {
-            if (!hasAttr(this, key)) {
-                this[key] = defaultValue;
-            }
-        });
-
-        const maybeFloat = x => {
-            const f = parseFloat(x);
+        const maybeFloat = (x?: string | number | null) => {
+            const f = parseOrKeepFloat(x);
             return Number.isNaN(f) ? null : f;
         };
 
-        const maybeMoment = x => {
+        const maybeMoment = (x?: moment.Moment | null | string): moment.Moment | null => {
+            if (x == null) {
+                return null;
+            }
             const m = moment.utc(x, moment.ISO_8601);
             return m.isValid() ? m : null;
         };
 
-        this.minGrade = maybeFloat(this.minGrade);
-        this.maxGrade = maybeFloat(this.maxGrade);
-
-        this.submittedAfter = maybeMoment(this.submittedAfter);
-        this.submittedBefore = maybeMoment(this.submittedBefore);
-
-        Object.defineProperty(this, '_cache', {
-            value: makeCache('string'),
+        // Now go over
+        keys<IWorkspaceFilter>().forEach(key => {
+            if (hasAttr(props, key)) {
+                switch (key) {
+                    case 'minGrade':
+                    case 'maxGrade':
+                        this[key] = maybeFloat(props[key]);
+                        break;
+                    case 'submittedAfter':
+                    case 'submittedBefore':
+                        this[key] = maybeMoment(props[key]);
+                        break;
+                    case 'assignees':
+                        this[key] = (props[key] ?? []).map((assignee: number | AnyUser) => {
+                            if (typeof assignee === 'number') {
+                                const user = User.findUserById(assignee);
+                                AssertionError.assert(
+                                    user != null,
+                                    'The specified assignee was not found',
+                                );
+                                return user;
+                            }
+                            return assignee;
+                        });
+                        break;
+                    default:
+                        this[key] = props[key] ?? true;
+                }
+            } else {
+                const defaultValue = WORKSPACE_FILTER_DEFAULT_PROPS[key];
+                this[key] = defaultValue;
+            }
         });
 
         Object.freeze(this);
@@ -678,20 +839,25 @@ export class WorkspaceFilter {
         return new WorkspaceFilter(WORKSPACE_FILTER_DEFAULT_PROPS);
     }
 
-    update(key, value) {
+    update<T extends keyof IWorkspaceFilter>(key: T, value: IWorkspaceFilter[T]) {
         return new WorkspaceFilter(Object.assign({}, this, { [key]: value }));
     }
 
-    split(props) {
+    split(props: {
+        grade?: number | string;
+        latest: boolean;
+        assignees?: AnyUser[];
+        date?: null | moment.Moment | string;
+    }) {
         const { minGrade, maxGrade, submittedAfter, submittedBefore } = this;
 
         const { latest, assignees } = props;
-        const grade = parseFloat(props.grade);
+        const grade = parseOrKeepFloat(props.grade);
         // moment(undefined) gives a valid moment, so we must convert it to
         // null first.
-        const date = moment(props.date == null ? null : props.date);
+        const date = props.date == null ? moment.invalid() : moment(props.date);
 
-        let result = [this];
+        let result: readonly WorkspaceFilter[] = [this];
 
         if (!Number.isNaN(grade)) {
             if (minGrade != null && minGrade >= grade) {
@@ -700,8 +866,8 @@ export class WorkspaceFilter {
             if (maxGrade != null && maxGrade <= grade) {
                 throw new Error('Selected grade is greater than or equal to the old "Min grade".');
             }
-            result = [].concat(
-                ...result.map(f => [f.update('maxGrade', grade), f.update('minGrade', grade)]),
+            result = flat1(
+                result.map(f => [f.update('maxGrade', grade), f.update('minGrade', grade)]),
             );
         }
 
@@ -712,8 +878,8 @@ export class WorkspaceFilter {
             if (submittedBefore != null && !submittedBefore.isAfter(date)) {
                 throw new Error('Selected date is after the old "Submitted before".');
             }
-            result = [].concat(
-                ...result.map(f => [
+            result = flat1(
+                result.map(f => [
                     f.update('submittedBefore', date),
                     f.update('submittedAfter', date),
                 ]),
@@ -721,8 +887,8 @@ export class WorkspaceFilter {
         }
 
         if (latest) {
-            result = [].concat(
-                ...result.map(f => [
+            result = flat1(
+                result.map(f => [
                     f.update('onlyLatestSubs', false),
                     f.update('onlyLatestSubs', true),
                 ]),
@@ -730,7 +896,7 @@ export class WorkspaceFilter {
         }
 
         if (assignees && assignees.length) {
-            result = [].concat(...assignees.map(a => result.map(f => f.update('assignees', [a]))));
+            result = flat1(assignees.map(a => result.map(f => f.update('assignees', [a]))));
         }
 
         return result;
@@ -770,79 +936,121 @@ export class WorkspaceFilter {
 
     serialize() {
         const defaults = WorkspaceFilter.emptyFilter;
-        const filter = filterObject(
-            Object.assign({}, this),
-            (val, key) => !deepEquals(val, defaults[key]),
-        );
-        if (filter.submittedAfter != null) {
-            filter.submittedAfter = filter.submittedAfter.toISOString();
-        }
-        if (filter.submittedBefore != null) {
-            filter.submittedBefore = filter.submittedBefore.toISOString();
-        }
-        if (filter.assignees != null) {
-            filter.assignees = filter.assignees.map(a => a.id);
-        }
-        return filter;
+
+        return keys<IWorkspaceFilter>().reduce((acc: Partial<IWorkspaceFilterInput>, key) => {
+            if (deepEquals(this[key], defaults[key])) {
+                return acc;
+            }
+            if (key === 'submittedAfter' || key === 'submittedBefore') {
+                const val = this[key];
+                if (val != null) {
+                    acc[key] = val.toISOString();
+                }
+            } else if (key === 'assignees') {
+                const val = this[key];
+                if (val != null) {
+                    acc[key] = val.map(a => a.id);
+                }
+            } else {
+                // @ts-ignore
+                acc[key] = this[key];
+            }
+            return acc;
+        }, {});
     }
 
-    static deserialize(data) {
-        if (data.assignees != null) {
-            data.assignees = data.assignees.map(id => store.getters['users/getUser'](id));
-        }
+    static deserialize(data: IWorkspaceFilterInput) {
         return new WorkspaceFilter(data);
     }
 }
 
 export class WorkspaceFilterResult {
-    constructor(workspace, filter) {
-        this.workspace = workspace;
-        this.filter = filter;
+    public readonly submissions: WorkspaceSubmissionSet;
+
+    private readonly dataSources: Partial<PossibleDataSourcesMapping>;
+
+    constructor(public workspace: Workspace, public filter: WorkspaceFilter) {
         this.submissions = workspace.submissions.filter(filter);
 
         const subIds = this.submissions.submissionIds;
-        this.dataSources = Object.freeze(mapObject(workspace.dataSources, ds => ds.filter(subIds)));
+        this.dataSources = Object.freeze(
+            mapObject(workspace.dataSources, ds => ds && ds.filter(subIds)),
+        );
 
         Object.freeze(this);
     }
 
-    get assignment() {
+    get assignment(): Assignment | undefined {
         return this.workspace.assignment;
     }
 
-    getSource(sourceName) {
+    getSource<T extends PossibleDataSourceName>(sourceName: T) {
         return this.dataSources[sourceName];
     }
 }
 
-const WORKSPACE_SERVER_PROPS = Object.freeze(['id', 'assignment_id']);
+interface WorkspaceServerData {
+    id: number;
+    // eslint-disable-next-line camelcase
+    assignment_id: number;
+    // eslint-disable-next-line camelcase
+    data_sources: PossibleDataSourceName[];
+    // eslint-disable-next-line camelcase
+    student_submissions: WorkspaceSubmissionSetServerData;
+}
+
+const WORKSPACE_SERVER_DATA_TO_COPY: ReadonlyArray<'id' | 'assignment_id'> = Object.freeze([
+    'id',
+    'assignment_id',
+]);
+
+interface WorkspaceProps {
+    id: number;
+    // eslint-disable-next-line camelcase
+    assignment_id: number;
+    submissions: WorkspaceSubmissionSet;
+}
+
+interface IWorkspace extends WorkspaceProps {
+    dataSources: Partial<PossibleDataSourcesMapping>;
+}
+
+export interface Workspace extends IWorkspace {}
 
 export class Workspace {
-    static fromServerData(workspace, sources) {
-        const props = WORKSPACE_SERVER_PROPS.reduce((acc, prop) => {
-            acc[prop] = workspace[prop];
-            return acc;
-        }, {});
-
-        props.submissions = WorkspaceSubmissionSet.fromServerData(workspace.student_submissions);
+    static fromServerData(workspace: WorkspaceServerData, sources: (AnyDataSourceValue | null)[]) {
+        const props: WorkspaceProps = mapToObject(
+            WORKSPACE_SERVER_DATA_TO_COPY,
+            prop => [prop, workspace[prop]],
+            {
+                id: -1,
+                assignment_id: -1,
+                submissions: WorkspaceSubmissionSet.fromServerData(workspace.student_submissions),
+            },
+        );
 
         const self = new Workspace(props);
-        const dataSources = workspace.data_sources.reduce((acc, srcName, i) => {
-            const source = sources[i];
-            if (source == null || source.name !== srcName) {
-                throw new Error(`Did not receive data for source: ${srcName}`);
-            }
+        const dataSources = mapToObject<Partial<PossibleDataSourcesMapping>>(
+            workspace.data_sources,
+            (srcName, i) => {
+                const source = sources[i];
+                if (source == null || source.name !== srcName) {
+                    throw new Error(`Did not receive data for source: ${srcName}`);
+                }
+                if (!hasAttr(PossibleDataSources, srcName)) {
+                    throw new TypeError('Invalid DataSource');
+                }
 
-            acc[srcName] = createDataSource(sources[i], self);
-            return acc;
-        }, {});
+                return [srcName, createDataSource(source, self)];
+            },
+        );
         // eslint-disable-next-line no-underscore-dangle
         self._setSources(dataSources);
 
         return self;
     }
 
-    constructor(props, sources = null) {
+    constructor(props: WorkspaceProps, sources: PossibleDataSourcesMapping | null = null) {
         Object.assign(this, props);
         this.dataSources = {};
         Object.freeze(this);
@@ -852,24 +1060,24 @@ export class Workspace {
         }
     }
 
-    _setSources(dataSources) {
+    _setSources(dataSources: Partial<PossibleDataSourcesMapping>) {
         Object.assign(this.dataSources, dataSources);
         Object.freeze(this.dataSources);
     }
 
-    hasSource(sourceName) {
+    hasSource(sourceName: PossibleDataSourceName) {
         return hasAttr(this.dataSources, sourceName);
     }
 
-    getSource(sourceName) {
+    getSource<T extends PossibleDataSourceName>(sourceName: T) {
         return this.dataSources[sourceName];
     }
 
-    get assignment() {
+    get assignment(): Assignment | undefined {
         return store.getters['courses/assignments'][this.assignment_id];
     }
 
-    filter(filters) {
+    filter(filters: readonly WorkspaceFilter[]) {
         return filters.map(filter => new WorkspaceFilterResult(this, filter));
     }
 }

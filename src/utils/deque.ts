@@ -4,9 +4,9 @@ import Denque from 'denque';
 // This function is weirdly enough not in Denque, so we simply add it
 // ourselves. This is simply `peekAt`, but modified to set a value instead of
 // returning it.
-export default class Deque extends Denque {
-    setAt(index, value) {
-        const len = this.size();
+export default class Deque<T> extends Denque<T> {
+    setAt(index: number, value: T): T | undefined {
+        const len = this.length;
         let i = index;
 
         if (i >= len || i < -len) {
@@ -15,13 +15,14 @@ export default class Deque extends Denque {
             i += len;
         }
 
+        const self: any = this;
         // eslint-disable-next-line
-        i = (this._head + i) & this._capacityMask;
+        i = (self._head + i) & self._capacityMask;
 
         // eslint-disable-next-line
-        const old = this._list[i];
+        const old = self._list[i];
         // eslint-disable-next-line
-        this._list[i] = value;
+        self._list[i] = value;
         return old;
     }
 }

@@ -3,7 +3,7 @@ import * as _ from '@/store';
 import moment from 'moment';
 import store from '@/store/modules/submissions';
 import * as types from '@/store/mutation-types';
-import * as utils from '@/utils';
+import * as utils from '@/utils/typed';
 import axios from 'axios';
 import { User, Submission } from '@/models';
 

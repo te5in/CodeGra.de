@@ -7,7 +7,7 @@ import * as mutationTypes from '@/store/mutation-types';
 
 import { getCoolOffPeriodText } from '@/components/SubmissionUploader';
 
-import * as utils from '@/utils';
+import * as utils from '@/utils/typed';
 
 describe('getCoolOffPeriodText', () => {
     let loggedIn;

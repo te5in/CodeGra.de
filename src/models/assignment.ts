@@ -5,13 +5,14 @@ import { keys } from 'ts-transformer-keys';
 
 import { CoursePermission as CPerm, CoursePermissionOptions as CPermOpts } from '@/permissions';
 
+import { Rubric } from '@/models';
+
 // @ts-ignore
 import { store } from '@/store';
-// @ts-ignore
-import * as utils from '@/utils';
+import * as utils from '@/utils/typed';
 
 import * as assignmentState from '@/store/assignment-states';
-import { NormalUserServerData } from './user';
+import { NormalUserServerData, AnyUser, User } from './user';
 
 const noop = (_: object): void => undefined as void;
 
@@ -75,7 +76,6 @@ interface AssignmentUpdateableProps {
 const ALLOWED_UPDATE_PROPS = new Set(keys<AssignmentUpdateableProps>());
 
 type Mutable<T extends { [x: string]: any }, K extends string> = { [P in K]: T[P] };
-type ValueOf<T> = T[keyof T];
 
 abstract class AssignmentData {
     constructor(props: AssignmentData) {
@@ -266,11 +266,17 @@ export class Assignment extends AssignmentData {
         return this.max_grade == null ? 10 : this.max_grade;
     }
 
-    get graders() {
+    get graders(): AnyUser[] | null {
         if (this.graderIds == null) {
             return null;
         }
-        return this.graderIds.map(store.getters['users/getUser']);
+        return utils.filterMap(this.graderIds, id => {
+            const user = User.findUserById(id);
+            if (user != null) {
+                return new utils.Right(user);
+            }
+            return new utils.Left(null);
+        });
     }
 
     hasPermission(permission: CPerm | CPermOpts): boolean {
@@ -312,7 +318,7 @@ export class Assignment extends AssignmentData {
         return this._canSeeFeedbackType('linter');
     }
 
-    get rubric() {
+    get rubric(): Rubric<number> {
         return store.getters['rubrics/rubrics'][this.id];
     }
 

@@ -1,6 +1,58 @@
+import moment from 'moment';
+// eslint-disable-next-line
+import type { ICompiledMode } from 'highlightjs';
+import { getLanguage, highlight } from 'highlightjs';
+
+import { User } from '@/models';
+import { visualizeWhitespace } from './visualize';
+
+export class Right<T> {
+    static readonly tag = 'right';
+
+    constructor(public result: T) {
+        Object.freeze(this);
+    }
+}
+export class Left<T> {
+    static readonly tag = 'left';
+
+    constructor(public error: T) {
+        Object.freeze(this);
+    }
+}
+export type Either<T, TT> = Left<T> | Right<TT>;
+
+export type ValueOf<T> = T[keyof T];
+
+export function coerceToString(obj: Object | null | undefined): string {
+    if (obj == null) return '';
+    else if (typeof obj === 'string') return obj;
+    return `${obj}`;
+}
+
+const reUnescapedHtml = /[&<>"'`]/g;
+const reHasUnescapedHtml = RegExp(reUnescapedHtml.source);
+/** Used to map characters to HTML entities. */
+const htmlEscapes: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+    '`': '&#96;',
+};
+export function htmlEscape(inputString: string) {
+    const str = coerceToString(inputString);
+    if (str && reHasUnescapedHtml.test(str)) {
+        return str.replace(reUnescapedHtml, ent => htmlEscapes[ent]);
+    }
+    return str;
+}
+
+
 export type AllOrNone<T> = T | { [K in keyof T]?: never };
 
-function fromEntries<T>(vals: [string, T][]): Record<string, T> {
+export function fromEntries<T>(vals: [string | number, T][]): Record<string, T> {
     return (Object as any).fromEntries(vals);
 }
 
@@ -15,8 +67,17 @@ export function filterObject<T>(
     return fromEntries(Object.entries(obj).filter(([key, val]) => f(val, key)));
 }
 
-export function mapObject<T, V>(
+export function forEachObject<T, V>(
     obj: { [key: string]: T },
+    fun: (v: T, k: string) => V,
+): void {
+    Object.entries(obj).forEach(([key, val]) => [key, fun(val, key)]);
+}
+
+type KeyLike = string | number;
+
+export function mapObject<T, V>(
+    obj: Record<KeyLike, T>,
     fun: (v: T, k: string) => V,
 ): Record<string, V> {
     return fromEntries(Object.entries(obj).map(([key, val]) => [key, fun(val, key)]));
@@ -27,15 +88,15 @@ export function mapObject<T, V>(
 export function mapCustom<T, V>(
     arr: Array<T>,
     fun: (v: T, i: number) => V,
-    first: (v: T, i: number) => V = fun,
-    last: (v: T, i: number) => V = fun,
+    funFirst: (v: T, i: number) => V = fun,
+    funLast: (v: T, i: number) => V = fun,
 ): Array<V> {
     const max = arr.length - 1;
     return arr.map((v, i) => {
         if (i === 0) {
-            return first(v, i);
+            return funFirst(v, i);
         } else if (i === max) {
-            return last(v, i);
+            return funLast(v, i);
         } else {
             return fun(v, i);
         }
@@ -66,17 +127,17 @@ export function zip(...lists: any[][]): any {
     return acc;
 }
 
-export function unzip2<T, Y>(arr: [T, Y][]): [T[], Y[]] {
+export function unzip2<T, Y>(arr: readonly (readonly [T, Y])[]): [T[], Y[]] {
     const base: [T[], Y[]] = [[], []];
 
-    return arr.reduce((acc, item: [T, Y]) => {
+    return arr.reduce((acc, item: readonly [T, Y]) => {
         acc[0].push(item[0]);
         acc[1].push(item[1]);
         return acc;
     }, base);
 }
 
-export function flat1<T>(arr: T[][]): T[] {
+export function flat1<T>(arr: readonly (readonly T[])[]): Readonly<T[]> {
     return arr.reduce((acc, elem) => acc.concat(elem), []);
 }
 
@@ -94,6 +155,8 @@ export function unique<T, V>(arr: ReadonlyArray<T>, getKey: (item: T) => V): T[]
 
 export class AssertionError extends Error {
     static assert(condition: false, msg?: string): never;
+
+    static assert(condition: boolean, msg?: string): asserts condition;
 
     static assert(condition: boolean, msg?: string): asserts condition {
         if (!condition) {
@@ -181,10 +244,10 @@ export function waitAtLeast<T>(time: number, ...promises: Promise<T>[]): Promise
 }
 
 export function getProps<TObj extends object, TKey extends keyof TObj, TDefault>(
-    object: TObj,
+    object: TObj | null | undefined,
     defaultValue: TDefault,
     prop: TKey,
-): Exclude<TObj[TKey], undefined> | TDefault;
+): Exclude<TObj[TKey], undefined | null> | TDefault;
 
 export function getProps<TObj extends object, TKey extends keyof TObj, TDefault>(
     object: TObj,
@@ -268,4 +331,362 @@ export function downloadFile(data: string, filename: string, contentType: string
             URL.revokeObjectURL(url);
         }, 0);
     }
+}
+
+export function highlightCode(
+    sourceArr: ReadonlyArray<string>, language: string, maxLen: number = 5000,
+) {
+    if (sourceArr.length > maxLen) {
+        return sourceArr.map(htmlEscape);
+    }
+
+    if (getLanguage(language) === undefined) {
+        return sourceArr.map(htmlEscape).map(visualizeWhitespace);
+    }
+
+    let state: ICompiledMode | undefined;
+    const lastLineIdx = sourceArr.length - 1;
+
+    return sourceArr.map((line, idx) => {
+        const { top, value } = highlight(language, line, true, state);
+
+        state = top;
+        // Make sure that if the last line is empty we emit this as an empty
+        // line. We do this to make sure that our detection for trailing
+        // newlines (or actually the absence of them) works correctly.
+        if (idx === lastLineIdx && line === '') {
+            return visualizeWhitespace(htmlEscape(line));
+        }
+        return visualizeWhitespace(value);
+    });
+}
+
+export function deepEquals(a: any, b: any): boolean {
+    if (typeof a !== 'object') {
+        return a === b;
+    } else if (a == null || b == null) {
+        // eslint-disable-next-line eqeqeq
+        return a == b;
+    } else if (typeof b !== 'object') {
+        return false;
+    } else {
+        const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+        return [...keys].every(key => deepEquals(a[key], b[key]));
+    }
+}
+
+function toMoment(date: moment.Moment | string): moment.Moment {
+    if (moment.isMoment(date)) {
+        return date.clone();
+    } else {
+        return moment.utc(date, moment.ISO_8601);
+    }
+}
+
+export function readableFormatDate(date: moment.Moment | string): string {
+    return toMoment(date)
+        .local()
+        .format('YYYY-MM-DD HH:mm');
+}
+
+export function filterMap<T, TT>(
+    arr: ReadonlyArray<T>, filterMapper: (arg: T) => Either<unknown, TT>,
+): TT[] {
+    return arr.reduce((acc: TT[], item) => {
+        const toAdd = filterMapper(item);
+        if (toAdd instanceof Right) {
+            acc.push(toAdd.result);
+        }
+        return acc;
+    }, []);
+}
+
+export function formatGrade(grade: string | number): string | null {
+    let g;
+    if (typeof grade !== 'number') {
+        g = parseFloat(grade);
+    } else {
+        g = grade;
+    }
+    return Number.isNaN(g) ? null : g.toFixed(2);
+}
+
+
+// Get all items that are either in set A or in set B, but not in both.
+export function setXor<T>(A: Set<T>, B: Set<T>): Set<T> {
+    return new Set([...A, ...B].filter(el => {
+        const hasA = A.has(el);
+        if (hasA) {
+            return !B.has(el);
+        } else {
+            return B.has(el);
+        }
+    }));
+}
+
+export function toMaxNDecimals<T extends number | number | undefined>(
+    num: T, n: number
+): T extends number ? string : null;
+export function toMaxNDecimals(num: number | null | undefined, n: number): string | null {
+    if (num == null) {
+        return null;
+    }
+
+    let str = num.toFixed(n);
+    if (n === 0) {
+        return str;
+    }
+    while (str[str.length - 1] === '0') {
+        str = str.slice(0, -1);
+    }
+    if (str[str.length - 1] === '.') {
+        str = str.slice(0, -1);
+    }
+    return str;
+}
+
+export function parseOrKeepFloat(num: string | number | null | undefined): number {
+    if (typeof num === 'number') {
+        return num;
+    } else if (num == null) {
+        return NaN;
+    }
+    return parseFloat(num);
+}
+
+export function formatDate(date: string | moment.Moment): string {
+    return toMoment(date)
+        .local()
+        .format('YYYY-MM-DDTHH:mm');
+}
+
+export function mapToObject<T extends Object, KK extends keyof T = keyof T>(
+    arr: ReadonlyArray<KK>,
+    // eslint-disable-next-line no-undef
+    mapper: (el: KK, index: number) => [KK, T[typeof el]],
+    initial: T = <T>{},
+): T {
+    return arr.reduce((acc, el, index) => {
+        const [key, value] = mapper(el, index);
+        acc[key] = value;
+        return acc;
+    }, initial);
+}
+
+export function mapFilterObject<T, V>(
+    obj: Record<KeyLike, T>,
+    fun: (v: T, k: string) => Either<unknown, V>,
+): Record<string, V> {
+    return fromEntries(filterMap(
+        Object.entries(obj),
+        ([key, val]) => {
+            const either = fun(val, key);
+            if (either instanceof Right) {
+                return new Right([key, either.result]);
+            }
+            return either;
+        },
+    ));
+}
+
+export function range(start: number, end: number): number[] {
+    if (end == null) {
+        // eslint-disable-next-line
+        end = start;
+        // eslint-disable-next-line
+        start = 0;
+    }
+    if (end < start) {
+        return [];
+    }
+    const len = end - start;
+    const res = <number[]>Array(len);
+    for (let i = 0; i < len; i++) {
+        res[i] = start + i;
+    }
+    return res;
+}
+
+export function last<T>(arr: readonly T[]): T {
+    return arr[arr.length - 1];
+}
+
+
+export function isEmpty(obj: Object | null | undefined | boolean | string): boolean {
+    if (typeof obj !== 'object' || obj == null) {
+        return !obj;
+    } else {
+        return Object.keys(obj).length === 0;
+    }
+}
+
+export function nameOfUser(user: User | null) {
+    if (!user) return '';
+    else if (user.group) return `Group "${user.group.name}"`;
+    else if (user.readableName) return user.readableName;
+    else return user.name || '';
+}
+
+export function groupMembers(user: User | null) {
+    if (!user || !user.group) return [];
+    return user.group.members.map(nameOfUser);
+}
+
+export function userMatches(user: User, filter: string): boolean {
+    // The given user might not be an actual user object, as this function is
+    // also used by the plagiarism list.
+    return [nameOfUser(user), ...groupMembers(user)].some(
+        name => name.toLocaleLowerCase().indexOf(filter) > -1,
+    );
+}
+
+export function getExtension(name: string): string | null {
+    const fileParts = name.split('.');
+    return fileParts.length > 1 ? fileParts[fileParts.length - 1] : null;
+}
+
+export function hashString(str: string): number {
+    let hash = 0;
+    if (str.length === 0) return hash;
+
+    for (let i = 0; i < str.length; i++) {
+        const character = str.charCodeAt(i);
+        hash = (hash << 5) - hash + character;
+        hash &= hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash << 0);
+}
+
+export function cmpOneNull(first: string | null, second: string | null): -1 | 0 | 1 | null {
+    if (first == null && second == null) {
+        return 0;
+    } else if (first == null) {
+        return -1;
+    } else if (second == null) {
+        return 1;
+    }
+    return null;
+}
+
+export function cmpNoCase(first: string, second: string): number {
+    return coerceToString(first).localeCompare(coerceToString(second), undefined, {
+        sensitivity: 'base',
+    });
+}
+
+/**
+ * Compare many 2-tuples of strings stopping at the first tuple that is not
+ * equal. The `opts` param should be an array of arrays with two items.
+ */
+export function cmpNoCaseMany(...opts: [string, string][]) {
+    let res = 0;
+    for (let i = 0; res === 0 && i < opts.length; ++i) {
+        res = cmpNoCase(...opts[i]);
+    }
+    return res;
+}
+
+export function readableJoin(arr: readonly string[]): string {
+    if (arr.length === 0) {
+        return '';
+    } else if (arr.length === 1) {
+        return arr[0];
+    }
+    return `${arr.slice(0, -1).join(', ')}, and ${arr[arr.length - 1]}`;
+}
+
+export function numberToTimes(number: number): string {
+    if (typeof number !== 'number') {
+        throw new Error('The given argument should be a number');
+    }
+
+    if (number === 1) {
+        return 'once';
+    } else if (number === 2) {
+        return 'twice';
+    } else {
+        return `${number} times`;
+    }
+}
+
+// Divide a by b, or return dfl if b == 0.
+export function safeDivide<T>(a: number, b: number, dfl: T): number | T {
+    return b === 0 ? dfl : a / b;
+}
+
+
+/**
+ * Get the `prop` from the first object in `objs` where `objs[i][prop]` is not
+ * `null`.
+ */
+
+type NonNull<T, Y = never> = T extends null | undefined ? Y : T;
+
+export function getNoNull<T, K extends keyof T>(
+    prop: K, obj1: T, obj2: T | null
+): NonNull<T[K], Exclude<T[K], undefined> | null>;
+export function getNoNull<T, K extends keyof T>(
+    prop: K, ...objs: (T | null)[]
+): NonNull<T[K], Exclude<T[K], undefined> | null>;
+export function getNoNull<T>(prop: keyof T, ...objs: (T | null)[]) {
+    for (let i = 0; i < objs.length; ++i) {
+        const obj = objs[i];
+        if (obj && obj[prop] != null) {
+            return obj[prop];
+        }
+    }
+    return null;
+}
+
+export function deepCopy<T>(value: T, maxDepth?: number, depth?: number): T;
+export function deepCopy<T>(value: readonly T[], maxDepth?: number, depth?: number): readonly T[];
+export function deepCopy<T>(value: T | readonly T[], maxDepth = 10, depth = 1): T | readonly T[] {
+    if (depth > maxDepth) {
+        throw new Error('Max depth reached');
+    }
+
+    if (Array.isArray(value)) {
+        return value.map(v => deepCopy(v, maxDepth, depth + 1));
+    } else if (value && typeof value === 'object') {
+        return Object.entries(value).reduce((res, [k, v]) => {
+            res[k] = deepCopy(v, maxDepth, depth + 1);
+            return res;
+        }, <any>{});
+    } else {
+        return value;
+    }
+}
+
+export function nonenumerable(target: Object, propertyKey: string) {
+    const descriptor = Object.getOwnPropertyDescriptor(target, propertyKey) || {};
+    if (descriptor.enumerable !== false) {
+        Object.defineProperty(target, propertyKey, {
+            enumerable: false,
+            set(value: any) {
+                Object.defineProperty(this, propertyKey, {
+                    enumerable: false,
+                    writable: true,
+                    value,
+                });
+            },
+        });
+    }
+}
+
+
+/**
+ * Parse the given value as a boolean.
+ * If it is a boolean return it, if it is 'false' or 'true' convert
+ * that to its correct boolean value, otherwise return `dflt`.
+ */
+type IsA<T, Y> = T extends Y ? true : false;
+export function parseBool<T extends string | boolean>(
+    value: T, dflt?: boolean
+): IsA<T, boolean> extends true ? T : boolean;
+export function parseBool<T extends string | boolean>(value: T, dflt = true): boolean {
+    if (typeof value === 'boolean') return value;
+    else if (value === 'false') return false;
+    else if (value === 'true') return true;
+
+    return dflt;
 }
