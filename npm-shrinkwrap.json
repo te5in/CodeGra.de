@@ -27969,6 +27969,11 @@
       "resolved": "https://registry.npmjs.org/punycode/-/punycode-1.4.1.tgz",
       "integrity": "sha1-wNWmOycYgArY4esPpSachN1BhF4="
     },
+    "purify-ts": {
+      "version": "0.15.1",
+      "resolved": "https://registry.npmjs.org/purify-ts/-/purify-ts-0.15.1.tgz",
+      "integrity": "sha512-3PjYD3wTQDE+fH2alMXGRjvk3ufKhhkAGw3d1gb2vsVRkLSc8EzEx9XJHvWYdpSZpljTTcoiHtIPVmyuHhrJ9A=="
+    },
     "q": {
       "version": "1.4.1",
       "resolved": "https://registry.npmjs.org/q/-/q-1.4.1.tgz",
