@@ -128,10 +128,7 @@ export class RubricSource extends DataSource<RubricDataSourceValue> {
     constructor(data: RubricDataSourceValue['data'], workspace: Workspace) {
         super(data, workspace);
 
-        const rubric = this.assignment?.rubric;
-        if (rubric === NONEXISTENT) {
-            throw new Error('This assignment does not have a rubric');
-        }
+        AssertionError.assert(!!this.rubric);
 
         this.updateItemPoints();
 

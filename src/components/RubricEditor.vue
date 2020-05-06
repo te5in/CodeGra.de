@@ -615,7 +615,7 @@ export default {
                         this.resetRubric();
                         this.maybeLoadOtherAssignments();
                     },
-                    err => this.handleHttpError({
+                    err => this.$utils.handleHttpError({
                         404: () => {},
                     }, err),
                 ),
