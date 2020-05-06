@@ -4,7 +4,6 @@ import moment from 'moment';
 import {
     range,
     last,
-    isDecimalNumber,
     formatGrade,
     formatDate,
     cmpOneNull,
@@ -15,18 +14,9 @@ import {
     highlightCode,
     nameOfUser,
     groupMembers,
-    autoTestHasCheckpointAfterHiddenStep,
-    safeDivide,
-    WarningHeader,
-    setProps,
     coerceToString,
-    getNoNull,
-    numberToTimes,
     toMaxNDecimals,
-    deepCopy,
     deepEquals,
-    deepExtend,
-    deepExtendArray,
     hasAttr,
     setXor,
     ensureArray,
@@ -34,8 +24,21 @@ import {
     filterObject,
     isEmpty,
     zip,
-    readableJoin,
     buildUrl,
+    numberToTimes,
+    readableJoin,
+    safeDivide,
+} from '@/utils/typed';
+
+import {
+    autoTestHasCheckpointAfterHiddenStep,
+    WarningHeader,
+    isDecimalNumber,
+    deepExtend,
+    setProps,
+    getNoNull,
+    deepExtendArray,
+    deepCopy,
 } from '@/utils';
 
 import { makeCache } from '@/utils/cache';
@@ -262,7 +265,7 @@ describe('utils.js', () => {
                 '\tprint(f.read())',
             ];
             const result = code.map(
-                (x, idx) => ['python', x, true, idx ? `STATE${idx}` : null],
+                (x, idx) => ['python', x, true, idx ? `STATE${idx}` : undefined],
             );
             expect(highlightCode(code, 'python')).toEqual(result);
             expect(mockVisul).toHaveBeenCalledTimes(code.length);

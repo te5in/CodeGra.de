@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import axios from 'axios';
 import moment from 'moment';
-// @ts-ignore
-import { nameOfUser, getNoNull, formatDate } from '@/utils';
+
+import { getNoNull, nameOfUser, formatDate } from '@/utils/typed';
 
 // @ts-ignore
 import { store } from '@/store';
@@ -59,7 +59,7 @@ export abstract class User implements BaseUserServerData {
         this.id = data.id;
         this.name = getNoNull('name', data, oldObject);
         this.username = getNoNull('username', data, oldObject);
-        this.is_test_student = getNoNull('is_test_student', data, oldObject);
+        this.is_test_student = getNoNull('is_test_student', data, oldObject) ?? false;
 
         this.readableName = nameOfUser(this);
     }
