@@ -345,11 +345,12 @@ class LTI1p1Provider(LTIProviderBase):
         assert isinstance(
             service_url, str
         ), f'Service url has unexpected value: {service_url}'
-        if sub.user.is_test_student:
-            return
 
+        assig_results = sub.assignment.assignment_results
         for user in sub.get_all_authors():
-            sourcedid = sub.assignment.assignment_results[user.id].sourcedid
+            if user.is_test_student or user.id not in assig_results:
+                continue
+            sourcedid = assig_results[user.id].sourcedid
             if sourcedid is None:  # pragma: no cover
                 continue
 

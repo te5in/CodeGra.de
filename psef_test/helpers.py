@@ -208,8 +208,8 @@ def create_user_with_role(session, role, courses, gperms=None, name=None):
             new_role.set_permission(gperm, gperm in gperms)
 
     user = m.User(
-        name=f'NEW_USER-{n_id}' if name is None else name,
-        email=f'new_user-{n_id}@a.nl',
+        name=f'NEW_USER-{role}-{n_id}' if name is None else name,
+        email=f'new_user_{role}-{n_id}@a.nl',
         password=n_id,
         active=True,
         username=f'a-the-a-er-{n_id}' if name is None else f'{name}{n_id}',
@@ -226,11 +226,10 @@ def create_user_with_role(session, role, courses, gperms=None, name=None):
 
 
 def create_user_with_perms(session, perms, courses, gperms=None, name=None):
-    role_name = f'NEW-COURSE-ROLE-{uuid.uuid4().hex}'
+    role_name = f'NEW-COURSE-ROLE-{",".join(map(str, perms))}-{uuid.uuid4().hex}'
     courses = courses if isinstance(courses, list) else [courses]
     for course in courses:
-        if isinstance(course, dict):
-            course = m.Course.query.get(course['id'])
+        course = m.Course.query.get(get_id(course))
         crole = m.CourseRole(name=role_name, course=course, hidden=False)
         for perm in CPerm:
             crole.set_permission(perm, perm in perms)

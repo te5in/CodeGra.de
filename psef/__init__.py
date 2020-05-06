@@ -4,8 +4,10 @@ this backend is named ``psef``.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import os
 import typing as t
 
+import jinja2
 import structlog
 import flask_jwt_extended as flask_jwt
 from flask import Response
@@ -33,8 +35,35 @@ class PsefFlask(Flask):
     """
     config: 'FlaskConfig'  # type: ignore
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, config: dict) -> None:
         super().__init__(name)
+        self.config.update(t.cast(t.Any, config))
+        dict_to_load = {}
+
+        for key, t_name in [
+            ('DIRECT_NOTIFICATION_TEMPLATE_FILE', 'notification.j2'),
+            ('DIGEST_NOTIFICATION_TEMPLATE_FILE', 'digest.j2')
+        ]:  # pragma: no cover
+            template = self.config.get(key)
+            if template:
+                with open(str(template), 'r') as f:
+                    dict_to_load[t_name] = f.read()
+
+        self.jinja_mail_env = jinja2.Environment(
+            autoescape=True,
+            undefined=jinja2.StrictUndefined,
+            loader=jinja2.loaders.ChoiceLoader(
+                [
+                    jinja2.loaders.DictLoader(dict_to_load),
+                    jinja2.loaders.FileSystemLoader(
+                        os.path.join(
+                            os.path.dirname(__file__),
+                            'mail_templates',
+                        )
+                    ),
+                ]
+            )
+        )
 
     @property
     def max_single_file_size(self) -> 'psef.archive.FileSize':
@@ -109,6 +138,8 @@ def create_app(  # pylint: disable=too-many-statements
     skip_celery: bool = False,
     skip_perm_check: bool = True,
     skip_secret_key_check: bool = False,
+    *,
+    skip_all: bool = False,
 ) -> 'PsefFlask':
     """Create a new psef app.
 
@@ -119,8 +150,11 @@ def create_app(  # pylint: disable=too-many-statements
     # pylint: disable=import-outside-toplevel
     import config as global_config
 
-    resulting_app = PsefFlask(__name__)
-    resulting_app.config.update(t.cast(t.Any, global_config.CONFIG))
+    if skip_all:  # pragma: no cover
+        skip_celery = skip_perm_check = skip_secret_key_check = True
+
+    resulting_app = PsefFlask(__name__, global_config.CONFIG)
+
     resulting_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'  # type: ignore
                          ] = False
     resulting_app.config['SESSION_COOKIE_SECURE'] = True

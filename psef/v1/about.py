@@ -6,14 +6,17 @@ running psef.
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
+import tempfile
 
 import structlog
-from flask import request, current_app
+from flask import request
+from requests import RequestException
+
+from cg_json import JSONResponse
 
 from . import api
-from .. import models, permissions
+from .. import models, helpers, current_app, permissions
 from ..files import check_dir
-from ..helpers import JSONResponse, jsonify
 from ..permissions import CoursePermission
 
 logger = structlog.get_logger()
@@ -41,7 +44,7 @@ def about(
     }
 
     res = {
-        'version': current_app.config['_VERSION'],
+        'version': current_app.config['VERSION'],
         'features': features,
     }
 
@@ -56,17 +59,34 @@ def about(
             logger.error('Database not working', exc_info=True)
             database = False
 
-        uploads = check_dir(current_app.config['UPLOAD_DIR'])
-        mirror_uploads = check_dir(current_app.config['MIRROR_UPLOAD_DIR'])
+        uploads = check_dir(current_app.config['UPLOAD_DIR'], check_size=True)
+        mirror_uploads = check_dir(
+            current_app.config['MIRROR_UPLOAD_DIR'], check_size=True
+        )
+        temp_dir = check_dir(tempfile.gettempdir(), check_size=True)
 
-        res['health'] = {
+        with helpers.BrokerSession() as ses:
+            try:
+                # Set a short timeout as the broker really shouldn't take
+                # longer than 2 seconds to answer.
+                ses.get('/api/v1/ping', timeout=2).raise_for_status()
+            except RequestException:
+                logger.error('Broker unavailable', exc_info=True)
+                broker_ok = False
+            else:
+                broker_ok = True
+
+        health_value = {
             'application': True,
             'database': database,
             'uploads': uploads,
+            'broker': broker_ok,
             'mirror_uploads': mirror_uploads,
+            'temp_dir': temp_dir,
         }
+        res['health'] = health_value
 
-        if not all(res['health'].values()):
+        if not all(health_value.values()):
             status_code = 500
 
-    return jsonify(res, status_code=status_code)
+    return JSONResponse.make(res, status_code=status_code)

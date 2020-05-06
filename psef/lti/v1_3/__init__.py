@@ -189,7 +189,9 @@ class CGCustomClaims:
         # TODO: Use an actual exception here
         assert username is not None, 'Required data not found'
 
-        resource_id = cls._get_claim('cg_resource_id', custom_claims, base_data, str)
+        resource_id = cls._get_claim(
+            'cg_resource_id', custom_claims, base_data, str
+        )
 
         deadline = cls._get_claim(
             'cg_deadline', custom_claims, base_data,
@@ -202,7 +204,8 @@ class CGCustomClaims:
         )
         if available_at is None:
             is_available = cls._get_claim(
-                'cg_is_published', custom_claims, base_data, lambda x: x == 'true'
+                'cg_is_published', custom_claims,
+                base_data, lambda x: x == 'true'
             )
         else:
             is_available = DatetimeWithTimezone.utcnow() >= available_at
@@ -562,7 +565,9 @@ class FlaskMessageLaunch(
 
     def get_custom_claims(self) -> CGCustomClaims.ClaimResult:
         launch_data = self.get_launch_data()
-        return CGCustomClaims.get_custom_claim_data(launch_data[claims.CUSTOM], launch_data)
+        return CGCustomClaims.get_custom_claim_data(
+            launch_data[claims.CUSTOM], launch_data
+        )
 
     def ensure_lti_user(
         self

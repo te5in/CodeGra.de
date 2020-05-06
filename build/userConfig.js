@@ -1,8 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 const fs = require('fs');
+var path = require('path')
 const ini = require('ini');
 const execFileSync = require('child_process').execFileSync;
 const moment = require('moment');
+
+function resolve (dir) {
+  return path.join(__dirname, '..', dir)
+}
 
 function filterKeys(obj, ...keys) {
     return keys.reduce(
@@ -16,10 +21,13 @@ function filterKeys(obj, ...keys) {
 
 let userConfig = {};
 
+const configIni = resolve('config.ini');
+process.stderr.write(configIni + '\n');
+
 try {
-    userConfig = ini.parse(fs.readFileSync('./config.ini', 'utf-8'));
+    userConfig = ini.parse(fs.readFileSync(configIni, 'utf-8'));
 } catch (err) {
-    process.stderr.write('Config file not found, using default values!\n');
+    process.stderr.write('Config file not found, using default values!\n' + err + '\n');
 }
 
 if (userConfig['Front-end'] === undefined) userConfig['Front-end'] = {};
@@ -29,11 +37,16 @@ if (userConfig.AutoTest === undefined) userConfig.AutoTest = {};
 const config = Object.assign({}, {
     email: 'info@CodeGra.de',
     maxLines: 2500,
+    notificationPollTime: 30000,
+    sentryDsn: null,
 }, userConfig['Front-end']);
+config.maxLines = parseInt(config.maxLines, 10);
+config.notificationPollTime = parseInt(config.notificationPollTime, 10);
 
 let version = execFileSync('git', ['describe', '--abbrev=0', '--tags']).toString().trim();
 const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD']).toString().trim();
 const tagMsg = execFileSync('git', ['tag', '-l', '-n400', version]).toString().split('\n');
+const gitCommit = execFileSync('git', ['rev-parse', '--short', 'HEAD']).toString().trim();
 let inCorrectPart = false;
 let done = false;
 let skip = false;
@@ -44,11 +57,12 @@ let skip = false;
 // show a commit hash instead of a version) as this would mean we would show a
 // commit hash on a production server which looks bad.
 if (version.match(/^[^A-Z]/) && branch.indexOf('stable') < 0) {
-    version = '#' + execFileSync('git', ['rev-parse', '--short', 'HEAD']).toString().trim();
+    version = '#' + gitCommit;
 }
 
 config.release = {
     version,
+    commit: gitCommit,
     date: process.env.CG_FORCE_BUILD_DATE || moment.utc().toISOString(),
     message: tagMsg.reduce((res, cur) => {
         if (done || skip) {
@@ -75,6 +89,7 @@ config.features = Object.assign({
     incremental_rubric_submission: true,
     register: false,
     groups: false,
+    email_students: false,
 }, userConfig.Features);
 
 config.autoTest = {
@@ -89,6 +104,7 @@ const backendOpts = userConfig['Back-end'];
 
 config.proxyBaseDomain = backendOpts ? backendOpts.proxy_base_domain : '';
 config.isProduction = process.env.NODE_ENV === 'production';
+config.externalUrl = backendOpts ? backendOpts.external_url : '';
 
 if (!config.proxyBaseDomain && config.isProduction) {
     throw new Error('Production can only be used with a proxy url.');

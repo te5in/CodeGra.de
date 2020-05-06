@@ -341,9 +341,9 @@ describe('The rubric store', () => {
             it('should be unset initially and cache the result', () => {
                 const rubric = Rubric.fromServerData(mockRubric);
 
-                expect(rubric._cache.maxPoints).toBe(UNSET_SENTINEL);
+                expect(rubric._cache._cache.maxPoints).toBe(UNSET_SENTINEL);
                 expect(rubric.maxPoints).toBe(18);
-                expect(rubric._cache.maxPoints).toBe(18);
+                expect(rubric._cache._cache.maxPoints).toBe(18);
             });
         });
 
@@ -446,9 +446,9 @@ describe('The rubric store', () => {
             it('should be unset initially and cache the result', () => {
                 const row = new NormalRubricRow(mockRubric[0]);
 
-                expect(row._cache.maxPoints).toBe(UNSET_SENTINEL);
+                expect(row._cache._cache.maxPoints).toBe(UNSET_SENTINEL);
                 expect(row.maxPoints).toBe(2);
-                expect(row._cache.maxPoints).toBe(2);
+                expect(row._cache._cache.maxPoints).toBe(2);
             });
         });
 

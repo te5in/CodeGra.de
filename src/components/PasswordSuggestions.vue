@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="password-suggestions">
     <p>{{ message }}</p>

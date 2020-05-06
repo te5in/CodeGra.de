@@ -794,10 +794,64 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
 
         return any_results_left
 
+    def get_broker_result_metadata(self) -> t.Mapping[str, t.Optional[str]]:
+        """Get the ``results`` metadata key for the broker.
+
+        :returns: A mapping that should be send to the broker in the metadata
+            under the ``results`` key.
+        """
+
+        # NOTE: This function does three separate database queries, as each
+        # query either sorts by a different column, or sorts in a different
+        # direction. It is probably possible to reduce this to two queries,
+        # however these queries are pretty fast and don't seem to be a bottle
+        # neck at this moment.
+
+        def get_latest_date(
+            state: auto_test_step_models.AutoTestStepResultState,
+            col: t.Union[DbColumn[DatetimeWithTimezone], DbColumn[
+                t.Optional[DatetimeWithTimezone]]],
+            oldest: bool = True,
+        ) -> t.Optional[str]:
+            date = db.session.query(AutoTestResult).filter(
+                AutoTestResult.run == self,
+                AutoTestResult.state == state,
+            ).join(work_models.Work).filter(
+                ~work_models.Work.deleted,
+            ).order_by(
+                col if oldest else col.desc(),
+            ).with_entities(col).limit(1).scalar()
+
+            if date is None:
+                return None
+            return date.isoformat()
+
+        ATStepResultState = auto_test_step_models.AutoTestStepResultState
+
+        return {
+            'not_started':
+                get_latest_date(
+                    ATStepResultState.not_started,
+                    AutoTestResult.updated_at,
+                ),
+            'running':
+                get_latest_date(
+                    ATStepResultState.running,
+                    AutoTestResult.started_at,
+                ),
+            'passed':
+                get_latest_date(
+                    ATStepResultState.passed,
+                    AutoTestResult.updated_at,
+                    False,
+                ),
+        }
+
     def get_broker_metadata(self) -> t.Mapping[str, object]:
         """Get metadata that is useful for the broker of this run.
         """
         assig = self.auto_test.assignment
+
         return {
             'course': {
                 'id': assig.course.id,
@@ -809,6 +863,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             },
             'created_at': self.created_at.isoformat(),
             'id': self.id,
+            'results': self.get_broker_result_metadata(),
             'type': 'NS',  # NS=NewStyle
         }
 
@@ -1347,8 +1402,9 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         )
 
         def callbacks() -> None:
-            psef.tasks.adjust_amount_runners(run_id)
-            psef.tasks.update_latest_results_in_broker(run_id)
+            psef.tasks.adjust_amount_runners(
+                run_id, always_update_latest_results=True
+            )
 
         psef.helpers.callback_after_this_request(callbacks)
 
@@ -1359,10 +1415,22 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     @staticmethod
     @signals.WORK_DELETED.connect(
         'immediate',
-        converter=lambda wd: wd.new_latest,
-        pre_check=lambda wd: wd.new_latest is not None
+        pre_check=lambda wd: wd.was_latest,
+        converter=lambda x: x,
     )
-    def reset_work(work: t.Optional['work_models.Work']) -> None:
+    def _on_work_deletion(work_deletion: signals.WorkDeletedData) -> None:
+        self = work_deletion.deleted_work.assignment.auto_test
+        if self is None or self.run is None:
+            return
+
+        if work_deletion.new_latest:
+            self.reset_work(work_deletion.new_latest)
+
+        callback_after_this_request(
+            lambda: psef.tasks.update_latest_results_in_broker(self.run.id)
+        )
+
+    def reset_work(self, work: 'work_models.Work') -> None:
         """Reset the result beloning to the given work.
 
         If there is not result for the given result, a result is created.
@@ -1370,11 +1438,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         :param work: The work for which we should reset the work.
         :returns: Nothing.
         """
-        if work is None:
-            return
-
-        self = work.assignment.auto_test
-        if self is None or self.run is None:
+        if self.run is None:
             return
 
         run = self.run

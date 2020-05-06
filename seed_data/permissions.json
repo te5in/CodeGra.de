@@ -349,5 +349,42 @@
     "course_permission": true,
     "short_description": "See feedback before done",
     "long_description": "Users with this permission can see feedback before an assignment is set to \"done\""
+  },
+  "can_view_analytics": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Can view analytics",
+    "long_description": "Users with this permission can view the analytics dashboard of an assignment.",
+    "warning": "With this permission a user can request all the grades, and count all the feedback for all the submissions in this course. Use with caution!"
+  },
+  "can_edit_others_comments": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Edit inline comments by others",
+    "long_description": "Users with this permission can edit inline comments left by other users"
+  },
+  "can_add_own_inline_comments": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Add inline comments to own submissions",
+    "long_description": "Users with this permission can add and reply to inline comments on submissions they are the author of"
+  },
+  "can_view_others_comment_edits": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "View others comment edits",
+    "long_description": "Users with this permission may see the edit history of comments placed by others"
+  },
+  "can_view_feedback_author": {
+    "default_value": true,
+    "course_permission": true,
+    "short_description": "View feedback author",
+    "long_description": "Users with this permission can view the author of inline and general feedback"
+  },
+  "can_email_students": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Can email students",
+    "long_description": "Users with this permission can email students using the contact student button."
   }
 }

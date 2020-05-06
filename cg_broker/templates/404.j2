@@ -1,0 +1,30 @@
+{% extends "layout/default.j2" %}
+{% block logout %}
+{% if current_user.is_authenticated %}
+<li class="nav-item list-inline-item">
+    <a href="{{ url_for('admin.show_all_runners') }}" class="btn btn-light">Runners</a>
+</li>
+<li class="nav-item list-inline-item">
+    <a href="{{ url_for('admin.show_all_jobs') }}" class="btn btn-light">Jobs</a>
+</li>
+{{ super() }}
+{% else %}
+<a href="{{ url_for('admin.login') }}" class="btn btn-light">Login</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row h-100 justify-content-center align-items-center">
+    <p>
+        Oh no, we couldn't find that page :(
+    </p>
+    <p>
+        Here is a nice image:
+    </p>
+</div>
+<div class="row d-flex justify-content-center">
+    <div class="col-6 text-center">
+        <img src="{{ url_for('static', filename='404.gif') }}" />
+    </div>
+</div>
+{% endblock %}

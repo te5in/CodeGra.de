@@ -10,7 +10,7 @@
                        :submission="submission"
                        :editable="realEditable"
                        :visible="rubricOpen"
-                       @load="rubricResult = $event"
+                       @load="setRubricResult"
                        @input="rubricGradeChanged"
                        @submit="() => $refs.submitButton.onClick()"
                        class="mb-3" />
@@ -373,6 +373,10 @@ export default {
             storeLoadRubricResult: 'loadResult',
             storeUpdateRubricResult: 'updateRubricResult',
         }),
+
+        setRubricResult(rubricResult) {
+            this.rubricResult = rubricResult;
+        },
 
         rubricGradeChanged(rubricResult) {
             this.rubricResult = rubricResult;

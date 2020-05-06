@@ -14,6 +14,7 @@ if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     from .models.auto_test import GradeCalculator
     from .models.lti_provider import LTIProviderBase
     from .lti.v1_3.lms_capabilities import LMSCapabilities
+    from .models.analytics import BaseDataSource
 
 Register = register.Register
 TableRegister = register.TableRegister
@@ -29,3 +30,5 @@ rubric_row_types = Register[str, t.Type['RubricRowBase']]()
 lti_provider_handlers = TableRegister[str, t.Type['LTIProviderBase']]()
 
 lti_1_3_lms_capabilities = Register[str, 'LMSCapabilities']()
+
+analytics_data_sources = Register[str, t.Type['BaseDataSource']]()

@@ -49,6 +49,12 @@ if t.TYPE_CHECKING:  # pragma: no cover
 
         @property
         def current_task(self) -> CeleryTask[t.Callable[[object], object]]:
+            ...
+
+        def add_periodic_task(
+            self, schedule: object,
+            signature: CelerySignature[t.Callable[[], None]]
+        ) -> None:
             pass
 
         @t.overload

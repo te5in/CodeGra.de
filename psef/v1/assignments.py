@@ -191,13 +191,13 @@ def get_assignments_feedback(assignment_id: int) -> JSONResponse[
         item: t.MutableMapping[str, t.Union[str, t.Sequence[str]]] = {}
 
         try:
-            auth.ensure_can_see_user_feedback(sub)
+            auth.ensure_can_see_general_feedback(sub)
         except auth.PermissionException:
             item['general'] = ''
-            item['user'] = []
         else:
             item['general'] = sub.comment or ''
-            item['user'] = list(sub.get_user_feedback())
+
+        item['user'] = list(sub.get_user_feedback())
 
         try:
             auth.ensure_can_see_linter_feedback(sub)
@@ -368,7 +368,8 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.name = new_name
 
     if new_deadline is not MISSING:
-        if lti_provider is not None and lti_provider.supports_setting_deadline():
+        if lti_provider is not None and lti_provider.supports_setting_deadline(
+        ):
             raise APIException(
                 (
                     'The deadline of this assignment should be set in '
@@ -984,7 +985,7 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
                 ), APICodes.INVALID_PARAM, 400
             )
         users = helpers.filter_all_or_404(
-            models.User, models.User.id.in_(graders.keys())
+            models.User, models.User.id.in_(list(graders.keys()))
         )
     else:
         models.Work.query.filter_by(assignment_id=assignment.id).update(
@@ -1383,7 +1384,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
     subs = []
 
     found_users = {
-        u.username: u
+        u.username.lower(): u
         for u in models.User.query.filter(
             t.cast(
                 models.DbColumn[str],
@@ -1396,7 +1397,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
 
     missing_users: t.List[models.User] = []
     for submission_info, _ in submissions:
-        if found_users.get(submission_info.student_id, None) is None:
+        if submission_info.student_id.lower() not in found_users:
             # TODO: Check if this role still exists
             user = models.User(
                 name=submission_info.student_name,
@@ -1406,14 +1407,14 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
                 password=None,
                 role=global_role,
             )
-            found_users[user.username] = user
+            found_users[user.username.lower()] = user
             missing_users.append(user)
 
     db.session.add_all(missing_users)
     db.session.flush()
 
     for submission_info, submission_tree in submissions:
-        user = found_users[submission_info.student_id]
+        user = found_users[submission_info.student_id.lower()]
         user.courses[assignment.course_id] = student_course_role
 
         work = models.Work(

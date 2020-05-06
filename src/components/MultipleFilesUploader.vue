@@ -4,11 +4,13 @@
      :class="{
         'no-border': noBorder,
         'no-hard-bottom-corners': noHardBottomCorners,
+        disabled,
     }">
     <vue-dropzone ref="dropzone"
                   :id="uploaderId"
                   class="dropzone"
                   :class="`dropzone-amount-files-${amountOfFiles}`"
+                  :disabled="disabled"
                   :options="dropzoneOptions"
                   :use-custom-slot="true"
                   :include-styling="false"
@@ -54,6 +56,11 @@ export default {
             type: Boolean,
             default: false,
         },
+
+        disabled: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     computed: {
@@ -95,10 +102,10 @@ export default {
 
     watch: {
         value: {
-            async handler() {
+            async handler(newVal, oldVal) {
                 this.amountOfFiles = this.value.length;
 
-                if (this.ignoreInput) {
+                if (oldVal == null || this.ignoreInput) {
                     return;
                 }
                 await this.$nextTick();
@@ -114,6 +121,27 @@ export default {
                 this.ignoreEvent--;
             },
             immediate: true,
+        },
+
+        disabled: {
+            immediate: true,
+            async handler() {
+                let drop = this.$refs.dropzone;
+                for (let i = 0; drop == null && i < 4; ++i) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.$afterRerender();
+                    drop = this.$refs.dropzone;
+                }
+                if (drop == null) {
+                    return;
+                }
+
+                if (this.disabled) {
+                    drop.disable();
+                } else {
+                    drop.enable();
+                }
+            },
         },
     },
 
@@ -184,6 +212,24 @@ export default {
 
 <style lang="less">
 @import '~mixins.less';
+
+.multiple-files-uploader.disabled .dropzone {
+    opacity: 0.65;
+
+    .dz-hover-overlay {
+        display: none;
+        background-color: rgba(0, 0, 0, 0) !important;
+    }
+
+    .dz-message {
+        cursor: not-allowed;
+
+        &:hover {
+            background-color: rgba(0, 0, 0, 0);
+            text-decoration: none;
+        }
+    }
+}
 
 .multiple-files-uploader {
     &:not(.no-border) .dropzone {

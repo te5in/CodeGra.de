@@ -6,6 +6,8 @@ the mapping of the variables at the bottom of this file.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+from __future__ import annotations
+
 import os
 import json
 import uuid
@@ -19,10 +21,11 @@ from operator import itemgetter
 import structlog
 from flask import Flask
 from celery import signals, current_task
-from requests import HTTPError
+from requests import RequestException
 from sqlalchemy.orm import contains_eager
 from mypy_extensions import NamedArg, DefaultNamedArg
 from celery.schedules import crontab
+from typing_extensions import Literal
 
 import psef as p
 import cg_celery
@@ -36,16 +39,29 @@ celery = cg_celery.CGCelery('psef', signals)  # pylint: disable=invalid-name
 
 
 def init_app(app: Flask) -> None:
+    """Setup the tasks for psef.
+    """
     celery.init_flask_app(app)
 
-
-@celery.on_after_configure.connect
-def _setup_periodic_tasks(sender: t.Any, **_: object) -> None:
-    logger.info('Setting up periodic tasks')
-    sender.add_periodic_task(
-        crontab(minute='*/15'),
-        _run_autotest_batch_runs_1.si(),
-    )
+    if app.config['CELERY_CONFIG'].get('broker_url') is None:
+        logger.error('Celery broker not set', report_to_sentry=True)
+        return
+    else:  # pragma: no cover
+        # We cannot really test that we setup these periodic tasks yet.
+        logger.info('Setting up periodic tasks')
+        celery.add_periodic_task(
+            crontab(minute='*/15'),
+            _run_autotest_batch_runs_1.si(),
+        )
+        # These times are in UTC
+        celery.add_periodic_task(
+            crontab(minute='0', hour='10'),
+            _send_daily_notifications.si(),
+        )
+        celery.add_periodic_task(
+            crontab(minute='0', hour='18', day_of_month='5'),
+            _send_weekly_notifications.si(),
+        )
 
 
 @celery.task
@@ -96,7 +112,8 @@ def _send_reminder_mails_1(assignment_id: int) -> None:
                 logger.warning(
                     'Could not send email',
                     receiving_user_id=user_id,
-                    exc_info=True
+                    exc_info=True,
+                    report_to_sentry=True,
                 )
 
 
@@ -295,7 +312,7 @@ def _run_autotest_batch_runs_1() -> None:
 
 
 @celery.task(
-    autoretry_for=(HTTPError, ),
+    autoretry_for=(RequestException, ),
     retry_backoff=True,
     retry_kwargs={'max_retries': 15}
 )
@@ -334,11 +351,9 @@ def _notify_broker_of_new_job_1(
             run.runners_requested = max(wanted_runners, 1)
         p.models.db.session.commit()
 
-    _update_latest_results_in_broker_1.delay(run.id)
-
 
 @celery.task(
-    autoretry_for=(HTTPError, ),
+    autoretry_for=(RequestException, ),
     retry_backoff=True,
     retry_kwargs={'max_retries': 15}
 )
@@ -371,7 +386,7 @@ def _notify_broker_kill_single_runner_1(
 
 
 @celery.task(
-    autoretry_for=(HTTPError, ),
+    autoretry_for=(RequestException, ),
     retry_backoff=True,
     retry_kwargs={'max_retries': 15}
 )
@@ -424,8 +439,14 @@ def _check_heartbeat_stop_test_runner_1(auto_test_runner_id: str) -> None:
     p.models.db.session.commit()
 
 
-@celery.task
-def _adjust_amount_runners_1(auto_test_run_id: int) -> None:
+@celery.task(
+    autoretry_for=(RequestException, ),
+    retry_backoff=True,
+    retry_kwargs={'max_retries': 15}
+)
+def _adjust_amount_runners_1(
+    auto_test_run_id: int, *, always_update_latest_results: bool = False
+) -> None:
     run = p.models.AutoTestRun.query.filter_by(
         id=auto_test_run_id
     ).with_for_update().one_or_none()
@@ -436,23 +457,29 @@ def _adjust_amount_runners_1(auto_test_run_id: int) -> None:
 
     requested_amount = run.runners_requested
     needed_amount = run.get_amount_needed_runners()
+
+    should_notify_broker = False
+
     with cg_logger.bound_to_logger(
         requested_amount=requested_amount, needed_amount=needed_amount
     ):
         if needed_amount == requested_amount:
             logger.info('No new runners needed')
-            return
         elif needed_amount == 0 and run.runners_requested < 2:
             # If we have requested more than 2 runners we should decrease this,
             # so do send this request to the broker.
             logger.info("We don't need any runners")
-            return
         elif needed_amount > requested_amount:
             logger.info('We need more runners')
+            should_notify_broker = True
         else:
             logger.info('We have requested too many runners')
+            should_notify_broker = True
 
-        _notify_broker_of_new_job_1(run, needed_amount)
+        if should_notify_broker:
+            _notify_broker_of_new_job_1(run, needed_amount)
+        elif always_update_latest_results:
+            _update_latest_results_in_broker_1(run.id)
 
 
 @celery.task
@@ -464,7 +491,11 @@ def _kill_runners_and_adjust_1(
     _adjust_amount_runners_1(run_id)
 
 
-@celery.task
+@celery.task(
+    autoretry_for=(RequestException, ),
+    retry_backoff=True,
+    retry_kwargs={'max_retries': 15}
+)
 def _update_latest_results_in_broker_1(auto_test_run_id: int) -> None:
     m = p.models  # pylint: disable=invalid-name
 
@@ -473,46 +504,13 @@ def _update_latest_results_in_broker_1(auto_test_run_id: int) -> None:
         logger.info('Run not found', run_id=auto_test_run_id)
         return
 
-    def get_latest_date(
-        state: m.AutoTestStepResultState,
-        col: t.Union[DbColumn[DatetimeWithTimezone], DbColumn[
-            t.Optional[DatetimeWithTimezone]]],
-        oldest: bool = True
-    ) -> t.Optional[str]:
-        date = m.db.session.query(col).filter_by(
-            auto_test_run_id=auto_test_run_id,
-            state=state,
-        ).order_by(col if oldest else col.desc()).first()
-
-        if date is None or date[0] is None:
-            return None
-        return date[0].isoformat()
-
-    # yapf: disable
-    results = {
-        'not_started': get_latest_date(
-            m.AutoTestStepResultState.not_started,
-            m.AutoTestResult.updated_at,
-        ),
-        'running': get_latest_date(
-            m.AutoTestStepResultState.running,
-            m.AutoTestResult.started_at,
-        ),
-        'passed': get_latest_date(
-            m.AutoTestStepResultState.passed,
-            m.AutoTestResult.updated_at,
-            False,
-        ),
-    }
-    # yapf: enable
-
     with p.helpers.BrokerSession() as ses:
         ses.put(
             '/api/v1/jobs/',
             json={
                 'job_id': run.get_job_id(),
                 'metadata': {
-                    'results': results,
+                    'results': run.get_broker_result_metadata(),
                 },
                 'error_on_create': True,
             },
@@ -631,6 +629,174 @@ def _add_1(first: int, second: int) -> int:  # pragma: no cover
     return first + second
 
 
+@celery.task
+def _send_direct_notification_emails_1(
+    notification_ids: t.List[int],
+) -> None:
+    notifications = p.models.db.session.query(p.models.Notification).filter(
+        p.models.Notification.id.in_(notification_ids),
+        p.models.Notification.email_sent_at.is_(None),
+    ).with_for_update().all()
+
+    should_send = p.models.NotificationsSetting.get_should_send_for_users(
+        [n.receiver_id for n in notifications]
+    )
+
+    for notification in notifications:
+        with cg_logger.bound_to_logger(notification=notification):
+            if not should_send(
+                notification, p.models.EmailNotificationTypes.direct
+            ):
+                logger.info('Should not send notification')
+                continue
+
+            now = DatetimeWithTimezone.utcnow()
+            try:
+                p.mail.send_direct_notification_email(notification)
+            # pylint: disable=broad-except
+            except Exception:  # pragma: no cover
+                # This happens if mail sending fails or if the user has no
+                # e-mail address.
+                # TODO: make this exception more specific
+                logger.warning(
+                    'Could not send notification email',
+                    receiving_user_id=notification.receiver_id,
+                    exc_info=True,
+                    report_to_sentry=True,
+                )
+            else:
+                notification.email_sent_at = now
+
+    p.models.db.session.commit()
+
+
+def _send_delayed_notification_emails(
+    digest_type: Literal[p.models.EmailNotificationTypes.daily, p.models.
+                         EmailNotificationTypes.weekly]
+) -> None:
+    now = DatetimeWithTimezone.utcnow()
+    if digest_type == p.models.EmailNotificationTypes.daily:
+        max_age = now - datetime.timedelta(days=1, hours=2)
+    else:
+        assert digest_type == p.models.EmailNotificationTypes.weekly
+        max_age = now - datetime.timedelta(days=7, hours=2)
+
+    notifications = p.models.db.session.query(p.models.Notification).filter(
+        p.models.Notification.email_sent_at.is_(None),
+        p.models.Notification.created_at > max_age,
+    ).order_by(p.models.Notification.receiver_id).with_for_update().all()
+
+    should_send = p.models.NotificationsSetting.get_should_send_for_users(
+        list(set(n.receiver_id for n in notifications))
+    )
+
+    notifications_to_send = []
+
+    now = DatetimeWithTimezone.utcnow()
+    for notification in notifications:
+        with cg_logger.bound_to_logger(
+            notification=notification.__structlog__()
+        ):
+            if not should_send(notification, digest_type):
+                logger.info('Should not send notification')
+                continue
+            logger.info('Should send notification')
+            notification.email_sent_at = now
+            notifications_to_send.append(notification)
+    p.models.db.session.commit()
+
+    for user, user_notifications in itertools.groupby(
+        notifications_to_send, lambda n: n.receiver
+    ):
+        try:
+            p.mail.send_digest_notification_email(
+                list(user_notifications), digest_type
+            )
+        # pylint: disable=broad-except
+        except Exception:  # pragma: no cover
+            logger.warning(
+                'Could not send digest email',
+                receiving_user_id=user.id,
+                exc_info=True,
+                report_to_sentry=True,
+            )
+
+
+@celery.task
+def _send_daily_notifications() -> None:
+    _send_delayed_notification_emails(p.models.EmailNotificationTypes.daily)
+
+
+@celery.task
+def _send_weekly_notifications() -> None:
+    _send_delayed_notification_emails(p.models.EmailNotificationTypes.weekly)
+
+
+@celery.task
+def _send_email_as_user_1(
+    receiver_ids: t.List[int], subject: str, body: str,
+    task_result_hex_id: str, sender_id: int
+) -> None:
+    task_result_id = uuid.UUID(hex=task_result_hex_id)
+    task_result = p.models.TaskResult.query.with_for_update(
+    ).get(task_result_id)
+
+    if task_result is None:
+        logger.error('Could not find task result')
+        return
+    if task_result.state != p.models.TaskResultState.not_started:
+        logger.error('Task already started or done', task_result=task_result)
+        return
+
+    def __task() -> None:
+        receivers = p.helpers.get_in_or_error(
+            p.models.User,
+            p.models.User.id,
+            receiver_ids,
+            same_order_as_given=True,
+        )
+        sender = p.models.User.query.get(sender_id)
+        if sender is None:  # pragma: no cover
+            raise Exception('Wanted sender was not found')
+
+        failed_receivers = []
+
+        with p.mail.mail.connect() as mailer:
+            for receiver in receivers:
+                with cg_logger.bound_to_logger(receiver=receiver):
+                    try:
+                        p.mail.send_student_mail(
+                            mailer,
+                            sender=sender,
+                            receiver=receiver,
+                            subject=subject,
+                            text_body=body
+                        )
+                    except:  # pylint: disable=bare-except
+                        logger.info(
+                            'Failed emailing to student',
+                            exc_info=True,
+                            report_to_sentry=True,
+                        )
+                        failed_receivers.append(receiver)
+
+        if failed_receivers:
+            raise p.exceptions.APIException(
+                'Failed to email {every} user'.format(
+                    every='every'
+                    if len(receivers) != len(failed_receivers) else 'any'
+                ),
+                'Failed to mail some users',
+                p.exceptions.APICodes.MAILING_FAILED,
+                400,
+                all_users=receivers,
+                failed_users=failed_receivers,
+            )
+
+    task_result.as_task(__task)
+    p.models.db.session.commit()
+
+
 lint_instances = _lint_instances_1.delay  # pylint: disable=invalid-name
 add = _add_1.delay  # pylint: disable=invalid-name
 send_done_mail = _send_done_mail_1.delay  # pylint: disable=invalid-name
@@ -645,6 +811,8 @@ update_latest_results_in_broker = _update_latest_results_in_broker_1.delay  # py
 clone_commit_as_submission = _clone_commit_as_submission_1.delay  # pylint: disable=invalid-name
 delete_file_at_time = _delete_file_at_time_1.delay  # pylint: disable=invalid-name
 update_members_in_lti_course = _update_members_in_lti_course_1.delay  # pylint: disable=invalid-name
+send_direct_notification_emails = _send_direct_notification_emails_1.delay  # pylint: disable=invalid-name
+send_email_as_user = _send_email_as_user_1.delay  # pylint: disable=invalid-name
 
 send_reminder_mails: t.Callable[
     [t.Tuple[int],

@@ -1,10 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import Vue from 'vue';
 import axios from 'axios';
+import * as Sentry from '@sentry/browser';
+
 import * as types from '../mutation-types';
 
 const UNLOADED_SNIPPETS = {};
 let snippetsLastReloaded;
+
+function setUser(user) {
+    // Some users might want to block sentry which should be just fine.
+    if (Sentry) {
+        Sentry.setUser(user);
+    }
+}
 
 const getters = {
     loggedIn: state => state.id !== 0,
@@ -26,9 +35,17 @@ const getters = {
 };
 
 const actions = {
-    login({ commit }, response) {
+    login({ commit, dispatch }, response) {
         commit(types.LOGIN, response.data);
-        actions.refreshSnippets({ commit });
+        return dispatch(
+            'users/addOrUpdateUser',
+            {
+                user: response.data.user,
+            },
+            {
+                root: true,
+            },
+        );
     },
 
     addSnippet({ commit }, snippet) {
@@ -86,6 +103,7 @@ const actions = {
             commit(`users/${types.CLEAR_USERS}`, null, { root: true }),
             commit(`fileTrees/${types.DELETE_ALL_FILETREES}`, null, { root: true }),
             commit(`feedback/${types.DELETE_ALL_FEEDBACKS}`, null, { root: true }),
+            commit('notification/commitClearNotifications', null, { root: true }),
             commit(types.LOGOUT),
         ]);
     },
@@ -117,9 +135,7 @@ const actions = {
         });
     },
 
-    updateUserInfo({ commit, dispatch }, {
-        name, email, oldPw, newPw,
-    }) {
+    updateUserInfo({ commit, dispatch }, { name, email, oldPw, newPw }) {
         return axios
             .patch('/api/v1/login', {
                 name,
@@ -160,6 +176,10 @@ const mutations = {
         state.canSeeHidden = userdata.hidden;
         state.username = userdata.username;
         state.permissions = userdata.permissions;
+        setUser({
+            id: state.id,
+            username: state.username,
+        });
     },
 
     [types.SNIPPETS](state, snippets) {
@@ -175,6 +195,7 @@ const mutations = {
         state.jwtToken = null;
         state.username = null;
         state.permissions = null;
+        setUser(null);
     },
 
     [types.NEW_SNIPPET](state, { id, key, value }) {

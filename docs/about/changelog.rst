@@ -2,19 +2,75 @@ Changelog
 ==========
 
 Version *Next*
------------------
+---------------
 
-**Released**: *Unreleased*
+**Released**: TBD
 
-**Updates**
+**Features**
 
-- Various internal improvements (`#1244
-  <https://github.com/CodeGra-de/CodeGra.de/pull/1244>`__). This makes it easier
-  to improve CodeGrade in the future.
+- Improve plagiarism document rendering `(#1335)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1335>`__. Matching blocks of
+  code can now be rendered side by side, the amount of context lines before and
+  after each match is configurable, and it is possible to export to a docx
+  file.
 
 **Fixes**
 
-- Make sure that empty markdown files show a useful errors `(#1244)
+- Miscellaneous fixes:
+  `(#1322) <https://github.com/CodeGra-de/CodeGra.de/pull/1322>`__,
+  `(#1323) <https://github.com/CodeGra-de/CodeGra.de/pull/1323>`__,
+  `(#1324) <https://github.com/CodeGra-de/CodeGra.de/pull/1324>`__,
+  `(#1325) <https://github.com/CodeGra-de/CodeGra.de/pull/1325>`__,
+  `(#1326) <https://github.com/CodeGra-de/CodeGra.de/pull/1326>`__,
+  `(#1327) <https://github.com/CodeGra-de/CodeGra.de/pull/1327>`__,
+  `(#1328) <https://github.com/CodeGra-de/CodeGra.de/pull/1328>`__,
+  `(#1331) <https://github.com/CodeGra-de/CodeGra.de/pull/1331>`__,
+  `(#1332) <https://github.com/CodeGra-de/CodeGra.de/pull/1332>`__,
+  `(#1333) <https://github.com/CodeGra-de/CodeGra.de/pull/1333>`__.
+
+Version LowVoltage
+-------------------
+
+**Released**: April 15th, 2020
+
+You can now view assignment statistics on the Analytics Dashboard, giving you
+insight into student performance. Students can now also comment on their own
+code, and they can reply to comments placed by teachers.
+
+**Features**
+
+- Analytics dashboard (`#1300
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1300>`__). The analytics
+  dashboard is a new page with various statistics about an assignment. It gives
+  teachers insights in how students are performing on the assignment and where the
+  assignment may be improved.
+- Inline feedback replies (`#1305
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1305>`__). It is now possible
+  to reply to inline feedback, which makes distance learning easier to do with
+  CodeGrade. This update also adds markdown formatting to inline feedback, and
+  notifies you when you have received new replies.
+- Contact student button (`#1307
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1307>`__). This makes it
+  possible for teachers to send emails to students of a submission, or to
+  multiple students in a course.
+
+
+**Updates**
+
+- Make usernames case insensitive (`#1310
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1310>`__). This reduces
+  ambiguity in which user you are dealing with, as well as making it easier to
+  login because you do not have to remember if you used an uppercase or not
+  when you registered.
+- Various internal improvements (`#1244
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1244>`__). This makes it easier
+  to improve CodeGrade in the future.
+- Plagiarism support for newer versions of Java. You can now use the Plagiarism
+  checker for newer versions of Java.
+
+**Fixes**
+
+- Make sure that empty markdown files show a useful error `(#1244)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1244>`__.
 
 Version Knoet.3

@@ -32,6 +32,12 @@
                     <icon name="gear"/>
                 </b-button>
 
+                <b-button v-if="canEmailStudents"
+                          v-b-popover.top.hover="`Email the authors of the visible submissions`"
+                          v-b-modal.submissions-page-email-students-modal>
+                    <icon name="envelope"/>
+                </b-button>
+
                 <b-button-group v-b-popover.bottom.hover="'Reload submissions'">
                     <submit-button :wait-at-least="500"
                                    name="refresh-button"
@@ -47,6 +53,39 @@
                  :inverted="!darkMode" />
     </local-header>
 
+    <b-modal v-if="canEmailStudents"
+             id="submissions-page-email-students-modal"
+             ref="contactStudentModal"
+             size="xl"
+             hide-footer
+             no-close-on-backdrop
+             no-close-on-esc
+             hide-header-close
+             title="Email authors"
+             body-class="p-0"
+             dialog-class="auto-test-result-modal">
+        <cg-catch-error capture>
+            <template slot-scope="{ error }">
+                <b-alert v-if="error"
+                         show
+                         variant="danger">
+                    {{ $utils.getErrorMessage(error) }}
+                </b-alert>
+
+                <student-contact
+                    v-else
+                    :initial-users="visibleStudents"
+                    :course="assignment.course"
+                    :default-subject="defaultEmailSubject"
+                    reset-on-email
+                    @hide="() => $refs.contactStudentModal.hide()"
+                    @emailed="() => $refs.contactStudentModal.hide()"
+                    :can-use-snippets="canUseSnippets"
+                    class="p-3"/>
+            </template>
+        </cg-catch-error>
+    </b-modal>
+
     <div class="cat-container d-flex flex-column">
         <div v-if="error != null">
             <b-alert variant="danger" show>
@@ -59,7 +98,7 @@
         <template v-else>
             <div v-if="selectedCat === 'student-start'"
                  class="action-buttons flex-grow-1 d-flex flex-wrap">
-                <template v-if="canUploadForSelf || canUploadForOthers">
+                <template v-if="canUploadForSomeone">
                     <div class="action-button m-2 m-md-3 rounded text-center"
                          :class="{ 'variant-danger': latestSubmissionAfterDeadline }"
                          v-b-popover.top.hover="latestSubmissionDisabled">
@@ -172,38 +211,7 @@
                     </collapse>
                 </b-card>
 
-                <b-alert show
-                         variant="warning"
-                         class="no-deadline-alert mb-0"
-                         v-if="uploaderDisabled">
-                    <p v-if="!canUploadForSomeone">
-                        You do not have permission to upload work to this assignment.
-                    </p>
-
-                    <p v-if="!assignment.hasDeadline">
-                        The deadline for this assignment has not yet been set.
-
-                        <span v-if="canEditDeadline && deadlineEditable">
-                            You can update the deadline
-                            <router-link :to="manageAssigURL" class="inline-link">here</router-link>.
-                        </span>
-
-                        <span v-else-if="canEditDeadline">
-                            Please update the deadline in {{ lmsName }}.
-                        </span>
-
-                        <span v-else>
-                            Please ask your teacher to set a deadline before you
-                            can submit your work.
-                        </span>
-                    </p>
-
-                    <p v-if="ltiUploadDisabledMessage">
-                        {{ ltiUploadDisabledMessage }}
-                    </p>
-                </b-alert>
-
-                <template v-else>
+                <template>
                     <b-alert show
                              variant="info"
                              class="group-assignment-alert assignment-alert"
@@ -226,11 +234,9 @@
                         group.
                     </b-alert>
 
-                    <submission-uploader v-if="canUpload"
-                                         :assignment="assignment"
+                    <submission-uploader :assignment="assignment"
                                          :for-others="canUploadForOthers"
                                          :can-list-users="canListUsers"
-                                         :disabled="uploaderDisabled"
                                          :maybe-show-git-instructions="!isStudent"
                                          @created="goToSubmission"
                                          :class="isStudent ? 'flex-grow-1' : ''" />
@@ -246,7 +252,7 @@
             <div v-if="selectedCat === 'hand-in-instructions'"
                  class="flex-grow-1">
                 <c-g-ignore-file class="border rounded mb-3"
-                                 :assignmentId="assignment.id"
+                                 :assignment-id="assignment.id"
                                  :editable="false"
                                  summary-mode/>
             </div>
@@ -272,6 +278,23 @@
                                       :assignment-id="assignment.id"
                                       :filename="exportFilename" />
             </div>
+
+            <div v-if="selectedCat === 'analytics'"
+                 class="flex-grow-1">
+                <cg-catch-error>
+                    <template slot-scope="scope">
+                        <b-alert show variant="danger" v-if="scope.error">
+                            An unexpected error occurred:
+                            {{ $utils.getErrorMessage(scope.error) }}
+
+                            <pre class="text-wrap-pre">{{ scope.error.stack }}</pre>
+                        </b-alert>
+
+                        <analytics-dashboard v-else
+                                             :assignment-id="assignmentId" />
+                    </template>
+                </cg-catch-error>
+            </div>
         </template>
     </div>
 </div>
@@ -291,10 +314,10 @@ import 'vue-awesome/icons/users';
 import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/code-fork';
 import 'vue-awesome/icons/git';
+import 'vue-awesome/icons/envelope';
 
 import ltiProviders from '@/lti_providers';
 import { NONEXISTENT } from '@/constants';
-import * as assignmentState from '@/store/assignment-states';
 import GroupsManagement from '@/components/GroupsManagement';
 import {
     CgLogo,
@@ -311,6 +334,7 @@ import {
     SubmissionsExporter,
     WebhookInstructions,
 } from '@/components';
+import StudentContact from '@/components/StudentContact';
 
 import { setPageTitle, pageTitleSep } from './title';
 
@@ -331,7 +355,10 @@ export default {
     },
 
     computed: {
-        ...mapGetters('user', { userId: 'id' }),
+        ...mapGetters('user', {
+            userId: 'id',
+            userPerms: 'permissions',
+        }),
         ...mapGetters('pref', ['darkMode']),
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('rubrics', { allRubrics: 'rubrics' }),
@@ -375,6 +402,12 @@ export default {
                     id: 'export',
                     name: 'Export',
                     enabled: !this.isStudent,
+                },
+                {
+                    id: 'analytics',
+                    name: 'Analytics',
+                    badge: { label: 'beta' },
+                    enabled: this.assignment.analytics_workspace_ids.length > 0,
                 },
             ];
         },
@@ -433,67 +466,28 @@ export default {
             return this.assignment.lms_name;
         },
 
-        uploadDisabledReason() {
-            const assig = this.assignment;
-            const perms = assig.course.permissions;
+        uploadDisabledMessage() {
+            const reasons = this.assignment.getSubmitDisabledReasons();
 
-            if (!(perms.can_submit_own_work || perms.can_submit_others_work)) {
-                return 'you cannot submit work for this course.';
-            } else if (assig.state === assignmentState.HIDDEN) {
-                return 'the assignment is hidden.';
-            } else if (!assig.hasDeadline) {
-                return "the assignment's deadline has not yet been set.";
-            } else if (!perms.can_upload_after_deadline && assig.deadlinePassed(this.$root.$now)) {
-                return "the assignment's deadline has passed.";
-            } else {
+            if (!this.assignment.files_upload_enabled) {
+                reasons.unshift('file uploads are disabled for this assignment.');
+            }
+
+            if (reasons.length === 0) {
                 return '';
             }
-        },
 
-        uploadDisabledMessage() {
-            let reason = this.uploadDisabledReason;
-
-            if (!reason && !this.assignment.files_upload_enabled) {
-                reason = 'file uploads are disabled for this assignment.';
-            }
-
-            return reason ? `You cannot upload work because ${reason}` : '';
+            return `You cannot upload work because ${this.$utils.readableJoin(reasons)}.`;
         },
 
         webhookDisabledMessage() {
-            const reason = this.uploadDisabledReason;
-            return reason ? `You cannot view the webhook instructions because ${reason}` : '';
-        },
+            const reasons = this.assignment.getSubmitDisabledReasons();
 
-        ltiUploadDisabledMessage() {
-            if (this.assignment.is_lti && !this.$inLTI) {
-                return `You can only submit this assignment from within ${this.lmsName}.`;
-            } else if (this.$inLTI && this.$LTIAssignmentId == null) {
-                return (
-                    "You didn't launch the assignment using LTI, please " +
-                    "navigate to the 'Assignments' page and submit your " +
-                    'work there.'
-                );
-            } else if (this.$inLTI && this.assignmentId !== this.$LTIAssignmentId) {
-                return (
-                    'You launched CodeGrade for a different assignment. ' +
-                    'Please retry opening the correct assignment.'
-                );
+            if (reasons.length === 0) {
+                return '';
             }
 
-            return '';
-        },
-
-        uploaderDisabled() {
-            return !!(
-                this.ltiUploadDisabledMessage ||
-                !this.assignment.hasDeadline ||
-                !this.canUploadForSomeone
-            );
-        },
-
-        deadlineEditable() {
-            return !this.$utils.getProps(ltiProviders, false, this.lmsName, 'supportsDeadline');
+            return `You cannot view the webhook instructions because ${this.$utils.readableJoin(reasons)}.`;
         },
 
         latestSubmissionDisabled() {
@@ -595,16 +589,8 @@ export default {
             return this.coursePermissions.can_list_course_users;
         },
 
-        canUpload() {
-            return this.assignment.canUploadWork(this.$root.$now);
-        },
-
         canSeeOthersWork() {
             return this.coursePermissions.can_see_others_work;
-        },
-
-        canEditDeadline() {
-            return this.coursePermissions.can_edit_assignment_info;
         },
 
         currentGroup() {
@@ -619,6 +605,36 @@ export default {
             // When there is a group, only show the add button if you are not a student.
             return !this.isStudent;
         },
+
+        visibleStudents() {
+            const seen = new Set();
+            return this.filteredSubmissions.reduce((acc, s) => {
+                s.user.getContainedUsers().forEach(u => {
+                    if (seen.has(u.id)) {
+                        return;
+                    }
+
+                    seen.add(u.id);
+                    acc.push(u);
+                });
+
+                return acc;
+            }, []);
+        },
+
+        defaultEmailSubject() {
+            return `[CodeGrade - ${this.assignment.course.name}/${this.assignment.name}] …`;
+        },
+
+        canUseSnippets() {
+            return !!this.userPerms.can_use_snippets;
+        },
+
+        canEmailStudents() {
+            return (UserConfig.features.email_students &&
+                    this.$utils.getProps(this.coursePermissions, false, 'can_email_students'));
+        },
+
     },
 
     watch: {
@@ -660,6 +676,7 @@ export default {
             if (this.assignment == null) {
                 this.loading = true;
                 await this.loadCourses();
+                await this.$nextTick();
             }
 
             // Always set loading to false, otherwise you'd get an infinite
@@ -723,6 +740,7 @@ export default {
         },
 
         submitForceLoadSubmissions() {
+            this.$root.$emit('cg::submissions-page::reload');
             return this.forceLoadSubmissions(this.assignment.id);
         },
 
@@ -773,6 +791,11 @@ export default {
         SubmissionsExporter,
         WebhookInstructions,
         LateSubmissionIcon,
+        StudentContact,
+        AnalyticsDashboard: () => ({
+            component: import('@/components/AnalyticsDashboard'),
+            loading: Loader,
+        }),
     },
 };
 </script>

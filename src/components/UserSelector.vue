@@ -1,10 +1,11 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <multiselect :value="value"
-             @input="onInput"
+             @select="onSelect"
+             @remove="onRemove"
              :hide-selected="false"
              :options="students"
-             :multiple="false"
+             :multiple="multiple"
              :searchable="true"
              :select-label="selectLabel"
              @search-change="asyncFind"
@@ -27,10 +28,10 @@
         No results were found. You can search on name and username.
     </span>
 </multiselect>
-<input :value="value ? value.username : ''"
-       @input="onInput({ username: $event.target.value })"
-       class="user-selector form-control border-left-0 border-bottom-0 border-right-0 rounded-top-0"
-       :class="{ disabled, 'border-top': !noBorder }"
+<input :value="inputValue"
+       @input="onInput($event.target.value)"
+       class="user-selector form-control"
+       :class="{ disabled, 'border': !noBorder }"
        :placeholder="placeholder"
        :disabled="disabled"
        v-else/>
@@ -82,6 +83,10 @@ export default {
             type: Boolean,
             default: false,
         },
+        multiple: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     data() {
@@ -112,22 +117,53 @@ export default {
         queryTooSmall() {
             return !this.searchQuery || this.searchQuery.replace(/\s/g, '').length < 3;
         },
+
+        inputValue() {
+            if (this.multiple) {
+                return (this.value || []).map(x => x.username).join(', ');
+            }
+            return this.value ? this.value.username : '';
+        },
     },
 
     methods: {
         ...mapActions('users', ['addOrUpdateUser']),
 
-        onInput(newValue) {
-            if (newValue != null && newValue.username) {
-                let toEmit = newValue;
-                if (toEmit.username === this.myUsername) {
-                    toEmit.id = this.myId;
-                }
-                toEmit = this.getUserById(toEmit.id) || toEmit;
+        onSelect(newUser) {
+            const toEmit = this.getUserById(newUser.id) || newUser;
+
+            if (this.multiple) {
+                this.$emit('input', [...(this.value || []), toEmit]);
+            } else {
                 this.$emit('input', toEmit);
+            }
+        },
+
+        onRemove(removedUser) {
+            if (this.multiple) {
+                this.$emit('input', (this.value || []).filter(user => user.id !== removedUser.id));
             } else {
                 this.$emit('input', null);
             }
+        },
+
+        onInput(input) {
+            const byUsername = username => {
+                let res = null;
+                if (username === this.myUsername) {
+                    res = this.getUserById(this.myId);
+                }
+                return res || { username };
+            };
+
+            let toEmit;
+            if (this.multiple) {
+                toEmit = input.split(/,\s+/).map(byUsername);
+            } else {
+                toEmit = byUsername(input);
+            }
+
+            this.$emit('input', toEmit);
         },
 
         queryMatches() {
@@ -139,8 +175,13 @@ export default {
                 return true;
             }
 
-            const username = this.value.username.toLocaleLowerCase();
-            const name = this.value.name ? this.value.name.toLocaleLowerCase() : ';';
+            const arr = this.$utils.ensureArray(this.value);
+            if (arr.length === 0 || arr[arr.lenght - 1] == null) {
+                return false;
+            }
+            const value = arr[arr.length - 1];
+            const username = value.username.toLocaleLowerCase();
+            const name = value.name ? value.name.toLocaleLowerCase() : ';';
 
             return this.searchQuery.split(' ').every(queryWord => {
                 const word = queryWord.toLocaleLowerCase();
@@ -152,8 +193,8 @@ export default {
             this.stopLoadingStudents();
             this.searchQuery = query;
 
-            if (this.queryTooSmall && this.value && this.queryMatches()) {
-                this.students = [this.value];
+            if (this.queryTooSmall && !this.multiple && this.value && this.queryMatches()) {
+                this.students = this.$utils.ensureArray(this.value);
                 this.loadingStudents = false;
             } else if (this.queryTooSmall) {
                 this.students = [];
@@ -165,12 +206,12 @@ export default {
                 const params = Object.assign({ q: query }, this.extraParams);
                 id = setTimeout(() => {
                     this.$http.get(this.baseUrl, { params }).then(
-                        ({ data }) => {
+                        async ({ data }) => {
                             if (stop) {
                                 return;
                             }
 
-                            data.map(user => this.addOrUpdateUser({ user }));
+                            await Promise.all(data.map(user => this.addOrUpdateUser({ user })));
                             this.loadingStudentsCallback = null;
                             this.students = data.filter(this.filterStudents);
                             this.loadingStudents = false;
@@ -242,7 +283,7 @@ export default {
         pointer-events: initial;
     }
 
-    .multiselect__tags {
+    &:not(:last-child) .multiselect__tags {
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
     }

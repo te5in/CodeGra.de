@@ -118,6 +118,14 @@ class AttachTimeoutError(StopRunningTestsException):
     pass
 
 
+class FailedToStartError(StopRunningTestsException):
+    pass
+
+
+class FailedToShutdownError(cg_worker_pool.KillWorkerException):
+    pass
+
+
 @dataclasses.dataclass(frozen=True)
 class OutputTail:
     """This class represents the tail of an output stream.
@@ -255,11 +263,11 @@ def _wait_for_pid(pid: int, timeout: float) -> t.Tuple[int, float]:
     ...
     CommandTimeoutException
 
-    >>> pid = Popen('exit 32', shell=True).pid
+    >>> pid = Popen('sleep 0.5 && exit 32', shell=True).pid
     >>> _wait_for_pid(pid, 4)[0]
     32
 
-    >>> _wait_for_pid(Popen('exit 20', shell=True).pid, 4)[0]
+    >>> _wait_for_pid(Popen('sleep 0.5 && exit 20', shell=True).pid, 4)[0]
     20
 
     >>> exit, left = _wait_for_pid(Popen(['sleep', '0.25']).pid, 1)
@@ -531,9 +539,15 @@ def _get_base_container(config: 'psef.FlaskConfig') -> 'AutoTestContainer':
 def _stop_container(cont: lxc.Container) -> None:
     if cont.running:
         with timed_code('stop_container'):
-            with _LXC_START_STOP_LOCK:
-                if not cont.shutdown(10):
-                    raise cg_worker_pool.KillWorkerException
+            for _ in helpers.retry_loop(
+                amount=4, sleep_time=1, make_exception=FailedToShutdownError
+            ):
+                with _LXC_START_STOP_LOCK:
+                    if cont.shutdown(10):
+                        break
+                logger.warning(
+                    'Failed to shutdown container', last_error=cont.last_error
+                )
             assert cont.wait('STOPPED', 3)
 
 
@@ -548,8 +562,13 @@ def _start_container(
 
     with timed_code('start_container'):
         with _LXC_START_STOP_LOCK:
-            assert cont.start()
-        assert cont.wait('RUNNING', 3)
+            if not cont.start():
+                logger.error(
+                    'Container failed to start', last_error=cont.last_error
+                )
+                raise FailedToStartError
+        if not cont.wait('RUNNING', 3):  # pragma: no cover
+            raise FailedToStartError
 
         def callback(domain_or_systemd: t.Optional[str]) -> int:
             if domain_or_systemd is None:
@@ -577,7 +596,11 @@ def _start_container(
         if check_network:
             with timed_code('wait_for_network'):
 
-                for _ in helpers.retry_loop(60, sleep_time=0.5):
+                for _ in helpers.retry_loop(
+                    60,
+                    sleep_time=0.5,
+                    make_exception=StopRunningStudentException
+                ):
                     if not always:
                         _maybe_quit_running()
 
@@ -780,7 +803,7 @@ def start_polling(config: 'psef.FlaskConfig') -> None:
         with open(runner_pass_file, 'r') as f:
             runner_pass = f.read().strip()
     else:
-        logger.warning(
+        logger.error(
             'Could not find runner pass file',
             runner_pass_file=runner_pass_file
         )
@@ -798,7 +821,11 @@ def start_polling(config: 'psef.FlaskConfig') -> None:
                 retry_amount=4,
             )
 
-        for _ in helpers.retry_loop(sys.maxsize, sleep_time=_REQUEST_TIMEOUT):
+        for _ in helpers.retry_loop(
+            sys.maxsize,
+            sleep_time=_REQUEST_TIMEOUT,
+            make_exception=AssertionError
+        ):
             with get_broker_session() as ses:
                 try:
                     response = ses.post(
@@ -915,10 +942,13 @@ class StartedContainer:
 
         :param key: The cgroup key to be set.
         :param value: The value to set.
-        :raises AssertionError: When the value could not be set successfully.
+        :raises StopRunningTestsException: When the value could not be set
+            successfully.
         """
         with cg_logger.bound_to_logger(cgroup_key=key, cgroup_value=value):
-            for _ in helpers.retry_loop(5):
+            for _ in helpers.retry_loop(
+                5, make_exception=StopRunningTestsException
+            ):
                 success = self._container.set_cgroup_item(key, value)
                 if success:
                     return
@@ -1542,7 +1572,7 @@ class AutoTestContainer:
     def create(self) -> None:
         """Create a backing lxc container for this AutoTestContainer.
         """
-        assert self._cont.create(
+        created = self._cont.create(
             'download',
             0, {
                 'dist': 'ubuntu',
@@ -1551,6 +1581,12 @@ class AutoTestContainer:
             },
             bdevtype=self._config['AUTO_TEST_BDEVTYPE']
         )
+        if not created:  # pragma: no cover
+            raise AssertionError(
+                'Failed to create container, last error {}'.format(
+                    self._cont.last_error
+                )
+            )
 
     @contextlib.contextmanager
     def started_container(self) -> t.Generator[StartedContainer, None, None]:
@@ -2009,12 +2045,13 @@ class AutoTestRunner:
         return res.get('code', None) == APICodes.NOT_NEWEST_SUBMSSION.name
 
     @timed_function
-    def _run_student(
+    def _run_student(  # pylint: disable=too-many-statements,too-many-branches
         self,
         cont: StartedContainer,
         cpu: CpuCores.Core,
         result_id: int,
     ) -> bool:
+        # TODO: Split this function
         result_url = f'{self.base_url}/results/{result_id}'
 
         result_state: t.Optional[models.AutoTestStepResultState]
@@ -2094,6 +2131,8 @@ class AutoTestRunner:
             result_state = None
             if self._is_old_submission_error(e):
                 logger.warning('Was running old submission', exc_info=True)
+            elif isinstance(e, StopRunningStudentException):
+                logger.error('Stop running student exception', exc_info=True)
             else:
                 logger.warning(
                     'HTTP error, so stopping this student', exc_info=True
@@ -2101,8 +2140,12 @@ class AutoTestRunner:
             return False
         except StopRunningTestsException:
             result_state = None
-            logger.warning('Stop running steps', exc_info=True)
+            logger.error('Stop running steps', exc_info=True)
             raise
+        except cg_worker_pool.KillWorkerException:
+            result_state = None
+            logger.error('Worker wanted to be killed', exc_info=True)
+            return False
         except:
             logger.error('Something went wrong', exc_info=True)
             result_state = models.AutoTestStepResultState.failed

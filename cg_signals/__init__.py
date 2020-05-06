@@ -129,8 +129,11 @@ class Dispatcher(t.Generic[T]):
         return callback
 
     def connect(
-        self, when: Literal['immediate', 'after_request'],
-        converter: t.Callable[[T], Z], pre_check: t.Callable[[T], bool]
+        self,
+        when: Literal['immediate', 'after_request'],
+        *,
+        pre_check: t.Callable[[T], bool],
+        converter: t.Callable[[T], Z],
     ) -> t.Callable[[t.Callable[[Z], Y]], t.Callable[[Z], Y]]:
         callbacks = (
             self.__immediate_callbacks

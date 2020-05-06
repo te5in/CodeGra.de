@@ -9,7 +9,7 @@ if grep -r '\.only(' ./cypress; then
 fi
 
 make privacy_statement
-npm run start_integration > /dev/null 2>&1  &
+npm run start_integration &
 
 DBNAME="ci_test"
 export SQLALCHEMY_DATABASE_URI="postgresql://postgres:postgres@localhost:5432/${DBNAME}"
@@ -18,6 +18,7 @@ cat >config.ini <<EOF
 [Back-end]
 sqlalchemy_database_uri = $SQLALCHEMY_DATABASE_URI
 DEBUG = true
+external_url = http://localhost:8080
 mirror_upload_dir = /tmp/psef/mirror_uploads
 upload_dir = /tmp/psef/uploads
 
@@ -36,6 +37,7 @@ EOF
 wget https://github.com/CodeGra-de/jplag/releases/download/v2.14.2-SNAPSHOT/jplag-2.14.2-SNAPSHOT-jar-with-dependencies.jar -O jplag.jar
 export PYTHONPATH="$PYTHONPATH:${PWD}"
 PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -c "create database $DBNAME;" || exit 1
+PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres "$DBNAME" -c "create extension \"citext\";" || exit 1
 ./manage.py db upgrade
 ./manage.py test_data
 
@@ -43,9 +45,11 @@ celery worker --app=runcelery:celery -E > /dev/null &
 python run.py > /dev/null &
 
 ./node_modules/wait-on/bin/wait-on http://localhost:8080/api/v1/about -l
-curl http://localhost:8080
 
-sleep 4
+curl http://localhost:8080/
+curl http://localhost:8080/app.js | tail -c 100
+
+sleep 10
 
 FILES=$(python - <<PYTHON
 import os

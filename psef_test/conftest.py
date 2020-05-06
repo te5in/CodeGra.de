@@ -11,8 +11,10 @@ import signal
 import string
 import secrets
 import datetime
+import functools
 import contextlib
 import subprocess
+import collections
 import multiprocessing
 import multiprocessing.managers
 from urllib.error import URLError
@@ -279,6 +281,8 @@ def assert_similar():
         not_allowed_extra = set()
 
         for k, value in enumerate(tree) if is_list else tree.items():
+            if isinstance(value, LocalProxy):
+                value = value._get_current_object()
 
             if k == '__allow_extra__' and value:
                 allowed_extra = True
@@ -291,6 +295,9 @@ def assert_similar():
                     continue
             i += 1
             assert is_list or k in vals
+
+            if isinstance(value, psef.models.Base):
+                value = value.__to_json__()
 
             if isinstance(value, type):
                 assert isinstance(vals[k], value), (
@@ -309,10 +316,16 @@ def assert_similar():
                 ).format(
                     '.'.join(cur_path + [str(k)]), value.pattern, vals[k]
                 )
+            elif callable(value):
+                assert value(vals[k]), (
+                    'The function {} did not return true for {} at the path {}'
+                ).format(value, vals[k], '.'.join(cur_path + [str(k)]))
             else:
                 assert vals[k] == value, (
-                    "Wrong value for key '{}', expected '{}', got '{}'"
-                ).format('.'.join(cur_path + [str(k)]), value, vals[k])
+                    "Wrong value for key '{}', expected '{} (type={})', got '{}'"
+                ).format(
+                    '.'.join(cur_path + [str(k)]), value, type(value), vals[k]
+                )
 
         if is_list:
             assert len(vals
@@ -320,9 +333,9 @@ def assert_similar():
                            len(vals), i
                        )
         elif not allowed_extra:
-            assert len(vals) == i, 'Difference in keys: {}'.format(
-                set(vals) ^ set(tree)
-            )
+            assert len(vals) == i, (
+                'Difference in keys: {}, (server data: {}, expected: {})'
+            ).format(set(vals) ^ set(tree), vals, tree)
         else:
             gotten_disallowed_keys = (set(vals.keys()) & not_allowed_extra)
             assert not gotten_disallowed_keys, (
@@ -434,6 +447,12 @@ def db(app, request):
             try:
                 subprocess.check_output(
                     'psql -c "create database {}"'.format(
+                        db_name.replace('postgresql:///', '')
+                    ),
+                    shell=True
+                )
+                subprocess.check_output(
+                    'psql {} -c \'create extension "citext"\''.format(
                         db_name.replace('postgresql:///', '')
                     ),
                     shell=True
@@ -603,16 +622,33 @@ def filename(request):
 
 
 @pytest.fixture
+def make_function_spy(monkeypatch, stub_function_class):
+    def make_spy(module, name):
+        orig = getattr(module, name)
+        spy = stub_function_class(orig, with_args=True)
+        monkeypatch.setattr(module, name, spy)
+        return spy
+
+    yield make_spy
+
+
+@pytest.fixture
 def stub_function_class():
     class StubFunction:
-        def __init__(self, ret_func=lambda: None, with_args=False):
+        def __init__(
+            self, ret_func=lambda: None, with_args=False, pass_self=False
+        ):
             self.args = []
             self.kwargs = []
             self.rets = []
             self.ret_func = ret_func
             self.with_args = with_args
             self.call_dates = []
+            self.pass_self = pass_self
             DESCRIBE_HOOKS.append(self.reset)
+
+        def __call__(self, *args, **kwargs):
+            return self.make_callable(self.ret_func)(*args, **kwargs)
 
         @property
         def all_args(self):
@@ -623,16 +659,26 @@ def stub_function_class():
 
             return [merge(a, k) for a, k in zip(self.args, self.kwargs)]
 
-        def __call__(self, *args, **kwargs):
-            self.args.append(args)
-            self.kwargs.append(kwargs)
-            self.call_dates.append(DatetimeWithTimezone.utcnow())
+        def __get__(self, obj, typ=None):
+            if self.pass_self:
+                func = self.ret_func.__get__(obj, typ)
+                return self.make_callable(func)
+            return self.__call__
 
-            if self.with_args:
-                self.rets.append(self.ret_func(*args, **kwargs))
-            else:
-                self.rets.append(self.ret_func())
-            return self.rets[-1]
+        def make_callable(self, func):
+            def inner(*args, **kwargs):
+                self.args.append(args)
+                self.kwargs.append(kwargs)
+                self.call_dates.append(DatetimeWithTimezone.utcnow())
+
+                if self.with_args:
+                    self.rets.append(func(*args, **kwargs))
+                else:
+                    self.rets.append(func())
+
+                return self.rets[-1]
+
+            return inner
 
         @property
         def called(self):
@@ -753,6 +799,8 @@ def stubmailer(monkeypatch):
             self.called = 0
             self.args = []
             self.kwargs = []
+            self.times_connect_called = 0
+            DESCRIBE_HOOKS.append(self.reset)
 
         def send(self, msg):
             self.called += 1
@@ -765,6 +813,20 @@ def stubmailer(monkeypatch):
             self.msg = None
             self.args = []
             self.called = 0
+            self.times_connect_called = 0
+
+        @property
+        def was_called(self):
+            return self.called > 0
+
+        @contextlib.contextmanager
+        def connect(self):
+            self.times_connect_called += 1
+            yield self
+
+        @property
+        def times_called(self):
+            return self.called
 
     mailer = StubMailer()
 

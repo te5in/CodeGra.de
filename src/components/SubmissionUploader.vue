@@ -223,9 +223,40 @@
         </span>
     </div>
 
+    <b-alert show
+             variant="warning"
+             class="no-deadline-alert mb-0 rounded-bottom-0"
+             :class="{ 'rounded-0': noBorder }"
+             v-if="disabled">
+        <p v-if="!assignment.hasDeadline">
+            The deadline for this assignment has not yet been set.
+
+            <span v-if="canEditDeadline && deadlineEditable">
+                You can update the deadline
+                <router-link :to="manageAssigURL" class="inline-link">here</router-link>.
+            </span>
+            <span v-else-if="canEditDeadline">
+                Please update the deadline in {{ lmsName }}.
+            </span>
+
+            <span v-else>
+                Please ask your teacher to set a deadline before you
+                can submit your work.
+            </span>
+        </p>
+        <p v-else-if="submitDisabledReasons.length > 0">
+            You cannot upload for this assignment as {{ $utils.readableJoin(submitDisabledReasons) }}.
+        </p>
+
+        <p v-if="ltiUploadDisabledMessage">
+            {{ ltiUploadDisabledMessage }}
+        </p>
+    </b-alert>
+
     <multiple-files-uploader
         no-border
         v-if="assignment.files_upload_enabled"
+        :disabled="disabled"
         v-model="files"
         class="flex-grow-1" />
     <div v-else
@@ -272,8 +303,11 @@
 
         <b-input-group-prepend v-else
                                class="deadline-information">
-            <b-input-group-text class="border-0">
-                The assignment is due {{ readableDeadline }}.
+            <b-input-group-text class="border-0" v-if="assignment.hasDeadline">
+                <span>
+                    The assignment is due
+                    <cg-relative-time :date="assignment.deadline" />
+                </span>
             </b-input-group-text>
         </b-input-group-prepend>
 
@@ -321,6 +355,9 @@ import * as utils from '@/utils';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
 
+import ltiProviders from '@/lti_providers';
+import { CoursePermission as CPerm } from '@/permissions';
+
 import Loader from './Loader';
 import SubmitButton, { SubmitButtonCancelled } from './SubmitButton';
 import UserSelector from './UserSelector';
@@ -363,7 +400,7 @@ export function getCoolOffPeriodText({ subs, author, loggedInUser, period, amoun
         capitalize = x => x;
     }
 
-    const humanizedPeriod = period.humanize().replace(/^a /, '');
+    const humanizedPeriod = period.clone().locale('en-original').humanize().replace(/^an? /, '');
     const cutoff = now.clone().subtract(period);
     const lines = [
         `You may submit <b>${numberToTimes(amountInPeriod, false)} every ${escape(
@@ -376,8 +413,8 @@ export function getCoolOffPeriodText({ subs, author, loggedInUser, period, amoun
     lines.push(' ');
 
     const latestSubmissionDate = subs[subs.length - amountInPeriod].createdAt;
-    const diff = moment.duration(latestSubmissionDate.diff(now));
-    const waitTime = moment.duration(cutoff.diff(latestSubmissionDate));
+    const diff = moment.duration(latestSubmissionDate.diff(now)).locale('en-original');
+    const waitTime = moment.duration(cutoff.diff(latestSubmissionDate)).locale('en-original');
 
     if (amountInPeriod === 1) {
         lines.push(
@@ -388,7 +425,7 @@ export function getCoolOffPeriodText({ subs, author, loggedInUser, period, amoun
             `${capitalize(authorName)} submitted ${numberToTimes(
                 amountInPeriod,
                 false,
-            )} in the past ${escape(diff.humanize().replace(/^a /, ''))}`,
+            )} in the past ${escape(diff.humanize().replace(/^an? /, ''))}`,
         );
     }
     if (latestSubmissionDate.isAfter(cutoff)) {
@@ -412,10 +449,6 @@ export default {
         assignment: {
             required: true,
             type: Object,
-        },
-        disabled: {
-            default: false,
-            type: Boolean,
         },
         forOthers: {
             type: Boolean,
@@ -548,24 +581,16 @@ export default {
             }&${this.uploadUrlQueryArgs}`;
         },
 
-        readableDeadline() {
-            const assig = this.assignment;
-            if (assig.hasDeadline) {
-                return assig.deadline.from(this.$root.$now);
-            }
-            return '';
-        },
-
         disabledPopover() {
             return 'You cannot select both an author and upload as a test submission.';
         },
 
         authorDisabledPopover() {
-            return this.disabled || this.isTestSubmission ? this.disabledPopover : '';
+            return (!this.disabled && this.isTestSubmission) ? this.disabledPopover : '';
         },
 
         testSubmissionDisabledPopover() {
-            return this.disabled || this.author ? this.disabledPopover : '';
+            return (!this.disabled && this.author) ? this.disabledPopover : '';
         },
 
         currentGroup() {
@@ -624,6 +649,58 @@ export default {
             }
 
             return this.getSubmissionsByUser(this.assignment.id, author.id);
+        },
+
+        isStudent() {
+            return this.$utils.getProps(this.assignment, true, 'course', 'isStudent');
+        },
+
+        ltiUploadDisabledMessage() {
+            if (!this.isStudent) {
+                return null;
+            } else if (this.assignment.is_lti && !this.$inLTI) {
+                return `You can only submit this assignment from within ${this.lmsName}.`;
+            } else if (this.$inLTI && this.$LTIAssignmentId == null) {
+                return (
+                    "You didn't launch the assignment using LTI, please " +
+                    "navigate to the 'Assignments' page and submit your " +
+                    'work there.'
+                );
+            } else if (this.$inLTI && this.assignment.id !== this.$LTIAssignmentId) {
+                return (
+                    'You launched CodeGrade for a different assignment. ' +
+                    'Please retry opening the correct assignment.'
+                );
+            }
+
+            return null;
+        },
+
+        submitDisabledReasons() {
+            return this.assignment.getSubmitDisabledReasons();
+        },
+
+        disabled() {
+            return this.submitDisabledReasons.length > 0 ||
+                this.ltiUploadDisabledMessage != null;
+        },
+
+        deadlineEditable() {
+            return !this.$utils.getProps(ltiProviders, false, this.lmsName, 'supportsDeadline');
+        },
+
+        canEditDeadline() {
+            return this.assignment.hasPermission(CPerm.canEditAssignmentInfo);
+        },
+
+        manageAssigURL() {
+            return {
+                name: 'manage_assignment',
+                params: {
+                    courseId: this.assignment.courseId,
+                    assignmentId: this.assignment.id,
+                },
+            };
         },
     },
 

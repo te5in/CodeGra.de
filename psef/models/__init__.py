@@ -103,6 +103,24 @@ This module defines all the objects in the database in their relation.
     :members:
     :show-inheritance:
 
+``psef.models.user_setting``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: psef.models.user_setting
+    :members:
+    :show-inheritance:
+
+``psef.models.notification``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: psef.models.notification
+    :members:
+    :show-inheritance:
+
+``psef.models.task_result``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: psef.models.task_result
+    :members:
+    :show-inheritance:
+
 SPDX-License-Identifier: AGPL-3.0-only
 """
 
@@ -168,7 +186,9 @@ if True:  # pylint: disable=using-constant-test
     from .plagiarism import (
         PlagiarismState, PlagiarismRun, PlagiarismCase, PlagiarismMatch
     )
-    from .comment import Comment
+    from .comment import (
+        CommentBase, CommentReply, CommentReplyEdit, CommentReplyType
+    )
     from .role import AbstractRole, Role, CourseRole
     from .snippet import Snippet
     from .rubric import RubricItem, RubricRowBase as RubricRow, WorkRubricItem
@@ -184,3 +204,10 @@ if True:  # pylint: disable=using-constant-test
     from .webhook import WebhookBase, GitCloneData
     from .blob_storage import BlobStorage
     from .proxy import Proxy, ProxyState
+    from .analytics import AnalyticsWorkspace, BaseDataSource
+    from .notification import Notification, NotificationReasons
+    from .user_setting import (
+        NotificationsSetting, SettingBase, EmailNotificationTypes,
+        NotificationSettingJSON
+    )
+    from .task_result import TaskResult, TaskResultState

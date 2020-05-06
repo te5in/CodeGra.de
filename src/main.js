@@ -1,12 +1,34 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import * as Sentry from '@sentry/browser';
+import { Vue as VueIntegration } from '@sentry/integrations';
+import Vue from 'vue';
+
+// Some users might want to block sentry which should be just fine.
+if (UserConfig.sentryDsn && Sentry) {
+    Sentry.init({
+        dsn: UserConfig.sentryDsn,
+        integrations: [
+            new VueIntegration({
+                Vue,
+                attachProps: true,
+                logErrors: true,
+            }),
+        ],
+        release: `CodeGra.de@${UserConfig.release.commit}`,
+    });
+}
+
+/* eslint-disable import/first */
+import { polyFilled } from '@/polyfills';
+
 import 'bootstrap/dist/css/bootstrap.css';
 import 'bootstrap-vue/dist/bootstrap-vue.css';
 import 'highlightjs/styles/solarized-dark.css';
 import 'vue-multiselect/dist/vue-multiselect.min.css';
 import '@/style.less';
+import 'reflect-metadata';
 
 import Icon from 'vue-awesome/components/Icon';
-import Vue from 'vue';
 import BootstrapVue from 'bootstrap-vue';
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
@@ -17,12 +39,32 @@ import VueMasonry from 'vue-masonry-css';
 import VueClipboard from 'vue-clipboard2';
 import moment from 'moment';
 
-import '@/polyfills';
 import App from '@/App';
 import router, { setRestoreRoute } from '@/router';
 import * as utils from '@/utils';
 import { store } from './store';
+import { NotificationStore } from './store/modules/notification';
 import * as mutationTypes from './store/mutation-types';
+import './my-vue';
+
+import RelativeTime from './components/RelativeTime';
+import User from './components/User';
+import Loader from './components/Loader';
+import SubmitButton from './components/SubmitButton';
+import DescriptionPopover from './components/DescriptionPopover';
+import CgLogo from './components/CgLogo';
+import CatchError from './components/CatchError';
+import Toggle from './components/Toggle';
+/* eslint-enable import/first */
+
+Vue.component('cg-relative-time', RelativeTime);
+Vue.component('cg-user', User);
+Vue.component('cg-loader', Loader);
+Vue.component('cg-submit-button', SubmitButton);
+Vue.component('cg-description-popover', DescriptionPopover);
+Vue.component('cg-logo', CgLogo);
+Vue.component('cg-catch-error', CatchError);
+Vue.component('cg-toggle', Toggle);
 
 Vue.use(BootstrapVue);
 Vue.use(Toasted);
@@ -32,6 +74,31 @@ Vue.use(VueClipboard);
 Vue.config.productionTip = false;
 
 moment.relativeTimeThreshold('h', 48);
+moment.defineLocale('en-original', {
+    parentLocale: 'en',
+});
+moment.updateLocale('en', {
+    relativeTime: {
+        past(input) {
+            return input === 'just now' ? input : `${input} ago`;
+        },
+        future(input) {
+            return input === 'just now' ? input : `in ${input}`;
+        },
+        s: 'just now',
+        ss: '%d seconds',
+        m: 'a minute',
+        mm: '%d minutes',
+        h: 'an hour',
+        hh: '%d hours',
+        d: 'a day',
+        dd: '%d days',
+        M: 'a month',
+        MM: '%d months',
+        y: 'a year',
+        yy: '%d years',
+    },
+});
 
 Icon.register({
     tilde: {
@@ -64,21 +131,22 @@ axios.defaults.transformRequest.push((data, headers) => {
 // Fix axios automatically parsing all responses as JSON... WTF!!!
 axios.defaults.transformResponse = [
     function defaultTransformResponse(data, headers) {
-        switch (headers['content-type']) {
-            case 'application/json':
-                // Somehow axios gives us an ArrayBuffer sometimes, even though
-                // the Content-Type header is application/json. JSON.parse does
-                // not work on ArrayBuffers (they're silently converted to the
-                // string "[object ArrayBuffer]", which is invalid JSON), so we
-                // must do that ourselves.
-                if (data instanceof ArrayBuffer) {
-                    const view = new Int8Array(data);
-                    const dataStr = String.fromCharCode.apply(null, view);
-                    return JSON.parse(dataStr);
-                }
-                return JSON.parse(data);
-            default:
-                return data;
+        const contentType = headers['content-type'];
+
+        if (contentType && contentType.startsWith('application/json')) {
+            // Somehow axios gives us an ArrayBuffer sometimes, even though
+            // the Content-Type header is application/json. JSON.parse does
+            // not work on ArrayBuffers (they're silently converted to the
+            // string "[object ArrayBuffer]", which is invalid JSON), so we
+            // must do that ourselves.
+            if (data instanceof ArrayBuffer) {
+                const view = new Int8Array(data);
+                const dataStr = String.fromCharCode.apply(null, view);
+                return JSON.parse(dataStr);
+            }
+            return JSON.parse(data);
+        } else {
+            return data;
         }
     },
 ];
@@ -231,7 +299,10 @@ Vue.prototype.$afterRerender = function doubleRequestAnimationFrame(cb) {
 };
 
 // eslint-disable-next-line
-localforage.defineDriver(memoryStorageDriver).then(() => {
+Promise.all([
+    polyFilled,
+    localforage.defineDriver(memoryStorageDriver),
+]).then(() => {
     Vue.prototype.$hlanguageStore = localforage.createInstance({
         name: 'highlightLanguageStore',
         driver: DRIVERS,
@@ -287,6 +358,8 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 // of the sidebar every second.
                 now: moment(),
                 epoch: getUTCEpoch(),
+
+                $loadFullNotifications: false,
             };
         },
 
@@ -307,6 +380,8 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
             setInterval(() => {
                 this.epoch = getUTCEpoch();
             }, 1000);
+
+            this._loadNotifications();
         },
 
         computed: {
@@ -326,6 +401,10 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
                 return this.screenWidth >= this.largeWidth;
             },
 
+            $isXLargeWindow() {
+                return this.screenWidth >= this.xlargeWidth;
+            },
+
             isEdge() {
                 return window.navigator.userAgent.indexOf('Edge') > -1;
             },
@@ -343,6 +422,29 @@ localforage.defineDriver(memoryStorageDriver).then(() => {
 
             $epoch() {
                 return this.epoch;
+            },
+        },
+
+        methods: {
+            async _loadNotifications() {
+                let sleepTime = UserConfig.notificationPollTime;
+                try {
+                    if (this.$store.getters['user/loggedIn']) {
+                        if (this.$loadFullNotifications) {
+                            await NotificationStore.dispatchLoadNotifications();
+                        } else {
+                            await NotificationStore.dispatchLoadHasUnread();
+                        }
+                    }
+                } catch (e) {
+                    // eslint-disable-next-line
+                    console.log('Loading notifications went wrong', e);
+                    sleepTime += sleepTime;
+                }
+
+                setTimeout(() => {
+                    this._loadNotifications();
+                }, sleepTime);
             },
         },
 

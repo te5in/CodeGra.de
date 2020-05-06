@@ -1,0 +1,28 @@
+{
+  "include": [
+    "./src/**/*"
+  ],
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "target": "es2017",
+    "strict": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "noImplicitAny": true,
+    "sourceMap": true,
+    "emitDecoratorMetadata": true,
+    "baseUrl": ".",
+    "esModuleInterop": true,
+    "plugins": [
+      { "transform": "ts-transformer-keys/transformer" }
+    ],
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    }
+  }
+}

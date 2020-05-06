@@ -3,6 +3,7 @@
 <floating-feedback-button
     :disabled="!showInlineFeedback"
     v-if="pdfURL"
+    @feedback-shown="onFeedbackChange"
     class="pdf-viewer"
     :fileId="id"
     :line="line"
@@ -17,16 +18,21 @@
     :visible-without-hover="$root.isEdge"
     add-space
     button-position="bottom-right">
-    <object :data="pdfURL"
-            type="application/pdf"
-            width="100%"
-            height="100%"
-            v-if="pdfURL !== ''">
-        <b-alert class="mb-0" variant="danger" show>
-            Your browser doesn't support the PDF viewer. Please download
-            the PDF <a class="alert-link" :href="pdfURL">here</a>.
-        </b-alert>
-    </object>
+    <template v-slot:default="slotProps">
+        <div class="p-relative d-flex flex-grow flex-column h-100">
+            <div class="resize-div" v-if="slotProps.resizing" />
+            <object :data="pdfURL"
+                    type="application/pdf"
+                    width="100%"
+                    height="100%"
+                    v-if="pdfURL !== ''">
+                <b-alert class="mb-0 flex-grow" variant="danger" show>
+                    Your browser doesn't support the PDF viewer. Please download
+                    the PDF <a class="alert-link" :href="pdfURL">here</a>.
+                </b-alert>
+            </object>
+        </div>
+    </template>
 </floating-feedback-button>
 </template>
 
@@ -103,7 +109,7 @@ export default {
         feedback() {
             return this.$utils.getProps(
                 this.submission,
-                {},
+                null,
                 'feedback',
                 'user',
                 this.id,
@@ -113,13 +119,13 @@ export default {
     },
 
     methods: {
-        embedPdf(fileId) {
+        async embedPdf(fileId) {
             this.pdfURL = '';
 
             let pdfURL;
 
             if (this.$root.isEdge) {
-                this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(
+                await this.$http.get(`/api/v1/code/${this.id}?type=file-url`).then(
                     ({ data }) => {
                         pdfURL = `/api/v1/files/${
                             data.name
@@ -141,10 +147,20 @@ export default {
                 pdfURL = this.$utils.coerceToString(URL.createObjectURL(blob));
             }
 
-            if (this.id === fileId) {
+            if (this.id === fileId && pdfURL) {
                 this.pdfURL = pdfURL;
                 this.$emit('load', fileId);
             }
+        },
+
+        async onFeedbackChange() {
+            if (!this.$root.isEdge) {
+                return;
+            }
+
+            this.pdfUrl = '';
+            this.$emit('loading', this.id);
+            this.embedPdf(this.id);
         },
     },
 
@@ -156,7 +172,6 @@ export default {
 
 <style lang="less" scoped>
 .pdf-viewer {
-    position: relative;
     padding: 0 !important;
     height: 100%;
     min-height: 100%;
@@ -170,6 +185,12 @@ object {
     margin: 0;
     padding: 0;
 }
+
+.resize-div {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+}
 </style>
 
 <style lang="less">
@@ -180,5 +201,9 @@ object {
         display: flex;
         flex-direction: column;
     }
+}
+
+.pdf-viewer.floating-feedback-button .feedback-area-wrapper {
+    flex: unset;
 }
 </style>

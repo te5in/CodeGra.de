@@ -43,8 +43,10 @@
 
 <script>
 import Icon from 'vue-awesome/components/Icon';
-import { mapGetters, mapActions } from 'vuex';
+import { mapActions } from 'vuex';
 import 'vue-awesome/icons/reply';
+
+import { Assignment } from '@/models';
 
 import SubmitButton from './SubmitButton';
 import DescriptionPopover from './DescriptionPopover';
@@ -53,8 +55,8 @@ export default {
     name: 'maximum-grade',
 
     props: {
-        assignmentId: {
-            type: Number,
+        assignment: {
+            type: Assignment,
             required: true,
         },
     },
@@ -65,20 +67,21 @@ export default {
         };
     },
 
-    mounted() {
-        this.maxGrade = this.assignment.max_grade;
-    },
-
-    computed: {
-        ...mapGetters('courses', ['assignments']),
-
-        assignment() {
-            return this.assignments[this.assignmentId];
+    watch: {
+        assignmentId: {
+            immediate: true,
+            handler() {
+                this.maxGrade = this.$utils.getProps(this.assignment, null, 'max_grade');
+            },
         },
     },
 
     methods: {
         ...mapActions('courses', ['updateAssignment']),
+
+        assignmentId() {
+            return this.assignment.id;
+        },
 
         reset() {
             this.maxGrade = null;
@@ -98,7 +101,7 @@ export default {
 
         afterSubmit(maxGrade) {
             this.updateAssignment({
-                assignmentId: this.assignmentId,
+                assignmentId: this.assignment.id,
                 assignmentProps: {
                     max_grade: maxGrade,
                 },

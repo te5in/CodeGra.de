@@ -25,12 +25,19 @@
         </div>
     </local-header>
 
-    <b-modal id="plagiarism-export" title="Export to LaTeX" hide-footer>
+    <b-modal id="plagiarism-export"
+             title="Export"
+             hide-footer
+             static>
         <h6 style="text-align: center;">Select which matches should be exported</h6>
         <table class="range-table table table-striped table-hover">
             <thead>
                 <tr>
-                    <th class="shrink text-center">Export</th>
+                    <th class="shrink text-center">
+                        <b-form-checkbox :checked="exportAll"
+                                         @change="toggleAllMatches"
+                                         v-b-popover.top.hover="'Toggle all'"/>
+                    </th>
                     <th class="col-student-name"><user :user="detail.users[0]"/></th>
                     <th class="shrink text-center">Lines</th>
                     <th class="shrink text-center">Color</th>
@@ -41,8 +48,9 @@
 
             <tbody>
                 <tr v-for="match in matchesSortedByRange"
-                    @click="$set(exportMatches, match.id, !exportMatches[match.id])">
-                    <td><b-form-checkbox v-model="exportMatches[match.id]"
+                    @click="toggleExportMatch(match.id)">
+                    <td><b-form-checkbox :checked="exportMatches[match.id]"
+                                         @input="toggleExportMatch(match.id, $event)"
                                          @click.native.prevent /></td>
                     <td class="col-student-name">
                         {{ getFromFileTree(tree1, match.files[0]) }}
@@ -57,22 +65,68 @@
             </tbody>
         </table>
 
-        <div class="export-options-wrapper">
+        <div class="my-3 mx-n3">
             <collapse v-model="advancedOptionsCollapsed">
                 <div slot="handle">
-                    <icon class="toggle flex-grow-1" name="chevron-down" :scale="0.75" />
-                    <b>Options</b>
+                    <div class="px-3">
+                        <icon class="toggle flex-grow-1" name="chevron-down" :scale="0.75" />
+                        <b>Options</b>
+                    </div>
                 </div>
-                <div class="export-options-list">
-                    <b-form-checkbox v-model="exportOptions.newPageAfterMatch"
-                                     style="margin-right: 0">
-                        Each listing on a separate page
-                    </b-form-checkbox>
+                <div class="mt-2 px-3">
+                    <b-form-group>
+                        <template #label>
+                            Render each listing on a new page
+
+                            <cg-description-popover hug-text>
+                                When turned on each block of code is rendered on a new page.
+                            </cg-description-popover>
+                        </template>
+                        <cg-toggle v-model="exportOptions.newPage" />
+                    </b-form-group>
+
+                    <b-form-group>
+                        <template #label>
+                            Render matches side by side
+
+                            <cg-description-popover hug-text>
+                                When turned on matching blocks of code are rendered side by side
+                                on a single page.
+                            </cg-description-popover>
+                        </template>
+
+                        <cg-toggle v-model="exportOptions.matchesAlign"
+                                   value-off="sequential"
+                                   value-on="sidebyside" />
+                    </b-form-group>
+
+                    <b-form-group>
+                        <template #label>
+                            Context lines
+
+                            <cg-description-popover hug-text>
+                                Number of lines to be rendered before and after each match.
+                            </cg-description-popover>
+                        </template>
+
+                        <input class="form-control"
+                               placeholder="Number of context lines"
+                               type="number"
+                               step="1"
+                               start="0"
+                               :value="exportOptions.contextLines"
+                               @input="updateContextLines" />
+                    </b-form-group>
+
+                    <b-form-group label="Output format">
+                        <b-form-select v-model="outputFormat"
+                                       :options="outputOptions" />
+                    </b-form-group>
                 </div>
             </collapse>
         </div>
 
-        <b-button-toolbar justify style="margin-top: 1em;">
+        <b-button-toolbar justify>
             <b-button variant="outline-primary"
                       @click="$root.$emit('bv::hide::modal', 'plagiarism-export');">
                 Cancel
@@ -80,8 +134,8 @@
             <b-button-group v-b-popover.top.hover="exportDisabled ? 'Select at least one case to export' : ''">
                 <submit-button label="Export"
                                :disabled="exportDisabled"
-                               :submit="exportToLatex"
-                               @success="afterExportToLatex"/>
+                               :submit="exportToDocument"
+                               @success="afterExportToDocument"/>
             </b-button-group>
         </b-button-toolbar>
     </b-modal>
@@ -145,10 +199,10 @@
                         Could not render file: {{ data.message }}
                     </b-alert>
                     <inner-ipython-viewer
-                        :assignment="{}"
+                        :assignment="null"
                         :editable="false"
                         v-else-if="isJupyterRun"
-                        :submission="{}"
+                        :submission="null"
                         :file-id="-1"
                         :output-cells="data"
                         :show-whitespace="false"
@@ -174,12 +228,13 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 import decodeBuffer from '@/utils/decode';
-import lescape from 'escape-latex';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/chevron-down';
 
 import { downloadFile, nameOfUser } from '@/utils';
 import { getOutputCells } from '@/utils/ipython';
+import { backends as documentBackends } from '@/utils/Document';
+import { PlagiarismDocument } from '@/utils/Document/Plagiarism';
 
 import {
     Loader,
@@ -191,8 +246,6 @@ import {
 } from '@/components';
 
 import Collapse from './Collapse';
-
-const latexEscape = txt => lescape(txt, { preserveFormatting: true });
 
 export default {
     name: 'plagiarism-detail',
@@ -208,7 +261,14 @@ export default {
             exportMatches: {},
 
             error: '',
-            exportOptions: { newPageAfterMatch: true },
+            exportAll: false,
+            exportOptions: {
+                contextLines: 5,
+                matchesAlign: 'sidebyside',
+                newPage: true,
+                entireFiles: false,
+            },
+            outputFormat: 'LaTeX',
             advancedOptionsCollapsed: false,
 
             Error,
@@ -219,11 +279,15 @@ export default {
         $route(newRoute, oldRoute) {
             if (
                 newRoute.params.assignmentId !== oldRoute.params.assignmentId ||
-                newRoute.params.plagiarismRunId !== oldRoute.params.plagiarismRunId ||
-                newRoute.params.plagiarismCaseId !== oldRoute.params.plagiarismCaseId
+                    newRoute.params.plagiarismRunId !== oldRoute.params.plagiarismRunId ||
+                    newRoute.params.plagiarismCaseId !== oldRoute.params.plagiarismCaseId
             ) {
                 this.loadDetail();
             }
+        },
+
+        numExported(newVal) {
+            this.exportAll = newVal === this.matchIds.length;
         },
     },
 
@@ -231,6 +295,23 @@ export default {
         ...mapGetters('pref', ['fontSize', 'darkMode']),
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('plagiarism', ['runs']),
+        ...mapGetters('users', ['getUser']),
+
+        matchIds() {
+            const matches = this.$utils.getProps(this.detail, [], 'matches');
+            return matches.map(m => m.id);
+        },
+
+        numExported() {
+            return this.matchIds.filter(id => this.exportMatches[id]).length;
+        },
+
+        outputOptions() {
+            return Object.keys(documentBackends).map(name => ({
+                text: name,
+                value: name,
+            }));
+        },
 
         // This is a mapping between file id and object, containing a `name`
         // key, `id` key, `match` key, and a lines array. This array contains
@@ -377,98 +458,53 @@ export default {
             return this.colorPairs[this.colorIndicesPerFile[match.files[0].id][match.lines[0][0]]];
         },
 
-        async getTexFile(matches) {
-            const header = `\\documentclass{article}
-\\usepackage{listings}
-\\usepackage{color}
-
-\\definecolor{bluekeywords}{rgb}{0.13, 0.13, 1}
-\\definecolor{greencomments}{rgb}{0, 0.5, 0}
-\\definecolor{redstrings}{rgb}{0.9, 0, 0}
-\\definecolor{graynumbers}{rgb}{0.5, 0.5, 0.5}
-
-
-\\lstset{
-    numbers=left,
-    columns=fullflexible,
-    showspaces=false,
-    showtabs=false,
-    breaklines=true,
-    showstringspaces=false,
-    breakatwhitespace=true,
-    escapeinside={(*@}{@*)},
-    commentstyle=\\color{greencomments},
-    keywordstyle=\\color{bluekeywords},
-    stringstyle=\\color{redstrings},
-    numberstyle=\\color{graynumbers},
-    basicstyle=\\ttfamily\\footnotesize,
-    xleftmargin=12pt,
-    rulesepcolor=\\color{graynumbers},
-    tabsize=4,
-    captionpos=b,
-    frame=L
-}
-
-\\begin{document}
-
-\\section{Plagiarism matches}`;
-            const endListingRegex = new RegExp('\\\\end{lstlisting}', 'g');
-
-            const contents = Object.keys(
-                matches.reduce((accum, match) => {
-                    accum[match.files[0].id] = true;
-                    accum[match.files[1].id] = true;
-                    return accum;
-                }, {}),
-            ).reduce((accum, fileId) => {
-                accum[fileId] = this.storeLoadCode(fileId).then(data => {
-                    const content = decodeBuffer(data, true);
-                    return content
-                        .split('\n')
-                        .map(l => l.replace(endListingRegex, '\\end {lstlisting}'));
-                });
+        async renderPlagiarismDocument(matches) {
+            const neededFileIds = matches.reduce((accum, match) => {
+                accum.add(match.files[0].id);
+                accum.add(match.files[1].id);
                 return accum;
-            }, {});
+            }, new Set());
 
-            const latexNameOfUser = user => latexEscape(nameOfUser(user));
-            const maybeNewPage = this.exportOptions.newPageAfterMatch ? '\\clearpage{}\n' : '';
+            const contents = {};
+            neededFileIds.forEach(fileId => {
+                contents[fileId] = this.storeLoadCode(fileId).then(data => {
+                    const content = decodeBuffer(data, true);
+                    return content.split('\n');
+                });
+            });
 
-            const middle = (await Promise.all(
-                matches.map(async (match, i) => {
-                    const left = (await contents[match.files[0].id]).slice(
-                        match.lines[0][0],
-                        match.lines[0][1] + 1,
-                    );
-                    const right = (await contents[match.files[1].id]).slice(
-                        match.lines[1][0],
-                        match.lines[1][1] + 1,
-                    );
-                    const captionLeft = latexEscape(
-                        this.getFromFileTree(this.tree1, match.files[0]),
-                    );
-                    const captionRight = latexEscape(
-                        this.getFromFileTree(this.tree2, match.files[1]),
-                    );
-                    const [user1, user2] = this.detail.users;
+            const plagMatches = (await Promise.all(
+                matches.map(async match => {
+                    const [left, right] = await Promise.all([
+                        contents[match.files[0].id],
+                        contents[match.files[1].id],
+                    ]);
+                    const [user1, user2] = this.detail.userIds;
 
-                    // prettier-ignore-start
-                    return `\\subsection*{Match ${i + 1}}
-\\begin{lstlisting}[firstnumber=${match.lines[0][0] + 1},
-    caption={File \\texttt{${captionLeft}} of ${latexNameOfUser(user1)}}]
-${left.join('\n')}
-\\end{lstlisting}
-${maybeNewPage}
-\\begin{lstlisting}[firstnumber=${match.lines[1][0] + 1},
-    caption={File \\texttt{${captionRight}} of ${latexNameOfUser(user2)}}]
-${right.join('\n')}
-\\end{lstlisting}`;
-                    // prettier-ignore-end
+                    return {
+                        color: this.getColorForMatch(match).background,
+                        matchA: {
+                            startLine: match.lines[0][0],
+                            endLine: match.lines[0][1] + 1,
+                            lines: left,
+                            name: this.getFromFileTree(this.tree1, match.files[0]),
+                            user: this.getUser(user1),
+                        },
+                        matchB: {
+                            startLine: match.lines[1][0],
+                            endLine: match.lines[1][1] + 1,
+                            lines: right,
+                            name: this.getFromFileTree(this.tree1, match.files[1]),
+                            user: this.getUser(user2),
+                        },
+                    };
                 }),
-            )).join('\n\\clearpage{}\n\n');
+            ));
 
-            const footer = '\\end{document}\n';
-
-            return `${header}\n${middle}\n${footer}`;
+            return new PlagiarismDocument(this.outputFormat).render(
+                plagMatches,
+                this.exportOptions,
+            );
         },
 
         getExtension(file) {
@@ -618,6 +654,9 @@ ${right.join('\n')}
                             }
                         }
 
+                        data.userIds = data.users.map(
+                            user => this.$utils.getProps(user, null, 'id'),
+                        );
                         this.detail = data;
 
                         return Promise.all([
@@ -669,21 +708,43 @@ ${right.join('\n')}
             }
         },
 
-        exportToLatex() {
+        exportToDocument() {
             const matches = this.matchesSortedByRange.filter(a => this.exportMatches[a.id]);
 
             if (matches.length === 0) {
                 throw new Error('Select at least one case.');
             }
 
-            return this.getTexFile(matches);
+            return this.renderPlagiarismDocument(matches);
         },
 
-        afterExportToLatex(texData) {
-            this.exportMatches = {};
-            const [user1, user2] = this.detail.users;
-            const fileName = `plagiarism_case_${nameOfUser(user1)}+${nameOfUser(user2)}.tex`;
-            downloadFile(texData, fileName, 'text/x-tex');
+        afterExportToDocument(fileData) {
+            this.$set(this, 'exportMatches', {});
+            const [user1, user2] = this.detail.users.map(nameOfUser);
+            const backend = documentBackends[this.outputFormat];
+            const fileName = `plagiarism_case_${user1}+${user2}.${backend.fileExtension}`;
+            downloadFile(fileData, fileName, backend.mimeType);
+        },
+
+        toggleExportMatch(id, value = null) {
+            const newVal = value == null ? !this.exportMatches[id] : value;
+            this.$set(this.exportMatches, id, newVal);
+            this.$set(this, 'exportMatches', this.exportMatches);
+        },
+
+        toggleAllMatches(enabled) {
+            this.matchIds.forEach(id => {
+                this.$set(this.exportMatches, id, enabled);
+            });
+            this.$set(this, 'exportMatches', this.exportMatches);
+        },
+
+        updateContextLines(event) {
+            let context = parseInt(event.target.value, 10);
+            if (Number.isNaN(context)) {
+                context = 0;
+            }
+            this.$set(this.exportOptions, 'contextLines', context);
         },
     },
 
@@ -823,12 +884,8 @@ ${right.join('\n')}
     margin-top: 0;
 }
 
-.export-options-wrapper {
-    margin: 1rem 0.75rem;
-
-    .export-options-list {
-        margin-top: 5px;
-    }
+.modal#plagiarism-export .toggle-container {
+    font-variant: small-caps;
 }
 </style>
 

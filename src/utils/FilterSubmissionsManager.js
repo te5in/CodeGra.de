@@ -22,6 +22,15 @@ export function filterSubmissions(submissions, mine, userId, filter, callback = 
             item.assigneeId == null ? '-' : item.assignee.readableName.toLowerCase(),
             ...item.user.getGroupMembers().map(member => member.readableName.toLowerCase()),
         ];
+        if (typeof item.isLate === 'function' && item.isLate()) {
+            terms.push('late');
+        }
+        if (item.user && item.user.isGroup) {
+            terms.push('group');
+        } else if (item.user) {
+            terms.push('personal');
+        }
+
         const out = filter
             .toLowerCase()
             .split(' ')
@@ -103,9 +112,7 @@ export default class FilterSubmissionsManager {
         return false;
     }
 
-    filter(submissions, {
-        mine, userId, filter, sortBy, asc,
-    } = {}) {
+    filter(submissions, { mine, userId, filter, sortBy, asc } = {}) {
         this.query = filter;
         if (submissions.length === 0) {
             return [];

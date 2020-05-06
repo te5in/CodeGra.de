@@ -4,11 +4,17 @@ export PYTHONPATH="$PWD"
 export GITHUB_ACTIONS=true
 sudo chown -R "$USER":"$(id -gn)" /tmp/
 
+cat >config.ini <<EOF
+[Back-end]
+external_url = http://localhost:1234
+EOF
+
 create_db() {
     DBNAME="ci_test_gw${1}"
     export SQLALCHEMY_DATABASE_URI="postgresql://postgres:postgres@localhost:5432/${DBNAME}"
 
     PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -c "create database $DBNAME;" || exit 1
+    PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres "$DBNAME" -c "create extension \"citext\";" || exit 1
     ./manage.py db upgrade
 }
 
@@ -51,7 +57,7 @@ timeout -k 600 600 \
         --postgresql="${BASE_DATABASE_URI}gw5" \
         --cov-report term-missing \
         "$(pwd)/psef_test/test_auto_test.py" \
-       -s -vvvv
+        -vvvv
 res2="$?"
 
 rm "$(pwd)/psef_test/test_auto_test.py"

@@ -178,7 +178,7 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
         )
         raise errors.APIException(
             (
-                f'Decoding given JWT token failed, LTI is probably '
+                'Decoding given JWT token failed, LTI is probably '
                 'not configured correctly. Please contact your site admin.'
             ),
             f'The decoding of jwt failed.',

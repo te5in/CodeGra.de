@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="file-viewer"
      :class="dynamicClasses">
@@ -51,6 +52,7 @@
                        :can-use-snippets="canUseSnippets"
                        @force-viewer="setForcedFileComponent"
                        @load="onLoad"
+                       @loading="onLoading"
                        @error="onError" />
         </template>
     </div>
@@ -120,6 +122,7 @@ export default {
             error: '',
             forcedFileComponent: null,
             fileContent: undefined,
+            loadingCode: false,
             fileTypes: [
                 {
                     cond: () =>
@@ -181,9 +184,9 @@ export default {
         showEmptyFileMessage() {
             return (
                 !this.loading &&
-                this.fileData &&
-                this.fileContent &&
-                this.fileContent.byteLength === 0
+                    this.fileData &&
+                    this.fileContent &&
+                    this.fileContent.byteLength === 0
             );
         },
 
@@ -239,16 +242,22 @@ export default {
         dataAvailable() {
             return (
                 this.fileData &&
-                !this.loading &&
-                (this.fileContent != null || !this.fileData.needsContent)
+                    !this.loading &&
+                    (this.fileContent != null || !this.fileData.needsContent)
             );
         },
 
         showError() {
             return (
                 this.error ||
-                (this.fileData && this.showDiff(this.file) && !this.fileData.supportsDiff)
+                    (this.fileData && this.showDiff(this.file) && !this.fileData.supportsDiff)
             );
+        },
+
+
+        replyIdToFocus() {
+            const replyId = this.$route.query?.replyToFocus;
+            return parseInt(replyId || '', 10);
         },
     },
 
@@ -271,6 +280,23 @@ export default {
                 this.loadFileContent(newVal);
             },
         },
+
+        fileData(newVal, oldVal) {
+            if (
+                newVal.needsContent &&
+                (oldVal == null || !oldVal.needsContent) &&
+                this.fileContent == null
+            ) {
+                this.loadFileContent(this.fileId);
+            }
+        },
+
+        replyIdToFocus: {
+            immediate: true,
+            handler: 'tryScrollToReplyToFocus',
+        },
+
+        dataAvailable: 'tryScrollToReplyToFocus',
     },
 
     methods: {
@@ -278,11 +304,52 @@ export default {
             storeLoadCode: 'loadCode',
         }),
 
+        async tryScrollToReplyToFocus() {
+            const replyId = this.replyIdToFocus;
+
+            if (this.dataAvailable && !Number.isNaN(replyId)) {
+                await this.$nextTick();
+                const el = document.querySelector(`#feedback-reply-id-${replyId}`);
+                if (el) {
+                    el.scrollIntoView({
+                        block: 'center',
+                        inline: 'center',
+                        behavior: 'smooth',
+                    });
+
+                    setTimeout(() => {
+                        if (this.replyIdToFocus !== replyId) {
+                            return;
+                        }
+
+                        this.$router.replace(Object.assign(
+                            {},
+                            this.$route,
+                            {
+                                query: Object.assign(
+                                    {}, this.$route.query, { replyToFocus: undefined },
+                                ),
+                            },
+                        ));
+                    }, 30_000);
+                }
+            }
+        },
+
         async loadFileContent(fileId) {
+            // We are already loading this piece of code.
+            if (this.loadingCode === fileId) {
+                return;
+            }
+
             this.fileContent = null;
             this.error = '';
             this.loading = true;
+
             if (this.fileData.needsContent) {
+                if (this.fileId === fileId) {
+                    this.loadingCode = fileId;
+                }
                 let callback = () => {};
                 let content = null;
 
@@ -306,6 +373,7 @@ export default {
                 }
 
                 if (fileId === this.fileId) {
+                    this.loadingCode = false;
                     if (content) {
                         this.fileContent = content;
                     }
@@ -319,6 +387,15 @@ export default {
                 return;
             }
             this.loading = false;
+            this.error = '';
+        },
+
+        onLoading(fileId) {
+            if (this.fileId !== fileId) {
+                return;
+            }
+
+            this.loading = true;
             this.error = '';
         },
 
@@ -368,12 +445,11 @@ export default {
     display: flex;
     flex-direction: column;
 
-    &.html-viewer {
+    &.html-viewer,
+    &.image-viewer,
+    &.markdown-viewer,
+    &.pdf-viewer {
         height: 100%;
-    }
-    &.pdf-viewer:not(.no-data) {
-        height: 100%;
-        flex: 1 1 100%;
     }
 }
 

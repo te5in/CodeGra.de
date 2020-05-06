@@ -99,19 +99,26 @@ def test_get_all_assignments(
 
 
 @pytest.mark.parametrize(
-    'named_user,course_name,state_is_hidden,perm_err', [
-        ('Thomas Schaper', 'Project Software Engineering', True, True),
-        ('Thomas Schaper', 'Project Software Engineering', False, False),
-        ('Thomas Schaper', 'Programmeertalen', True, False),
-        ('Student1', 'Programmeertalen', False, False),
-        ('Student1', 'Project Software Engineering', False, True),
-        ('NOT_LOGGED_IN', 'Programmeertalen', False, True),
+    'named_user,course_name,state_is_hidden,perm_err,analytics', [
+        ('Thomas Schaper', 'Project Software Engineering', True, True, False),
+        (
+            'Thomas Schaper',
+            'Project Software Engineering',
+            False,
+            False,
+            False,
+        ),
+        ('Thomas Schaper', 'Programmeertalen', True, False, False),
+        ('Robin', 'Programmeertalen', True, False, True),
+        ('Student1', 'Programmeertalen', False, False, False),
+        ('Student1', 'Project Software Engineering', False, True, False),
+        ('NOT_LOGGED_IN', 'Programmeertalen', False, True, False),
     ],
     indirect=['named_user', 'course_name', 'state_is_hidden']
 )
 def test_get_assignment(
     named_user, course_name, state_is_hidden, perm_err, test_client, logged_in,
-    session, error_template, assignment
+    session, error_template, assignment, analytics
 ):
     with logged_in(named_user):
         if named_user == 'NOT_LOGGED_IN':
@@ -145,6 +152,7 @@ def test_get_assignment(
                 'cool_off_period': 0.0,
                 'amount_in_cool_off_period': 1,
                 'max_submissions': None,
+                'analytics_workspace_ids': [int] if analytics else [],
             }
         else:
             res = error_template
@@ -4030,7 +4038,11 @@ def test_get_all_assignments_with_rubric(
         assig_perms_no_rubric = create_assignment(test_client, state='open')
         assig_perms_rubric = create_assignment(test_client, state='open')
     user = create_user_with_perms(
-        session, [CPerm.can_see_assignments, CPerm.manage_rubrics],
+        session, [
+            CPerm.can_see_assignments,
+            CPerm.manage_rubrics,
+            CPerm.can_view_analytics,
+        ],
         courses=[
             assig_perms_no_rubric['course'],
             assig_perms_rubric['course'],

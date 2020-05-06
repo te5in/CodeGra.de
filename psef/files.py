@@ -421,6 +421,7 @@ def restore_directory_structure(
         models.File.work_id == work.id,
         models.File.parent_id.is_(None),
         models.File.fileowner != exclude,
+        ~models.File.self_deleted,
     )
     cache = work.get_file_children_mapping(exclude)
     return _restore_directory_structure(code, parent, cache)
@@ -906,13 +907,21 @@ def split_path(path: str) -> t.Tuple[t.Sequence[str], bool]:
     return patharr, is_dir
 
 
-def check_dir(path: str) -> bool:
-    '''Check if the path is a directory that is readable, writable, and
+def check_dir(path: str, *, check_size: bool = False) -> bool:
+    """Check if the path is a directory that is readable, writable, and
     executable for the current user.
 
     :param path: Path to check.
+    :param check_size: Also check if there is enough free space in the given
+        directory.
     :returns: ``True`` if path has the properties described above, ``False``
         otherwise.
-    '''
+    """
     mode = os.R_OK | os.W_OK | os.X_OK
-    return os.access(path, mode) and os.path.isdir(path)
+    res = os.access(path, mode) and os.path.isdir(path)
+
+    if res and check_size:
+        free_space = shutil.disk_usage(path).free
+        res = free_space > app.config['MIN_FREE_DISK_SPACE']
+
+    return res

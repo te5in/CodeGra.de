@@ -85,7 +85,7 @@
                 </b-form-fieldset>
 
                 <b-form-fieldset v-if="canEditMaxGrade" class="flex-grow-1">
-                    <maximum-grade :assignment-id="assignmentId"/>
+                    <maximum-grade :assignment="assignment"/>
                 </b-form-fieldset>
 
                 <b-form-fieldset v-if="canEditInfo">
@@ -380,12 +380,13 @@ export default {
             return (this.assignment && this.assignment.getFormattedDeadline()) || '';
         },
 
-        assignmentId() {
-            return Number(this.$route.params.assignmentId);
+        assignment() {
+            const id = this.$route.params.assignmentId;
+            return this.assignments[id] || {};
         },
 
-        assignment() {
-            return (this.assignments || {})[this.assignmentId] || {};
+        assignmentId() {
+            return this.$utils.getProps(this.assignment, null, 'id');
         },
 
         assignmentUrl() {
@@ -534,7 +535,12 @@ export default {
         assignmentId: {
             immediate: true,
             handler(newVal, oldVal) {
-                if (newVal !== oldVal && newVal != null) {
+                if (newVal == null) {
+                    this.loading = true;
+                    this.loadingInner = true;
+                    this.gradersLoading = true;
+                    this.gradersLoadedOnce = false;
+                } else if (newVal !== oldVal) {
                     this.loadData();
                 }
             },

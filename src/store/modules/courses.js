@@ -33,69 +33,91 @@ function getAssignment(state, assignmentId) {
     return assignment;
 }
 
-export const actions = {
-    async loadCourses({ state, commit, dispatch }) {
-        if (state.currentCourseLoader == null) {
-            commit(types.SET_COURSES_PROMISE, dispatch('reloadCourses'));
-        }
+export function updatePermissions(courses, perms) {
+    courses.forEach(c => {
+        c.permissions = perms[c.id];
+    });
 
-        return state.currentCourseLoader;
+    return Object.entries(perms).reduce(
+        ([course, assig, create], [key, val]) => {
+            const entries = Object.entries(val);
+
+            assig[key] = entries.some(
+                ([k, v]) => v && MANAGE_ASSIGNMENT_PERMISSIONS.indexOf(k) !== -1,
+            );
+
+            course[key] = entries.some(
+                ([k, v]) => v && MANAGE_GENERAL_COURSE_PERMISSIONS.indexOf(k) !== -1,
+            );
+
+            create[key] = !!val.can_create_assignment;
+
+            return [course, assig, create];
+        },
+        [{}, {}, {}],
+    );
+}
+
+export const actions = {
+    loadCourses({ state, dispatch }) {
+        if (state.currentCourseLoader == null) {
+            return dispatch('reloadCourses');
+        } else {
+            return state.currentCourseLoader;
+        }
     },
 
     async forceLoadGraders({ commit, dispatch }, assignmentId) {
         await dispatch('loadCourses');
-        const graders = await axios
-            .get(`/api/v1/assignments/${assignmentId}/graders/`)
-            .then(({ data }) => data, () => null);
+        const graders = await axios.get(`/api/v1/assignments/${assignmentId}/graders/`).then(
+            ({ data }) => data,
+            () => null,
+        );
         commit(types.UPDATE_ASSIGNMENT, {
             assignmentId,
             assignmentProps: { graders },
         });
     },
 
-    async reloadCourses({ commit }) {
-        let courses;
-        let perms;
+    reloadCourses({ commit, state }) {
         commit(`submissions/${types.CLEAR_SUBMISSIONS}`, null, { root: true });
+        commit(types.CLEAR_COURSES);
 
-        try {
-            [{ data: courses }, { data: perms }] = await Promise.all([
-                axios.get('/api/v1/courses/?extended=true'),
-                axios.get('/api/v1/permissions/?type=course'),
-            ]);
-        } catch (_) {
-            return commit(types.CLEAR_COURSES);
-        }
-        courses.forEach(c => {
-            c.permissions = perms[c.id];
-        });
-
-        const [manageCourses, manageAssigs, createAssigs] = Object.entries(perms).reduce(
-            ([course, assig, create], [key, val]) => {
-                const entries = Object.entries(val);
-
-                assig[key] = entries.some(
-                    ([k, v]) => MANAGE_ASSIGNMENT_PERMISSIONS.indexOf(k) !== -1 && v,
+        // TODO: It _may_ be possible that the permissions request is handled
+        // first, and that between it and the course request a new course was
+        // created, in which case the permission mapping does not contain the
+        // permissions for that new course. In that case, newCourse.permissions
+        // is undefined, but everywhere in CodeGrade we assume it never is. So
+        // we should probably add a check for that, and retrieve the
+        // permissions for that course before resolving the promise.
+        const coursePromise = Promise.all([
+            axios.get('/api/v1/courses/?extended=true'),
+            axios.get('/api/v1/permissions/?type=course'),
+        ])
+            .then(([{ data: courses }, { data: perms }]) => {
+                const [manageCourses, manageAssigs, createAssigs] = updatePermissions(
+                    courses,
+                    perms,
                 );
 
-                course[key] = entries.some(
-                    ([k, v]) => MANAGE_GENERAL_COURSE_PERMISSIONS.indexOf(k) !== -1 && v,
-                );
+                commit(types.SET_COURSES, [
+                    courses,
+                    manageCourses,
+                    manageAssigs,
+                    createAssigs,
+                    perms,
+                ]);
 
-                create[key] = entries.some(([k, v]) => k === 'can_create_assignment' && v);
+                return courses;
+            })
+            // We make this a catch-all, because if this promise does not
+            // succeed then all of CodeGrade breaks.
+            // TODO: do something more useful when this fails.
+            .catch(() => state.courses);
 
-                return [course, assig, create];
-            },
-            [{}, {}, {}],
-        );
+        commit(types.SET_COURSES_PROMISE, coursePromise);
 
-        return commit(types.SET_COURSES, [
-            courses,
-            manageCourses,
-            manageAssigs,
-            createAssigs,
-            perms,
-        ]);
+        return coursePromise;
     },
 
     async updateCourse({ commit, dispatch }, data) {
@@ -111,9 +133,7 @@ export const actions = {
 
     async updateAssignmentReminder(
         { commit, state, dispatch },
-        {
-            assignmentId, reminderTime, doneType, doneEmail,
-        },
+        { assignmentId, reminderTime, doneType, doneEmail },
     ) {
         await dispatch('loadCourses');
 

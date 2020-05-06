@@ -4,17 +4,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import uuid
 import typing as t
+import functools
 from collections import defaultdict
 
 import structlog
 from flask import current_app
 from itsdangerous import BadSignature, URLSafeTimedSerializer
+from werkzeug.local import LocalProxy
 from sqlalchemy_utils import PasswordType
 from sqlalchemy.sql.expression import false
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 import psef
-from cg_sqlalchemy_helpers import hybrid_property
+from cg_sqlalchemy_helpers import CIText, hybrid_property
 
 from . import UUID_LENGTH, Base, DbColumn, db, course, _MyQuery
 from .. import signals
@@ -32,6 +34,7 @@ if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
 logger = structlog.get_logger()
 
 
+@functools.total_ordering
 class User(NotEqualMixin, Base):
     """This class describes a user of the system.
 
@@ -61,6 +64,26 @@ class User(NotEqualMixin, Base):
     :ivar reset_email_on_lti: Determines if the email should be reset on the
         next LTI launch.
     """
+
+    @classmethod
+    def resolve(
+        cls: t.Type['User'], possible_user: t.Union['User', LocalProxy]
+    ) -> 'User':
+        """Unwrap the possible local proxy to a user.
+
+        :param possible_user: The user we should unwrap.
+        :returns: If the given argument was a LocalProxy
+            `_get_current_object()` is called and the return value is returned,
+            otherwise the given argument is returned.
+        :raises AssertionError: If the given argument was not a user after
+            unwrapping.
+        """
+        if isinstance(possible_user, LocalProxy):
+            # pylint: disable=protected-access
+            possible_user = possible_user._get_current_object()
+        assert isinstance(possible_user, cls), 'Give object is not a User'
+        return possible_user
+
     __tablename__ = "User"
 
     _id = db.Column('id', db.Integer, primary_key=True)
@@ -98,11 +121,23 @@ class User(NotEqualMixin, Base):
     )
     _username = db.Column(
         'username',
-        db.Unicode,
+        CIText,
         unique=True,
         nullable=False,
         index=True,
     )
+
+    def get_readable_name(self) -> str:
+        """Get the readable name of this user.
+
+        :returns: If this is a normal user this method simply returns the name
+            of the user. If this user is the virtual user of a group a nicely
+            formatted group name is returned.
+        """
+        if self.group:
+            return f'group "{self.group.name}"'
+        else:
+            return self.name
 
     def _get_username(self) -> str:
         """The username of the user
@@ -169,6 +204,9 @@ class User(NotEqualMixin, Base):
             return NotImplemented
         return self.id == other.id
 
+    def __lt__(self, other: 'User') -> bool:
+        return self.username < other.username
+
     def __hash__(self) -> int:
         return hash(self.id)
 
@@ -206,6 +244,17 @@ class User(NotEqualMixin, Base):
             return self == possible_member
         else:
             return self.group.has_as_member(possible_member)
+
+    def get_contained_users(self) -> t.Sequence['User']:
+        """Get all contained users of this user.
+
+        :returns: If this user is the virtual user of this group a list of
+            members of the group, otherwise the user itself is wrapped in a
+            list and returned.
+        """
+        if self.group is None:
+            return [self]
+        return self.group.members
 
     @classmethod
     def create_new_test_student(cls) -> 'User':
@@ -368,7 +417,7 @@ class User(NotEqualMixin, Base):
             Permission,
             course_permissions.c.permission_id == Permission.id,
         ).filter(
-            t.cast(DbColumn[int], Permission.id).in_(p.id for p in perms)
+            t.cast(DbColumn[int], Permission.id).in_([p.id for p in perms])
         ).subquery('crp')
 
         res: t.Sequence[t.Tuple[int, int]]

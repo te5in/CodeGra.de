@@ -42,6 +42,7 @@ class Feature(enum.Enum):
     AUTO_TEST = enum.auto()
     COURSE_REGISTER = enum.auto()
     RENDER_HTML = enum.auto()
+    EMAIL_STUDENTS = enum.auto()
 
     def __to_json__(self) -> t.Mapping[str, str]:
         return {

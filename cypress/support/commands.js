@@ -42,7 +42,7 @@ Cypress.Commands.add('text', { prevSubject: true }, subject => {
     return subject.text().replace(/\s+/g, ' ');
 });
 
-Cypress.Commands.add('login', (username, password) => {
+Cypress.Commands.add('login', (username, password, route = undefined) => {
     Cypress.log({
         name: 'login',
         message: username,
@@ -58,6 +58,8 @@ Cypress.Commands.add('login', (username, password) => {
             app.$store.dispatch('user/login', { data: body });
             if (url) {
                 cy.visit(url.fullPath);
+            } else if (route) {
+                cy.visit(route);
             } else {
                 cy.reload()
             }
@@ -73,24 +75,34 @@ Cypress.Commands.add('logout', () => {
     });
 });
 
+const loginCredentials = {};
+
 function getAuthHeaders(user) {
     // Get the authentication header for the given user, or for the user logged
     // in in the frontend if no user is given.
 
-    const mkHeader = token => ({ Authorization: `Bearer ${token}` });
+    const mkHeader = (name, token) => {
+        const header = { Authorization: `Bearer ${token}` };
+        loginCredentials[name] = header;
+        return header;
+    }
 
     if (user != null) {
+        if (loginCredentials[user.username]) {
+            return cy.wrap(loginCredentials[user.username], { log: false });
+        }
+
         return cy.request({
             url: '/api/v1/login',
             method: 'POST',
             body: user,
-        }).its('body').then(user => {
-            return mkHeader(user.access_token);
+        }).its('body').then(res => {
+            return mkHeader(res.user.username, res.access_token);
         });
     } else {
         return cy.window().its('__app__').then(app => {
-            const { jwtToken } = app.$store.state.user;
-            return mkHeader(jwtToken);
+            const { username, jwtToken } = app.$store.state.user;
+            return mkHeader(username, jwtToken);
         });
     }
 }
@@ -116,7 +128,7 @@ Cypress.Commands.add('formRequest', (options) => {
     let { url, method, headers, user, data } = options;
 
     return getAuthHeaders(user).then(authHeaders => {
-        headers = Object.assign(headers || {}, authHeaders)
+        headers = Object.assign({}, headers || {}, authHeaders)
         return cy
             .server()
             .route(method, url)
@@ -132,6 +144,28 @@ Cypress.Commands.add('formRequest', (options) => {
             })
             .wait('@formRequest');
     });
+});
+
+Cypress.Commands.add('delayRoute', (route, delay = 1000) => {
+    const reqOpts = Object.assign({}, route);
+
+    function makeResponse(res) {
+        return Object.assign({}, route, {
+            delay,
+            headers: res.headers,
+            response: res.body,
+            status: res.status,
+        });
+    }
+
+    return cy.authRequest(route).then(
+        res => {
+            return cy.route(makeResponse(res));
+        },
+        err => {
+            return cy.route(makeResponse(err));
+        },
+    );
 });
 
 Cypress.Commands.add('fixtureAsFile', (path, filename, mimeType) => {

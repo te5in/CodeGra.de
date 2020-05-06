@@ -14,7 +14,17 @@
 
 <div v-else class="auto-test" :class="{ editable: configEditable }">
     <transition-group v-if="!singleResult" name="auto-test-runs">
-        <auto-test-run v-if="currentRun"
+        <b-alert v-if="runWasDeleted"
+                 :key="0"
+                 show
+                 dismissible
+                 variant="info"
+                 class="run-deleted"
+                 @dismissed="runWasDeleted = false">
+            The AutoTest run was stopped somewhere else.
+        </b-alert>
+
+        <auto-test-run v-else-if="currentRun"
                        :key="currentRun.id"
                        class="mb-3"
                        :class="{ border: editable }"
@@ -22,8 +32,7 @@
                        :auto-test="test"
                        :run="currentRun"
                        :editable="editable"
-                       @open-result="openResult"
-                       @results-deleted="afterDeleteResults" />
+                       @open-result="openResult" />
     </transition-group>
 
     <b-card no-body v-if="autoTestId == null || test == null">
@@ -122,7 +131,7 @@
 
             <template slot-scope="{}">
                 <b-card-body class="p-3">
-                    <b-alert v-if="singleResult && (result.isFinal === false || !assignment.canSeeGrade())"
+                    <b-alert v-if="showContinuousWarning"
                              variant="warning"
                              dismissible
                              show>
@@ -156,7 +165,7 @@
                             </b-card-header>
 
                             <b-card-body slot-scope="{}">
-                                <b-form-fieldset>
+                                <b-form-fieldset class="results-visible-option">
                                     <label :for="alwaysVisibleId">
                                         Make results visible to students
 
@@ -185,7 +194,7 @@
                                     </b-input-group>
                                 </b-form-fieldset>
 
-                                <b-form-fieldset>
+                                <b-form-fieldset class="rubric-calculation-option">
                                     <label :for="gradeCalculationId">
                                         Rubric calculation
 
@@ -444,33 +453,35 @@
                         </collapse>
                     </b-card>
 
-                    <h5 v-if="singleResult" class="my-3">
-                        Categories
-                    </h5>
+                    <div class="auto-test-sets">
+                        <h5 v-if="singleResult" class="my-3">
+                            Categories
+                        </h5>
 
-                    <transition-group name="level-list">
-                        <auto-test-set v-for="set, i in test.sets"
-                                       v-if="!set.deleted"
-                                       :class="{ 'mb-3': !singleResult }"
-                                       :key="set.id"
-                                       :value="set"
-                                       :assignment="assignment"
-                                       :editable="configEditable"
-                                       :result="result"
-                                       :other-suites="allNonDeletedSuites" />
-                        <p class="text-muted font-italic mb-3"
-                        key="no-sets"
-                        v-if="test.sets.filter(s => !s.deleted).length === 0">
-                            You have not created any levels yet. Click the button below to create one.
-                        </p>
+                        <transition-group name="level-list">
+                            <auto-test-set v-for="set, i in test.sets"
+                                           v-if="!set.deleted"
+                                           :class="{ 'mb-3': !singleResult }"
+                                           :key="set.id"
+                                           :value="set"
+                                           :assignment="assignment"
+                                           :editable="configEditable"
+                                           :result="result"
+                                           :other-suites="allNonDeletedSuites" />
+                            <p class="text-muted font-italic mb-3"
+                               key="no-sets"
+                               v-if="test.sets.filter(s => !s.deleted).length === 0">
+                                You have not created any levels yet. Click the button below to create one.
+                            </p>
 
-                    </transition-group>
+                        </transition-group>
 
-                    <b-button-toolbar v-if="configEditable"
-                                      class="justify-content-end">
-                        <submit-button :submit="addSet"
-                                       label="Add level" />
-                    </b-button-toolbar>
+                        <b-button-toolbar v-if="configEditable"
+                                          class="justify-content-end">
+                            <submit-button :submit="addSet"
+                                           label="Add level" />
+                        </b-button-toolbar>
+                    </div>
                 </b-card-body>
             </template>
         </collapse>
@@ -639,6 +650,10 @@ export default {
             resultSubmissionLoading: true,
             resultSubmission: null,
             importAssignment: null,
+
+            // Keep track of whether an existing run was deleted so we can
+            // show a message when that happens.
+            runWasDeleted: false,
         };
     },
 
@@ -648,6 +663,12 @@ export default {
     },
 
     watch: {
+        result() {
+            if (this.singleResult && this.result == null) {
+                this.loadSingleResult();
+            }
+        },
+
         resultSubmissionIds: {
             immediate: true,
             handler(newValue) {
@@ -726,6 +747,7 @@ export default {
             storeCreateAutoTestSet: 'createAutoTestSet',
             storeDeleteAutoTestResults: 'deleteAutoTestResults',
             storeSetAutoTest: 'setAutoTest',
+            storeClearAutoTestRun: 'clearAutoTestRun',
         }),
 
         ...mapActions('courses', {
@@ -744,6 +766,8 @@ export default {
                     runId: this.currentRun.id,
                 }).then(() => false);
             } else {
+                this.runWasDeleted = false;
+
                 return this.storeCreateAutoTestRun({
                     autoTestId: this.autoTestId,
                 }).then(() => true);
@@ -753,6 +777,8 @@ export default {
         afterToggleAutoTest(starting) {
             if (starting) {
                 this.setPollingTimer(this.loadAutoTestRun);
+            } else {
+                clearTimeout(this.pollingTimer);
             }
         },
 
@@ -828,11 +854,29 @@ export default {
                         case 500:
                             this.setPollingTimer(this.loadAutoTestRun);
                             break;
+                        case 404:
+                            this.onRun404();
+                            break;
                         default:
                             throw err;
                     }
                 },
             );
+        },
+
+        onRun404() {
+            // When the AT run is stopped from somewhere else we suddenly start getting 404s.
+            // In that case, delete the run from the store and expand the config.
+            this.configCollapsed = false;
+            this.storeClearAutoTestRun({
+                autoTestId: this.autoTestId,
+            });
+
+            // If there previously was a run, we want to show a message why the
+            // results suddenly disappeared.
+            if (this.currentRun == null) {
+                this.runWasDeleted = true;
+            }
         },
 
         loadSingleResult() {
@@ -1041,11 +1085,6 @@ export default {
 
             await this.$nextTick();
             this.$root.$emit('bv::show::modal', this.resultsModalId);
-        },
-
-        afterDeleteResults() {
-            clearTimeout(this.pollingTimer);
-            this.configCollapsed = false;
         },
 
         prepareOutput(output) {
@@ -1286,6 +1325,19 @@ export default {
                 return '';
             }
             return 'This assignment already has a rubric. Importing an AutoTest configuration will also import the rubric of the other assignment and delete the current rubric. Any grade given using the existing rubric will be cleared. Are you sure you want to continue?';
+        },
+
+        showContinuousWarning() {
+            if (!this.singleResult) {
+                return false;
+            }
+            if (this.result && this.result.isFinal === false) {
+                return true;
+            }
+            if (!this.assignment.canSeeGrade()) {
+                return true;
+            }
+            return false;
         },
     },
 

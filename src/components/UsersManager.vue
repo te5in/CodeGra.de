@@ -352,9 +352,8 @@ export default {
             ]);
 
             this.loading = false;
-            this.$nextTick(() => {
-                this.$refs.table.sortBy = 'User';
-            });
+            await this.$afterRerender();
+            this.$refs.table.sortBy = 'User';
         },
 
         getRegistrationLinks() {
@@ -489,10 +488,19 @@ export default {
 
         getRegistrationLinkUrl(link) {
             const { host, protocol } = window.location;
-            const linkId = link.id;
-            return `${protocol}//${host}/register/?course_register_link_id=${linkId}&course_id=${
-                this.course.id
-            }&register_for=${encodeURIComponent(this.course.name)}`;
+            return this.$utils.buildUrl(
+                ['register'],
+                {
+                    addTrailingSlash: true,
+                    protocol,
+                    host,
+                    query: {
+                        course_register_link_id: link.id,
+                        course_id: this.course.id,
+                        register_for: this.course.name,
+                    },
+                },
+            );
         },
 
         copyLink(link) {

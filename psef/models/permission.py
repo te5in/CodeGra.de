@@ -111,7 +111,7 @@ class Permission(Base, t.Generic[_T]):  # pylint: disable=unsubscriptable-object
         return helpers.filter_all_or_404(
             cls,
             t.cast(DbColumn[str],
-                   Permission.__name).in_(p.name for p in perms),
+                   Permission.__name).in_([p.name for p in perms]),
             Permission.course_permission == isinstance(
                 perms[0], CoursePermission
             ),

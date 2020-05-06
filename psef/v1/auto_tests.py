@@ -206,7 +206,8 @@ def get_fixture_contents(
         models.AutoTestFixture,
         fixture_id,
         also_error=(
-            lambda f: f.auto_test_id != at_id or not f.auto_test.assignment.is_visible
+            lambda f: f.auto_test_id != at_id or not f.auto_test.assignment.
+            is_visible
         )
     )
 
@@ -238,7 +239,8 @@ def hide_or_open_fixture(at_id: int, fixture_id: int) -> EmptyResponse:
         models.AutoTestFixture,
         models.AutoTestFixture.id == fixture_id,
         also_error=(
-            lambda f: f.auto_test_id != at_id or not f.auto_test.assignment.is_visible
+            lambda f: f.auto_test_id != at_id or not f.auto_test.assignment.
+            is_visible
         ),
     )
 
