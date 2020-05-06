@@ -96,6 +96,8 @@
     "@babel/plugin-transform-runtime": "^7.9.0",
     "@babel/preset-env": "^7.9.0",
     "@cypress/code-coverage": "^1.10.4",
+    "@types/highlight.js": "^9.12.3",
+    "@types/highlightjs": "^9.12.0",
     "@types/jest": "^25.2.1",
     "@vue/test-utils": "^1.0.0-beta.31",
     "array-to-sentence": "^1.1.0",

@@ -1,20 +1,57 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { UNSET_SENTINEL } from '@/constants';
 import { store } from '@/store';
-import { formatGrade, getProps, getUniqueId, toMaxNDecimals, setXor } from '@/utils';
+import {
+    formatGrade,
+    getProps,
+    getUniqueId,
+    toMaxNDecimals,
+    setXor,
+    hasAttr,
+    filterMap,
+    Left,
+    Right,
+    AssertionError,
+    parseOrKeepFloat,
+    coerceToString,
+    nonenumerable,
+} from '@/utils/typed';
+import { makeCache } from '@/utils/cache';
+import { AutoTestRun, AutoTestResult } from '@/models';
 import { RubricResultValidationError, RubricRowValidationError } from './errors';
+import { Submission } from './submission';
 
-export class RubricItem {
-    static fromServerData(data) {
+interface RubricItemServerData {
+    id: number;
+    points: number;
+    header: string;
+    description: string;
+}
+
+interface IRubricItem<T> {
+    id: T;
+
+    points: T extends number ? number : number | '' | null;
+
+    header: string;
+
+    description: string;
+
+    trackingId?: number;
+}
+
+export interface RubricItem<T = number | undefined> extends IRubricItem<T> {}
+export class RubricItem<T = number | undefined> {
+    static fromServerData(data: Required<RubricItemServerData>) {
         return new RubricItem({
             id: data.id,
             points: data.points,
             header: data.header,
             description: data.description,
+            trackingId: undefined,
         });
     }
 
-    static createEmpty() {
+    static createEmpty(): RubricItem<undefined> {
         return new RubricItem({
             id: undefined,
             points: '',
@@ -24,12 +61,16 @@ export class RubricItem {
         });
     }
 
-    constructor(item) {
+    constructor(item: IRubricItem<T>) {
         Object.assign(this, item);
         Object.freeze(this);
     }
 
-    update(props = {}) {
+    update<Y>(props: { id: Y } & Partial<IRubricItem<Y>>): RubricItem<Y>;
+
+    update(props: Partial<IRubricItem<T>>): RubricItem<T>;
+
+    update<Y>(props: Partial<IRubricItem<Y>> = {}): RubricItem<Y | T> {
         return new RubricItem(Object.assign({}, this, props));
     }
 
@@ -38,19 +79,52 @@ export class RubricItem {
     }
 }
 
-const RubricRowsTypes = {};
+interface BaseRubricRowServerData {
+    id: number;
+    header: string;
+    description: string;
+    locked: false | 'auto_test';
+    items: RubricItemServerData[];
+}
 
-export class RubricRow {
-    static fromServerData(data) {
-        const cls = RubricRowsTypes[data.type];
-        if (cls == null) {
+interface ContinuousRubricRowServerData extends BaseRubricRowServerData {
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    type: typeof ContinuousRubricRow.tag;
+}
+
+interface NormalRubricRowServerData extends BaseRubricRowServerData {
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    type: typeof NormalRubricRow.tag;
+}
+
+type RubricRowServerData = ContinuousRubricRowServerData | NormalRubricRowServerData;
+
+interface IRubricRow<T, Y = T> {
+    id: Y;
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    type: '' | keyof typeof RubricRowsTypes;
+    header: string;
+    description: string;
+    locked: false | 'auto_test';
+    items: RubricItem<T>[];
+}
+
+export interface RubricRow<T> extends IRubricRow<T> {}
+
+export class RubricRow<T extends number | undefined | null> {
+    static fromServerData(data: RubricRowServerData) {
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        if (!hasAttr(RubricRowsTypes, data.type)) {
             throw new ReferenceError(`Could not find specified type: ${data.type}`);
         }
-        return cls.fromServerData(data);
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        const cls = RubricRowsTypes[data.type];
+        return cls.fromServerData(data as any);
     }
 
-    static createEmpty() {
+    static createEmpty(): RubricRow<undefined> {
         return new RubricRow({
+            id: undefined,
             type: '',
             header: '',
             description: '',
@@ -59,64 +133,86 @@ export class RubricRow {
         });
     }
 
-    constructor(row) {
+    @nonenumerable
+    protected _cache = makeCache('maxPoints', 'minPoints');
+
+    constructor(row: IRubricRow<T, T>) {
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
         if (row.type && !(this instanceof RubricRowsTypes[row.type])) {
             throw new Error('You cannot make a base row with a non empty type.');
         }
         Object.assign(this, row);
         Object.freeze(this.items);
 
-        this._cache = Object.seal({
-            maxPoints: UNSET_SENTINEL,
-            minPoints: UNSET_SENTINEL,
-        });
-
         Object.freeze(this);
     }
 
     get minPoints() {
-        if (this._cache.minPoints === UNSET_SENTINEL) {
-            let minPoints = Math.min(
-                ...this.items.map(item => item.points).filter(pts => pts != null),
-            );
-
-            if (minPoints === Infinity) {
-                minPoints = 0;
-            }
-
-            this._cache.minPoints = minPoints;
-        }
-
-        return this._cache.minPoints;
+        return this._cache.get('minPoints', () => {
+            const found = this.items.reduce((minFound, item) => {
+                const pts: number | null | '' = item.points;
+                if (pts != null && pts !== '') {
+                    return Math.min(minFound, pts);
+                }
+                return minFound;
+            }, Infinity);
+            return found === Infinity ? 0 : found;
+        });
     }
 
     get maxPoints() {
-        if (this._cache.maxPoints === UNSET_SENTINEL) {
-            let maxPoints = Math.max(
-                ...this.items.map(item => item.points).filter(pts => pts != null),
+        return this._cache.get('maxPoints', () => {
+            const maxPoints = Math.max(
+                ...filterMap(this.items, item => {
+                    const pts: number | null | '' = item.points;
+                    if (pts != null && pts !== '') {
+                        return new Right(pts);
+                    }
+                    return new Left(null);
+                }),
             );
 
             if (maxPoints === -Infinity) {
-                maxPoints = 0;
+                return 0;
             }
 
-            this._cache.maxPoints = maxPoints;
-        }
-
-        return this._cache.maxPoints;
+            return maxPoints;
+        });
     }
 
-    update(props = {}) {
-        return new this.constructor(Object.assign({}, this, props));
+    private update(this: RubricRow<T>, props = {}): RubricRow<T | undefined> {
+        return new (this.constructor as any)(Object.assign({}, this, props));
     }
 
-    updateItem(idx, prop, value) {
-        const items = this.items.slice();
+    updateItem(
+        this: NormalRubricRow<T>,
+        idx: number,
+        prop: Exclude<keyof RubricItem, 'id'>,
+        // eslint-disable-next-line no-undef
+        value: RubricItem[typeof prop],
+    ): NormalRubricRow<T | undefined>;
+
+    updateItem(
+        this: ContinuousRubricRow<T>,
+        idx: 0,
+        prop: Exclude<keyof RubricItem, 'id'>,
+        // eslint-disable-next-line no-undef
+        value: RubricItem[typeof prop],
+    ): ContinuousRubricRow<T | undefined>;
+
+    updateItem(
+        this: RubricRow<T>,
+        idx: number,
+        prop: Exclude<keyof RubricItem, 'id'>,
+        // eslint-disable-next-line no-undef
+        value: RubricItem[typeof prop],
+    ): RubricRow<T | undefined> {
+        const items: RubricItem<undefined | null | number>[] = this.items.slice();
         if (idx < 0 || idx >= items.length) {
             throw new ReferenceError('Invalid index');
         }
         if (prop === 'points') {
-            const pts = parseFloat(value);
+            const pts = parseOrKeepFloat(<RubricItem[typeof prop]>value);
             items[idx] = items[idx].update({
                 points: Number.isNaN(pts) ? null : pts,
             });
@@ -126,11 +222,19 @@ export class RubricRow {
         return this.update({ items });
     }
 
-    setType(type) {
+    setType(type: 'continuous'): ContinuousRubricRow<undefined>;
+
+    setType(type: 'normal'): NormalRubricRow<undefined>;
+
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    setType<Y extends keyof typeof RubricRowsTypes>(
+        type: Y,
+    ): ContinuousRubricRow<undefined> | NormalRubricRow<undefined> {
         if (this.type != null && this.type !== '') {
             throw new Error(`Row type was already set and was ${this.type}`);
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
         const cls = RubricRowsTypes[type];
         if (cls == null) {
             throw new TypeError(`Invalid row type: ${type}`);
@@ -138,13 +242,17 @@ export class RubricRow {
         return cls.createEmpty();
     }
 
-    createItem() {
+    createItem<T extends number | null | undefined>(
+        this: NormalRubricRow<T>,
+    ): NormalRubricRow<T | undefined>;
+
+    createItem<T extends number | null | undefined>(this: RubricRow<T>) {
         return this.update({
-            items: this.items.concat(RubricItem.createEmpty()),
+            items: [...this.items, RubricItem.createEmpty()],
         });
     }
 
-    deleteItem(idx) {
+    deleteItem(idx: number) {
         if (idx < 0 || idx >= this.items.length) {
             throw new ReferenceError('Invalid index');
         }
@@ -154,7 +262,7 @@ export class RubricRow {
         });
     }
 
-    lockMessage(autoTest, autoTestResult, rubricResult) {
+    lockMessage(autoTest: AutoTestRun, autoTestResult: AutoTestResult, rubricResult: RubricResult) {
         switch (this.locked) {
             case 'auto_test':
                 return this._autoTestLockMessage(autoTest, autoTestResult, rubricResult);
@@ -163,13 +271,18 @@ export class RubricRow {
         }
     }
 
-    _autoTestLockMessage(autoTest, autoTestResult, rubricResult) {
-        const selectedRubricItem = getProps(rubricResult, null, 'selected', this.id);
+    _autoTestLockMessage(_: Object, autoTestResult: AutoTestResult, rubricResult: RubricResult) {
+        const selectedRubricItem = getProps(
+            rubricResult,
+            null,
+            'selected',
+            coerceToString(this.id),
+        );
         const autoTestPercentage = getProps(
-            autoTestResult,
+            autoTestResult as any,
             null,
             'rubricResults',
-            this.id,
+            coerceToString(this.id),
             'percentage',
         );
 
@@ -205,12 +318,16 @@ export class RubricRow {
         return this.header || '[No name]';
     }
 
-    validate(prevErrors = null) {
-        let errors = prevErrors;
-        if (errors == null) {
+    validate(prevErrors: RubricRowValidationError | null = null) {
+        let errors: RubricRowValidationError;
+        if (prevErrors == null) {
             errors = new RubricRowValidationError();
-        } else if (!(errors instanceof RubricRowValidationError)) {
-            throw new Error('prevErrors should be an instance of RubricRowValidationError');
+        } else {
+            AssertionError.assert(
+                prevErrors instanceof RubricRowValidationError,
+                'prevErrors should be an instance of RubricRowValidationError',
+            );
+            errors = prevErrors;
         }
 
         if (this.header.length === 0) {
@@ -228,7 +345,7 @@ export class RubricRow {
                 errors.itemHeader.push(this.nonEmptyHeader);
             }
 
-            if (Number.isNaN(parseFloat(item.points))) {
+            if (item.points == null || Number.isNaN(parseOrKeepFloat(item.points))) {
                 errors.itemPoints.push(`'${this.nonEmptyHeader} - ${item.nonEmptyHeader}'`);
             }
         }
@@ -237,8 +354,12 @@ export class RubricRow {
     }
 }
 
-export class NormalRubricRow extends RubricRow {
-    static fromServerData(data) {
+export class NormalRubricRow<T extends number | undefined | null> extends RubricRow<T> {
+    static readonly tag = 'normal';
+
+    readonly type!: 'normal';
+
+    static fromServerData(data: NormalRubricRowServerData) {
         if (data.type !== 'normal') {
             throw new TypeError('Row is not normal');
         }
@@ -253,8 +374,9 @@ export class NormalRubricRow extends RubricRow {
         });
     }
 
-    static createEmpty() {
+    static createEmpty(): NormalRubricRow<undefined> {
         return new NormalRubricRow({
+            id: undefined,
             type: 'normal',
             header: '',
             description: '',
@@ -263,7 +385,11 @@ export class NormalRubricRow extends RubricRow {
         });
     }
 
-    _autoTestLockMessage(autoTest, autoTestResult, rubricResult) {
+    _autoTestLockMessage(
+        autoTest: Object,
+        autoTestResult: AutoTestResult,
+        rubricResult: RubricResult,
+    ) {
         const gradeCalculation = getProps(autoTest, null, 'grade_calculation');
         let msg = super._autoTestLockMessage(autoTest, autoTestResult, rubricResult);
         if (msg) {
@@ -271,9 +397,8 @@ export class NormalRubricRow extends RubricRow {
         }
 
         if (gradeCalculation != null) {
-            msg += `You need to reach the ${
-                gradeCalculation === 'full' ? 'upper' : 'lower'
-            } bound of a rubric item to achieve its score.`;
+            const toReach = gradeCalculation === 'full' ? 'upper' : 'lower';
+            msg += `You need to reach the ${toReach} bound of a rubric item to achieve its score.`;
         } else if (autoTest != null) {
             msg += 'No grade calculation method has been set yet.';
         }
@@ -281,10 +406,13 @@ export class NormalRubricRow extends RubricRow {
         return msg;
     }
 }
-RubricRowsTypes.normal = NormalRubricRow;
 
-export class ContinuousRubricRow extends RubricRow {
-    static fromServerData(data) {
+export class ContinuousRubricRow<T extends number | undefined | null> extends RubricRow<T> {
+    static readonly tag = 'continuous';
+
+    readonly type!: 'continuous';
+
+    static fromServerData(data: ContinuousRubricRowServerData): ContinuousRubricRow<number> {
         if (data.type !== 'continuous') {
             throw new TypeError('Row is not continuous');
         }
@@ -299,8 +427,9 @@ export class ContinuousRubricRow extends RubricRow {
         });
     }
 
-    static createEmpty() {
+    static createEmpty(): ContinuousRubricRow<undefined> {
         return new ContinuousRubricRow({
+            id: undefined,
             type: 'continuous',
             header: '',
             description: '',
@@ -309,10 +438,15 @@ export class ContinuousRubricRow extends RubricRow {
         });
     }
 
-    validate(prevErrors = null) {
+    // eslint-disable-next-line class-methods-use-this
+    get minPoints() {
+        return 0;
+    }
+
+    validate(prevErrors: RubricRowValidationError | null = null) {
         const errors = super.validate(prevErrors);
 
-        if (this.items[0].points <= 0) {
+        if ((this.items[0].points ?? 0) <= 0) {
             errors.continuous.push(this.nonEmptyHeader);
         }
 
@@ -320,10 +454,15 @@ export class ContinuousRubricRow extends RubricRow {
     }
 }
 
-RubricRowsTypes.continuous = ContinuousRubricRow;
+const RubricRowsTypes = <const>{
+    [NormalRubricRow.tag]: NormalRubricRow,
+    [ContinuousRubricRow.tag]: ContinuousRubricRow,
+};
 
-export class Rubric {
-    static fromServerData(data) {
+type RubricServerData = RubricRowServerData[];
+
+export class Rubric<T extends number | undefined | null> {
+    static fromServerData(data: RubricServerData) {
         const rows = (data || []).map(row => {
             row.items.sort((x, y) => x.points - y.points);
             return RubricRow.fromServerData(row);
@@ -332,40 +471,37 @@ export class Rubric {
         return new Rubric(rows);
     }
 
-    constructor(rows) {
+    @nonenumerable
+    private _cache = makeCache('maxPoints', 'rowsById');
+
+    constructor(public readonly rows: ReadonlyArray<RubricRow<T>>) {
         this.rows = Object.freeze(rows);
-        this._cache = Object.seal({
-            maxPoints: UNSET_SENTINEL,
-            rowsById: UNSET_SENTINEL,
-        });
 
         Object.freeze(this);
     }
 
     get maxPoints() {
-        if (this._cache.maxPoints === UNSET_SENTINEL) {
-            this._cache.maxPoints = this.rows.reduce((acc, row) => acc + row.maxPoints, 0);
-        }
-
-        return this._cache.maxPoints;
+        return this._cache.get('maxPoints', () =>
+            this.rows.reduce((acc, row) => acc + row.maxPoints, 0),
+        );
     }
 
     get rowsById() {
-        if (this._cache.rowsById === UNSET_SENTINEL) {
-            this._cache.rowsById = this.rows.reduce((acc, row) => {
-                acc[row.id] = row;
+        return this._cache.get('rowsById', () =>
+            this.rows.reduce((acc: Record<string, RubricRow<T>>, row) => {
+                if (row.id != null) {
+                    acc[<number>row.id] = row;
+                }
                 return acc;
-            }, {});
-        }
-
-        return this._cache.rowsById;
+            }, {}),
+        );
     }
 
     getItemIds() {
-        return this.rows.reduce((acc, row) => {
+        return this.rows.reduce((acc: Record<string, string>, row) => {
             row.items.forEach(item => {
                 if (item.id != null) {
-                    acc[item.id] = `${row.nonEmptyHeader} - ${item.nonEmptyHeader}`;
+                    acc[<number>item.id] = `${row.nonEmptyHeader} - ${item.nonEmptyHeader}`;
                 }
             });
             return acc;
@@ -373,11 +509,11 @@ export class Rubric {
     }
 
     createRow() {
-        const rows = this.rows.concat(RubricRow.createEmpty());
+        const rows = [...this.rows, RubricRow.createEmpty()];
         return new Rubric(rows);
     }
 
-    deleteRow(idx) {
+    deleteRow(idx: number) {
         if (idx < 0 || idx >= this.rows.length) {
             throw new ReferenceError('Invalid index');
         }
@@ -386,7 +522,7 @@ export class Rubric {
         return new Rubric(rows);
     }
 
-    updateRow(idx, rowData) {
+    updateRow(idx: number, rowData: RubricRow<T>) {
         if (!(rowData instanceof RubricRow)) {
             throw new TypeError('Rubric rows must be of type RubricRow');
         }
@@ -397,38 +533,54 @@ export class Rubric {
     }
 }
 
+interface RubricResultItemServerData extends RubricItemServerData {
+    multiplier: number;
+}
+
+interface RubricResultServerData {
+    rubrics: RubricRowServerData[];
+    selected: RubricResultItemServerData[];
+}
+
 export class RubricResult {
-    static fromServerData(submissionId, data) {
-        const rowOfItem = data.rubrics.reduce((acc, row) => {
+    static fromServerData(submissionId: number, data: RubricResultServerData) {
+        const rowOfItem = data.rubrics.reduce((acc: Record<string, number>, row) => {
             row.items.forEach(item => {
                 acc[item.id] = row.id;
             });
             return acc;
         }, {});
 
-        const selected = data.selected.reduce((acc, item) => {
-            const rowId = rowOfItem[item.id];
-            acc[rowId] = item;
-            return acc;
-        }, {});
+        const selected = data.selected.reduce(
+            (acc: Record<string, RubricResultItemServerData>, item) => {
+                const rowId = rowOfItem[item.id];
+                acc[rowId] = item;
+                return acc;
+            },
+            {},
+        );
 
         return new RubricResult(submissionId, selected);
     }
 
-    constructor(submissionId, selected) {
+    private _cache = makeCache('points');
+
+    constructor(
+        public submissionId: number,
+        public selected: Record<string, RubricResultItemServerData>,
+    ) {
         this.submissionId = submissionId;
         this.selected = Object.freeze(selected);
-        this._cache = Object.seal({ points: UNSET_SENTINEL });
 
         Object.freeze(this);
     }
 
     get points() {
-        if (this._cache.points === UNSET_SENTINEL) {
+        return this._cache.get('points', () => {
             if (Object.values(this.selected).length === 0) {
-                this._cache.points = null;
+                return null;
             } else {
-                this._cache.points = Object.values(this.selected).reduce((acc, item) => {
+                return Object.values(this.selected).reduce((acc, item) => {
                     if (typeof item.multiplier !== 'number') {
                         return acc;
                     }
@@ -436,16 +588,10 @@ export class RubricResult {
                     return acc + item.points * multiplier;
                 }, 0);
             }
-        }
-
-        return this._cache.points;
+        });
     }
 
-    get nSelected() {
-        return Object.keys(this.selected).length;
-    }
-
-    get submission() {
+    get submission(): Submission {
         return store.getters['submissions/getSingleSubmission'](this.submissionId);
     }
 
@@ -453,12 +599,12 @@ export class RubricResult {
         return getProps(this.submission, null, 'assignment');
     }
 
-    get rubric() {
+    get rubric(): Rubric<number> | null {
         const id = getProps(this.submission, null, 'assignmentId');
         return id == null ? null : store.getters['rubrics/rubrics'][id];
     }
 
-    get maxPoints() {
+    get maxPoints(): number | null {
         return getProps(
             this.assignment,
             getProps(this.rubric, null, 'maxPoints'),
@@ -466,23 +612,24 @@ export class RubricResult {
         );
     }
 
-    get grade() {
-        if (this.nSelected === 0 || this.maxPoints == null) {
+    get grade(): string | null {
+        const points = this.points;
+        if (points == null || this.maxPoints == null) {
             return null;
         } else {
-            const grade = (10 * this.points) / this.maxPoints;
+            const grade = (10 * points) / this.maxPoints;
             return formatGrade(Math.max(0, Math.min(grade, 10)));
         }
     }
 
-    diffSelected(other) {
+    diffSelected(other: RubricResult) {
         const ownIds = new Set(Object.values(this.selected).map(x => x.id));
         const otherIds = new Set(Object.values(other.selected).map(x => x.id));
 
         return setXor(ownIds, otherIds);
     }
 
-    toggleItem(rowId, item) {
+    toggleItem(rowId: number, item: RubricItem & { id: number; points: number }) {
         const selected = Object.assign({}, this.selected);
         const selectedItem = selected[rowId];
 
@@ -497,7 +644,11 @@ export class RubricResult {
         return new RubricResult(this.submissionId, selected);
     }
 
-    setMultiplier(rowId, item, multiplier) {
+    setMultiplier(
+        rowId: number,
+        item: RubricItem & { id: number; points: number },
+        multiplier: number,
+    ) {
         const selected = Object.assign({}, this.selected);
         const selectedItem = selected[rowId];
 

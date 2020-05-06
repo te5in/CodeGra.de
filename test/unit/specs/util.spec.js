@@ -4,7 +4,6 @@ import moment from 'moment';
 import {
     range,
     last,
-    isDecimalNumber,
     formatGrade,
     formatDate,
     cmpOneNull,
@@ -15,18 +14,9 @@ import {
     highlightCode,
     nameOfUser,
     groupMembers,
-    autoTestHasCheckpointAfterHiddenStep,
-    safeDivide,
-    WarningHeader,
-    setProps,
     coerceToString,
-    getNoNull,
-    numberToTimes,
     toMaxNDecimals,
-    deepCopy,
     deepEquals,
-    deepExtend,
-    deepExtendArray,
     hasAttr,
     setXor,
     ensureArray,
@@ -34,7 +24,21 @@ import {
     filterObject,
     isEmpty,
     zip,
+    buildUrl,
+    numberToTimes,
     readableJoin,
+    safeDivide,
+} from '@/utils/typed';
+
+import {
+    autoTestHasCheckpointAfterHiddenStep,
+    WarningHeader,
+    isDecimalNumber,
+    deepExtend,
+    setProps,
+    getNoNull,
+    deepExtendArray,
+    deepCopy,
 } from '@/utils';
 
 import { makeCache } from '@/utils/cache';
@@ -261,7 +265,7 @@ describe('utils.js', () => {
                 '\tprint(f.read())',
             ];
             const result = code.map(
-                (x, idx) => ['python', x, true, idx ? `STATE${idx}` : null],
+                (x, idx) => ['python', x, true, idx ? `STATE${idx}` : undefined],
             );
             expect(highlightCode(code, 'python')).toEqual(result);
             expect(mockVisul).toHaveBeenCalledTimes(code.length);
@@ -1159,6 +1163,57 @@ describe('utils.js', () => {
 
         it('should work for arrays with multiple items', () => {
             expect(readableJoin(['hello', 'by', 'whoo'])).toBe('hello, by, and whoo');
+        });
+    });
+
+    describe('buildUrl', () => {
+        it('should be possible to give the path a raw string', () => {
+            expect(buildUrl('/a/b/c')).toBe('/a/b/c');
+            expect(buildUrl('a/b/')).toBe('a/b/');
+        }),
+
+        it('should give an absolute url if no host is given', () => {
+            expect(buildUrl(['a', 'b', 'c'])).toBe('/a/b/c');
+            expect(buildUrl(['a', 'b', ''])).toBe('/a/b/');
+            expect(buildUrl(['a', 'b'], {
+                addTrailingSlash: true,
+            })).toBe('/a/b/');
+        }),
+
+        it('should escape parts of the url', () => {
+            expect(buildUrl(['a', '%b%'])).toBe('/a/%25b%25');
+        });
+
+        it('should escape the query of the url', () => {
+            expect(buildUrl(
+                ['a', 'b'],
+                { query: { a: '%b%' }},
+            )).toBe('/a/b?a=%25b%25');
+        });
+
+        it('should escape the given hash', () => {
+            expect(buildUrl(
+                ['a', 'b', ''],
+                { hash: 'ah#ah'},
+            )).toBe('/a/b/#ah%23ah');
+        });
+
+        it('should use the host if given', () => {
+            expect(buildUrl(
+                ['a', 'b'],
+                {
+                    host: 'example.com',
+                    protocol: 'ftp:',
+                },
+            )).toBe('ftp://example.com/a/b');
+
+            expect(buildUrl(
+                'a/b',
+                {
+                    host: 'example.com',
+                    protocol: 'ftp:',
+                },
+            )).toBe('ftp://example.com/a/b');
         });
     });
 });

@@ -4,7 +4,7 @@ import { shallowMount, createLocalVue } from '@vue/test-utils';
 import VueRouter from 'vue-router';
 import Vuex from 'vuex';
 import BootstrapVue from 'bootstrap-vue';
-import * as utils from '@/utils';
+import * as utils from '@/utils/typed';
 import * as decode from '@/utils/decode'
 import * as ipythonUtils from '@/utils/ipython'
 import axios from 'axios';
@@ -56,6 +56,7 @@ describe('IPythonViewer.vue', () => {
         mockIPython = (new util.TextEncoder()).encode(str);
         wrapper.setProps({ fileContent: mockIPython });
 
+        await comp.$afterRerender();
         await comp.$afterRerender();
     };
 

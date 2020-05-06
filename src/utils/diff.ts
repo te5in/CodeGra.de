@@ -1,22 +1,26 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+// @ts-ignore
 import DiffMatchPatch from 'diff-match-patch';
 
 import { visualizeWhitespace } from './visualize';
 import { htmlEscape } from './index';
 
-const ADDED = 1;
-const REMOVED = -1;
+const ADDED = 1 as const;
+const REMOVED = -1 as const;
+const SAME = 0 as const;
 export const NEWLINE_CHAR = '¶';
 
-function internalMakeSpan(cls, inner) {
+function internalMakeSpan(cls: string, inner: string): string {
     return `<span class="${cls}">${inner}</span>`;
 }
 
+type Diff = [typeof ADDED | typeof REMOVED | typeof SAME, string];
+
 export function getCapturePointsDiff(
-    expected,
-    got,
-    options,
-    showIgnored,
+    expected: string,
+    got: string,
+    options: string[],
+    showIgnored: boolean,
     makeSpan = internalMakeSpan,
 ) {
     const ignoreAllWhitespace = options.find(o => o === 'all_whitespace') != null;
@@ -32,7 +36,7 @@ export function getCapturePointsDiff(
     }
 
     const dmp = new DiffMatchPatch();
-    const diffs = dmp.diff_main(got, expected, false);
+    const diffs: Diff[] = dmp.diff_main(got, expected, false);
     dmp.diff_cleanupSemantic(diffs);
     const lines = [''];
 
@@ -89,7 +93,7 @@ export function getCapturePointsDiff(
             splitted = text.split('\n');
         }
 
-        function nextIsNewline(i) {
+        function nextIsNewline(i: number) {
             if (splitted.length - 1 > i) {
                 return true;
             }
@@ -105,7 +109,7 @@ export function getCapturePointsDiff(
 
         splitted.forEach((line, i) => {
             let toAdd = '';
-            function highlight(str, spanCls = cls) {
+            function highlight(str: string, spanCls = cls) {
                 if (!str) {
                     return '';
                 }

@@ -59,8 +59,8 @@
 </template>
 
 <script lang="ts">
-    // @ts-ignore
-    import Icon from 'vue-awesome/components/Icon';
+// @ts-ignore
+import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/eye';
 import 'vue-awesome/icons/commenting';
 

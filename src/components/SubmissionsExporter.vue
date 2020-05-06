@@ -166,7 +166,7 @@ export default {
         },
 
         currentFilename() {
-            return encodeURIComponent(this.userFilename ? this.userFilename : this.filename);
+            return this.userFilename ? this.userFilename : this.filename;
         },
     },
 
