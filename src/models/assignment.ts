@@ -9,6 +9,7 @@ import { Rubric } from '@/models';
 
 // @ts-ignore
 import { store } from '@/store';
+import { NONEXISTENT } from '@/constants';
 import * as utils from '@/utils/typed';
 
 import * as assignmentState from '@/store/assignment-states';
@@ -318,7 +319,7 @@ export class Assignment extends AssignmentData {
         return this._canSeeFeedbackType('linter');
     }
 
-    get rubric(): Rubric<number> {
+    get rubric(): Rubric<number> | typeof NONEXISTENT {
         return store.getters['rubrics/rubrics'][this.id];
     }
 

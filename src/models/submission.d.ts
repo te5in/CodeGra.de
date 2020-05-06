@@ -14,6 +14,8 @@ export class Submission {
 
     public grade_overridden: string | null;
 
+    public assignmentId: number;
+
     public assignment: Assignment;
 
     public extra_info: Record<string, Object> | null;

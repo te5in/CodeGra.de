@@ -29,7 +29,7 @@ import { makeCache } from '@/utils/cache';
 import { defaultdict } from '@/utils/defaultdict';
 import { NONEXISTENT } from '@/constants';
 
-import { Assignment, RubricItem, RubricRow, AnyUser, User } from '@/models';
+import { Assignment, Rubric, RubricItem, RubricRow, AnyUser, User } from '@/models';
 
 function numOrNull(x: number): number | null {
     return Number.isNaN(x) ? null : x;
@@ -128,7 +128,8 @@ export class RubricSource extends DataSource<RubricDataSourceValue> {
     constructor(data: RubricDataSourceValue['data'], workspace: Workspace) {
         super(data, workspace);
 
-        if (getProps(this.assignment, NONEXISTENT, 'rubric') === NONEXISTENT) {
+        const rubric = this.assignment?.rubric;
+        if (rubric === NONEXISTENT) {
             throw new Error('This assignment does not have a rubric');
         }
 
@@ -150,10 +151,14 @@ export class RubricSource extends DataSource<RubricDataSourceValue> {
         });
     }
 
-    get rubric() {
-        const rubric = getProps(this.assignment, null, 'rubric');
-        AssertionError.assert(rubric != null, 'This assignment does not have a rubric');
-        return rubric;
+    get rubric(): Rubric<number> {
+        const rubric = this.assignment?.rubric;
+        AssertionError.assert(
+            rubric != null && rubric !== NONEXISTENT,
+            'This assignment does not have a rubric',
+        );
+        // We must tell typescript that the result cannot be NONEXISTENT.
+        return rubric as Rubric<number>;
     }
 
     get rowIds(): ReadonlyArray<number> {

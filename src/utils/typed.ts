@@ -6,6 +6,20 @@ import { getLanguage, highlight } from 'highlightjs';
 import { User } from '@/models';
 import { visualizeWhitespace } from './visualize';
 
+export function identity<T>(x: T): T {
+    return x;
+}
+
+type Nothing = null | undefined;
+
+type Just<T> = T;
+
+export type Maybe<T> = Nothing | Just<T>;
+
+export function maybe<S, T>(m: Maybe<S>, f: (a: S) => T, dflt: Maybe<T> = null): Maybe<T> {
+    return m == null ? dflt : f(m);
+}
+
 export class Right<T> {
     static readonly tag = 'right';
 

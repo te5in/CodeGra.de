@@ -8,6 +8,9 @@ import {
     setXor,
     hasAttr,
     filterMap,
+    identity,
+    maybe,
+    Maybe,
     Left,
     Right,
     AssertionError,
@@ -271,7 +274,11 @@ export class RubricRow<T extends number | undefined | null> {
         }
     }
 
-    _autoTestLockMessage(_: Object, autoTestResult: AutoTestResult, rubricResult: RubricResult) {
+    _autoTestLockMessage(
+        _: Object | null,
+        autoTestResult: AutoTestResult,
+        rubricResult: RubricResult,
+    ) {
         const selectedRubricItem = getProps(
             rubricResult,
             null,
@@ -386,11 +393,13 @@ export class NormalRubricRow<T extends number | undefined | null> extends Rubric
     }
 
     _autoTestLockMessage(
-        autoTest: Object,
+        // eslint-disable-next-line camelcase
+        autoTest: { grade_calculation?: 'full' | 'partial' } | null,
         autoTestResult: AutoTestResult,
         rubricResult: RubricResult,
     ) {
-        const gradeCalculation = getProps(autoTest, null, 'grade_calculation');
+        // eslint-disable-next-line camelcase
+        const gradeCalculation = autoTest?.grade_calculation;
         let msg = super._autoTestLockMessage(autoTest, autoTestResult, rubricResult);
         if (msg) {
             msg += ' ';
@@ -600,16 +609,14 @@ export class RubricResult {
     }
 
     get rubric(): Rubric<number> | null {
-        const id = getProps(this.submission, null, 'assignmentId');
+        const id = this.submission?.assignmentId;
         return id == null ? null : store.getters['rubrics/rubrics'][id];
     }
 
-    get maxPoints(): number | null {
-        return getProps(
-            this.assignment,
-            getProps(this.rubric, null, 'maxPoints'),
-            'fixed_max_rubric_points',
-        );
+    get maxPoints(): Maybe<number> {
+        // eslint-disable-next-line camelcase
+        const pts = this.assignment?.fixed_max_rubric_points;
+        return maybe(pts, identity, this.rubric?.maxPoints);
     }
 
     get grade(): string | null {
