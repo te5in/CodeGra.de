@@ -316,7 +316,7 @@ export class Assignment extends AssignmentData {
         return this._canSeeFeedbackType('linter');
     }
 
-    get rubric(): Rubric<number> | typeof NONEXISTENT {
+    get rubric(): Rubric<number> | NONEXISTENT {
         return store.getters['rubrics/rubrics'][this.id];
     }
 

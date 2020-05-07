@@ -153,8 +153,7 @@ export class RubricSource extends DataSource<RubricDataSourceValue> {
             rubric != null && rubric !== NONEXISTENT,
             'This assignment does not have a rubric',
         );
-        // We must tell typescript that the result cannot be NONEXISTENT.
-        return rubric as Rubric<number>;
+        return rubric;
     }
 
     get rowIds(): ReadonlyArray<number> {
