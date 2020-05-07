@@ -67,10 +67,12 @@ export const NO_FOOTER_ROUTES = new Set(<const>[
 // Indicates an object in the store that has been requested but not returned by
 // the server, e.g. if it does not exist or the user has no permission to see
 // the object.
-export const NONEXISTENT = Object.freeze({ _NONEXISTANT: true });
+export const NONEXISTENT = Symbol('NONEXISTENT');
+export type NONEXISTENT = typeof NONEXISTENT;
 
 // Indicates that a value has not yet been set (e.g. in a model cache).
-export const UNSET_SENTINEL = Object.freeze({ _UNSET_SENTINEL: true });
+export const UNSET_SENTINEL = Symbol('UNSET_SENTINEL');
+export type UNSET_SENTINEL = typeof UNSET_SENTINEL;
 
 export const RUBRIC_BADGE_AT =
     '<div class="ml-1 badge badge-primary" title="This is an AutoTest category">AT</div>';

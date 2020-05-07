@@ -33,14 +33,11 @@ const actions = {
                     .get(`/api/v1/submissions/${submissionId}/files/`, {
                         params: { owner: 'teacher' },
                     })
-                    .catch(err => {
-                        switch (utils.getProps(err, null, 'response', 'status')) {
-                            case 403:
-                                return { data: null };
-                            default:
-                                throw err;
-                        }
-                    }),
+                    .catch(
+                        utils.makeHttpErrorHandler({
+                            403: () => ({ data: null }),
+                        }),
+                    ),
             ]).then(
                 ([, student, teacher]) => {
                     delete loaders.fileTrees[submissionId];
