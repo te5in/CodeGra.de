@@ -507,10 +507,6 @@ class LTI1p3Provider(LTIProviderBase):
         assert self._lms_name is not None
         return self._lms_name
 
-    @property
-    def lms_capabilities(self) -> LMSCapabilities:
-        return lti_1_3_lms_capabilities[self.lms_name]
-
     def finalize_registration(
         self,
         iss: str,
