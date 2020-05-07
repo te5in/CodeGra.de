@@ -9,6 +9,7 @@ import { Rubric } from '@/models';
 
 // @ts-ignore
 import { store } from '@/store';
+import { NONEXISTENT } from '@/constants';
 import * as utils from '@/utils/typed';
 
 import * as assignmentState from '@/store/assignment-states';
@@ -272,10 +273,7 @@ export class Assignment extends AssignmentData {
         }
         return utils.filterMap(this.graderIds, id => {
             const user = User.findUserById(id);
-            if (user != null) {
-                return new utils.Right(user);
-            }
-            return new utils.Left(null);
+            return utils.Maybe.fromNullable(user);
         });
     }
 
@@ -318,7 +316,7 @@ export class Assignment extends AssignmentData {
         return this._canSeeFeedbackType('linter');
     }
 
-    get rubric(): Rubric<number> {
+    get rubric(): Rubric<number> | NONEXISTENT | undefined {
         return store.getters['rubrics/rubrics'][this.id];
     }
 

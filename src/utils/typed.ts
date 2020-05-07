@@ -3,24 +3,14 @@ import moment from 'moment';
 import type { ICompiledMode } from 'highlightjs';
 import { getLanguage, highlight } from 'highlightjs';
 
+import { Maybe } from 'purify-ts/Maybe';
+
 import { User } from '@/models';
 import { visualizeWhitespace } from './visualize';
 
-export class Right<T> {
-    static readonly tag = 'right';
-
-    constructor(public result: T) {
-        Object.freeze(this);
-    }
-}
-export class Left<T> {
-    static readonly tag = 'left';
-
-    constructor(public error: T) {
-        Object.freeze(this);
-    }
-}
-export type Either<T, TT> = Left<T> | Right<TT>;
+export * from 'purify-ts/Either';
+export * from 'purify-ts/EitherAsync';
+export * from 'purify-ts/Maybe';
 
 export type ValueOf<T> = T[keyof T];
 
@@ -243,16 +233,23 @@ export function waitAtLeast<T>(time: number, ...promises: Promise<T>[]): Promise
     });
 }
 
-export function getProps<TObj extends object, TKey extends keyof TObj, TDefault>(
-    object: TObj | null | undefined,
-    defaultValue: TDefault,
-    prop: TKey,
-): Exclude<TObj[TKey], undefined | null> | TDefault;
+type isA<T, Y, True, False> = T extends Y ? True : False;
 
 export function getProps<TObj extends object, TKey extends keyof TObj, TDefault>(
     object: TObj,
     defaultValue: TDefault,
-    prop: Omit<string, TKey>,
+    prop: TKey,
+): isA<
+    TObj[TKey],
+    null | undefined,
+    Exclude<TObj[TKey], null | undefined> | TDefault,
+    Exclude<TObj[TKey], null | undefined>
+>;
+
+export function getProps<TDefault>(
+    object: undefined | null,
+    defaultValue: TDefault,
+    ...prop: string[]
 ): TDefault;
 
 export function getProps<
@@ -281,17 +278,12 @@ export function getProps<
     prop3: TKey3,
 ): Exclude<TObj[TKey1][TKey2][TKey3], undefined> | TDefault;
 
-export function getProps<
-    TObj extends object,
-    TKey1 extends keyof TObj,
-    TKey2 extends keyof TObj[TKey1],
-    TKey3 extends keyof TObj[TKey1][TKey2],
-    TDefault
->(
+export function getProps<TObj extends object, TKey1 extends keyof TObj, TDefault>(
     object: TObj,
     defaultValue: TDefault,
     prop1: Omit<string, TKey1>,
-    ...otherProps: string[]
+    prop2: string,
+    prop3: string,
 ): TDefault;
 
 export function getProps<T, Y, K extends string>(
@@ -390,13 +382,11 @@ export function readableFormatDate(date: moment.Moment | string): string {
 }
 
 export function filterMap<T, TT>(
-    arr: ReadonlyArray<T>, filterMapper: (arg: T) => Either<unknown, TT>,
+    arr: ReadonlyArray<T>, filterMapper: (arg: T) => Maybe<TT>,
 ): TT[] {
     return arr.reduce((acc: TT[], item) => {
         const toAdd = filterMapper(item);
-        if (toAdd instanceof Right) {
-            acc.push(toAdd.result);
-        }
+        toAdd.ifJust(x => acc.push(x));
         return acc;
     }, []);
 }
@@ -475,17 +465,11 @@ export function mapToObject<T extends Object, KK extends keyof T = keyof T>(
 
 export function mapFilterObject<T, V>(
     obj: Record<KeyLike, T>,
-    fun: (v: T, k: string) => Either<unknown, V>,
+    fun: (v: T, k: string) => Maybe<V>,
 ): Record<string, V> {
     return fromEntries(filterMap(
         Object.entries(obj),
-        ([key, val]) => {
-            const either = fun(val, key);
-            if (either instanceof Right) {
-                return new Right([key, either.result]);
-            }
-            return either;
-        },
+        ([key, val]) => fun(val, key).map(result => [key, result]),
     ));
 }
 

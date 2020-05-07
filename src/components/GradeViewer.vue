@@ -206,7 +206,11 @@ export default {
         },
 
         rubricMaxPoints() {
-            return this.$utils.getProps(this.rubricResult, null, 'maxPoints');
+            return this.$utils.getProps(
+                this.rubricResult,
+                this.$utils.Nothing,
+                'maxPoints',
+            ).extractNullable();
         },
 
         rubricHasSelectedItems() {

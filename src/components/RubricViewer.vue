@@ -178,7 +178,9 @@ export default {
                 if (this.autoTestConfigId) {
                     this.storeLoadAutoTest({
                         autoTestId: this.autoTestConfigId,
-                    });
+                    }).catch(err => this.$utils.handleHttpError({
+                        403: () => {},
+                    }, err));
                 }
             },
         },
