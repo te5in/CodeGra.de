@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import json
 import typing as t
@@ -86,7 +87,7 @@ FlaskConfig = TypedDict(
         'VERSION': str,
         'TESTING': bool,
         'Celery': CeleryConfig,
-        'LTI_CONSUMER_KEY_SECRETS': t.Mapping[str, str],
+        'LTI_CONSUMER_KEY_SECRETS': t.Mapping[str, t.Tuple[str, t.List[str]]],
         'LTI1.3_MIN_POLL_INTERVAL': int,
         'DEBUG': bool,
         'SQLALCHEMY_DATABASE_URI': str,
@@ -355,10 +356,12 @@ set_int(CONFIG, backend_ops, 'MIN_FREE_DISK_SPACE', 10 * GB)
 def _set_version() -> None:
     CONFIG['CUR_COMMIT'] = subprocess.check_output([
         'git', 'rev-parse', 'HEAD'
-    ], text=True).strip()
+    ],
+                                                   text=True).strip()
     CONFIG['VERSION'] = subprocess.check_output([
         'git', 'describe', '--abbrev=0', '--tags'
-    ], text=True).strip()
+    ],
+                                                text=True).strip()
 
 
 try:
@@ -612,13 +615,34 @@ set_bool(CONFIG['__S_FEATURES'], feature_ops, 'EMAIL_STUDENTS', True)
 ############
 # LTI keys #
 ############
-# All LTI consumer keys mapped to secret keys. Please add your own.
+
 lti_parser = ConfigParser()
 lti_parser.optionxform = str  # type: ignore
+CONFIG['LTI_CONSUMER_KEY_SECRETS'] = {}
+
+
+def parse_lti_value(
+    keys_and_secs: t.Dict[str, t.Tuple[str, t.List[str]]], key: str, value: str
+) -> None:
+    match = re.match(r'^(.*)\[[0-9]+\]$', key)
+    if match is not None:
+        key = match.group(1)
+
+    lms, sec = value.split(':', 1)
+    assert lms
+    assert sec
+
+    if key in keys_and_secs:
+        assert keys_and_secs[key][0] == lms
+    else:
+        keys_and_secs[key] = (lms, [])
+
+    keys_and_secs[key][1].append(sec)
+
+
 if lti_parser.read(config_file) and 'LTI Consumer keys' in lti_parser:
-    CONFIG['LTI_CONSUMER_KEY_SECRETS'] = dict(lti_parser['LTI Consumer keys'])
-else:
-    CONFIG['LTI_CONSUMER_KEY_SECRETS'] = {}
+    for key, value in lti_parser['LTI Consumer keys'].items():
+        parse_lti_value(CONFIG['LTI_CONSUMER_KEY_SECRETS'], key, value)
 
 set_int(CONFIG, backend_ops, 'LTI1.3_MIN_POLL_INTERVAL', 60)
 

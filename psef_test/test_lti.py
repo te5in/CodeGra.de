@@ -1289,9 +1289,6 @@ def test_invalid_jwt(test_client, app, logged_in, session, error_template):
 
 @pytest.mark.parametrize(
     'oauth_key,err', [
-        ('no_secret', 500),
-        ('no_lms', 500),
-        ('no_colon', 500),
         ('unknown_lms', 400),
     ]
 )

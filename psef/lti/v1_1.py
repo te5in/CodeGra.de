@@ -271,7 +271,7 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
             )
 
         self.key = self.lti_provider.key
-        self.secret = self.lti_provider.secret
+        self.secrets = self.lti_provider.secrets
 
     @staticmethod
     def create_from_request(req: flask.Request) -> 'LTI':
@@ -310,7 +310,15 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
         self = cls(launch_params, lti_provider)
         launch_params['custom_lms_name'] = lti_provider.lms_name
 
-        auth.ensure_valid_oauth(self.key, self.secret, req)
+        for secret in self.secrets:
+            try:
+                auth.ensure_valid_oauth(self.key, secret, req)
+            except Exception as e:
+                err = e
+            else:
+                break
+        else:
+            raise err
 
         return self
 

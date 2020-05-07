@@ -97,15 +97,12 @@ def app(request):
         'MAX_NORMAL_UPLOAD_SIZE': 4 * 2 ** 20,  # 4 mb
         'MAX_LARGE_UPLOAD_SIZE': 100 * 2 ** 20,  # 100mb
         'LTI_CONSUMER_KEY_SECRETS': {
-            'my_lti': 'Canvas:12345678',
-            'canvas2': 'Canvas:123456789',
-            'no_secret': 'Canvas:',
-            'no_lms': ':12345678',
-            'no_colon': '12345678',
-            'unknown_lms': 'unknown:12345678',
-            'blackboard_lti': 'Blackboard:12345678',
-            'moodle_lti': 'Moodle:12345678',
-            'brightspace_lti': 'BrightSpace:12345678',
+            'my_lti': ('Canvas', ['12345678']),
+            'canvas2': ('Canvas', ['123456789']),
+            'unknown_lms': ('unknown', ['12345678']),
+            'blackboard_lti': ('Blackboard', ['12345678']),
+            'moodle_lti': ('Moodle', ['12345678']),
+            'brightspace_lti': ('BrightSpace', ['12345678']),
         },
         'LTI_SECRET_KEY': 'hunter123',
         'SECRET_KEY': 'hunter321',

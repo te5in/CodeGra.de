@@ -249,7 +249,7 @@ class LTI1p1Provider(LTIProviderBase):
 
     @property
     def lms_name(self) -> str:
-        return self._lms_and_secret[0]
+        return self._lms_and_secrets[0]
 
     @classmethod
     def _create_submission_in_lms(
@@ -354,36 +354,43 @@ class LTI1p1Provider(LTIProviderBase):
             if sourcedid is None:  # pragma: no cover
                 continue
 
-            self.lti_class.passback_grade(
-                key=self.key,
-                secret=self.secret,
-                grade=None if sub.deleted else sub.grade,
-                initial=initial,
-                service_url=service_url,
-                sourcedid=sourcedid,
-                lti_points_possible=sub.assignment.lti_points_possible,
-                submission=sub,
-                host=current_app.config['EXTERNAL_URL'],
-            )
+            # The newest secret should be placed last in this list
+            for secret in reversed(self.secrets):
+                try:
+                    self.lti_class.passback_grade(
+                        key=self.key,
+                        secret=secret,
+                        grade=None if sub.deleted else sub.grade,
+                        initial=initial,
+                        service_url=service_url,
+                        sourcedid=sourcedid,
+                        lti_points_possible=sub.assignment.lti_points_possible,
+                        submission=sub,
+                        host=current_app.config['EXTERNAL_URL'],
+                    )
+                except Exception as e:
+                    err = e
+                else:
+                    break
+            else:
+                raise err
 
     @property
-    def _lms_and_secret(self) -> t.Tuple[str, str]:
+    def _lms_and_secrets(self) -> t.Tuple[str, t.List[str]]:
         """Return the OAuth consumer secret and the name of the LMS.
         """
-        lms, _, sec = current_app.config['LTI_CONSUMER_KEY_SECRETS'][
-            self.key].partition(':')
-        assert lms and sec
-        return lms, sec
+        return current_app.config['LTI_CONSUMER_KEY_SECRETS'][
+            self.key]
 
     @property
-    def secret(self) -> str:
+    def secrets(self) -> t.List[str]:
         """The OAuth consumer secret for this LTIProvider.
 
         :getter: Get the OAuth secret.
         :setter: Impossible as all secrets are fixed during startup of
             codegra.de
         """
-        return self._lms_and_secret[1]
+        return self._lms_and_secrets[1]
 
     @property
     def lti_class(self) -> t.Type['psef.lti.v1_1.LTI']:
