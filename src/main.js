@@ -158,78 +158,6 @@ axiosRetry(axios, {
     },
 });
 
-function onVueCreated($root) {
-    store.onVueCreated($root);
-
-    const showToast = (() => {
-        let toastVisible = false;
-
-        return (msg, opts) => {
-            if (toastVisible) {
-                return;
-            }
-
-            const toastOpts = Object.assign(
-                {},
-                {
-                    toaster: 'b-toaster-top-right',
-                    noAutoHide: true,
-                    variant: 'danger',
-                    solid: true,
-                },
-                opts,
-            );
-
-            // TODO: Use events on the toast when (if?) they become available.
-            toastVisible = true;
-            setTimeout(() => {
-                toastVisible = false;
-            }, toastOpts.autoHideDelay);
-
-            $root.$bvToast.toast(msg, toastOpts);
-        };
-    })();
-
-    axios.interceptors.response.use(
-        response => response,
-        error => {
-            const { config, response, request } = error;
-
-            if ((!response || response.status >= 500) && request) {
-                showToast(
-                    'There was an error connecting to the server... Please try again later.',
-                    {
-                        title: 'Connection error',
-                    },
-                );
-            } else if (
-                config &&
-                config.method === 'get' &&
-                response.status === 401 &&
-                !config.url.match(/\/api\/v1\/login.*/)
-            ) {
-                let msg;
-                if (store.store.getters['user/dangerousJwtToken'] == null) {
-                    msg = 'You are currently not logged in. Please log in to view this page.';
-                } else {
-                    msg = 'Your session has expired. Please log in again to view this page.';
-                }
-
-                if (router.currentRoute.name !== 'login') {
-                    setRestoreRoute(router.currentRoute);
-                    store.store.dispatch('user/logout').then(() => {
-                        router.push({ name: 'login' });
-                    });
-                }
-
-                showToast(msg, { title: 'Not logged in' });
-            }
-
-            throw error;
-        },
-    );
-}
-
 Vue.prototype.$http = axios;
 
 const DRIVERS = [
@@ -352,7 +280,7 @@ Promise.all([
     const app = new Vue({
         el: '#app',
         router,
-        template: '<App/>',
+        template: '<App @error-hidden="deleteError"/>',
         components: { App },
         store: store.store,
 
@@ -371,12 +299,15 @@ Promise.all([
                 now: moment(),
                 epoch: getUTCEpoch(),
 
+                caughtErrors: [],
                 $loadFullNotifications: false,
             };
         },
 
         created() {
-            onVueCreated(this);
+            axios.interceptors.response.use(res => res, this.httpErrorHandler);
+
+            store.onVueCreated(this);
 
             window.addEventListener('resize', () => {
                 this.screenWidth = window.innerWidth;
@@ -437,6 +368,47 @@ Promise.all([
             $epoch() {
                 return this.epoch;
             },
+
+            httpErrorHandler() {
+                return utils.makeHttpErrorHandler({
+                    401: err => {
+                        const { config } = err;
+
+                        if (
+                            !config &&
+                            config.method !== 'get' &&
+                            config.url.match(/\/api\/v1\/login/)
+                        ) {
+                            return;
+                        }
+
+                        if (store.store.getters['user/dangerousJwtToken'] == null) {
+                            this.notLoggedInError(
+                                'You are currently not logged in. Please log in to view this page.',
+                            );
+                        } else {
+                            this.notLoggedInError(
+                                'Your session has expired. Please log in again to view this page.',
+                            );
+                        }
+
+                        if (router.currentRoute.name !== 'login') {
+                            setRestoreRoute(router.currentRoute);
+                            store.store.dispatch('user/logout').then(() => {
+                                router.push({ name: 'login' });
+                            });
+                        }
+                    },
+                    '5xx': err => {
+                        const { request } = err;
+
+                        if (request) {
+                            this.backendError();
+                        }
+                    },
+                    noResponse: this.connectionError,
+                });
+            },
         },
 
         methods: {
@@ -459,6 +431,43 @@ Promise.all([
                 setTimeout(() => {
                     this._loadNotifications();
                 }, sleepTime);
+            },
+
+            notLoggedInError(message) {
+                this.addError({
+                    tag: 'NotLoggedIn',
+                    title: 'Not logged in',
+                    message,
+                });
+            },
+
+            backendError() {
+                this.addError({
+                    tag: 'BackendError',
+                    title: 'Unknown error',
+                    message:
+                        'An unexpected error occurred. Please try again in a moment or contact support if this persists.',
+                });
+            },
+
+            connectionError() {
+                this.addError({
+                    tag: 'ConnectionError',
+                    title: 'Connection error',
+                    message:
+                        'There was an error connecting to the server... Please try again later.',
+                });
+            },
+
+            addError(err) {
+                if (!this.caughtErrors.find(other => other.tag === err.tag)) {
+                    this.caughtErrors.push(err);
+                }
+            },
+
+            deleteError(err) {
+                console.log('error hidden', err);
+                this.caughtErrors = this.caughtErrors.filter(other => other.tag === err.tag);
             },
         },
 

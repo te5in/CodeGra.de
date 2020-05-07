@@ -19,6 +19,17 @@
         </div>
     </template>
     <div v-if="showFrameBorder" class="frame-border border"/>
+
+    <b-toast v-for="error in $root.caughtErrors"
+             toaster="b-toaster-top-right"
+             variant="danger"
+             :title="error.title"
+             visible
+             no-auto-hide
+             solid
+             @hide="$emit('error-hidden', error)">
+        {{ error.message }}
+    </b-toast>
 </div>
 </template>
 
