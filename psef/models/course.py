@@ -20,7 +20,7 @@ from ..helpers import NotEqualMixin
 from .assignment import Assignment
 from .link_tables import user_course
 from ..permissions import CoursePermission
-from .lti_provider import LTIProviderBase
+from .lti_provider import LTI1p3Provider, LTIProviderBase
 
 logger = structlog.get_logger()
 
@@ -284,13 +284,17 @@ class Course(NotEqualMixin, Base):
         :returns: A object as described above.
         """
         prov = self.lti_provider
+        capabilities = None
+        if isinstance(prov, LTI1p3Provider):
+            capabilities = prov.lms_capabilities
+
         return {
             'id': self.id,
             'name': self.name,
             'created_at': self.created_at.isoformat(),
             'is_lti': self.is_lti,
             'virtual': self.virtual,
-            'lti1p3_lms_capabilities': prov.lms_capabilities if prov else None,
+            'lti1p3_lms_capabilities': capabilities,
         }
 
     def get_all_visible_assignments(self) -> t.Sequence['Assignment']:

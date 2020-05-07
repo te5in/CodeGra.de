@@ -119,10 +119,6 @@ class LTIProviderBase(Base):
     def member_sourcedid_required(self) -> bool:
         raise NotImplementedError
 
-    @property
-    def lms_capabilities(self) -> LMSCapabilities:
-        return lti_1_3_lms_capabilities[self.lms_name]
-
     @classmethod
     def _get_self_from_assignment_id(
         cls: t.Type[T_LTI_PROV],
@@ -487,6 +483,10 @@ class LTI1p3Provider(LTIProviderBase):
 
     if t.TYPE_CHECKING:
         client_id = db.Column('client_id', db.Unicode)
+
+    @property
+    def lms_capabilities(self) -> LMSCapabilities:
+        return lti_1_3_lms_capabilities[self.lms_name]
 
     _lms_name = db.Column(
         'lms_name',
