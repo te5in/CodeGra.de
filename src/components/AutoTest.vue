@@ -810,22 +810,21 @@ export default {
                         this.configCollapsed = !!this.currentRun && !this.singleResult;
                         return this.singleResult ? this.loadSingleResult() : this.loadAutoTestRun();
                     },
-                    err => this.$utils.handleHttpError({
+                    this.$utils.makeHttpErrorHandler({
                         403: () => {
                             this.message = {
                                 text: 'The AutoTest results are not yet available.',
                                 isError: false,
                             };
                         },
-                        default: () => {
+                        default: err => {
+                            const msg = this.$utils.getErrorMessage(err);
                             this.message = {
-                                text: `Could not load AutoTest: ${this.$utils.getErrorMessage(
-                                    err,
-                                )}`,
+                                text: `Could not load AutoTest: ${msg}`,
                                 isError: true,
                             };
                         },
-                    }, err),
+                    }),
                 ),
             ]).then(
                 () => {
@@ -847,11 +846,11 @@ export default {
                 () => {
                     this.setPollingTimer(this.loadAutoTestRun);
                 },
-                err => this.$utils.handleHttpError({
+                this.$utils.makeHttpErrorHandler({
                     noResponse: () => this.setPollingTimer(this.loadAutoTestRun),
                     500: () => this.setPollingTimer(this.loadAutoTestRun),
                     404: () => this.onRun404(),
-                }, err),
+                }),
             );
         },
 
