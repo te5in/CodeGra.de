@@ -45,10 +45,14 @@
         <cg-loader v-else-if="loading"
                    class="p-3" />
 
+        <div v-else-if="sortedOtherSubmissions.length === 0"
+            class="p-3 text-muted font-italic">
+            No submissions to other assignments in this course.
+        </div>
+
         <ol v-else
             class="mb-0 pl-0">
             <li v-for="(sub, i) in sortedOtherSubmissions"
-                v-if="sub.id !== submission.id"
                 :key="sub.id"
                 class="border-top">
                 <collapse :collapsed="shouldCollapse(sub)">
@@ -140,7 +144,7 @@ export default {
             loading: true,
             error: null,
             filter: '',
-            otherSubmissions: [],
+            latestSubsInCourse: [],
             settingsCollapsed: true,
             useRegex: false,
             contextLines: 3,
@@ -160,15 +164,20 @@ export default {
             return this.submission.user;
         },
 
+        otherSubmissions() {
+            return this.latestSubsInCourse.filter(sub => sub.id !== this.submission.id);
+        },
+
         sortedOtherSubmissions() {
             // TODO: Should we sort by amount of matching comments if the
             // filter is not empty, so that all submissions with no matches
             // end up below submissions with matches?
-            return this.otherSubmissions.sort((a, b) =>
-                (a.assignment.deadline.isBefore(
-                    b.assignment.deadline,
-                ) ? 1 : -1),
-            );
+            return this.otherSubmissions
+                .sort((a, b) =>
+                    (a.assignment.deadline.isBefore(
+                        b.assignment.deadline,
+                    ) ? 1 : -1),
+                );
         },
 
         filterRegex() {
@@ -231,7 +240,7 @@ export default {
         submission: {
             immediate: true,
             handler(newSub) {
-                if (!this.otherSubmissions.find(s => s.id === newSub.id)) {
+                if (!this.latestSubsInCourse.find(s => s.id === newSub.id)) {
                     this.loadOtherFeedback(this.submission.id);
                 }
             },
@@ -249,14 +258,14 @@ export default {
         loadOtherFeedback() {
             this.loading = true;
             this.error = null;
-            this.otherSubmissions = [];
+            this.latestSubsInCourse = [];
 
             this.loadLatestByUserInCourse({
                 courseId: this.course.id,
                 userId: this.author.id,
             }).then(
                 subs => {
-                    this.otherSubmissions = subs;
+                    this.latestSubsInCourse = subs;
                     return Promise.all(
                         subs.map(sub =>
                             this.loadFeedback({
