@@ -150,7 +150,7 @@ export default class StudentContact extends Vue {
     @Prop({ required: true }) course!: {
         id: number,
         snippets: Snippet[] | null,
-        permissions?: Record<string, boolean>,
+        permissions: Record<string, boolean>,
     };
 
     @Prop({ default: false }) noCancel!: boolean;
@@ -272,7 +272,7 @@ export default class StudentContact extends Vue {
 
     get canListUsers() {
         // eslint-disable-next-line camelcase
-        return !!(this.course?.permissions?.can_list_course_users);
+        return !!(this.course?.permissions.can_list_course_users);
     }
 
     afterEmail(): void {

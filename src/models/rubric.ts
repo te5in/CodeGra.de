@@ -9,6 +9,8 @@ import {
     hasAttr,
     filterMap,
     Maybe,
+    Nothing,
+    Just,
     AssertionError,
     parseOrKeepFloat,
     coerceToString,
@@ -164,10 +166,14 @@ export class RubricRow<T extends number | undefined | null> {
             const maxPoints = Math.max(
                 ...filterMap(
                     this.items,
-                    item =>
-                        Maybe.fromPredicate(pts => pts != null && pts !== '', item.points) as Maybe<
-                            number
-                        >,
+                    (item): Maybe<number> => {
+                        const pts: number | null | '' = item.points;
+                        if (pts == null || pts === '') {
+                            return Nothing;
+                        } else {
+                            return Just(pts);
+                        }
+                    },
                 ),
             );
 
