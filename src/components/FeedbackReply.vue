@@ -174,6 +174,16 @@
                     <icon name="history" />
                 </b-btn>
 
+                <b-popover :target="`${componentId}-history-btn`"
+                        v-if="canSeeEdits && reply.lastEdit"
+                        triggers="click blur"
+                        title="Edit history"
+                        custom-class="feedback-reply-edit-history-popover p-0"
+                        :container="componentId"
+                        placement="leftbottom">
+                    <feedback-reply-history :reply="reply"/>
+                </b-popover>
+
                 <template v-if="!nonEditable">
                     <b-btn @click="showExternalImages = !showExternalImages"
                         class="state-default"
@@ -186,16 +196,6 @@
                             <icon name="picture-o" />
                         </span>
                     </b-btn>
-
-                    <b-popover :target="`${componentId}-history-btn`"
-                            v-if="canSeeEdits && reply.lastEdit"
-                            triggers="click blur"
-                            title="Edit history"
-                            custom-class="feedback-reply-edit-history-popover p-0"
-                            :container="componentId"
-                            placement="leftbottom">
-                        <feedback-reply-history :reply="reply"/>
-                    </b-popover>
 
                     <cg-submit-button
                         v-if="editable"
