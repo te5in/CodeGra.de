@@ -466,7 +466,6 @@ Promise.all([
             },
 
             deleteError(err) {
-                console.log('error hidden', err);
                 this.caughtErrors = this.caughtErrors.filter(other => other.tag === err.tag);
             },
         },
