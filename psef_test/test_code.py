@@ -508,6 +508,164 @@ def test_delete_code_twice(
     'filename', ['../test_submissions/multiple_dir_archive.zip'],
     indirect=True
 )
+def test_delete_dir_with_deleted_files(
+    assignment_real_works, test_client, request, error_template, ta_user,
+    student_user, logged_in, session, describe
+):
+    assignment, work = assignment_real_works
+    work_id = work['id']
+
+    with logged_in(student_user), describe('as a student'):
+        res = test_client.req(
+            'get',
+            f'/api/v1/submissions/{work_id}/files/',
+            200,
+            result={
+                'id': str,
+                'name': str,
+                'entries': list,
+            },
+        )
+        assert len(res['entries']) == 2
+        dir = res['entries'][0]
+        assert 'entries' in dir
+        assert len(dir['entries']) == 2
+
+        with describe('delete first file in a subdirectory'):
+            test_client.req(
+                'delete',
+                f'/api/v1/code/{dir["entries"][0]["id"]}',
+                204,
+                result=None,
+            )
+
+        with describe(
+            'check that it is still not possible to delete directory'
+        ):
+            test_client.req(
+                'delete',
+                f'/api/v1/code/{dir["id"]}',
+                400,
+                result=error_template,
+            )
+
+        with describe('delete second file in subdirectory'):
+            test_client.req(
+                'delete',
+                f'/api/v1/code/{dir["entries"][1]["id"]}',
+                204,
+                result=None,
+            )
+
+        with describe('check that we can now delete directory'):
+            test_client.req(
+                'delete',
+                f'/api/v1/code/{dir["id"]}',
+                204,
+                result=None,
+            )
+
+        with describe('check that directory is gone'):
+            res = test_client.req(
+                'get',
+                f'/api/v1/submissions/{work_id}/files/',
+                200,
+                result={
+                    'id': str,
+                    'name': str,
+                    'entries': list,
+                },
+            )
+            print(res)
+            assert len(res['entries']) == 1
+
+    with logged_in(ta_user), describe('as a teacher'):
+        res = test_client.req(
+            'get',
+            f'/api/v1/submissions/{work_id}/files/',
+            200,
+            query={'owner': 'teacher'},
+            result={
+                'id': str,
+                'name': str,
+                'entries': list,
+            },
+        )
+        print(res)
+        assert len(res['entries']) == 2
+        dir = res['entries'][0]
+        assert 'entries' in dir
+        assert len(dir['entries']) == 2
+
+        assignment.deadline = DatetimeWithTimezone.utcnow(
+        ) - datetime.timedelta(days=1)
+        session.commit()
+
+        with describe('delete first file in a subdirectory'):
+            test_client.req(
+                'delete',
+                f'/api/v1/code/{dir["entries"][0]["id"]}',
+                204,
+                result=None,
+            )
+
+        with describe(
+            'check that it is still not possible to delete directory'
+        ):
+            test_client.req(
+                'delete',
+                f'/api/v1/code/{dir["id"]}',
+                400,
+                result=error_template,
+            )
+
+        with describe('delete second file in subdirectory'):
+            test_client.req(
+                'delete',
+                f'/api/v1/code/{dir["entries"][1]["id"]}',
+                204,
+                result=None,
+            )
+
+        with describe('check that we can now delete directory'):
+            test_client.req(
+                'delete',
+                f'/api/v1/code/{dir["id"]}',
+                204,
+                result=None,
+            )
+
+        with describe('check that directory is gone'):
+            res = test_client.req(
+                'get',
+                f'/api/v1/submissions/{work_id}/files/',
+                200,
+                query={'owner': 'teacher'},
+                result={
+                    'id': str,
+                    'name': str,
+                    'entries': list,
+                },
+            )
+            res2 = test_client.req(
+                'get',
+                f'/api/v1/submissions/{work_id}/files/',
+                200,
+                result={
+                    'id': str,
+                    'name': str,
+                    'entries': list,
+                },
+            )
+            print(res)
+            print(res2)
+            assert len(res['entries']) == 1
+
+
+@pytest.mark.parametrize(
+    'filename', ['../test_submissions/multiple_dir_archive.zip'],
+    indirect=True
+)
 def test_invalid_delete_code(
     assignment_real_works, test_client, request, error_template, ta_user,
     logged_in, session, monkeypatch_celery
