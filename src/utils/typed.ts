@@ -8,9 +8,9 @@ import { Maybe } from 'purify-ts/Maybe';
 import { User } from '@/models';
 import { visualizeWhitespace } from './visualize';
 
-export * from 'purify-ts/Either';
-export * from 'purify-ts/EitherAsync';
-export * from 'purify-ts/Maybe';
+export * from 'purify-ts/es/Either';
+export * from 'purify-ts/es/EitherAsync';
+export * from 'purify-ts/es/Maybe';
 
 export type ValueOf<T> = T[keyof T];
 

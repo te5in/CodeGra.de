@@ -523,13 +523,16 @@ def test_delete_dir_with_deleted_files_as_student(
             result={
                 'id': str,
                 'name': str,
-                'entries': list,
+                'entries': [
+                    {
+                        'entries': [dict, dict],
+                        '__allow_extra__': True,
+                    },
+                    dict,
+                ],
             },
         )
-        assert len(res['entries']) == 2
         dir = res['entries'][0]
-        assert 'entries' in dir
-        assert len(dir['entries']) == 2
 
         with describe('delete first file in a subdirectory'):
             test_client.req(
@@ -584,10 +587,36 @@ def test_delete_dir_with_deleted_files_as_student(
 )
 def test_delete_dir_with_deleted_files_as_ta(
     assignment_real_works, test_client, request, error_template, ta_user,
-    logged_in, session, describe
+    student_user, logged_in, session, describe
 ):
     assignment, work = assignment_real_works
     work_id = work['id']
+
+    with logged_in(student_user), describe('delete some files as student'):
+        res = test_client.req(
+            'get',
+            f'/api/v1/submissions/{work_id}/files/',
+            200,
+            result={
+                'id': str,
+                'name': str,
+                'entries': [
+                    {
+                        'entries': [dict, dict],
+                        '__allow_extra__': True,
+                    },
+                    dict,
+                ],
+            },
+        )
+        dir = res['entries'][0]
+
+        test_client.req(
+            'delete',
+            f'/api/v1/code/{dir["entries"][0]["id"]}',
+            204,
+            result=None,
+        )
 
     with logged_in(ta_user):
         res = test_client.req(
@@ -598,13 +627,16 @@ def test_delete_dir_with_deleted_files_as_ta(
             result={
                 'id': str,
                 'name': str,
-                'entries': list,
+                'entries': [
+                    {
+                        'entries': [dict, dict],
+                        '__allow_extra__': True,
+                    },
+                    dict,
+                ],
             },
         )
-        assert len(res['entries']) == 2
         dir = res['entries'][0]
-        assert 'entries' in dir
-        assert len(dir['entries']) == 2
 
         assignment.deadline = DatetimeWithTimezone.utcnow(
         ) - datetime.timedelta(days=1)
