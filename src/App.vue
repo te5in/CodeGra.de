@@ -21,6 +21,7 @@
     <div v-if="showFrameBorder" class="frame-border border"/>
 
     <b-toast v-for="error in $root.caughtErrors"
+             :key="error.tag"
              toaster="b-toaster-top-right"
              variant="danger"
              :title="error.title"
