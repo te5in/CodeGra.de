@@ -508,14 +508,14 @@ def test_delete_code_twice(
     'filename', ['../test_submissions/multiple_dir_archive.zip'],
     indirect=True
 )
-def test_delete_dir_with_deleted_files(
-    assignment_real_works, test_client, request, error_template, ta_user,
-    student_user, logged_in, session, describe
+def test_delete_dir_with_deleted_files_as_student(
+    assignment_real_works, test_client, request, error_template, student_user,
+    logged_in, session, describe
 ):
     assignment, work = assignment_real_works
     work_id = work['id']
 
-    with logged_in(student_user), describe('as a student'):
+    with logged_in(student_user):
         res = test_client.req(
             'get',
             f'/api/v1/submissions/{work_id}/files/',
@@ -573,13 +573,23 @@ def test_delete_dir_with_deleted_files(
                 result={
                     'id': str,
                     'name': str,
-                    'entries': list,
+                    'entries': [dict],
                 },
             )
-            print(res)
-            assert len(res['entries']) == 1
 
-    with logged_in(ta_user), describe('as a teacher'):
+
+@pytest.mark.parametrize(
+    'filename', ['../test_submissions/multiple_dir_archive.zip'],
+    indirect=True
+)
+def test_delete_dir_with_deleted_files_as_ta(
+    assignment_real_works, test_client, request, error_template, ta_user,
+    logged_in, session, describe
+):
+    assignment, work = assignment_real_works
+    work_id = work['id']
+
+    with logged_in(ta_user):
         res = test_client.req(
             'get',
             f'/api/v1/submissions/{work_id}/files/',
@@ -591,7 +601,6 @@ def test_delete_dir_with_deleted_files(
                 'entries': list,
             },
         )
-        print(res)
         assert len(res['entries']) == 2
         dir = res['entries'][0]
         assert 'entries' in dir
@@ -636,7 +645,7 @@ def test_delete_dir_with_deleted_files(
             )
 
         with describe('check that directory is gone'):
-            res = test_client.req(
+            test_client.req(
                 'get',
                 f'/api/v1/submissions/{work_id}/files/',
                 200,
@@ -644,22 +653,9 @@ def test_delete_dir_with_deleted_files(
                 result={
                     'id': str,
                     'name': str,
-                    'entries': list,
+                    'entries': [dict],
                 },
             )
-            res2 = test_client.req(
-                'get',
-                f'/api/v1/submissions/{work_id}/files/',
-                200,
-                result={
-                    'id': str,
-                    'name': str,
-                    'entries': list,
-                },
-            )
-            print(res)
-            print(res2)
-            assert len(res['entries']) == 1
 
 
 @pytest.mark.parametrize(

@@ -317,10 +317,11 @@ def delete_code(file_id: int) -> EmptyResponse:
 
     # We already know that the Work exists, so we can safely use
     # child.self_deleted.
-    if not all(
-        child.fileowner == other
-        for child in code.children.all() if not child.self_deleted
-    ):
+    if db.session.query(
+        code.children.filter(
+            ~models.File.self_deleted, models.File.fileowner != other
+        ).exists(),
+    ).scalar():
         raise APIException(
             'You cannot delete this directory as it has children',
             f'The file "{file_id}" has children with fileowner "{current}"',
