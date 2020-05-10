@@ -2,6 +2,7 @@ import copy
 import typing as t
 import dataclasses
 import urllib.parse
+from datetime import timedelta
 
 import requests
 import werkzeug
@@ -9,7 +10,7 @@ import structlog
 import sqlalchemy.sql
 from pylti1p3.actions import Action as PyLTI1p3Action
 from pylti1p3.lineitem import LineItem
-from typing_extensions import Final, Literal
+from typing_extensions import Final, Literal, TypedDict
 from pylti1p3.deployment import Deployment
 from pylti1p3.oidc_login import OIDCLogin
 from pylti1p3.tool_config import ToolConfAbstract
@@ -20,6 +21,7 @@ from pylti1p3.assignments_grades import AssignmentsGradesService
 from pylti1p3.deep_link_resource import DeepLinkResource
 
 import flask
+import cg_override
 from cg_dt_utils import DatetimeWithTimezone
 
 from . import claims
@@ -38,7 +40,7 @@ logger = structlog.get_logger()
 T = t.TypeVar('T')
 
 if t.TYPE_CHECKING:
-    from pylti1p3.message_launch import _JwtData, _LaunchData
+    from pylti1p3.message_launch import _JwtData, _LaunchData, _KeySet
 
 NEEDED_AGS_SCOPES = [
     'https://purl.imsglobal.org/spec/lti-ags/scope/score',
@@ -49,6 +51,37 @@ NEEDED_SCOPES = [
     *NEEDED_AGS_SCOPES,
     'https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly',
 ]
+
+MemberLike = TypedDict('MemberLike', {'name': str, 'email': str}, total=False)
+
+
+def get_email_for_user(
+    member: MemberLike, provider: 'models.LTI1p3Provider'
+) -> str:
+    full_name = member['name']
+    caps = provider.lms_capabilities
+    test_stud_name = caps.test_student_name
+    if test_stud_name is not helpers.UNSET and test_stud_name == full_name:
+        return member.get('email', 'test_student@codegra.de')
+    return member['email']
+
+
+class CGServiceConnector(ServiceConnector):
+    def __init__(self, provider: 'models.LTI1p3Provider') -> None:
+        super().__init__(provider.get_registration())
+        self._provider = provider
+
+    @cg_override.override
+    def get_access_token(self, scopes: t.Sequence[str]) -> str:
+        scopes = sorted(scopes)
+        scopes_str = '|'.join(scopes)
+        cache = current_app.inter_request_cache.lti_access_tokens
+        super_method = super().get_access_token
+
+        return cache.get_or_set(
+            f'lti-provider-{self._provider.id}-{scopes_str}',
+            lambda: super_method(scopes),
+        )
 
 
 class CGAssignmentsGradesService(AssignmentsGradesService):
@@ -70,7 +103,6 @@ class CGCustomClaims:
         deadline: t.Optional[DatetimeWithTimezone]
         is_available: t.Optional[bool]
         resource_id: t.Optional[str]
-        assignment_id: t.Optional[int]
 
     class _ReplacementVar:
         def __init__(self, name: str) -> None:
@@ -185,8 +217,7 @@ class CGCustomClaims:
         base_data: t.Mapping[str, object],
     ) -> 'CGCustomClaims.ClaimResult':
         username = cls._get_claim('cg_username', custom_claims, base_data, str)
-        # Username is a required var
-        # TODO: Use an actual exception here
+        # Username is a required var, so this should never happen
         assert username is not None, 'Required data not found'
 
         resource_id = cls._get_claim(
@@ -204,59 +235,27 @@ class CGCustomClaims:
         )
         if available_at is None:
             is_available = cls._get_claim(
-                'cg_is_published', custom_claims,
-                base_data, lambda x: x == 'true'
+                'cg_is_published',
+                custom_claims,
+                base_data,
+                lambda x: x == 'true',
             )
         else:
             is_available = DatetimeWithTimezone.utcnow() >= available_at
-
-        assignment_id: t.Optional[int]
-        try:
-            assignment_id = int(custom_claims['cg_assignment_id'])
-        except (TypeError, ValueError, KeyError):
-            assignment_id = None
 
         return CGCustomClaims.ClaimResult(
             username=username,
             deadline=deadline,
             is_available=is_available,
             resource_id=resource_id,
-            assignment_id=assignment_id,
         )
 
 
 class CGDeepLinkResource(DeepLinkResource):
-    def __init__(
-        self, *, assignment: 'models.Assignment', add_params_to_url: bool
-    ) -> None:
-        super().__init__()
-        self._assig = assignment
-
-        self.set_type('ltiResourceLink')
-        self.set_title(assignment.name)
-
-        custom_params = {'cg_assignment_id': str(assignment.id)}
-        self.set_custom_params(custom_params)
-
-        url = current_app.config['EXTERNAL_URL'] + '/api/v1/lti1.3/launch'
-        if add_params_to_url:
-            url += '?' + urllib.parse.urlencode(custom_params)
-
-        self.set_lineitem(
-            LineItem().set_resource_id(str(assignment.id)
-                                       ).set_score_maximum(10)
-        )
-
-        self.set_url(url)
-
-    def to_dict(self) -> t.Dict[str, object]:
-        res = super().to_dict()
-        if self._assig.deadline is not None:
-            res['submission'] = {
-                'endDateTime': self._assig.deadline.isoformat(),
-            }
-            res['endDateTime'] = self._assig.deadline.isoformat()
-        return res
+    @classmethod
+    def make(cls, app: PsefFlask) -> 'CGDeepLinkResource':
+        return cls(
+        ).set_url(f'{app.config["EXTERNAL_URL"]}/api/v1/lti1.3/launch')
 
 
 def init_app(app: PsefFlask) -> None:
@@ -264,25 +263,25 @@ def init_app(app: PsefFlask) -> None:
 
 
 class LTIConfig(ToolConfAbstract[FlaskRequest]):
+    def check_iss_has_one_client(self, iss: str) -> bool:
+        return False
+
     def find_registration_by_issuer(
         self, iss: str, *args: None,
         **kwargs: t.Union[Literal['message_launch', 'oidc_login'],
                           FlaskRequest, '_LaunchData']
     ) -> t.Optional[Registration]:
+        raise AssertionError("We don't support registration by only issuer")
+
+    def find_registration_by_params(
+        self,
+        iss: str,
+        client_id: t.Optional[str],
+        *args: None,
+        **kwargs: t.Union[Literal['message_launch', 'oidc_login'],
+                          FlaskRequest, '_LaunchData'],
+    ) -> t.Optional[Registration]:
         filters = [models.LTI1p3Provider.iss == iss]
-
-        client_id: object = None
-        action = kwargs.get('action')
-        if action == 'message_launch':
-            jwt_body = kwargs['jwt_body']
-            assert isinstance(jwt_body, dict)
-            aud = jwt_body['aud']
-            client_id = aud[0] if isinstance(aud, list) else aud
-        elif action == 'oidc_login':
-            request = kwargs['request']
-            assert isinstance(request, FlaskRequest)
-            client_id = request.get_param('client_id')
-
         if isinstance(client_id, str):
             filters.append(models.LTI1p3Provider.client_id == client_id)
 
@@ -295,8 +294,13 @@ class LTIConfig(ToolConfAbstract[FlaskRequest]):
         self,
         iss: str,
         deployment_id: str,
-        get_param: t.Callable[[str], object],
-    ) -> t.Optional[Deployment]:
+    ) -> None:
+        return None
+
+    def find_deployment_by_params(
+        self, iss: str, deployment_id: str, client_id: str, *args: None,
+        **kwargs: None
+    ) -> None:
         return None
 
 
@@ -306,6 +310,17 @@ class FlaskMessageLaunch(
                   FlaskCookieService]
 ):
     _provider: t.Optional['models.LTI1p3Provider'] = None
+
+    @cg_override.override
+    def fetch_public_key(self, key_set_url: str) -> '_KeySet':
+        provider = self.get_lti_provider()
+        cache = current_app.inter_request_cache.lti_public_keys
+        super_method = super().fetch_public_key
+
+        return cache.get_or_set(
+            f'lti-provider-{provider.id}-{key_set_url}',
+            lambda: super_method(key_set_url),
+        )
 
     def get_lms_name(self) -> str:
         return self.get_lti_provider().lms_name
@@ -337,68 +352,65 @@ class FlaskMessageLaunch(
             models.Role.name == role_name,
         ).one()
 
-    def find_assignment(
-        self,
-        course: 'models.Course',
-    ) -> 'models.MyQuery[models.Assignment]':
-
-        query = course.get_assignments()
+    def _get_resource_id(self) -> t.Optional[str]:
         custom_claim = self.get_custom_claims()
-
-        if custom_claim.assignment_id is not None:
-            return query.filter(
-                models.Assignment.id == custom_claim.assignment_id
-            )
-
         resource_id = custom_claim.resource_id
+
         if resource_id is None:
             launch_data = self.get_launch_data()
             resource_claim = launch_data.get(claims.RESOURCE, {})
             resource_id = resource_claim.get('id', None)
 
-        if resource_id is None:
-            return query.filter(sqlalchemy.sql.false())
+        return resource_id
 
-        return query.filter(
+    def _find_assignment(
+        self,
+        course: 'models.Course',
+    ) -> 't.Optional[models.Assignment]':
+        resource_id = self._get_resource_id()
+        if resource_id is None:
+            return None
+
+        return course.get_assignments().filter(
             models.Assignment.is_visible,
             models.Assignment.lti_assignment_id == resource_id,
-        )
+        ).one_or_none()
 
     def get_assignment(
         self, user: 'models.User', course: 'models.Course'
     ) -> 'models.Assignment':
         launch_data = self.get_launch_data()
         resource_claim = launch_data[claims.RESOURCE]
-        resource_id = resource_claim['id']
         custom_claim = self.get_custom_claims()
 
-        assignment = self.find_assignment(course).one_or_none()
+        assignment = self._find_assignment(course)
         logger.bind(assignment=assignment)
 
         if assignment is None:
-            raise APIException(
-                (
-                    'The assignment was not found on CodeGrade, please'
-                    ' initiate a DeepLink when creating an LTI Assignment.'
-                ), f'The assignment "{resource_id}" was not found',
-                APICodes.OBJECT_NOT_FOUND, 404
+            resource_id = self._get_resource_id()
+            if resource_id is None:
+                # This could easily happen with LTI 1.1, simply using CodeGrade
+                # in another place than assignments. This shouldn't be the case
+                # for LTI1.3, but better to be sure.
+                raise APIException(
+                    (
+                        'No resource id was provided for this launch, please'
+                        ' check that you are in fact creating an assignment'
+                    ), (
+                        'The launch was not done in a resource context, so we'
+                        ' were not provided with the necessary information.'
+                    ), APICodes.INVALID_PARAM, 400
+                )
+
+            assignment = models.Assignment(
+                course=course,
+                name=resource_claim['title'],
+                visibility_state=models.AssignmentVisibilityState.visible,
+                is_lti=True,
+                lti_assignment_id=resource_id,
             )
-        elif assignment.is_being_deep_linked:
-            assignment.complete_deep_link()
-            assignment.lti_assignment_id = resource_id
-        elif assignment.lti_assignment_id != resource_id:
-            raise APIException(
-                (
-                    'This LTI assignment is already connected to a different'
-                    ' assignment on the LMS. When deep linking please only'
-                    ' select an existing assignment if this assignment is not'
-                    ' already connected to a different assignment in your LMS.'
-                ), (
-                    f'The assignment "{assignment.id}" is already connected to'
-                    f' the resource id {assignment.lti_assignment_id}, however'
-                    f' the launch was for the resource with id {resource_id}.'
-                ), APICodes.OBJECT_NOT_FOUND, 404
-            )
+            db.session.add(assignment)
+            db.session.flush()
 
         assignment.lti_grade_service_data = launch_data[claims.GRADES]
 
@@ -427,16 +439,18 @@ class FlaskMessageLaunch(
             self.get_launch_data()[claims.ROLES],
         )
 
+    @cg_override.override
     def _get_request_param(self, key: str) -> object:
         return self._request.get_param(key)
 
     @classmethod
-    def from_request(cls, request: flask.Request) -> 'FlaskMessageLaunch':
+    def from_request(cls) -> 'FlaskMessageLaunch':
+        f_request = FlaskRequest(force_post=True)
         self = cls(
-            FlaskRequest(request, force_post=True),
+            f_request,
             LTIConfig(),
-            FlaskSessionService(request),
-            FlaskCookieService(request),
+            FlaskSessionService(f_request),
+            FlaskCookieService(),
         )
         return self
 
@@ -454,9 +468,11 @@ class FlaskMessageLaunch(
 
     # We never want to save the launch data in the session, as we have no
     # use-case for it, and it slows down every request
+    @cg_override.override
     def save_launch_data(self) -> 'FlaskMessageLaunch':
         return self
 
+    @cg_override.override
     def validate_deployment(self) -> 'FlaskMessageLaunch':
         return self
 
@@ -464,6 +480,7 @@ class FlaskMessageLaunch(
         """Check that all data required by CodeGrade is present.
         """
         launch_data = self.get_launch_data()
+        provider = self.get_lti_provider()
 
         def get_exc(
             msg: str,
@@ -490,13 +507,14 @@ class FlaskMessageLaunch(
             if missing:
                 raise get_exc(msg, mapping, missing)
 
-        check_and_raise(
-            (
-                'We are missing required data about the user doing this LTI'
-                ' launch, please check the privacy levels of the tool:'
-                ' CodeGrade requires the email and the name of the user.'
-            ), launch_data, 'email', 'name'
+        user_err_msg = (
+            'We are missing required data about the user doing this LTI'
+            ' launch, please check the privacy levels of the tool:'
+            ' CodeGrade requires the {} of the user.'
         )
+        check_and_raise(user_err_msg.format('name'), launch_data, 'name')
+        if provider.lms_capabilities.test_student_name != launch_data['name']:
+            check_and_raise(user_err_msg.format('email'), launch_data, 'email')
 
         context = launch_data.get(claims.CONTEXT)
         check_and_raise(
@@ -511,42 +529,41 @@ class FlaskMessageLaunch(
             ), custom, *CGCustomClaims.get_claim_keys()
         )
 
-        if not self.is_deep_link_launch() and not self.has_nrps():
-            raise get_exc(
+        if not self.is_deep_link_launch():
+            if not self.has_nrps():
+                raise get_exc(
+                    (
+                        'It looks like the NamesRoles Provisioning service is not'
+                        ' enabled for this LTI deployment, please check your'
+                        ' configuration.'
+                    ),
+                    launch_data,
+                    claims.NAMESROLES,
+                )
+
+            ags = launch_data.get(claims.GRADES, {})
+            check_and_raise(
                 (
-                    'It looks like the NamesRoles Provisioning service is not'
+                    'It looks like the Assignments and Grades service is not'
                     ' enabled for this LTI deployment, please check your'
-                    ' configuration.'
+                    ' configuration'
                 ),
-                launch_data,
-                claims.NAMESROLES,
+                ags,
+                'scope',
             )
 
-        # TODO: Check how handle these checks for deep linking
-        # (i.e. brightspace)
-        ags = launch_data.get(claims.GRADES, {})
-        check_and_raise(
-            (
-                'It looks like the Assignments and Grades service is not'
-                ' enabled for this LTI deployment, please check your'
-                ' configuration'
-            ),
-            ags,
-            'scope',
-        )
+            scopes = ags.get('scope', [])
 
-        scopes = ags.get('scope', [])
-
-        check_and_raise(
-            (
-                'We do not have the required permissions for passing back'
-                ' grades and updating deadlines in the LMS, please check your'
-                ' configuration'
-            ),
-            {s: True
-             for s in scopes},
-            *NEEDED_AGS_SCOPES,
-        )
+            check_and_raise(
+                (
+                    'We do not have the required permissions for passing back'
+                    ' grades and updating deadlines in the LMS, please check your'
+                    ' configuration'
+                ),
+                {s: True
+                 for s in scopes},
+                *NEEDED_AGS_SCOPES,
+            )
 
         # We don't need to check the roles claim, as that is required by spec
         # to always exist. The same for the resource claim, it is also
@@ -554,6 +571,7 @@ class FlaskMessageLaunch(
 
         return self
 
+    @cg_override.override
     def validate(self) -> 'FlaskMessageLaunch':
         super().validate()
 
@@ -574,18 +592,20 @@ class FlaskMessageLaunch(
     ) -> t.Tuple['models.User', t.Optional[str], t.Optional[str]]:
         launch_data = self.get_launch_data()
         custom_claims = self.get_custom_claims()
+        full_name = launch_data['name']
+        email = get_email_for_user(launch_data, self.get_lti_provider())
 
         user, token = models.UserLTIProvider.get_or_create_user(
             lti_user_id=launch_data['sub'],
             lti_provider=self.get_lti_provider(),
             wanted_username=custom_claims.username,
-            full_name=launch_data['name'],
-            email=launch_data['email'],
+            full_name=full_name,
+            email=email,
         )
 
         updated_email = None
         if user.reset_email_on_lti:
-            user.email = launch_data['email']
+            user.email = email
             updated_email = user.email
             user.reset_email_on_lti = False
 
@@ -625,14 +645,15 @@ class FlaskMessageLaunch(
     @classmethod
     def from_message_data(
         cls,
-        request: flask.Request,
+            *,
         launch_data: t.Mapping[str, object],
     ) -> 'FlaskMessageLaunch':
+        f_request = FlaskRequest(force_post=False)
         obj = cls(
-            FlaskRequest(request, force_post=False),
+            f_request,
             LTIConfig(),
-            session_service=FlaskSessionService(request),
-            cookie_service=FlaskCookieService(request),
+            session_service=FlaskSessionService(f_request),
+            cookie_service=FlaskCookieService(),
         )
 
         return obj.set_auto_validation(enable=False) \
@@ -645,14 +666,16 @@ class FlaskOIDCLogin(
     OIDCLogin[FlaskRequest, LTIConfig, FlaskSessionService, FlaskCookieService,
               werkzeug.wrappers.Response]
 ):
+    @cg_override.override
     def get_redirect(self, url: str) -> FlaskRedirect:
         return FlaskRedirect(url, self._cookie_service)
 
     @classmethod
-    def from_request(cls, request: flask.Request) -> 'FlaskOIDCLogin':
+    def from_request(cls) -> 'FlaskOIDCLogin':
+        f_request = FlaskRequest(force_post=False)
         return FlaskOIDCLogin(
-            FlaskRequest(request, force_post=False),
+            f_request,
             LTIConfig(),
-            FlaskSessionService(request),
-            FlaskCookieService(request),
+            FlaskSessionService(f_request),
+            FlaskCookieService(),
         )

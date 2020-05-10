@@ -139,6 +139,37 @@ def create_user():
 
 
 @manager.command
+def delete_lti_provider():
+    db = psef.models.db
+    prov_id = input('id: ').strip()
+    prov = psef.models.LTI1p3Provider.query.get(prov_id)
+    db.session.delete(prov)
+    db.session.commit()
+
+
+@manager.command
+def update_lti_provider():
+    db = psef.models.db
+    prov_id = input('id: ').strip()
+    to_update = input('to update: ').strip()
+    new_value = input('new value: ').strip()
+    prov = psef.models.LTI1p3Provider.query.filter_by(id=prov_id).update({
+        to_update: new_value,
+    })
+    db.session.commit()
+
+
+@manager.command
+def create_lti_provider():
+    db = psef.models.db
+    iss = input('ISS: ').strip()
+    prov = psef.models.LTI1p3Provider.create_and_generate_keys(iss)
+    db.session.add(prov)
+    db.session.commit()
+    print(prov.id)
+
+
+@manager.command
 def test_data(db=None):
     db = psef.models.db if db is None else db
 

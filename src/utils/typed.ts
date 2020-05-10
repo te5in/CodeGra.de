@@ -182,7 +182,7 @@ export function buildUrl(
         mainPart = parts;
     } else {
         initialSlash = '/';
-        mainPart = parts.map(part => encodeURIComponent(part)).join('/');
+        mainPart = parts.map(part => encodeURIComponent(coerceToString(part))).join('/');
     }
     if (args.addTrailingSlash) {
         mainPart = `${mainPart}/`;

@@ -734,9 +734,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         # `is_visible`.
         return self.visibility_state == AssignmentVisibilityState.deep_linked
 
-    def complete_deep_link(self) -> None:
-        self.visibility_state = AssignmentVisibilityState.visible
-
     @hybrid_property
     def is_visible(self) -> bool:
         return self.visibility_state == AssignmentVisibilityState.visible

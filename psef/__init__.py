@@ -6,26 +6,37 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
 import typing as t
+import dataclasses
+from datetime import timedelta
 
+import redis
 import jinja2
 import structlog
 import flask_jwt_extended as flask_jwt
-from flask import Response
+from flask import Flask, Response
 from flask_limiter import Limiter, RateLimitExceeded
 from werkzeug.local import LocalProxy
 
+import cg_cache
 import cg_logger
 from cg_json import jsonify
 
-if t.TYPE_CHECKING and getattr(
-    t, 'SPHINX', False
-) is not True:  # pragma: no cover
+if t.TYPE_CHECKING:  # pragma: no cover
+    # pylint: disable=unused-import
     from config import FlaskConfig
-    from flask import Flask
+    from pylti1p3.registration import _KeySet
 
     current_app: 'PsefFlask'
 else:
-    from flask import Flask, current_app  # type: ignore
+    from flask import current_app
+
+
+@dataclasses.dataclass(frozen=True)
+class PsefInterProcessCache:
+    # Pylint bug: https://github.com/PyCQA/pylint/issues/2822
+    # pylint: disable=unsubscriptable-object
+    lti_access_tokens: cg_cache.Backend[str]
+    lti_public_keys: cg_cache.Backend['_KeySet']
 
 
 class PsefFlask(Flask):
@@ -65,6 +76,18 @@ class PsefFlask(Flask):
             )
         )
 
+        redis_conn = redis.from_url(self.config['REDIS_CACHE_URL'])
+        self._inter_request_cache = PsefInterProcessCache(
+            lti_access_tokens=cg_cache.RedisBackend(
+                'lti_access_tokens',
+                timedelta(seconds=600),
+                redis_conn,
+            ),
+            lti_public_keys=cg_cache.RedisBackend(
+                'lti_public_keys', timedelta(seconds=3600), redis_conn
+            ),
+        )
+
     @property
     def max_single_file_size(self) -> 'psef.archive.FileSize':
         """The maximum allowed size for a single file.
@@ -95,6 +118,10 @@ class PsefFlask(Flask):
         """
         return getattr(self, 'debug', False) or getattr(self, 'testing', False)
 
+    @property
+    def inter_request_cache(self) -> PsefInterProcessCache:
+        return self._inter_request_cache
+
 
 logger = structlog.get_logger()
 
@@ -114,7 +141,7 @@ def enable_testing() -> None:
     _current_tester = True
 
 
-if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
+if t.TYPE_CHECKING:  # pragma: no cover
     import psef.models
     current_user: 'psef.models.User' = t.cast('psef.models.User', None)
 else:
@@ -153,20 +180,21 @@ def create_app(  # pylint: disable=too-many-statements
     if skip_all:  # pragma: no cover
         skip_celery = skip_perm_check = skip_secret_key_check = True
 
-    resulting_app = PsefFlask(__name__, global_config.CONFIG)
+    resulting_app = PsefFlask(
+        __name__,
+        {
+            **global_config.CONFIG,
+            **(config or {}),
+        },
+    )
 
     resulting_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'  # type: ignore
                          ] = False
     resulting_app.config['SESSION_COOKIE_SECURE'] = True
+    resulting_app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
     if not resulting_app.debug:
-        resulting_app.config['SESSION_COOKIE_SAMESITE'] = 'None'
-        resulting_app.config['SESSION_COOKIE_SECURE'] = True
-
         assert not resulting_app.config['AUTO_TEST_DISABLE_ORIGIN_CHECK']
-
-    if config is not None:  # pragma: no cover
-        resulting_app.config.update(config)  # type: ignore
 
     if (
         not skip_secret_key_check and not (

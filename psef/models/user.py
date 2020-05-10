@@ -21,7 +21,7 @@ from cg_sqlalchemy_helpers import CIText, hybrid_property
 from . import UUID_LENGTH, Base, DbColumn, db, course, _MyQuery
 from .. import signals
 from .role import Role, CourseRole
-from ..helpers import NotEqualMixin, validate
+from ..helpers import NotEqualMixin, validate, maybe_unwrap_proxy
 from .permission import Permission
 from ..exceptions import APICodes, APIException, PermissionException
 from .link_tables import user_course, course_permissions
@@ -78,11 +78,7 @@ class User(NotEqualMixin, Base):
         :raises AssertionError: If the given argument was not a user after
             unwrapping.
         """
-        if isinstance(possible_user, LocalProxy):
-            # pylint: disable=protected-access
-            possible_user = possible_user._get_current_object()
-        assert isinstance(possible_user, cls), 'Give object is not a User'
-        return possible_user
+        return maybe_unwrap_proxy(possible_user, cls, check=True)
 
     __tablename__ = "User"
 

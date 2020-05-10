@@ -1,59 +1,72 @@
+import json
 import typing as t
 from datetime import timedelta
 from dataclasses import dataclass
 
-import pylti1p3
 import structlog
 import werkzeug.wrappers
 from pylti1p3.cookie import CookieService
 from pylti1p3.request import Request
 from pylti1p3.session import SessionService
 from pylti1p3.redirect import Redirect
+from typing_extensions import Literal
+from pylti1p3.launch_data_storage.base import LaunchDataStorage
 
 import flask
+import flask.sessions
 from cg_dt_utils import DatetimeWithTimezone
 
 logger = structlog.get_logger()
+T = t.TypeVar('T')
+Y = t.TypeVar('Y')
 
 
 class FlaskRequest(Request):
-    def __init__(self, request: flask.Request, *, force_post: bool) -> None:
-        self._request = request
+    def __init__(self, *, force_post: bool) -> None:
         self._force_post = force_post
 
-    def set_request(self, request: flask.Request) -> None:
-        self._request = request
+    def is_secure(self) -> bool:
+        assert flask.request.is_secure, 'All LTI requests should be secure'
+        return True
 
-    def get_request(self) -> flask.Request:
-        return self._request
+    @property
+    def session(self) -> t.MutableMapping[str, t.Any]:
+        return flask.session
 
     def get_param(self, key: str) -> object:
-        if self._force_post or self._request.method == 'POST':
-            return self._request.form.get(key, None)
-        return self._request.args.get(key, None)
+        if self._force_post or flask.request.method == 'POST':
+            return flask.request.form.get(key, None)
+        return flask.request.args.get(key, None)
 
 
 class FlaskSessionService(SessionService):
-    def __init__(self, request: flask.Request):
-        self._request = request
+    def __init__(self, request: FlaskRequest) -> None:
+        super().__init__(request)
 
-    def _get_key(self, key: str) -> str:
-        return self._session_prefix + '-' + key
+    def _get_key(
+        self, key: str, nonce: t.Optional[str] = None, add_prefix: bool = True
+    ) -> str:
+        prefix = f'{self._session_prefix}-' if add_prefix else ''
+        nonce = '' if nonce is None else f'-{nonce}'
+        return f'{prefix}{key}{nonce}'
 
     def get_launch_data(self, key: str) -> t.Dict[str, object]:
-        return flask.session.get(self._get_key(key), None)
+        return self.data_storage.get_value(self._get_key(key))
 
     def save_launch_data(
         self, key: str, jwt_body: t.Dict[str, object]
     ) -> None:
-        flask.session[self._get_key(key)] = jwt_body
+        self.data_storage.set_value(self._get_key(key), jwt_body)
 
     def save_nonce(self, nonce: str) -> None:
         flask.session[self._get_key('lti-nonce')] = nonce
 
     def check_nonce(self, nonce: str) -> bool:
         nonce_key = self._get_key('lti-nonce')
-        session_nonce = flask.session.get(nonce_key, None)
+        try:
+            session_nonce = self.data_storage.get_value(nonce_key)
+        except KeyError:
+            return False
         logger.info(
             'Checking nonce',
             session_nonce=session_nonce,
@@ -65,11 +78,11 @@ class FlaskSessionService(SessionService):
     def save_state_params(
         self, state: str, params: t.Dict[str, object]
     ) -> None:
-        flask.session[self._get_key(state)] = params
+        self.data_storage.set_value(self._get_key(state), params)
 
     def get_state_params(self, state: str) -> t.Dict[str, object]:
         logger.info('Getting state params', state=state, session=flask.session)
-        return flask.session[self._get_key(state)]
+        return self.data_storage.get_value(self._get_key(state))
 
 
 class FlaskCookieService(CookieService):
@@ -79,8 +92,7 @@ class FlaskCookieService(CookieService):
         value: str
         exp: DatetimeWithTimezone
 
-    def __init__(self, request: flask.Request):
-        self._request = request
+    def __init__(self) -> None:
         self._cookie_data_to_set: t.List[FlaskCookieService._CookieData] = []
 
     def _get_key(self, key: str) -> str:
@@ -88,9 +100,9 @@ class FlaskCookieService(CookieService):
 
     def get_cookie(self, name: str) -> t.Optional[str]:
         logger.info(
-            'Getting cookie', cookie_key=name, cookies=self._request.cookies
+            'Getting cookie', cookie_key=name, cookies=flask.request.cookies
         )
-        return self._request.cookies.get(self._get_key(name))
+        return flask.request.cookies.get(self._get_key(name))
 
     def set_cookie(self, name: str, value: str, exp: int = 60) -> None:
         self._cookie_data_to_set.append(
@@ -113,6 +125,7 @@ class FlaskCookieService(CookieService):
                 httponly=True,
                 secure=True,
                 samesite='None',
+                path='/',
             )
         return response
 
@@ -147,9 +160,9 @@ class FlaskRedirect(Redirect[werkzeug.wrappers.Response]):
                 (
                     '<!DOCTYPE html>'
                     '<html><script type="text/javascript">'
-                    'window.location="{}";'
+                    'window.location={loc};'
                     '</script></html>'
-                ).format(self._location)
+                ).format(loc=json.dumps(self._location))
             )
         )
 

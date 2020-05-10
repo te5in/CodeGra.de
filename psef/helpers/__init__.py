@@ -25,6 +25,7 @@ import requests
 import structlog
 import mypy_extensions
 from flask import g, request
+from werkzeug.local import LocalProxy
 from mypy_extensions import Arg
 from typing_extensions import Final, Literal, Protocol
 from sqlalchemy.dialects import postgresql
@@ -77,13 +78,18 @@ class MissingType(enum.Enum):
     token = 0
 
 
+class UnsetType(enum.Enum):
+    token = '__CG_UNSET__'
+
+
 class _RequiredButMissingType(enum.Enum):
-    token = '__REQUIRED_BUT_MISSING__'
+    token = '__CG_REQUIRED_BUT_MISSING__'
 
 
 MISSING: Literal[MissingType.token] = MissingType.token
 _REQUIRED_BUT_MISSING: Literal[_RequiredButMissingType.token
                                ] = _RequiredButMissingType.token
+UNSET: Literal[UnsetType.token] = UnsetType.token
 
 
 def init_app(app: 'psef.Flask') -> None:
@@ -1771,3 +1777,48 @@ def flatten(it_to_flatten: t.Iterable[t.Iterable[T]]) -> t.List[T]:
     :returns: A fresh flattened list.
     """
     return [x for wrap in it_to_flatten for x in wrap]
+
+
+def maybe_unwrap_proxy(
+    item: t.Union[T, LocalProxy], typ: t.Type[T], *, check: bool = False
+) -> T:
+    """Unwrap the possible local proxy for a given object.
+
+    >>> obj1 = object()
+    >>> prox = LocalProxy(lambda: obj1)
+    >>> maybe_unwrap_proxy(obj1, object, check=True) is obj1
+    True
+    >>> maybe_unwrap_proxy(prox, object, check=True) is obj1
+    True
+    >>> maybe_unwrap_proxy(prox, int, check=False) is obj1
+    True
+    >>> maybe_unwrap_proxy(prox, int, check=True)
+    Traceback (most recent call last):
+    ...
+    AssertionError
+    >>> maybe_unwrap_proxy(5, str, check=True)
+    Traceback (most recent call last):
+    ...
+    AssertionError
+
+    :param item: The item we should unwrap.
+    :param typ: The type that ``item`` is expected to be, this is unused during
+        runtime if ``check`` is ``False``.
+    :param check: Should we enforce that the resulting item is an instance of
+        ``typ``.
+    :returns: If the given ``item`` was a LocalProxy
+        `_get_current_object()` is called and the return value is returned,
+        otherwise the given ``item`` is returned.
+    :raises AssertionError: If the given ``item`` was not of type ``type`` and
+        ``check`` was ``True`` unwrapping.
+    """
+    if isinstance(item, LocalProxy):
+        # pylint: disable=protected-access
+        found = item._get_current_object()
+    else:
+        found = item
+
+    if check and not isinstance(found, typ):
+        raise AssertionError(f'The given item is not a {typ}')
+
+    return found

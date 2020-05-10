@@ -568,17 +568,23 @@ export default {
 
         uploadUrlQueryArgs() {
             if (this.isTestSubmission) {
-                return 'is_test_submission';
+                return { is_test_submission: '' };
             } else if (this.differentAuthor) {
-                return `author=${this.author.username}`;
+                return { author: this.author.username };
             }
-            return '';
+            return {};
         },
 
         uploadUrl() {
-            return `/api/v1/assignments/${this.assignment.id}/submission?ignored_files=${
-                this.ignored
-            }&${this.uploadUrlQueryArgs}`;
+            return this.$utils.buildUrl(
+                ['api', 'v1', 'assignments', this.assignment.id, 'submission'],
+                {
+                    query: {
+                        ...this.uploadUrlQueryArgs,
+                        ignored_files: this.ignored,
+                    },
+                },
+            );
         },
 
         disabledPopover() {
@@ -901,9 +907,15 @@ export default {
             this.loadingWebhookData = true;
             this.loadingWebhookError = null;
             const req = this.$http.post(
-                `/api/v1/assignments/${this.assignment.id}/webhook_settings?webhook_type=git&${
-                    this.uploadUrlQueryArgs
-                }`,
+                this.$utils.buildUrl(
+                    ['api', 'v1', 'assignments', this.assignment.id, 'webhook_settings'],
+                    {
+                        query: {
+                            ...this.uploadUrlQueryArgs,
+                            webhook_type: 'git',
+                        },
+                    },
+                ),
             );
 
             return this.$utils.waitAtLeast(250, req).then(

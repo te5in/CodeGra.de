@@ -17,6 +17,7 @@ import pylti1p3.exception
 import pylti1p3.names_roles
 import pylti1p3.registration
 import pylti1p3.service_connector
+from furl import furl
 from sqlalchemy.types import JSON
 from typing_extensions import Final, Literal
 from cryptography.hazmat.backends import default_backend
@@ -36,6 +37,7 @@ from . import work as work_models
 from . import course as course_models
 from . import assignment as assignment_models
 from .. import auth, signals, current_app
+from ..lti import v1_3 as lti_v1_3
 from ..signals import WORK_CREATED
 from ..lti.v1_3 import claims as ltiv1_3_claims
 from ..registry import lti_provider_handlers, lti_1_3_lms_capabilities
@@ -84,7 +86,7 @@ class LTIProviderBase(Base):
         primary_key=True,
         default=lambda: str(uuid.uuid4())
     )
-    key = db.Column('key', db.Unicode, unique=True, nullable=False)
+    key = db.Column('key', db.Unicode, unique=False, nullable=False)
 
     # This is only really available for LTI1.3, however we need to define it
     # here to be able to create a unique constraint.
@@ -375,8 +377,7 @@ class LTI1p1Provider(LTIProviderBase):
     def _lms_and_secrets(self) -> t.Tuple[str, t.List[str]]:
         """Return the OAuth consumer secret and the name of the LMS.
         """
-        return current_app.config['LTI_CONSUMER_KEY_SECRETS'][
-            self.key]
+        return current_app.config['LTI_CONSUMER_KEY_SECRETS'][self.key]
 
     @property
     def secrets(self) -> t.List[str]:
@@ -568,7 +569,13 @@ class LTI1p3Provider(LTIProviderBase):
         jwk = jwcrypto.jwk.JWK.from_pem(pub_key)
         assert not jwk.has_private
 
-        return json.loads(jwk.export_public())
+        print(dir(jwk))
+        assert jwk.key_type == 'RSA'
+        return {
+            **json.loads(jwk.export_public()),
+            'alg': 'RS256',
+            'use': 'sig',
+        }
 
     @hybrid_property
     def iss(self) -> str:
@@ -577,12 +584,8 @@ class LTI1p3Provider(LTIProviderBase):
     def get_registration(self) -> 'LTI1p3Provider.Registration':
         return LTI1p3Provider.Registration(self)
 
-    def get_service_connector(
-        self
-    ) -> pylti1p3.service_connector.ServiceConnector:
-        return pylti1p3.service_connector.ServiceConnector(
-            self.get_registration()
-        )
+    def get_service_connector(self) -> lti_v1_3.CGServiceConnector:
+        return lti_v1_3.CGServiceConnector(self)
 
     def supports_max_points(self) -> bool:
         return True
@@ -698,11 +701,17 @@ class LTI1p3Provider(LTIProviderBase):
         found_user_ids = set(a.id for s in subs for a in s.get_all_authors())
 
         for sub in subs:
+            logger.info(' \n\n\n\n')
+            print(sub.__to_json__())
+            logger.info(' \n\n\n\n')
             self._passback_grade(sub=sub, assignment=assig, timestamp=now)
+
+        logger.info(' \n\n\n\n')
 
         for user, _ in assig.course.get_all_users_in_course(
             include_test_students=False
         ).filter(user_models.User.id.notin_(found_user_ids)):
+            print(user.__to_json__())
             self._passback_grade(user=user, assignment=assig, timestamp=now)
 
         db.session.commit()
@@ -798,8 +807,12 @@ class LTI1p3Provider(LTIProviderBase):
             grade.set_user_id(lti_user_id)
             try:
                 res = grades_service.put_grade(grade)
-            except pylti1p3.exception.LtiException:
-                logger.info('Passing back grade failed', exc_info=True)
+            except pylti1p3.exception.LtiException as lti_exc:
+                logger.info(
+                    'Passing back grade failed',
+                    exc_info=True,
+                    report_to_sentry=True,
+                )
             else:
                 logger.info(
                     'Successfully passed back grade',
@@ -861,7 +874,7 @@ class LTI1p3Provider(LTIProviderBase):
                 lti_user_id=member['user_id'],
                 lti_provider=self,
                 wanted_username=custom_claim.username,
-                email=member['email'],
+                email=lti_v1_3.get_email_for_user(member, self),
                 full_name=member['name'],
             )
             course_lti_provider.maybe_add_user_to_course(
@@ -904,7 +917,7 @@ class LTI1p3Provider(LTIProviderBase):
                                         {
                                             'text': 'Add CodeGrade assignment',
                                             'enabled': True,
-                                            'placement': 'assignment_selection',
+                                            'placement': 'resource_selection',
                                             'message_type':
                                                 'LtiDeepLinkingRequest',
                                         }
@@ -1047,10 +1060,11 @@ class UserLTIProvider(Base, TimestampMixin):
             # The currently logged in user is now using LTI
             user = current_user
         elif lti_user is not None:
-            logger.info(
-                'Found different LTI user than logged in user',
-                lti_user=lti_user
-            )
+            if is_logged_in:
+                logger.warning(
+                    'Found different LTI user than logged in user',
+                    lti_user=lti_user
+                )
             # LTI users are used before the current logged user.
             token = flask_jwt.create_access_token(
                 identity=lti_user.id,
@@ -1203,6 +1217,10 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
         self, service_connector: pylti1p3.service_connector.ServiceConnector
     ) -> t.Sequence['_Member']:
         if not self.can_poll_names_again():
+            logger.info(
+                'Not polling again as last poll was a short while ago',
+                last_names_roles_poll=self.last_names_roles_poll,
+            )
             return []
 
         assert isinstance(self.names_roles_claim, dict)
@@ -1214,11 +1232,18 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
             assignment_models.Assignment.lti_assignment_id.isnot(None),
             assignment_models.Assignment.is_visible,
         ).limit(1).scalar()
-        if rlid is not None and isinstance(
-            claim['context_memberships_url'], str
-        ):
-            claim['context_memberships_url'] += f'&rlid={rlid}'
+
+        mem_url_claim: Final = 'context_memberships_url'
+        if rlid is not None and isinstance(claim[mem_url_claim], str):
+            claim[mem_url_claim] = furl(claim[mem_url_claim]).add(
+                {'rlid': rlid}
+            )
         else:
+            logger.info(
+                'No rlid found or claim is missing url',
+                claim=claim,
+                rlid=rlid,
+            )
             return []
 
         res = pylti1p3.names_roles.NamesRolesProvisioningService(

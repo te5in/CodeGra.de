@@ -11,23 +11,17 @@
         </template>
     </p>
 </b-alert>
-<div v-else-if="deepLinkData != null" class="lti-launch d-flex flex-column">
-    <local-header title="Create a new assignment" >
+<div v-else>
+    <local-header title="Opening CodeGrade" >
         <cg-logo :inverted="!darkMode" />
     </local-header>
-    <lti-deep-link
-        :initial-assignment-name="deepLinkData.new_assignment_name"
-        :existing-assignments="deepLinkData.existing_assignments"
-        :course="deepLinkData.course"
-        initial-assignment-deadline=""
-        :deep-link-id="deepLinkData.id"/>
+    <cg-loader />
 </div>
-<loader v-else/>
 </template>
 
 <script>
 import 'vue-awesome/icons/times';
-import { Loader, LocalHeader, CgLogo, LtiDeepLink } from '@/components';
+import { LocalHeader } from '@/components';
 import { mapActions, mapGetters } from 'vuex';
 import { disablePersistance } from '@/store';
 import ltiProviders from '@/lti_providers';
@@ -54,7 +48,6 @@ export default {
         return {
             error: false,
             errorMsg: false,
-            deepLinkData: null,
         };
     },
 
@@ -98,22 +91,17 @@ export default {
                         this.$toasted.info(warning.text, getToastOptions());
                     });
 
-                    this.$ltiProvider = ltiProviders[data.data.custom_lms_name];
-
                     switch (data.version) {
                         case 'v1_1':
-                            return this.handleLTI1p1(data.data);
                         case 'v1_3':
-                            return this.handleLTI1p3(data.data);
+                            return this.handleLTI(data.data);
                         default:
                             throw new Error(`Unknown LTI version (${data.version}) encountered.`);
                     }
                 })
                 .catch(err => {
-                    if (err.response) {
-                        if (first && err.response.status === 401) {
-                            return this.logout().then(() => this.secondStep(false));
-                        }
+                    if (first && this.$utils.getProps(err, null, 'response', 'status') === 401) {
+                        return this.logout().then(() => this.secondStep(false));
                     }
                     this.errorMsg = this.$utils.getErrorMessage(err, null);
                     this.error = true;
@@ -122,22 +110,7 @@ export default {
                 });
         },
 
-        handleLTI1p3(data) {
-            switch (data.type) {
-                case 'deep_link':
-                    return this.handleDeepLink(data);
-                case 'normal_result':
-                    return this.handleLTI1p1(data);
-                default:
-                    throw new Error(`Unknown LTI1.3 type: ${data.type}`);
-            }
-        },
-
-        handleDeepLink(data) {
-            this.deepLinkData = data;
-        },
-
-        async handleLTI1p1(data) {
+        async handleLTI(data) {
             if (data.type !== 'normal_result') {
                 throw new Error(`Unknown LTI1.1 type: ${data.type}.`);
             }
@@ -177,10 +150,7 @@ export default {
     },
 
     components: {
-        Loader,
         LocalHeader,
-        CgLogo,
-        LtiDeepLink,
     },
 };
 </script>

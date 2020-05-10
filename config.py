@@ -141,6 +141,7 @@ FlaskConfig = TypedDict(
         'SESSION_COOKIE_SECURE': bool,
         'SENTRY_DSN': t.Optional[str],
         'MIN_FREE_DISK_SPACE': int,
+        'REDIS_CACHE_URL': str,
     },
     total=True
 )
@@ -565,6 +566,8 @@ set_str(CONFIG, backend_ops, '_TRANSIP_PRIVATE_KEY_FILE', '')
 set_str(CONFIG, backend_ops, '_TRANSIP_USERNAME', '')
 
 set_str(CONFIG, backend_ops, 'ADMIN_USER', default=None)
+
+set_str(CONFIG, backend_ops, 'REDIS_CACHE_URL', None)
 
 ############
 # FEATURES #
