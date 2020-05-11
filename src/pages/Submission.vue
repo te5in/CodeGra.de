@@ -645,7 +645,7 @@ export default {
         submissionId: {
             immediate: true,
             handler() {
-                this.loadData();
+                this.loadCurrentSubmission().then(this.loadData);
             },
         },
 
@@ -723,9 +723,10 @@ export default {
 
             return this.storeLoadSingleSubmission({
                 assignmentId: this.assignmentId,
-                submissionId: this.submissionId,
+                submissionId: this.$route.params.submissionId,
             }).catch(err => {
                 this.error = this.$utils.getErrorMessage(err);
+                throw err;
             });
         },
 
