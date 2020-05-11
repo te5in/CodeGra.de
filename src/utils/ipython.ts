@@ -73,6 +73,7 @@ interface IPythonData {
             name?: string;
         };
     };
+    nbformat?: number;
     cells?: ReadonlyArray<IPythonDataCell>;
     worksheets?: ReadonlyArray<{
         cells?: ReadonlyArray<IPythonDataCell>;
@@ -84,12 +85,20 @@ export function sourceLanguage(ipythonData: IPythonData) {
     return getProps(ipythonData, 'python', 'metadata', 'language_info', 'name');
 }
 
+export function nbformatVersion(ipythonData: IPythonData): number {
+    return getProps(ipythonData, 0, 'nbformat');
+}
+
 export function getOutputCells(
     ipythonData: IPythonData,
     // eslint-disable-next-line
     highlight = (source: string[], lang: string, curOffset: number) => highlightCode(source, lang),
     processOther = <T extends CGIPythonDataCell | CGIPythonCodeCellOutput>(cell: T) => cell,
 ): ReadonlyArray<Readonly<CGIPythonDataCell>> {
+    if (nbformatVersion(ipythonData) < 3) {
+        throw new RangeError('Only Jupyter Notebook format v3 or greater is supported.');
+    }
+
     let curOffset = 0;
     const language = sourceLanguage(ipythonData);
     let cells = ipythonData.cells;
@@ -106,7 +115,8 @@ export function getOutputCells(
         }
 
         if (cell.cell_type === 'code') {
-            const splitted = maybeJoinText(cell.source).split('\n');
+            const source = cell.source ?? cell.input;
+            const splitted = maybeJoinText(source).split('\n');
             const initialOffset = curOffset;
             curOffset += splitted.length;
 
