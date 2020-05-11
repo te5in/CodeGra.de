@@ -308,7 +308,13 @@ export default {
                 if (this.tests != null) {
                     url += '?extended';
                 }
-                this.$http.get(url).then(({ data }) => this.updateData(data));
+                this.$http.get(url).then(
+                    ({ data }) => this.updateData(data),
+                    this.$utils.makeHttpErrorHandler({
+                        // The linter may have stopped in the meantime.
+                        404: () => {},
+                    }),
+                );
             }
         },
 
