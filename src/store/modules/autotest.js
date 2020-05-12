@@ -242,7 +242,6 @@ const actions = {
                     commit(types.SET_AUTO_TEST_RESULTS_BY_USER, {
                         autoTest,
                         autoTestRunId,
-                        userId,
                         results: getProps(result, [], 'data'),
                     });
                 }
@@ -301,8 +300,10 @@ const actions = {
         const resultId = result.id;
         result = state.results[resultId];
 
-        // Always reload when force is true.
-        if (result && result.finished && result.isFinal && !force) {
+        // If a result is finished and final, it cannot change anymore, so we
+        // do not request it again. But only if we do not have the extended
+        // result yet, i.e. setResults is set.
+        if (result && result.finished && result.isFinal && result.setResults && !force) {
             return Promise.resolve();
         }
 
@@ -505,11 +506,13 @@ const mutations = {
             return storeResult != null;
         });
 
+        // TODO: Why do we not just add the result to the store if it hasn't
+        // been added yet?
         if (run == null || storeResult == null) {
             return;
         }
 
-        storeResult.updateExtended(result, autoTest);
+        storeResult.update(result, autoTest);
 
         run.setResultById(storeResult);
         Vue.set(state.results, storeResult.id, storeResult);
@@ -525,13 +528,13 @@ const mutations = {
         });
     },
 
-    [types.SET_AUTO_TEST_RESULTS_BY_USER](state, { results, autoTest, autoTestRunId, userId }) {
+    [types.SET_AUTO_TEST_RESULTS_BY_USER](state, { results, autoTest, autoTestRunId }) {
         const runIndex = autoTest.runs.findIndex(r => r.id === autoTestRunId);
         if (runIndex === -1) {
             throw new Error('Could not find run');
         }
         const run = autoTest.runs[runIndex];
-        run.updateResultsByUser(userId, results, autoTest);
+        run.updateNonLatestResults(results, autoTest);
         Vue.set(autoTest.runs, runIndex, run);
     },
 

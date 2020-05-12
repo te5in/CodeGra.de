@@ -4,6 +4,7 @@ import Vue from 'vue';
 import axios from 'axios';
 
 import {
+    hasAttr,
     deepCopy,
     getErrorMessage,
     getUniqueId,
@@ -239,6 +240,19 @@ export class AutoTestResult {
         this.startedAt = result.started_at;
         this.pointsAchieved = result.points_achieved;
 
+        if (hasAttr(result, 'final_result')) {
+            this.isFinal = result.final_result;
+        }
+        if (hasAttr(result, 'setup_stdout')) {
+            this.setupStdout = result.setup_stdout;
+        }
+        if (hasAttr(result, 'setup_stderr')) {
+            this.setupStderr = result.setup_stderr;
+        }
+        if (hasAttr(result, 'approx_waiting_before')) {
+            this.approxWaitingBefore = result.approx_waiting_before;
+        }
+
         this.updateState(result.state);
         this.updateStepResults(result.step_results, autoTest);
     }
@@ -254,14 +268,6 @@ export class AutoTestResult {
         }
 
         this.finished = FINISHED_STATES.has(newState);
-    }
-
-    updateExtended(result, autoTest) {
-        this.isFinal = result.final_result;
-        this.setupStdout = result.setup_stdout;
-        this.setupStderr = result.setup_stderr;
-        this.approxWaitingBefore = result.approx_waiting_before;
-        this.update(result, autoTest);
     }
 
     updateStepResults(steps, autoTest) {
@@ -419,7 +425,7 @@ export class AutoTestRun {
         this.id = run.id;
         this.createdAt = run.created_at;
         this.results = [];
-        this.resultsByUser = {};
+        this.resultsById = {};
         this.update(run, autoTest);
     }
 
@@ -432,87 +438,48 @@ export class AutoTestRun {
         }
     }
 
-    static makeNewResultArray(oldResults, newResults, autoTest) {
-        // For each passed result, check if there is already a result with the
-        // same id. If it exists, update that result and discard it from the
-        // new results. Then create a new result for each result that wasn't
-        // found. We do this to prevent the same user from appearing multiple
-        // times in the results listing.
-        const mapping = newResults.reduce((acc, r) => {
-            acc[r.id] = r;
-            return acc;
-        }, {});
+    makeNewResultArray(newResults, autoTest) {
+        // For each passed result, check if there already is a result with the
+        // same id. If it exists, it is updated and returned. Otherwise a new
+        // result is created, inserted into resultsById, and returned.
 
-        const updated = oldResults.reduce((acc, r) => {
-            if (r.id in mapping) {
-                acc.push(r);
-                r.update(mapping[r.id], autoTest);
-                delete mapping[r.id];
+        return newResults.map(newResult => {
+            let result = this.resultsById[newResult.id];
+            if (result == null) {
+                result = new AutoTestResult(newResult, autoTest);
+                Vue.set(this.resultsById, result.id, result);
+            } else {
+                result.update(newResult, autoTest);
             }
-            return acc;
-        }, []);
-
-        return updated.concat(Object.values(mapping).map(r => new AutoTestResult(r, autoTest)));
+            return result;
+        });
     }
 
-    updateResultsByUser(userId, newResults, autoTest) {
-        Vue.set(
-            this.resultsByUser,
-            userId,
-            AutoTestRun.makeNewResultArray(
-                getProps(this.resultsByUser, [], userId),
-                newResults,
-                autoTest,
-            ),
-        );
+    updateNonLatestResults(newResults, autoTest) {
+        this.makeNewResultArray(newResults, autoTest);
     }
 
-    updateResults(results, autoTest) {
-        this.results = AutoTestRun.makeNewResultArray(this.results, results, autoTest);
+    updateResults(newResults, autoTest) {
+        Vue.set(this, 'results', this.makeNewResultArray(newResults, autoTest));
     }
 
     findResultBySubId(submissionId) {
         let res = this.results.find(r => r.submissionId === submissionId);
         if (res == null) {
-            Object.values(this.resultsByUser).find(results =>
-                results.find(r => {
-                    if (r.submissionId === submissionId) {
-                        res = r;
-                    }
-                    return !!res;
-                }),
-            );
+            res = Object.values(this.resultsById).find(r => r.submissionId === submissionId);
         }
         return res;
     }
 
     findResultById(resultId) {
-        let res = this.results.find(r => r.id === resultId);
-        if (res == null) {
-            Object.values(this.resultsByUser).find(results =>
-                results.find(r => {
-                    if (r.id === resultId) {
-                        res = r;
-                    }
-                    return !!res;
-                }),
-            );
-        }
-        return res;
+        return this.resultsById[resultId];
     }
 
     setResultById(result) {
-        let index = this.results.findIndex(res => res.id === result.id);
+        const index = this.results.findIndex(res => res.id === result.id);
         if (index !== -1) {
             Vue.set(this.results, index, result);
-        } else {
-            const userId = Object.keys(this.resultsByUser).find(uId => {
-                index = this.resultsByUser[uId].findIndex(r => r.id === result.id);
-                return index !== -1;
-            });
-            Vue.set(this.resultsByUser[userId], index, result);
-            Vue.set(this.resultsByUser, userId, this.resultsByUser[userId]);
         }
-        return this;
+        Vue.set(this.resultsById, result.id, result);
     }
 }
