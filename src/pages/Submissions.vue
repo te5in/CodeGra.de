@@ -701,7 +701,8 @@ export default {
 
             if (this.assignment == null) {
                 this.error = new ReferenceError(
-                    'The requested assignment does not exist or you do not have permission to view it.',
+                    'The requested assignment does not exist or you do not have permission to' +
+                    ' view it. This is probably because the assignment is still hidden.',
                 );
                 return;
             }
