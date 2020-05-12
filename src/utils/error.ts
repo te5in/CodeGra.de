@@ -111,11 +111,11 @@ export function handleHttpError<T>(handlers: HttpErrorHandlers<T>, err: AxiosErr
         if (defaultHandler != null) {
             return defaultHandler(err);
         }
-    }
-
-    const noResHandler = handlers?.noResponse;
-    if (noResHandler != null) {
-        return noResHandler(err);
+    } else {
+        const noResHandler = handlers?.noResponse;
+        if (noResHandler != null) {
+            return noResHandler(err);
+        }
     }
 
     throw err;
