@@ -398,6 +398,7 @@ Promise.all([
                                 router.push({ name: 'login' });
                             });
                         }
+                        throw err;
                     },
                     '5xx': err => {
                         const { request } = err;
@@ -405,8 +406,12 @@ Promise.all([
                         if (request) {
                             this.backendError();
                         }
+                        throw err;
                     },
-                    noResponse: this.connectionError,
+                    noResponse: err => {
+                        this.connectionError();
+                        throw err;
+                    },
                 });
             },
         },
