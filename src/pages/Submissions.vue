@@ -140,7 +140,7 @@
                         </div>
                     </div>
 
-                    <div v-if="webhookUploadsEnabled"
+                    <div v-if="webhookUploadEnabled"
                          class="action-button git m-2 m-md-3 border-0 p-0 rounded text-center"
                          v-b-popover.top.hover="webhookDisabledMessage">
                         <submit-button variant="secondary"
@@ -385,7 +385,7 @@ export default {
                 {
                     id: 'git',
                     name: 'Git instructions',
-                    enabled: this.isStudent && this.webhookUploadsEnabled,
+                    enabled: this.isStudent && this.webhookUploadEnabled,
                 },
                 {
                     id: 'rubric',
@@ -470,8 +470,8 @@ export default {
             return this.$utils.getProps(this.assignment, null, 'lms_name');
         },
 
-        webhookUploadsEnabled() {
-            return this.$utils.getProps(this.assignment, false, 'webhook_uploads_enabled');
+        webhookUploadEnabled() {
+            return this.$utils.getProps(this.assignment, false, 'webhook_upload_enabled');
         },
 
         analyticsWorkspaceIds() {
@@ -733,7 +733,7 @@ export default {
         },
 
         loadGitData() {
-            if (!this.webhookUploadsEnabled) {
+            if (!this.webhookUploadEnabled) {
                 return Promise.reject(new Error('Webhooks are not enabled for this assignment'));
             } else if (this.gitData != null) {
                 return Promise.resolve();
