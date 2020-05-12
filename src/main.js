@@ -375,8 +375,8 @@ Promise.all([
                         const { config } = err;
 
                         if (
-                            !config &&
-                            config.method !== 'get' &&
+                            !config ||
+                            config.method !== 'get' ||
                             config.url.match(/\/api\/v1\/login/)
                         ) {
                             return;
