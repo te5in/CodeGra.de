@@ -171,11 +171,12 @@
 
                 <div class="submission-sidebar w-100 d-flex flex-column border rounded p-0 mt-lg-0 overflow-hidden"
                      slot="secondPane">
-                    <div v-if="sidebarTabs.length > 0"
+                    <div v-if="sidebarTabs.length > 1"
                          class="flex-grow-0 d-flex flex-row border-bottom text-center cursor-pointer">
                         <a v-for="tab in sidebarTabs"
                            :key="tab.id"
                            class="submission-sidebar-tab p-1 border-right"
+                           :style="{ flexBasis: `${100 / sidebarTabs.length}%` }"
                            :class="{ active: currentSidebarTab === tab.id }"
                            v-b-popover.top.hover.window="tab.help"
                            @click.prevent="currentSidebarTab = tab.id">
@@ -1021,7 +1022,7 @@ export default {
     }
 
     & .submission-sidebar-tab {
-        flex: 0 0 50%;
+        flex: 0 0 auto;
         color: @color-secondary;
 
         &.active {
