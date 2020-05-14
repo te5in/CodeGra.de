@@ -248,4 +248,9 @@ class _InlineFeedbackDataSource(BaseDataSource[_InlineFeedbackModel]):
             replies_amount,
         ).group_by(work_models.Work.id)
 
-        return dict(query)
+        return {
+            work_id: {
+                'total_amount': total_amount
+            }
+            for work_id, total_amount in query
+        }

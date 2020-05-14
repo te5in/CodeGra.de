@@ -196,7 +196,7 @@ def test_getting_inline_feedback_analytics(
                 200,
                 result={
                     'name': 'inline_feedback',
-                    'data': {str(work_id): amount},
+                    'data': {str(work_id): {'total_amount': amount, }},
                 },
             )
 

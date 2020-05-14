@@ -824,7 +824,16 @@ export default {
                     this.storeLoadAutoTestResult({
                         autoTestId: this.autoTestId,
                         submissionId: this.submissionId,
-                    }).catch(() => {}),
+                    }).catch(this.$utils.makeHttpErrorHandler({
+                        // The user may not have permission to see the results yet.
+                        403: () => {},
+                        // The AT may not have been run yet.
+                        404: () => {},
+                        // TODO: storeLoadAutoTestResults mixes the HTTP errors
+                        // thrown by axios with standard errors when there are
+                        // no AT results...
+                        noResponse: () => {},
+                    })),
                 );
             }
 
@@ -835,7 +844,10 @@ export default {
             if (this.autoTestId != null) {
                 return this.storeLoadAutoTest({
                     autoTestId: this.autoTestId,
-                });
+                }).catch(err => this.$utils.handleHttpError({
+                    // The user may not have permission to see the results yet.
+                    403: () => {},
+                }, err));
             } else {
                 return Promise.resolve();
             }

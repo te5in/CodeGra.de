@@ -615,14 +615,9 @@ export default {
                         this.resetRubric();
                         this.maybeLoadOtherAssignments();
                     },
-                    err => {
-                        switch (this.$utils.getProps(err, null, 'response', 'status')) {
-                            case 404:
-                                break;
-                            default:
-                                throw err;
-                        }
-                    },
+                    err => this.$utils.handleHttpError({
+                        404: () => {},
+                    }, err),
                 ),
                 this.autoTestConfigId &&
                     this.storeLoadAutoTest({

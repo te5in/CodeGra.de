@@ -28,7 +28,7 @@ function makeSource(name, data) {
 function makeFeedbackSource(...data) {
     return deepFreeze({
         name: 'inline_feedback',
-        data: Object.fromEntries(data.map((x, i) => [i, x])),
+        data: Object.fromEntries(data.map((x, i) => [i, { total_amount: x }])),
     });
 }
 
@@ -110,7 +110,7 @@ const rubric = deepFreeze([
     },
 ]);
 
-beforeEach(() => {
+beforeEach(async () => {
     const course = Object.assign({}, assignment.course || {});
     const assig = Object.assign({}, assignment);
     delete assig.course;
@@ -133,6 +133,15 @@ beforeEach(() => {
         assignmentId: assignment.id,
         rubric,
     });
+
+    for (let i = 0; i < 10; ++i) {
+        await store.dispatch('users/addOrUpdateUser', {
+            user: {
+                id: i,
+                name: `Assignee: ${i}`,
+            },
+        });
+    }
 });
 
 describe('Workspace', () => {
@@ -431,6 +440,8 @@ describe('WorkspaceFilter', () => {
             Object.entries(g).forEach(([k, v]) => {
                 if (k === 'onlyLatestSubs') {
                     expect(v).toBeFalse();
+                } else if (k === 'assignees') {
+                    expect(v).toEqual(f[k]);
                 } else {
                     expect(v).toBe(f[k]);
                 }
@@ -550,9 +561,9 @@ describe('WorkspaceFilter', () => {
                 const f = WorkspaceFilter.emptyFilter;
                 const s = f.split({ assignees: [0, 1, 2] });
 
-                expect(s[0].assignees).toEqual([0]);
-                expect(s[1].assignees).toEqual([1]);
-                expect(s[2].assignees).toEqual([2]);
+                expect(s[0].assignees.map(x => x.id)).toEqual([0]);
+                expect(s[1].assignees.map(x => x.id)).toEqual([1]);
+                expect(s[2].assignees.map(x => x.id)).toEqual([2]);
             });
         });
 
