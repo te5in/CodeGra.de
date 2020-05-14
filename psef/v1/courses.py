@@ -21,7 +21,7 @@ from psef import limiter, current_user
 from psef.errors import APICodes, APIWarnings, APIException
 from psef.models import db
 from psef.helpers import (
-    JSONResponse, ExtendedJSONResponse, EmptyResponse, jsonify,
+    JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
     ensure_keys_in_dict, make_empty_response, get_from_map_transaction,
     get_json_dict_from_request
 )
@@ -1180,13 +1180,15 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
     return JSONResponse.make(task_result)
 
 
-@api.route('/courses/<int:course_id>/users/<int:user_id>/submissions/', methods=['GET'])
+@api.route(
+    '/courses/<int:course_id>/users/<int:user_id>/submissions/',
+    methods=['GET']
+)
 @auth.login_required
-def get_user_submissions(course_id: int, user_id: int) -> ExtendedJSONResponse[t.Sequence[models.Work]]:
+def get_user_submissions(course_id: int, user_id: int
+                         ) -> ExtendedJSONResponse[t.Sequence[models.Work]]:
 
-    course = helpers.get_or_404(
-        models.Course, course_id
-    )
+    course = helpers.get_or_404(models.Course, course_id)
     auth.ensure_permission(CPerm.can_see_assignments, course.id)
     assignments = course.get_all_visible_assignments()
 
@@ -1216,9 +1218,7 @@ def get_user_submissions(course_id: int, user_id: int) -> ExtendedJSONResponse[t
 
         sub = models.Work.update_query_for_extended_jsonify(
             models.Work.limit_to_user_submissions(obj, user),
-        ).order_by(
-            t.cast(t.Any, models.Work.created_at).desc()
-        ).all()
+        ).order_by(t.cast(t.Any, models.Work.created_at).desc()).all()
         subs.extend(sub)
 
     return ExtendedJSONResponse.make(

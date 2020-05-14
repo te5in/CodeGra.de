@@ -684,7 +684,7 @@ def test_get_all_feedback(
         m.File.name != '__init__',
     ).first()[0]
 
-    general_feedback = 'general feedback';
+    general_feedback = 'general feedback'
 
     with logged_in(teacher_user):
         test_client.req(

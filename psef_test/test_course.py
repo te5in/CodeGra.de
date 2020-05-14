@@ -241,7 +241,7 @@ def test_get_course_assignments(
 
 def test_get_latest_submissions_of_user(
     describe, logged_in, session, test_client, error_template, admin_user,
-    student_user,
+    student_user
 ):
     with describe('setup'), logged_in(admin_user):
         course_id = helpers.get_id(helpers.create_course(test_client))
@@ -260,12 +260,10 @@ def test_get_latest_submissions_of_user(
                 course_id=course_id,
                 state=state,
                 deadline='tomorrow',
-            )
-            for state in ['hidden', 'open', 'done']
+            ) for state in ['hidden', 'open', 'done']
         ]
         visible_assig_ids = [
-            helpers.get_id(assig)
-            for assig in assigs
+            helpers.get_id(assig) for assig in assigs
             if assig['state'] != 'hidden'
         ]
 
@@ -274,23 +272,21 @@ def test_get_latest_submissions_of_user(
                 test_client,
                 assignment_id=assig['id'],
                 for_user=student,
-            )
-            for assig in assigs
-            for _ in range(2)
+            ) for assig in assigs for _ in range(2)
         ]
         latest_subs = subs[1::2]
         visible_subs = [
-            sub
-            for sub in subs
-            if sub['assignment_id'] in visible_assig_ids
+            sub for sub in subs if sub['assignment_id'] in visible_assig_ids
         ]
 
-        deleted_assig_id = helpers.get_id(helpers.create_assignment(
-            test_client,
-            course_id=course_id,
-            state='done',
-            deadline='tomorrow',
-        ))
+        deleted_assig_id = helpers.get_id(
+            helpers.create_assignment(
+                test_client,
+                course_id=course_id,
+                state='done',
+                deadline='tomorrow',
+            )
+        )
         helpers.create_submission(
             test_client,
             assignment_id=deleted_assig_id,
@@ -340,7 +336,8 @@ def test_get_latest_submissions_of_user(
             result=[],
         )
 
-    with describe('student should not get submissions of other student'), logged_in(student):
+    with describe('student should not get submissions of other student'
+                  ), logged_in(student):
         test_client.req(
             'get',
             f'/api/v1/courses/{course_id}/users/{other_student.id}/submissions/',
@@ -348,20 +345,20 @@ def test_get_latest_submissions_of_user(
             result=error_template,
         )
 
-    with describe('student should get submissions to visible assignments'), logged_in(student):
+    with describe('student should get submissions to visible assignments'
+                  ), logged_in(student):
         res = test_client.req(
             'get',
             f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
             200,
         )
         assert all(
-            sub in res
-                if sub in visible_subs
-                else sub not in res
+            sub in res if sub in visible_subs else sub not in res
             for sub in subs
         )
 
-    with describe('student should not get other student submissions'), logged_in(student):
+    with describe('student should not get other student submissions'
+                  ), logged_in(student):
         test_client.req(
             'get',
             f'/api/v1/courses/{course_id}/users/{other_student.id}/submissions/',
@@ -408,10 +405,8 @@ def test_get_latest_submissions_of_user(
                 200,
             )
             assert all(
-                sub in res
-                    if sub in latest_subs and sub in visible_subs
-                    else sub not in res
-                for sub in subs
+                sub in res if sub in latest_subs and sub in visible_subs else
+                sub not in res for sub in subs
             )
 
 
