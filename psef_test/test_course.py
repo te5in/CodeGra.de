@@ -239,6 +239,133 @@ def test_get_course_assignments(
             assert len(expected) == len(res) == len(found)
 
 
+def test_get_latest_submissions_of_user(
+    describe, logged_in, session, test_client, error_template, admin_user,
+    student_user,
+):
+    with describe('setup'), logged_in(admin_user):
+        course_id = helpers.get_id(helpers.create_course(test_client))
+
+        teacher = helpers.create_user_with_role(session, 'Teacher', course_id)
+        student = helpers.create_user_with_role(session, 'Student', course_id)
+        other_student = helpers.create_user_with_role(
+            session,
+            'Student',
+            course_id,
+        )
+
+        assigs = [
+            helpers.create_assignment(
+                test_client,
+                course_id=course_id,
+                state=state,
+                deadline='tomorrow',
+            )
+            for state in ['hidden', 'open', 'done']
+        ]
+
+        subs = [
+            helpers.create_submission(
+                test_client,
+                assignment_id=assig['id'],
+                for_user=student,
+            )
+            for assig in assigs
+        ]
+
+        deleted_assig_id = helpers.get_id(helpers.create_assignment(
+            test_client,
+            course_id=course_id,
+            state='done',
+            deadline='tomorrow',
+        ))
+        helpers.create_submission(
+            test_client,
+            assignment_id=deleted_assig_id,
+            for_user=student,
+        )
+        test_client.req(
+            'delete',
+            f'/api/v1/assignments/{deleted_assig_id}',
+            204,
+        )
+
+    with describe('nonexisting course'), logged_in(teacher):
+        test_client.req(
+            'get',
+            f'/api/v1/courses/-1/users/{student.id}/submissions/',
+            404,
+            result=error_template,
+        )
+
+    with describe('nonexisting user'), logged_in(teacher):
+        test_client.req(
+            'get',
+            f'/api/v1/courses/{course_id}/users/-1/submissions/',
+            404,
+            result=error_template,
+        )
+
+    with describe('user not in course'), logged_in(teacher):
+        test_client.req(
+            'get',
+            f'/api/v1/courses/{course_id}/users/{student_user.id}/submissions/',
+            400,
+            result=error_template,
+        )
+
+    with describe('teacher should get all submissions'), logged_in(teacher):
+        test_client.req(
+            'get',
+            f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
+            200,
+            result=subs,
+        )
+        test_client.req(
+            'get',
+            f'/api/v1/courses/{course_id}/users/{other_student.id}/submissions/',
+            200,
+            result=[],
+        )
+
+    with describe('student should not get submissions of other student'), logged_in(student):
+        test_client.req(
+            'get',
+            f'/api/v1/courses/{course_id}/users/{other_student.id}/submissions/',
+            403,
+            result=error_template,
+        )
+
+    with describe('student should get submissions to visible assignments'), logged_in(student):
+        test_client.req(
+            'get',
+            f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
+            200,
+            result=[
+                subs[i]
+                for i, assig in enumerate(assigs)
+                if assig['state'] != 'hidden'
+            ],
+        )
+
+    with describe('should not include delete assignment'):
+        with logged_in(teacher):
+            res = test_client.req(
+                'get',
+                f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
+                200,
+            )
+            assert all(sub['assignment_id'] != deleted_assig_id for sub in res)
+
+        with logged_in(student):
+            res = test_client.req(
+                'get',
+                f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
+                200,
+            )
+            assert all(sub['assignment_id'] != deleted_assig_id for sub in res)
+
+
 @pytest.mark.parametrize(
     'course_n,users',
     [(

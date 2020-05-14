@@ -1197,6 +1197,13 @@ def get_user_submissions(course_id: int, user_id: int) -> ExtendedJSONResponse[t
     ):
         auth.ensure_permission(CPerm.can_see_others_work, course.id)
 
+    if course_id not in user.courses:
+        raise APIException(
+            'User is not enrolled in this course',
+            f'User {user_id} not enrolled in course {course_id}',
+            APICodes.INVALID_PARAM, 400
+        )
+
     latest_only = helpers.request_arg_true('latest_only')
 
     subs = []
