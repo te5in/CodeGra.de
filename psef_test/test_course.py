@@ -263,6 +263,11 @@ def test_get_latest_submissions_of_user(
             )
             for state in ['hidden', 'open', 'done']
         ]
+        visible_assig_ids = [
+            helpers.get_id(assig)
+            for assig in assigs
+            if assig['state'] != 'hidden'
+        ]
 
         subs = [
             helpers.create_submission(
@@ -271,6 +276,13 @@ def test_get_latest_submissions_of_user(
                 for_user=student,
             )
             for assig in assigs
+            for _ in range(2)
+        ]
+        latest_subs = subs[1::2]
+        visible_subs = [
+            sub
+            for sub in subs
+            if sub['assignment_id'] in visible_assig_ids
         ]
 
         deleted_assig_id = helpers.get_id(helpers.create_assignment(
@@ -315,12 +327,12 @@ def test_get_latest_submissions_of_user(
         )
 
     with describe('teacher should get all submissions'), logged_in(teacher):
-        test_client.req(
+        res = test_client.req(
             'get',
             f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
             200,
-            result=subs,
         )
+        assert all(sub in res for sub in subs)
         test_client.req(
             'get',
             f'/api/v1/courses/{course_id}/users/{other_student.id}/submissions/',
@@ -337,18 +349,27 @@ def test_get_latest_submissions_of_user(
         )
 
     with describe('student should get submissions to visible assignments'), logged_in(student):
-        test_client.req(
+        res = test_client.req(
             'get',
             f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
             200,
-            result=[
-                subs[i]
-                for i, assig in enumerate(assigs)
-                if assig['state'] != 'hidden'
-            ],
+        )
+        assert all(
+            sub in res
+                if sub in visible_subs
+                else sub not in res
+            for sub in subs
         )
 
-    with describe('should not include delete assignment'):
+    with describe('student should not get other student submissions'), logged_in(student):
+        test_client.req(
+            'get',
+            f'/api/v1/courses/{course_id}/users/{other_student.id}/submissions/',
+            403,
+            result=error_template,
+        )
+
+    with describe('should not include deleted assignment'):
         with logged_in(teacher):
             res = test_client.req(
                 'get',
@@ -364,6 +385,34 @@ def test_get_latest_submissions_of_user(
                 200,
             )
             assert all(sub['assignment_id'] != deleted_assig_id for sub in res)
+
+    with describe('should respect the latest_only query parameter'):
+        with logged_in(teacher):
+            res = test_client.req(
+                'get',
+                f'/api/v1/courses/{course_id}/users/{student.id}/submissions/?latest_only',
+                200,
+            )
+            assert all(sub in res for sub in latest_subs)
+            res = test_client.req(
+                'get',
+                f'/api/v1/courses/{course_id}/users/{other_student.id}/submissions/?latest_only',
+                200,
+                result=[],
+            )
+
+        with logged_in(student):
+            res = test_client.req(
+                'get',
+                f'/api/v1/courses/{course_id}/users/{student.id}/submissions/?latest_only',
+                200,
+            )
+            assert all(
+                sub in res
+                    if sub in latest_subs and sub in visible_subs
+                    else sub not in res
+                for sub in subs
+            )
 
 
 @pytest.mark.parametrize(
