@@ -430,7 +430,17 @@ def get_feedback_from_submission(
     else:
         fun = _get_feedback_without_replies
 
-    return jsonify(fun(comments, linter_comments, work.comment))
+    try:
+        auth.ensure_can_see_general_feedback(work)
+    except:
+        general = ''
+    else:
+        if work.comment is None:
+            general = ''
+        else:
+            general = work.comment
+
+    return jsonify(fun(comments, linter_comments, general))
 
 
 @api.route("/submissions/<int:submission_id>/rubrics/", methods=['GET'])
