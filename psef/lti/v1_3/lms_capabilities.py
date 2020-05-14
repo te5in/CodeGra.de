@@ -3,7 +3,6 @@ import dataclasses
 
 from typing_extensions import Literal, Protocol
 
-from ...helpers import UNSET, UnsetType
 from ...registry import lti_1_3_lms_capabilities
 
 
@@ -35,9 +34,13 @@ class LMSCapabilities(Protocol):
         ...
 
     @property
-    def test_student_name(self) -> t.Union[str, Literal[UnsetType.token]]:
+    def test_student_name(self) -> t.Optional[str]:
         """If there is a test student in the lms this its full name.
         """
+        ...
+
+    @property
+    def cookie_post_message(self) -> t.Optional[str]:
         ...
 
 
@@ -49,7 +52,9 @@ class _LMSCapabilities:
 
     set_state: bool
 
-    test_student_name: t.Union[str, Literal[UnsetType.token]]
+    test_student_name: t.Optional[str]
+
+    cookie_post_message: t.Optional[str]
 
     def __post_init__(self) -> None:
         lti_1_3_lms_capabilities.register(self.lms)(self)
@@ -63,20 +68,23 @@ _LMSCapabilities(
     set_deadline=False,
     set_state=False,
     test_student_name='Test Student',
+    cookie_post_message='requestFullWindowLaunch'
 )
 
 _LMSCapabilities(
     lms='Blackboard',
     set_deadline=True,
     set_state=True,
-    test_student_name=UNSET,
+    test_student_name=None,
+    cookie_post_message=None,
 )
 
 _LMSCapabilities(
     lms='Moodle',
     set_deadline=True,
     set_state=True,
-    test_student_name=UNSET,
+    test_student_name=None,
+    cookie_post_message=None,
 )
 
 lti_1_3_lms_capabilities.freeze()

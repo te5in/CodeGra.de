@@ -21,7 +21,7 @@ from mypy_extensions import TypedDict
 from typing_extensions import Literal
 
 from psef import app
-from cg_json import jsonify
+from cg_json import JSONResponse, jsonify
 from cg_dt_utils import DatetimeWithTimezone
 
 from . import api
@@ -188,6 +188,7 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
                 'An error occured when processing the LTI1.3 launch',
                 exceptions.APICodes.LTI1_3_ERROR,
                 400,
+                original_exception=data.get('original_exception'),
             )
 
         launch_message = lti_v1_3.FlaskMessageLaunch.from_message_data(
@@ -266,6 +267,7 @@ def do_oidc_login() -> werkzeug.wrappers.Response:
             {
                 'type': 'exception',
                 'exception_message': message,
+                'original_exception': JSONResponse.dump_to_object(exc),
             },
             version=LTIVersion.v1_3,
         )
@@ -299,19 +301,29 @@ def get_lti_provider_jwks(lti_provider_id: str) -> helpers.JSONResponse:
 def handle_lti_advantage_launch() -> t.Union[str, werkzeug.wrappers.Response]:
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
+    plat_red_url = flask.request.args.get('platform_redirect_url')
+    full_win_launch_requests = flask.request.args('full_win_launch_requested')
+    if full_win_launch_requests == '1' and plat_red_url:
+        return flask.redirect(plat_red_url)
+
     try:
         message_launch = lti_v1_3.FlaskMessageLaunch.from_request().validate()
-    except (exceptions.APIException, pylti1p3.exception.LtiException) as exc:
+    except exceptions.APIException as exc:
+        logger.info('An error occurred during the LTI launch', exc_info=True)
+        return _make_blob_and_redirect(
+            {
+                'type': 'exception',
+                'exception_message': exc.message,
+                'original_exception': JSONResponse.dump_to_object(exc),
+            },
+            version=LTIVersion.v1_3,
+        )
+    except pylti1p3.exception.LtiException as exc:
         logger.info('Incorrect LTI launch encountered', exc_info=True)
         return _make_blob_and_redirect(
             {
                 'type': 'exception',
-                'exception_message':
-                    (
-                        exc.message
-                        if isinstance(exc, exceptions.APIException) else
-                        exc.args[0]
-                    ),
+                'exception_message': exc.args[0],
             },
             version=LTIVersion.v1_3,
         )

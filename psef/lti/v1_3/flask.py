@@ -19,6 +19,7 @@ from cg_dt_utils import DatetimeWithTimezone
 logger = structlog.get_logger()
 T = t.TypeVar('T')
 Y = t.TypeVar('Y')
+TEST_COOKIE_NAME = 'CG_TEST_COOKIE'
 
 
 class FlaskRequest(Request):
@@ -103,6 +104,13 @@ class FlaskCookieService(CookieService):
             'Getting cookie', cookie_key=name, cookies=flask.request.cookies
         )
         return flask.request.cookies.get(self._get_key(name))
+
+    def clear_cookie(self, name: str) -> None:
+        self._cookie_data_to_set.append(FlaskCookieService._CookieData(
+            key=self._get_key(name),
+            value='',
+            exp=DatetimeWithTimezone.utcfromtimestamp(0),
+        ))
 
     def set_cookie(self, name: str, value: str, exp: int = 60) -> None:
         self._cookie_data_to_set.append(

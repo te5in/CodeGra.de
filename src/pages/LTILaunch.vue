@@ -2,12 +2,26 @@
 <template>
 <b-alert variant="danger" show v-if="error" class="box m-0 rounded-0">
     <p style="text-align: center; font-size: 1.3em;">
-        Something went wrong during the LTI launch:
-        <template v-if="errorMsg">
-            {{ errorMsg }}
+        <template v-if="isCookieError">
+            <p>
+                We were unable to set cookies, which are necessary for CodeGrade to
+                function as an LTI tool. Please allow CodeGrade to set cookies, and
+                make sure that "third-party" cookies are also enabled.
+            </p>
+
+            <p v-if="cookiePostMessage">
+                It might be possible to fix this automatically by clicking
+                <a href="#" @click.prevent="sendPostMessage" class="inline-link">here</a>.
+            </p>
         </template>
         <template v-else>
-            Please <a href="mailto:support@codegra.de">contact support</a>.
+            Something went wrong during the LTI launch:
+            <template v-if="errorMsg">
+                {{ errorMsg }}
+            </template>
+            <template v-else>
+                Please <a href="mailto:support@codegra.de">contact support</a>.
+            </template>
         </template>
     </p>
 </b-alert>
@@ -48,6 +62,7 @@ export default {
         return {
             error: false,
             errorMsg: false,
+            originalException: null,
         };
     },
 
@@ -58,6 +73,14 @@ export default {
     computed: {
         ...mapGetters('pref', ['darkMode']),
         ...mapGetters('courses', ['assignments']),
+
+        isCookieError() {
+            return this.$utils.getProps(this.originalException, null, 'code') === 'LTI1_3_COOKIE_ERROR';
+        },
+
+        cookiePostMessage() {
+            return this.$utils.getProps(this.originalException, null, 'lms_capabilities', 'cookie_post_message');
+        },
     },
 
     methods: {
@@ -92,11 +115,11 @@ export default {
                     });
 
                     switch (data.version) {
-                        case 'v1_1':
-                        case 'v1_3':
-                            return this.handleLTI(data.data);
-                        default:
-                            throw new Error(`Unknown LTI version (${data.version}) encountered.`);
+                    case 'v1_1':
+                    case 'v1_3':
+                        return this.handleLTI(data.data);
+                    default:
+                        throw new Error(`Unknown LTI version (${data.version}) encountered.`);
                     }
                 })
                 .catch(err => {
@@ -104,6 +127,7 @@ export default {
                         return this.logout().then(() => this.secondStep(false));
                     }
                     this.errorMsg = this.$utils.getErrorMessage(err, null);
+                    this.originalException = this.$utils.getProps(err, null, 'response', 'data', 'original_exception');
                     this.error = true;
 
                     return null;
@@ -146,6 +170,17 @@ export default {
                     },
                 });
             }
+        },
+
+        sendPostMessage() {
+            const { host, protocol } = window.location;
+            window.parent.postMessage({
+                messageType: this.cookiePostMessage,
+                data: this.$utils.buildUrl(
+                    ['api', 'v1', 'lti1.3', 'launch'],
+                    { host, protocol },
+                ),
+            }, '*');
         },
     },
 

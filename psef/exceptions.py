@@ -85,6 +85,7 @@ class APICodes(IntEnum):
     COOL_OFF_PERIOD_ACTIVE = 42
     LTI1_3_ERROR = 43
     MAILING_FAILED = 44
+    LTI1_3_COOKIE_ERROR = 45
 
 
 class APIException(Exception):

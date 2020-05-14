@@ -1,4 +1,5 @@
 import copy
+import time
 import typing as t
 import dataclasses
 import urllib.parse
@@ -20,7 +21,6 @@ from pylti1p3.service_connector import ServiceConnector
 from pylti1p3.assignments_grades import AssignmentsGradesService
 from pylti1p3.deep_link_resource import DeepLinkResource
 
-import flask
 import cg_override
 from cg_dt_utils import DatetimeWithTimezone
 
@@ -55,13 +55,55 @@ NEEDED_SCOPES = [
 MemberLike = TypedDict('MemberLike', {'name': str, 'email': str}, total=False)
 
 
+class _TestCookie:
+    _NAME = 'CG_TEST_COOKIE'
+    _MAX_DIFF = 600
+
+    @classmethod
+    def set_value(cls, service: FlaskCookieService) -> None:
+        service.set_cookie(cls._NAME, str(int(time.time())))
+
+    @classmethod
+    def validate_value_in_request(
+        cls, service: FlaskCookieService, provider: 'models.LTI1p3Provider'
+    ) -> None:
+        found = service.get_cookie(cls._NAME)
+        service.clear_cookie(cls._NAME)
+        if found is None:
+            logger.info('Test cookie was not set')
+            raise MissingCookieError(provider)
+
+        now = time.time()
+
+        try:
+            diff = abs(now - int(found))
+        except ValueError:
+            logger.info('Test cookie had invalid data')
+            diff = cls._MAX_DIFF + 1
+
+        if diff > cls._MAX_DIFF:
+            logger.info('Test cookie was to old')
+            raise MissingCookieError(provider)
+
+
+class MissingCookieError(APIException):
+    def __init__(self, provider: 'models.LTI1p3Provider') -> None:
+        super().__init__(
+            "Couldn't set needed cookies",
+            'We were not allowed to set the nesecarry cookies',
+            APICodes.LTI1_3_COOKIE_ERROR,
+            400,
+            lms_capabilities=provider.lms_capabilities,
+        )
+
+
 def get_email_for_user(
     member: MemberLike, provider: 'models.LTI1p3Provider'
 ) -> str:
     full_name = member['name']
     caps = provider.lms_capabilities
     test_stud_name = caps.test_student_name
-    if test_stud_name is not helpers.UNSET and test_stud_name == full_name:
+    if test_stud_name is not None and test_stud_name == full_name:
         return member.get('email', 'test_student@codegra.de')
     return member['email']
 
@@ -455,6 +497,7 @@ class FlaskMessageLaunch(
         return self
 
     def get_lti_provider(self) -> 'models.LTI1p3Provider':
+        assert self._validated or self._restored
         if self._provider is None:
             assert self._registration is not None
 
@@ -572,8 +615,34 @@ class FlaskMessageLaunch(
         return self
 
     @cg_override.override
+    def _get_jwt_body(self) -> '_LaunchData':
+        assert self._validated or self._restored
+        return super()._get_jwt_body()
+
+    @cg_override.override
     def validate(self) -> 'FlaskMessageLaunch':
-        super().validate()
+        try:
+            super().validate()
+        except:
+            self_copy = copy.deepcopy(self)
+            self_copy._validated = True
+            try:
+                self_copy.validate_jwt_format()
+                self_copy.validate_registration()
+                _TestCookie.validate_value_in_request(
+                    self_copy._cookie_service, self_copy.get_lti_provider()
+                )
+            finally:
+                self_copy._registration = None
+                self_copy._jwt = {}
+                self_copy._provider = None
+                self_copy._validated = False
+
+            raise
+        else:
+            _TestCookie.validate_value_in_request(
+                self._cookie_service, self.get_lti_provider()
+            )
 
         try:
             return self.validate_has_needed_data()
@@ -645,7 +714,7 @@ class FlaskMessageLaunch(
     @classmethod
     def from_message_data(
         cls,
-            *,
+        *,
         launch_data: t.Mapping[str, object],
     ) -> 'FlaskMessageLaunch':
         f_request = FlaskRequest(force_post=False)
@@ -668,6 +737,7 @@ class FlaskOIDCLogin(
 ):
     @cg_override.override
     def get_redirect(self, url: str) -> FlaskRedirect:
+        _TestCookie.set_value(self._cookie_service)
         return FlaskRedirect(url, self._cookie_service)
 
     @classmethod
@@ -679,3 +749,6 @@ class FlaskOIDCLogin(
             FlaskSessionService(f_request),
             FlaskCookieService(),
         )
+
+
+#  LocalWords:  nesecarry
