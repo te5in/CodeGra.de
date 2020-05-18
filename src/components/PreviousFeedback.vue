@@ -104,14 +104,16 @@
                     </h6>
 
                     <div v-if="rubricResultsBySub[sub.id] != null"
-                         class="px-3 pt-0 pb-3">
-                        <template v-for="{ result, row, item } in filteredRubricResults[sub.id]">
+                         class="px-3 pb-3">
+                        <span v-for="{ result, row, item } in filteredRubricResults[sub.id]"
+                              :key="`${sub.id}-${item.id}`">
                             <b-badge
                                 :id="`previous-feedback-rubric-item-${sub.id}-${item.id}`"
                                 pill
-                                class="mr-1">
+                                class="mr-1"
+                                :variant="rubricPillVariant(row, item)">
                                 <span class="mr-1">{{ row.header }}</span>
-                                <sup>{{ item.achieved_points }}</sup>&frasl;<sub>{{ item.points }}</sub>
+                                <sup>{{ item.achieved_points }}</sup>&frasl;<sub>{{ row.maxPoints }}</sub>
 
                                 <template v-if="row.locked === 'auto_test'">
                                     <span class="mx-1">|</span> AT
@@ -129,7 +131,7 @@
                                     :rubric-row="row"
                                     :assignment="sub.assignment"/>
                             </b-popover>
-                        </template>
+                        </span>
                     </div>
 
                     <div v-if="!hasFeedbackMatches(sub)"
@@ -475,6 +477,17 @@ export default {
                 return this.filteredFeedbackCounts[sub.id] > 0;
             } else {
                 return this.totalFeedbackCounts[sub.id] > 0;
+            }
+        },
+
+        rubricPillVariant(rubricRow, itemResult) {
+            const frac = itemResult.achieved_points / rubricRow.maxPoints;
+            if (frac < 0.5) {
+                return 'danger';
+            } else if (frac < 1) {
+                return 'warning';
+            } else {
+                return 'success';
             }
         },
     },
