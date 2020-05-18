@@ -153,7 +153,7 @@
                         :should-render-general="shouldRenderGeneral"
                         :should-render-thread="shouldRenderThread"
                         :should-fade-reply="shouldFadeReply"
-                        open-files-in-new-tab/>
+                        :open-files-in-new-tab="!$inLTI"/>
                 </collapse>
             </li>
         </ol>

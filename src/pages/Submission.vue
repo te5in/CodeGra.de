@@ -169,35 +169,36 @@
                              :language="selectedLanguage"
                              @language="languageChanged" />
 
-                <div class="submission-sidebar w-100 d-flex flex-column border rounded p-0 mt-lg-0 overflow-hidden"
-                     slot="secondPane">
-                    <div v-if="sidebarTabs.length > 1"
-                         class="flex-grow-0 d-flex flex-row border-bottom text-center cursor-pointer">
-                        <a v-for="tab in sidebarTabs"
-                           :key="tab.id"
-                           class="submission-sidebar-tab p-1 border-right"
-                           :style="{ flexBasis: `${100 / sidebarTabs.length}%` }"
-                           :class="{ active: currentSidebarTab === tab.id }"
-                           v-b-popover.top.hover.window="tab.help"
-                           @click.prevent="currentSidebarTab = tab.id">
-                            <icon v-if="tab.icon"
-                                  :name="tab.icon"
-                                  class="mr-1"
-                                  style="transform: translateY(-2px);"/>
-                            {{ tab.name }}
-                        </a>
-                    </div>
+                <file-tree
+                    v-if="!canGiveLineFeedback"
+                    slot="secondPane"
+                    class="flex-grow-1 border rounded"
+                    :assignment="assignment"
+                    :submission="submission"
+                    :revision="revision"/>
 
-                    <file-tree v-show="currentSidebarTab === 'files'"
-                               class="flex-grow-1"
-                               :assignment="assignment"
-                               :submission="submission"
-                               :revision="revision" />
+                <b-tabs v-else
+                        class="submission-sidebar"
+                        slot="secondPane"
+                        nav-class="border-bottom-0"
+                        no-fade
+                        v-model="currentSidebarTab">
+                    <b-tab title="Files"
+                            class="border rounded-bottom rounded-right">
+                        <file-tree
+                            :assignment="assignment"
+                            :submission="submission"
+                            :revision="revision" />
+                    </b-tab>
 
-                    <previous-feedback v-if="!hiddenSidebarTabs.has('feedback')"
-                                       :class="{ hidden: currentSidebarTab !== 'feedback' }"
-                                       :submission="submission" />
-                </div>
+                    <b-tab title="Feedback"
+                           @click="hiddenSidebarTabs.delete('feedback')"
+                            class="border rounded overflow-hidden">
+                        <previous-feedback
+                            v-if="!hiddenSidebarTabs.has('feedback')"
+                            :submission="submission" />
+                    </b-tab>
+                </b-tabs>
             </rs-panes>
         </div>
 
@@ -294,7 +295,7 @@ export default {
             hiddenCats: new Set(),
 
             splitRatio: 75,
-            currentSidebarTab: 'files',
+            currentSidebarTab: 0,
             hiddenSidebarTabs: new Set(['feedback']),
 
             showWhitespace: true,
@@ -544,7 +545,7 @@ export default {
                 },
             ];
 
-            if (this.canSeeUserFeedback) {
+            if (this.canGiveLineFeedback) {
                 tabs.push({
                     id: 'feedback',
                     name: 'Feedback',
@@ -735,8 +736,9 @@ export default {
         currentSidebarTab: {
             immediate: true,
             handler(newVal) {
-                this.hiddenSidebarTabs.delete(newVal);
-                if (newVal === 'feedback') {
+                const tab = this.sidebarTabs[newVal];
+                this.hiddenSidebarTabs.delete(tab.id);
+                if (tab.id === 'feedback') {
                     this.splitRatio = Math.min(50, this.splitRatio);
                 }
             },
@@ -801,8 +803,8 @@ export default {
             // Reset the hidden tabs so the feedback of other submissions will
             // not be loaded until the feedback tab is clicked.
             this.splitRatio = 75;
-            this.currentSidebarTab = 'files';
-            this.hiddenSidebarTabs = new Set(['feedback']);
+            this.currentSidebarTab = 0;
+            this.hiddenSidebarTabs = new Set(this.sidebarTabs.slice(1).map(t => t.id));
 
             const promises = [
                 this.storeLoadFileTree({
@@ -1026,47 +1028,13 @@ export default {
     }
 }
 
-.submission-sidebar {
-    max-height: 100%;
-
-    @media @media-no-large {
-        flex: 0 0 auto;
-    }
-
-    & .submission-sidebar-tab {
-        flex: 0 0 auto;
-        color: @color-secondary;
-
-        &.active {
-            background-color: rgba(0, 0, 0, 0.025);
-        }
-
-        &:hover {
-            background-color: rgba(0, 0, 0, 0.05);
-        }
-
-        &:last-child {
-            border-right: 0 !important;
-        }
-    }
-}
-
 .file-tree,
 .previous-feedback {
-    min-height: 0;
     max-height: 100%;
-
-    &.hidden {
-        display: none !important;
-    }
 }
 
 .file-tree {
     overflow: auto;
-}
-
-.previous-feedback {
-    overflow: hidden;
 }
 
 .grade-viewer {
@@ -1143,6 +1111,30 @@ export default {
 
     .category-selector .badge {
         font-size: 1em !important;
+    }
+
+    .submission-sidebar {
+        width: 100%;
+        max-height: 100%;
+        display: flex;
+        flex-direction: column;
+
+        .tab-content {
+            display: flex;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        .tab-pane {
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        @media @media-no-large {
+            .nav-item .nav-link {
+                padding: 0.25rem 0.5rem;
+            }
+        }
     }
 }
 </style>
