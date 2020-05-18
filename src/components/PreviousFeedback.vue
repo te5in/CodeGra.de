@@ -108,7 +108,8 @@
                         :context-lines="contextLines"
                         :should-render-general="shouldRenderGeneral"
                         :should-render-thread="shouldRenderThread"
-                        :should-fade-reply="shouldFadeReply"/>
+                        :should-fade-reply="shouldFadeReply"
+                        open-files-in-new-tab/>
                 </collapse>
             </li>
         </ol>

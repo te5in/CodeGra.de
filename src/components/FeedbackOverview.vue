@@ -34,8 +34,15 @@
             <b-card v-for="id in fileIds"
                     :key="id"
                     class="inline-feedback">
-                <router-link slot="header" :to="getFileLink(id)">
+                <router-link slot="header"
+                             :to="getFileLink(id)"
+                             :target="openFilesInNewTab ? '_blank' : undefined"
+                             :title="openFilesInNewTab ? 'Open file in a new tab' : 'Go to file'">
                     {{ fileTree.flattened[id] }}
+                    <fa-icon v-if="openFilesInNewTab"
+                             name="share-square-o"
+                             class="ml-1"
+                             />
                 </router-link>
 
                 <div v-if="disabledFileType(id)">
@@ -132,6 +139,10 @@ export default {
         shouldFadeReply: {
             type: Function,
             default: () => false,
+        },
+        openFilesInNewTab: {
+            type: Boolean,
+            default: false,
         },
     },
 
