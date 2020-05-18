@@ -9,10 +9,10 @@
                        placeholder="Filter on comment or author"/>
 
                 <b-input-group-append>
-                    <b-button variant="primary"
+                    <b-button variant="secondary"
                               class="settings-button"
                               @click="settingsCollapsed = !settingsCollapsed"
-                              v-b-popover.top.hover.window="'Show settings'">
+                              v-b-popover.top.hover.window="`${settingsCollapsed ? 'Show' : 'Hide'} settings`">
                         <fa-icon name="gear"
                                  :class="{ rotate: settingsCollapsed }"/>
                     </b-button>
