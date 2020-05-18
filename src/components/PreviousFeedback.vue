@@ -22,12 +22,27 @@
             <collapse :collapsed="settingsCollapsed">
                 <hr class="mb-2"/>
 
-                <b-form-group class="mb-0"
-                              label="Context lines">
+                <b-form-group label="Context lines">
                     <cg-number-input
                         v-model="contextLines"
                         placeholder="Context lines"/>
                 </b-form-group>
+
+                <b-input-group class="mb-0">
+                    <b-input-group-prepend is-text>
+                        <b-form-checkbox
+                            v-model="hideAutoTestRubricCategories"
+                            :id="`previous-feedback-hide-at-rubric-${submission.id}`"
+                            class="mr-n2"/>
+                    </b-input-group-prepend>
+
+                    <div class="form-control">
+                        <label :for="`previous-feedback-hide-at-rubric-${submission.id}`"
+                               class="mb-0 d-block cursor-pointer">
+                            Hide AutoTest rubric categories
+                        </label>
+                    </div>
+                </b-input-group>
             </collapse>
         </div>
 
@@ -55,7 +70,7 @@
                         v-b-toggle="`previous-feedback-collapse-${sub.id}`"
                         class="assignment-name p-3 mb-0 cursor-pointer"
                         :class="{
-                            'text-muted': !hasFeedback(sub),
+                            'text-muted': !hasFeedbackMatches(sub),
                         }">
                         <div class="caret mr-2 float-left">
                             <fa-icon name="chevron-down" :scale="0.75" />
@@ -77,7 +92,7 @@
                             <cg-loader :scale="1" v-if="sub.feedback == null" />
 
                             <b-badge v-else
-                                     :variant="hasFeedback(sub) ? 'primary' : 'secondary'"
+                                     :variant="hasFeedbackMatches(sub) ? 'primary' : 'secondary'"
                                      title="Comments on this submission">
                                 <template v-if="filter">
                                     {{ filteredFeedbackCounts[sub.id] }} /
@@ -88,9 +103,26 @@
                         </span>
                     </h6>
 
-                    <div v-if="sub.feedback != null && !hasFeedback(sub)"
+                    <b-card v-if="rubricResultsBySub[sub.id] != null"
+                            header="Rubric"
+                            header-class="border-bottom-0"
+                            body-class="p-0">
+                        <div v-for="{ row, item } in filteredRubricResults[sub.id]"
+                             :key="`${sub.id}-${item.id}`"
+                             class="p-3 border-top">
+                            {{ row.header }} - <b>{{ item.header }}</b> -
+                            <sup>{{ item.achieved_points }}</sup>&frasl;<sub>{{ item.points }}</sub>
+
+                            <cg-description-popover hug-text>
+                                <p><b>{{ row.header }}</b> {{ row.description }}</p>
+                                <p><b>{{ item.header }}</b> {{ item.description }}</p>
+                            </cg-description-popover>
+                        </div>
+                    </b-card>
+
+                    <div v-if="!hasFeedbackMatches(sub)"
                          class="p-3 border-top text-muted font-italic">
-                        <template v-if="filter" >
+                        <template v-if="filter">
                             No comments match the filter.
                         </template>
 
@@ -126,7 +158,8 @@ import 'vue-awesome/icons/gear';
 import { Submission } from '@/models';
 import { Search } from '@/utils/search';
 import { defaultdict } from '@/utils/defaultdict';
-import { flatMap1 } from '@/utils';
+import { flatMap1, filterMap, Just, Nothing } from '@/utils';
+import { NONEXISTENT } from '@/constants';
 
 import { FeedbackOverview } from '@/components';
 
@@ -154,11 +187,16 @@ export default {
             latestSubsInCourse: [],
             settingsCollapsed: true,
             contextLines: 3,
+            hideAutoTestRubricCategories: true,
         };
     },
 
     computed: {
         ...mapGetters('users', ['getUser']),
+        ...mapGetters('rubrics', {
+            allRubrics: 'rubrics',
+            rubricResults: 'results',
+        }),
 
         course() {
             return this.assignment.course;
@@ -179,8 +217,8 @@ export default {
         sortedOtherSubmissions() {
             return [...this.otherSubmissions].sort((a, b) => {
                 if (this.filter) {
-                    const hasA = this.hasFeedback(a);
-                    const hasB = this.hasFeedback(b);
+                    const hasA = this.hasFeedbackMatches(a);
+                    const hasB = this.hasFeedbackMatches(b);
 
                     if (hasA ^ hasB) {
                         return hasA ? -1 : 1;
@@ -269,6 +307,47 @@ export default {
                 return acc;
             }, {});
         },
+
+        rubricResultsBySub() {
+            return this.otherSubmissions.reduce((acc, sub) => {
+                if (this.allRubrics[sub.assignmentId] === NONEXISTENT) {
+                    return acc;
+                }
+                const result = this.$utils.getProps(this.rubricResults, null, sub.id);
+                if (Object.values(result.selected).length > 0) {
+                    acc[sub.id] = result;
+                }
+                return acc;
+            }, {});
+        },
+
+        filteredRubricResults() {
+            return this.otherSubmissions.reduce((acc, sub) => {
+                const rubric = this.allRubrics[sub.assignmentId];
+                const result = this.rubricResultsBySub[sub.id];
+
+                if (rubric == null || result == null) {
+                    return acc;
+                }
+
+                // Loop over the rubric rows to ensure the same order as the rubric viewer.
+                const items = filterMap(rubric.rows, row => {
+                    const item = result.selected[row.id];
+                    if (item == null) {
+                        return Nothing;
+                    }
+                    if (this.hideAutoTestRubricCategories && row.locked === 'auto_test') {
+                        return Nothing;
+                    }
+                    return Just({ row, item });
+                });
+
+                if (items.length > 0) {
+                    acc[sub.id] = items;
+                }
+                return acc;
+            }, {});
+        },
     },
 
     watch: {
@@ -289,6 +368,10 @@ export default {
         ...mapActions('feedback', [
             'loadFeedback',
         ]),
+        ...mapActions('rubrics', {
+            loadRubric: 'loadRubric',
+            loadRubricResult: 'loadResult',
+        }),
 
         loadOtherFeedback() {
             this.loading = true;
@@ -299,25 +382,32 @@ export default {
                 courseId: this.course.id,
                 userId: this.author.id,
             }).then(
-                subs =>
-                    Promise.all(
-                        subs.map(sub =>
+                subs => {
+                    this.latestSubsInCourse = subs;
+                    return Promise.all(
+                        flatMap1(subs, sub => ([
                             this.loadFeedback({
-                                assignmentId: this.assignmentId,
+                                assignmentId: sub.assignmentId,
                                 submissionId: sub.id,
                             }),
-                        ),
-                    ).then(
-                        () => {
-                            this.latestSubsInCourse = subs;
-                            this.loading = false;
-                        },
-                        err => {
-                            this.error = this.$utils.getErrorMessage(err);
-                            this.loading = false;
-                        },
-                    ),
-            );
+                            this.loadRubric({
+                                assignmentId: sub.assignmentId,
+                            }).catch(this.$utils.makeHttpErrorHandler({
+                                // Assignment may not have a rubric.
+                                404: () => ({}),
+                            })),
+                            this.loadRubricResult({
+                                assignmentId: sub.assignmentId,
+                                submissionId: sub.id,
+                            }),
+                        ])),
+                    );
+                },
+            ).catch(err => {
+                this.error = this.$utils.getErrorMessage(err);
+            }).then(() => {
+                this.loading = false;
+            });
         },
 
         filterUserFeedback(feedback) {
@@ -366,7 +456,7 @@ export default {
             }
         },
 
-        hasFeedback(sub) {
+        hasFeedbackMatches(sub) {
             if (this.filter) {
                 return this.filteredFeedbackCounts[sub.id] > 0;
             } else {
@@ -412,6 +502,13 @@ ol {
             transform: translateY(-1px) rotate(-90deg);
         }
     }
+}
+
+.card {
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    border-radius: 0 !important;
 }
 </style>
 

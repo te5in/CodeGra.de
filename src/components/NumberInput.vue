@@ -76,3 +76,9 @@ export default class NumberInput extends Vue {
     }
 }
 </script>
+
+<style lang="less" scoped>
+input {
+    text-align: right;
+}
+</style>
