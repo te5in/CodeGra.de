@@ -36,6 +36,7 @@ export { default as RubricEditorNormalRow } from './RubricEditorNormalRow';
 export { default as RubricEditorContinuousRow } from './RubricEditorContinuousRow';
 export { default as RubricViewer } from './RubricViewer';
 export { default as RubricViewerNormalRow } from './RubricViewerNormalRow';
+export { default as RubricViewerContinuousRow } from './RubricViewerContinuousRow';
 export { default as Sidebar } from './Sidebar';
 export { default as SnippetManager } from './SnippetManager';
 export { default as SubmissionList } from './SubmissionList';

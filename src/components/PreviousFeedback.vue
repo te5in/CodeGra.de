@@ -103,22 +103,34 @@
                         </span>
                     </h6>
 
-                    <b-card v-if="rubricResultsBySub[sub.id] != null"
-                            header="Rubric"
-                            header-class="border-bottom-0"
-                            body-class="p-0">
-                        <div v-for="{ row, item } in filteredRubricResults[sub.id]"
-                             :key="`${sub.id}-${item.id}`"
-                             class="p-3 border-top">
-                            {{ row.header }} - <b>{{ item.header }}</b> -
-                            <sup>{{ item.achieved_points }}</sup>&frasl;<sub>{{ item.points }}</sub>
+                    <div v-if="rubricResultsBySub[sub.id] != null"
+                         class="px-3 pt-0 pb-3">
+                        <template v-for="{ result, row, item } in filteredRubricResults[sub.id]">
+                            <b-badge
+                                :id="`previous-feedback-rubric-item-${sub.id}-${item.id}`"
+                                pill
+                                class="mr-1">
+                                <span class="mr-1">{{ row.header }}</span>
+                                <sup>{{ item.achieved_points }}</sup>&frasl;<sub>{{ item.points }}</sub>
 
-                            <cg-description-popover hug-text>
-                                <p><b>{{ row.header }}</b> {{ row.description }}</p>
-                                <p><b>{{ item.header }}</b> {{ item.description }}</p>
-                            </cg-description-popover>
-                        </div>
-                    </b-card>
+                                <template v-if="row.locked === 'auto_test'">
+                                    <span class="mx-1">|</span> AT
+                                </template>
+                            </b-badge>
+
+                            <b-popover
+                                triggers="hover"
+                                placement="top"
+                                :target="`previous-feedback-rubric-item-${sub.id}-${item.id}`"
+                                custom-class="previous-feedback-rubric-row-popover">
+                                <component
+                                    :is="`rubric-viewer-${row.type}-row`"
+                                    :value="result"
+                                    :rubric-row="row"
+                                    :assignment="sub.assignment"/>
+                            </b-popover>
+                        </template>
+                    </div>
 
                     <div v-if="!hasFeedbackMatches(sub)"
                          class="p-3 border-top text-muted font-italic">
@@ -163,7 +175,9 @@ import { NONEXISTENT } from '@/constants';
 
 import { FeedbackOverview } from '@/components';
 
-import Collapse from '@/components/Collapse';
+import Collapse from './Collapse';
+import RubricViewerNormalRow from './RubricViewerNormalRow';
+import RubricViewerContinuousRow from './RubricViewerContinuousRow';
 
 const GeneralFeedbackSearcher = new Search(['comment', 'author']);
 
@@ -339,7 +353,7 @@ export default {
                     if (this.hideAutoTestRubricCategories && row.locked === 'auto_test') {
                         return Nothing;
                     }
-                    return Just({ row, item });
+                    return Just({ result, row, item });
                 });
 
                 if (items.length > 0) {
@@ -468,6 +482,8 @@ export default {
     components: {
         Collapse,
         FeedbackOverview,
+        RubricViewerNormalRow,
+        RubricViewerContinuousRow,
     },
 };
 </script>
@@ -521,6 +537,27 @@ ol {
 
     .scroller > .card {
         border-radius: 0 !important;
+    }
+}
+
+.previous-feedback-rubric-row-popover {
+    max-width: 35rem;
+
+    .popover-body {
+        text-align: left;
+        padding: 0 !important;
+    }
+
+    .row-description {
+        background-color: rgba(0, 0, 0, 0.0625);
+
+        p {
+            margin-bottom: 0.5rem !important;
+        }
+    }
+
+    .rubric-item .description {
+        max-height: 10rem;
     }
 }
 </style>
