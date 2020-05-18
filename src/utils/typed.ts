@@ -39,12 +39,6 @@ export function htmlEscape(inputString: string) {
     return str;
 }
 
-const regexSpecial = /[\\.^$?*+([|{]/g;
-
-export function regexEscape(str: string): string {
-    return str.replace(regexSpecial, c => `\\${c}`);
-}
-
 export type AllOrNone<T> = T | { [K in keyof T]?: never };
 
 export function fromEntries<T>(vals: [string | number, T][]): Record<string, T> {

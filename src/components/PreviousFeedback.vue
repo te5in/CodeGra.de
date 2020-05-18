@@ -3,17 +3,12 @@
     <div class="overflow-auto h-100">
         <div class="p-3 sticky-top bg-light border-bottom">
             <b-input-group>
-                <input v-model="filter"
-                    class="form-control"
-                    placeholder="Filter feedback..."/>
+                <input :value="filter"
+                       @change="filter = $event.target.value"
+                       class="form-control"
+                       placeholder="Filter on comment or author"/>
 
                 <b-input-group-append>
-                    <b-button :variant="useRegex ? 'success' : 'secondary'"
-                              @click="useRegex = !useRegex"
-                              v-b-popover.top.hover.window="`${useRegex ? 'Do not use' : 'Use'} regular expressions`">
-                        <fa-icon name="asterisk" />
-                    </b-button>
-
                     <b-button variant="primary"
                               class="settings-button"
                               @click="settingsCollapsed = !settingsCollapsed"
@@ -60,7 +55,7 @@
                         v-b-toggle="`previous-feedback-collapse-${sub.id}`"
                         class="assignment-name p-3 mb-0 cursor-pointer"
                         :class="{
-                            'text-muted': shouldCollapse(sub),
+                            'text-muted': !hasFeedback(sub),
                         }">
                         <div class="caret mr-2 float-left">
                             <fa-icon name="chevron-down" :scale="0.75" />
@@ -69,15 +64,20 @@
                         {{ sub.assignment.name }}
 
                         <span v-if="sub.grade != null"
-                            class="font-italic">
+                              class="font-italic">
                             (graded: {{ sub.grade }})
                         </span>
 
+                        <span v-else
+                              class="text-muted font-italic">
+                            (not yet graded)
+                        </span>
+
                         <span class="float-right">
-                            <cg-loader :scale="1" v-if="totalFeedbackCounts[sub.id] == null" />
+                            <cg-loader :scale="1" v-if="sub.feedback == null" />
 
                             <b-badge v-else
-                                     :variant="shouldCollapse(sub) ? 'secondary' : 'primary'"
+                                     :variant="hasFeedback(sub) ? 'primary' : 'secondary'"
                                      title="Comments on this submission">
                                 <template v-if="filter">
                                     {{ filteredFeedbackCounts[sub.id] }} /
@@ -88,7 +88,7 @@
                         </span>
                     </h6>
 
-                    <div v-if="shouldCollapse(sub)"
+                    <div v-if="sub.feedback != null && !hasFeedback(sub)"
                          class="p-3 border-top text-muted font-italic">
                         <template v-if="filter" >
                             No comments match the filter.
@@ -118,17 +118,23 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex';
+import { mapActions, mapGetters } from 'vuex';
 
-import 'vue-awesome/icons/asterisk';
 import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/gear';
 
 import { Submission } from '@/models';
+import { Search } from '@/utils/search';
+import { defaultdict } from '@/utils/defaultdict';
+import { flatMap1 } from '@/utils';
 
 import { FeedbackOverview } from '@/components';
 
 import Collapse from '@/components/Collapse';
+
+const GeneralFeedbackSearcher = new Search(['comment', 'author']);
+
+const InlineFeedbackSearcher = new Search(['comment', 'author']);
 
 export default {
     name: 'previous-feedback',
@@ -147,12 +153,13 @@ export default {
             filter: '',
             latestSubsInCourse: [],
             settingsCollapsed: true,
-            useRegex: false,
             contextLines: 3,
         };
     },
 
     computed: {
+        ...mapGetters('users', ['getUser']),
+
         course() {
             return this.assignment.course;
         },
@@ -170,38 +177,65 @@ export default {
         },
 
         sortedOtherSubmissions() {
-            // TODO: Should we sort by amount of matching comments if the
-            // filter is not empty, so that all submissions with no matches
-            // end up below submissions with matches?
-            return this.otherSubmissions
-                .sort((a, b) =>
-                    (a.assignment.deadline.isBefore(
-                        b.assignment.deadline,
-                    ) ? 1 : -1),
-                );
+            return [...this.otherSubmissions].sort((a, b) => {
+                if (this.filter) {
+                    const hasA = this.hasFeedback(a);
+                    const hasB = this.hasFeedback(b);
+
+                    if (hasA ^ hasB) {
+                        return hasA ? -1 : 1;
+                    }
+                }
+
+                return a.assignment.deadline.isBefore(
+                    b.assignment.deadline,
+                ) ? 1 : -1;
+            });
         },
 
-        filterRegex() {
-            let filter = this.filter;
-            if (!this.useRegex) {
-                filter = this.$utils.regexEscape(filter);
-            }
-            return new RegExp(filter, 'i');
+        searchableGeneralFeedback() {
+            return this.otherSubmissions.map(sub => ({
+                comment: sub.comment,
+                author: sub.comment_author.readableName,
+                sub,
+            }));
         },
 
         filteredGeneralFeedback() {
-            const x = this.sortedOtherSubmissions.reduce((acc, sub) => {
-                const fb = sub.feedback;
-                if (fb != null && this.filterRegex.test(fb.general)) {
-                    acc.add(sub.id);
-                }
+            return GeneralFeedbackSearcher.search(
+                this.filter,
+                this.searchableGeneralFeedback,
+            ).reduce((acc, { sub }) => {
+                acc.add(sub.id);
                 return acc;
             }, new Set());
-            return x;
+        },
+
+        searchableUserFeedback() {
+            return this.otherSubmissions.reduce((acc, sub) => {
+                if (sub.feedback == null) {
+                    return acc;
+                }
+
+                return acc.concat(
+                    flatMap1(
+                        Object.values(sub.feedback.user),
+                        fileFb => flatMap1(
+                            Object.values(fileFb),
+                            thread => thread.replies.map(reply => ({
+                                comment: reply.message,
+                                author: this.getUser(reply.authorId).readableName,
+                                thread,
+                                reply,
+                            })),
+                        ),
+                    ),
+                );
+            }, []);
         },
 
         filteredUserFeedback() {
-            return this.sortedOtherSubmissions.reduce(
+            return this.otherSubmissions.reduce(
                 (acc, sub) => Object.assign(acc, this.filterUserFeedback(sub.feedback)),
                 {},
             );
@@ -265,24 +299,24 @@ export default {
                 courseId: this.course.id,
                 userId: this.author.id,
             }).then(
-                subs => {
-                    this.latestSubsInCourse = subs;
-                    return Promise.all(
+                subs =>
+                    Promise.all(
                         subs.map(sub =>
                             this.loadFeedback({
                                 assignmentId: this.assignmentId,
                                 submissionId: sub.id,
                             }),
                         ),
-                    );
-                },
-            ).then(() => {
-                    this.loading = false;
-                },
-                err => {
-                    this.error = this.$utils.getErrorMessage(err);
-                    this.loading = false;
-                },
+                    ).then(
+                        () => {
+                            this.latestSubsInCourse = subs;
+                            this.loading = false;
+                        },
+                        err => {
+                            this.error = this.$utils.getErrorMessage(err);
+                            this.loading = false;
+                        },
+                    ),
             );
         },
 
@@ -295,28 +329,16 @@ export default {
                 return null;
             }
 
-            if (this.filter == null || this.filter === '') {
-                const mapObj = this.$utils.mapObject;
-                return mapObj(feedback.user, fileFb =>
-                    mapObj(fileFb, thread => new Set(thread.replies.map(reply => reply.id))),
-                );
+            let filteredFb = this.searchableUserFeedback;
+
+            if (this.filter != null && this.filter !== '') {
+                filteredFb = InlineFeedbackSearcher.search(this.filter, filteredFb);
             }
 
-            return Object.entries(feedback.user).reduce((fb, [fileId, fileFb]) => {
-                const filteredFileFb = Object.values(fileFb).reduce((acc, thread) => {
-                    const matchingReplies = thread.replies.filter(reply =>
-                        this.filterRegex.test(reply.message),
-                    );
-                    if (matchingReplies.length > 0) {
-                        acc[thread.line] = new Set(matchingReplies.map(reply => reply.id));
-                    }
-                    return acc;
-                }, {});
-                if (Object.keys(filteredFileFb).length > 0) {
-                    fb[fileId] = filteredFileFb;
-                }
-                return fb;
-            }, {});
+            return filteredFb.reduce((acc, { thread, reply }) => {
+                acc[thread.id].add(reply.id);
+                return acc;
+            }, defaultdict(() => new Set()));
         },
 
         shouldRenderGeneral(sub) {
@@ -327,21 +349,28 @@ export default {
             return this.$utils.getProps(
                 this.filteredUserFeedback,
                 null,
-                thread.fileId,
-                thread.line,
+                thread.id,
             ) != null;
         },
 
         shouldFadeReply(thread, reply) {
             return this.shouldRenderThread(thread) &&
-                !this.filteredUserFeedback[thread.fileId][thread.line].has(reply.id);
+                !this.filteredUserFeedback[thread.id].has(reply.id);
         },
 
         shouldCollapse(sub) {
             if (this.filter) {
                 return this.filteredFeedbackCounts[sub.id] === 0;
             } else {
-                return this.totalFeedbackCounts[sub.id] === 0;
+                return true;
+            }
+        },
+
+        hasFeedback(sub) {
+            if (this.filter) {
+                return this.filteredFeedbackCounts[sub.id] > 0;
+            } else {
+                return this.totalFeedbackCounts[sub.id] > 0;
             }
         },
     },
