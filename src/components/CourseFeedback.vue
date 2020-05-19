@@ -1,5 +1,5 @@
 <template>
-<div class="previous-feedback d-flex flex-column">
+<div class="course-feedback d-flex flex-column">
     <div class="overflow-auto h-100">
         <div class="p-3 sticky-top bg-light border-bottom">
             <b-input-group>
@@ -32,12 +32,12 @@
                     <b-input-group-prepend is-text>
                         <b-form-checkbox
                             v-model="hideAutoTestRubricCategories"
-                            :id="`previous-feedback-hide-at-rubric-${submission.id}`"
+                            :id="`course-feedback-hide-at-rubric-${id}`"
                             class="mr-n2"/>
                     </b-input-group-prepend>
 
                     <div class="form-control">
-                        <label :for="`previous-feedback-hide-at-rubric-${submission.id}`"
+                        <label :for="`course-feedback-hide-at-rubric-${id}`"
                                class="mb-0 d-block cursor-pointer">
                             Hide AutoTest rubric categories
                         </label>
@@ -67,7 +67,7 @@
                 class="border-top">
                 <collapse :collapsed="shouldCollapse(sub)">
                     <h6 slot="handle"
-                        v-b-toggle="`previous-feedback-collapse-${sub.id}`"
+                        v-b-toggle="`course-feedback-collapse-${sub.id}`"
                         class="assignment-name p-3 mb-0 cursor-pointer"
                         :class="{
                             'text-muted': !hasFeedbackMatches(sub),
@@ -108,7 +108,7 @@
                         <span v-for="{ result, row, item } in filteredRubricResults[sub.id]"
                               :key="`${sub.id}-${item.id}`">
                             <b-badge
-                                :id="`previous-feedback-rubric-item-${sub.id}-${item.id}`"
+                                :id="`course-feedback-rubric-item-${id}-${sub.id}-${item.id}`"
                                 pill
                                 class="mr-1"
                                 variant="secondary">
@@ -121,10 +121,10 @@
                             </b-badge>
 
                             <b-popover
-                                triggers="hover"
+                                triggers="click hover"
                                 placement="top"
-                                :target="`previous-feedback-rubric-item-${sub.id}-${item.id}`"
-                                custom-class="previous-feedback-rubric-row-popover">
+                                :target="`course-feedback-rubric-item-${id}-${sub.id}-${item.id}`"
+                                custom-class="course-feedback-rubric-row-popover">
                                 <component
                                     :is="`rubric-viewer-${row.type}-row`"
                                     :value="result"
@@ -169,7 +169,7 @@ import { mapActions, mapGetters } from 'vuex';
 import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/gear';
 
-import { Submission } from '@/models';
+import { Submission, User } from '@/models';
 import { Search } from '@/utils/search';
 import { defaultdict } from '@/utils/defaultdict';
 import { flatMap1, filterMap, Just, Nothing } from '@/utils';
@@ -186,17 +186,26 @@ const GeneralFeedbackSearcher = new Search(['comment', 'author']);
 const InlineFeedbackSearcher = new Search(['comment', 'author']);
 
 export default {
-    name: 'previous-feedback',
+    name: 'course-feedback',
 
     props: {
-        submission: {
-            type: Submission,
+        course: {
+            type: Object,
             required: true,
+        },
+        user: {
+            type: User,
+            required: true,
+        },
+        excludeSubmission: {
+            type: Submission,
+            default: null,
         },
     },
 
     data() {
         return {
+            id: this.$utils.getUniqueId(),
             loading: true,
             error: null,
             filter: '',
@@ -214,20 +223,20 @@ export default {
             rubricResults: 'results',
         }),
 
-        course() {
-            return this.assignment.course;
+        courseId() {
+            return this.course.id;
         },
 
-        assignment() {
-            return this.submission.assignment;
-        },
-
-        author() {
-            return this.submission.user;
+        userId() {
+            return this.user.id;
         },
 
         otherSubmissions() {
-            return this.latestSubsInCourse.filter(sub => sub.id !== this.submission.id);
+            const excluded = this.excludeSubmission;
+            if (excluded == null) {
+                return this.latestSubsInCourse;
+            }
+            return this.latestSubsInCourse.filter(sub => sub.id !== excluded.id);
         },
 
         sortedOtherSubmissions() {
@@ -367,12 +376,17 @@ export default {
     },
 
     watch: {
-        submission: {
+        courseId: {
             immediate: true,
-            handler(newSub) {
-                if (!this.latestSubsInCourse.find(s => s.id === newSub.id)) {
-                    this.loadOtherFeedback(this.submission.id);
-                }
+            handler() {
+                this.loadCourseFeedback();
+            },
+        },
+
+        userId: {
+            immediate: true,
+            handler() {
+                this.loadCourseFeedback();
             },
         },
     },
@@ -389,14 +403,24 @@ export default {
             loadRubricResult: 'loadResult',
         }),
 
-        loadOtherFeedback() {
+        loadCourseFeedback() {
+            if (
+                this.latestSubsInCourse.length > 0 &&
+                this.latestSubsInCourse.every(sub =>
+                    sub.course === this.course && sub.user === this.user,
+                )
+            ) {
+                this.loading = false;
+                return;
+            }
+
             this.loading = true;
             this.error = null;
             this.latestSubsInCourse = [];
 
             this.loadLatestByUserInCourse({
                 courseId: this.course.id,
-                userId: this.author.id,
+                userId: this.user.id,
             }).then(
                 subs => {
                     this.latestSubsInCourse = subs;
@@ -531,7 +555,7 @@ ol {
 </style>
 
 <style lang="less">
-.previous-feedback .feedback-overview {
+.course-feedback .feedback-overview {
     border-left: none !important;
     border-right: none !important;
     border-bottom: none !important;
@@ -542,7 +566,7 @@ ol {
     }
 }
 
-.previous-feedback-rubric-row-popover {
+.course-feedback-rubric-row-popover {
     max-width: 35rem;
 
     .popover-body {
@@ -550,12 +574,8 @@ ol {
         padding: 0 !important;
     }
 
-    .row-description {
-        background-color: rgba(0, 0, 0, 0.0625);
-
-        p {
-            margin-bottom: 0.5rem !important;
-        }
+    .row-description p {
+        margin-bottom: 0.5rem !important;
     }
 
     .rubric-item .description {

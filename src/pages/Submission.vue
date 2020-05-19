@@ -194,9 +194,11 @@
                     <b-tab title="Feedback"
                            @click="hiddenSidebarTabs.delete('feedback')"
                             class="border rounded overflow-hidden">
-                        <previous-feedback
+                        <course-feedback
                             v-if="!hiddenSidebarTabs.has('feedback')"
-                            :submission="submission" />
+                            :course="course"
+                            :user="submission.user"
+                            :exclude-submission="submission" />
                     </b-tab>
                 </b-tabs>
             </rs-panes>
@@ -271,7 +273,7 @@ import {
     GradeViewer,
     GradeHistory,
     GeneralFeedbackArea,
-    PreviousFeedback,
+    CourseFeedback,
     Loader,
     LocalHeader,
     PreferenceManager,
@@ -549,7 +551,7 @@ export default {
                 tabs.push({
                     id: 'feedback',
                     name: 'Feedback',
-                    help: 'Show feedback given on previous assignments in this course.',
+                    help: 'Show feedback given on other assignments in this course.',
                     icon: 'comment',
                 });
             }
@@ -949,7 +951,7 @@ export default {
         GradeViewer,
         GradeHistory,
         GeneralFeedbackArea,
-        PreviousFeedback,
+        CourseFeedback,
         Loader,
         LocalHeader,
         PreferenceManager,
@@ -1029,7 +1031,7 @@ export default {
 }
 
 .file-tree,
-.previous-feedback {
+.course-feedback {
     max-height: 100%;
 }
 

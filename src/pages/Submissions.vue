@@ -179,6 +179,16 @@
                         <p class="mb-0">Groups</p>
                     </div>
                 </div>
+
+                <div class="action-button m-2 m-md-3 rounded text-center"
+                     @click="openCategory('course-feedback')">
+                    <div class="content-wrapper border rounded p-3 pt-4">
+                        <div class="icon-wrapper mb-2">
+                            <icon name="comments-o" :scale="actionIconFactor * 6" />
+                        </div>
+                        <p class="mb-0">Course feedback</p>
+                    </div>
+                </div>
             </div>
 
             <!-- We can't use v-if here because the <submission-list> MUST
@@ -295,6 +305,13 @@
                     </template>
                 </cg-catch-error>
             </div>
+
+            <div v-if="selectedCat === 'course-feedback'"
+                 class="border rounded overflow-hidden"
+                 style="max-height: 100%;">
+                <course-feedback :course="assignment.course"
+                                 :user="loggedInUser" />
+            </div>
         </template>
     </div>
 </div>
@@ -315,6 +332,7 @@ import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/code-fork';
 import 'vue-awesome/icons/git';
 import 'vue-awesome/icons/envelope';
+import 'vue-awesome/icons/comments-o';
 
 import ltiProviders from '@/lti_providers';
 import { NONEXISTENT } from '@/constants';
@@ -327,6 +345,7 @@ import {
     CGIgnoreFile,
     RubricEditor,
     SubmitButton,
+    CourseFeedback,
     SubmissionList,
     CategorySelector,
     LateSubmissionIcon,
@@ -360,10 +379,14 @@ export default {
             userPerms: 'permissions',
         }),
         ...mapGetters('pref', ['darkMode']),
-        ...mapGetters('courses', ['assignments']),
+        ...mapGetters('courses', ['courses', 'assignments']),
         ...mapGetters('rubrics', { allRubrics: 'rubrics' }),
         ...mapGetters('submissions', ['getLatestSubmissions']),
-        ...mapGetters('users', ['getGroupInGroupSetOfUser']),
+        ...mapGetters('users', ['getUser', 'getGroupInGroupSetOfUser']),
+
+        loggedInUser() {
+            return this.getUser(this.userId);
+        },
 
         categories() {
             return [
@@ -407,6 +430,11 @@ export default {
                     name: 'Analytics',
                     badge: { label: 'beta' },
                     enabled: this.assignment.analytics_workspace_ids.length > 0,
+                },
+                {
+                    id: 'course-feedback',
+                    name: 'Course feedback',
+                    enabled: this.isStudent,
                 },
             ];
         },
@@ -783,6 +811,7 @@ export default {
         CGIgnoreFile,
         RubricEditor,
         SubmitButton,
+        CourseFeedback,
         SubmissionList,
         CategorySelector,
         GroupsManagement,
