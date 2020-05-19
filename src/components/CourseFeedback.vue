@@ -155,7 +155,11 @@
                         :should-render-general="shouldRenderGeneral"
                         :should-render-thread="shouldRenderThread"
                         :should-fade-reply="shouldFadeReply"
-                        :open-files-in-new-tab="!$inLTI"/>
+                        :open-files-in-new-tab="!$inLTI">
+                        <template v-if="filter" #no-inline-feedback>
+                            No inline feedback matching the filter.
+                        </template>
+                    </feedback-overview>
                 </collapse>
             </li>
         </ol>

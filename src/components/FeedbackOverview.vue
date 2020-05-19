@@ -15,7 +15,7 @@
     <div class="scroller">
         <b-card header="General feedback"
                 class="general-feedback"
-                v-if="shouldRenderGeneral(submission) && generalFeedback">
+                v-if="shouldRenderGeneral(submission)">
             <pre v-if="generalFeedback"
                  class="text-wrap-pre mb-0">{{ generalFeedback }}</pre>
             <span v-else class="text-muted font-italic">
@@ -27,7 +27,9 @@
                 header="Inline feedback"
                 class="inline-feedback"
                 body-class="text-muted font-italic">
-            This submission has no inline feedback.
+            <slot name="no-inline-feedback">
+                This submission has no inline feedback.
+            </slot>
         </b-card>
 
         <template v-else>
@@ -41,8 +43,7 @@
                     {{ fileTree.flattened[id] }}
                     <fa-icon v-if="openFilesInNewTab"
                              name="share-square-o"
-                             class="ml-1"
-                             />
+                             class="ml-1"/>
                 </router-link>
 
                 <div v-if="disabledFileType(id)">
