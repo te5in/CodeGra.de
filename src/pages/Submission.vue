@@ -1119,6 +1119,11 @@ export default {
         display: flex;
         flex-direction: column;
 
+        .nav-tabs {
+            position: relative;
+            z-index: 1;
+        }
+
         .tab-content {
             display: flex;
             flex: 1 1 auto;

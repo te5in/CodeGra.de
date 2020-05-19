@@ -111,7 +111,7 @@
                                 :id="`previous-feedback-rubric-item-${sub.id}-${item.id}`"
                                 pill
                                 class="mr-1"
-                                :variant="rubricPillVariant(row, item)">
+                                variant="secondary">
                                 <span class="mr-1">{{ row.header }}</span>
                                 <sup>{{ item.achieved_points }}</sup>&frasl;<sub>{{ row.maxPoints }}</sub>
 
@@ -477,17 +477,6 @@ export default {
                 return this.filteredFeedbackCounts[sub.id] > 0;
             } else {
                 return this.totalFeedbackCounts[sub.id] > 0;
-            }
-        },
-
-        rubricPillVariant(rubricRow, itemResult) {
-            const frac = itemResult.achieved_points / rubricRow.maxPoints;
-            if (frac < 0.5) {
-                return 'danger';
-            } else if (frac < 1) {
-                return 'warning';
-            } else {
-                return 'success';
             }
         },
     },
