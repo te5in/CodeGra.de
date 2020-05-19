@@ -509,6 +509,14 @@ export default {
         },
     },
 
+    mounted() {
+        this.$root.$on('cg::submissions-page::reload', this.loadCourseFeedback);
+    },
+
+    destroyed() {
+        this.$root.$off('cg::submissions-page::reload', this.loadCourseFeedback);
+    },
+
     components: {
         Collapse,
         FeedbackOverview,
