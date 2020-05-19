@@ -408,16 +408,6 @@ export default {
         }),
 
         loadCourseFeedback() {
-            if (
-                this.latestSubsInCourse.length > 0 &&
-                this.latestSubsInCourse.every(sub =>
-                    sub.course === this.course && sub.user === this.user,
-                )
-            ) {
-                this.loading = false;
-                return;
-            }
-
             this.loading = true;
             this.error = null;
             this.latestSubsInCourse = [];
