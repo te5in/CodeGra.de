@@ -169,13 +169,15 @@
                              :language="selectedLanguage"
                              @language="languageChanged" />
 
-                <file-tree
-                    v-if="!canGiveLineFeedback"
-                    slot="secondPane"
-                    class="flex-grow-1 border rounded"
-                    :assignment="assignment"
-                    :submission="submission"
-                    :revision="revision"/>
+                <div v-if="course.isStudent"
+                     slot="secondPane"
+                     class="flex-grow-1 h-100 border rounded overflow-hidden">
+                    <file-tree
+                        class="h-100 overflow-auto"
+                        :assignment="assignment"
+                        :submission="submission"
+                        :revision="revision"/>
+                </div>
 
                 <b-tabs v-else
                         class="submission-sidebar"
@@ -184,7 +186,7 @@
                         no-fade
                         v-model="currentSidebarTab">
                     <b-tab title="Files"
-                            class="border rounded-bottom rounded-right">
+                           class="border rounded-bottom rounded-right">
                         <file-tree
                             :assignment="assignment"
                             :submission="submission"
@@ -193,7 +195,7 @@
 
                     <b-tab title="Feedback"
                            @click="hiddenSidebarTabs.delete('feedback')"
-                            class="border rounded overflow-hidden">
+                           class="border rounded overflow-hidden">
                         <course-feedback
                             v-if="!hiddenSidebarTabs.has('feedback')"
                             :course="course"
@@ -252,8 +254,6 @@ import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/history';
 import 'vue-awesome/icons/archive';
 import 'vue-awesome/icons/envelope';
-import 'vue-awesome/icons/comment';
-import 'vue-awesome/icons/folder';
 import ResSplitPane from 'vue-resize-split-pane';
 
 import { mapGetters, mapActions } from 'vuex';
@@ -543,7 +543,6 @@ export default {
                     id: 'files',
                     name: 'Files',
                     help: 'Show the files of this submission.',
-                    icon: 'folder',
                 },
             ];
 
@@ -552,7 +551,6 @@ export default {
                     id: 'feedback',
                     name: 'Feedback',
                     help: 'Show feedback given on other assignments in this course.',
-                    icon: 'comment',
                 });
             }
 
