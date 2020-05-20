@@ -163,6 +163,11 @@ class CoursePermissionChecker(PermissionChecker):
         ensure_any_of_permissions(perms, self.course_id, user=self.user)
 
 
+class GlobalPermissionChecker(PermissionChecker):
+    def _ensure(self, perm: GPerm) -> None:
+        ensure_permission(perm, user=self.user)
+
+
 @jwt.user_loader_callback_loader
 def _load_user(user_id: int) -> t.Optional['psef.models.User']:
     return psef.models.User.query.get(int(user_id))
@@ -1116,6 +1121,31 @@ class TaskResultPermissions(PermissionChecker):
                     f' {self.user}.'
                 ), APICodes.INCORRECT_PERMISSION, 403
             )
+
+
+class LTI1p3ProviderPermissions(GlobalPermissionChecker):
+    __slots__ = ('lti_provider', )
+
+    def __init__(
+        self,
+        lti_provider: 'psef.models.LTI1p3Provider',
+        *,
+        secret: str = None
+    ) -> None:
+        self.lti_provider: Final = lti_provider
+        self.secret: Final = secret
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_add(self) -> None:
+        pass
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        pass
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_edit(self) -> None:
+        pass
 
 
 @login_required

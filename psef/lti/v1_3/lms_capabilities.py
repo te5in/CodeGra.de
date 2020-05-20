@@ -43,6 +43,14 @@ class LMSCapabilities(Protocol):
     def cookie_post_message(self) -> t.Optional[str]:
         ...
 
+    @property
+    def supported_custom_replacement_groups(self) -> t.Sequence[str]:
+        ...
+
+    @property
+    def use_id_in_urls(self) -> bool:
+        ...
+
 
 @dataclasses.dataclass(frozen=True)
 class _LMSCapabilities:
@@ -56,6 +64,10 @@ class _LMSCapabilities:
 
     cookie_post_message: t.Optional[str]
 
+    supported_custom_replacement_groups: t.Sequence[str]
+
+    use_id_in_urls: bool
+
     def __post_init__(self) -> None:
         lti_1_3_lms_capabilities.register(self.lms)(self)
 
@@ -68,15 +80,19 @@ _LMSCapabilities(
     set_deadline=False,
     set_state=False,
     test_student_name='Test Student',
-    cookie_post_message='requestFullWindowLaunch'
+    cookie_post_message='requestFullWindowLaunch',
+    supported_custom_replacement_groups=['$Canvas'],
+    use_id_in_urls=False,
 )
 
 _LMSCapabilities(
     lms='Blackboard',
-    set_deadline=True,
+    set_deadline=False,
     set_state=True,
     test_student_name=None,
     cookie_post_message=None,
+    supported_custom_replacement_groups=[],
+    use_id_in_urls=True,
 )
 
 _LMSCapabilities(
@@ -85,6 +101,18 @@ _LMSCapabilities(
     set_state=True,
     test_student_name=None,
     cookie_post_message=None,
+    supported_custom_replacement_groups=[],
+    use_id_in_urls=True,
+)
+
+_LMSCapabilities(
+    lms='Brightspace',
+    set_deadline=True,
+    set_state=True,
+    test_student_name=None,
+    cookie_post_message=None,
+    supported_custom_replacement_groups=[],
+    use_id_in_urls=False,
 )
 
 lti_1_3_lms_capabilities.freeze()

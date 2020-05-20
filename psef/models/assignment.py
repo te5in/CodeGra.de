@@ -160,6 +160,10 @@ class AssignmentVisibilityState(enum.IntEnum):
     """Assignment has been deleted and should be hidden."""
     deleted = 2
 
+    @property
+    def is_deleted(self) -> bool:
+        return self == self.deleted
+
 
 class AssignmentAssignedGrader(Base):
     """The class creates the link between an :class:`.user_models.User` and an

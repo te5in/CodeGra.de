@@ -51,6 +51,7 @@ export function htmlEscape(inputString: string) {
 
 
 export type AllOrNone<T> = T | { [K in keyof T]?: never };
+export type OneOrOther<T, Y> = (T & { [K in keyof Y]?: never }) | (Y & { [K in keyof T]?: never });
 
 export function fromEntries<T>(vals: [string | number, T][]): Record<string, T> {
     return (Object as any).fromEntries(vals);
@@ -163,6 +164,14 @@ export class AssertionError extends Error {
             throw new AssertionError(msg);
         }
     }
+
+    static assertNever(value: never, msg?: string): never {
+        throw new AssertionError(msg ?? `The value ${value} was never expected to exist`);
+    }
+
+    static typeAssert<T>(_: T): void {
+        // NOT EMPTY
+    }
 }
 
 export function buildUrl(
@@ -171,10 +180,11 @@ export function buildUrl(
         query?: Record<string, string>;
         hash?: string;
         addTrailingSlash?: boolean;
-    } & AllOrNone<{
+    } & OneOrOther<AllOrNone<{
         host: string;
         protocol: string;
-    }> = {},
+    }>, { baseUrl: string | null }>
+        = {},
 ): string {
     let mainPart;
     let initialSlash = '';
@@ -191,7 +201,15 @@ export function buildUrl(
     let prefix = '';
     if (args.protocol != null) {
         initialSlash = '/';
+
+        AssertionError.typeAssert<undefined>(args.baseUrl);
         prefix = `${args.protocol.toString()}//${args.host.toString()}`;
+    } else if (args.baseUrl != null) {
+        AssertionError.typeAssert<undefined>(args.protocol);
+        prefix = args.baseUrl;
+        if (args.baseUrl.endsWith('/')) {
+            prefix += '/';
+        }
     }
 
     let query = '';
@@ -690,3 +708,14 @@ export function parseBool<T extends string | boolean>(value: T, dflt = true): bo
 
     return dflt;
 }
+
+export const isValidHttpUrl = (() => {
+    const URL_PATTERN = new RegExp('^(https?:\\/\\/)' + // protocol
+        '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
+        '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+        '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+        '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+        '(\\#[-a-z\\d_]*)?$', 'i');
+
+    return (input: string): boolean => !!URL_PATTERN.test(input);
+})();

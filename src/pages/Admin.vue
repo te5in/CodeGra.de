@@ -18,13 +18,19 @@
                                      :getRetrieveUrl="() => '/api/v1/roles/'"/>
             </b-card>
         </div>
+
+        <div class="col-12">
+            <b-card header="LTI 1.3 providers">
+                <lti-providers />
+            </b-card>
+        </div>
     </div>
 </div>
 </template>
 
 <script>
 import { mapGetters } from 'vuex';
-import { LocalHeader, PermissionsManager, Loader, ImpersonateUser } from '@/components';
+import { LocalHeader, PermissionsManager, Loader, ImpersonateUser, LtiProviders } from '@/components';
 
 import { setPageTitle } from './title';
 
@@ -36,6 +42,7 @@ export default {
         Loader,
         LocalHeader,
         ImpersonateUser,
+        LtiProviders,
     },
 
     data() {

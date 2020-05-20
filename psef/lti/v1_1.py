@@ -225,7 +225,7 @@ class LTIGlobalRole(LTIRole):
 
 T_LTI = t.TypeVar('T_LTI', bound='LTI')  # pylint: disable=invalid-name
 
-lti_classes: register.Register[str, t.Type['LTI']] = register.Register()
+lti_classes: register.Register[str, t.Type['LTI']] = register.Register('LTIClasses')
 
 
 # TODO: This class has so many public methods as they are properties. A lot of

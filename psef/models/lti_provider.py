@@ -9,7 +9,9 @@ import json
 import uuid
 import typing as t
 
+import furl
 import structlog
+import sqlalchemy
 import jwcrypto.jwk
 import pylti1p3.grade
 import flask_jwt_extended as flask_jwt
@@ -17,8 +19,8 @@ import pylti1p3.exception
 import pylti1p3.names_roles
 import pylti1p3.registration
 import pylti1p3.service_connector
-from furl import furl
 from sqlalchemy.types import JSON
+from sqlalchemy_utils import UUIDType
 from typing_extensions import Final, Literal
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -480,6 +482,7 @@ class LTI1p3Provider(LTIProviderBase):
                 .set_client_id(provider.client_id) \
                 .set_key_set_url(provider._key_set_url) \
                 .set_issuer(provider.iss) \
+                .set_tool_public_key(provider.get_public_key()) \
                 .set_tool_private_key(provider._private_key)
 
     if t.TYPE_CHECKING:
@@ -491,13 +494,37 @@ class LTI1p3Provider(LTIProviderBase):
 
     _lms_name = db.Column(
         'lms_name',
-        db.Enum(*lti_1_3_lms_capabilities.keys(), name='ltip1_3lmsnames'),
+        db.Enum(*lti_1_3_lms_capabilities.keys(), name='lti1p3lmsnames'),
     )
     _auth_login_url = db.Column('auth_login_url', db.Unicode)
     _auth_token_url = db.Column('auth_token_url', db.Unicode)
     _key_set_url = db.Column('key_set_url', db.Unicode)
 
     _crypto_key = db.Column('crypto_key', db.LargeBinary)
+
+    _finalized = db.Column(
+        'finalized',
+        db.Boolean,
+        nullable=False,
+        default=False,
+        server_default='true'
+    )
+
+    _intended_use = db.Column(
+        'intended_use',
+        db.Unicode,
+        nullable=False,
+        default='',
+        server_default='',
+    )
+
+    _edit_secret = db.Column(
+        'edit_secret',
+        UUIDType,
+        default=uuid.uuid4,
+        server_default=sqlalchemy.func.uuid_generate_v4(),
+        nullable=False
+    )
 
     @property
     def member_sourcedid_required(self) -> bool:
@@ -508,38 +535,64 @@ class LTI1p3Provider(LTIProviderBase):
         assert self._lms_name is not None
         return self._lms_name
 
-    def finalize_registration(
-        self,
-        iss: str,
-        lms_name: str,
-        auth_login_url: str,
-        auth_token_url: str,
-        client_id: str,
-        key_set_url: str,
-    ) -> None:
-        # Make sure we don't override these by accident
-        assert self._lms_name is None
-        assert self._auth_login_url is None
-        assert self._auth_token_url is None
-        assert self.client_id is None
-        assert self._key_set_url is None
+    @property
+    def is_finalized(self) -> bool:
+        return self._finalized
 
-        self.key = iss
-        self._lms_name = lms_name
-        self._auth_login_url = auth_login_url
-        self._auth_token_url = auth_token_url
-        self.client_id = client_id
-        self._key_set_url = key_set_url
+    def update_registration(
+        self,
+        auth_login_url: t.Optional[str],
+        auth_token_url: t.Optional[str],
+        client_id: t.Optional[str],
+        key_set_url: t.Optional[str],
+        finalize: t.Optional[bool],
+    ) -> None:
+        assert not self._finalized
+
+        if client_id is not None:
+            self.client_id = client_id
+        if auth_login_url is not None:
+            self._auth_login_url = auth_login_url
+        if auth_token_url is not None:
+            self._auth_token_url = auth_token_url
+        if key_set_url is not None:
+            self._key_set_url = key_set_url
+
+        if finalize is True:
+            all_opts = (
+                self.client_id, self._auth_login_url, self._auth_token_url,
+                self._key_set_url
+            )
+            if any(opt is None for opt in all_opts):
+                raise psef.errors.APIException(
+                    (
+                        'Cannot finalize registration as not all required'
+                        ' options are set'
+                    ), 'Some of the required options are not yet set',
+                    psef.errors.APICodes.INVALID_STATE, 400
+                )
+            self._finalized = True
 
     @classmethod
-    def create_and_generate_keys(cls, iss: str) -> 'LTI1p3Provider':
+    def create_and_generate_keys(
+        cls,
+        iss: str,
+        lms_capabilities: LMSCapabilities,
+        intended_use: str,
+    ) -> 'LTI1p3Provider':
         key = rsa.generate_private_key(
             public_exponent=65537,
             key_size=4096,
             backend=default_backend(),
         )
+        lms_name = lms_capabilities.lms
+        assert lms_name in lti_1_3_lms_capabilities
+
         return cls(
             key=iss,
+            _finalized=False,
+            _lms_name=lms_name,
+            _intended_use=intended_use,
             _crypto_key=key.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.PKCS8,
@@ -569,7 +622,6 @@ class LTI1p3Provider(LTIProviderBase):
         jwk = jwcrypto.jwk.JWK.from_pem(pub_key)
         assert not jwk.has_private
 
-        print(dir(jwk))
         assert jwk.key_type == 'RSA'
         return {
             **json.loads(jwk.export_public()),
@@ -701,17 +753,11 @@ class LTI1p3Provider(LTIProviderBase):
         found_user_ids = set(a.id for s in subs for a in s.get_all_authors())
 
         for sub in subs:
-            logger.info(' \n\n\n\n')
-            print(sub.__to_json__())
-            logger.info(' \n\n\n\n')
             self._passback_grade(sub=sub, assignment=assig, timestamp=now)
-
-        logger.info(' \n\n\n\n')
 
         for user, _ in assig.course.get_all_users_in_course(
             include_test_students=False
         ).filter(user_models.User.id.notin_(found_user_ids)):
-            print(user.__to_json__())
             self._passback_grade(user=user, assignment=assig, timestamp=now)
 
         db.session.commit()
@@ -850,42 +896,60 @@ class LTI1p3Provider(LTIProviderBase):
             # contains an array of messages.
             messages = member.get('message', None)
             if messages is None:
+                logger.info('Ignoring member as there was no message')
                 continue
 
             get_claim_data = psef.lti.v1_3.CGCustomClaims.get_custom_claim_data
             for message in messages:
                 try:
                     custom_claim = get_claim_data(
-                        t.cast(dict, message[ltiv1_3_claims.CUSTOM]),
+                        t.cast(dict, message.get(ltiv1_3_claims.CUSTOM, {})),
                         base_data=member
                     )
                 except:
-                    pass
+                    logger.info(
+                        'Could not parse message',
+                        exc_info=True,
+                        message=message
+                    )
                 else:
                     break
             else:
                 continue
 
-            assert status in {
-                'Active', 'Inactive'
-            }, 'We currently do not support the "Deleted" state'
+            if status not in {'Active', 'Inactive'}:
+                logger.info(
+                    'Got unsupported status', member=member, status=status
+                )
+                continue
 
-            user, _ = UserLTIProvider.get_or_create_user(
-                lti_user_id=member['user_id'],
-                lti_provider=self,
-                wanted_username=custom_claim.username,
-                email=lti_v1_3.get_email_for_user(member, self),
-                full_name=member['name'],
-            )
-            course_lti_provider.maybe_add_user_to_course(
-                user,
-                member['roles'],
-            )
+            logger.info('Adding member to course', member=member)
+            try:
+                user, _ = UserLTIProvider.get_or_create_user(
+                    lti_user_id=member['user_id'],
+                    lti_provider=self,
+                    wanted_username=custom_claim.username,
+                    email=lti_v1_3.get_email_for_user(member, self),
+                    full_name=member['name'],
+                )
+            except:
+                logger.info('Could not add new user', exc_info=True)
+            else:
+                course_lti_provider.maybe_add_user_to_course(
+                    user,
+                    member['roles'],
+                )
 
         db.session.commit()
 
     def supports_setting_deadline(self) -> bool:
         return self.lms_capabilities.set_deadline
+
+    @property
+    def _custom_fields(self) -> t.Mapping[str, str]:
+        return psef.lti.v1_3.CGCustomClaims.get_variable_claims_config(
+            self.lms_capabilities
+        )
 
     def get_json_config(self) -> t.Mapping[str, object]:
         def get_url(ext: str = '') -> str:
@@ -926,9 +990,35 @@ class LTI1p3Provider(LTIProviderBase):
                     }
                 ],
             'public_jwk': self.get_public_jwk(),
-            'custom_fields':
-                psef.lti.v1_3.CGCustomClaims.get_variable_claims_config(),
+            'custom_fields': self._custom_fields,
         }
+
+    def __to_json__(self) -> t.Mapping[str, object]:
+        res = {
+            'id': str(self.id),
+            'lms': self.lms_name,
+            'finalized': self._finalized,
+            'intended_use': self._intended_use,
+            'capabilities': self.lms_capabilities,
+            'edit_secret': None,
+        }
+
+        if not self._finalized:
+            if auth.LTI1p3ProviderPermissions(self).ensure_may_edit.as_bool():
+                res['edit_secret'] = self._edit_secret
+            res = {
+                **res,
+                'iss': self.iss,
+                'auth_login_url': self._auth_login_url,
+                'auth_token_url': self._auth_token_url,
+                'client_id': self.client_id,
+                'key_set_url': self._key_set_url,
+                'custom_fields': self._custom_fields,
+                'public_jwk': self.get_public_jwk(),
+                'public_key': self.get_public_key(),
+            }
+
+        return res
 
     @classmethod
     def setup_signals(cls) -> None:
@@ -1029,11 +1119,74 @@ class UserLTIProvider(Base, TimestampMixin):
         )
 
     @classmethod
+    def _create_user(
+        cls,
+        lti_user_id: str,
+        lti_provider: LTIProviderBase,
+        wanted_username: t.Optional[str],
+        full_name: str,
+        email: str,
+    ) -> t.Tuple['user_models.User', t.Optional[str]]:
+        logger.info(
+            'Creating new user for lti user id',
+            lti_user_id=lti_user_id,
+            wanted_username=wanted_username
+        )
+        if wanted_username is None:
+            raise psef.errors.APIException(
+                (
+                    'Cannot create new user as a username was not provided in'
+                    ' the LTI launch. This probably occurred because the LTI'
+                    ' provider was not configured correctly.'
+                ), 'The LTI launch did not include a username',
+                psef.errors.APICodes.MISSING_REQUIRED_PARAM, 400
+            )
+
+        # New LTI user id is found and no user is logged in or the current
+        # user has a different LTI user id. A new user is created and
+        # logged in.
+        i = 0
+
+        # Work around for https://github.com/python/mypy/issues/2608
+        _wanted_username = wanted_username
+
+        def _get_username(wanted: str = _wanted_username) -> str:
+            return f'{wanted} ({i})' if i > 0 else wanted
+
+        while db.session.query(
+            user_models.User.query.filter_by(username=_get_username()).exists()
+        ).scalar():  # pragma: no cover
+            i += 1
+
+        user = user_models.User(
+            name=full_name,
+            email=email,
+            active=True,
+            password=None,
+            username=_get_username(),
+        )
+        db.session.add(user)
+        db.session.add(
+            cls(
+                user=user,
+                lti_provider=lti_provider,
+                lti_user_id=lti_user_id,
+            )
+        )
+        db.session.flush()
+
+        token = flask_jwt.create_access_token(
+            identity=user.id,
+            fresh=True,
+        )
+        return user, token
+
+    @classmethod
     def get_or_create_user(
         cls,
         lti_user_id: str,
         lti_provider: LTIProviderBase,
-        wanted_username: str,
+        wanted_username: t.Optional[str],
         full_name: str,
         email: str,
     ) -> t.Tuple['user_models.User', t.Optional[str]]:
@@ -1086,45 +1239,8 @@ class UserLTIProvider(Base, TimestampMixin):
             )
             user = current_user
         else:
-            logger.info(
-                'Creating new user for lti user id',
-                lti_user_id=lti_user_id,
-                wanted_username=wanted_username
-            )
-            # New LTI user id is found and no user is logged in or the current
-            # user has a different LTI user id. A new user is created and
-            # logged in.
-            i = 0
-
-            def _get_username() -> str:
-                return wanted_username + (f' ({i})' if i > 0 else '')
-
-            while db.session.query(
-                user_models.User.query.filter_by(username=_get_username()
-                                                 ).exists()
-            ).scalar():  # pragma: no cover
-                i += 1
-
-            user = user_models.User(
-                name=full_name,
-                email=email,
-                active=True,
-                password=None,
-                username=_get_username(),
-            )
-            db.session.add(user)
-            db.session.add(
-                cls(
-                    user=user,
-                    lti_provider=lti_provider,
-                    lti_user_id=lti_user_id,
-                )
-            )
-            db.session.flush()
-
-            token = flask_jwt.create_access_token(
-                identity=user.id,
-                fresh=True,
+            user, token = cls._create_user(
+                lti_user_id, lti_provider, wanted_username, full_name, email
             )
 
         return user, token
@@ -1235,7 +1351,7 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
 
         mem_url_claim: Final = 'context_memberships_url'
         if rlid is not None and isinstance(claim[mem_url_claim], str):
-            claim[mem_url_claim] = furl(claim[mem_url_claim]).add(
+            claim[mem_url_claim] = furl.furl(claim[mem_url_claim]).add(
                 {'rlid': rlid}
             )
         else:

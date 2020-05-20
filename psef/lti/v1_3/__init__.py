@@ -5,6 +5,7 @@ import dataclasses
 import urllib.parse
 from datetime import timedelta
 
+import furl
 import requests
 import werkzeug
 import structlog
@@ -22,6 +23,7 @@ from pylti1p3.assignments_grades import AssignmentsGradesService
 from pylti1p3.deep_link_resource import DeepLinkResource
 
 import cg_override
+from flask import request
 from cg_dt_utils import DatetimeWithTimezone
 
 from . import claims
@@ -40,11 +42,11 @@ logger = structlog.get_logger()
 T = t.TypeVar('T')
 
 if t.TYPE_CHECKING:
+    from .lms_capabilities import LMSCapabilities
     from pylti1p3.message_launch import _JwtData, _LaunchData, _KeySet
 
 NEEDED_AGS_SCOPES = [
     'https://purl.imsglobal.org/spec/lti-ags/scope/score',
-    'https://purl.imsglobal.org/spec/lti-ags/scope/lineitem',
 ]
 
 NEEDED_SCOPES = [
@@ -90,7 +92,7 @@ class MissingCookieError(APIException):
     def __init__(self, provider: 'models.LTI1p3Provider') -> None:
         super().__init__(
             "Couldn't set needed cookies",
-            'We were not allowed to set the nesecarry cookies',
+            'We were not allowed to set the necessary cookies',
             APICodes.LTI1_3_COOKIE_ERROR,
             400,
             lms_capabilities=provider.lms_capabilities,
@@ -141,7 +143,7 @@ class CGAssignmentsGradesService(AssignmentsGradesService):
 class CGCustomClaims:
     @dataclasses.dataclass(frozen=True)
     class ClaimResult:
-        username: str
+        username: t.Optional[str]
         deadline: t.Optional[DatetimeWithTimezone]
         is_available: t.Optional[bool]
         resource_id: t.Optional[str]
@@ -149,6 +151,10 @@ class CGCustomClaims:
     class _ReplacementVar:
         def __init__(self, name: str) -> None:
             self.name = name
+            assert self.name.startswith('$')
+
+            self.group = name.split('.', 1)[0]
+            assert self.group
 
     class _AbsoluteVar:
         def __init__(self, name: str) -> None:
@@ -159,7 +165,6 @@ class CGCustomClaims:
         name: str
         opts: t.List[t.Union['CGCustomClaims._ReplacementVar',
                              'CGCustomClaims._AbsoluteVar']]
-        required: bool
 
         def get_replacement_opts(
             self
@@ -173,10 +178,11 @@ class CGCustomClaims:
 
     _WANTED_VARS: Final = [
         _Var(
-            'cg_username', [
+            'cg_username',
+            [
                 _ReplacementVar('$User.username'),
                 _AbsoluteVar('lis_person_sourcedid')
-            ], True
+            ],
         ),
         _Var(
             'cg_deadline',
@@ -184,39 +190,44 @@ class CGCustomClaims:
                 _ReplacementVar('$ResourceLink.submission.endDateTime'),
                 _ReplacementVar('$Canvas.assignment.dueAt.iso8601')
             ],
-            False,
         ),
         _Var(
             'cg_available_at',
             [_ReplacementVar('$ResourceLink.submission.startDateTime')],
-            False,
         ),
         _Var(
             'cg_is_published',
             [_ReplacementVar('$Canvas.assignment.published')],
-            False,
         ),
         _Var(
             'cg_resource_id',
             [_ReplacementVar('$ResourceLink.id')],
-            False,
         )
     ]
 
     _VAR_LOOKUP: Final = {var.name: var for var in _WANTED_VARS}
 
+    _DEFAULT_REPLACEMENT_GROUPS = {'$User', '$ResourceLink'}
+
     @classmethod
-    def get_variable_claims_config(cls) -> t.Mapping[str, str]:
+    def get_variable_claims_config(cls, lms_capabilities: 'LMSCapabilities'
+                                   ) -> t.Mapping[str, str]:
         res: t.Dict[str, str] = {}
+        custom_groups = lms_capabilities.supported_custom_replacement_groups
         for var in cls._WANTED_VARS:
             for idx, opt in enumerate(var.get_replacement_opts()):
-                res[var.get_key(idx)] = opt.name
+                if (
+                    opt.group in cls._DEFAULT_REPLACEMENT_GROUPS or
+                    opt.group in custom_groups
+                ):
+                    res[var.get_key(idx)] = opt.name
 
         return res
 
     @classmethod
-    def get_claim_keys(cls) -> t.Iterable[str]:
-        yield from cls.get_variable_claims_config().keys()
+    def get_claim_keys(cls,
+                       lms_capabilities: 'LMSCapabilities') -> t.Iterable[str]:
+        yield from cls.get_variable_claims_config(lms_capabilities).keys()
 
     @classmethod
     def _get_claim(
@@ -224,7 +235,7 @@ class CGCustomClaims:
         var_name: str,
         custom_data: t.Mapping[str, str],
         base_data: t.Mapping[str, object],
-        converter: t.Callable[[str], T],
+        converter: t.Callable[[str], t.Optional[T]],
     ) -> t.Optional[T]:
         var = cls._VAR_LOOKUP[var_name]
 
@@ -242,15 +253,15 @@ class CGCustomClaims:
                     found_value=found_val,
                     current_variable=var
                 )
-                return converter(found_val)
+                res = converter(found_val)
+                if res is not None:
+                    return res
 
-        if var.required:
-            raise AssertionError(
-                'Required variable {} was not found in {}'.format(
-                    var_name, base_data
-                )
-            )
         return None
+
+    @staticmethod
+    def _str_not_empty(inp: str) -> t.Optional[str]:
+        return inp or None
 
     @classmethod
     def get_custom_claim_data(
@@ -258,12 +269,12 @@ class CGCustomClaims:
         custom_claims: t.Mapping[str, str],
         base_data: t.Mapping[str, object],
     ) -> 'CGCustomClaims.ClaimResult':
-        username = cls._get_claim('cg_username', custom_claims, base_data, str)
-        # Username is a required var, so this should never happen
-        assert username is not None, 'Required data not found'
+        username = cls._get_claim(
+            'cg_username', custom_claims, base_data, cls._str_not_empty
+        )
 
         resource_id = cls._get_claim(
-            'cg_resource_id', custom_claims, base_data, str
+            'cg_resource_id', custom_claims, base_data, cls._str_not_empty
         )
 
         deadline = cls._get_claim(
@@ -295,9 +306,16 @@ class CGCustomClaims:
 
 class CGDeepLinkResource(DeepLinkResource):
     @classmethod
-    def make(cls, app: PsefFlask) -> 'CGDeepLinkResource':
-        return cls(
-        ).set_url(f'{app.config["EXTERNAL_URL"]}/api/v1/lti1.3/launch')
+    def make(cls, app: PsefFlask, message_launch: 'FlaskMessageLaunch') -> 'CGDeepLinkResource':
+        self = cls()
+        base_url = furl.furl(app.config['EXTERNAL_URL'])
+
+        to_add = ['api', 'v1', 'lti1.3', 'launch']
+        provider = message_launch.get_lti_provider()
+        if provider.lms_capabilities.use_id_in_urls:
+            to_add.append(str(provider.id))
+
+        return self.set_url(str(base_url.add(path=to_add)))
 
 
 def init_app(app: PsefFlask) -> None:
@@ -305,6 +323,11 @@ def init_app(app: PsefFlask) -> None:
 
 
 class LTIConfig(ToolConfAbstract[FlaskRequest]):
+    def __init__(
+        self, lti_provider: t.Optional['models.LTI1p3Provider']
+    ) -> None:
+        self._lti_provider = lti_provider
+
     def check_iss_has_one_client(self, iss: str) -> bool:
         return False
 
@@ -315,6 +338,25 @@ class LTIConfig(ToolConfAbstract[FlaskRequest]):
     ) -> t.Optional[Registration]:
         raise AssertionError("We don't support registration by only issuer")
 
+    def find_provider_by_params(
+        self, iss: str, client_id: t.Optional[str]
+    ) -> 'models.LTI1p3Provider':
+        if self._lti_provider is not None:
+            # TODO: Raise nice exception here
+            assert self._lti_provider.iss == iss
+            if isinstance(client_id, str):
+                assert self._lti_provider.client_id == client_id
+        else:
+            filters = [models.LTI1p3Provider.iss == iss]
+            if isinstance(client_id, str):
+                filters.append(models.LTI1p3Provider.client_id == client_id)
+
+            self._lti_provider = helpers.filter_single_or_404(
+                models.LTI1p3Provider, *filters
+            )
+
+        return self._lti_provider
+
     def find_registration_by_params(
         self,
         iss: str,
@@ -323,13 +365,8 @@ class LTIConfig(ToolConfAbstract[FlaskRequest]):
         **kwargs: t.Union[Literal['message_launch', 'oidc_login'],
                           FlaskRequest, '_LaunchData'],
     ) -> t.Optional[Registration]:
-        filters = [models.LTI1p3Provider.iss == iss]
-        if isinstance(client_id, str):
-            filters.append(models.LTI1p3Provider.client_id == client_id)
-
-        return helpers.filter_single_or_404(
-            models.LTI1p3Provider,
-            *filters,
+        return self.find_provider_by_params(
+            iss=iss, client_id=client_id
         ).get_registration()
 
     def find_deployment(
@@ -351,8 +388,6 @@ class FlaskMessageLaunch(
     MessageLaunch[FlaskRequest, LTIConfig, FlaskSessionService,
                   FlaskCookieService]
 ):
-    _provider: t.Optional['models.LTI1p3Provider'] = None
-
     @cg_override.override
     def fetch_public_key(self, key_set_url: str) -> '_KeySet':
         provider = self.get_lti_provider()
@@ -414,7 +449,6 @@ class FlaskMessageLaunch(
             return None
 
         return course.get_assignments().filter(
-            models.Assignment.is_visible,
             models.Assignment.lti_assignment_id == resource_id,
         ).one_or_none()
 
@@ -486,11 +520,13 @@ class FlaskMessageLaunch(
         return self._request.get_param(key)
 
     @classmethod
-    def from_request(cls) -> 'FlaskMessageLaunch':
+    def from_request(
+        cls, lti_provider: t.Optional['models.LTI1p3Provider']
+    ) -> 'FlaskMessageLaunch':
         f_request = FlaskRequest(force_post=True)
         self = cls(
             f_request,
-            LTIConfig(),
+            LTIConfig(lti_provider=lti_provider),
             FlaskSessionService(f_request),
             FlaskCookieService(),
         )
@@ -498,16 +534,13 @@ class FlaskMessageLaunch(
 
     def get_lti_provider(self) -> 'models.LTI1p3Provider':
         assert self._validated or self._restored
-        if self._provider is None:
-            assert self._registration is not None
-
-            client_id = self._registration.get_client_id()
-            self._provider = helpers.filter_single_or_404(
-                models.LTI1p3Provider,
-                models.LTI1p3Provider.iss == self._get_iss(),
-                models.LTI1p3Provider.client_id == client_id,
-            )
-        return self._provider
+        reg = self._registration
+        assert reg is not None, 'Registration should be set at this point'
+        client_id = reg.get_client_id()
+        return self._tool_config.find_provider_by_params(
+            iss=self._get_iss(),
+            client_id=client_id,
+        )
 
     # We never want to save the launch data in the session, as we have no
     # use-case for it, and it slows down every request
@@ -569,7 +602,10 @@ class FlaskMessageLaunch(
             (
                 'The LTI launch is missing required custom claims, the setup'
                 ' was probably done incorrectly'
-            ), custom, *CGCustomClaims.get_claim_keys()
+            ), custom,
+            *CGCustomClaims.get_claim_keys(
+                self.get_lti_provider().lms_capabilities
+            )
         )
 
         if not self.is_deep_link_launch():
@@ -633,10 +669,8 @@ class FlaskMessageLaunch(
                     self_copy._cookie_service, self_copy.get_lti_provider()
                 )
             finally:
-                self_copy._registration = None
-                self_copy._jwt = {}
-                self_copy._provider = None
                 self_copy._validated = False
+                self_copy._restored = False
 
             raise
         else:
@@ -716,11 +750,13 @@ class FlaskMessageLaunch(
         cls,
         *,
         launch_data: t.Mapping[str, object],
+        lti_provider_id: str,
     ) -> 'FlaskMessageLaunch':
         f_request = FlaskRequest(force_post=False)
+        provider = helpers.get_or_404(models.LTI1p3Provider, lti_provider_id)
         obj = cls(
             f_request,
-            LTIConfig(),
+            LTIConfig(provider),
             session_service=FlaskSessionService(f_request),
             cookie_service=FlaskCookieService(),
         )
@@ -741,14 +777,13 @@ class FlaskOIDCLogin(
         return FlaskRedirect(url, self._cookie_service)
 
     @classmethod
-    def from_request(cls) -> 'FlaskOIDCLogin':
+    def from_request(
+        cls, lti_provider: t.Optional['models.LTI1p3Provider']
+    ) -> 'FlaskOIDCLogin':
         f_request = FlaskRequest(force_post=False)
         return FlaskOIDCLogin(
             f_request,
-            LTIConfig(),
+            LTIConfig(lti_provider=lti_provider),
             FlaskSessionService(f_request),
             FlaskCookieService(),
         )
-
-
-#  LocalWords:  nesecarry

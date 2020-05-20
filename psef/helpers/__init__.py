@@ -43,7 +43,7 @@ from cg_flask_helpers import (
 )
 from cg_sqlalchemy_helpers.types import Base, MyQuery, DbColumn
 
-from . import validate, jsonify_options
+from . import register, validate, jsonify_options
 from .. import errors, current_tester
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
@@ -59,6 +59,7 @@ T_CONTRA = t.TypeVar('T_CONTRA', contravariant=True)  # pylint: disable=invalid-
 T_STOP_THREAD = t.TypeVar('T_STOP_THREAD', bound='StoppableThread')  # pylint: disable=invalid-name
 T_CAL = t.TypeVar('T_CAL', bound=t.Callable)  # pylint: disable=invalid-name
 TT = t.TypeVar('TT')
+K = t.TypeVar('K')
 TTT = t.TypeVar('TTT', bound='IsInstanceType')
 ZZ = t.TypeVar('ZZ')
 Z = t.TypeVar('Z', bound='Comparable')
@@ -782,9 +783,13 @@ def ensure_on_test_server() -> None:
     assert current_tester._get_current_object() is not None
 
 
-def _get_type_name(typ: t.Union[t.Type, t.Tuple[t.Type, ...]]) -> str:
+def _get_type_name(
+    typ: t.Union[t.Type, t.Tuple[t.Type, ...], register.Register]
+) -> str:
     if isinstance(typ, tuple):
-        return ', '.join(ty.__name__ for ty in typ)
+        return ', '.join(map(_get_type_name, typ))
+    elif isinstance(typ, register.Register):
+        return 'UnionOf[{}]'.format(', '.join(map(str, typ.keys())))
     else:
         return typ.__name__
 
@@ -813,25 +818,37 @@ def get_key_from_dict(
     return val
 
 
-class TransactionGet(Protocol[T_CONTRA]):
+class TransactionGet(Protocol[K]):
     """Protocol for a function to get something with a given type from a map.
     """
 
     @t.overload
-    def __call__(self, to_get: T_CONTRA, typ: t.Type[T]) -> T:
+    def __call__(self, to_get: K, typ: t.Type[T]) -> T:
         ...
 
     @t.overload
     def __call__(
-        self, to_get: T_CONTRA, typ: t.Type[T], *,
-        transform: t.Callable[[T], TT]
+        self,
+        t_get: K,
+        typ: register.Register[K, T],
+        transform: t.Callable[[t.Tuple[K, T]], TT],
     ) -> TT:
         ...
 
     @t.overload
     def __call__(
         self,
-        to_get: T_CONTRA,
+        to_get: K,
+        typ: t.Type[T],
+        *,
+        transform: t.Callable[[T], TT],
+    ) -> TT:
+        ...
+
+    @t.overload
+    def __call__(
+        self,
+        to_get: K,
         typ: t.Tuple[t.Type[T], t.Type[TT]],
     ) -> t.Union[T, TT]:
         ...
@@ -906,7 +923,7 @@ def get_from_map_transaction(
 
     def get(
         key: T,
-        typ: t.Union[t.Type, t.Tuple[t.Type, ...]],
+        typ: t.Union[t.Type, t.Tuple[t.Type, ...], register.Register],
         *,
         transform: t.Callable[[TT], TTT] = None,
     ) -> TTT:
@@ -918,6 +935,8 @@ def get_from_map_transaction(
             isinstance(value, str)
         ):
             value = t.cast(TT, typ.__members__.get(value, MISSING))
+        elif isinstance(typ, register.Register):
+            value = t.cast(TT, (value, typ.get_or(value, MISSING)))
 
         if transform is not None and value is not MISSING:
             return transform(t.cast(TT, value))
@@ -967,7 +986,8 @@ def get_from_request_transaction(
 
 
 def ensure_keys_in_dict(
-    mapping: t.Mapping[T, object], keys: t.Sequence[t.Tuple[T, IsInstanceType]]
+    mapping: t.Mapping[T, object],
+    keys: t.Sequence[t.Tuple[T, t.Union[IsInstanceType, register.Register]]]
 ) -> None:
     """Ensure that the given keys are in the given mapping.
 
@@ -999,6 +1019,9 @@ def ensure_keys_in_dict(
                     f', was "{mapping[key]}")'
                 )
                 type_wrong = True
+        elif isinstance(check_type, register.Register):
+            if value not in check_type:
+                missing.append('WRONG!')
         elif (
             (not isinstance(value, check_type)) or
             (check_type == int and isinstance(value, bool))

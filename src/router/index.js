@@ -17,6 +17,7 @@ import {
     Groups,
     LoginAndRedirect,
     UnsubscribePage,
+    LTIProviderSetup,
 } from '@/pages';
 
 import { PlagiarismOverview, PlagiarismDetail } from '@/components';
@@ -115,6 +116,11 @@ const router = new Router({
             path: '/unsubscribe/email_notifications/',
             name: 'unsubscribe',
             component: UnsubscribePage,
+        },
+        {
+            path: '/lti_providers/:ltiProviderId/setup',
+            name: 'lti_provider_setup',
+            component: LTIProviderSetup,
         },
     ],
 });

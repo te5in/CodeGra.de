@@ -283,10 +283,9 @@ class Course(NotEqualMixin, Base):
 
         :returns: A object as described above.
         """
-        prov = self.lti_provider
-        capabilities = None
-        if isinstance(prov, LTI1p3Provider):
-            capabilities = prov.lms_capabilities
+        provider = self.lti_provider
+        if not isinstance(provider, LTI1p3Provider):
+            provider = None
 
         return {
             'id': self.id,
@@ -294,7 +293,7 @@ class Course(NotEqualMixin, Base):
             'created_at': self.created_at.isoformat(),
             'is_lti': self.is_lti,
             'virtual': self.virtual,
-            'lti1p3_lms_capabilities': capabilities,
+            'lti1p3_provider': provider,
         }
 
     def get_all_visible_assignments(self) -> t.Sequence['Assignment']:

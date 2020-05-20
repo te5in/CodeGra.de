@@ -12,6 +12,7 @@ from flask import current_app
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from werkzeug.local import LocalProxy
 from sqlalchemy_utils import PasswordType
+from typing_extensions import Literal
 from sqlalchemy.sql.expression import false
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
@@ -21,7 +22,7 @@ from cg_sqlalchemy_helpers import CIText, hybrid_property
 from . import UUID_LENGTH, Base, DbColumn, db, course, _MyQuery
 from .. import signals
 from .role import Role, CourseRole
-from ..helpers import NotEqualMixin, validate, maybe_unwrap_proxy
+from ..helpers import NotEqualMixin, validate, handle_none, maybe_unwrap_proxy
 from .permission import Permission
 from ..exceptions import APICodes, APIException, PermissionException
 from .link_tables import user_course, course_permissions
@@ -83,6 +84,30 @@ class User(NotEqualMixin, Base):
     __tablename__ = "User"
 
     _id = db.Column('id', db.Integer, primary_key=True)
+
+    def __init__(
+        self,
+        name: str,
+        email: str,
+        password: t.Optional[str],
+        username: str,
+        active: Literal[True] = True,
+        virtual: bool = False,
+        role: t.Optional[Role] = None,
+        is_test_student: bool = False,
+        courses: t.Mapping[int, CourseRole] = None,
+    ) -> None:
+        super().__init__(
+            name=name,
+            email=email,
+            password=password,
+            username=username,
+            active=active,
+            role=role,
+            is_test_student=is_test_student,
+            virtual=virtual,
+            courses=handle_none(courses, {}),
+        )
 
     def _get_id(self) -> int:
         """The id of the user
@@ -265,6 +290,7 @@ class User(NotEqualMixin, Base):
             username=f'TEST_STUDENT__{uuid.uuid4()}',
             is_test_student=True,
             email='',
+            password=None,
         )
 
     @classmethod
@@ -278,7 +304,8 @@ class User(NotEqualMixin, Base):
             name=f'Virtual - {name}',
             username=f'VIRTUAL_USER__{uuid.uuid4()}',
             virtual=True,
-            email=''
+            email='',
+            password=None,
         )
 
     @t.overload

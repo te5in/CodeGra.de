@@ -25,7 +25,9 @@ from cg_json import JSONResponse, jsonify
 from cg_dt_utils import DatetimeWithTimezone
 
 from . import api
-from .. import errors, models, helpers, parsers, features, exceptions
+from .. import (
+    auth, errors, models, helpers, parsers, features, registry, exceptions
+)
 from ..lti import LTIVersion
 from ..lti import v1_1 as lti_v1_1
 from ..lti import v1_3 as lti_v1_3
@@ -33,6 +35,14 @@ from ..models import db
 from ..lti.abstract import LTILaunchData
 
 logger = structlog.get_logger()
+
+
+def _maybe_get_provider(provider_id: t.Optional[str]
+                        ) -> t.Optional[models.LTI1p3Provider]:
+    if provider_id is None:
+        return None
+    else:
+        return helpers.get_or_404(models.LTI1p3Provider, provider_id)
 
 
 def _convert_boolean(value: t.Union[bool, str, None], default: bool) -> bool:
@@ -67,7 +77,7 @@ def _make_blob_and_redirect(
             'data': params,
             'version': version.__to_json__(),
         },
-        'exp': DatetimeWithTimezone.utcnow() + timedelta(minutes=1)
+        'exp': DatetimeWithTimezone.utcnow() + timedelta(minutes=5)
     }
     blob = models.BlobStorage(
         data=jwt.encode(
@@ -157,7 +167,7 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
             app.config['LTI_SECRET_KEY'],
             algorithms=['HS512'],
         )['params']
-    except jwt.DecodeError:
+    except jwt.PyJWTError:
         logger.warning(
             'Invalid JWT token encountered',
             blob_id=str(blob.id),
@@ -193,6 +203,7 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
 
         launch_message = lti_v1_3.FlaskMessageLaunch.from_message_data(
             launch_data=data['launch_data'],
+            lti_provider_id=data['lti_provider_id'],
         )
 
         if not launch_message.is_resource_launch():
@@ -240,8 +251,11 @@ def second_phase_lti_launch(
     return jsonify(t.cast(dict, res['data']))
 
 
-@api.route('/lti1.3/login', methods=['GET', 'POST'])
-def do_oidc_login() -> werkzeug.wrappers.Response:
+@api.route('/lti1.3/login/<lti_provider_id>', methods=['GET', 'POST', 'HEAD'])
+@api.route('/lti1.3/login', methods=['GET', 'POST', 'HEAD'])
+def do_oidc_login(
+    lti_provider_id: t.Optional[str] = None
+) -> werkzeug.wrappers.Response:
     req = helpers.maybe_unwrap_proxy(flask.request, flask.Request)
     if req.method == 'GET':
         target = req.args.get('target_link_uri')
@@ -250,7 +264,8 @@ def do_oidc_login() -> werkzeug.wrappers.Response:
     assert target is not None
 
     try:
-        oidc = lti_v1_3.FlaskOIDCLogin.from_request()
+        provider = _maybe_get_provider(lti_provider_id)
+        oidc = lti_v1_3.FlaskOIDCLogin.from_request(lti_provider=provider)
         red = oidc.get_redirect_object(target)
     except exceptions.APIException as exc:
         logger.info('Login request went wrong', exc_info=True)
@@ -297,17 +312,22 @@ def get_lti_provider_jwks(lti_provider_id: str) -> helpers.JSONResponse:
     return jsonify({'keys': [lti_provider.get_public_jwk()]})
 
 
+@api.route('/lti1.3/launch/<lti_provider_id>', methods=['POST'])
 @api.route('/lti1.3/launch', methods=['POST'])
-def handle_lti_advantage_launch() -> t.Union[str, werkzeug.wrappers.Response]:
+def handle_lti_advantage_launch(lti_provider_id: t.Optional[str] = None
+                                ) -> t.Union[str, werkzeug.wrappers.Response]:
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
     plat_red_url = flask.request.args.get('platform_redirect_url')
-    full_win_launch_requests = flask.request.args('full_win_launch_requested')
-    if full_win_launch_requests == '1' and plat_red_url:
+    full_win_launch = flask.request.args.get('full_win_launch_requested')
+    if full_win_launch == '1' and plat_red_url:
         return flask.redirect(plat_red_url)
 
     try:
-        message_launch = lti_v1_3.FlaskMessageLaunch.from_request().validate()
+        provider = _maybe_get_provider(lti_provider_id)
+        message_launch = lti_v1_3.FlaskMessageLaunch.from_request(
+            lti_provider=provider,
+        ).validate()
     except exceptions.APIException as exc:
         logger.info('An error occurred during the LTI launch', exc_info=True)
         return _make_blob_and_redirect(
@@ -330,13 +350,13 @@ def handle_lti_advantage_launch() -> t.Union[str, werkzeug.wrappers.Response]:
 
     if message_launch.is_deep_link_launch():
         deep_link = message_launch.get_deep_link()
-        return deep_link.output_response_form(
-            [lti_v1_3.CGDeepLinkResource.make(app)]
-        )
+        dp_resource = lti_v1_3.CGDeepLinkResource.make(app, message_launch)
+        return deep_link.output_response_form([dp_resource])
 
     return _make_blob_and_redirect(
         {
             'launch_data': message_launch.get_launch_data(),
+            'lti_provider_id': message_launch.get_lti_provider().id,
             'request_args': dict(flask.request.args),
         },
         version=LTIVersion.v1_3,
@@ -349,3 +369,90 @@ def get_lti1_3_config(lti_provider_id: str) -> helpers.JSONResponse:
         models.LTI1p3Provider, models.LTI1p3Provider.id == lti_provider_id
     )
     return jsonify(lti_provider.get_json_config())
+
+
+@api.route('/lti1.3/providers/', methods=['get'])
+@auth.login_required
+def list_lti1p3_provider(
+) -> helpers.JSONResponse[t.List[models.LTI1p3Provider]]:
+    providers = [
+        prov for prov in models.LTI1p3Provider.query
+        if auth.LTI1p3ProviderPermissions(prov).ensure_may_see.as_bool()
+    ]
+    return jsonify(providers)
+
+
+@api.route('/lti1.3/providers/', methods=['POST'])
+@auth.login_required
+def create_lti1p3_provider() -> helpers.JSONResponse[models.LTI1p3Provider]:
+    with helpers.get_from_request_transaction() as [get, _]:
+        iss = get('iss', str)
+        caps = get(
+            'lms',
+            registry.lti_1_3_lms_capabilities,
+            transform=lambda x: x[1],
+        )
+        intended_use = get('intended_use', str)
+
+    if intended_use == '' or iss == '':
+        raise exceptions.APIException(
+            'Both "intended_use" and "iss" must be non empty',
+            f'Either iss={iss} or intended_use={intended_use} was empty',
+            exceptions.APICodes.INVALID_PARAM, 400
+        )
+
+    lti_provider = models.LTI1p3Provider.create_and_generate_keys(
+        iss=iss,
+        lms_capabilities=caps,
+        intended_use=intended_use,
+    )
+    auth.LTI1p3ProviderPermissions(lti_provider).ensure_may_add()
+
+    db.session.add(lti_provider)
+    db.session.commit()
+
+    return jsonify(lti_provider)
+
+
+@api.route('/lti1.3/providers/<lti_provider_id>', methods=['GET'])
+def get_lti1p3_provider(lti_provider_id: str
+                        ) -> helpers.JSONResponse[models.LTI1p3Provider]:
+    lti_provider = helpers.filter_single_or_404(
+        models.LTI1p3Provider, models.LTI1p3Provider.id == lti_provider_id
+    )
+    secret = flask.request.args.get('secret')
+    auth.LTI1p3ProviderPermissions(
+        lti_provider, secret=secret
+    ).ensure_may_see()
+    return jsonify(lti_provider)
+
+
+@api.route('/lti1.3/providers/<lti_provider_id>', methods=['PATCH'])
+def update_lti1p3_provider(lti_provider_id: str
+                           ) -> helpers.JSONResponse[models.LTI1p3Provider]:
+    lti_provider = helpers.filter_single_or_404(
+        models.LTI1p3Provider, models.LTI1p3Provider.id == lti_provider_id
+    )
+    secret = flask.request.args.get('secret')
+    auth.LTI1p3ProviderPermissions(
+        lti_provider, secret=secret
+    ).ensure_may_edit()
+
+    with helpers.get_from_request_transaction() as [_, opt_get]:
+        client_id = opt_get('client_id', str, None)
+        auth_token_url = opt_get('auth_token_url', str, None)
+        auth_login_url = opt_get('auth_login_url', str, None)
+        key_set_url = opt_get('key_set_url', str, None)
+        finalize = opt_get('finalize', bool, None)
+
+    lti_provider.update_registration(
+        client_id=client_id,
+        auth_token_url=auth_token_url,
+        auth_login_url=auth_login_url,
+        key_set_url=key_set_url,
+        finalize=finalize,
+    )
+
+    db.session.commit()
+
+    return jsonify(lti_provider)

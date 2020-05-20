@@ -19,16 +19,25 @@ if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
 Register = register.Register
 TableRegister = register.TableRegister
 
-auto_test_handlers = Register[str, t.Type['AutoTestStepBase']]()
+auto_test_handlers = Register[str, t.
+                              Type['AutoTestStepBase']]('AutoTestHandlers')
 
-auto_test_grade_calculators = Register[str, 'GradeCalculator']()
+auto_test_grade_calculators = Register[str, 'GradeCalculator'](
+    'AutoTestGradeCalculators'
+)
 
-webhook_handlers = TableRegister[str, t.Type['WebhookBase']]()
+webhook_handlers = TableRegister[str, t.Type['WebhookBase']]('WebhookHandlers')
 
-rubric_row_types = Register[str, t.Type['RubricRowBase']]()
+rubric_row_types = Register[str, t.Type['RubricRowBase']]('RubricRowTypes')
 
-lti_provider_handlers = TableRegister[str, t.Type['LTIProviderBase']]()
+lti_provider_handlers = TableRegister[str, t.Type['LTIProviderBase']](
+    'LTIProviderHandlers'
+)
 
-lti_1_3_lms_capabilities = Register[str, 'LMSCapabilities']()
+lti_1_3_lms_capabilities = Register[str, 'LMSCapabilities'](
+    'LTI1p3LMSCapabilities'
+)
 
-analytics_data_sources = Register[str, t.Type['BaseDataSource']]()
+analytics_data_sources = Register[str, t.Type['BaseDataSource']](
+    'AnalyticsDataSources'
+)

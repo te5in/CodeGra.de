@@ -4,6 +4,7 @@ one or more keys.
 SPDX-License-Identifier: AGPL-3.0-only
 """
 
+import enum
 import typing as t
 from collections import OrderedDict
 
@@ -39,12 +40,17 @@ class Register(t.Generic[T, V]):  # pylint: disable=unsubscriptable-object
     True
     """
 
-    def __init__(self) -> None:
+    def __init__(self, name: str = None) -> None:
+        self.__name = name
         self.__map: t.Dict[T, V] = OrderedDict()
         self.__frozen = False
 
     def freeze(self) -> None:
         self.__frozen = True
+
+    def __str__(self) -> str:
+        name = 'Anonymous' if self.__name is None else self.__name
+        return f'{name}Register'
 
     def assert_not_frozen(self) -> None:
         assert not self.__frozen, 'This register is frozen'
@@ -78,6 +84,12 @@ class Register(t.Generic[T, V]):  # pylint: disable=unsubscriptable-object
             return cls
 
         return __decorator
+
+    def __contains__(self, key: T) -> bool:
+        return key in self.__map
+
+    def get_or(self, key: T, default: TT) -> t.Union[V, TT]:
+        return self.__map.get(key, default)
 
     def get(self, key: T) -> t.Optional[V]:
         return self.__map.get(key)
@@ -117,8 +129,8 @@ class Register(t.Generic[T, V]):  # pylint: disable=unsubscriptable-object
 
 
 class TableRegister(t.Generic[T, V_TABLE], Register[T, V_TABLE]):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
         self.__possible_options: t.Optional[t.Sequence[str]] = None
 
     def set_possible_options(self, options: t.Sequence[str]) -> None:
