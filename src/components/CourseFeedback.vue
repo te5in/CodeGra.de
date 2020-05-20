@@ -185,9 +185,9 @@ import Collapse from './Collapse';
 import RubricViewerNormalRow from './RubricViewerNormalRow';
 import RubricViewerContinuousRow from './RubricViewerContinuousRow';
 
-const GeneralFeedbackSearcher = new Search(['comment', 'author']);
+const GeneralFeedbackSearcher = new Search(['general', 'comment', 'author']);
 
-const InlineFeedbackSearcher = new Search(['comment', 'author']);
+const InlineFeedbackSearcher = new Search(['inline', 'comment', 'author']);
 
 export default {
     name: 'course-feedback',
@@ -261,11 +261,17 @@ export default {
         },
 
         searchableGeneralFeedback() {
-            return this.otherSubmissions.map(sub => ({
-                comment: sub.comment,
-                author: sub.comment_author.readableName,
-                sub,
-            }));
+            return filterMap(this.otherSubmissions, sub => {
+                if (sub.feedback == null) {
+                    return Nothing;
+                }
+                return Just({
+                    general: sub.feedback.general,
+                    comment: sub.feedback.general,
+                    author: sub.comment_author.readableName,
+                    sub,
+                });
+            });
         },
 
         filteredGeneralFeedback() {
@@ -290,6 +296,7 @@ export default {
                         fileFb => flatMap1(
                             Object.values(fileFb),
                             thread => thread.replies.map(reply => ({
+                                inline: reply.message,
                                 comment: reply.message,
                                 author: this.getUser(reply.authorId).readableName,
                                 thread,
