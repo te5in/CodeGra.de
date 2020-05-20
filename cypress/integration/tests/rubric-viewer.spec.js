@@ -351,7 +351,7 @@ context('Rubric Viewer', () => {
 
                 cy.get('.rubric-viewer .rubric-viewer-row.normal:visible p')
                     .shouldNotOverflow();
-                cy.get('.nav-tabs .nav-item:nth(1)')
+                cy.get('.rubric-viewer .nav-tabs .nav-item:nth(1)')
                     .click();
                 cy.get('.rubric-viewer .rubric-viewer-row.continuous:visible p')
                     .shouldNotOverflow();
@@ -388,7 +388,7 @@ context('Rubric Viewer', () => {
             cy.get('.rubric-viewer')
                 .should('be.visible')
                 .within(() => {
-                    cy.get('.nav-tabs .nav-item:nth(0)')
+                    cy.get('.rubric-viewer .nav-tabs .nav-item:nth(0)')
                         .click()
                         .contains('.badge', 'AT')
                         .should('be.visible');
@@ -396,7 +396,7 @@ context('Rubric Viewer', () => {
                         .find('.fa-icon[id^="rubric-lock-"]')
                         .should('be.visible');
 
-                    cy.get('.nav-tabs .nav-item:nth(1)')
+                    cy.get('.rubric-viewer .nav-tabs .nav-item:nth(1)')
                         .click()
                         .contains('.badge', 'AT')
                         .should('not.exist');
@@ -404,7 +404,7 @@ context('Rubric Viewer', () => {
                         .find('.fa-icon[id^="rubric-lock-"]')
                         .should('not.exist');
 
-                    cy.get('.nav-tabs .nav-item:nth(2)')
+                    cy.get('.rubric-viewer .nav-tabs .nav-item:nth(2)')
                         .click()
                         .contains('.badge', 'AT')
                         .should('be.visible');
@@ -412,7 +412,7 @@ context('Rubric Viewer', () => {
                         .find('.fa-icon[id^="rubric-lock-"]')
                         .should('be.visible');
 
-                    cy.get('.nav-tabs .nav-item:nth(3)')
+                    cy.get('.rubric-viewer .nav-tabs .nav-item:nth(3)')
                         .click()
                         .contains('.badge', 'AT')
                         .should('not.exist');
