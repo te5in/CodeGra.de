@@ -12,7 +12,8 @@ logger = structlog.get_logger()
 
 
 class LTILaunchData(TypedDict):
-    assignment: t.Optional['models.Assignment']
+    course: 'models.Course'
+    assignment: 'models.Assignment'
     custom_lms_name: str
     new_role_created: t.Optional[str]
     access_token: t.Optional[str]
@@ -100,6 +101,7 @@ class AbstractLTIConnector(abc.ABC):
 
             return LTILaunchData(
                 assignment=assig,
+                course=course,
                 new_role_created=new_role_created,
                 custom_lms_name=self.get_lms_name(),
                 updated_email=updated_email,

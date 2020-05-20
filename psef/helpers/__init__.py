@@ -1722,6 +1722,10 @@ def maybe_wrap_in_list(maybe_lst: t.Union[t.List[T], T]) -> t.List[T]:
     >>> lst_item = [object()]
     >>> maybe_wrap_in_list(lst_item) is lst_item
     True
+    >>> class my_list(list): pass
+    >>> obj = my_list(['5'])
+    >>> maybe_wrap_in_list(obj) is obj
+    True
 
     :param maybe_lst: The item to maybe wrap.
     :returns: The item wrapped or just the item.

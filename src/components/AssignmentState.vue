@@ -88,8 +88,6 @@ import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/pencil';
 import 'vue-awesome/icons/check';
 
-import ltiProviders from '@/lti_providers';
-
 import * as states from '../store/assignment-states';
 
 import Loader from './Loader';
@@ -153,12 +151,16 @@ export default {
             return st === states.DONE ? 'success' : 'outline-success';
         },
 
+        ltiProvider() {
+            return this.$utils.getProps(this.assignment, null, 'course', 'ltiProvider');
+        },
+
         canManageLTIState() {
-            return this.assignment.is_lti && ltiProviders[this.lmsName].supportsStateManagement;
+            return this.$utils.getProps(this.ltiProvider, false, 'supportsStateManagement');
         },
 
         lmsName() {
-            return this.assignment.lms_name;
+            return this.$utils.getProps(this.ltiProvider, null, 'lms');
         },
     },
 

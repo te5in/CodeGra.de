@@ -234,6 +234,13 @@ class LTIProviderBase(Base):
 
         return newest_grade_history
 
+    def __to_json__(self) -> t.Mapping[str, str]:
+        return {
+            'id': str(self.id),
+            'lms': self.lms_name,
+            'version': self._lti_provider_version,
+        }
+
 
 @lti_provider_handlers.register_table
 class LTI1p1Provider(LTIProviderBase):
@@ -893,8 +900,11 @@ class LTI1p3Provider(LTIProviderBase):
             status = member.get('status', 'Active')
 
             # This is NOT a typo, the claim is really called 'message' and it
-            # contains an array of messages.
-            messages = member.get('message', None)
+            # contains an array of messages. However, for some strange reason
+            # some LMS (looking at you Blackboard) don't send an array, but
+            # send a single object. So we wrap it in a list if this is the
+            # case.
+            messages = psef.helpers.maybe_wrap_in_list(member.get('message', None))
             if messages is None:
                 logger.info('Ignoring member as there was no message')
                 continue
@@ -923,7 +933,11 @@ class LTI1p3Provider(LTIProviderBase):
                 )
                 continue
 
-            logger.info('Adding member to course', member=member)
+            logger.info(
+                'Adding member to course',
+                member=member,
+                custom_claim=custom_claim,
+            )
             try:
                 user, _ = UserLTIProvider.get_or_create_user(
                     lti_user_id=member['user_id'],
@@ -994,9 +1008,10 @@ class LTI1p3Provider(LTIProviderBase):
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:
+        base = super().__to_json__()
+
         res = {
-            'id': str(self.id),
-            'lms': self.lms_name,
+            **base,
             'finalized': self._finalized,
             'intended_use': self._intended_use,
             'capabilities': self.lms_capabilities,
@@ -1347,7 +1362,8 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
             assignment_models.Assignment.course_id == self.course_id,
             assignment_models.Assignment.lti_assignment_id.isnot(None),
             assignment_models.Assignment.is_visible,
-        ).limit(1).scalar()
+        ).order_by(assignment_models.Assignment.created_at.desc()
+                   ).limit(1).scalar()
 
         mem_url_claim: Final = 'context_memberships_url'
         if rlid is not None and isinstance(claim[mem_url_claim], str):

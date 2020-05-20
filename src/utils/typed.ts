@@ -478,10 +478,9 @@ export function formatDate(date: string | moment.Moment): string {
         .format('YYYY-MM-DDTHH:mm');
 }
 
-export function mapToObject<T extends Object, KK extends keyof T = keyof T>(
-    arr: ReadonlyArray<KK>,
-    // eslint-disable-next-line no-undef
-    mapper: (el: KK, index: number) => [KK, T[typeof el]],
+export function mapToObject<T extends Object, Y, KK extends keyof T = keyof T>(
+    arr: ReadonlyArray<Y>,
+    mapper: (el: Y, index: number) => [KK, T[KK]],
     initial: T = <T>{},
 ): T {
     return arr.reduce((acc, el, index) => {

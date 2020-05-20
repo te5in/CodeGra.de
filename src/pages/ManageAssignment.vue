@@ -328,8 +328,6 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 
-import ltiProviders from '@/lti_providers';
-
 import {
     AssignmentState,
     DivideSubmissions,
@@ -393,13 +391,12 @@ export default {
             return `/api/v1/assignments/${this.assignment.id}`;
         },
 
-        lmsName() {
-            return this.assignment.lms_name;
+        ltiProvider() {
+            return this.$utils.getProps(this.assignment, null, 'course', 'ltiProvider');
         },
 
-        ltiProvider() {
-            const lms = this.lmsName;
-            return lms ? ltiProviders[lms] : null;
+        lmsName() {
+            return this.$utils.getProps(this.ltiProvider, null, 'lms');
         },
 
         canEditState() {

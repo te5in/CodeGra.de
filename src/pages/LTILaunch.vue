@@ -38,7 +38,7 @@ import 'vue-awesome/icons/times';
 import { LocalHeader } from '@/components';
 import { mapActions, mapGetters } from 'vuex';
 import { disablePersistance } from '@/store';
-import ltiProviders from '@/lti_providers';
+import { makeProvider } from '@/lti_providers';
 
 import { setPageTitle } from './title';
 
@@ -101,7 +101,17 @@ export default {
                 .then(async response => {
                     const { data } = response;
 
-                    this.$ltiProvider = ltiProviders[data.data.custom_lms_name];
+                    switch (data.version) {
+                    case 'v1_1':
+                    case 'v1_3':
+                        this.$ltiProvider = makeProvider(data.data.course.lti_provider);
+                        break;
+                    default:
+                        return this.$utils.AssertionError.assertNever(
+                            data.version,
+                            `Unknown LTI version (${data.version}) encountered.`,
+                        );
+                    }
                     if (data.data.access_token) {
                         await this.logout();
                         disablePersistance();
@@ -119,7 +129,10 @@ export default {
                     case 'v1_3':
                         return this.handleLTI(data.data);
                     default:
-                        throw new Error(`Unknown LTI version (${data.version}) encountered.`);
+                        return this.$utils.AssertionError.assertNever(
+                            data.version,
+                            `Unknown LTI version (${data.version}) encountered.`,
+                        );
                     }
                 })
                 .catch(err => {

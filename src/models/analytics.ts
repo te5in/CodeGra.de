@@ -1030,7 +1030,7 @@ export class Workspace {
         );
 
         const self = new Workspace(props);
-        const dataSources = mapToObject<Partial<PossibleDataSourcesMapping>>(
+        const dataSources: Partial<PossibleDataSourcesMapping> = mapToObject(
             workspace.data_sources,
             (srcName, i) => {
                 const source = sources[i];

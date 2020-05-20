@@ -4,11 +4,19 @@ import { buildUrl } from '@/utils';
 import { LTI1p3Capabilities } from '@/lti_providers';
 
 /* eslint-disable camelcase */
-type BaseLTI1p3ProviderServerData = {
+type BaseLTIProviderServerData = {
     id: string;
     lms: string;
+};
+
+type LTI1p1ProviderServerData = BaseLTIProviderServerData & {
+    version: 'lti1.1';
+};
+
+type BaseLTI1p3ProviderServerData = BaseLTIProviderServerData & {
     intended_use: string;
     capabilities: LTI1p3Capabilities;
+    version: 'lti1.3';
 };
 
 export type NonFinalizedLTI1p3ProviderServerData = BaseLTI1p3ProviderServerData & {
@@ -34,6 +42,8 @@ type FinalizedLTI1p3ProviderServerData = BaseLTI1p3ProviderServerData & {
 export type LTI1p3ProviderServerData =
     | FinalizedLTI1p3ProviderServerData
     | NonFinalizedLTI1p3ProviderServerData;
+
+export type LTIProviderServerData = LTI1p3ProviderServerData | LTI1p1ProviderServerData;
 
 export function getLti1p3Provider(
     ltiProviderId: string,
