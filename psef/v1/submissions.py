@@ -432,7 +432,7 @@ def get_feedback_from_submission(
 
     try:
         auth.ensure_can_see_general_feedback(work)
-    except:
+    except PermissionException:
         general = ''
     else:
         if work.comment is None:

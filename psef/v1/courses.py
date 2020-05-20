@@ -1187,7 +1187,31 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
 @auth.login_required
 def get_user_submissions(course_id: int, user_id: int
                          ) -> ExtendedJSONResponse[t.Sequence[models.Work]]:
+    """Get all :class:`.models.Work`s by the given :class:`.models.User` in the
+    given :class:`.models.Course`.
 
+    .. :quickref: Course; Get submissions by user in a course.
+
+    :qparam boolean latest_only: Only get the latest submission of a
+        user. Please use this option if at all possible, as students have a
+        tendency to submit many attempts and that can make this route quite
+        slow.
+
+    :param int course_id: The id of the course
+    :param int user_id: The id of the user
+    :returns: A response containing the JSON serialized submissions.
+
+    :raises NotFoundException: If the course does not exist.
+        (OBJECT_ID_NOT_FOUND)
+    :raises NotFoundException: If the user does not exist.
+        (OBJECT_ID_NOT_FOUND)
+    :raises APIException: If the given user is not member of the course.
+        (INVALID_PARAM)
+    :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
+    :raises PermissionException: If the given user is not the logged in user
+        and the logged in user does not have the permission to see others work.
+        (INCORRECT_PERMISSION)
+    """
     course = helpers.get_or_404(models.Course, course_id)
     auth.ensure_permission(CPerm.can_see_assignments, course.id)
     assignments = course.get_all_visible_assignments()
