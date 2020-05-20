@@ -5,7 +5,7 @@
             <b-input-group>
                 <input :value="filter"
                        @change="filter = $event.target.value"
-                       class="form-control"
+                       class="filter form-control"
                        placeholder="Filter on comment or author"/>
 
                 <b-input-group-append>
@@ -121,7 +121,7 @@
                             </b-badge>
 
                             <b-popover
-                                triggers="click hover"
+                                triggers="hover"
                                 placement="top"
                                 :target="`course-feedback-rubric-item-${id}-${sub.id}-${item.id}`"
                                 custom-class="course-feedback-rubric-row-popover">
