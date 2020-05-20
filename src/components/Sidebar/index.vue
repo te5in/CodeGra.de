@@ -620,8 +620,8 @@ export default {
 .sidebar {
     position: fixed;
     position: sticky;
-    // Must be greater than .sticky-top and .local-header
-    z-index: 1050;
+    // Must be greater than .sticky-top, .local-header, and modals
+    z-index: 1035;
     top: 0;
     height: 100vh;
 
