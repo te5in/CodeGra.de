@@ -104,9 +104,12 @@ export default {
             }
 
             if (nbformatVersion(data) === 3) {
-                this.$emit('warning', new Error(
-                    'Jupyter Notebook format v3 detected. May not render correctly.',
-                ));
+                this.$emit('warning', {
+                    fileId: this.fileId,
+                    error: new Error(
+                        'Jupyter Notebook format v3 detected. May not render correctly.',
+                    ),
+                });
             }
 
             try {

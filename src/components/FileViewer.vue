@@ -416,8 +416,8 @@ export default {
             this.loading = false;
         },
 
-        onWarning(err) {
-            this.setIfFileMatches('warning', err);
+        onWarning(warning) {
+            this.setIfFileMatches('warning', warning);
         },
 
         setIfFileMatches(prop, err) {
@@ -450,6 +450,11 @@ export default {
         showDiff(file) {
             return this.revision === 'diff' && file.ids && file.ids[0] !== file.ids[1];
         },
+    },
+
+    errorCaptured(error) {
+        this.onError(error);
+        return false;
     },
 
     components: {

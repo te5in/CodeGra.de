@@ -157,29 +157,18 @@
                        id="submission-page-inner"
                        :min-size="30"
                        :max-size="85">
-                <cg-catch-error slot="firstPane"
-                                capture>
-                    <template slot-scope="{ error: innerError }">
-                        <b-alert v-if="innerError"
-                                 show
-                                 variant="danger">
-                            {{ $utils.getErrorMessage(innerError) }}
-                        </b-alert>
-
-                        <file-viewer
-                            v-else
-                            :assignment="assignment"
-                            :submission="submission"
-                            :file="currentFile"
-                            :revision="revision"
-                            :editable="canSeeUserFeedback && canGiveLineFeedback"
-                            :can-use-snippets="canUseSnippets"
-                            :show-whitespace="showWhitespace"
-                            :show-inline-feedback="selectedCat === 'code' && showInlineFeedback && revision === 'student'"
-                            :language="selectedLanguage"
-                            @language="languageChanged" />
-                    </template>
-                </cg-catch-error>
+                <file-viewer
+                    slot="firstPane"
+                    :assignment="assignment"
+                    :submission="submission"
+                    :file="currentFile"
+                    :revision="revision"
+                    :editable="canSeeUserFeedback && canGiveLineFeedback"
+                    :can-use-snippets="canUseSnippets"
+                    :show-whitespace="showWhitespace"
+                    :show-inline-feedback="selectedCat === 'code' && showInlineFeedback && revision === 'student'"
+                    :language="selectedLanguage"
+                    @language="languageChanged" />
 
                 <div class="file-tree-container border rounded p-0 mt-3 mt-lg-0" slot="secondPane">
                     <file-tree :assignment="assignment"

@@ -39,6 +39,7 @@ export function htmlEscape(inputString: string) {
     return str;
 }
 
+export type OneOrOther<T, Y> = (T & { [K in keyof Y]?: never }) | (Y & { [K in keyof T]?: never });
 
 export type AllOrNone<T> = T | { [K in keyof T]?: never };
 
