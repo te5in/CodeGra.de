@@ -79,7 +79,7 @@ broker_start_dev_celery:
 
 .PHONY: start_dev_celery
 start_dev_celery:
-	DEBUG=on env/bin/celery worker --app=runcelery:celery -EB
+	bash ./.scripts/start_celery.bash
 
 .PHONY: start_dev_server
 start_dev_server:
