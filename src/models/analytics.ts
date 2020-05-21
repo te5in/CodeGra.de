@@ -620,6 +620,10 @@ export class WorkspaceSubmissionSet {
             return getBin(createdAt);
         });
 
+        if (Object.keys(binned).length === 0) {
+            return {};
+        }
+
         const binKeys = Object.keys(binned).map(parseFloat);
         const first = start == null ? stat.min(binKeys) : getBin(start);
         const last = end == null ? stat.max(binKeys) : getBin(end);
