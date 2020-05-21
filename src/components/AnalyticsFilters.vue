@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-card class="analytics-filters"
-        header-class="d-flex">
+        header-class="d-flex"
+        body-class="pb-1">
     <template #header>
         <div class="flex-grow-1">
             Filters
@@ -432,12 +433,6 @@
             </b-card>
         </div>
     </div>
-
-    <b-button variant="primary"
-              class="float-right"
-              @click="addFilter">
-        Add filter
-    </b-button>
 
     <div ref="copyContainer" />
 </b-card>
