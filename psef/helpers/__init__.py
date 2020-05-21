@@ -1849,3 +1849,12 @@ def maybe_unwrap_proxy(
         raise AssertionError(f'The given item is not a {typ}')
 
     return found
+
+
+def deep_get(dictionary: t.Mapping[str, t.Any], keys: t.List[str], dflt: t.Any) -> t.Any:
+    val: t.Any = dictionary
+    for key in keys:
+        if key not in val:
+            return dflt
+        val = val[key]
+    return val

@@ -71,6 +71,7 @@ def _convert_boolean(value: t.Union[bool, str, None], default: bool) -> bool:
 def _make_blob_and_redirect(
     params: t.Mapping[str, object],
     version: LTIVersion,
+    goto_latest_submission: bool,
 ) -> werkzeug.wrappers.Response:
     data = {
         'params': {
@@ -92,13 +93,14 @@ def _make_blob_and_redirect(
     return flask.redirect(
         (
             '{host}/lti_launch/?inLTI=true&blob_id={blob_id}'
-            '&redirect={redirect}'
+            '&redirect={redirect}&goto_latest_submission={goto_latest}'
         ).format(
             host=app.config['EXTERNAL_URL'],
             blob_id=blob.id,
             redirect=urllib.parse.quote(
                 flask.request.args.get('codegrade_redirect', ''),
             ),
+            goto_latest=goto_latest_submission,
         ),
         code=303,
     )
@@ -112,7 +114,7 @@ def launch_lti() -> t.Any:
     .. :quickref: LTI; Do a LTI Launch.
     """
     params = lti_v1_1.LTI.create_from_request(flask.request).launch_params
-    return _make_blob_and_redirect(params, LTIVersion.v1_1)
+    return _make_blob_and_redirect(params, LTIVersion.v1_1, goto_latest_submission=False)
 
 
 @api.route('/lti/', methods=['GET'])
@@ -285,6 +287,7 @@ def do_oidc_login(
                 'original_exception': JSONResponse.dump_to_object(exc),
             },
             version=LTIVersion.v1_3,
+            goto_latest_submission=False,
         )
     except pylti1p3.exception.OIDCException as exc:
         return _make_blob_and_redirect(
@@ -293,6 +296,7 @@ def do_oidc_login(
                 'exception_message': exc.args[0],
             },
             version=LTIVersion.v1_3,
+            goto_latest_submission=False,
         )
     logger.info(
         'Redirecting after oidc',
@@ -316,6 +320,23 @@ def get_lti_provider_jwks(lti_provider_id: str) -> helpers.JSONResponse:
 @api.route('/lti1.3/launch', methods=['POST'])
 def handle_lti_advantage_launch(lti_provider_id: t.Optional[str] = None
                                 ) -> t.Union[str, werkzeug.wrappers.Response]:
+
+    return _handle_lti_advantage_launch(lti_provider_id, goto_latest_sub=False)
+
+
+@api.route(
+    '/lti1.3/launch_to_latest_submission/<lti_provider_id>', methods=['POST']
+)
+@api.route('/lti1.3/launch_to_latest_submission', methods=['POST'])
+def handle_lti_advantage_launch_to_latest_sub(
+    lti_provider_id: t.Optional[str] = None
+) -> t.Union[str, werkzeug.wrappers.Response]:
+    return _handle_lti_advantage_launch(lti_provider_id, goto_latest_sub=True)
+
+
+def _handle_lti_advantage_launch(
+    lti_provider_id: t.Optional[str], goto_latest_sub: bool
+) -> t.Union[str, werkzeug.wrappers.Response]:
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
     plat_red_url = flask.request.args.get('platform_redirect_url')
@@ -337,6 +358,7 @@ def handle_lti_advantage_launch(lti_provider_id: t.Optional[str] = None
                 'original_exception': JSONResponse.dump_to_object(exc),
             },
             version=LTIVersion.v1_3,
+            goto_latest_submission=False,
         )
     except pylti1p3.exception.LtiException as exc:
         logger.info('Incorrect LTI launch encountered', exc_info=True)
@@ -346,6 +368,7 @@ def handle_lti_advantage_launch(lti_provider_id: t.Optional[str] = None
                 'exception_message': exc.args[0],
             },
             version=LTIVersion.v1_3,
+            goto_latest_submission=False,
         )
 
     if message_launch.is_deep_link_launch():
@@ -360,6 +383,7 @@ def handle_lti_advantage_launch(lti_provider_id: t.Optional[str] = None
             'request_args': dict(flask.request.args),
         },
         version=LTIVersion.v1_3,
+        goto_latest_submission=goto_latest_sub,
     )
 
 

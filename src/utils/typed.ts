@@ -214,13 +214,16 @@ export function buildUrl(
 
     let query = '';
     if (args.query) {
-        const params = Object.entries(args.query)
-            .reduce((acc, [key, value]) => {
-                acc.append(key, value);
-                return acc;
-            }, new URLSearchParams())
-            .toString();
-        query = `?${params}`;
+        const queryEntries = Object.entries(args.query);
+        if (queryEntries.length > 0) {
+            const params = queryEntries
+                .reduce((acc, [key, value]) => {
+                    acc.append(key, value);
+                    return acc;
+                }, new URLSearchParams())
+                .toString();
+            query = `?${params}`;
+        }
     }
 
     let hash = '';

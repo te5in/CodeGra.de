@@ -2,18 +2,11 @@ import copy
 import time
 import typing as t
 import dataclasses
-import urllib.parse
-from datetime import timedelta
 
-import furl
-import requests
 import werkzeug
 import structlog
-import sqlalchemy.sql
-from pylti1p3.actions import Action as PyLTI1p3Action
-from pylti1p3.lineitem import LineItem
+from pylti1p3 import grade
 from typing_extensions import Final, Literal, TypedDict
-from pylti1p3.deployment import Deployment
 from pylti1p3.oidc_login import OIDCLogin
 from pylti1p3.tool_config import ToolConfAbstract
 from pylti1p3.registration import Registration
@@ -23,16 +16,14 @@ from pylti1p3.assignments_grades import AssignmentsGradesService
 from pylti1p3.deep_link_resource import DeepLinkResource
 
 import cg_override
-from flask import request
 from cg_dt_utils import DatetimeWithTimezone
 
 from . import claims
-from ... import PsefFlask, models, helpers, signals, current_app
+from ... import PsefFlask, models, helpers, current_app
 from .flask import (
     FlaskRequest, FlaskRedirect, FlaskCookieService, FlaskSessionService
 )
 from .roles import SystemRole
-from ...cache import cache_within_request_make_key
 from ...models import db
 from ..abstract import AbstractLTIConnector
 from ...exceptions import APICodes, APIException
@@ -42,6 +33,7 @@ logger = structlog.get_logger()
 T = t.TypeVar('T')
 
 if t.TYPE_CHECKING:
+    # pylint: disable=unused-import
     from .lms_capabilities import LMSCapabilities
     from pylti1p3.message_launch import _JwtData, _LaunchData, _KeySet
 
@@ -128,6 +120,18 @@ class CGServiceConnector(ServiceConnector):
         )
 
 
+class CGGrade(grade.Grade):
+    def __init__(
+        self,
+        assignment: 'models.Assignment',
+        timestamp: DatetimeWithTimezone,
+        provider: 'models.LTI1p3Provider',
+    ) -> None:
+        self.set_score_maximum(assignment.GRADE_SCALE)
+        self._provider = provider
+        self.set_timestamp(timestamp.isoformat())
+
+
 class CGAssignmentsGradesService(AssignmentsGradesService):
     def __init__(
         self, service_connector: ServiceConnector,
@@ -136,7 +140,9 @@ class CGAssignmentsGradesService(AssignmentsGradesService):
         assert assignment.is_lti
         assert isinstance(assignment.lti_grade_service_data, dict)
 
-        super().__init__(service_connector, assignment.lti_grade_service_data)
+        service_data = assignment.lti_grade_service_data
+        super().__init__(service_connector, service_data)
+        logger.info('Created assignments service', service_data=service_data)
         self._assignment = assignment
 
 
@@ -152,13 +158,43 @@ class CGCustomClaims:
         def __init__(self, name: str) -> None:
             self.name = name
             assert self.name.startswith('$')
+            self.exploded_name = self.name.split('.')
 
-            self.group = name.split('.', 1)[0]
-            assert self.group
+        def matches_group(self, group: t.Sequence[str]) -> bool:
+            """Check if given group matches
+
+            >>> var = CGCustomClaims._ReplacementVar('$a.b.cc.d')
+            >>> var.matched_group(['$a'])
+            True
+            >>> var.matched_group('$a.b.cc'.split('.'))
+            True
+            >>> var.matched_group('$a.c.d'.split('.'))
+            False
+            >>> var.matched_group('$a.b.c'.split('.'))
+            False
+            """
+            return all(
+                found == wanted
+                for found, wanted in zip(self.exploded_name, group)
+            )
+
+        def find_in_data(self, data: t.Mapping[str, str],
+                         key: str) -> t.Optional[str]:
+            found_val = data.get(key, None)
+            if isinstance(found_val, str) and found_val != self.name:
+                return found_val
+            return None
 
     class _AbsoluteVar:
-        def __init__(self, name: str) -> None:
-            self.name = name
+        def __init__(self, name: t.Union[str, t.List[str]]) -> None:
+            self.names = helpers.maybe_wrap_in_list(name)
+
+        def find_in_data(self,
+                         data: t.Mapping[str, object]) -> t.Optional[str]:
+            found_val = helpers.deep_get(data, self.names, None)
+            if isinstance(found_val, str):
+                return found_val
+            return None
 
     @dataclasses.dataclass(frozen=True)
     class _Var:
@@ -201,25 +237,28 @@ class CGCustomClaims:
         ),
         _Var(
             'cg_resource_id',
-            [_ReplacementVar('$ResourceLink.id')],
-        )
+            [
+                _ReplacementVar('$ResourceLink.id'),
+                _ReplacementVar('$com.instructure.Assignment.lti.id'),
+                _AbsoluteVar([claims.RESOURCE, 'id']),
+            ],
+        ),
     ]
 
     _VAR_LOOKUP: Final = {var.name: var for var in _WANTED_VARS}
 
-    _DEFAULT_REPLACEMENT_GROUPS = {'$User', '$ResourceLink'}
+    _DEFAULT_REPLACEMENT_GROUPS = [['$User'], ['$ResourceLink']]
 
     @classmethod
     def get_variable_claims_config(cls, lms_capabilities: 'LMSCapabilities'
                                    ) -> t.Mapping[str, str]:
         res: t.Dict[str, str] = {}
         custom_groups = lms_capabilities.supported_custom_replacement_groups
+        allowed_groups = [*cls._DEFAULT_REPLACEMENT_GROUPS, *custom_groups]
+
         for var in cls._WANTED_VARS:
             for idx, opt in enumerate(var.get_replacement_opts()):
-                if (
-                    opt.group in cls._DEFAULT_REPLACEMENT_GROUPS or
-                    opt.group in custom_groups
-                ):
+                if any(opt.matches_group(group) for group in allowed_groups):
                     res[var.get_key(idx)] = opt.name
 
         return res
@@ -243,16 +282,11 @@ class CGCustomClaims:
             found_val: object
 
             if isinstance(opt, cls._ReplacementVar):
-                found_val = custom_data.get(var.get_key(idx), opt.name)
+                found_val = opt.find_in_data(custom_data, var.get_key(idx))
             else:
-                found_val = base_data.get(opt.name, opt.name)
+                found_val = opt.find_in_data(base_data)
 
-            if isinstance(found_val, str) and found_val != opt.name:
-                logger.info(
-                    'Trying to parse claim',
-                    found_value=found_val,
-                    current_variable=var
-                )
+            if found_val is not None:
                 res = converter(found_val)
                 if res is not None:
                     return res
@@ -306,16 +340,11 @@ class CGCustomClaims:
 
 class CGDeepLinkResource(DeepLinkResource):
     @classmethod
-    def make(cls, app: PsefFlask, message_launch: 'FlaskMessageLaunch') -> 'CGDeepLinkResource':
+    def make(
+        cls, app: PsefFlask, message_launch: 'FlaskMessageLaunch'
+    ) -> 'CGDeepLinkResource':
         self = cls()
-        base_url = furl.furl(app.config['EXTERNAL_URL'])
-
-        to_add = ['api', 'v1', 'lti1.3', 'launch']
-        provider = message_launch.get_lti_provider()
-        if provider.lms_capabilities.use_id_in_urls:
-            to_add.append(str(provider.id))
-
-        return self.set_url(str(base_url.add(path=to_add)))
+        return self.set_url(message_launch.get_lti_provider().get_launch_url())
 
 
 def init_app(app: PsefFlask) -> None:
@@ -431,14 +460,7 @@ class FlaskMessageLaunch(
 
     def _get_resource_id(self) -> t.Optional[str]:
         custom_claim = self.get_custom_claims()
-        resource_id = custom_claim.resource_id
-
-        if resource_id is None:
-            launch_data = self.get_launch_data()
-            resource_claim = launch_data.get(claims.RESOURCE, {})
-            resource_id = resource_claim.get('id', None)
-
-        return resource_id
+        return custom_claim.resource_id
 
     def _find_assignment(
         self,

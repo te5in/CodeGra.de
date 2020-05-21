@@ -234,7 +234,7 @@ class LTIProviderBase(Base):
 
         return newest_grade_history
 
-    def __to_json__(self) -> t.Mapping[str, str]:
+    def __to_json__(self) -> t.Mapping[str, object]:
         return {
             'id': str(self.id),
             'lms': self.lms_name,
@@ -498,6 +498,20 @@ class LTI1p3Provider(LTIProviderBase):
     @property
     def lms_capabilities(self) -> LMSCapabilities:
         return lti_1_3_lms_capabilities[self.lms_name]
+
+    def get_launch_url(self, goto_latest_sub: bool) -> furl.furl:
+        base_url = furl.furl(current_app.config['EXTERNAL_URL'])
+
+        to_add = ['api', 'v1', 'lti1.3']
+        if goto_latest_sub:
+            to_add.append('launch_to_latest_submission')
+        else:
+            to_add.append('launch')
+
+        if self.lms_capabilities.use_id_in_urls:
+            to_add.append(str(self.id))
+
+        return base_url.add(path=to_add)
 
     _lms_name = db.Column(
         'lms_name',
@@ -804,9 +818,7 @@ class LTI1p3Provider(LTIProviderBase):
             return None
         logger.info('Passing back submission', work=sub)
 
-        grade = pylti1p3.grade.Grade()
-        grade.set_score_maximum(assignment.GRADE_SCALE)
-        grade.set_timestamp(timestamp.isoformat())
+        grade = lti_v1_3.CGGrade(assignment, timestamp, self)
 
         if sub is None:
             grade.set_grading_progress('NotReady')
@@ -815,6 +827,17 @@ class LTI1p3Provider(LTIProviderBase):
             grade.set_score_given(sub.grade)
             grade.set_grading_progress('FullyGraded')
             grade.set_activity_progress('Completed')
+            grade.set_extra_claims(
+                {
+                    'https://canvas.instructure.com/lti/submission':
+                        {
+                            'submission_type': 'basic_lti_launch',
+                            'submission_data': str(self.get_launch_url(goto_latest_sub=True)),
+                        }
+                }
+            )
+            logger.info('Setting extra claims', extra_claims=grade.get_extra_claims())
+
         else:
             grade.set_grading_progress('Pending')
             # This is not really the case. Submitted means that a user is still
@@ -904,13 +927,13 @@ class LTI1p3Provider(LTIProviderBase):
             # some LMS (looking at you Blackboard) don't send an array, but
             # send a single object. So we wrap it in a list if this is the
             # case.
-            messages = psef.helpers.maybe_wrap_in_list(member.get('message', None))
+            messages = member.get('message', None)
             if messages is None:
                 logger.info('Ignoring member as there was no message')
                 continue
 
             get_claim_data = psef.lti.v1_3.CGCustomClaims.get_custom_claim_data
-            for message in messages:
+            for message in psef.helpers.maybe_wrap_in_list(messages):
                 try:
                     custom_claim = get_claim_data(
                         t.cast(dict, message.get(ltiv1_3_claims.CUSTOM, {})),

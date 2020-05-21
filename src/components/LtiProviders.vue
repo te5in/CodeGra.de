@@ -74,8 +74,8 @@
 
                     <b-form-select-option v-for="opt in lmsOptions"
                                           :value="opt.value"
-                                          :key="lms.value">
-                        {{ lms.text }}
+                                          :key="opt.value">
+                        {{ opt.text }}
                     </b-form-select-option>
                 </b-form-select>
             </b-form-group>

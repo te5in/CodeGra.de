@@ -73,6 +73,8 @@ export default {
     computed: {
         ...mapGetters('pref', ['darkMode']),
         ...mapGetters('courses', ['assignments']),
+        ...mapGetters('user', { myUserId: 'id' }),
+        ...mapGetters('submissions', ['getSubmissionsByUser']),
 
         isCookieError() {
             return this.$utils.getProps(this.originalException, null, 'code') === 'LTI1_3_COOKIE_ERROR';
@@ -86,6 +88,7 @@ export default {
     methods: {
         ...mapActions('user', ['logout', 'updateAccessToken']),
         ...mapActions('courses', ['reloadCourses']),
+        ...mapActions('submissions', ['loadSubmissionsByUser']),
         ...mapActions('plagiarism', { clearPlagiarismCases: 'clear' }),
 
         secondStep(first) {
@@ -164,6 +167,7 @@ export default {
                     getToastOptions(),
                 );
             }
+
             if (data.updated_email) {
                 this.$toasted.info(
                     `Your email was updated to "${
@@ -172,17 +176,47 @@ export default {
                     getToastOptions(),
                 );
             }
+
             if (this.$route.query.redirect && this.$route.query.redirect.startsWith('/')) {
-                this.$router.replace(this.$route.query.redirect);
-            } else {
-                this.$router.replace({
-                    name: 'assignment_submissions',
+                return this.$router.replace(this.$route.query.redirect);
+            } else if (this.$route.query.goto_latest_submission) {
+                const assignment = this.assignments[data.assignment.id];
+                if (!assignment || !assignment.course.isStudent) {
+                    return this.doDefaultRedirect(data);
+                }
+
+                await this.loadSubmissionsByUser({
+                    assignmentId: assignment.id,
+                    userId: this.myUserId,
+                    force: true,
+                });
+                const subs = this.getSubmissionsByUser(assignment.id, this.myUserId);
+
+                if (!subs || subs.length === 0) {
+                    return this.doDefaultRedirect(data);
+                }
+
+                return this.$router.replace({
+                    name: 'submission',
                     params: {
-                        courseId: data.assignment.course.id,
-                        assignmentId: data.assignment.id,
+                        courseId: assignment.courseId,
+                        assignmentId: assignment.id,
+                        submissionId: subs[0].id,
                     },
                 });
+            } else {
+                return this.doDefaultRedirect(data);
             }
+        },
+
+        doDefaultRedirect(data) {
+            return this.$router.replace({
+                name: 'assignment_submissions',
+                params: {
+                    courseId: data.assignment.course.id,
+                    assignmentId: data.assignment.id,
+                },
+            });
         },
 
         sendPostMessage() {

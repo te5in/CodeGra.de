@@ -44,7 +44,7 @@ class LMSCapabilities(Protocol):
         ...
 
     @property
-    def supported_custom_replacement_groups(self) -> t.Sequence[str]:
+    def supported_custom_replacement_groups(self) -> t.Sequence[t.Sequence[str]]:
         ...
 
     @property
@@ -64,7 +64,7 @@ class _LMSCapabilities:
 
     cookie_post_message: t.Optional[str]
 
-    supported_custom_replacement_groups: t.Sequence[str]
+    supported_custom_replacement_groups: t.Sequence[t.Sequence[str]]
 
     use_id_in_urls: bool
 
@@ -81,7 +81,7 @@ _LMSCapabilities(
     set_state=False,
     test_student_name='Test Student',
     cookie_post_message='requestFullWindowLaunch',
-    supported_custom_replacement_groups=['$Canvas'],
+    supported_custom_replacement_groups=[['$Canvas'], '$com.instructure'],
     use_id_in_urls=False,
 )
 

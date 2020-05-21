@@ -143,7 +143,7 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Prop } from 'vue-property-decorator';
+    import { Vue, Component, Prop } from 'vue-property-decorator';
 
 import { mapGetters } from 'vuex';
 import * as api from '@/api/v1';
@@ -198,12 +198,14 @@ export default class CanvasSetup extends Vue {
     }
 
     get redirectUrl(): string {
-        return this.$utils.buildUrl(
-            ['api', 'v1', 'lti1.3', 'launch'],
-            {
-                baseUrl: this.$userConfig.externalUrl,
-            },
-        );
+        return (<const>[['to_latest_submission'], []]).map(
+            extraPath => this.$utils.buildUrl(
+                ['api', 'v1', 'lti1.3', 'launch', ...extraPath],
+                {
+                    baseUrl: this.$userConfig.externalUrl,
+                },
+            ),
+        ).join('\n');
     }
 
     get jsonUrl(): string {
