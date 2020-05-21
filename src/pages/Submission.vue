@@ -171,12 +171,13 @@
 
                 <div v-if="course.isStudent"
                      slot="secondPane"
-                     class="flex-grow-1 h-100 border rounded overflow-hidden">
-                    <file-tree
-                        class="h-100 overflow-auto"
-                        :assignment="assignment"
-                        :submission="submission"
-                        :revision="revision"/>
+                     class="h-100 overflow-hidden">
+                    <div class="file-tree-container border rounded overflow-auto">
+                        <file-tree
+                            :assignment="assignment"
+                            :submission="submission"
+                            :revision="revision"/>
+                    </div>
                 </div>
 
                 <b-tabs v-else
@@ -1026,6 +1027,10 @@ export default {
         width: 100%;
         height: 100%;
     }
+}
+
+.file-tree-container {
+    max-height: 100%;
 }
 
 .file-tree,
