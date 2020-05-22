@@ -34,7 +34,8 @@
 
                 <b-button v-if="canEmailStudents"
                           v-b-popover.top.hover="`Email the authors of the visible submissions`"
-                          v-b-modal.submissions-page-email-students-modal>
+                          v-b-modal.submissions-page-email-students-modal
+                          id="submissions-page-email-students-button">
                     <icon name="envelope"/>
                 </b-button>
 
