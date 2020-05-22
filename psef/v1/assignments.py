@@ -1244,9 +1244,7 @@ def get_all_works_by_user_for_assignment(
             models.Work.query.filter_by(
                 assignment_id=assignment_id, user_id=user.id, deleted=False
             )
-        ).order_by(
-            t.cast(models.DbColumn[object], models.Work.created_at).desc()
-        ).all(),
+        ).order_by(models.Work.created_at.desc()).all(),
         use_extended=models.Work,
     )
 

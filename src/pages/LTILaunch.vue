@@ -88,7 +88,7 @@ export default {
     methods: {
         ...mapActions('user', ['logout', 'updateAccessToken']),
         ...mapActions('courses', ['reloadCourses']),
-        ...mapActions('submissions', ['loadSubmissionsByUser']),
+        ...mapActions('submissions', ['forceLoadSubmissions']),
         ...mapActions('plagiarism', { clearPlagiarismCases: 'clear' }),
 
         secondStep(first) {
@@ -185,12 +185,10 @@ export default {
                     return this.doDefaultRedirect(data);
                 }
 
-                await this.loadSubmissionsByUser({
-                    assignmentId: assignment.id,
-                    userId: this.myUserId,
-                    force: true,
+                await this.forceLoadSubmissions(assignment.id);
+                const subs = this.getSubmissionsByUser(assignment.id, this.myUserId, {
+                    includeGroupSubmissions: true,
                 });
-                const subs = this.getSubmissionsByUser(assignment.id, this.myUserId);
 
                 if (!subs || subs.length === 0) {
                     return this.doDefaultRedirect(data);
@@ -201,7 +199,7 @@ export default {
                     params: {
                         courseId: assignment.courseId,
                         assignmentId: assignment.id,
-                        submissionId: subs[0].id,
+                        submissionId: subs[subs.length - 1].id,
                     },
                 });
             } else {
