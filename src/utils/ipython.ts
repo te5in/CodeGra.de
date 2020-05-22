@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { getProps, highlightCode } from '@/utils/typed';
+import { OneOrOther, filterObject, getProps, highlightCode } from '@/utils/typed';
 
 function maybeJoinText(txt: string | string[]): string {
     if (Array.isArray(txt)) {
@@ -9,19 +9,20 @@ function maybeJoinText(txt: string | string[]): string {
 }
 
 /* eslint-disable camelcase */
-interface IPythonBaseCell {
+type CellSource = string | string[];
+
+type AnySource = OneOrOther<{ input: CellSource }, { source: CellSource }>;
+
+type IPythonBaseCell = AnySource & {
     cell_type?: string;
-    source?: string | string[];
-    input?: string | string[];
-}
+};
 
-interface IPythonRawCell extends IPythonBaseCell {
+type IPythonRawCell = IPythonBaseCell & {
     cell_type: 'raw';
-}
+};
 
-interface IPythonCodeCell extends IPythonBaseCell {
+type IPythonCodeCell = IPythonBaseCell & {
     cell_type: 'code';
-    source: string | string[];
     outputs: (
         | {
               output_type?: Exclude<'stream', string>;
@@ -31,23 +32,23 @@ interface IPythonCodeCell extends IPythonBaseCell {
               text: string | string[];
           }
     )[];
-}
+};
 
-interface IPythonGenericCell extends IPythonBaseCell {
+type IPythonGenericCell = IPythonBaseCell & {
     cell_type?: Exclude<'raw' | 'code', string>;
-}
+};
 
 type IPythonDataCell = IPythonGenericCell | IPythonRawCell | IPythonCodeCell;
 
-interface CGIPythonBaseDataCell extends IPythonBaseCell {
+type CGIPythonBaseDataCell = IPythonBaseCell & {
     feedback_offset: number;
-}
+};
 
-interface CGIPythonCodeCell extends CGIPythonBaseDataCell {
+type CGIPythonCodeCell = CGIPythonBaseDataCell & {
     cell_type?: string;
     outputs?: ReadonlyArray<CGIPythonCodeCellOutput>;
     source: string[];
-}
+};
 
 type CGIPythonCodeCellOutput =
     | {
@@ -60,10 +61,10 @@ type CGIPythonCodeCellOutput =
           text: string;
       };
 
-interface CGIPythonGenericCell extends CGIPythonBaseDataCell {
+type CGIPythonGenericCell = CGIPythonBaseDataCell & {
     cell_type?: Exclude<'raw' | 'code', string>;
     source: string;
-}
+};
 
 type CGIPythonDataCell = CGIPythonGenericCell | CGIPythonCodeCell;
 
@@ -73,6 +74,7 @@ interface IPythonData {
             name?: string;
         };
     };
+    nbformat?: number;
     cells?: ReadonlyArray<IPythonDataCell>;
     worksheets?: ReadonlyArray<{
         cells?: ReadonlyArray<IPythonDataCell>;
@@ -84,12 +86,20 @@ export function sourceLanguage(ipythonData: IPythonData) {
     return getProps(ipythonData, 'python', 'metadata', 'language_info', 'name');
 }
 
+export function nbformatVersion(ipythonData: IPythonData): number {
+    return getProps(ipythonData, 0, 'nbformat');
+}
+
 export function getOutputCells(
     ipythonData: IPythonData,
     // eslint-disable-next-line
     highlight = (source: string[], lang: string, curOffset: number) => highlightCode(source, lang),
     processOther = <T extends CGIPythonDataCell | CGIPythonCodeCellOutput>(cell: T) => cell,
 ): ReadonlyArray<Readonly<CGIPythonDataCell>> {
+    if (nbformatVersion(ipythonData) < 3) {
+        throw new RangeError('Only Jupyter Notebook format v3 or greater is supported.');
+    }
+
     let curOffset = 0;
     const language = sourceLanguage(ipythonData);
     let cells = ipythonData.cells;
@@ -105,13 +115,16 @@ export function getOutputCells(
             return res;
         }
 
+        const props = filterObject(cell, (_, k) => k !== 'input');
+
         if (cell.cell_type === 'code') {
-            const splitted = maybeJoinText(cell.source).split('\n');
+            const source = cell.source ?? cell.input;
+            const splitted = maybeJoinText(source).split('\n');
             const initialOffset = curOffset;
             curOffset += splitted.length;
 
             const codeCell: CGIPythonCodeCell = {
-                ...cell,
+                ...props,
                 feedback_offset: initialOffset,
                 source: highlight(splitted, language, initialOffset),
                 outputs: cell.outputs.map(out => {
@@ -136,7 +149,7 @@ export function getOutputCells(
             res.push(codeCell);
         } else {
             const genericCell: CGIPythonGenericCell = {
-                ...cell,
+                ...props,
                 source: maybeJoinText(cell.source || cell.input || ''),
                 feedback_offset: curOffset,
             };
