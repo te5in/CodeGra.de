@@ -21,7 +21,7 @@
             <table class="table table-hover table-borderless mb-0"
                    :class="{ disabled }">
                 <transition-group :name="goingToSubmission != null ? '' : 'fade'" tag="tbody">
-                    <template v-for="notification in notifications">
+                    <template v-for="notification in sortedNotifications">
                         <tr v-if="goingToSubmission === notification.id"
                             :class="{ disabled }"
                             :key="notification.id">
@@ -89,6 +89,22 @@ export default class UserNotifications extends Vue {
 
     get notifications() {
         return this.showRead ? this.allNotifications : this.unreadNotifications;
+    }
+
+    get sortedNotifications() {
+        if (!this.showRead) {
+            return this.notifications;
+        }
+
+        return [...this.notifications].sort((a, b) => {
+            if (a.read && !b.read) {
+                return 1;
+            } else if (!a.read && b.read) {
+                return -1;
+            } else {
+                return a.createdAt.isBefore(b.createdAt) ? 1 : -1;
+            }
+        });
     }
 
     get disabled(): boolean {
