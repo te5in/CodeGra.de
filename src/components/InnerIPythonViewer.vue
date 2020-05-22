@@ -149,8 +149,11 @@ export default {
     methods: {
         outputData(output, types) {
             for (let i = 0; i < types.length; ++i) {
-                if (output.data[types[i]]) {
-                    return output.data[types[i]];
+                // nbformat v3 does not have a `data` key with the props we are interested in,
+                // but instead has those keys directly on the output object.
+                const data = this.$utils.getProps(output, output, 'data');
+                if (data[types[i]]) {
+                    return data[types[i]];
                 }
             }
             return null;
