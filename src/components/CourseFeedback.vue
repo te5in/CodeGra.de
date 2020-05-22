@@ -167,13 +167,24 @@
 </div>
 </template>
 
-<script>
+<script lang="ts">
+import { Vue, Component, Prop, Watch } from 'vue-property-decorator';
 import { mapActions, mapGetters } from 'vuex';
 
 import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/gear';
 
-import { Submission, User } from '@/models';
+import {
+    Submission,
+    User,
+    Feedback,
+    FeedbackLine,
+    FeedbackReply,
+    Rubric,
+    RubricRow,
+    RubricResult,
+    RubricResultItemServerData,
+} from '@/models';
 import { Search } from '@/utils/search';
 import { defaultdict } from '@/utils/defaultdict';
 import { flatMap1, filterMap, Just, Nothing } from '@/utils';
@@ -181,231 +192,49 @@ import { NONEXISTENT } from '@/constants';
 
 import { FeedbackOverview } from '@/components';
 
+// @ts-ignore
 import Collapse from './Collapse';
+// @ts-ignore
 import RubricViewerNormalRow from './RubricViewerNormalRow';
+// @ts-ignore
 import RubricViewerContinuousRow from './RubricViewerContinuousRow';
 
 const GeneralFeedbackSearcher = new Search(['general', 'comment', 'author']);
 
+interface GeneralFeedbackRecord {
+    general: string;
+    comment: string;
+    author: string;
+    sub: Submission;
+}
+
 const InlineFeedbackSearcher = new Search(['inline', 'comment', 'author']);
 
-export default {
-    name: 'course-feedback',
+interface InlineFeedbackRecord {
+    inline: string;
+    comment: string;
+    author: string;
+    thread: FeedbackLine,
+    reply: FeedbackReply,
+}
 
-    props: {
-        course: {
-            type: Object,
-            required: true,
-        },
-        user: {
-            type: User,
-            required: true,
-        },
-        excludeSubmission: {
-            type: Submission,
-            default: null,
-        },
-    },
+interface RubricResultItem {
+    result: RubricResult;
+    item: RubricResultItemServerData;
+    row: RubricRow<number>;
+}
 
-    data() {
-        return {
-            id: this.$utils.getUniqueId(),
-            loading: true,
-            error: null,
-            filter: '',
-            latestSubsInCourse: [],
-            settingsCollapsed: true,
-            contextLines: 3,
-            hideAutoTestRubricCategories: true,
-        };
-    },
-
+@Component({
     computed: {
-        ...mapGetters('users', ['getUser']),
         ...mapGetters('rubrics', {
             allRubrics: 'rubrics',
-            rubricResults: 'results',
+            allRubricResults: 'results',
         }),
-
-        courseId() {
-            return this.course.id;
-        },
-
-        userId() {
-            return this.user.id;
-        },
-
-        otherSubmissions() {
-            const excluded = this.excludeSubmission;
-            if (excluded == null) {
-                return this.latestSubsInCourse;
-            }
-            return this.latestSubsInCourse.filter(sub => sub.id !== excluded.id);
-        },
-
-        sortedOtherSubmissions() {
-            return [...this.otherSubmissions].sort((a, b) => {
-                if (this.filter) {
-                    const hasA = this.hasFeedbackMatches(a);
-                    const hasB = this.hasFeedbackMatches(b);
-
-                    if (hasA ^ hasB) {
-                        return hasA ? -1 : 1;
-                    }
-                }
-
-                return a.assignment.deadline.isBefore(
-                    b.assignment.deadline,
-                ) ? 1 : -1;
-            });
-        },
-
-        searchableGeneralFeedback() {
-            return filterMap(this.otherSubmissions, sub => {
-                if (sub.feedback == null) {
-                    return Nothing;
-                }
-                return Just({
-                    general: sub.feedback.general,
-                    comment: sub.feedback.general,
-                    author: sub.comment_author.readableName,
-                    sub,
-                });
-            });
-        },
-
-        filteredGeneralFeedback() {
-            return GeneralFeedbackSearcher.search(
-                this.filter,
-                this.searchableGeneralFeedback,
-            ).reduce((acc, { sub }) => {
-                acc.add(sub.id);
-                return acc;
-            }, new Set());
-        },
-
-        searchableUserFeedback() {
-            return this.otherSubmissions.reduce((acc, sub) => {
-                if (sub.feedback == null) {
-                    return acc;
-                }
-
-                return acc.concat(
-                    flatMap1(
-                        Object.values(sub.feedback.user),
-                        fileFb => flatMap1(
-                            Object.values(fileFb),
-                            thread => thread.replies.map(reply => ({
-                                inline: reply.message,
-                                comment: reply.message,
-                                author: this.getUser(reply.authorId).readableName,
-                                thread,
-                                reply,
-                            })),
-                        ),
-                    ),
-                );
-            }, []);
-        },
-
-        filteredUserFeedback() {
-            return this.otherSubmissions.reduce(
-                (acc, sub) => Object.assign(acc, this.filterUserFeedback(sub.feedback)),
-                {},
-            );
-        },
-
-        filteredFeedbackCounts() {
-            return this.otherSubmissions.reduce((acc, sub) => {
-                const fb = sub.feedback;
-                if (fb == null) {
-                    return acc;
-                }
-
-                const general = this.shouldRenderGeneral(sub) ? 1 : 0;
-                const threads = this.$utils.flatMap1(
-                    Object.values(sub.feedback.user),
-                    fileFb => Object.values(fileFb),
-                ).filter(thread =>
-                    this.shouldRenderThread(thread),
-                );
-                acc[sub.id] = general + threads.length;
-                return acc;
-            }, {});
-        },
-
-        totalFeedbackCounts() {
-            return this.otherSubmissions.reduce((acc, sub) => {
-                const fb = this.$utils.getProps(sub, null, 'feedback');
-                if (fb != null) {
-                    acc[sub.id] = fb.countEntries();
-                }
-                return acc;
-            }, {});
-        },
-
-        rubricResultsBySub() {
-            return this.otherSubmissions.reduce((acc, sub) => {
-                if (this.allRubrics[sub.assignmentId] === NONEXISTENT) {
-                    return acc;
-                }
-                const result = this.$utils.getProps(this.rubricResults, null, sub.id);
-                if (Object.values(result.selected).length > 0) {
-                    acc[sub.id] = result;
-                }
-                return acc;
-            }, {});
-        },
-
-        filteredRubricResults() {
-            return this.otherSubmissions.reduce((acc, sub) => {
-                const rubric = this.allRubrics[sub.assignmentId];
-                const result = this.rubricResultsBySub[sub.id];
-
-                if (rubric == null || result == null) {
-                    return acc;
-                }
-
-                // Loop over the rubric rows to ensure the same order as the rubric viewer.
-                const items = filterMap(rubric.rows, row => {
-                    const item = result.selected[row.id];
-                    if (item == null) {
-                        return Nothing;
-                    }
-                    if (this.hideAutoTestRubricCategories && row.locked === 'auto_test') {
-                        return Nothing;
-                    }
-                    return Just({ result, row, item });
-                });
-
-                if (items.length > 0) {
-                    acc[sub.id] = items;
-                }
-                return acc;
-            }, {});
-        },
     },
-
-    watch: {
-        courseId: {
-            immediate: true,
-            handler() {
-                this.loadCourseFeedback();
-            },
-        },
-
-        userId: {
-            immediate: true,
-            handler() {
-                this.loadCourseFeedback();
-            },
-        },
-    },
-
     methods: {
-        ...mapActions('submissions', [
-            'loadLatestByUserInCourse',
-        ]),
+        ...mapActions('submissions', {
+            loadUserSubmissions: 'loadLatestByUserInCourse',
+        }),
         ...mapActions('feedback', [
             'loadFeedback',
         ]),
@@ -413,114 +242,312 @@ export default {
             loadRubric: 'loadRubric',
             loadRubricResult: 'loadResult',
         }),
-
-        loadCourseFeedback() {
-            this.loading = true;
-            this.error = null;
-            this.latestSubsInCourse = [];
-
-            this.loadLatestByUserInCourse({
-                courseId: this.course.id,
-                userId: this.user.id,
-            }).then(
-                subs => {
-                    this.latestSubsInCourse = subs;
-                    return Promise.all(
-                        flatMap1(subs, sub => ([
-                            this.loadFeedback({
-                                assignmentId: sub.assignmentId,
-                                submissionId: sub.id,
-                            }),
-                            this.loadRubric({
-                                assignmentId: sub.assignmentId,
-                            }).catch(this.$utils.makeHttpErrorHandler({
-                                // Assignment may not have a rubric.
-                                404: () => ({}),
-                            })),
-                            this.loadRubricResult({
-                                assignmentId: sub.assignmentId,
-                                submissionId: sub.id,
-                            }),
-                        ])),
-                    );
-                },
-            ).catch(err => {
-                this.error = this.$utils.getErrorMessage(err);
-            }).then(() => {
-                this.loading = false;
-            });
-        },
-
-        filterUserFeedback(feedback) {
-            // TODO: We filter only on the content of comments. Do we also
-            // want to filter on filename? Or on username, so you can quickly
-            // see all comments by a user? Or on other things?
-
-            if (feedback == null) {
-                return null;
-            }
-
-            let filteredFb = this.searchableUserFeedback;
-
-            if (this.filter != null && this.filter !== '') {
-                filteredFb = InlineFeedbackSearcher.search(this.filter, filteredFb);
-            }
-
-            return filteredFb.reduce((acc, { thread, reply }) => {
-                acc[thread.id].add(reply.id);
-                return acc;
-            }, defaultdict(() => new Set()));
-        },
-
-        shouldRenderGeneral(sub) {
-            return this.filteredGeneralFeedback.has(sub.id);
-        },
-
-        shouldRenderThread(thread) {
-            return this.$utils.getProps(
-                this.filteredUserFeedback,
-                null,
-                thread.id,
-            ) != null;
-        },
-
-        shouldFadeReply(thread, reply) {
-            return this.shouldRenderThread(thread) &&
-                !this.filteredUserFeedback[thread.id].has(reply.id);
-        },
-
-        shouldCollapse(sub) {
-            if (this.filter) {
-                return this.filteredFeedbackCounts[sub.id] === 0;
-            } else {
-                return true;
-            }
-        },
-
-        hasFeedbackMatches(sub) {
-            if (this.filter) {
-                return this.filteredFeedbackCounts[sub.id] > 0;
-            } else {
-                return this.totalFeedbackCounts[sub.id] > 0;
-            }
-        },
     },
-
-    mounted() {
-        this.$root.$on('cg::submissions-page::reload', this.loadCourseFeedback);
-    },
-
-    destroyed() {
-        this.$root.$off('cg::submissions-page::reload', this.loadCourseFeedback);
-    },
-
     components: {
         Collapse,
         FeedbackOverview,
         RubricViewerNormalRow,
         RubricViewerContinuousRow,
     },
-};
+})
+export default class CourseFeedback extends Vue {
+    allRubrics!: Readonly<Record<number, Rubric<number> | NONEXISTENT>>;
+
+    allRubricResults!: Readonly<Record<number, RubricResult>>;
+
+    loadUserSubmissions!:
+        (args: { courseId: number, userId: number }) => Promise<Submission[]>;
+
+    loadFeedback!:
+        (args: { assignmentId: number, submissionId: number }) => Promise<Feedback>;
+
+    loadRubric!:
+        (args: { assignmentId: number }) => Promise<Feedback>;
+
+    loadRubricResult!:
+        (args: { assignmentId: number, submissionId: number }) => Promise<Feedback>;
+
+    @Prop({ required: true })
+    course!: { id: number };
+
+    @Prop({ required: true })
+    user!: User;
+
+    @Prop({ default: null })
+    excludeSubmission!: Submission;
+
+    public id: number = this.$utils.getUniqueId();
+
+    public loading: boolean = true;
+
+    public error: string | null = null;
+
+    public filter: string = '';
+
+    public latestSubsInCourse: Submission[] = [];
+
+    public settingsCollapsed: boolean = true;
+
+    public contextLines: number = 3;
+
+    public hideAutoTestRubricCategories: boolean = true;
+
+    get courseId(): number {
+        return this.course.id;
+    }
+
+    @Watch('courseId', { immediate: true })
+    handleCourseId() {
+        this.loadCourseFeedback();
+    }
+
+    get userId(): number {
+        return this.user.id;
+    }
+
+    @Watch('userId', { immediate: true })
+    handleUserId() {
+        this.loadCourseFeedback();
+    }
+
+    get otherSubmissions(): ReadonlyArray<Submission> {
+        const excluded = this.excludeSubmission;
+        if (excluded == null) {
+            return this.latestSubsInCourse;
+        }
+        return this.latestSubsInCourse.filter(sub => sub.id !== excluded.id);
+    }
+
+    get sortedOtherSubmissions(): ReadonlyArray<Submission> {
+        return [...this.otherSubmissions].sort((a, b) => {
+            if (this.filter) {
+                const hasA = this.hasFeedbackMatches(a);
+                const hasB = this.hasFeedbackMatches(b);
+
+                if (hasA !== hasB) {
+                    return hasA ? -1 : 1;
+                }
+            }
+
+            return a.assignment.deadline.isBefore(
+                b.assignment.deadline,
+            ) ? 1 : -1;
+        });
+    }
+
+    get searchableGeneralFeedback(): ReadonlyArray<GeneralFeedbackRecord> {
+        return filterMap(this.otherSubmissions, sub => {
+            if (sub.feedback == null) {
+                return Nothing;
+            }
+            return Just({
+                general: sub.feedback.general,
+                comment: sub.feedback.general,
+                author: sub.comment_author?.readableName ?? '',
+                sub,
+            });
+        });
+    }
+
+    get filteredGeneralFeedback(): Readonly<Set<number>> {
+        let fb = this.searchableGeneralFeedback;
+        if (this.filter != null && this.filter !== '') {
+            fb = GeneralFeedbackSearcher.search(this.filter, fb);
+        }
+        return new Set(fb.map(({ sub }) => sub.id));
+    }
+
+    get searchableUserFeedback(): ReadonlyArray<InlineFeedbackRecord> {
+        return flatMap1(
+            this.otherSubmissions,
+            sub => {
+                if (sub.feedback == null) {
+                    return [];
+                }
+
+                return flatMap1(
+                    Object.values(sub.feedback.user),
+                    fileFb => flatMap1(
+                        Object.values(fileFb),
+                        thread => thread.replies.map(reply => ({
+                            inline: reply.message,
+                            comment: reply.message,
+                            author: reply.author?.readableName ?? '',
+                            thread,
+                            reply,
+                        })),
+                    ),
+                );
+            },
+        );
+    }
+
+    get filteredUserFeedback(): Readonly<Record<number, Set<number>>> {
+        let filteredFb = this.searchableUserFeedback;
+
+        if (this.filter != null && this.filter !== '') {
+            filteredFb = InlineFeedbackSearcher.search(this.filter, filteredFb);
+        }
+
+        return filteredFb.reduce((acc: Record<number, Set<number>>, { thread, reply }) => {
+            if (reply.id != null) {
+                acc[thread.id].add(reply.id);
+            }
+            return acc;
+        }, defaultdict(() => new Set()));
+    }
+
+    get filteredFeedbackCounts(): Readonly<Record<number, number>> {
+        return this.otherSubmissions.reduce((acc: Record<number, number>, sub) => {
+            const fb = sub.feedback;
+            if (fb == null) {
+                return acc;
+            }
+
+            const general = this.shouldRenderGeneral(sub) ? 1 : 0;
+            const threads = this.$utils.flatMap1(
+                Object.values(fb.user),
+                fileFb => Object.values(fileFb),
+            ).filter(thread =>
+                this.shouldRenderThread(thread),
+            );
+            acc[sub.id] = general + threads.length;
+            return acc;
+        }, {});
+    }
+
+    get totalFeedbackCounts(): Readonly<Record<number, number>> {
+        return this.otherSubmissions.reduce((acc: Record<number, number>, sub) => {
+            const fb = this.$utils.getProps(sub, null, 'feedback');
+            if (fb != null) {
+                acc[sub.id] = fb.countEntries();
+            }
+            return acc;
+        }, {});
+    }
+
+    get rubricResultsBySub(): Readonly<Record<number, RubricResult>> {
+        return this.otherSubmissions.reduce((acc: Record<number, RubricResult>, sub) => {
+            if (this.allRubrics[sub.assignmentId] === NONEXISTENT) {
+                return acc;
+            }
+            const result = this.$utils.getProps(this.allRubricResults, null, sub.id);
+            if (Object.values(result.selected).length > 0) {
+                acc[sub.id] = result;
+            }
+            return acc;
+        }, {});
+    }
+
+    get filteredRubricResults(): Readonly<Record<number, ReadonlyArray<RubricResultItem>>> {
+        return this.otherSubmissions.reduce((acc: Record<number, RubricResultItem[]>, sub) => {
+            const rubric = this.allRubrics[sub.assignmentId];
+            const result = this.rubricResultsBySub[sub.id];
+
+            if (rubric == null || rubric === NONEXISTENT || result == null) {
+                return acc;
+            }
+
+            // Loop over the rubric rows to ensure the same order as the rubric viewer.
+            const items = filterMap(rubric.rows, row => {
+                const item = result.selected[row.id];
+                if (item == null) {
+                    return Nothing;
+                }
+                if (this.hideAutoTestRubricCategories && row.locked === 'auto_test') {
+                    return Nothing;
+                }
+                return Just({ result, row, item });
+            });
+
+            if (items.length > 0) {
+                acc[sub.id] = items;
+            }
+            return acc;
+        }, {});
+    }
+
+    loadCourseFeedback() {
+        this.loading = true;
+        this.error = null;
+        this.latestSubsInCourse = [];
+
+        this.loadUserSubmissions({
+            courseId: this.course.id,
+            userId: this.user.id,
+        }).then(
+            subs => {
+                this.latestSubsInCourse = subs;
+                return Promise.all(
+                    flatMap1(subs, sub => ([
+                        this.loadFeedback({
+                            assignmentId: sub.assignmentId,
+                            submissionId: sub.id,
+                        }),
+                        this.loadRubric({
+                            assignmentId: sub.assignmentId,
+                        }).catch(this.$utils.makeHttpErrorHandler({
+                            // Assignment may not have a rubric.
+                            404: () => ({}),
+                        })),
+                        this.loadRubricResult({
+                            assignmentId: sub.assignmentId,
+                            submissionId: sub.id,
+                        }),
+                    ])),
+                );
+            },
+        ).catch(err => {
+            this.error = this.$utils.getErrorMessage(err);
+        }).then(() => {
+            this.loading = false;
+        });
+    }
+
+    shouldRenderGeneral(sub: Submission) {
+        return this.filteredGeneralFeedback.has(sub.id);
+    }
+
+    shouldRenderThread(thread: FeedbackLine) {
+        return this.$utils.getProps(
+            this.filteredUserFeedback,
+            0,
+            thread.id,
+            'size',
+        ) !== 0;
+    }
+
+    shouldFadeReply(thread: FeedbackLine, reply: FeedbackReply) {
+        if (reply.id == null) {
+            return false;
+        }
+        return !this.filteredUserFeedback[thread.id].has(reply.id);
+    }
+
+    shouldCollapse(sub: Submission) {
+        if (this.filter) {
+            return this.filteredFeedbackCounts[sub.id] === 0;
+        } else {
+            return true;
+        }
+    }
+
+    hasFeedbackMatches(sub: Submission) {
+        if (this.filter) {
+            return this.filteredFeedbackCounts[sub.id] > 0;
+        } else {
+            return this.totalFeedbackCounts[sub.id] > 0;
+        }
+    }
+
+    mounted() {
+        this.$root.$on('cg::submissions-page::reload', this.loadCourseFeedback);
+    }
+
+    destroyed() {
+        this.$root.$off('cg::submissions-page::reload', this.loadCourseFeedback);
+    }
+}
 </script>
 
 <style lang="less" scoped>

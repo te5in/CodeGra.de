@@ -23,7 +23,7 @@ function regexEscape(str: string): string {
     return str.replace(regexSpecial, c => `\\${c}`);
 }
 
-export class Search<K extends string, R> {
+export class Search<K extends string> {
     private static defaultOptions: SearchOptions = {
         caseInsensitive: true,
     };
@@ -34,7 +34,7 @@ export class Search<K extends string, R> {
         this.options = Object.assign({}, Search.defaultOptions, options);
     }
 
-    search(query: string, items: ReadonlyArray<SearchRecord<K>>): SearchRecord<K>[] {
+    search<R extends SearchRecord<K>>(query: string, items: ReadonlyArray<R>): R[] {
         // TODO: More intelligent splitting of terms. Allow quoting to
         // represent a term containing whitespace? Search all keys except one/a
         // few?
