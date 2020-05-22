@@ -90,9 +90,15 @@ export namespace NotificationStore {
 
     // eslint-disable-next-line
     function _getAllNotifications(state: NotificationState): ReadonlyArray<Notification> {
-        return Object.values(state.notifications).sort(
-            (a, b) => b.createdAt.valueOf() - a.createdAt.valueOf(),
-        );
+        return Object.values(state.notifications).sort((a, b) => {
+            if (a.read && !b.read) {
+                return 1;
+            } else if (!a.read && b.read) {
+                return -1;
+            } else {
+                return b.createdAt.valueOf() - a.createdAt.valueOf();
+            }
+        });
     }
 
     export const getAllNotifications = moduleBuilder.read(
