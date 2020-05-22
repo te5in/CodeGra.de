@@ -344,7 +344,10 @@ class CGDeepLinkResource(DeepLinkResource):
         cls, app: PsefFlask, message_launch: 'FlaskMessageLaunch'
     ) -> 'CGDeepLinkResource':
         self = cls()
-        return self.set_url(message_launch.get_lti_provider().get_launch_url())
+        url = message_launch.get_lti_provider().get_launch_url(
+            goto_latest_sub=False,
+        )
+        return self.set_url(str(url))
 
 
 def init_app(app: PsefFlask) -> None:
