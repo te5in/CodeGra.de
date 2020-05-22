@@ -9,7 +9,7 @@
         </div>
 
         <div class="d-flex flex-grow-0">
-            <div class="icon-button"
+            <div class="icon-button add-filter"
                  @click="addFilter()"
                  v-b-popover.hover.top="'Add filter'">
                 <icon name="plus" />
