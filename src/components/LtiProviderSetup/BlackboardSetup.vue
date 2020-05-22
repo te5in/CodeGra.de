@@ -60,7 +60,7 @@
 
                     <tr>
                         <td>Tool Redirect URL(s)</td>
-                        <td><code>{{ launchUrl }}</code></td>
+                        <td><code>{{ redirectUrls.join(',') }}</code></td>
                     </tr>
 
                     <tr>
@@ -358,6 +358,18 @@ export default class BlackboardSetup extends Vue {
 
     get showLogo(): boolean {
         return (this.$root as any).$isMediumWindow;
+    }
+
+    get redirectUrls(): readonly string[] {
+        return [
+            this.launchUrl,
+            this.$utils.buildUrl(
+                ['api', 'v1', 'lti1.3', 'launch_to_latest_submission', this.ltiProvider.id],
+                {
+                    baseUrl: this.$userConfig.externalUrl,
+                },
+            ),
+        ];
     }
 
     get launchUrl(): string {

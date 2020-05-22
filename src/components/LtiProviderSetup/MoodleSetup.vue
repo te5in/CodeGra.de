@@ -97,7 +97,7 @@
 
                     <tr>
                         <td> Redirection URI(s)</td>
-                        <td><code>{{ launchUrl }}</code></td>
+                        <td><code>{{ redirectUrls.join('\n') }}</code></td>
                     </tr>
 
                     <tr>
@@ -298,6 +298,18 @@ export default class MoodleSetup extends Vue {
 
     get showLogo(): boolean {
         return (this.$root as any).$isMediumWindow;
+    }
+
+    get redirectUrls(): readonly string[] {
+        return [
+            this.launchUrl,
+            this.$utils.buildUrl(
+                ['api', 'v1', 'lti1.3', 'launch_to_latest_submission', this.ltiProvider.id],
+                {
+                    baseUrl: this.$userConfig.externalUrl,
+                },
+            ),
+        ];
     }
 
     get launchUrl(): string {

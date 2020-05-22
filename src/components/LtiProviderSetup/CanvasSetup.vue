@@ -198,9 +198,9 @@ export default class CanvasSetup extends Vue {
     }
 
     get redirectUrl(): string {
-        return (<const>[['to_latest_submission'], []]).map(
+        return (<const>['launch_to_latest_submission', 'launch']).map(
             extraPath => this.$utils.buildUrl(
-                ['api', 'v1', 'lti1.3', 'launch', ...extraPath],
+                ['api', 'v1', 'lti1.3', extraPath],
                 {
                     baseUrl: this.$userConfig.externalUrl,
                 },
