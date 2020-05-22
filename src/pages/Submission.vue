@@ -157,17 +157,18 @@
                        id="submission-page-inner"
                        :min-size="30"
                        :max-size="85">
-                <file-viewer slot="firstPane"
-                             :assignment="assignment"
-                             :submission="submission"
-                             :file="currentFile"
-                             :revision="revision"
-                             :editable="canSeeUserFeedback && canGiveLineFeedback"
-                             :can-use-snippets="canUseSnippets"
-                             :show-whitespace="showWhitespace"
-                             :show-inline-feedback="selectedCat === 'code' && showInlineFeedback && revision === 'student'"
-                             :language="selectedLanguage"
-                             @language="languageChanged" />
+                <file-viewer
+                    slot="firstPane"
+                    :assignment="assignment"
+                    :submission="submission"
+                    :file="currentFile"
+                    :revision="revision"
+                    :editable="canSeeUserFeedback && canGiveLineFeedback"
+                    :can-use-snippets="canUseSnippets"
+                    :show-whitespace="showWhitespace"
+                    :show-inline-feedback="selectedCat === 'code' && showInlineFeedback && revision === 'student'"
+                    :language="selectedLanguage"
+                    @language="languageChanged" />
 
                 <div class="file-tree-container border rounded p-0 mt-3 mt-lg-0" slot="secondPane">
                     <file-tree :assignment="assignment"
