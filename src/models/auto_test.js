@@ -235,6 +235,10 @@ export class AutoTestResult {
         this.update(result, autoTest);
     }
 
+    get hasExtended() {
+        return this.setResults != null;
+    }
+
     update(result, autoTest) {
         this.createdAt = result.created_at;
         this.startedAt = result.started_at;

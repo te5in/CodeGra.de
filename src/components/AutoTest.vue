@@ -667,7 +667,7 @@ export default {
             if (!this.singleResult) {
                 return;
             }
-            if (this.result == null || this.result.setResults == null) {
+            if (this.result == null || !this.result.hasExtended) {
                 this.loadSingleResult();
             }
         },

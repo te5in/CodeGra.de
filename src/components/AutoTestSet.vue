@@ -207,7 +207,7 @@ export default {
             if (previousSet == null) {
                 return true;
             }
-            return this.$utils.getProps(this.result.setResults, true, previousSet.id, 'passed');
+            return this.$utils.getProps(this.result, true, 'setResults', previousSet.id, 'passed');
         },
     },
 
