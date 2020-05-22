@@ -609,7 +609,7 @@ export default {
             const seen = new Set();
             return this.filteredSubmissions.reduce((acc, s) => {
                 s.user.getContainedUsers().forEach(u => {
-                    if (seen.has(u.id)) {
+                    if (u.is_test_student || seen.has(u.id)) {
                         return;
                     }
 
