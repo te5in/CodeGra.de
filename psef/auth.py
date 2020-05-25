@@ -927,20 +927,22 @@ class WorkPermissions(CoursePermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see_grade(self) -> None:
+        """Ensure the current user can see the grade of the work.
+        """
         ensure_can_see_grade(self.work)
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see_general_feedback(
         self, user: t.Optional['psef.models.User'] = None
     ) -> None:
+        """Ensure the given user can see the general feedback of the work.
+        """
         ensure_can_see_general_feedback(self.work, user)
 
     @PermissionChecker.as_ensure_function
-    def ensure_may_see_user_feedback(self) -> None:
-        ensure_can_see_user_feedback(self.work)
-
-    @PermissionChecker.as_ensure_function
     def ensure_may_see_linter_feedback(self) -> None:
+        """Ensure the current user can see the linter feedback of the work.
+        """
         ensure_can_see_linter_feedback(self.work)
 
 

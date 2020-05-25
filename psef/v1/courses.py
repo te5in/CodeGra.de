@@ -6,7 +6,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import uuid
 import typing as t
-import collections
 
 import flask_jwt_extended as flask_jwt
 from flask import request
@@ -1230,7 +1229,7 @@ def get_user_submissions(
 
     latest_only = helpers.request_arg_true('latest_only')
 
-    def get_subs(query: models._MyQuery[models.Work]) -> t.List[models.Work]:
+    def get_subs(query: models.MyQuery[models.Work]) -> t.List[models.Work]:
         return models.Work.update_query_for_extended_jsonify(
             models.Work.limit_to_user_submissions(query, user),
         ).all()
@@ -1244,7 +1243,8 @@ def get_user_submissions(
     else:
         query = models.Work.query.filter(
             models.Work.assignment_id.in_([a.id for a in assignments]),
-            ~models.Work._deleted,
+            # Use _deleted because we already know the assignment exists.
+            ~models.Work._deleted,  # pylint: disable=protected-access
         )
         subs = {assig.id: [] for assig in assignments}
         for sub in get_subs(query):

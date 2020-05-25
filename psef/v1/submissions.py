@@ -30,7 +30,6 @@ from ..helpers import (
     ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response
 )
-from ..exceptions import PermissionException
 from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
