@@ -128,12 +128,12 @@ import typing as t
 
 import cg_sqlalchemy_helpers
 from cg_sqlalchemy_helpers import UUID_LENGTH
+from cg_cache.intra_request import cache_within_request
 from cg_sqlalchemy_helpers.types import (  # pylint: disable=unused-import
     MyDb, MyQuery, DbColumn, _MyQuery
 )
 
 from .. import PsefFlask
-from ..cache import cache_within_request
 
 db: MyDb = cg_sqlalchemy_helpers.make_db()  # pylint: disable=invalid-name
 

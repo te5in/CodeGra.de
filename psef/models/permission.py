@@ -21,7 +21,7 @@ if getattr(t, 'SPHINX', False):  # pragma: no cover:
     # Sphinx fails with this decorator for whatever reason.
     cache_within_request = lambda x: x  # pylint: disable=invalid-name
 else:
-    from ..cache import cache_within_request
+    from cg_cache.intra_request import cache_within_request
 
 
 class PermissionComp(t.Generic[_T], Comparator[str]):  # pylint: disable=missing-docstring,too-many-ancestors

@@ -17,8 +17,8 @@ from flask import Flask, Response
 from flask_limiter import Limiter, RateLimitExceeded
 from werkzeug.local import LocalProxy
 
-import cg_cache
 import cg_logger
+import cg_cache.inter_request
 from cg_json import jsonify
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -35,8 +35,8 @@ else:
 class PsefInterProcessCache:
     # Pylint bug: https://github.com/PyCQA/pylint/issues/2822
     # pylint: disable=unsubscriptable-object
-    lti_access_tokens: cg_cache.Backend[str]
-    lti_public_keys: cg_cache.Backend['_KeySet']
+    lti_access_tokens: cg_cache.inter_request.Backend[str]
+    lti_public_keys: cg_cache.inter_request.Backend['_KeySet']
 
 
 class PsefFlask(Flask):
@@ -78,12 +78,12 @@ class PsefFlask(Flask):
 
         redis_conn = redis.from_url(self.config['REDIS_CACHE_URL'])
         self._inter_request_cache = PsefInterProcessCache(
-            lti_access_tokens=cg_cache.RedisBackend(
+            lti_access_tokens=cg_cache.inter_request.RedisBackend(
                 'lti_access_tokens',
                 timedelta(seconds=600),
                 redis_conn,
             ),
-            lti_public_keys=cg_cache.RedisBackend(
+            lti_public_keys=cg_cache.inter_request.RedisBackend(
                 'lti_public_keys', timedelta(seconds=3600), redis_conn
             ),
         )
@@ -227,9 +227,6 @@ def create_app(  # pylint: disable=too-many-statements
     from . import permissions
     permissions.init_app(resulting_app, skip_perm_check)
 
-    from . import cache
-    cache.init_app(resulting_app)
-
     from . import features
     features.init_app(resulting_app)
 
@@ -289,5 +286,8 @@ def create_app(  # pylint: disable=too-many-statements
 
     import cg_timers
     cg_timers.init_app(resulting_app)
+
+    import cg_cache
+    cg_cache.init_app(resulting_app)
 
     return resulting_app

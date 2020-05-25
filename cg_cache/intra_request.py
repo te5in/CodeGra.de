@@ -7,7 +7,7 @@ from functools import wraps
 from collections import defaultdict
 
 import structlog
-from flask import g, current_app
+from flask import Flask, g
 
 T = t.TypeVar('T', bound=t.Callable)
 Y = t.TypeVar('Y')
@@ -19,10 +19,10 @@ logger = structlog.get_logger()
 def _set_g_vars() -> None:
     g.cache_misses = 0
     g.cache_hits = 0
-    g.psef_function_cache = defaultdict(dict)
+    g.cg_function_cache = defaultdict(dict)
 
 
-def init_app(app: t.Any) -> None:
+def init_app(app: Flask) -> None:
     """Init the cache for the given app.
     """
 
@@ -30,7 +30,7 @@ def init_app(app: t.Any) -> None:
 
     @app.after_request
     def __clear_caches(res: T) -> T:  # pylint: disable=unused-variable
-        g.psef_function_cache = defaultdict(dict)
+        g.cg_function_cache = defaultdict(dict)
         return res
 
 
@@ -64,19 +64,19 @@ def _cache_or_call(
     kwargs: t.Dict,
 ) -> t.Any:
     try:
-        if not hasattr(g, 'psef_function_cache'):
+        if not hasattr(g, 'cg_function_cache'):
             _set_g_vars()
     except:
         # Never error because of this decorator
         return fun(*args, **kwargs)
 
-    if key in g.psef_function_cache[master_key]:
+    if key in g.cg_function_cache[master_key]:
         g.cache_hits += 1
     else:
-        g.psef_function_cache[master_key][key] = fun(*args, **kwargs)
+        g.cg_function_cache[master_key][key] = fun(*args, **kwargs)
         g.cache_misses += 1
 
-    return g.psef_function_cache[master_key][key]
+    return g.cg_function_cache[master_key][key]
 
 
 def cache_within_request_make_key(
@@ -123,7 +123,7 @@ def cache_within_request(f: T) -> T:
         return _cache_or_call(master_key, key, f, args, kwargs)
 
     def clear_cache() -> None:  # pragma: no cover
-        g.psef_function_cache[master_key] = {}
+        g.cg_function_cache[master_key] = {}
 
     __decorated.clear_cache = clear_cache  # type: ignore
 

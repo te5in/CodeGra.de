@@ -12,6 +12,7 @@ from sqlalchemy.sql.expression import or_ as sql_or
 from sqlalchemy.sql.expression import func as sql_func
 
 import psef
+import cg_cache.intra_request
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.types import MyQueryTuple, hybrid_property
 
@@ -19,7 +20,6 @@ from . import Base, DbColumn, db
 from . import user as user_models
 from . import work as work_models
 from . import _MyQuery
-from .. import cache
 from ..helpers import NotEqualMixin
 from ..exceptions import APICodes, APIException
 from .link_tables import users_groups
@@ -118,7 +118,7 @@ class Group(Base):
     def __hash__(self) -> int:
         return hash(self.id)
 
-    @cache.cache_within_request
+    @cg_cache.intra_request.cache_within_request
     def has_as_member(self, user: 'user_models.User') -> bool:
         """Check if the given user is member of this group.
 
