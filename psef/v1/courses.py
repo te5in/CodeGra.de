@@ -1186,8 +1186,9 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
     methods=['GET']
 )
 @auth.login_required
-def get_user_submissions(course_id: int, user_id: int
-                         ) -> ExtendedJSONResponse[t.Mapping[int, t.Sequence[models.Work]]]:
+def get_user_submissions(
+    course_id: int, user_id: int
+) -> ExtendedJSONResponse[t.Mapping[int, t.Sequence[models.Work]]]:
     """Get all :class:`.models.Work`s by the given :class:`.models.User` in the
     given :class:`.models.Course`.
 
@@ -1245,7 +1246,7 @@ def get_user_submissions(course_id: int, user_id: int
             models.Work.assignment_id.in_([a.id for a in assignments]),
             ~models.Work._deleted,
         )
-        subs = { assig.id: [] for assig in assignments }
+        subs = {assig.id: [] for assig in assignments}
         for sub in get_subs(query):
             subs[sub.assignment_id].append(sub)
 

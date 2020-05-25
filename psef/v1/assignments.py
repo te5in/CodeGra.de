@@ -182,22 +182,17 @@ def get_assignments_feedback(assignment_id: int) -> JSONResponse[
 
     res = {}
     for sub in latest_subs:
-        item: t.MutableMapping[str, t.Union[str, t.Sequence[str]]] = {}
+        perms = auth.WorkPermissions(sub)
+        item: t.MutableMapping[str, t.Union[str, t.Sequence[str]]] = {
+            'general': '',
+            'linter': [],
+            'user': list(sub.get_user_feedback()),
+        }
 
-        try:
-            auth.ensure_can_see_general_feedback(sub)
-        except auth.PermissionException:
-            item['general'] = ''
-        else:
+        if perms.ensure_may_see_general_feedback.as_bool():
             item['general'] = sub.comment or ''
 
-        item['user'] = list(sub.get_user_feedback())
-
-        try:
-            auth.ensure_can_see_linter_feedback(sub)
-        except auth.PermissionException:
-            item['linter'] = []
-        else:
+        if perms.ensure_may_see_linter_feedback.as_bool():
             item['linter'] = list(sub.get_linter_feedback())
 
         res[str(sub.id)] = item

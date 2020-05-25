@@ -291,10 +291,7 @@ def test_get_latest_submissions_of_user(
 
         latest_visible_subs = get_visible(latest_subs)
 
-        no_subs = {
-            str(assig_id): []
-            for assig_id in assigs
-        }
+        no_subs = {str(assig_id): [] for assig_id in assigs}
 
         deleted_assig_id = helpers.get_id(
             helpers.create_assignment(

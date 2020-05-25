@@ -916,6 +916,34 @@ def ensure_can_edit_members_of_group(
         )
 
 
+class WorkPermissions(CoursePermissionChecker):
+    """The permission checker for :class:`psef.models.Work`.
+    """
+    __slots__ = ('work', )
+
+    def __init__(self, work: 'psef.models.Work'):
+        super().__init__(course_id=work.assignment.course_id)
+        self.work = work
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see_grade(self) -> None:
+        ensure_can_see_grade(self.work)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see_general_feedback(
+        self, user: t.Optional['psef.models.User'] = None
+    ) -> None:
+        ensure_can_see_general_feedback(self.work, user)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see_user_feedback(self) -> None:
+        ensure_can_see_user_feedback(self.work)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see_linter_feedback(self) -> None:
+        ensure_can_see_linter_feedback(self.work)
+
+
 class FeedbackBasePermissions(CoursePermissionChecker):
     """The permission checker for :class:`psef.models.CommentBase`.
     """

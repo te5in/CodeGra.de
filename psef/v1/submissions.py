@@ -146,31 +146,26 @@ def get_feedback(work: models.Work) -> t.Mapping[str, str]:
         which can be given to ``GET - /api/v1/files/<name>`` and
         ``output_name`` which is the resulting file should be named.
     """
+    perms = auth.WorkPermissions(work)
     comments: t.Iterable[str]
     linter_comments: t.Iterable[str]
 
-    try:
-        auth.ensure_can_see_grade(work)
-    except PermissionException:
-        grade = ''
-    else:
+    if perms.ensure_may_see_grade.as_bool():
         grade = str(work.grade or '')
-
-    try:
-        auth.ensure_can_see_general_feedback(work)
-    except PermissionException:
-        general_comment = ''
     else:
+        grade = ''
+
+    if perms.ensure_may_see_general_feedback.as_bool():
         general_comment = work.comment or ''
+    else:
+        general_comment = ''
 
     comments = work.get_user_feedback()
 
-    try:
-        auth.ensure_can_see_linter_feedback(work)
-    except PermissionException:
-        linter_comments = []
-    else:
+    if perms.ensure_may_see_linter_feedback.as_bool():
         linter_comments = work.get_linter_feedback()
+    else:
+        linter_comments = []
 
     filename = f'{work.assignment.name}-{work.user.name}-feedback.txt'.replace(
         '/', '_'
@@ -378,10 +373,9 @@ def get_feedback_from_submission(
     work = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
+    perms = auth.WorkPermissions(work)
 
-    try:
-        auth.ensure_can_see_linter_feedback(work)
-    except PermissionException:
+    if not perms.ensure_may_see_linter_feedback.as_bool():
         linter_comments = {}
     else:
         all_linter_comments = models.LinterComment.query.filter(
@@ -430,12 +424,10 @@ def get_feedback_from_submission(
     else:
         fun = _get_feedback_without_replies
 
-    try:
-        auth.ensure_can_see_general_feedback(work)
-    except PermissionException:
-        general = ''
-    else:
+    if perms.ensure_may_see_general_feedback.as_bool():
         general = helpers.handle_none(work.comment, '')
+    else:
+        general = ''
 
     return jsonify(fun(comments, linter_comments, general))
 
