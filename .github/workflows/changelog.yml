@@ -5,6 +5,13 @@ on:
   pull_request:
     types:
       - opened
+    branches:
+      - master
+      - stable
+  push:
+    branches:
+      - master
+      - stable
   issue_comment:
     types:
       - created
