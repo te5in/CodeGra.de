@@ -41,6 +41,7 @@ context('Course Feedback', () => {
             cy.get('.course-feedback .feedback-overview')
                 .should('not.exist');
             cy.get('.course-feedback')
+                .text()
                 .should('contain', 'No other assignments in this course');
         });
     });
