@@ -48,6 +48,7 @@
 
         <b-alert show
                  variant="danger"
+                 class="m-3"
                  v-if="error != null">
             {{ error }}
         </b-alert>
