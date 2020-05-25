@@ -294,6 +294,10 @@ const actions = {
             .get(`/api/v1/courses/${courseId}/users/${userId}/submissions/?latest_only`)
             .then(res =>
                 utils.mapObject(res.data, ([sub]) => {
+                    if (sub == null) {
+                        return null;
+                    }
+
                     const assignmentId = sub.assignment_id;
                     const submission = Submission.fromServerData(sub, assignmentId);
                     context.commit(types.ADD_SINGLE_SUBMISSION, { submission });

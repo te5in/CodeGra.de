@@ -41,7 +41,7 @@ context('Course Feedback', () => {
             cy.get('.course-feedback .feedback-overview')
                 .should('not.exist');
             cy.get('.course-feedback')
-                .should('contain', 'No submissions to other assignments in this course');
+                .should('contain', 'No other assignments in this course');
         });
     });
 
@@ -89,8 +89,10 @@ context('Course Feedback', () => {
                 .should('not.exist');
             cy.get('.course-feedback .feedback-overview')
                 .should('not.exist');
-            cy.get('.course-feedback')
-                .should('contain', 'No submissions to other assignments in this course');
+            cy.get('.course-feedback .assignment-name')
+                .should('have.length', 1)
+                .should('contain', assignments[1].name)
+                .should('contain', '(no submission)');
         });
     });
 

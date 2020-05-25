@@ -56,113 +56,131 @@
         <cg-loader v-else-if="loading"
                    class="p-3" />
 
-        <div v-else-if="sortedOtherSubmissions.length === 0"
+        <div v-else-if="assignments.length === 0"
             class="p-3 text-muted font-italic">
-            No submissions to other assignments in this course.
+            No
+            <template v-if="excludeSubmission">
+                other
+            </template>
+            assignments in this course.
         </div>
 
         <ol v-else
             class="mb-0 pl-0">
-            <li v-for="(sub, i) in sortedOtherSubmissions"
-                :key="sub.id"
-                class="border-top">
-                <collapse :collapsed="shouldCollapse(sub)">
-                    <h6 slot="handle"
-                        v-b-toggle="`course-feedback-collapse-${sub.id}`"
-                        class="assignment-name p-3 mb-0 cursor-pointer"
-                        :class="{
-                            'text-muted': !hasFeedbackMatches(sub),
-                        }">
-                        <div class="caret mr-2 float-left">
-                            <fa-icon name="chevron-down" :scale="0.75" />
-                        </div>
+            <template v-for="(assig, i) in sortedAssignments">
+                <li v-if="submissions[assig.id] == null"
+                     class="border-top cursor-not-allowed">
+                    <h6 class="assignment-name no-submission p-3 mb-0 text-muted">
+                        {{ assig.name }}
 
-                        {{ sub.assignment.name }}
-
-                        <span v-if="sub.grade != null"
-                              class="font-italic">
-                            (graded: {{ sub.grade }})
-                        </span>
-
-                        <span v-else
-                              class="text-muted font-italic">
-                            (not yet graded)
-                        </span>
-
-                        <span class="float-right">
-                            <cg-loader :scale="1" v-if="sub.feedback == null" />
-
-                            <b-badge v-else
-                                     :variant="hasFeedbackMatches(sub) ? 'primary' : 'secondary'"
-                                     title="Comments on this submission">
-                                <template v-if="filter">
-                                    {{ filteredFeedbackCounts[sub.id] }} /
-                                </template>
-
-                                {{ totalFeedbackCounts[sub.id] }}
-                            </b-badge>
+                        <span class="font-italic">
+                            (no submission)
                         </span>
                     </h6>
+                </li>
 
-                    <div v-if="rubricResultsBySub[sub.id] != null"
-                         class="px-3 pb-3">
-                        <span v-for="{ result, row, item } in filteredRubricResults[sub.id]"
-                              :key="`${sub.id}-${item.id}`">
-                            <b-badge
-                                :id="`course-feedback-rubric-item-${id}-${sub.id}-${item.id}`"
-                                pill
-                                class="mr-1"
-                                variant="secondary">
-                                <span class="mr-1">{{ row.header }}</span>
-                                <sup>{{ item.achieved_points }}</sup>&frasl;<sub>{{ row.maxPoints }}</sub>
+                <li v-else
+                    v-for="sub in [submissions[assig.id]]"
+                    :key="sub.id"
+                    class="border-top">
+                    <collapse :collapsed="shouldCollapse(sub)">
+                        <h6 slot="handle"
+                            v-b-toggle="`course-feedback-collapse-${sub.id}`"
+                            class="assignment-name p-3 mb-0 cursor-pointer"
+                            :class="{
+                                'text-muted': !hasFeedbackMatches(sub),
+                            }">
+                            <div class="caret mr-2 float-left">
+                                <fa-icon name="chevron-down" :scale="0.75" />
+                            </div>
 
-                                <template v-if="row.locked === 'auto_test'">
-                                    <span class="mx-1">|</span> AT
-                                </template>
-                            </b-badge>
+                            {{ assig.name }}
 
-                            <b-popover
-                                triggers="hover"
-                                placement="top"
-                                :target="`course-feedback-rubric-item-${id}-${sub.id}-${item.id}`"
-                                custom-class="course-feedback-rubric-row-popover">
-                                <component
-                                    :is="`rubric-viewer-${row.type}-row`"
-                                    :value="result"
-                                    :rubric-row="row"
-                                    :assignment="sub.assignment"/>
-                            </b-popover>
-                        </span>
-                    </div>
+                            <span v-if="sub.grade != null"
+                                class="font-italic">
+                                (graded: {{ sub.grade }})
+                            </span>
 
-                    <div v-if="!hasFeedbackMatches(sub)"
-                         class="p-3 border-top text-muted font-italic">
-                        <template v-if="filter">
-                            No comments match the filter.
-                        </template>
+                            <span v-else
+                                class="text-muted font-italic">
+                                (not yet graded)
+                            </span>
 
-                        <template v-else>
-                            No feedback given.
-                        </template>
-                    </div>
+                            <span class="float-right">
+                                <cg-loader :scale="1" v-if="sub.feedback == null" />
 
-                    <feedback-overview
-                        v-else
-                        :assignment="sub.assignment"
-                        :submission="sub"
-                        show-inline-feedback
-                        :non-editable="true"
-                        :context-lines="contextLines"
-                        :should-render-general="shouldRenderGeneral"
-                        :should-render-thread="shouldRenderThread"
-                        :should-fade-reply="shouldFadeReply"
-                        :open-files-in-new-tab="!$inLTI">
-                        <template v-if="filter" #no-inline-feedback>
-                            No inline feedback matching the filter.
-                        </template>
-                    </feedback-overview>
-                </collapse>
-            </li>
+                                <b-badge v-else
+                                        :variant="hasFeedbackMatches(sub) ? 'primary' : 'secondary'"
+                                        title="Comments on this submission">
+                                    <template v-if="filter">
+                                        {{ filteredFeedbackCounts[sub.id] }} /
+                                    </template>
+
+                                    {{ totalFeedbackCounts[sub.id] }}
+                                </b-badge>
+                            </span>
+                        </h6>
+
+                        <div v-if="rubricResultsBySub[sub.id] != null"
+                            class="px-3 pb-3">
+                            <span v-for="{ result, row, item } in filteredRubricResults[sub.id]"
+                                :key="`${sub.id}-${item.id}`">
+                                <b-badge
+                                    :id="`course-feedback-rubric-item-${id}-${sub.id}-${item.id}`"
+                                    pill
+                                    class="mr-1"
+                                    variant="secondary">
+                                    <span class="mr-1">{{ row.header }}</span>
+                                    <sup>{{ item.achieved_points }}</sup>&frasl;<sub>{{ row.maxPoints }}</sub>
+
+                                    <template v-if="row.locked === 'auto_test'">
+                                        <span class="mx-1">|</span> AT
+                                    </template>
+                                </b-badge>
+
+                                <b-popover
+                                    triggers="hover"
+                                    placement="top"
+                                    :target="`course-feedback-rubric-item-${id}-${sub.id}-${item.id}`"
+                                    custom-class="course-feedback-rubric-row-popover">
+                                    <component
+                                        :is="`rubric-viewer-${row.type}-row`"
+                                        :value="result"
+                                        :rubric-row="row"
+                                        :assignment="assig"/>
+                                </b-popover>
+                            </span>
+                        </div>
+
+                        <div v-if="!hasFeedbackMatches(sub)"
+                            class="p-3 border-top text-muted font-italic">
+                            <template v-if="filter">
+                                No comments match the filter.
+                            </template>
+
+                            <template v-else>
+                                No feedback given.
+                            </template>
+                        </div>
+
+                        <feedback-overview
+                            v-else
+                            :assignment="assig"
+                            :submission="sub"
+                            show-inline-feedback
+                            :non-editable="true"
+                            :context-lines="contextLines"
+                            :should-render-general="shouldRenderGeneral"
+                            :should-render-thread="shouldRenderThread"
+                            :should-fade-reply="shouldFadeReply"
+                            :open-files-in-new-tab="!$inLTI">
+                            <template v-if="filter" #no-inline-feedback>
+                                No inline feedback matching the filter.
+                            </template>
+                        </feedback-overview>
+                    </collapse>
+                </li>
+            </template>
         </ol>
     </div>
 </div>
@@ -176,6 +194,7 @@ import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/gear';
 
 import {
+    Assignment,
     Submission,
     User,
     Feedback,
@@ -227,6 +246,9 @@ interface RubricResultItem {
 
 @Component({
     computed: {
+        ...mapGetters('courses', {
+            allAssignments: 'assignments',
+        }),
         ...mapGetters('rubrics', {
             allRubrics: 'rubrics',
             allRubricResults: 'results',
@@ -252,6 +274,8 @@ interface RubricResultItem {
     },
 })
 export default class CourseFeedback extends Vue {
+    allAssignments!: Readonly<Record<string, Assignment>>;
+
     allRubrics!: Readonly<Record<number, Rubric<number> | NONEXISTENT>>;
 
     allRubricResults!: Readonly<Record<number, RubricResult>>;
@@ -285,7 +309,7 @@ export default class CourseFeedback extends Vue {
 
     public filter: string = '';
 
-    public latestSubsInCourse: Submission[] = [];
+    public submissions: Readonly<Record<number, Submission | null>> = {};
 
     public settingsCollapsed: boolean = true;
 
@@ -311,28 +335,50 @@ export default class CourseFeedback extends Vue {
         this.loadCourseFeedback();
     }
 
-    get otherSubmissions(): ReadonlyArray<Submission> {
-        const excluded = this.excludeSubmission;
-        if (excluded == null) {
-            return this.latestSubsInCourse;
+    get assignments(): ReadonlyArray<Assignment> {
+        let assigs = Object.keys(this.submissions).map((id: string) => this.allAssignments[id]);
+
+        if (this.excludeSubmission != null) {
+            assigs = assigs.filter(a => a.id !== this.excludeSubmission.assignment.id);
         }
-        return this.latestSubsInCourse.filter(sub => sub.id !== excluded.id);
+
+        return assigs;
     }
 
-    get sortedOtherSubmissions(): ReadonlyArray<Submission> {
-        return [...this.otherSubmissions].sort((a, b) => {
+    get sortedAssignments(): ReadonlyArray<Assignment> {
+        return [...this.assignments].sort((a, b) => {
+            const subA = this.submissions[a.id];
+            const subB = this.submissions[b.id];
+
+            if (subB == null) {
+                return -1;
+            } else if (subA == null) {
+                return 1;
+            }
+
             if (this.filter) {
-                const hasA = this.hasFeedbackMatches(a);
-                const hasB = this.hasFeedbackMatches(b);
+                const hasA = this.hasFeedbackMatches(subA);
+                const hasB = this.hasFeedbackMatches(subB);
 
                 if (hasA !== hasB) {
                     return hasA ? -1 : 1;
                 }
             }
 
-            return a.assignment.deadline.isBefore(
-                b.assignment.deadline,
-            ) ? 1 : -1;
+            if (b.deadline == null) {
+                return -1;
+            } else if (a.deadline == null) {
+                return 1;
+            } else {
+                return a.deadline.isBefore(b.deadline) ? 1 : -1;
+            }
+        });
+    }
+
+    get otherSubmissions(): ReadonlyArray<Submission> {
+        return filterMap(this.assignments, assig => {
+            const sub = this.submissions[assig.id];
+            return sub == null ? Nothing : Just(sub);
         });
     }
 
@@ -471,31 +517,36 @@ export default class CourseFeedback extends Vue {
     loadCourseFeedback() {
         this.loading = true;
         this.error = null;
-        this.latestSubsInCourse = [];
+        this.submissions = [];
 
         this.loadUserSubmissions({
             courseId: this.course.id,
             userId: this.user.id,
         }).then(
             subs => {
-                this.latestSubsInCourse = Object.values(subs);
+                this.submissions = subs;
                 return Promise.all(
-                    flatMap1(this.latestSubsInCourse, sub => ([
-                        this.loadFeedback({
-                            assignmentId: sub.assignmentId,
-                            submissionId: sub.id,
-                        }),
-                        this.loadRubric({
-                            assignmentId: sub.assignmentId,
-                        }).catch(this.$utils.makeHttpErrorHandler({
-                            // Assignment may not have a rubric.
-                            404: () => ({}),
-                        })),
-                        this.loadRubricResult({
-                            assignmentId: sub.assignmentId,
-                            submissionId: sub.id,
-                        }),
-                    ])),
+                    filterMap(Object.values(subs), sub => {
+                        if (sub == null) {
+                            return Nothing;
+                        }
+                        return Just(Promise.all([
+                            this.loadFeedback({
+                                assignmentId: sub.assignmentId,
+                                submissionId: sub.id,
+                            }),
+                            this.loadRubric({
+                                assignmentId: sub.assignmentId,
+                            }).catch(this.$utils.makeHttpErrorHandler({
+                                // Assignment may not have a rubric.
+                                404: () => ({}),
+                            })),
+                            this.loadRubricResult({
+                                assignmentId: sub.assignmentId,
+                                submissionId: sub.id,
+                            }),
+                        ]));
+                    }),
                 );
             },
         ).catch(err => {
@@ -588,6 +639,10 @@ ol {
     border-right: none !important;
     border-bottom: none !important;
     border-radius: 0 !important;
+}
+
+.assignment-name.no-submission {
+    padding-left: 2.5rem !important;
 }
 </style>
 
