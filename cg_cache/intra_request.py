@@ -41,8 +41,16 @@ def _make_key(args: t.Tuple[object, ...],
               kwargs: t.Dict[str, object]) -> t.Tuple[object, ...]:
     """Make a cache key.
 
-    >>> _make_key(('a', 'b'), {'c': 'd'})
-    ('a', 'b', <object object at 0x...>, 'c', 'd')
+    >>> key1 = _make_key(('a', 'b'), {'c': 'd'})
+    >>> key2 = _make_key(('a', 'b'), {'c': 'd'})
+    >>> key3 = _make_key(('a', 'b', 'd'), {})
+    >>> key4 = _make_key(('a', ), {'b': 'b', 'c': 'd'})
+    >>> key1 == key2
+    True
+    >>> key1 == key3
+    False
+    >>> key1 == key4
+    False
 
     :param args: The args of the call.
     :param args: The kwargs of the call.
@@ -66,7 +74,7 @@ def _cache_or_call(
     try:
         if not hasattr(g, 'cg_function_cache'):
             _set_g_vars()
-    except:
+    except:  # pylint: disable=bare-except
         # Never error because of this decorator
         return fun(*args, **kwargs)
 
@@ -82,6 +90,10 @@ def _cache_or_call(
 def cache_within_request_make_key(
     make_key: t.Callable[[Y], t.Tuple[object, ...]]
 ) -> t.Callable[[t.Callable[[Y], Z]], t.Callable[[Y], Z]]:
+    """Just like :func:`.cache_within_request` but with an explicit key.
+
+    :param make_key: The method that should return the key used for caching.
+    """
     def __wrapper(fun: t.Callable[[Y], Z]) -> t.Callable[[Y], Z]:
         master_key = object()
 
