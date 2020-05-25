@@ -869,10 +869,6 @@ Do you want to overwrite it?`;
         padding: .5rem;
     }
 
-    .snippet-key,
-    .snippet-value {
-        white-space: break-word;
-    }
     .snippet-value {
         overflow: hidden;
         text-overflow: ellipsis;
@@ -895,7 +891,8 @@ Do you want to overwrite it?`;
     }
 
     & > .dropdown-menu {
-        min-width: 25rem;
+        width: 30rem;
+        max-width: 80vw;
         padding: 0;
     }
 

@@ -157,17 +157,18 @@
                       id="submission-page-inner"
                       :min-size="30"
                       :max-size="85">
-                <file-viewer slot="firstPane"
-                             :assignment="assignment"
-                             :submission="submission"
-                             :file="currentFile"
-                             :revision="revision"
-                             :editable="canSeeUserFeedback && canGiveLineFeedback"
-                             :can-use-snippets="canUseSnippets"
-                             :show-whitespace="showWhitespace"
-                             :show-inline-feedback="selectedCat === 'code' && showInlineFeedback && revision === 'student'"
-                             :language="selectedLanguage"
-                             @language="languageChanged" />
+                <file-viewer
+                    slot="firstPane"
+                    :assignment="assignment"
+                    :submission="submission"
+                    :file="currentFile"
+                    :revision="revision"
+                    :editable="canSeeUserFeedback && canGiveLineFeedback"
+                    :can-use-snippets="canUseSnippets"
+                    :show-whitespace="showWhitespace"
+                    :show-inline-feedback="selectedCat === 'code' && showInlineFeedback && revision === 'student'"
+                    :language="selectedLanguage"
+                    @language="languageChanged" />
 
                 <div v-if="course.isStudent"
                      slot="secondPane"
@@ -671,6 +672,7 @@ export default {
             immediate: true,
             handler() {
                 if (this.assignmentId != null) {
+                    this.loadCurrentSubmission();
                     this.storeLoadSubmissions(this.assignmentId);
                 }
             },
@@ -765,6 +767,10 @@ export default {
         }),
 
         loadCurrentSubmission() {
+            if (this.assignmentId == null) {
+                return Promise.resolve();
+            }
+
             // We need to reset the current file to `null` as changing the
             // current submission reloads the current file, which means we
             // download it again while it is not needed.
@@ -775,14 +781,14 @@ export default {
 
             return this.storeLoadSingleSubmission({
                 assignmentId: this.assignmentId,
-                submissionId: this.submissionId,
+                submissionId: this.$route.params.submissionId,
             }).catch(err => {
                 this.error = this.$utils.getErrorMessage(err);
             });
         },
 
         async loadData() {
-            if (this.submissionId == null) {
+            if (this.submissionId == null || this.error != null) {
                 return;
             }
 
@@ -840,7 +846,12 @@ export default {
                 );
             }
 
-            await Promise.all(promises).then(this.openFirstFile);
+            await Promise.all(promises).then(
+                this.openFirstFile,
+                err => {
+                    this.error = this.$utils.getErrorMessage(err);
+                },
+            );
         },
 
         loadAutoTest() {

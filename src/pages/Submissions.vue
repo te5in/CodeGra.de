@@ -13,6 +13,11 @@
             <small v-if="assignment.hasDeadline">- due {{ assignment.getFormattedDeadline() }}</small>
             <small v-else class="text-muted"><i>- No deadline</i></small>
         </template>
+        <small slot="title"
+              v-else
+              class="text-muted font-italic">
+            Unknown assignment
+        </small>
 
         <div slot="extra" v-show="!isStudent">
             <category-selector slot="extra"
@@ -22,11 +27,11 @@
                                :categories="categories"/>
         </div>
 
-        <b-input-group>
+        <b-input-group v-if="assignment != null">
             <b-button-group>
                 <b-button :to="manageAssignmentRoute"
                           variant="secondary"
-                          v-if="assignment.canManage"
+                          v-if="canManageAssignment"
                           v-b-popover.bottom.hover="'Manage assignment'"
                           class="manage-assignment-button">
                     <icon name="gear"/>
@@ -135,7 +140,7 @@
                         </div>
                     </div>
 
-                    <div v-if="assignment.webhook_upload_enabled"
+                    <div v-if="webhookUploadEnabled"
                          class="action-button git m-2 m-md-3 border-0 p-0 rounded text-center"
                          v-b-popover.top.hover="webhookDisabledMessage">
                         <submit-button variant="secondary"
@@ -403,7 +408,7 @@ export default {
                 {
                     id: 'git',
                     name: 'Git instructions',
-                    enabled: this.isStudent && this.assignment.webhook_upload_enabled,
+                    enabled: this.isStudent && this.webhookUploadEnabled,
                 },
                 {
                     id: 'rubric',
@@ -429,7 +434,7 @@ export default {
                     id: 'analytics',
                     name: 'Analytics',
                     badge: { label: 'beta' },
-                    enabled: this.assignment.analytics_workspace_ids.length > 0,
+                    enabled: this.analyticsWorkspaceIds.length > 0,
                 },
                 {
                     id: 'course-feedback',
@@ -478,7 +483,7 @@ export default {
         },
 
         graders() {
-            return (this.assignment && this.assignment.graders) || null;
+            return this.$utils.getProps(this.assignment, null, 'graders');
         },
 
         assignmentId() {
@@ -490,7 +495,19 @@ export default {
         },
 
         lmsName() {
-            return this.assignment.lms_name;
+            return this.$utils.getProps(this.assignment, null, 'lms_name');
+        },
+
+        webhookUploadEnabled() {
+            return this.$utils.getProps(this.assignment, false, 'webhook_upload_enabled');
+        },
+
+        analyticsWorkspaceIds() {
+            return this.$utils.getProps(this.assignment, [], 'analytics_workspace_ids');
+        },
+
+        canManageAssignment() {
+            return this.$utils.getProps(this.assignment, false, 'canManage');
         },
 
         uploadDisabledMessage() {
@@ -709,6 +726,15 @@ export default {
             // Always set loading to false, otherwise you'd get an infinite
             // when the page/component is reloaded in dev mode.
             this.loading = false;
+
+            if (this.assignment == null) {
+                this.error = new ReferenceError(
+                    'The requested assignment does not exist or you do not have permission to' +
+                    ' view it. This is probably because the assignment is still hidden.',
+                );
+                return;
+            }
+
             this.loadingInner = true;
 
             const promises = [
@@ -736,7 +762,7 @@ export default {
         },
 
         loadGitData() {
-            if (!this.assignment.webhook_upload_enabled) {
+            if (!this.webhookUploadEnabled) {
                 return Promise.reject(new Error('Webhooks are not enabled for this assignment'));
             } else if (this.gitData != null) {
                 return Promise.resolve();
