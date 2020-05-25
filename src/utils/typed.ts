@@ -711,7 +711,12 @@ export function parseBool<T extends string | boolean>(value: T, dflt = true): bo
     return dflt;
 }
 
-export const isValidHttpUrl = (() => {
+/** Test if a given string is a valid http or https url.
+ *
+ * @param input: The input to check for.
+ * @returns: A boolean if the input is a http(s) url.
+ */
+export const isValidHttpUrl: (input: string) => boolean = (() => {
     const URL_PATTERN = new RegExp('^(https?:\\/\\/)' + // protocol
         '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
         '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
