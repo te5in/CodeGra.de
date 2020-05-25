@@ -39,7 +39,7 @@ logger = structlog.get_logger()
 class User(NotEqualMixin, Base):
     """This class describes a user of the system.
 
-    >>> u1 = User()
+    >>> u1 = User('', '', '', '')
     >>> u1.id = 5
     >>> u1.id
     5
@@ -331,7 +331,7 @@ class User(NotEqualMixin, Base):
 
         To check a course permission the course_id has to be set.
 
-        >>> user_without_role = User(active=True)
+        >>> user_without_role = User('', '', '', '', active=True)
         >>> user_without_role.has_permission(
         ...  GlobalPermission.can_edit_own_password
         ... )
@@ -410,7 +410,7 @@ class User(NotEqualMixin, Base):
         Please note that passing an empty ``perms`` object is
         supported. However the resulting mapping will be empty.
 
-        >>> User().get_permissions_in_courses([])
+        >>> User('', '', '', '').get_permissions_in_courses([])
         {}
 
         :param wanted_perms: The permissions names to check for.
@@ -565,7 +565,7 @@ class User(NotEqualMixin, Base):
         all course permissions of the user in a specific
         :class:`.course.Course`.
 
-        >>> user_without_role = User()
+        >>> user_without_role = User('', '', '', '', active=True)
         >>> perms = user_without_role.get_all_permissions()
         >>> assert set(list(GlobalPermission)) == set(perms.keys())
         >>> assert not any(perms.values())

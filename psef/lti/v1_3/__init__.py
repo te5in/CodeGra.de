@@ -164,13 +164,13 @@ class CGCustomClaims:
             """Check if given group matches
 
             >>> var = CGCustomClaims._ReplacementVar('$a.b.cc.d')
-            >>> var.matched_group(['$a'])
+            >>> var.matches_group(['$a'])
             True
-            >>> var.matched_group('$a.b.cc'.split('.'))
+            >>> var.matches_group('$a.b.cc'.split('.'))
             True
-            >>> var.matched_group('$a.c.d'.split('.'))
+            >>> var.matches_group('$a.c.d'.split('.'))
             False
-            >>> var.matched_group('$a.b.c'.split('.'))
+            >>> var.matches_group('$a.b.c'.split('.'))
             False
             """
             return all(

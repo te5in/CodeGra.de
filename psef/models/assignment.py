@@ -693,19 +693,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         }
 
     def __eq__(self, other: object) -> bool:
-        """Check if two Assignments are equal.
-
-        >>> def make(id = None):
-        ...  a = Assignment(course=None, is_lti=False)
-        ...  a.id = id
-        ...  return id
-        >>> make() == object()
-        False
-        >>> make(id=5) == make(id=6)
-        False
-        >>> make(id=5) == make(id=5)
-        True
-        """
+        """Check if two Assignments are equal."""
         if isinstance(other, Assignment):
             return self.id == other.id
         return NotImplemented
@@ -1035,16 +1023,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     @property
     def deadline_expired(self) -> bool:
         """Has the deadline of this assignment expired.
-
-        >>> a = Assignment(deadline=None, is_lti=False, course=None)
-        >>> a.deadline_expired
-        False
-        >>> from datetime import datetime
-        >>> before = datetime.utcnow()
-        >>> helpers.get_request_start_time = datetime.utcnow
-        >>> a.deadline = before
-        >>> a.deadline_expired
-        True
         """
         if self.deadline is None:
             return False

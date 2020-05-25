@@ -449,6 +449,12 @@ def db(app, request):
                     shell=True
                 )
                 subprocess.check_output(
+                    'psql {} -c \'create extension "uuid-ossp"\''.format(
+                        db_name.replace('postgresql:///', '')
+                    ),
+                    shell=True
+                )
+                subprocess.check_output(
                     'psql {} -c \'create extension "citext"\''.format(
                         db_name.replace('postgresql:///', '')
                     ),

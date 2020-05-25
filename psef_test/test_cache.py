@@ -1,4 +1,4 @@
-import psef.cache as c
+import cg_cache.intra_request as c
 
 
 def test_cache_default_key(app):
