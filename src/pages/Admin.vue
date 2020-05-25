@@ -19,7 +19,7 @@
             </b-card>
         </div>
 
-        <div class="col-12">
+        <div class="col-12" v-if="providers">
             <b-card header="LTI 1.3 providers">
                 <lti-providers />
             </b-card>
@@ -49,6 +49,7 @@ export default {
         return {
             manage: false,
             impersonate: false,
+            providers: false,
             loading: true,
         };
     },
@@ -56,10 +57,11 @@ export default {
     mounted() {
         setPageTitle('Admin page');
         // Do not forget to add new permissions to constants file
-        this.$hasPermission(['can_manage_site_users', 'can_impersonate_users']).then(
-            ([manage, impersonate]) => {
+        this.$hasPermission(['can_manage_site_users', 'can_impersonate_users', 'can_manage_lti_providers']).then(
+            ([manage, impersonate, providers]) => {
                 this.manage = manage;
                 this.impersonate = impersonate;
+                this.providers = providers;
                 this.loading = false;
             },
         );

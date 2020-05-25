@@ -548,6 +548,10 @@ class LTI1p3Provider(LTIProviderBase):
     )
 
     @property
+    def edit_secret(self) -> uuid.UUID:
+        return self._edit_secret
+
+    @property
     def member_sourcedid_required(self) -> bool:
         return False
 
@@ -1043,7 +1047,7 @@ class LTI1p3Provider(LTIProviderBase):
 
         if not self._finalized:
             if auth.LTI1p3ProviderPermissions(self).ensure_may_edit.as_bool():
-                res['edit_secret'] = self._edit_secret
+                res['edit_secret'] = self.edit_secret
             res = {
                 **res,
                 'iss': self.iss,

@@ -47,8 +47,8 @@ def upgrade():
 
     new_perm_id = conn.execute(text(\"\"\"
     INSERT INTO "Permission" (name, default_value, course_permission)
-    SELECT ':perm_name', :default_value, :course_permission RETURNING id
-    \"\"\"), perm_name='{perm_name}', default_value=default_value, course_permission={course_permission}).scalar()
+    SELECT :perm_name, :default_value, :course_permission RETURNING id
+    \"\"\"), perm_name='{perm_name}', default_value={default_value}, course_permission={course_permission}).scalar()
 
 {extra}
 

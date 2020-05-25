@@ -1135,17 +1135,22 @@ class LTI1p3ProviderPermissions(GlobalPermissionChecker):
         self.lti_provider: Final = lti_provider
         self.secret: Final = secret
 
+    def _ensure_can_manage(self):
+        if self.secret == str(self.lti_provider.edit_secret):
+            return
+        self._ensure(GPerm.can_manage_lti_providers)
+
     @PermissionChecker.as_ensure_function
     def ensure_may_add(self) -> None:
-        pass
+        self._ensure_can_manage()
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see(self) -> None:
-        pass
+        self._ensure_can_manage()
 
     @PermissionChecker.as_ensure_function
     def ensure_may_edit(self) -> None:
-        pass
+        self._ensure_can_manage()
 
 
 @login_required

@@ -39,6 +39,7 @@ export const MANAGE_COURSE_PERMISSIONS = Object.freeze(<const>[
 export const MANAGE_SITE_PERIMSSIONS = Object.freeze(<const>[
     'can_manage_site_users',
     'can_impersonate_users',
+    'can_manage_lti_providers',
 ]);
 
 export const PASSWORD_UNIQUE_MESSAGE =
