@@ -157,17 +157,18 @@
                        id="submission-page-inner"
                        :min-size="30"
                        :max-size="85">
-                <file-viewer slot="firstPane"
-                             :assignment="assignment"
-                             :submission="submission"
-                             :file="currentFile"
-                             :revision="revision"
-                             :editable="canSeeUserFeedback && canGiveLineFeedback"
-                             :can-use-snippets="canUseSnippets"
-                             :show-whitespace="showWhitespace"
-                             :show-inline-feedback="selectedCat === 'code' && showInlineFeedback && revision === 'student'"
-                             :language="selectedLanguage"
-                             @language="languageChanged" />
+                <file-viewer
+                    slot="firstPane"
+                    :assignment="assignment"
+                    :submission="submission"
+                    :file="currentFile"
+                    :revision="revision"
+                    :editable="canSeeUserFeedback && canGiveLineFeedback"
+                    :can-use-snippets="canUseSnippets"
+                    :show-whitespace="showWhitespace"
+                    :show-inline-feedback="selectedCat === 'code' && showInlineFeedback && revision === 'student'"
+                    :language="selectedLanguage"
+                    @language="languageChanged" />
 
                 <div class="file-tree-container border rounded p-0 mt-3 mt-lg-0" slot="secondPane">
                     <file-tree :assignment="assignment"
@@ -630,6 +631,7 @@ export default {
             immediate: true,
             handler() {
                 if (this.assignmentId != null) {
+                    this.loadCurrentSubmission();
                     this.storeLoadSubmissions(this.assignmentId);
                 }
             },
@@ -713,6 +715,10 @@ export default {
         }),
 
         loadCurrentSubmission() {
+            if (this.assignmentId == null) {
+                return Promise.resolve();
+            }
+
             // We need to reset the current file to `null` as changing the
             // current submission reloads the current file, which means we
             // download it again while it is not needed.
@@ -723,14 +729,14 @@ export default {
 
             return this.storeLoadSingleSubmission({
                 assignmentId: this.assignmentId,
-                submissionId: this.submissionId,
+                submissionId: this.$route.params.submissionId,
             }).catch(err => {
                 this.error = this.$utils.getErrorMessage(err);
             });
         },
 
         async loadData() {
-            if (this.submissionId == null) {
+            if (this.submissionId == null || this.error != null) {
                 return;
             }
 
@@ -769,18 +775,35 @@ export default {
                     this.storeLoadAutoTestResult({
                         autoTestId: this.autoTestId,
                         submissionId: this.submissionId,
-                    }).catch(() => {}),
+                    }).catch(this.$utils.makeHttpErrorHandler({
+                        // The user may not have permission to see the results yet.
+                        403: () => {},
+                        // The AT may not have been run yet.
+                        404: () => {},
+                        // TODO: storeLoadAutoTestResults mixes the HTTP errors
+                        // thrown by axios with standard errors when there are
+                        // no AT results...
+                        noResponse: () => {},
+                    })),
                 );
             }
 
-            await Promise.all(promises).then(this.openFirstFile);
+            await Promise.all(promises).then(
+                this.openFirstFile,
+                err => {
+                    this.error = this.$utils.getErrorMessage(err);
+                },
+            );
         },
 
         loadAutoTest() {
             if (this.autoTestId != null) {
                 return this.storeLoadAutoTest({
                     autoTestId: this.autoTestId,
-                });
+                }).catch(err => this.$utils.handleHttpError({
+                    // The user may not have permission to see the results yet.
+                    403: () => {},
+                }, err));
             } else {
                 return Promise.resolve();
             }
