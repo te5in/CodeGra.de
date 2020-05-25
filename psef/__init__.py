@@ -32,7 +32,11 @@ else:
 
 
 @dataclasses.dataclass(frozen=True)
-class PsefInterProcessCache:
+class _PsefInterProcessCache:
+    """All inter process cache stores used in psef.
+
+    There really only should be one instance of this class.
+    """
     # Pylint bug: https://github.com/PyCQA/pylint/issues/2822
     # pylint: disable=unsubscriptable-object
     lti_access_tokens: cg_cache.inter_request.Backend[str]
@@ -77,7 +81,7 @@ class PsefFlask(Flask):
         )
 
         redis_conn = redis.from_url(self.config['REDIS_CACHE_URL'])
-        self._inter_request_cache = PsefInterProcessCache(
+        self._inter_request_cache = _PsefInterProcessCache(
             lti_access_tokens=cg_cache.inter_request.RedisBackend(
                 'lti_access_tokens',
                 timedelta(seconds=600),
@@ -119,7 +123,9 @@ class PsefFlask(Flask):
         return getattr(self, 'debug', False) or getattr(self, 'testing', False)
 
     @property
-    def inter_request_cache(self) -> PsefInterProcessCache:
+    def inter_request_cache(self) -> _PsefInterProcessCache:
+        """Get all inter process cache stores.
+        """
         return self._inter_request_cache
 
 
@@ -287,7 +293,6 @@ def create_app(  # pylint: disable=too-many-statements
     import cg_timers
     cg_timers.init_app(resulting_app)
 
-    import cg_cache
     cg_cache.init_app(resulting_app)
 
     return resulting_app

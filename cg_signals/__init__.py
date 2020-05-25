@@ -1,3 +1,23 @@
+"""This module contains the implementation of a signal.
+
+A signal is an event that can happen somewhere in a app, which should trigger
+actions somewhere else. Using signals has a few advantages:
+
+1. Testing is way easier. We can simply test that a signal is emitted when we
+    trigger the action and we can independently test the actions that should
+    happen when the signal is triggered.
+2. We keep logic in a single place. This is especially useful when we need to
+    do a lot of things on a signal and there are many places were we might
+    trigger them.
+3. It is trivial to start doing some of the actions on a signal asynchronous:
+    simply use :py:meth:`Signal.connect_celery` instead of
+    :py:meth:`Signal.connect`.
+4. Finally it is easier to work concurrently on features as reacting on a
+    signal is done at the location of the new feature; no calls need to be
+    added in existing code.
+
+SPDX-License-Identifier: AGPL-3.0-only
+"""
 import typing as t
 from inspect import getmodule
 
@@ -14,7 +34,9 @@ Z = t.TypeVar('Z')
 Y = t.TypeVar('Y')
 
 
-class Dispatcher(t.Generic[T]):
+class Signal(t.Generic[T]):
+    """This class implements a signal.
+    """
     __slots__ = (
         '__name',
         '__after_request_callbacks',
@@ -24,7 +46,11 @@ class Dispatcher(t.Generic[T]):
     )
 
     def __init__(self, name: str) -> None:
-        self.__name = name
+        """Create a new signal with a given name.
+
+        :param name: The name of the signal. This should be a unique name.
+        """
+        self.__name: Final = name
         self.__registered_functions: t.Set[str] = set()
         self.__after_request_callbacks: t.List[t.Callable[[T], object]] = []
         self.__immediate_callbacks: t.List[t.Callable[[T], object]] = []
@@ -38,6 +64,15 @@ class Dispatcher(t.Generic[T]):
         self.__registered_functions.add(name)
 
     def send(self, value: T) -> None:
+        """Send an event to this signal.
+
+        :param value: The value you want to emit.
+        :returns: Nothing.
+        """
+        if self.__celery_todo:
+            raise AssertionError(
+                'The Signal still has uninitialized celery listeners'
+            )
         logger.info('Sending signal', signal_name=self.__name)
         assert not self.__celery_todo, (
             'Still celery tasks that were not registered'
@@ -59,6 +94,11 @@ class Dispatcher(t.Generic[T]):
         return '{}.{}({!r})'.format(getmodule(cls), cls.__name__, self.__name)
 
     def get_listners(self) -> t.Iterable[str]:
+        """Get the names of all listeners on this signal.
+
+        :yields: The names of the listeners (i.e. the functions that will
+            react) of this signal.
+        """
         yield from self.__registered_functions
 
     @staticmethod
@@ -70,6 +110,14 @@ class Dispatcher(t.Generic[T]):
         return '{}.{}'.format(module.__name__ if module else '???', name)
 
     def finalize_celery(self, celery: Celery) -> None:
+        """Finalize the celery listeners on this signal.
+
+        This will register all these celery listeners on the given ``celery``
+        instance.
+
+        :param celery: The instance in which the celery tasks should be
+            registered.
+        """
         for fun in self.__celery_todo:
             fun(celery)
         self.__celery_todo.clear()
@@ -82,6 +130,23 @@ class Dispatcher(t.Generic[T]):
         task_args: t.Mapping[str, t.Any] = None,
         prevent_recursion: bool = False,
     ) -> t.Callable[[t.Callable[[Z], Y]], t.Callable[[Z], Y]]:
+        """Connect a method as celery task to this signal.
+
+        :param converter: Concert the input data to something we can serialize
+            for celery. This function should return something that can be
+            serialized to JSON.
+        :param pre_check: Function that will be called **before** the task is
+            dispatched. This makes it possible to reduce the amount of celery
+            tasks dispatched. Return ``False`` to prevent a celery task from
+            being dispatched.
+        :param task_args: Extra arguments that will be passed to celery when
+            creating the task. This makes it possible to setup retrying for
+            example.
+        :param prevent_recursion: Make sure that this method will never be
+            called recursively. This means that if this signal is emitted
+            within the task executing this method the signal is ignored for
+            this method.
+        """
         module = self.__class__.__module__
 
         def __inner(callback: t.Callable[[Z], Y]) -> t.Callable[[Z], Y]:
@@ -116,6 +181,9 @@ class Dispatcher(t.Generic[T]):
         self,
         callback: t.Callable[[T], Y],
     ) -> t.Callable[[T], Y]:
+        """Connect a function to be called immediately after signal is
+            dispatched.
+        """
         self._check_function_not_registered(self._get_fullname(callback))
         self.__immediate_callbacks.append(callback)
         return callback
@@ -124,6 +192,12 @@ class Dispatcher(t.Generic[T]):
         self,
         callback: t.Callable[[T], Y],
     ) -> t.Callable[[T], Y]:
+        """Connect a function to be called at the end of the request if the
+            signal is dispatched.
+
+        If the signal send multiple times the function will still be called
+        multiple times.
+        """
         self._check_function_not_registered(self._get_fullname(callback))
         self.__after_request_callbacks.append(callback)
         return callback
@@ -135,6 +209,16 @@ class Dispatcher(t.Generic[T]):
         pre_check: t.Callable[[T], bool],
         converter: t.Callable[[T], Z],
     ) -> t.Callable[[t.Callable[[Z], Y]], t.Callable[[Z], Y]]:
+        """Connect a signal.
+
+        :param when: Should the callback be called immediately or after the
+            request.
+        :param pre_check: Should the signal be called at all. This check is
+            called directly before the callback, even if ``when`` is
+            ``after_request``.
+        :param converter: Covert the input arguments to something else with
+            which the callback will be called.
+        """
         callbacks = (
             self.__immediate_callbacks
             if when == 'immediate' else self.__after_request_callbacks
