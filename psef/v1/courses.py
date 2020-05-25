@@ -6,6 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import uuid
 import typing as t
+import collections
 
 import flask_jwt_extended as flask_jwt
 from flask import request
@@ -1186,7 +1187,7 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
 )
 @auth.login_required
 def get_user_submissions(course_id: int, user_id: int
-                         ) -> ExtendedJSONResponse[t.Sequence[models.Work]]:
+                         ) -> ExtendedJSONResponse[t.Mapping[int, t.Sequence[models.Work]]]:
     """Get all :class:`.models.Work`s by the given :class:`.models.User` in the
     given :class:`.models.Course`.
 
@@ -1223,27 +1224,30 @@ def get_user_submissions(course_id: int, user_id: int
             f'User {user_id} not enrolled in course {course_id}',
             APICodes.INVALID_PARAM, 400
         )
-    elif (
-        user.id != current_user.id and
-        not (user.group and current_user in user.group.members)
-    ):
+    elif not user.contains_user(current_user):
         auth.ensure_permission(CPerm.can_see_others_work, course.id)
 
     latest_only = helpers.request_arg_true('latest_only')
 
-    subs = []
-    for assignment in assignments:
-        if latest_only:
-            obj = assignment.get_all_latest_submissions()
-        else:
-            obj = models.Work.query.filter_by(
-                assignment_id=assignment.id, deleted=False
-            )
+    def get_subs(query: models._MyQuery[models.Work]) -> t.List[models.Work]:
+        return models.Work.update_query_for_extended_jsonify(
+            models.Work.limit_to_user_submissions(query, user),
+        ).all()
 
-        sub = models.Work.update_query_for_extended_jsonify(
-            models.Work.limit_to_user_submissions(obj, user),
-        ).order_by(t.cast(t.Any, models.Work.created_at).desc()).all()
-        subs.extend(sub)
+    if latest_only:
+        subs = {}
+        for assignment in assignments:
+            subs[assignment.id] = get_subs(
+                assignment.get_all_latest_submissions(),
+            )
+    else:
+        query = models.Work.query.filter(
+            models.Work.assignment_id.in_([a.id for a in assignments]),
+            ~models.Work._deleted,
+        )
+        subs = { assig.id: [] for assig in assignments }
+        for sub in get_subs(query):
+            subs[sub.assignment_id].append(sub)
 
     return ExtendedJSONResponse.make(
         subs,

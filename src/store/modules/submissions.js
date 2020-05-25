@@ -293,7 +293,7 @@ const actions = {
         return axios
             .get(`/api/v1/courses/${courseId}/users/${userId}/submissions/?latest_only`)
             .then(res =>
-                res.data.map(sub => {
+                utils.mapObject(res.data, ([sub]) => {
                     const assignmentId = sub.assignment_id;
                     const submission = Submission.fromServerData(sub, assignmentId);
                     context.commit(types.ADD_SINGLE_SUBMISSION, { submission });

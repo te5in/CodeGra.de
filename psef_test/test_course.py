@@ -254,30 +254,47 @@ def test_get_latest_submissions_of_user(
             course_id,
         )
 
-        assigs = [
-            helpers.create_assignment(
+        assigs = {}
+        for state in ['hidden', 'open', 'done']:
+            assig = helpers.create_assignment(
                 test_client,
                 course_id=course_id,
                 state=state,
                 deadline='tomorrow',
-            ) for state in ['hidden', 'open', 'done']
-        ]
-        visible_assig_ids = [
-            helpers.get_id(assig) for assig in assigs
-            if assig['state'] != 'hidden'
-        ]
+            )
+            assigs[assig['id']] = assig
 
-        subs = [
-            helpers.create_submission(
-                test_client,
-                assignment_id=assig['id'],
-                for_user=student,
-            ) for assig in assigs for _ in range(2)
-        ]
-        latest_subs = subs[1::2]
-        visible_subs = [
-            sub for sub in subs if sub['assignment_id'] in visible_assig_ids
-        ]
+        all_subs = {
+            str(assig_id): [
+                helpers.create_submission(
+                    test_client,
+                    assignment_id=assig_id,
+                    for_user=student,
+                ) for _ in range(2)
+            ]
+            for assig_id in assigs
+        }
+
+        latest_subs = {
+            assig_id: assig_subs[-1:]
+            for assig_id, assig_subs in all_subs.items()
+        }
+
+        def get_visible(subs):
+            return {
+                str(assig_id): subs[str(assig_id)]
+                for assig_id, assig in assigs.items()
+                if assig['state'] != 'hidden'
+            }
+
+        all_visible_subs = get_visible(all_subs)
+
+        latest_visible_subs = get_visible(latest_subs)
+
+        no_subs = {
+            str(assig_id): []
+            for assig_id in assigs
+        }
 
         deleted_assig_id = helpers.get_id(
             helpers.create_assignment(
@@ -327,13 +344,13 @@ def test_get_latest_submissions_of_user(
             'get',
             f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
             200,
+            result=all_subs,
         )
-        assert all(sub in res for sub in subs)
         test_client.req(
             'get',
             f'/api/v1/courses/{course_id}/users/{other_student.id}/submissions/',
             200,
-            result=[],
+            result=no_subs,
         )
 
     with describe('student should not get submissions of other student'
@@ -351,10 +368,7 @@ def test_get_latest_submissions_of_user(
             'get',
             f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
             200,
-        )
-        assert all(
-            sub in res if sub in visible_subs else sub not in res
-            for sub in subs
+            result=all_visible_subs,
         )
 
     with describe('student should not get other student submissions'
@@ -372,16 +386,16 @@ def test_get_latest_submissions_of_user(
                 'get',
                 f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
                 200,
+                result=all_subs,
             )
-            assert all(sub['assignment_id'] != deleted_assig_id for sub in res)
 
         with logged_in(student):
             res = test_client.req(
                 'get',
                 f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
                 200,
+                result=all_visible_subs,
             )
-            assert all(sub['assignment_id'] != deleted_assig_id for sub in res)
 
     with describe('should respect the latest_only query parameter'):
         with logged_in(teacher):
@@ -389,13 +403,13 @@ def test_get_latest_submissions_of_user(
                 'get',
                 f'/api/v1/courses/{course_id}/users/{student.id}/submissions/?latest_only',
                 200,
+                result=latest_subs,
             )
-            assert all(sub in res for sub in latest_subs)
             res = test_client.req(
                 'get',
                 f'/api/v1/courses/{course_id}/users/{other_student.id}/submissions/?latest_only',
                 200,
-                result=[],
+                result=no_subs,
             )
 
         with logged_in(student):
@@ -403,10 +417,7 @@ def test_get_latest_submissions_of_user(
                 'get',
                 f'/api/v1/courses/{course_id}/users/{student.id}/submissions/?latest_only',
                 200,
-            )
-            assert all(
-                sub in res if sub in latest_subs and sub in visible_subs else
-                sub not in res for sub in subs
+                result=latest_visible_subs,
             )
 
 

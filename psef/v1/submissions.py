@@ -435,10 +435,7 @@ def get_feedback_from_submission(
     except PermissionException:
         general = ''
     else:
-        if work.comment is None:
-            general = ''
-        else:
-            general = work.comment
+        general = helpers.handle_none(work.comment, '')
 
     return jsonify(fun(comments, linter_comments, general))
 

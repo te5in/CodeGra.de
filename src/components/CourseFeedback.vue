@@ -478,9 +478,9 @@ export default class CourseFeedback extends Vue {
             userId: this.user.id,
         }).then(
             subs => {
-                this.latestSubsInCourse = subs;
+                this.latestSubsInCourse = Object.values(subs);
                 return Promise.all(
-                    flatMap1(subs, sub => ([
+                    flatMap1(this.latestSubsInCourse, sub => ([
                         this.loadFeedback({
                             assignmentId: sub.assignmentId,
                             submissionId: sub.id,
