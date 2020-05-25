@@ -7,6 +7,8 @@ sudo chown -R "$USER":"$(id -gn)" /tmp/
 cat >config.ini <<EOF
 [Back-end]
 external_url = http://localhost:1234
+
+redis_cache_url = redis://localhost:6379/cg_cache
 EOF
 
 create_db() {
