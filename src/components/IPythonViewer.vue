@@ -17,7 +17,7 @@
 import { mapGetters } from 'vuex';
 
 import decodeBuffer from '@/utils/decode';
-import { getOutputCells } from '@/utils/ipython';
+import { getOutputCells, nbformatVersion } from '@/utils/ipython';
 
 import InnerIpythonViewer from './InnerIPythonViewer';
 
@@ -101,6 +101,15 @@ export default {
                 data = JSON.parse(jsonString);
             } catch (e) {
                 return error(this.invalidJsonMessage);
+            }
+
+            if (nbformatVersion(data) === 3) {
+                this.$emit('warning', {
+                    fileId: this.fileId,
+                    error: new Error(
+                        'Jupyter Notebook format v3 detected. May not render correctly.',
+                    ),
+                });
             }
 
             try {

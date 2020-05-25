@@ -119,6 +119,15 @@ context('Submissions page', () => {
             cy.url().should('not.contain', '/submissions');
         });
 
+        it('should show a message when the assignment does not exist', () => {
+            cy.visit(`/courses/${course.id}/assignments/1000000000/submissions`);
+            cy.get('.page.submissions').within(() => {
+                cy.get('.local-header .title').should('contain', 'Unknown assignment');
+                cy.get('.cat-container .alert-danger')
+                    .should('contain', 'The requested assignment does not exist or you do not have permission');
+            });
+        });
+
         it('should not show a grade by default', () => {
             cy.createSubmission(
                 assignments.withSubs.id,
@@ -533,6 +542,26 @@ context('Submissions page', () => {
 
         it('should not have a button to go to the assignment management page', () => {
             cy.get('.manage-assignment-button').should('not.exist');
+        });
+
+        it('should show a message when the assignment does not exist', () => {
+            cy.visit(`/courses/${course.id}/assignments/1000000000/submissions`);
+            cy.get('.page.submissions').within(() => {
+                cy.get('.local-header .title').should('contain', 'Unknown assignment');
+                cy.get('.cat-container .alert-danger')
+                    .should('contain', 'The requested assignment does not exist or you do not have permission');
+            });
+        });
+
+        it('should show a message when the assignment is hidden', () => {
+            cy.tempPatchAssignment(assignments.withSubs, { state: 'hidden' }, () => {
+                visitSubmissions();
+                cy.get('.page.submissions').within(() => {
+                    cy.get('.local-header .title').should('contain', 'Unknown assignment');
+                    cy.get('.cat-container .alert-danger')
+                        .should('contain', 'The requested assignment does not exist or you do not have permission');
+                });
+            });
         });
 
         context('Action buttons', () => {
