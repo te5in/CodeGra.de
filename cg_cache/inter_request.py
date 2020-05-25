@@ -59,7 +59,7 @@ class Backend(abc.ABC, t.Generic[T]):
         :returns: The found item or the default.
         """
         try:
-            self.get(key)
+            return self.get(key)
         except KeyError:
             return dflt
 

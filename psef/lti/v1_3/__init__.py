@@ -102,6 +102,25 @@ def get_email_for_user(
     return member['email']
 
 
+class CGRegistration(Registration):
+    def __init__(self, provider: 'models.LTI1p3Provider') -> None:
+        assert provider._auth_login_url is not None
+        assert provider._auth_token_url is not None
+        assert provider._key_set_url is not None
+        assert provider.client_id is not None
+        assert provider.iss is not None
+
+        self.provider = provider
+
+        self.set_auth_login_url(provider._auth_login_url) \
+            .set_auth_token_url(provider._auth_token_url) \
+            .set_client_id(provider.client_id) \
+            .set_key_set_url(provider._key_set_url) \
+            .set_issuer(provider.iss) \
+            .set_tool_public_key(provider.get_public_key()) \
+            .set_tool_private_key(provider._private_key)
+
+
 class CGServiceConnector(ServiceConnector):
     def __init__(self, provider: 'models.LTI1p3Provider') -> None:
         super().__init__(provider.get_registration())
@@ -374,10 +393,28 @@ class LTIConfig(ToolConfAbstract[FlaskRequest]):
         self, iss: str, client_id: t.Optional[str]
     ) -> 'models.LTI1p3Provider':
         if self._lti_provider is not None:
-            # TODO: Raise nice exception here
-            assert self._lti_provider.iss == iss
+            correct = self._lti_provider.iss == iss
             if isinstance(client_id, str):
-                assert self._lti_provider.client_id == client_id
+                correct = correct or self._lti_provider.client_id == client_id
+
+            if not correct:
+                logger.error(
+                    'Found incorrect LTI provider',
+                    found_iss=iss,
+                    provider_iss=self._lti_provider.iss,
+                    found_client_id=client_id,
+                    provider_client_id=self._lti_provider.client_id,
+                    report_to_sentry=True,
+                )
+                raise APIException(
+                    (
+                        'The provided LTI provider does not match the data in'
+                        ' the request'
+                    ), (
+                        'The found LTI provider info does not match the given'
+                        ' provider'
+                    ), APICodes.OBJECT_NOT_FOUND, 404
+                )
         else:
             filters = [models.LTI1p3Provider.iss == iss]
             if isinstance(client_id, str):
@@ -385,6 +422,15 @@ class LTIConfig(ToolConfAbstract[FlaskRequest]):
 
             self._lti_provider = helpers.filter_single_or_404(
                 models.LTI1p3Provider, *filters
+            )
+
+        if not self._lti_provider.is_finalized:
+            raise APIException(
+                (
+                    'This LTI connection is not yet finalized, please make'
+                    ' sure you have completed all steps in the wizard.'
+                ), f'The LTIProvider {self._lti_provider.id} is not finalized',
+                APICodes.INVALID_STATE, 400
             )
 
         return self._lti_provider

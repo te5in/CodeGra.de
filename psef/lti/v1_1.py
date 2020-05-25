@@ -691,10 +691,10 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
         :returns: The name of the new role created, or ``None`` if no role was
             created.
         """
-        if course.id in user.courses:
+        if user.is_enrolled(course):
             return None
 
-        unkown_roles: t.List[str] = []
+        unknown_roles: t.List[str] = []
         course_roles = self.course_roles
         logger.info(
             'Checking course roles',
@@ -702,12 +702,14 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
         )
         for role in course_roles:
             if role.codegrade_role_name is None:
-                unkown_roles.append(role.name)
+                # TODO: Do this check a bit cleaner, but for now this is fine.
+                if role.name != 'Admin':
+                    unknown_roles.append(role.name)
                 continue
             crole = models.CourseRole.query.filter_by(
                 course_id=course.id, name=role.codegrade_role_name
             ).one()
-            user.courses[course.id] = crole
+            user.enroll_in_course(course_role=crole)
             return None
 
         if not features.has_feature(features.Feature.AUTOMATIC_LTI_ROLE):
@@ -721,7 +723,7 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
         # Add a new course role
         new_created: t.Optional[str] = None
 
-        new_role = (unkown_roles + ['New LTI Role'])[0]
+        new_role = (unknown_roles + ['New LTI Role'])[0]
         existing_role = models.CourseRole.query.filter_by(
             course_id=course.id, name=new_role
         ).first()
@@ -731,7 +733,8 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
             )
             db.session.add(existing_role)
             new_created = new_role
-        user.courses[course.id] = existing_role
+
+        user.enroll_in_course(course_role=existing_role)
         return new_created
 
     def has_result_sourcedid(self) -> bool:

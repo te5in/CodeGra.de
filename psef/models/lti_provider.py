@@ -1,4 +1,5 @@
-"""This module defines all LTI models.
+"""This module defines all LTI models and connections between LTI providers and
+    courses.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
@@ -17,17 +18,15 @@ import pylti1p3.grade
 import flask_jwt_extended as flask_jwt
 import pylti1p3.exception
 import pylti1p3.names_roles
-import pylti1p3.registration
 import pylti1p3.service_connector
 from sqlalchemy.types import JSON
 from sqlalchemy_utils import UUIDType
-from typing_extensions import Final, Literal
+from typing_extensions import Final
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 import psef
-import cg_celery
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import hybrid_property
 from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy
@@ -38,9 +37,8 @@ from . import user as user_models
 from . import work as work_models
 from . import course as course_models
 from . import assignment as assignment_models
-from .. import auth, signals, current_app
+from .. import auth, signals, db_locks, current_app
 from ..lti import v1_3 as lti_v1_3
-from ..signals import WORK_CREATED
 from ..lti.v1_3 import claims as ltiv1_3_claims
 from ..registry import lti_provider_handlers, lti_1_3_lms_capabilities
 from ..lti.v1_3.lms_capabilities import LMSCapabilities
@@ -71,13 +69,15 @@ if t.TYPE_CHECKING:  # pragma: no cover
 _ALL_LTI_PROVIDERS = sorted(['lti1.1', 'lti1.3'])
 lti_provider_handlers.set_possible_options(_ALL_LTI_PROVIDERS)
 
-T_LTI_PROV = t.TypeVar('T_LTI_PROV', bound='LTIProviderBase')
+T_LTI_PROV = t.TypeVar('T_LTI_PROV', bound='LTIProviderBase')  # pylint: disable=invalid-name
 
 
 class LTIProviderBase(Base):
-    """This class defines the handshake with an LTI
+    """This class defines a connection between CodeGrade and an LMS.
 
-    :ivar ~.LTIProvider.key: The OAuth consumer key for this LTI provider.
+    This class not implement the logic for the handling for the LTI messages,
+    but instead provides a place were to store data about the LMS and the
+    handshake with CodeGrade.
     """
     __tablename__ = 'LTIProvider'
     _SIGNALS_SETUP = False
@@ -110,6 +110,16 @@ class LTIProviderBase(Base):
     __table_args__ = (db.UniqueConstraint('client_id', key), )
 
     def find_user(self, lti_user_id: str) -> t.Optional['user_models.User']:
+        """Find the user with the given ``lti_user_id`` in this provider.
+
+        .. note::
+
+            These ``lti_user_id``s are not globally unique!
+
+        :param lti_user_id: The id to search for.
+        :returns: A user that has the given lti user id for the connected LMS,
+            ``None`` if no user could be found.
+        """
         user_link = db.session.query(UserLTIProvider).filter(
             UserLTIProvider.lti_user_id == lti_user_id,
             UserLTIProvider.lti_provider_id == self.id,
@@ -121,6 +131,12 @@ class LTIProviderBase(Base):
 
     @property
     def member_sourcedid_required(self) -> bool:
+        """Is it required to have an entry in the
+        :class:`.assignment_models.AssignmentResult` table for a user before a
+        submission can be made?
+
+        This should be ``True`` if this data is required for a grade passback.
+        """
         raise NotImplementedError
 
     @classmethod
@@ -204,10 +220,21 @@ class LTIProviderBase(Base):
 
     @abc.abstractmethod
     def supports_setting_deadline(self) -> bool:
+        """May users change the deadline of the assignment within CodeGrade.
+
+        .. seealso::
+
+            attribute :meth:`psef.lti.v1_3.lms_capabilities.LMSCapabilities.set_deadline`.
+        """
         raise NotImplementedError
 
     @abc.abstractmethod
     def supports_max_points(self) -> bool:
+        """May users set the ``Assignment._max_grade`` property?
+
+        This effectively means if the LMS supports bonus points (i.e. a higher
+        amount of points than the grade scale).
+        """
         raise NotImplementedError
 
     def __structlog__(self) -> t.Mapping[str, str]:
@@ -216,7 +243,8 @@ class LTIProviderBase(Base):
             'id': self.id,
         }
 
-    def _update_history_sub(self, sub: 'work_models.Work'
+    @staticmethod
+    def _update_history_sub(sub: 'work_models.Work'
                             ) -> t.Optional['work_models.GradeHistory']:
         newest_grade_history = db.session.query(
             work_models.GradeHistory,
@@ -244,6 +272,12 @@ class LTIProviderBase(Base):
 
 @lti_provider_handlers.register_table
 class LTI1p1Provider(LTIProviderBase):
+    """This class represents a connection between an LMS and CodeGrade using
+        the LTI 1.1 protocol.
+
+    .. seealso: module :mod:`psef.lti.v1_1` for the implementation of the LTI
+        1.1 launches.
+    """
     __mapper_args__ = {'polymorphic_identity': 'lti1.1'}
 
     def __init__(self, key: str) -> None:
@@ -252,11 +286,18 @@ class LTI1p1Provider(LTIProviderBase):
 
     @property
     def member_sourcedid_required(self) -> bool:
+        """We do need sourcedids to passback grades in the LTI 1.1 protocol.
+        """
         return True
 
     @property
     def lms_name(self) -> str:
+        """The name of the lms connected to this provider.
+        """
         return self._lms_and_secrets[0]
+
+    # The next methods all are handlers for signals we setup in `setup_signals`
+    # at the end of the class
 
     @classmethod
     def _create_submission_in_lms(
@@ -264,7 +305,7 @@ class LTI1p1Provider(LTIProviderBase):
     ) -> None:
         work_id, assignment_id = work_assignment_id
 
-        assig, self = cls._get_self_from_assignment_id(assignment_id)
+        _, self = cls._get_self_from_assignment_id(assignment_id)
         submission = work_models.Work.query.get(work_id)
 
         if self is None or submission is None:
@@ -275,6 +316,7 @@ class LTI1p1Provider(LTIProviderBase):
             submission=submission,
             lti_provider=self,
         )
+        # pylint: disable=protected-access
         self._passback_grade(submission, initial=True)
         db.session.commit()
 
@@ -303,6 +345,7 @@ class LTI1p1Provider(LTIProviderBase):
             difference=set(s.id for s in subs) ^ set(submission_ids),
         )
 
+        # pylint: disable=protected-access
         for sub in subs:
             self._passback_grade(sub, initial=False)
             self._update_history_sub(sub)
@@ -337,7 +380,10 @@ class LTI1p1Provider(LTIProviderBase):
             return
 
         logger.info('Deleting grade for submission', work_id=sub.id)
+        # pylint: disable=protected-access
         self._passback_grade(sub, initial=False)
+
+    # End of all signal handlers.
 
     def _passback_grade(self, sub: 'Work', *, initial: bool) -> None:
         """Passback the grade for a given submission to this lti provider.
@@ -375,7 +421,7 @@ class LTI1p1Provider(LTIProviderBase):
                         submission=sub,
                         host=current_app.config['EXTERNAL_URL'],
                     )
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-except
                     err = e
                 else:
                     break
@@ -416,13 +462,19 @@ class LTI1p1Provider(LTIProviderBase):
         return cls
 
     def supports_setting_deadline(self) -> bool:
+        """Only some LMSes pass the deadline in LTI launches.
+        """
         return not self.lti_class.supports_deadline()
 
     def supports_max_points(self) -> bool:
+        """Only some LMSes support bonus points using the LTI 1.1 standard.
+        """
         return self.lti_class.supports_max_points()
 
     @classmethod
     def setup_signals(cls) -> None:
+        """Setup the signals used by the LTI 1.1 providers.
+        """
         if cls._SIGNALS_SETUP:
             return
         cls._SIGNALS_SETUP = True
@@ -472,34 +524,30 @@ LTI1p1Provider.setup_signals()
 
 @lti_provider_handlers.register_table
 class LTI1p3Provider(LTIProviderBase):
+    """This class represents a connection between an LMS and CodeGrade using
+        the LTI 1.3 protocol.
+
+    .. seealso: module :mod:`psef.lti.v1_3` for the implementation of the LTI
+        1.3 launches.
+    """
     __mapper_args__ = {'polymorphic_identity': 'lti1.3'}
-
-    class Registration(pylti1p3.registration.Registration):
-        def __init__(self, provider: 'LTI1p3Provider') -> None:
-            assert provider._auth_login_url is not None
-            assert provider._auth_token_url is not None
-            assert provider._key_set_url is not None
-            assert provider.client_id is not None
-            assert provider.iss is not None
-
-            self.provider = provider
-
-            self.set_auth_login_url(provider._auth_login_url) \
-                .set_auth_token_url(provider._auth_token_url) \
-                .set_client_id(provider.client_id) \
-                .set_key_set_url(provider._key_set_url) \
-                .set_issuer(provider.iss) \
-                .set_tool_public_key(provider.get_public_key()) \
-                .set_tool_private_key(provider._private_key)
 
     if t.TYPE_CHECKING:
         client_id = db.Column('client_id', db.Unicode)
 
     @property
     def lms_capabilities(self) -> LMSCapabilities:
+        """The capabilities of the lms connect to this provider.
+        """
         return lti_1_3_lms_capabilities[self.lms_name]
 
     def get_launch_url(self, goto_latest_sub: bool) -> furl.furl:
+        """Get the launch url for this provider.
+
+        :param goto_latest_sub: Get the url that navigates a user to the latest
+            submission.
+        :returns: The launch url for this provider.
+        """
         base_url = furl.furl(current_app.config['EXTERNAL_URL'])
 
         to_add = ['api', 'v1', 'lti1.3']
@@ -549,19 +597,27 @@ class LTI1p3Provider(LTIProviderBase):
 
     @property
     def edit_secret(self) -> uuid.UUID:
+        """The secret which you can use to edit this provider.
+        """
         return self._edit_secret
 
     @property
     def member_sourcedid_required(self) -> bool:
+        """Passback works using user ids, so no sourcedids required.
+        """
         return False
 
     @property
     def lms_name(self) -> str:
+        """The name of the lms of this provider.
+        """
         assert self._lms_name is not None
         return self._lms_name
 
     @property
     def is_finalized(self) -> bool:
+        """Is this provider finalized and ready for use.
+        """
         return self._finalized
 
     def update_registration(
@@ -572,6 +628,19 @@ class LTI1p3Provider(LTIProviderBase):
         key_set_url: t.Optional[str],
         finalize: t.Optional[bool],
     ) -> None:
+        """Update this lti provider.
+
+        :param auth_login_url: The new auth login url, pass ``None`` to keep
+            the old one.
+        :param auth_token_url: The new auth token url, pass ``None`` to keep
+            the old one.
+        :param client_id: The new client id, pass ``None`` to keep the old one.
+        :param key_set_url: The new key set url, pass ``None`` to keep the old
+            one.
+        :param finalize: Pass ``True`` to seal this provider, and make it ready
+            for use.
+        :returns: Nothing.
+        """
         assert not self._finalized
 
         if client_id is not None:
@@ -605,6 +674,14 @@ class LTI1p3Provider(LTIProviderBase):
         lms_capabilities: LMSCapabilities,
         intended_use: str,
     ) -> 'LTI1p3Provider':
+        """Create a new LTI1p3 provider with the given ``iss``.
+
+        :param iss: The iss of the new provider.
+        :param lms_capabilities: The capabilities of the new provider.
+        :param intended_use: A string describing who will be using this
+            provider, this is only for human consumption.
+        :returns: The non finalized created provider.
+        """
         key = rsa.generate_private_key(
             public_exponent=65537,
             key_size=4096,
@@ -643,10 +720,18 @@ class LTI1p3Provider(LTIProviderBase):
         ).decode('utf8')
 
     def get_public_jwk(self) -> t.Mapping[str, str]:
+        """Get the public part of key used to communicate with the LMS
+            represented as jwk.
+        """
         pub_key = self.get_public_key().encode('utf8')
         jwk = jwcrypto.jwk.JWK.from_pem(pub_key)
         assert not jwk.has_private
 
+        # For Canvas, and maybe others too, we need to set the `alg` and `use`
+        # field of the jwk, however the python library doesn't export this. We
+        # now that for now this is always 'RS256' and 'sig'. This assertion is
+        # simply to make sure we don't accidentally start creating these keys
+        # differently without noticing.
         assert jwk.key_type == 'RSA'
         return {
             **json.loads(jwk.export_public()),
@@ -656,16 +741,32 @@ class LTI1p3Provider(LTIProviderBase):
 
     @hybrid_property
     def iss(self) -> str:
+        """Get the ``iss`` of this lms.
+
+        .. warning::
+
+            DO NOT rely on this being unique, it is not! The tuple of the
+            ``iss``, ``client_id`` is unique for each provider, but please
+            simply use the id of this provider.
+        """
         return self.key
 
-    def get_registration(self) -> 'LTI1p3Provider.Registration':
-        return LTI1p3Provider.Registration(self)
+    def get_registration(self) -> 'lti_v1_3.CGRegistration':
+        """Get the connector to talk to the LMS with.
+        """
+        return lti_v1_3.CGRegistration(self)
 
     def get_service_connector(self) -> lti_v1_3.CGServiceConnector:
+        """Get the connector to talk to the LMS with.
+        """
         return lti_v1_3.CGServiceConnector(self)
 
     def supports_max_points(self) -> bool:
+        """All LTI 1.3 providers support bonus points."""
         return True
+
+    # The next methods all are handlers for signals we setup in `setup_signals`
+    # at the end of the class
 
     @classmethod
     def _delete_submission(cls, work_id: int) -> None:
@@ -682,6 +783,7 @@ class LTI1p3Provider(LTIProviderBase):
             logger.info('Work was not deleted', work=work)
 
         for author in work.get_all_authors():
+            # pylint: disable=protected-access
             latest_sub = assig.get_latest_submission_for_user(
                 author, group_of_user=work.user.group
             ).one_or_none()
@@ -717,6 +819,7 @@ class LTI1p3Provider(LTIProviderBase):
             assignment_models.Assignment.is_lti,
             assignment_models.Assignment.is_visible,
         ):
+            # pylint: disable=protected-access
             self._passback_grade(
                 user=user,
                 assignment=assig,
@@ -754,6 +857,7 @@ class LTI1p3Provider(LTIProviderBase):
                 )
                 return
 
+            # pylint: disable=protected-access
             self._passback_grade(
                 sub=work,
                 assignment=assig,
@@ -777,6 +881,7 @@ class LTI1p3Provider(LTIProviderBase):
         logger.info('Passback grades', gotten_submission=subs)
         found_user_ids = set(a.id for s in subs for a in s.get_all_authors())
 
+        # pylint: disable=protected-access
         for sub in subs:
             self._passback_grade(sub=sub, assignment=assig, timestamp=now)
 
@@ -836,11 +941,14 @@ class LTI1p3Provider(LTIProviderBase):
                     'https://canvas.instructure.com/lti/submission':
                         {
                             'submission_type': 'basic_lti_launch',
-                            'submission_data': str(self.get_launch_url(goto_latest_sub=True)),
+                            'submission_data':
+                                str(self.get_launch_url(goto_latest_sub=True)),
                         }
                 }
             )
-            logger.info('Setting extra claims', extra_claims=grade.get_extra_claims())
+            logger.info(
+                'Setting extra claims', extra_claims=grade.get_extra_claims()
+            )
 
         else:
             grade.set_grading_progress('Pending')
@@ -887,7 +995,7 @@ class LTI1p3Provider(LTIProviderBase):
             grade.set_user_id(lti_user_id)
             try:
                 res = grades_service.put_grade(grade)
-            except pylti1p3.exception.LtiException as lti_exc:
+            except pylti1p3.exception.LtiException:
                 logger.info(
                     'Passing back grade failed',
                     exc_info=True,
@@ -943,7 +1051,7 @@ class LTI1p3Provider(LTIProviderBase):
                         t.cast(dict, message.get(ltiv1_3_claims.CUSTOM, {})),
                         base_data=member
                     )
-                except:
+                except:  # pylint: disable=bare-except
                     logger.info(
                         'Could not parse message',
                         exc_info=True,
@@ -973,7 +1081,7 @@ class LTI1p3Provider(LTIProviderBase):
                     email=lti_v1_3.get_email_for_user(member, self),
                     full_name=member['name'],
                 )
-            except:
+            except:  # pylint: disable=bare-except
                 logger.info('Could not add new user', exc_info=True)
             else:
                 course_lti_provider.maybe_add_user_to_course(
@@ -983,7 +1091,15 @@ class LTI1p3Provider(LTIProviderBase):
 
         db.session.commit()
 
+    # End of all signal handlers.
+
     def supports_setting_deadline(self) -> bool:
+        """Does this lms supports setting deadline.
+
+        .. seealso::
+
+            class :class:`psef.lti.v1_3.lms_capabilities.LMSCapabilities`.
+        """
         return self.lms_capabilities.set_deadline
 
     @property
@@ -993,6 +1109,9 @@ class LTI1p3Provider(LTIProviderBase):
         )
 
     def get_json_config(self) -> t.Mapping[str, object]:
+        """Get the config used by this lti provider for setup.
+        """
+
         def get_url(ext: str = '') -> str:
             return f'{current_app.config["EXTERNAL_URL"]}{ext}'
 
@@ -1064,6 +1183,8 @@ class LTI1p3Provider(LTIProviderBase):
 
     @classmethod
     def setup_signals(cls) -> None:
+        """Setup the signals used by the LTI 1.3 providers.
+        """
         if cls._SIGNALS_SETUP:
             return
         cls._SIGNALS_SETUP = True
@@ -1104,6 +1225,14 @@ lti_provider_handlers.freeze()
 
 
 class UserLTIProvider(Base, TimestampMixin):
+    """This class connects a :class:`.user_models.User` to a
+        :class:`.LTIProviderBase`.
+
+    This class makes sure that it is possible to have two users with the same
+    lti user id, but from different LMSes. Each user can be linked to at most
+    one LTIProvider, and eacher ``lti_user_id`` has to be unique within the
+    LMS.
+    """
     __tablename__ = 'user_lti-provider'
 
     user_id = db.Column(
@@ -1115,6 +1244,7 @@ class UserLTIProvider(Base, TimestampMixin):
         db.ForeignKey(LTIProviderBase.id),
         nullable=False
     )
+    #: The id of the user given to us by the LMS. Not globally unique!
     lti_user_id = db.Column(
         'lti_user_id', db.Unicode, nullable=False, index=True
     )
@@ -1122,7 +1252,8 @@ class UserLTIProvider(Base, TimestampMixin):
     __table_args__ = (
         # A user can only be connected once to an LTI Provider
         db.PrimaryKeyConstraint(user_id, lti_provider_id),
-        # LTI user ids should be unique for a single LTI provider
+        # LTI user ids should be unique for a single LTI provider, however they
+        # are NOT (!) globally unique between LMSes.
         db.UniqueConstraint(lti_provider_id, lti_user_id),
     )
 
@@ -1194,6 +1325,11 @@ class UserLTIProvider(Base, TimestampMixin):
 
         def _get_username(wanted: str = _wanted_username) -> str:
             return f'{wanted} ({i})' if i > 0 else wanted
+
+
+        # Make sure we cannot have collisions, so simply lock this username for
+        # the users while searching.
+        db_locks.acquire_lock(db_locks.LockNamespaces.user, wanted_username)
 
         while db.session.query(
             user_models.User.query.filter_by(username=_get_username()).exists()
@@ -1289,6 +1425,14 @@ class UserLTIProvider(Base, TimestampMixin):
 
 
 class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
+    """This models connects a :class:`.course_models.Course` to a
+        :class:`.LTIProviderBase`.
+
+    This class also makes sure that only course is created inside CodeGrade for
+    each course inside the LMS, and it makes sure that courses from one LMS are
+    not used as courses for another one. Please see the `__table_args__` unique
+    constraints for more info.
+    """
     course_id = db.Column(
         'course_id',
         db.Integer,
@@ -1364,6 +1508,13 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
         )
 
     def can_poll_names_again(self) -> bool:
+        """Check if we may poll the names again from the LMS.
+
+        This method checks if the last poll was long enough ago to poll the
+        names again.
+
+        :returns: ``True`` if we can poll again.
+        """
         if self.last_names_roles_poll is None:
             return True
 
@@ -1372,9 +1523,19 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
         ).total_seconds() > current_app.config['LTI1.3_MIN_POLL_INTERVAL']
 
     def get_members(
-        self, service_connector: pylti1p3.service_connector.ServiceConnector
+        self,
+        service_connector: pylti1p3.service_connector.ServiceConnector,
+        force: bool = False
     ) -> t.Sequence['_Member']:
-        if not self.can_poll_names_again():
+        """Poll the LMS for the members in this course.
+
+        :param service_connector: The connection to the LMS which we will use
+            the poll the members.
+        :param force: Always poll, even if
+            :func:`CourseLTIProvider.can_poll_names_again` returns ``False``.
+        :returns: The members as retrieved from the LMS.
+        """
+        if not force and not self.can_poll_names_again():
             logger.info(
                 'Not polling again as last poll was a short while ago',
                 last_names_roles_poll=self.last_names_roles_poll,
@@ -1420,6 +1581,16 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
         lti_context_id: str,
         deployment_id: str,
     ) -> 'CourseLTIProvider':
+        """Create a :class:`CourseLTIProvider` and add it to the current session.
+
+        :param course: The course which has to be connected to the
+            ``lti_provider``.
+        :param lti_provder: The LTI provider in which this course is defined.
+        :param lti_context_id: The LTI id of the course.
+        :param deployment_id: The deployment id of the course. This is only
+            defined for LTI1.3.
+        :returns: The created object.
+        """
         course_lti_provider = cls(
             lti_course_id=lti_context_id,
             course=course,
@@ -1432,6 +1603,17 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
     def maybe_add_user_to_course(
         self, user: 'user_models.User', roles_claim: t.List[str]
     ) -> t.Optional[str]:
+        """Maybe add the given user to the course.
+
+        This method adds the given user to the course, determining its role
+        based on the given ``roles_claim``, if the user is not already enrolled
+        in the course.
+
+        :param user: The user to possibly enrol in the course connected to this
+            ``CourseLTIProvider``.
+        :param roles_claim: The LTI1p3 roles claim that we should use to
+            determine the role of the given user.
+        """
         if user.is_enrolled(self.course):
             return None
 
