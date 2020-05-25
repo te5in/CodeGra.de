@@ -459,7 +459,7 @@ context('Sidebar', () => {
             cy.delayRoute({
                 url: '/api/v1/courses/?extended=true',
                 method: 'GET',
-            })
+            }, 2000)
 
             // Reload from the courses submenu. It is already opened, but on
             // the assignments of the current course. Let's test for that by
