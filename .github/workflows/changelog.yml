@@ -25,6 +25,11 @@ jobs:
           reaction: eyes
         env:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+
+      - name: "Checkout code"
+        if: steps.check.outputs.triggered == 'false'
+        uses: actions/checkout@v1
+
       - name: Check if changelog was updated
         if: steps.check.outputs.triggered == 'false'
         run: ./.github/scripts/ensure_changelog_updated.sh
