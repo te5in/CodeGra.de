@@ -623,6 +623,45 @@ def filename(request):
 
 
 @pytest.fixture
+def watch_signal(stub_function_class):
+    undos = []
+    idx = 0
+
+    def make_watcher(signal):
+        nonlocal idx
+        idx += 1
+
+        class Watcher(stub_function_class):
+            __name__ = f'signal_watcher_{idx}'
+
+            @property
+            def signal_arg(self):
+                # This property only makes sense if the signal was send exactly
+                # once
+                assert self.was_send_once
+                all_args = self.all_args
+                assert len(all_args[0]) == 1
+                return all_args[0][0]
+
+            @property
+            def was_send_once(self):
+                found = len(self.args)
+                return found == 1
+
+        watcher = Watcher()
+
+        signal.connect_immediate(watcher)
+        undos.append(lambda: signal.disconnect(watcher))
+
+        return watcher
+
+    yield make_watcher
+
+    for undo in undos:
+        undo()
+
+
+@pytest.fixture
 def make_function_spy(monkeypatch, stub_function_class):
     def make_spy(module, name):
         orig = getattr(module, name)

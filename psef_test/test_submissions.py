@@ -1681,9 +1681,14 @@ def test_delete_submission(
 
 
 def test_delete_submission_with_other_work(
-    test_client, logged_in, admin_user, session, monkeypatch_celery, describe,
-    monkeypatch, stub_function_class, app, make_function_spy
+    test_client, logged_in, admin_user, session, describe, monkeypatch,
+    stub_function_class, app, make_function_spy, canvas_lti1p1_provider,
+    watch_signal
 ):
+    # TODO: Split up this test. The test does way too much. It was written
+    # before we had signals, so it not only tests that those are dispatched
+    # correctly, it also tests that we handle the signals correctly.
+
     with describe('setup'), logged_in(admin_user):
         course = create_course(test_client)
         assignment = m.Assignment.query.get(
@@ -1693,12 +1698,16 @@ def test_delete_submission_with_other_work(
         )
         student = create_user_with_role(session, 'Student', course)
 
-        stub_passback_task = make_function_spy(tasks, 'passback_grades')
+        signal = watch_signal(psef.signals.WORK_DELETED)
 
         stub_passback = stub_function_class(lambda: 0)
-        monkeypatch.setattr(psef.lti.LTI, '_passback_grade', stub_passback)
+        monkeypatch.setattr(
+            psef.lti.v1_1.LTI, '_passback_grade', stub_passback
+        )
 
-        stub_delete_submission = make_function_spy(tasks, 'delete_submission')
+        stub_delete_submission = make_function_spy(
+            m.LTI1p1Provider, '_delete_submission'
+        )
 
         stub_adjust = stub_function_class(lambda: 0)
         monkeypatch.setattr(tasks, 'adjust_amount_runners', stub_adjust)
@@ -1738,8 +1747,14 @@ def test_delete_submission_with_other_work(
         run.batch_run_done = True
 
         assignment.set_state('done')
-        assignment.lti_outcome_service_url = 'a url'
-        assignment.course.lti_provider = m.LTIProvider(key='my_lti')
+        assignment.lti_grade_service_data = 'a url'
+        assignment.is_lti = True
+        course_lti_connection = m.CourseLTIProvider.create_and_add(
+            course=assignment.course,
+            lti_provider=canvas_lti1p1_provider,
+            lti_context_id='HALLO',
+            deployment_id=''
+        )
         session.commit()
         assignment.assignment_results[student.id] = m.AssignmentResult(
             user_id=student.id, sourcedid='5', assignment_id=assignment.id
@@ -1748,16 +1763,24 @@ def test_delete_submission_with_other_work(
 
     with describe('delete not newest submission'), logged_in(admin_user):
         test_client.req('delete', f'/api/v1/submissions/{middle}', 204)
-        assert not stub_passback_task.called
+        assert signal.was_send_once
+        assert signal.signal_arg.deleted_work.id == middle
+        assert not signal.signal_arg.was_latest
+        assert signal.signal_arg.new_latest is None
+
         assert not stub_delete_submission.called
         assert not stub_adjust.called
         assert not stub_clear.called
 
     with describe('delete newest submission'), logged_in(admin_user):
         test_client.req('delete', f'/api/v1/submissions/{newest}', 204)
+        assert signal.was_send_once
+        assert signal.signal_arg.deleted_work.id == newest
+        assert signal.signal_arg.was_latest
+        # Not the middle as that one is already deleted
+        assert signal.signal_arg.new_latest.id == oldest
+
         assert stub_passback.called
-        assert stub_passback_task.called
-        assert stub_passback_task.all_args[0][0] == [oldest]
         assert not stub_delete_submission.called
         assert stub_adjust.called
         assert not stub_clear.called
@@ -1770,8 +1793,11 @@ def test_delete_submission_with_other_work(
         test_client.req(
             'delete', f'/api/v1/submissions/{from_test_student_newest}', 204
         )
-        assert stub_passback_task.called
-        assert stub_passback_task.all_args[0][0] == [from_test_student_oldest]
+        assert signal.was_send_once
+        assert signal.signal_arg.deleted_work.id == from_test_student_newest
+        assert signal.signal_arg.was_latest
+        assert signal.signal_arg.new_latest.id == from_test_student_oldest
+
         assert not stub_passback.called
         assert not stub_delete_submission.called
 
@@ -1781,8 +1807,11 @@ def test_delete_submission_with_other_work(
                                                 ).one().final_result is False
         test_client.req('delete', f'/api/v1/submissions/{oldest}', 204)
 
-        assert stub_passback_task.called
-        assert stub_passback_task.all_args[0][0] == [very_oldest]
+        assert signal.was_send_once
+        assert signal.signal_arg.deleted_work.id == oldest
+        assert signal.signal_arg.was_latest
+        assert signal.signal_arg.new_latest.id == very_oldest
+
         assert not stub_delete_submission.called
         assert stub_adjust.called
 
@@ -1795,11 +1824,17 @@ def test_delete_submission_with_other_work(
 
     with describe('without AutoTest run or lti'), logged_in(admin_user):
         assignment.auto_test._runs = []
-        assignment.course.lti_provider = None
+        session.delete(course_lti_connection)
+        assignment.is_lti = False
         session.commit()
         test_client.req('delete', f'/api/v1/submissions/{very_oldest}', 204)
 
-        assert not stub_passback_task.called
+        # Should still be send
+        assert signal.was_send_once
+        assert signal.signal_arg.deleted_work.id == very_oldest
+        assert signal.signal_arg.was_latest
+        assert signal.signal_arg.new_latest.id == super_oldest
+
         assert not stub_delete_submission.called
         assert not stub_adjust.called
         assert not stub_clear.called

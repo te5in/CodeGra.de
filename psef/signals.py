@@ -46,6 +46,12 @@ class WorkDeletedData:
             assert self.new_latest.assignment_id == self.assignment_id
 
     @property
+    def assignment(self) -> 'models.Assignment':
+        """The assignment in which the work was deleted.
+        """
+        return self.deleted_work.assignment
+
+    @property
     def assignment_id(self) -> int:
         """The id of assignment in which the work was deleted.
         """

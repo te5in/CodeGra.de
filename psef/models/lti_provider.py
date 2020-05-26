@@ -140,6 +140,16 @@ class LTIProviderBase(Base):
         raise NotImplementedError
 
     @classmethod
+    def _signal_assignment_pre_check(
+        cls, assig: 'assignment_models.Assignment'
+    ) -> bool:
+        if not assig.is_lti:
+            return False
+        elif not isinstance(assig.course.lti_provider, cls):
+            return False
+        return True
+
+    @classmethod
     def _get_self_from_assignment_id(
         cls: t.Type[T_LTI_PROV],
         assignment_id: t.Optional[int],
@@ -396,17 +406,30 @@ class LTI1p1Provider(LTIProviderBase):
         assert isinstance(
             service_url, str
         ), f'Service url has unexpected value: {service_url}'
+        logger.info('Passing back submission with LTI 1.1', submission=sub)
 
         assig_results = sub.assignment.assignment_results
         for user in sub.get_all_authors():
-            if user.is_test_student or user.id not in assig_results:
+            if user.is_test_student:
+                continue
+            elif user.id not in assig_results:
+                logger.warning(
+                    'Found user submission without sourcedid',
+                    user_id=user.id,
+                    submission=sub,
+                )
                 continue
             sourcedid = assig_results[user.id].sourcedid
             if sourcedid is None:  # pragma: no cover
                 continue
+            logger.info('Passing back for user with LTI 1.1', submission=sub, user=user)
 
             # The newest secret should be placed last in this list
             for secret in reversed(self.secrets):
+                print()
+                print(secret)
+                print(self.lti_class)
+                print(self.lti_class._passback_grade)
                 try:
                     self.lti_class.passback_grade(
                         key=self.key,
@@ -477,8 +500,13 @@ class LTI1p1Provider(LTIProviderBase):
             return
         cls._SIGNALS_SETUP = True
 
+        pre_checker = cls._signal_assignment_pre_check
+
         signals.WORK_DELETED.connect_celery(
-            pre_check=lambda wd: wd.was_latest and wd.new_latest is not None,
+            pre_check=lambda wd: (
+                wd.was_latest and wd.new_latest is not None and
+                pre_checker(wd.assignment)
+            ),
             converter=(
                 lambda wd: (
                     # This stupid check is needed for mypy
@@ -494,11 +522,14 @@ class LTI1p1Provider(LTIProviderBase):
                 wd.deleted_work.id,
                 wd.deleted_work.assignment_id,
             ),
-            pre_check=lambda wd: wd.was_latest and wd.new_latest is None,
+            pre_check=lambda wd: (
+                wd.was_latest and wd.new_latest is None and
+                pre_checker(wd.assignment)
+            ),
         )(cls._delete_submission)
 
         signals.GRADE_UPDATED.connect_celery(
-            pre_check=lambda work: work.assignment.is_lti,
+            pre_check=lambda work: pre_checker(work.assignment),
             converter=lambda work: (
                 [work.id],
                 work.assignment_id,
@@ -507,7 +538,7 @@ class LTI1p1Provider(LTIProviderBase):
         )(cls._passback_grades)
 
         signals.ASSIGNMENT_STATE_CHANGED.connect_celery(
-            pre_check=lambda a: a.is_lti,
+            pre_check=pre_checker,
             converter=lambda a: (
                 [w.id for w in a.get_all_latest_submissions()],
                 a.id,
@@ -516,7 +547,7 @@ class LTI1p1Provider(LTIProviderBase):
         )(cls._passback_grades)
 
         signals.WORK_CREATED.connect_celery(
-            pre_check=lambda work: work.assignment.is_lti,
+            pre_check=lambda work: pre_checker(work.assignment),
             converter=lambda work: (work.id, work.assignment_id),
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._create_submission_in_lms)
@@ -1192,26 +1223,28 @@ class LTI1p3Provider(LTIProviderBase):
             return
         cls._SIGNALS_SETUP = True
 
+        pre_checker = cls._signal_assignment_pre_check
+
         signals.ASSIGNMENT_STATE_CHANGED.connect_celery(
-            pre_check=lambda a: a.is_lti,
+            pre_check=pre_checker,
             converter=lambda a: a.id,
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._passback_grades)
 
         signals.WORK_DELETED.connect_celery(
-            pre_check=lambda wd: wd.deleted_work.assignment.is_lti,
+            pre_check=lambda wd: pre_checker(wd.deleted_work.assignment),
             converter=lambda wd: wd.deleted_work.id,
             task_args=_PASSBACK_CELERY_OPTS
         )(cls._delete_submission)
 
         signals.WORK_CREATED.connect_celery(
-            pre_check=lambda work: work.assignment.is_lti,
+            pre_check=lambda work: pre_checker(work.assignment),
             converter=lambda work: (work.id, work.assignment_id),
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._passback_submission)
 
         signals.GRADE_UPDATED.connect_celery(
-            pre_check=lambda work: work.assignment.is_lti,
+            pre_check=lambda work: pre_checker(work.assignment),
             converter=lambda work: (work.id, work.assignment_id),
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._passback_submission)

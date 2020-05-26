@@ -52,8 +52,10 @@ class Signal(t.Generic[T]):
         """
         self.__name: Final = name
         self.__registered_functions: t.Set[str] = set()
-        self.__after_request_callbacks: t.List[t.Callable[[T], object]] = []
-        self.__immediate_callbacks: t.List[t.Callable[[T], object]] = []
+        self.__after_request_callbacks: t.List[
+            t.Tuple[str, t.Callable[[T], object]]] = []
+        self.__immediate_callbacks: t.List[
+            t.Tuple[str, t.Callable[[T], object]]] = []
         self.__celery_todo: t.List[t.Callable[[Celery], None]] = []
 
     def _check_function_not_registered(self, name: str) -> None:
@@ -69,24 +71,22 @@ class Signal(t.Generic[T]):
         :param value: The value you want to emit.
         :returns: Nothing.
         """
-        if self.__celery_todo:
+        logger.info('Sending signal', signal_name=self.__name)
+
+        if self.__celery_todo:  # pragma: no cover
             raise AssertionError(
                 'The Signal still has uninitialized celery listeners'
             )
-        logger.info('Sending signal', signal_name=self.__name)
-        assert not self.__celery_todo, (
-            'Still celery tasks that were not registered'
-        )
 
         if self.__after_request_callbacks:
 
             def send_dispatch() -> None:
-                for callback in self.__after_request_callbacks:
+                for _, callback in self.__after_request_callbacks:
                     callback(value)
 
             callback_after_this_request(send_dispatch)
 
-        for callback in self.__immediate_callbacks:
+        for _, callback in self.__immediate_callbacks:
             callback(value)
 
     def __repr__(self) -> str:
@@ -152,7 +152,8 @@ class Signal(t.Generic[T]):
         module = self.__class__.__module__
 
         def __inner(callback: t.Callable[[Z], Y]) -> t.Callable[[Z], Y]:
-            self._check_function_not_registered(self._get_fullname(callback))
+            fullname = self._get_fullname(callback)
+            self._check_function_not_registered(fullname)
             task_name = (
                 f'{module}.{self.__name}'
                 f'.{self._get_fullname(callback)}.celery_task'
@@ -172,12 +173,38 @@ class Signal(t.Generic[T]):
                     if pre_check(arg):
                         __celery_task.delay(converter(arg))
 
-                self.__after_request_callbacks.append(__registered)
+                self.__after_request_callbacks.append((fullname, __registered))
 
             self.__celery_todo.append(__celery_setup)
             return callback
 
         return __inner
+
+    def disconnect(self, callback: t.Callable[[Y], Z]) -> None:
+        """Disconnect the given callable from this signal.
+
+        .. warning::
+
+            This is, unlike in some other signal libraries, a slow operation at
+            the moment. The current implementation is really meant for testing
+            purposes only, for which is really useful.
+
+        :param callback: The callback you want to disconnect from this signal.
+
+        :returns: Nothing.
+        """
+        fullname = self._get_fullname(callback)
+        assert fullname in self.__registered_functions
+
+        self.__after_request_callbacks = [
+            (name, cb) for (name, cb) in self.__after_request_callbacks
+            if name != fullname
+        ]
+        self.__immediate_callbacks = [
+            (name, cb) for (name, cb) in self.__immediate_callbacks
+            if name != fullname
+        ]
+        self.__registered_functions.remove(fullname)
 
     def connect_immediate(
         self,
@@ -186,9 +213,11 @@ class Signal(t.Generic[T]):
         """Connect a function to be called immediately after signal is
             dispatched.
         """
-        self._check_function_not_registered(self._get_fullname(callback))
-        self.__immediate_callbacks.append(callback)
-        return callback
+        return self.connect(
+            'immediate',
+            pre_check=lambda _: True,
+            converter=lambda x: x,
+        )(callback)
 
     def connect_after_request(
         self,
@@ -200,9 +229,11 @@ class Signal(t.Generic[T]):
         If the signal send multiple times the function will still be called
         multiple times.
         """
-        self._check_function_not_registered(self._get_fullname(callback))
-        self.__after_request_callbacks.append(callback)
-        return callback
+        return self.connect(
+            'after_request',
+            pre_check=lambda _: True,
+            converter=lambda x: x,
+        )(callback)
 
     def connect(
         self,
@@ -227,13 +258,14 @@ class Signal(t.Generic[T]):
         )
 
         def __wrapper(fun: t.Callable[[Z], Y]) -> t.Callable[[Z], Y]:
-            self._check_function_not_registered(self._get_fullname(fun))
+            fullname = self._get_fullname(fun)
+            self._check_function_not_registered(fullname)
 
             def __callback(arg: T) -> None:
                 if pre_check(arg):
                     fun(converter(arg))
 
-            callbacks.append(__callback)
+            callbacks.append((fullname, __callback))
 
             return fun
 
