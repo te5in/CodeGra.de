@@ -404,6 +404,8 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 f'The value "{new_max_grade}" is too low as a maximum grade',
                 APICodes.INVALID_PARAM, 400
             )
+
+        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
         assig.set_max_grade(new_max_grade)
 
     if {'done_type', 'reminder_time', 'done_email'} & content.keys():

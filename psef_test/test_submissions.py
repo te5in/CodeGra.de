@@ -8,10 +8,11 @@ import pytest
 from pytest import approx
 
 import psef
+import helpers
 import psef.tasks as tasks
 import psef.models as m
 from helpers import (
-    create_course, create_marker, create_assignment, create_submission,
+    get_id, create_course, create_marker, create_assignment, create_submission,
     create_user_with_role
 )
 from cg_dt_utils import DatetimeWithTimezone
@@ -771,50 +772,61 @@ def test_clearing_rubric(
         ) == (2 if error else 1)
 
 
-@pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
 def test_selecting_wrong_rubric(
-    request, test_client, logged_in, error_template, ta_user,
-    assignment_real_works, session, course_name, teacher_user, student_user
+    test_client, logged_in, error_template, session, admin_user, tomorrow,
+    describe
 ):
-    assignment, work = assignment_real_works
-    course = m.Course.query.filter_by(name=course_name).one()
-
-    other_assignment = m.Assignment(name='OTHER ASSIGNMENT', course=course)
-    other_work = m.Work(
-        assignment=other_assignment, user=student_user._get_current_object()
-    )
-    session.add(other_assignment)
-    session.add(other_work)
-    session.commit()
-    other_work_id = other_work.id
-
-    rubric = {
-        'rows': [{
-            'header': 'My header',
-            'description': 'My description',
-            'items': [{
-                'description': '5points',
-                'header': 'bladie',
-                'points': 5
-            }, {
-                'description': '10points',
-                'header': 'bladie',
-                'points': 10,
-            }]
-        }]
-    }  # yapf: disable
-
-    with logged_in(teacher_user):
-        rubric = test_client.req(
-            'put',
-            f'/api/v1/assignments/{assignment.id}/rubrics/',
-            200,
-            data=rubric
+    with describe('Setup'), logged_in(admin_user):
+        course = helpers.create_course(test_client)
+        assignment = helpers.create_assignment(
+            test_client, course, state='open', deadline=tomorrow
         )
 
-    with logged_in(ta_user):
+        other_course = helpers.create_course(test_client)
+        other_assignment = helpers.create_assignment(
+            test_client, other_course, state='open', deadline=tomorrow
+        )
+
+        student_user = helpers.create_user_with_role(
+            session, 'Student', [course, other_course]
+        )
+        with logged_in(student_user):
+            _ = helpers.create_submission(test_client, assignment)
+            other_work = helpers.create_submission(
+                test_client, other_assignment
+            )
+
+        rubric = {
+            'rows': [{
+                'header': 'My header',
+                'description': 'My description',
+                'items': [{
+                    'description': '5points',
+                    'header': 'bladie',
+                    'points': 5
+                }, {
+                    'description': '10points',
+                    'header': 'bladie',
+                    'points': 10,
+                }]
+            }]
+        }  # yapf: disable
+
+    with describe('Create rubric in one assignment'):
+        with logged_in(admin_user):
+            rubric = test_client.req(
+                'put',
+                f'/api/v1/assignments/{get_id(assignment)}/rubrics/',
+                200,
+                data=rubric
+            )
+
+    with describe('Cannot use rubric from other assignment'
+                  ), logged_in(admin_user):
+        # Note the use of `other_work` which is another course and in another
+        # assignment.
         test_client.req(
-            'patch', f'/api/v1/submissions/{other_work_id}/'
+            'patch', f'/api/v1/submissions/{get_id(other_work)}/'
             f'rubricitems/{rubric[0]["items"][0]["id"]}',
             400,
             result=error_template
@@ -2094,21 +2106,18 @@ def test_uploading_invalid_file(
 
 
 @pytest.mark.parametrize(
-    'max_grade', [
-        10,
-        4,
-        15,
-        http_error(error=400)('Hello'),
-        http_error(error=400)(-2),
-    ]
-)
-@pytest.mark.parametrize(
     'named_user', [
         'Robin',
         http_error(error=403)('Student2'),
         http_error(error=403)('Thomas Schaper'),
     ],
     indirect=True
+)
+@pytest.mark.parametrize(
+    'max_grade',
+    [10, 4, 15,
+     http_error(error=400)('Hello'),
+     http_error(error=400)(-2)],
 )
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
 def test_maximum_grade(

@@ -158,6 +158,7 @@ class LTIProviderBase(Base):
             query = query.with_for_update(read=True)
 
         assig = query.one_or_none()
+
         if assig is None:
             logger.info('Assignment not found', assignment_id=assignment_id)
             return None, None
@@ -165,10 +166,7 @@ class LTIProviderBase(Base):
             logger.info("Assignment isn't a LTI assignment", assignment=assig)
             return None, None
 
-        self = cls._get_self_from_course(assig.course)
-        if self is None:
-            return assig, None
-        return assig, self
+        return assig, cls._get_self_from_course(assig.course)
 
     @classmethod
     @t.overload
@@ -353,7 +351,7 @@ class LTI1p1Provider(LTIProviderBase):
         db.session.commit()
 
     @classmethod
-    def _delete_subsmision(cls, work_assignment_id: t.Tuple[int, int]) -> None:
+    def _delete_submission(cls, work_assignment_id: t.Tuple[int, int]) -> None:
         work_id, assignment_id = work_assignment_id
 
         assignment, self = cls._get_self_from_assignment_id(assignment_id)
@@ -497,7 +495,7 @@ class LTI1p1Provider(LTIProviderBase):
                 wd.deleted_work.assignment_id,
             ),
             pre_check=lambda wd: wd.was_latest and wd.new_latest is None,
-        )(cls._delete_subsmision)
+        )(cls._delete_submission)
 
         signals.GRADE_UPDATED.connect_celery(
             pre_check=lambda work: work.assignment.is_lti,

@@ -55,16 +55,16 @@ def create_lti_assignment(
         course=course,
         deadline=deadline,
         lti_assignment_id=str(uuid.uuid4()),
-        lti_outcome_service_url=str(uuid.uuid4()),
         is_lti=True,
     )
+    res.lti_grade_service_data = str(uuid.uuid4())
     res.set_state(state)
     session.add(res)
     session.commit()
     return res
 
 
-def create_lti_course(session, app, user):
+def create_lti_course(session, app, user=None):
     name = f'__NEW_LTI_COURSE__-{uuid.uuid4()}'
     key = list(app.config['LTI_CONSUMER_KEY_SECRETS'].keys())[0]
     lti_provider = m.LTI1p1Provider(key=key)
