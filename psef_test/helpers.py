@@ -8,8 +8,10 @@ import datetime
 from copy import deepcopy
 
 import pytest
+from flask import _app_ctx_stack as ctx_stack
 from werkzeug.local import LocalProxy
 
+import psef
 import psef.models as m
 from cg_dt_utils import DatetimeWithTimezone
 from psef.permissions import CoursePermission as CPerm
@@ -62,16 +64,28 @@ def create_lti_assignment(
     return res
 
 
-def create_lti_course(session, app):
+def create_lti_course(session, app, user):
     name = f'__NEW_LTI_COURSE__-{uuid.uuid4()}'
     key = list(app.config['LTI_CONSUMER_KEY_SECRETS'].keys())[0]
-    provider = m.LTIProvider(key=key)
-    assert provider is not None
-    c = m.Course.create_and_add(
-        name=name,
-        lti_provider=provider,
-        lti_course_id=str(uuid.uuid4()),
+    lti_provider = m.LTI1p1Provider(key=key)
+    assert lti_provider is not None
+
+    c = m.Course.create_and_add(name=name)
+
+    if user:
+        user = m.User.resolve(user)
+        user.courses[c.id] = m.CourseRole.query.filter_by(
+            course=c, name='Teacher'
+        ).one()
+
+    lti_context_id = str(uuid.uuid4())
+    m.CourseLTIProvider.create_and_add(
+        course=c,
+        lti_provider=lti_provider,
+        lti_context_id=lti_context_id,
+        deployment_id=lti_context_id,
     )
+
     session.commit()
     return c
 

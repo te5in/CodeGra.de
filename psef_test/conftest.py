@@ -844,3 +844,11 @@ def tomorrow():
 @pytest.fixture
 def yesterday():
     yield DatetimeWithTimezone.utcnow() - datetime.timedelta(days=1)
+
+
+@pytest.fixture
+def canvas_lti1p1_provider(session):
+    prov = m.LTI1p1Provider(key='canvas2')
+    session.add(prov)
+    session.commit()
+    yield prov
