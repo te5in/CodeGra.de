@@ -22,6 +22,8 @@ external_url = http://localhost:8080
 mirror_upload_dir = /tmp/psef/mirror_uploads
 upload_dir = /tmp/psef/uploads
 
+redis_cache_url = redis://localhost:6379/cg_cache
+
 [Celery]
 broker_url = redis://localhost:6379
 
