@@ -16,6 +16,9 @@ Version *Next*
 
 **Fixes**
 
+- Fix AutoTest result being in state "done" while it has steps that are in
+  state "waiting to be started" `(#1349)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1349>`__
 - Miscellaneous fixes:
   `(#1322) <https://github.com/CodeGra-de/CodeGra.de/pull/1322>`__,
   `(#1323) <https://github.com/CodeGra-de/CodeGra.de/pull/1323>`__,
@@ -27,7 +30,6 @@ Version *Next*
   `(#1331) <https://github.com/CodeGra-de/CodeGra.de/pull/1331>`__,
   `(#1332) <https://github.com/CodeGra-de/CodeGra.de/pull/1332>`__,
   `(#1333) <https://github.com/CodeGra-de/CodeGra.de/pull/1333>`__,
-  `(#1349) <https://github.com/CodeGra-de/CodeGra.de/pull/1349>`__,
   `(#1352) <https://github.com/CodeGra-de/CodeGra.de/pull/1352>`__.
 
 Version LowVoltage
