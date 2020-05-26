@@ -16,6 +16,10 @@ Version *Next*
 
 **Fixes**
 
+- Remove "Add filter" button from analytics dashboard
+  `(#1351) <https://github.com/CodeGra-de/CodeGra.de/pull/1351>`__.
+  The button was confusing when splitting a filter, and since there already is
+  another button to add new filters we removed it.
 - Miscellaneous fixes:
   `(#1322) <https://github.com/CodeGra-de/CodeGra.de/pull/1322>`__,
   `(#1323) <https://github.com/CodeGra-de/CodeGra.de/pull/1323>`__,
