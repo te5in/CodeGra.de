@@ -16,6 +16,9 @@ Version *Next*
 
 **Fixes**
 
+- Fix AutoTest result being in state "done" while it has steps that are in
+  state "waiting to be started" `(#1349)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1349>`__
 - Fix notification sorting order
   `(#1354) <https://github.com/CodeGra-de/CodeGra.de/pull/1354>`__. Unread
   notifications are now always sorted before read notifications.
