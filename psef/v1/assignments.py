@@ -318,7 +318,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         new_state = opt_get('state', str)
         new_name = opt_get('name', str)
         new_deadline = opt_get('deadline', str)
-        new_ignore = opt_get('new_ignore', (dict, list, str))
+        new_ignore = opt_get('ignore', (dict, list, str))
         new_max_grade = opt_get('max_grade', (float, int, type(None)))
         new_group_set_id = opt_get('group_set_id', (int, type(None)))
 
