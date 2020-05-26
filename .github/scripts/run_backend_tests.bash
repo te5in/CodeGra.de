@@ -68,10 +68,9 @@ rm "$(pwd)/psef_test/test_auto_test.py"
 timeout -k 900 900 \
         pytest --cov psef \
         --cov-append \
-        --postgresql="$BASE_DATABASE_URI" \
+        --postgresql="${BASE_DATABASE_URI}gw1" \
         --cov-report term-missing \
         "$(pwd)/psef_test/" \
-        -n 4 \
         -vvvv -x -s
 res3="$?"
 
