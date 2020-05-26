@@ -111,7 +111,7 @@ context('Analytics Dashboard', () => {
 
             cy.url().should('contain', `analytics=${myEncodeURI('{}')}`);
             cy.get('.analytics-filters')
-                .contains('.btn', 'Add filter')
+                .find('.icon-button.add-filter')
                 .click();
             cy.get('.analytics-filters .filter')
                 .should('have.length', 2);

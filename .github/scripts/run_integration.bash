@@ -33,6 +33,7 @@ auto_test = true
 course_register = true
 groups = true
 render_html = true
+email_students = true
 
 EOF
 
