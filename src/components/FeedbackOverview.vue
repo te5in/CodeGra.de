@@ -6,7 +6,8 @@
 
 <loader page-loader v-else-if="loading" />
 
-<div v-else-if="!canSeeFeedback" class="feedback-overview p-3 border rounded font-italic text-muted">
+<div v-else-if="!feedbackAvailable"
+     class="feedback-overview p-3 border rounded font-italic text-muted">
     The feedback is not yet available.
 </div>
 
@@ -171,7 +172,7 @@ export default {
         },
 
         feedback() {
-            return this.submission && this.submission.feedback;
+            return this.$utils.getProps(this.submission, {}, 'feedback');
         },
 
         fileIds() {
@@ -207,7 +208,15 @@ export default {
         },
 
         hasUserFeedback() {
-            return Object.keys(this.feedback.user).length > 0;
+            return !this.$utils.isEmpty(this.feedback.user);
+        },
+
+        hasFeedback() {
+            return this.feedback.general || this.hasUserFeedback;
+        },
+
+        feedbackAvailable() {
+            return this.canSeeFeedback || this.hasFeedback;
         },
     },
 
