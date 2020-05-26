@@ -43,7 +43,7 @@
                                 style="max-height: 70vh;"
                                 dropleft>
                         <template v-slot:button-content>
-                            <icon name="reply" />
+                            <icon name="snippet" />
                         </template>
 
                         <b-dropdown-group header="Search snippet" class="rounded-top">
