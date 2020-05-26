@@ -139,6 +139,13 @@ context('Submission page', () => {
             );
         }).then(res => {
             assignment = res;
+            // Create two submissions for the same user so we have a previous
+            // submission.
+            cy.createSubmission(
+                assignment.id,
+                'test_submissions/all_filetypes.zip',
+                { author: 'student1' },
+            );
             return cy.createSubmission(
                 assignment.id,
                 'test_submissions/all_filetypes.zip',
@@ -154,6 +161,26 @@ context('Submission page', () => {
         cy.server();
         cy.route('/api/v1/login?type=extended&with_permissions').as('getPermissionsRoute');
         login('admin', 'admin');
+    });
+
+    it('should be possible to reload the page on an old submission', () => {
+        login('student1', 'Student1');
+
+        // Go to previous submission.
+        cy.get('.submission-nav-bar')
+            .click();
+        cy.get('.submission-nav-bar .dropdown-menu .dropdown-item:nth(1)')
+            .click();
+        // Wait for it to be loaded.
+        cy.get('.file-viewer')
+            .should('be.visible');
+        // Reload the page.
+        cy.reload();
+        waitUntilLoaded();
+        // There should not be an infinite loader.
+        cy.get('.file-viewer')
+            .should('be.visible');
+        cy.visit(`/courses/${course.id}/assignments/${assignment.id}/submissions/${submission.id}`);
     });
 
     context('General feedback', () => {
