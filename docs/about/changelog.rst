@@ -16,6 +16,9 @@ Version *Next*
 
 **Fixes**
 
+- Fix notification sorting order
+  `(#1354) <https://github.com/CodeGra-de/CodeGra.de/pull/1354>`__. Unread
+  notifications are now always sorted before read notifications.
 - Miscellaneous fixes:
   `(#1322) <https://github.com/CodeGra-de/CodeGra.de/pull/1322>`__,
   `(#1323) <https://github.com/CodeGra-de/CodeGra.de/pull/1323>`__,
@@ -27,8 +30,7 @@ Version *Next*
   `(#1331) <https://github.com/CodeGra-de/CodeGra.de/pull/1331>`__,
   `(#1332) <https://github.com/CodeGra-de/CodeGra.de/pull/1332>`__,
   `(#1333) <https://github.com/CodeGra-de/CodeGra.de/pull/1333>`__,
-  `(#1352) <https://github.com/CodeGra-de/CodeGra.de/pull/1352>`__,
-  `(#1354) <https://github.com/CodeGra-de/CodeGra.de/pull/1354>`__.
+  `(#1352) <https://github.com/CodeGra-de/CodeGra.de/pull/1352>`__.
 
 Version LowVoltage
 -------------------
