@@ -27,7 +27,7 @@ from cg_dt_utils import DatetimeWithTimezone
 
 from .. import app, auth, models, helpers, features
 from ..models import db
-from ..helpers import register
+from ..helpers import register, try_for_every
 from .abstract import AbstractLTIConnector
 from ..exceptions import APICodes, APIWarnings, APIException
 
@@ -225,7 +225,8 @@ class LTIGlobalRole(LTIRole):
 
 T_LTI = t.TypeVar('T_LTI', bound='LTI')  # pylint: disable=invalid-name
 
-lti_classes: register.Register[str, t.Type['LTI']] = register.Register('LTIClasses')
+lti_classes: register.Register[str, t.
+                               Type['LTI']] = register.Register('LTIClasses')
 
 
 # TODO: This class has so many public methods as they are properties. A lot of
@@ -310,15 +311,10 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
         self = cls(launch_params, lti_provider)
         launch_params['custom_lms_name'] = lti_provider.lms_name
 
-        for secret in self.secrets:
-            try:
-                auth.ensure_valid_oauth(self.key, secret, req)
-            except Exception as e:
-                err = e
-            else:
-                break
-        else:
-            raise err
+        try_for_every(
+            reversed(self.secrets),
+            lambda secret: auth.ensure_valid_oauth(self.key, secret, req),
+        )
 
         return self
 

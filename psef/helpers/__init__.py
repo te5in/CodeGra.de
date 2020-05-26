@@ -15,6 +15,7 @@ import tempfile
 import threading
 import contextlib
 import subprocess
+import collections
 import urllib.parse
 import multiprocessing
 from operator import itemgetter
@@ -1856,10 +1857,56 @@ def maybe_unwrap_proxy(
     return found
 
 
-def deep_get(dictionary: t.Mapping[str, t.Any], keys: t.List[str], dflt: t.Any) -> t.Any:
+def deep_get(
+    dictionary: t.Mapping[str, t.Any], keys: t.List[str], dflt: t.Any
+) -> t.Any:
+    """Get the given keys from the given dictionary.
+
+    .. note::
+
+        This method destroys any type checking done by ``mypy``, if at all
+        possible not use this method please don't. This method really is not be
+        used with a literal value for ``keys``.
+
+    :param dictionary: The mapping from which you want to get the keys.
+    :param keys: The keys to get.
+    :param dflt: The value to return if one of the ``keys`` is not present in a
+        mapping, or if one of the intermediate values is not an instance of
+        :class:`.collections.Mapping`.
+
+    :returns: The found value or ``dflt``.
+    """
     val: t.Any = dictionary
     for key in keys:
-        if key not in val:
+        if not isinstance(val, collections.Mapping) or key not in val:
             return dflt
         val = val[key]
     return val
+
+
+def try_for_every(
+    options: t.Iterable[T],
+    fun: t.Callable[[T], object],
+    to_except: t.Type[Exception] = Exception
+) -> None:
+    """Try a function for multiple values until it passes.
+
+    :param options: The options to try.
+    :param fun: The function to call for every option.
+    :param to_except: The errors to except, by default all errors are excepted.
+
+    :returns: Nothing.
+    :raises Exception: If the given ``fun`` errors for every given option.
+    """
+    if not options:
+        return
+
+    for option in options:
+        try:
+            fun(option)
+        except to_except as e:  # pylint: disable=broad-except
+            err = e
+        else:
+            break
+    else:
+        raise err

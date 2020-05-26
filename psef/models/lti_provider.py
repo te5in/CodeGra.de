@@ -415,26 +415,25 @@ class LTI1p1Provider(LTIProviderBase):
             if sourcedid is None:  # pragma: no cover
                 continue
 
+            # Work around for https://github.com/python/mypy/issues/2608
+            _sourcedid = sourcedid
+            _service_url = service_url
+
             # The newest secret should be placed last in this list
-            for secret in reversed(self.secrets):
-                try:
-                    self.lti_class.passback_grade(
-                        key=self.key,
-                        secret=secret,
-                        grade=None if sub.deleted else sub.grade,
-                        initial=initial,
-                        service_url=service_url,
-                        sourcedid=sourcedid,
-                        lti_points_possible=sub.assignment.lti_points_possible,
-                        submission=sub,
-                        host=current_app.config['EXTERNAL_URL'],
-                    )
-                except Exception as e:  # pylint: disable=broad-except
-                    err = e
-                else:
-                    break
-            else:
-                raise err
+            psef.helpers.try_for_every(
+                reversed(self.secrets),
+                lambda secret: self.lti_class.passback_grade(
+                    key=self.key,
+                    secret=secret,
+                    grade=None if sub.deleted else sub.grade,
+                    initial=initial,
+                    service_url=_service_url,
+                    sourcedid=_sourcedid,
+                    lti_points_possible=sub.assignment.lti_points_possible,
+                    submission=sub,
+                    host=current_app.config['EXTERNAL_URL'],
+                ),
+            )
 
     @property
     def _lms_and_secrets(self) -> t.Tuple[str, t.List[str]]:

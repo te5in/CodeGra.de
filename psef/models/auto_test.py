@@ -1438,10 +1438,9 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         :param work: The work for which we should reset the work.
         :returns: Nothing.
         """
-        if self.run is None:
-            return
-
         run = self.run
+        assert run is not None, 'Cannot reset work on AutoTest without run'
+
         run_id = run.id
         result = AutoTestResult.get_results_by_user(work.user_id).filter_by(
             auto_test_run_id=run_id, work_id=work.id
