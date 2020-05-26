@@ -27,7 +27,7 @@ jobs:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
 
       - name: "Checkout code"
-        if: steps.check.outputs.triggered == 'false'
+        if: steps.ignore_changelog.outputs.triggered == 'false'
         uses: actions/checkout@v1
 
       - name: Check if changelog was updated
