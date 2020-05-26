@@ -8,7 +8,7 @@ import enum
 import typing as t
 from collections import OrderedDict
 
-if t.TYPE_CHECKING:
+if t.TYPE_CHECKING:  # pragma: no cover
     from ..models import Base
 
 T = t.TypeVar('T')  # pylint: disable=invalid-name

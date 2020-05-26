@@ -32,7 +32,7 @@ logger = structlog.get_logger()
 
 T = t.TypeVar('T')
 
-if t.TYPE_CHECKING:
+if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import
     from .lms_capabilities import LMSCapabilities
     from pylti1p3.message_launch import _JwtData, _LaunchData, _KeySet
