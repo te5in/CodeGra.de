@@ -192,3 +192,11 @@ export default {
     overflow-y: auto;
 }
 </style>
+
+<style lang="less">
+.sidebar-user-info {
+    .settings-content {
+        width: 100% !important;
+    }
+}
+</style>
