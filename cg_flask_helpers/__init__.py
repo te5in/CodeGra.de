@@ -48,10 +48,13 @@ def callback_after_this_request(
     else:
 
         warnings.warn('Running callback now as we are not in flask or celery')
-        logger.error('Running callback directly as we are not in flask/celery',
-                     report_to_sentry=True
+        logger.error(
+            'Running callback directly as we are not in flask/celery',
+            report_to_sentry=True
         )
         fun()
+
+        return lambda x: x
 
 
 class EmptyResponse(flask.Response):  # pylint: disable=too-many-ancestors
