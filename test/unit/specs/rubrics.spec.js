@@ -616,7 +616,7 @@ describe('The rubric store', () => {
                     id: 5,
                     work_id: 6,
                 })
-                atResult.updateExtended({ final_result: true, state: 'working' });
+                atResult.update({ final_result: true, state: 'working' });
 
                 expect(row.lockMessage(
                     null, atResult, null
@@ -630,7 +630,7 @@ describe('The rubric store', () => {
                     id: 5,
                     work_id: 6,
                 })
-                atResult.updateExtended({ final_result: true, state: 'passed' });
+                atResult.update({ final_result: true, state: 'passed' });
 
                 expect(row.lockMessage(
                     null, atResult, null
