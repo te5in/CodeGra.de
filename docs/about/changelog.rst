@@ -16,10 +16,16 @@ Version *Next*
 
 **Fixes**
 
+- Fix AutoTest result being in state "done" while it has steps that are in
+  state "waiting to be started" `(#1349)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1349>`__
 - Remove "Add filter" button from analytics dashboard
   `(#1351) <https://github.com/CodeGra-de/CodeGra.de/pull/1351>`__.
   The button was confusing when splitting a filter, and since there already is
   another button to add new filters we removed it.
+- Fix notification sorting order
+  `(#1354) <https://github.com/CodeGra-de/CodeGra.de/pull/1354>`__. Unread
+  notifications are now always sorted before read notifications.
 - Miscellaneous fixes:
   `(#1322) <https://github.com/CodeGra-de/CodeGra.de/pull/1322>`__,
   `(#1323) <https://github.com/CodeGra-de/CodeGra.de/pull/1323>`__,
@@ -31,7 +37,9 @@ Version *Next*
   `(#1331) <https://github.com/CodeGra-de/CodeGra.de/pull/1331>`__,
   `(#1332) <https://github.com/CodeGra-de/CodeGra.de/pull/1332>`__,
   `(#1333) <https://github.com/CodeGra-de/CodeGra.de/pull/1333>`__,
-  `(#1352) <https://github.com/CodeGra-de/CodeGra.de/pull/1352>`__.
+  `(#1352) <https://github.com/CodeGra-de/CodeGra.de/pull/1352>`__,
+  `(#1355) <https://github.com/CodeGra-de/CodeGra.de/pull/1355>`__,
+  `(#1356) <https://github.com/CodeGra-de/CodeGra.de/pull/1356>`__.
 
 Version LowVoltage
 -------------------

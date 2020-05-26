@@ -141,6 +141,9 @@ enum DefaultReceiver {
     },
 })
 export default class StudentContact extends Vue {
+    // When the user has no permission to search through the site users this
+    // will be a list of objects with only a `username` property. Otherwise
+    // it will be User models.
     @Prop({ required: true }) initialUsers!: ({ username: string } | models.User)[];
 
     @Prop({ required: true }) canUseSnippets!: boolean;
