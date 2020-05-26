@@ -39,7 +39,8 @@
 
                 <b-button v-if="canEmailStudents"
                           v-b-popover.top.hover="`Email the authors of the visible submissions`"
-                          v-b-modal.submissions-page-email-students-modal>
+                          v-b-modal.submissions-page-email-students-modal
+                          id="submissions-page-email-students-button">
                     <icon name="envelope"/>
                 </b-button>
 
@@ -626,7 +627,7 @@ export default {
             const seen = new Set();
             return this.filteredSubmissions.reduce((acc, s) => {
                 s.user.getContainedUsers().forEach(u => {
-                    if (seen.has(u.id)) {
+                    if (u.is_test_student || seen.has(u.id)) {
                         return;
                     }
 

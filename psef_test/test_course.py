@@ -1364,6 +1364,7 @@ def test_fail_conditions_email_course_members(
     with describe('setup'), logged_in(admin_user):
         course_id = helpers.get_id(create_course(test_client))
         other_course_id = helpers.get_id(create_course(test_client))
+        assig_id = helpers.get_id(create_assignment(test_client, course_id))
 
         mail_user = helpers.create_user_with_perms(
             session, [CPerm.can_email_students], course_id
@@ -1373,6 +1374,11 @@ def test_fail_conditions_email_course_members(
         u_wrong_course = helpers.create_user_with_perms(
             session, [], other_course_id
         )
+        test_user = create_submission(
+            test_client,
+            assig_id,
+            is_test_submission=True,
+        )['user']
 
         url = f'/api/v1/courses/{course_id}/email'
 
@@ -1534,6 +1540,20 @@ def test_fail_conditions_email_course_members(
         with logged_in(mail_user):
             test_client.req('get', f'/api/v1/task_results/{tr_id}', 200)
 
+    with describe('cannot send email to the test student'
+                  ), logged_in(mail_user):
+        test_client.req(
+            'post',
+            url,
+            400,
+            data={
+                'body': 'bo',
+                'email_all_users': False,
+                'subject': 'body',
+                'usernames': [test_user['username']],
+            },
+        )
+
 
 def test_successful_email_course_members(
     describe, logged_in, session, test_client, admin_user, stubmailer,
@@ -1541,12 +1561,21 @@ def test_successful_email_course_members(
 ):
     with describe('setup'), logged_in(admin_user):
         course_id = helpers.get_id(create_course(test_client))
+        assig_id = helpers.get_id(create_assignment(test_client, course_id))
 
         mail_user = helpers.create_user_with_perms(
             session, [CPerm.can_email_students], course_id
         )
         user1 = helpers.create_user_with_role(session, 'Student', course_id)
         user2 = helpers.create_user_with_role(session, 'Student', course_id)
+
+        # Create a test student. We don't need the user data as it should never
+        # be included in the task results.
+        create_submission(
+            test_client,
+            assig_id,
+            is_test_submission=True,
+        )
 
         url = f'/api/v1/courses/{course_id}/email'
         subject = f'SUBJECT: {uuid.uuid4()}'

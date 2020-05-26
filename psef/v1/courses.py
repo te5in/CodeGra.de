@@ -1155,6 +1155,15 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
                  ).with_entities(models.User).all()
     else:
         recipients = exceptions
+        # The test student cannot be a member of a group, so we do not need to
+        # run this on the expanded group members, and we also do not want to
+        # run it when `email_all_users` is true because in that case we let the
+        # DB handle it for us.
+        if any(r.is_test_student for r in recipients):
+            raise APIException(
+                'Cannot send an email to the test student',
+                'Test student was selected', APICodes.INVALID_PARAM, 400
+            )
 
     recipients = helpers.flatten(r.get_contained_users() for r in recipients)
 
