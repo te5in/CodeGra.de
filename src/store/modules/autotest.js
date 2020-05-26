@@ -508,6 +508,20 @@ const mutations = {
 
         // TODO: Why do we not just add the result to the store if it hasn't
         // been added yet?
+        //
+        // Answer: We can't simply insert it as a new result in the run because
+        // AutoTestRun.setResultById only updates the results list with the
+        // results for the latest submissions if a result with the same id is
+        // already present. Specifically, it will not update the latest result
+        // if it is given a new latest result. And it can't, because it would
+        // need to know the user id to determine this, but we do not have this
+        // information present in the results list.
+        //
+        // Once we get to a point where we can insert results that are not yet
+        // present in the store yet, we also do not have to get the entire AT
+        // run from the backend on the initial request in the AT result viewer
+        // on the submission page or in the modal on the manage assignment
+        // page.
         if (run == null || storeResult == null) {
             return;
         }
