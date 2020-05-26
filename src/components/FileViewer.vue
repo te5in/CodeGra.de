@@ -17,15 +17,25 @@
     <loader v-else-if="!dataAvailable"
             page-loader />
 
-    <b-alert v-else-if="forcedFileComponent != null"
-             show
-             dismissible
-             variant="warning"
-             class="mb-0 border-bottom rounded-bottom-0">
-        You are viewing the source of a file that can be rendered.
-        <a href="#" @click.capture.prevent.stop="forcedFileComponent = null">Click here</a>
-        to show the rendered version.
-    </b-alert>
+    <template v-else>
+        <b-alert v-if="forcedFileComponent != null"
+                 show
+                 dismissible
+                 variant="warning"
+                 class="mb-0 border-bottom rounded-bottom-0">
+            You are viewing the source of a file that can be rendered.
+            <a href="#" @click.capture.prevent.stop="forcedFileComponent = null">Click here</a>
+            to show the rendered version.
+        </b-alert>
+
+        <b-alert v-if="warning"
+                 show
+                 dismissible
+                 variant="warning"
+                 class="mb-0 rounded-0">
+            {{ warning }}
+        </b-alert>
+    </template>
 
     <div class="wrapper"
          :class="{ scroller: fileData && fileData.scroller }"
@@ -53,7 +63,8 @@
                        @force-viewer="setForcedFileComponent"
                        @load="onLoad"
                        @loading="onLoading"
-                       @error="onError" />
+                       @error="onError"
+                       @warning="onWarning" />
         </template>
     </div>
 </div>
@@ -120,6 +131,7 @@ export default {
         return {
             loading: true,
             error: '',
+            warning: '',
             forcedFileComponent: null,
             fileContent: undefined,
             loadingCode: false,
@@ -400,15 +412,23 @@ export default {
         },
 
         onError(err) {
+            this.setIfFileMatches('error', err);
+            this.loading = false;
+        },
+
+        onWarning(warning) {
+            this.setIfFileMatches('warning', warning);
+        },
+
+        setIfFileMatches(prop, err) {
             if (err.fileId) {
                 if (err.fileId !== this.fileId) {
                     return;
                 }
-                this.error = this.$utils.getErrorMessage(err.error);
+                this.$set(this, prop, this.$utils.getErrorMessage(err.error));
             } else {
-                this.error = this.$utils.getErrorMessage(err);
+                this.$set(this, prop, this.$utils.getErrorMessage(err));
             }
-            this.loading = false;
         },
 
         async setForcedFileComponent(fc) {
@@ -430,6 +450,11 @@ export default {
         showDiff(file) {
             return this.revision === 'diff' && file.ids && file.ids[0] !== file.ids[1];
         },
+    },
+
+    errorCaptured(error) {
+        this.onError(error);
+        return false;
     },
 
     components: {
