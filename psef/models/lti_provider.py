@@ -1533,6 +1533,7 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
             the poll the members.
         :param force: Always poll, even if
             :func:`CourseLTIProvider.can_poll_names_again` returns ``False``.
+
         :returns: The members as retrieved from the LMS.
         """
         if not force and not self.can_poll_names_again():
