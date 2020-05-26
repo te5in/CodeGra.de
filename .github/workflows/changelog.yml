@@ -1,0 +1,32 @@
+---
+name: "Changelog updated"
+
+on:
+  pull_request:
+    branches:
+      - master
+      - stable
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Look for ignore comment
+        uses: khan/pull-request-comment-trigger@master
+        id: ignore_changelog
+        with:
+          trigger: '!ignore changelog'
+          reaction: eyes
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+
+      - name: Found ignore comment
+        run: printf '%s\n' '${{ steps.ignore_changelog.outputs.triggered }}'
+
+      - name: "Checkout code"
+        if: steps.ignore_changelog.outputs.triggered == 'false'
+        uses: actions/checkout@v1
+
+      - name: Check if changelog was updated
+        if: steps.ignore_changelog.outputs.triggered == 'false'
+        run: ./.github/scripts/ensure_file_changed.sh docs/about/changelog.rst
