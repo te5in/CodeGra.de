@@ -95,6 +95,23 @@ New course snippets can be added by the teacher of a course on the
 
 .. note:: It is in most cases recommended to use a short keyword for the snippet.
 
+Course feedback
+~~~~~~~~~~~~~~~~~~
+While giving feedback it can be useful to see the feedback a student got for
+other assignments in the course. An overview of all feedback given in the
+course can be found in the ``Feedback`` tab on the right side of the page.
+
+The search field at the top can be used to filter on feedback. It searches
+through both authors of a comment, and the content of a comment. If you want
+a term in your query to match only on the author, prefix it with ``author:``.
+To match only the content of a comment, prefix it with ``comment:``.
+For example, ``author:Tim comment:include`` will only match comments written by
+Tim that contain the word ``include``.
+
+The filter searches through both general and inline feedback. To specifially
+search through the general feedback you can use the ``general:`` prefix.
+``inline:`` searches only through inline feedback.
+
 Rubrics
 ~~~~~~~~~
 If a rubric is available for the assignment it can be found under the :fa:`th` button.
