@@ -536,13 +536,11 @@ def session(app, db, use_transaction):
             psef.permissions.database_permissions_sanity_check(app)
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def monkeypatch_celery(app, monkeypatch):
-    psef.tasks.celery.conf.task_always_eager = True
-    psef.tasks.celery.conf.task_eager_propagates = True
+    monkeypatch.setattr(psef.tasks.celery.conf, 'task_always_eager', True)
+    monkeypatch.setattr(psef.tasks.celery.conf, 'task_eager_propagates', True)
     yield
-    psef.tasks.celery.conf.task_always_eager = False
-    psef.tasks.celery.conf.task_eager_propagates = False
 
 
 @pytest.fixture(params=['Programmeertalen'])
