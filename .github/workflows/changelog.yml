@@ -1,5 +1,5 @@
 ---
-name: "Changelog"
+name: "Changelog updated"
 
 on:
   pull_request:
