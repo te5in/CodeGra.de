@@ -6,17 +6,10 @@ on:
     branches:
       - master
       - stable
-  issue_comment:
-    types:
-      - created
-      - edited
 
 jobs:
   changelog:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.7]
     steps:
       - name: Look for ignore comment
         uses: khan/pull-request-comment-trigger@master
