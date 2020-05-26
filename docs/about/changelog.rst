@@ -14,6 +14,11 @@ Version *Next*
   after each match is configurable, and it is possible to export to a docx
   file.
 
+**Updates**
+
+- Use Bootstrap-Vue toasts instead of vue-toasted
+  `(#1319) <https://github.com/CodeGra-de/CodeGra.de/pull/1319>`__,
+
 **Fixes**
 
 - Miscellaneous fixes:
