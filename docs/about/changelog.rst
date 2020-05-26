@@ -8,6 +8,11 @@ Version *Next*
 
 **Features**
 
+- Course feedback `(#1342)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1335>`__. Adds an overview of
+  all the feedback a student received over an entire course. Teachers have
+  access to this overview on the submission page in the same location as the
+  file tree. For students there is an extra button on the submissions page.
 - Improve plagiarism document rendering `(#1335)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1335>`__. Matching blocks of
   code can now be rendered side by side, the amount of context lines before and
