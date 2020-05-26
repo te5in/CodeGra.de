@@ -26,6 +26,9 @@ jobs:
         env:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
 
+      - name: Found ignore comment
+        run: printf '%s\n' '${{ steps.ignore_changelog.outputs.triggered }}'
+
       - name: "Checkout code"
         if: steps.ignore_changelog.outputs.triggered == 'false'
         uses: actions/checkout@v1
