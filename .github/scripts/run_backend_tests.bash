@@ -54,14 +54,14 @@ pytest --cov cg_worker_pool \
        -vvvv
 res1="$?"
 
-timeout -k 600 600 \
-        pytest --cov psef \
-        --cov-append \
-        --postgresql="${BASE_DATABASE_URI}gw5" \
-        --cov-report term-missing \
-        "$(pwd)/psef_test/test_auto_test.py" \
-        -vvvv
-res2="$?"
+# timeout -k 600 600 \
+#         pytest --cov psef \
+#         --cov-append \
+#         --postgresql="${BASE_DATABASE_URI}gw5" \
+#         --cov-report term-missing \
+#         "$(pwd)/psef_test/test_auto_test.py" \
+#         -vvvv
+# res2="$?"
 
 rm "$(pwd)/psef_test/test_auto_test.py"
 
@@ -72,7 +72,7 @@ timeout -k 900 900 \
         --cov-report term-missing \
         "$(pwd)/psef_test/" \
         -n 4 \
-        -vvvv
+        -vvvv -x -s
 res3="$?"
 
 make doctest
