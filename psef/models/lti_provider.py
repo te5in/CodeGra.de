@@ -491,7 +491,16 @@ class LTI1p1Provider(LTIProviderBase):
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._passback_grades)
 
+        signals.WORK_DELETED.connect_celery(
+            converter=lambda wd: (
+                wd.deleted_work.id,
+                wd.deleted_work.assignment_id,
+            ),
+            pre_check=lambda wd: wd.was_latest and wd.new_latest is None,
+        )(cls._delete_subsmision)
+
         signals.GRADE_UPDATED.connect_celery(
+            pre_check=lambda work: work.assignment.is_lti,
             converter=lambda work: (
                 [work.id],
                 work.assignment_id,
@@ -500,23 +509,19 @@ class LTI1p1Provider(LTIProviderBase):
         )(cls._passback_grades)
 
         signals.ASSIGNMENT_STATE_CHANGED.connect_celery(
-            converter=lambda a:
-            ([w.id for w in a.get_all_latest_submissions()], a.id),
+            pre_check=lambda a: a.is_lti,
+            converter=lambda a: (
+                [w.id for w in a.get_all_latest_submissions()],
+                a.id,
+            ),
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._passback_grades)
 
         signals.WORK_CREATED.connect_celery(
-            converter=lambda w: (w.id, w.assignment_id),
+            pre_check=lambda work: work.assignment.is_lti,
+            converter=lambda work: (work.id, work.assignment_id),
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._create_submission_in_lms)
-
-        signals.WORK_DELETED.connect_celery(
-            converter=lambda wd: (
-                wd.deleted_work.id,
-                wd.deleted_work.assignment_id,
-            ),
-            pre_check=lambda wd: wd.was_latest and wd.new_latest is None,
-        )(cls._delete_subsmision)
 
 
 LTI1p1Provider.setup_signals()
@@ -1190,22 +1195,26 @@ class LTI1p3Provider(LTIProviderBase):
         cls._SIGNALS_SETUP = True
 
         signals.ASSIGNMENT_STATE_CHANGED.connect_celery(
+            pre_check=lambda a: a.is_lti,
             converter=lambda a: a.id,
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._passback_grades)
 
         signals.WORK_DELETED.connect_celery(
+            pre_check=lambda wd: wd.deleted_work.assignment.is_lti,
             converter=lambda wd: wd.deleted_work.id,
             task_args=_PASSBACK_CELERY_OPTS
         )(cls._delete_submission)
 
         signals.WORK_CREATED.connect_celery(
-            converter=lambda sub: (sub.id, sub.assignment_id),
+            pre_check=lambda work: work.assignment.is_lti,
+            converter=lambda work: (work.id, work.assignment_id),
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._passback_submission)
 
         signals.GRADE_UPDATED.connect_celery(
-            converter=lambda s: (s.id, s.assignment_id),
+            pre_check=lambda work: work.assignment.is_lti,
+            converter=lambda work: (work.id, work.assignment_id),
             task_args=_PASSBACK_CELERY_OPTS,
         )(cls._passback_submission)
 
@@ -1325,7 +1334,6 @@ class UserLTIProvider(Base, TimestampMixin):
 
         def _get_username(wanted: str = _wanted_username) -> str:
             return f'{wanted} ({i})' if i > 0 else wanted
-
 
         # Make sure we cannot have collisions, so simply lock this username for
         # the users while searching.
