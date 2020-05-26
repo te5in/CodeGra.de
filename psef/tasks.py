@@ -616,12 +616,6 @@ def _delete_file_at_time_1(
 
 
 @celery.task
-def _update_members_in_lti_course_1(course_id: int) -> None:
-    # TODO: Implement me!
-    pass
-
-
-@celery.task
 def _add_1(first: int, second: int) -> int:  # pragma: no cover
     """This function is used for testing if celery works. What it actually does
     is completely irrelevant.
@@ -810,7 +804,6 @@ kill_runners_and_adjust = _kill_runners_and_adjust_1.delay  # pylint: disable=in
 update_latest_results_in_broker = _update_latest_results_in_broker_1.delay  # pylint: disable=invalid-name
 clone_commit_as_submission = _clone_commit_as_submission_1.delay  # pylint: disable=invalid-name
 delete_file_at_time = _delete_file_at_time_1.delay  # pylint: disable=invalid-name
-update_members_in_lti_course = _update_members_in_lti_course_1.delay  # pylint: disable=invalid-name
 send_direct_notification_emails = _send_direct_notification_emails_1.delay  # pylint: disable=invalid-name
 send_email_as_user = _send_email_as_user_1.delay  # pylint: disable=invalid-name
 

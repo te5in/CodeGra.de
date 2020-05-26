@@ -406,30 +406,17 @@ class LTI1p1Provider(LTIProviderBase):
         assert isinstance(
             service_url, str
         ), f'Service url has unexpected value: {service_url}'
-        logger.info('Passing back submission with LTI 1.1', submission=sub)
 
         assig_results = sub.assignment.assignment_results
         for user in sub.get_all_authors():
-            if user.is_test_student:
-                continue
-            elif user.id not in assig_results:
-                logger.warning(
-                    'Found user submission without sourcedid',
-                    user_id=user.id,
-                    submission=sub,
-                )
+            if user.is_test_student or user.id not in assig_results:
                 continue
             sourcedid = assig_results[user.id].sourcedid
             if sourcedid is None:  # pragma: no cover
                 continue
-            logger.info('Passing back for user with LTI 1.1', submission=sub, user=user)
 
             # The newest secret should be placed last in this list
             for secret in reversed(self.secrets):
-                print()
-                print(secret)
-                print(self.lti_class)
-                print(self.lti_class._passback_grade)
                 try:
                     self.lti_class.passback_grade(
                         key=self.key,
@@ -496,7 +483,7 @@ class LTI1p1Provider(LTIProviderBase):
     def setup_signals(cls) -> None:
         """Setup the signals used by the LTI 1.1 providers.
         """
-        if cls._SIGNALS_SETUP:
+        if cls._SIGNALS_SETUP:  # pragma: no cover
             return
         cls._SIGNALS_SETUP = True
 
@@ -1219,7 +1206,7 @@ class LTI1p3Provider(LTIProviderBase):
     def setup_signals(cls) -> None:
         """Setup the signals used by the LTI 1.3 providers.
         """
-        if cls._SIGNALS_SETUP:
+        if cls._SIGNALS_SETUP:  # pragma: no cover
             return
         cls._SIGNALS_SETUP = True
 

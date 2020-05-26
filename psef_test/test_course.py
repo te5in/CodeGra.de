@@ -917,8 +917,8 @@ def test_searching_user_in_course(
     else:
         other_course = m.Course.create_and_add(name='Other course')
         session.flush()
-        other_course_teacher_role = m.CourseRole.query.filter_by(
-            course_id=other_course.id, name='Teacher'
+        other_course_teacher_role = m.CourseRole.get_by_name(
+            course=other_course, name='Teacher'
         ).one()
         teacher_user.courses[other_course.id] = other_course_teacher_role
         session.commit()

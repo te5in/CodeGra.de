@@ -1016,12 +1016,17 @@ def ensure_keys_in_dict(
                     f'{key} was of wrong type'
                     f' (should be a member of "{_get_type_name(check_type)}"'
                     f' (= {", ".join(it.name for it in check_type)})'
-                    f', was "{mapping[key]}")'
+                    f', was "{value}")'
                 )
                 type_wrong = True
         elif isinstance(check_type, register.Register):
             if value not in check_type:
-                missing.append('WRONG!')
+                missing.append(
+                    f'{key} was of wrong type'
+                    f' (should be a member of "{check_type}"'
+                    f' (= {", ".join(map(str, check_type.keys()))})'
+                    f', was "{value}")'
+                )
         elif (
             (not isinstance(value, check_type)) or
             (check_type == int and isinstance(value, bool))
