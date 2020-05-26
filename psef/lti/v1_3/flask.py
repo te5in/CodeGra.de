@@ -9,8 +9,6 @@ from pylti1p3.cookie import CookieService
 from pylti1p3.request import Request
 from pylti1p3.session import SessionService
 from pylti1p3.redirect import Redirect
-from typing_extensions import Literal
-from pylti1p3.launch_data_storage.base import LaunchDataStorage
 
 import flask
 import flask.sessions

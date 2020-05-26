@@ -702,7 +702,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         return self._deadline
 
     def _set_deadline(self, dt: t.Optional[DatetimeWithTimezone]) -> None:
-        if self._deadline != dt or True:
+        if self._deadline != dt:
             self._deadline = dt
             signals.ASSIGNMENT_DEADLINE_CHANGED.send(self)
 

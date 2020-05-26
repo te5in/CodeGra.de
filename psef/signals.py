@@ -57,14 +57,6 @@ class WorkDeletedData:
         """
         return self.deleted_work.assignment_id
 
-    @property
-    def user_id(self) -> int:
-        """The id of the user that was the author of the deleted work.
-
-        .. warning:: This user might be a group.
-        """
-        return self.deleted_work.user_id
-
 
 @dataclasses.dataclass(frozen=True)
 class UserToCourseData:
