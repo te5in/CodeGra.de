@@ -156,7 +156,7 @@ class Signal(t.Generic[T]):
             self._check_function_not_registered(fullname)
             task_name = (
                 f'{module}.{self.__name}'
-                f'.{self._get_fullname(callback)}.celery_task'
+                f'.{fullname}.celery_task'
             )
 
             def __celery_setup(celery: Celery) -> None:
