@@ -30,7 +30,7 @@ from typing_extensions import Literal
 import psef as p
 import cg_celery
 import cg_logger
-from cg_dt_utils import DatetimeWithTimezone, now
+from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.types import DbColumn
 
 logger = structlog.get_logger()

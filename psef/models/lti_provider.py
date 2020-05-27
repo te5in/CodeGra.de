@@ -419,21 +419,37 @@ class LTI1p1Provider(LTIProviderBase):
             _sourcedid = sourcedid
             _service_url = service_url
 
-            # The newest secret should be placed last in this list
-            psef.helpers.try_for_every(
-                reversed(self.secrets),
-                lambda secret: self.lti_class.passback_grade(
+            # We bind these values as kwargs so pylint doesn't complain about
+            # using names bound in a loop in a closure (as python ) will reuse
+            # the same name for every iteration, so:
+            #
+            # ```
+            # cbs = []
+            # for i in range(9): cbs.append(lambda: print(i))
+            # [cb() for cb in cbs()]
+            # ```
+            #
+            # Will print '9' nine times.
+            def try_passback(
+                secret: str,
+                *,
+                _sid: str = _sourcedid,
+                _surl: str = _service_url
+            ) -> None:
+                self.lti_class.passback_grade(
                     key=self.key,
                     secret=secret,
                     grade=None if sub.deleted else sub.grade,
                     initial=initial,
-                    service_url=_service_url,
-                    sourcedid=_sourcedid,
+                    service_url=_sid,
+                    sourcedid=_surl,
                     lti_points_possible=sub.assignment.lti_points_possible,
                     submission=sub,
                     host=current_app.config['EXTERNAL_URL'],
-                ),
-            )
+                )
+
+            # The newest secret should be placed last in this list
+            psef.helpers.try_for_every(reversed(self.secrets), try_passback)
 
     @property
     def _lms_and_secrets(self) -> t.Tuple[str, t.List[str]]:

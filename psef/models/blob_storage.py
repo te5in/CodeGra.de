@@ -11,8 +11,6 @@ import json as _json
 import typing as t
 import datetime
 
-from typing_extensions import Literal
-
 import psef
 import cg_cache.intra_request
 from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
