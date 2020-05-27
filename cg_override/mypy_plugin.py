@@ -32,13 +32,13 @@ def override_callback(ctx: FunctionContext) -> Type:
     return ret
 
 
-class CustomPlugin(Plugin):
+class CgOverridePlugin(Plugin):
     def get_function_hook(self, fullname: str):
-        # see explanation below
         if fullname == 'cg_override.override':
+            # We need to return a method that will be called later on by mypy
             return override_callback
 
 
 def plugin(version: str):
     # ignore version argument if the plugin works with all mypy versions.
-    return CustomPlugin
+    return CgOverridePlugin

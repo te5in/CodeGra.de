@@ -71,8 +71,6 @@ class Signal(t.Generic[T]):
         :param value: The value you want to emit.
         :returns: Nothing.
         """
-        logger.info('Sending signal', signal_name=self.__name)
-
         if self.__celery_todo:  # pragma: no cover
             raise AssertionError(
                 'The Signal still has uninitialized celery listeners'

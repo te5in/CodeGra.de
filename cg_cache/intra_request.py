@@ -21,17 +21,13 @@ def _set_g_vars() -> None:
     g.cache_hits = 0
     g.cg_function_cache = defaultdict(dict)
 
-
 def init_app(app: Flask) -> None:
     """Init the cache for the given app.
     """
-
     app.before_request(_set_g_vars)
-
-    @app.after_request
-    def __clear_caches(res: T) -> T:  # pylint: disable=unused-variable
-        g.cg_function_cache = defaultdict(dict)
-        return res
+    # Clear vars after request so that the values in ``cg_function_cache`` can
+    # be garbage collected.
+    app.after_request(_set_g_vars)
 
 
 _KWARGS_MARK = object()

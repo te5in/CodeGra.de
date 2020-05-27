@@ -1,4 +1,6 @@
 """A module containing an override decorator.
+
+SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 

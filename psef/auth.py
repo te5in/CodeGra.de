@@ -1130,7 +1130,7 @@ class TaskResultPermissions(PermissionChecker):
 class LTI1p3ProviderPermissions(GlobalPermissionChecker):
     """The permission checker for :class:`psef.models.LTI1p3Provider`.
     """
-    __slots__ = ('lti_provider', 'secret')
+    __slots__ = ('lti_provider', 'secret_is_correct')
 
     def __init__(
         self,
@@ -1139,10 +1139,12 @@ class LTI1p3ProviderPermissions(GlobalPermissionChecker):
         secret: str = None
     ) -> None:
         self.lti_provider: Final = lti_provider
-        self.secret: Final = secret
+        self.secret_is_correct: Final = (
+            secret == str(lti_provider.edit_secret)
+        )
 
     def _ensure_can_manage(self) -> None:
-        if self.secret == str(self.lti_provider.edit_secret):
+        if self.secret_is_correct:
             return
         self._ensure(GPerm.can_manage_lti_providers)
 

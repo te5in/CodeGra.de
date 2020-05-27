@@ -77,11 +77,6 @@ if t.TYPE_CHECKING:  # pragma: no cover
         ) -> t.Callable[[T], CeleryTask[T]]:
             ...
 
-        # @t.overload
-        # def task(self, **kwargs: t.Union[int, bool]
-        #          ) -> t.Callable[[T], CeleryTask[T]]:
-        #     ...
-
         def task(self, *args: object, **kwargs: object) -> t.Any:
             # `CeleryTask()` is returned here as this code is also executed
             # when generating the documentation.
