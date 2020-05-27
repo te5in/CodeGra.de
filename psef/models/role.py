@@ -242,6 +242,8 @@ class CourseRole(AbstractRole[CoursePermission], Base):
 
         # Mypy doesn't get the sqlalchemy magic
         self.course = course
+        if course.id:
+            self.course_id = course.id
         self.hidden = hidden
 
     def __to_json__(self) -> t.MutableMapping[str, t.Any]:

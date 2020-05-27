@@ -19,7 +19,8 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 import psef
 from cg_sqlalchemy_helpers import CIText, hybrid_property
 
-from . import UUID_LENGTH, Base, DbColumn, db, course, _MyQuery
+from . import UUID_LENGTH, Base, DbColumn, db
+from . import course as course_models
 from .. import signals
 from .role import Role, CourseRole
 from ..helpers import NotEqualMixin, validate, handle_none, maybe_unwrap_proxy
@@ -232,20 +233,46 @@ class User(NotEqualMixin, Base):
         return hash(self.id)
 
     @t.overload
-    def is_enrolled(self, c: 'course.Course') -> bool:
+    def is_enrolled(self, course: 'course_models.Course') -> bool:
         ...
 
     @t.overload
-    def is_enrolled(self, c: int) -> bool:
+    def is_enrolled(self, course: int) -> bool:
         ...
 
-    def is_enrolled(self, c: t.Union[int, 'course.Course']) -> bool:
-        if isinstance(c, course.Course):
-            c = c.id
+    def is_enrolled(
+        self, course: t.Union[int, 'course_models.Course']
+    ) -> bool:
+        """Check if a user is enrolled in the given course.
 
-        return not self.virtual and c in self.courses
+        :param course: The course to in which the user might be enrolled. This
+            can also be a course id for efficiency purposes (so you don't have
+            to load the entire course object).
+
+        :returns: If the user is enrolled in the given course. This is always
+                  ``False`` if this user is virtual.
+        """
+        if self.virtual:
+            return False
+        course_id = (
+            course.id if isinstance(course, course_models.Course) else course
+        )
+        return course_id in self.courses
 
     def enroll_in_course(self, *, course_role: CourseRole) -> None:
+        """Enroll this user in a course with the given ``course_role``.
+
+        :param course_role: The role the user should get in the new course.
+            This object already contains the information about the course, so
+            the user will be enrolled in the course connected to this role.
+
+        :returns: Nothing.
+        :raises AssertionError: If the user is already enrolled in the course.
+        """
+        assert not self.is_enrolled(
+            course_role.course_id,
+        ), 'User is already enrolled in the given course'
+
         signals.USER_ADDED_TO_COURSE.send(
             signals.UserToCourseData(user=self, course_role=course_role)
         )
@@ -310,7 +337,7 @@ class User(NotEqualMixin, Base):
 
     @t.overload
     def has_permission(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
-        self, permission: CoursePermission, course_id: t.Union[int, 'course.Course']
+        self, permission: CoursePermission, course_id: t.Union[int, 'course_models.Course']
     ) -> bool:
         ...  # pylint: disable=pointless-statement
 
@@ -324,29 +351,20 @@ class User(NotEqualMixin, Base):
     def has_permission(  # pylint: disable=function-redefined
         self,
         permission: t.Union[GlobalPermission, CoursePermission],
-        course_id: t.Union['course.Course', int, None] = None
+        course_id: t.Union['course_models.Course', int, None] = None
     ) -> bool:
         """Check whether this user has the specified global or course
-        :class:`.Permission`.
+            :class:`.Permission`.
 
         To check a course permission the course_id has to be set.
 
-        >>> user_without_role = User('', '', '', '', active=True)
-        >>> user_without_role.has_permission(
-        ...  GlobalPermission.can_edit_own_password
-        ... )
-        False
-        >>> user_without_role.has_permission(
-        ...  CoursePermission.can_submit_own_work, course_id=1
-        ... )
-        False
-
         :param permission: The permission or permission name
         :param course_id: The course or course id
+
         :returns: Whether the role has the permission or not
 
         :raises KeyError: If the permission parameter is a string and no
-                         permission with this name exists.
+            permission with this name exists.
         """
         if not self.active or self.virtual or self.is_test_student:
             return False
@@ -359,7 +377,7 @@ class User(NotEqualMixin, Base):
         else:
             assert isinstance(permission, CoursePermission)
 
-            if isinstance(course_id, course.Course):
+            if isinstance(course_id, course_models.Course):
                 course_id = course_id.id
 
             if course_id in self.courses:
@@ -405,7 +423,7 @@ class User(NotEqualMixin, Base):
         wanted_perms: t.Sequence[CoursePermission],
     ) -> t.Mapping[int, t.Mapping[CoursePermission, bool]]:
         """Check for specific :class:`.Permission`s in all courses
-        (:class:`.course.Course`) the user is enrolled in.
+        (:class:`.course_models.Course`) the user is enrolled in.
 
         Please note that passing an empty ``perms`` object is
         supported. However the resulting mapping will be empty.
@@ -521,9 +539,11 @@ class User(NotEqualMixin, Base):
 
     def has_course_permission_once(self, perm: CoursePermission) -> bool:
         """Check whether this user has the specified course
-        :class:`.Permission` in at least one enrolled :class:`.course.Course`.
+            :class:`.Permission` in at least one enrolled
+            :class:`.course_models.Course`.
 
         :param perm: The permission or permission name
+
         :returns: True if the user has the permission once
         """
         assert not self.virtual
@@ -553,33 +573,36 @@ class User(NotEqualMixin, Base):
     @t.overload
     def get_all_permissions(  # pylint: disable=function-redefined,missing-docstring,no-self-use,unused-argument
         self,
-        course_id: t.Union['course.Course', int],
+        course_id: t.Union['course_models.Course', int],
     ) -> t.Mapping[CoursePermission, bool]:
         ...  # pylint: disable=pointless-statement
 
     def get_all_permissions(  # pylint: disable=function-redefined
-        self, course_id: t.Union['course.Course', int, None] = None
+        self, course_id: t.Union['course_models.Course', int, None] = None
     ) -> t.Union[t.Mapping[CoursePermission, bool], t.
                  Mapping[GlobalPermission, bool]]:
         """Get all global permissions (:class:`.Permission`) of this user or
-        all course permissions of the user in a specific
-        :class:`.course.Course`.
+            all course permissions of the user in a specific
+            :class:`.course_models.Course`.
 
         >>> user_without_role = User('', '', '', '', active=True)
         >>> perms = user_without_role.get_all_permissions()
         >>> assert set(list(GlobalPermission)) == set(perms.keys())
-        >>> assert not any(perms.values())
+        >>> assert any(perms.values())
+        False
         >>> cperms = user_without_role.get_all_permissions(course_id=1)
-        >>> assert not any(perms.values())
+        >>> assert any(perms.values())
+        False
 
         :param course_id: The course or course id
+
         :returns: A name boolean mapping where the name is the name of the
                   permission and the value indicates if this user has this
                   permission.
         """
         assert not self.virtual
 
-        if isinstance(course_id, course.Course):
+        if isinstance(course_id, course_models.Course):
             course_id = course_id.id
 
         if course_id is None:
