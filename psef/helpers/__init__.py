@@ -1866,7 +1866,7 @@ def deep_get(
     .. note::
 
         This method destroys any type checking done by ``mypy``, if at all
-        possible not use this method please don't. This method really is not be
+        possible not use this method please don't. This method really is not meant to be
         used with a literal value for ``keys``.
 
     :param dictionary: The mapping from which you want to get the keys.
