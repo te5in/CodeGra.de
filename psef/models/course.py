@@ -12,7 +12,7 @@ import psef
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import mixins
 
-from . import UUID_LENGTH, Base, MyQuery, DbColumn, db
+from . import Base, MyQuery, DbColumn, db
 from .role import CourseRole
 from .user import User
 from .work import Work
@@ -20,7 +20,6 @@ from ..helpers import NotEqualMixin
 from .assignment import Assignment
 from .link_tables import user_course
 from ..permissions import CoursePermission
-from .lti_provider import LTI1p3Provider, LTIProviderBase
 
 logger = structlog.get_logger()
 
@@ -131,13 +130,11 @@ class Course(NotEqualMixin, Base):
     )
 
     @property
-    def lti_course_id(self) -> t.Optional[str]:
-        if self.course_lti_provider is None:
-            return None
-        return self.course_lti_provider.lti_course_id
-
-    @property
     def lti_provider(self) -> t.Optional['LTIProviderBase']:
+        """The LTI provider connected to this course.
+
+        If this is ``None`` the course is not an LTI course.
+        """
         if self.course_lti_provider is None:
             return None
         return self.course_lti_provider.lti_provider

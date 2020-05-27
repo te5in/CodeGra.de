@@ -476,8 +476,6 @@ def create_new_assignment(course_id: int) -> JSONResponse[models.Assignment]:
             f'The course "{course_id}" is a LTI course',
             APICodes.INVALID_STATE, 400
         )
-    else:
-        assert course.lti_course_id is None
 
     assig = models.Assignment(
         name=name,

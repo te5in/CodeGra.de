@@ -18,7 +18,7 @@ from mypy_extensions import TypedDict
 from typing_extensions import Protocol
 
 import psef.files
-from psef import app, tasks, current_user
+from psef import app, current_user
 from cg_sqlalchemy_helpers.types import ColumnProxy
 
 from . import api

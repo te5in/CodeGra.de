@@ -29,9 +29,7 @@ from psef.helpers import (
     jsonify, add_warning, ensure_json_dict, extended_jsonify,
     ensure_keys_in_dict, make_empty_response, get_from_map_transaction
 )
-from psef.exceptions import (
-    APICodes, APIWarnings, APIException, InvalidAssignmentState
-)
+from psef.exceptions import APICodes, APIWarnings, APIException
 
 from . import api
 from .. import (
@@ -815,7 +813,7 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
     author = assig.get_author_handing_in(request.args)
 
     try:
-        raise_or_delete = psef.ignore.IgnoreHandling[request.args.get(
+        raise_or_delete = ignore.IgnoreHandling[request.args.get(
             'ignored_files',
             'keep',
         )]
