@@ -138,7 +138,7 @@ class Signal(t.Generic[T]):
         :param pre_check: Function that will be called **before** the task is
             dispatched. This makes it possible to reduce the amount of celery
             tasks dispatched. Return ``False`` to prevent a celery task from
-            being dispatched. Note that this function will called after the
+            being dispatched. Note that this function is called after the
             request, i.e. after the changes have been committed to the
             database.
         :param task_args: Extra arguments that will be passed to celery when
