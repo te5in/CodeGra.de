@@ -132,7 +132,7 @@ class Signal(t.Generic[T]):
     ) -> t.Callable[[t.Callable[[Z], Y]], t.Callable[[Z], Y]]:
         """Connect a method as celery task to this signal.
 
-        :param converter: Concert the input data to something we can serialize
+        :param converter: Convert the input data to something we can serialize
             for celery. This function should return something that can be
             serialized to JSON.
         :param pre_check: Function that will be called **before** the task is
