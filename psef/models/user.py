@@ -585,15 +585,6 @@ class User(NotEqualMixin, Base):
             all course permissions of the user in a specific
             :class:`.course_models.Course`.
 
-        >>> user_without_role = User('', '', '', '', active=True)
-        >>> perms = user_without_role.get_all_permissions()
-        >>> assert set(list(GlobalPermission)) == set(perms.keys())
-        >>> assert any(perms.values())
-        False
-        >>> cperms = user_without_role.get_all_permissions(course_id=1)
-        >>> assert any(perms.values())
-        False
-
         :param course_id: The course or course id
 
         :returns: A name boolean mapping where the name is the name of the

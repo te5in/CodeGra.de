@@ -13,6 +13,19 @@ def test_user_has_permission():
     )
 
 
+def test_get_all_permissions(describe):
+    with describe('Users without role should have no permissions'):
+        user_without_role = User('', '', '', '', active=True)
+
+        perms = user_without_role.get_all_permissions()
+
+        assert set(list(GlobalPermission)) == set(perms.keys())
+        assert not any(perms.values())
+
+        cperms = user_without_role.get_all_permissions(course_id=1)
+        assert not any(cperms.values())
+
+
 def test_user_is_enrolled():
     user = User('', '', '', '', active=True)
     assert not user.virtual
