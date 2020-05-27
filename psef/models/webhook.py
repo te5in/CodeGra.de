@@ -20,7 +20,7 @@ import psef
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 
-from . import Base, User, MyQuery, Assignment, db
+from . import Base, User, Assignment, db
 from .. import auth, exceptions
 from ..registry import webhook_handlers
 from ..exceptions import APICodes, APIException

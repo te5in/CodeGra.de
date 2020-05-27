@@ -20,7 +20,7 @@ from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.types import DbType, ColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
-from . import Base, db, _MyQuery
+from . import Base, db
 from .. import auth, helpers, exceptions
 from ..helpers import (
     JSONType, between, ensure_json_dict, get_from_map_transaction

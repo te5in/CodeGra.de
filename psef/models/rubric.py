@@ -15,9 +15,8 @@ from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import hybrid_property, hybrid_expression
 from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy
 
-from . import Base, DbColumn, db
+from . import Base, db
 from . import work as work_models
-from . import _MyQuery
 from .. import helpers
 from ..registry import rubric_row_types
 from ..exceptions import APICodes, APIException

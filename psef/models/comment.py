@@ -22,7 +22,6 @@ from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 from . import Base, db
 from . import file as file_models
 from . import user as user_models
-from . import _MyQuery
 from . import notification as n_models
 from .. import auth, db_locks, current_app, current_user
 

@@ -18,12 +18,13 @@ from sqlalchemy_utils import UUIDType
 import psef
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import hybrid_property
-from cg_sqlalchemy_helpers.types import ColumnProxy, ImmutableColumnProxy
+from cg_sqlalchemy_helpers.types import (
+    MyQuery, ColumnProxy, ImmutableColumnProxy
+)
 from cg_sqlalchemy_helpers.mixins import TimestampMixin
 
 from . import Base, db
 from . import work as work_models
-from . import _MyQuery
 from .. import auth, helpers
 from ..exceptions import APICodes, APIException
 from ..permissions import CoursePermission
@@ -283,7 +284,7 @@ class File(NestedFileMixin[int], Base):
     parent_id = db.Column('parent_id', db.Integer, db.ForeignKey('File.id'))
 
     # This variable is generated from the backref from the parent
-    children: '_MyQuery["File"]'
+    children: MyQuery["File"]
 
     parent = db.relationship(
         lambda: File,
@@ -567,7 +568,7 @@ class AutoTestOutputFile(Base, NestedFileMixin[uuid.UUID], TimestampMixin):
     )
 
     # This variable is generated from the backref from the parent
-    children: '_MyQuery["AutoTestOutputFile"]'
+    children: MyQuery["AutoTestOutputFile"]
 
     parent = db.relationship(
         lambda: psef.models.AutoTestOutputFile,

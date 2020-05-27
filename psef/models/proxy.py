@@ -14,9 +14,7 @@ from sqlalchemy_utils import UUIDType
 from cg_cache.intra_request import cache_within_request
 from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 
-from . import (
-    Base, File, MyQuery, FileOwner, NestedFileMixin, AutoTestOutputFile, db
-)
+from . import Base, File, FileOwner, NestedFileMixin, AutoTestOutputFile, db
 from .. import app, helpers
 from ..exceptions import APICodes, APIException
 

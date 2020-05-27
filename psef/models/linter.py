@@ -13,7 +13,6 @@ import psef
 
 from . import UUID_LENGTH, Base, db
 from . import file as file_models
-from . import _MyQuery
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     # pylint: disable=unused-import
