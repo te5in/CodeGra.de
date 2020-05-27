@@ -2,16 +2,31 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import uuid
 import typing as t
 from functools import wraps
 from collections import defaultdict
 
 import structlog
 from flask import Flask, g
+from typing_extensions import Protocol
+
+from cg_sqlalchemy_helpers.types import ColumnProxy
+
+
+class ObjectWithId(Protocol):
+    id: ColumnProxy[uuid.UUID]
+
 
 T = t.TypeVar('T', bound=t.Callable)
+T_OBJECT_WITH_ID = t.TypeVar('T_OBJECT_WITH_ID', bound=ObjectWithId)  # pylint: disable=invalid-name
 Y = t.TypeVar('Y')
 Z = t.TypeVar('Z')
+
+
+def _get_id_of_object(obj: T_OBJECT_WITH_ID) -> t.Tuple[uuid.UUID]:
+    return (obj.id, )
+
 
 logger = structlog.get_logger()
 
@@ -21,13 +36,19 @@ def _set_g_vars() -> None:
     g.cache_hits = 0
     g.cg_function_cache = defaultdict(dict)
 
+
+def _clear_g_vars(value: Y) -> Y:
+    _set_g_vars()
+    return value
+
+
 def init_app(app: Flask) -> None:
     """Init the cache for the given app.
     """
     app.before_request(_set_g_vars)
     # Clear vars after request so that the values in ``cg_function_cache`` can
     # be garbage collected.
-    app.after_request(_set_g_vars)
+    app.after_request(_clear_g_vars)
 
 
 _KWARGS_MARK = object()
@@ -90,6 +111,7 @@ def cache_within_request_make_key(
 
     :param make_key: The method that should return the key used for caching.
     """
+
     def __wrapper(fun: t.Callable[[Y], Z]) -> t.Callable[[Y], Z]:
         master_key = object()
 
@@ -136,3 +158,12 @@ def cache_within_request(f: T) -> T:
     __decorated.clear_cache = clear_cache  # type: ignore
 
     return t.cast(T, __decorated)
+
+
+def cache_for_object_id(f: t.Callable[[T_OBJECT_WITH_ID], Y]
+                        ) -> t.Callable[[T_OBJECT_WITH_ID], Y]:
+    """Cache a method of an SQLAlchemy object using its ``id`` as key.
+
+    For now it is only possible to cache methods that take no arguments.
+    """
+    return cache_within_request_make_key(_get_id_of_object)(f)

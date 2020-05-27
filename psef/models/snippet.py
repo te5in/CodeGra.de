@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 import typing as t
 
-from . import Base, db, _MyQuery
+from . import Base, db
 from .user import User
 
 

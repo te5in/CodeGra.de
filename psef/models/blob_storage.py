@@ -14,6 +14,7 @@ import datetime
 from typing_extensions import Literal
 
 import psef
+import cg_cache.intra_request
 from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 
 from . import Base, db
@@ -37,9 +38,6 @@ class BlobStorage(Base, UUIDMixin, TimestampMixin):
     def __init__(
         self, *, data: bytes = None, json: 'psef.helpers.JSONType' = None
     ) -> None:
-        self._parsed_json: t.Union[Literal[psef.helpers.UnsetType.token],
-                                   'psef.helpers.JSONType',
-                                   ] = psef.helpers.UNSET
         if data is None:
             assert json is not None
             data = _json.dumps(json).encode('utf8')
@@ -47,13 +45,18 @@ class BlobStorage(Base, UUIDMixin, TimestampMixin):
 
     @property
     def age(self) -> datetime.timedelta:
+        """Get the age of this blob storage.
+        """
         return psef.helpers.get_request_start_time() - self.created_at
 
+    @cg_cache.intra_request.cache_for_object_id
     def as_json(self) -> 'psef.helpers.JSONType':
-        # If the model is loaded from the database the `__init__` method is not
-        # called, so the `_parsed_json` attribute doesn't exist at this point.
-        unset = psef.helpers.UNSET
-        if getattr(self, '_parsed_json', unset) is unset:
-            self._parsed_json = _json.loads(self.data.decode('utf8'))
-        # Mypy doesn't understand the magic with `getattr` above
-        return t.cast(t.Any, self._parsed_json)
+        """Get the json data from this blob parsed and ready to go.
+
+        This method caches the parsing of the json, so it will be more
+        efficient than manually parsing the data of this blob multiple times.
+        However, be careful when changing the ``data`` attribute of the class,
+        we will not detect it and the value returned by this method will be
+        incorrect.
+        """
+        return _json.loads(self.data.decode('utf8'))
