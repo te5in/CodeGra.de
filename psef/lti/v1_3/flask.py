@@ -1,3 +1,18 @@
+"""This module implements the needed abstract connector classes for
+    ``pylti1p3``.
+
+The main library we use for LTI 1.3 (:mod:`.pylti1p3`) abstracts the
+web-framework used away using classes that have to implement specific
+functionality, such as access to cookies. This file implements these methods
+for ``flask``, as used by :mod:`.psef`.
+
+This file predates the implementation of the contrib module in ``pylti1p3`` for
+``flask``, which now exists. However, this module implements these classes
+different than ``pylti1p3`` does, and we depend on this behavior in quite some
+locations.
+
+SPDX-License-Identifier: AGPL-3.0-only
+"""
 import json
 import typing as t
 from datetime import timedelta
@@ -21,6 +36,11 @@ TEST_COOKIE_NAME = 'CG_TEST_COOKIE'
 
 
 class FlaskRequest(Request):
+    """Implements a pylti1p3 :class:`.Request` for flask.
+
+    This class gets all its information from the global flask ``request``
+    object. So creating multiple is really useless.
+    """
     def __init__(self, *, force_post: bool) -> None:
         self._force_post = force_post
 
@@ -39,7 +59,12 @@ class FlaskRequest(Request):
 
 
 class FlaskSessionService(SessionService):
-    def __init__(self, request: FlaskRequest) -> None:
+    """Implements the :class:`.SessionService` for flask.
+    """
+
+    # This delegation is not useless it used for mypy to make sure we only
+    # allow ``FlaskRequest`` objects to given as argument.
+    def __init__(self, request: FlaskRequest) -> None:  # pylint: disable=useless-super-delegation
         super().__init__(request)
 
     def _get_key(
@@ -50,12 +75,12 @@ class FlaskSessionService(SessionService):
         return f'{prefix}{key}{nonce}'
 
     def get_launch_data(self, key: str) -> t.Dict[str, object]:
-        return self.data_storage.get_value(self._get_key(key))
+        assert False, 'We never want to save the launch data in the session'
 
     def save_launch_data(
         self, key: str, jwt_body: t.Dict[str, object]
     ) -> None:
-        self.data_storage.set_value(self._get_key(key), jwt_body)
+        assert False, 'We never want to save the launch data in the session'
 
     def save_nonce(self, nonce: str) -> None:
         flask.session[self._get_key('lti-nonce')] = nonce
@@ -85,6 +110,9 @@ class FlaskSessionService(SessionService):
 
 
 class FlaskCookieService(CookieService):
+    """The implementation for the :class:`.CookieService` for flask.
+    """
+
     @dataclass
     class _CookieData:
         key: str
@@ -104,13 +132,27 @@ class FlaskCookieService(CookieService):
         return flask.request.cookies.get(self._get_key(name))
 
     def clear_cookie(self, name: str) -> None:
-        self._cookie_data_to_set.append(FlaskCookieService._CookieData(
-            key=self._get_key(name),
-            value='',
-            exp=DatetimeWithTimezone.utcfromtimestamp(0),
-        ))
+        self._cookie_data_to_set.append(
+            FlaskCookieService._CookieData(
+                key=self._get_key(name),
+                value='',
+                exp=DatetimeWithTimezone.utcfromtimestamp(0),
+            )
+        )
 
     def set_cookie(self, name: str, value: str, exp: int = 60) -> None:
+        """Set a cookie named ``name`` to the given ``value``.
+
+        This doesn't actually set the cookie yet, you seed to use
+        :meth:`.CookieService.update_response` to actually set the cookies on a
+        response.
+
+        :param name: The name of the cookie to set.
+        :param value: The value of the cookie.
+        :param exp: The expiration date of the cookie in seconds.
+
+        :returns: Nothing.
+        """
         self._cookie_data_to_set.append(
             FlaskCookieService._CookieData(
                 key=self._get_key(name),
@@ -122,6 +164,14 @@ class FlaskCookieService(CookieService):
     def update_response(
         self, response: werkzeug.wrappers.Response
     ) -> werkzeug.wrappers.Response:
+        """Update the given ``response`` to actually set the cookies set by
+            this instance.
+
+        :param response: The response to update. This response will be mutated.
+
+        :returns: The same response as given, but now updated with the cookies
+                  that need to be set.
+        """
         for cookie_data in self._cookie_data_to_set:
             logger.info('Setting cookie', cookie=cookie_data)
             response.set_cookie(
@@ -137,6 +187,13 @@ class FlaskCookieService(CookieService):
 
 
 class FlaskRedirect(Redirect[werkzeug.wrappers.Response]):
+    """This implements the :class:`.Redirect` class for flask.
+
+    This sets all the cookies set by the cookie service before redirecting, as
+    this needs to be done on the response object in flask, to which the
+    :class:`.FlaskCookieService` has no access.
+    """
+
     def __init__(
         self,
         location: str,
