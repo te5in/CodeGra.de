@@ -60,7 +60,7 @@ T_CONTRA = t.TypeVar('T_CONTRA', contravariant=True)  # pylint: disable=invalid-
 T_STOP_THREAD = t.TypeVar('T_STOP_THREAD', bound='StoppableThread')  # pylint: disable=invalid-name
 T_CAL = t.TypeVar('T_CAL', bound=t.Callable)  # pylint: disable=invalid-name
 TT = t.TypeVar('TT')
-K = t.TypeVar('K')
+K = t.TypeVar('K')  # pylint: disable=invalid-name
 TTT = t.TypeVar('TTT', bound='IsInstanceType')
 ZZ = t.TypeVar('ZZ')
 Z = t.TypeVar('Z', bound='Comparable')
@@ -1769,7 +1769,8 @@ def contains_duplicate(it_to_check: t.Iterable[T_Hashable]) -> bool:
     return False
 
 
-def chunkify(it: t.Iterable[T], chunk_size: int) -> t.Iterable[t.List[T]]:
+def chunkify(iterable: t.Iterable[T],
+             chunk_size: int) -> t.Iterable[t.List[T]]:
     """Chunkify the given iterable with chunks of size ``chunk_size``.
 
     >>> list(chunkify(range(5), 2))
@@ -1779,11 +1780,11 @@ def chunkify(it: t.Iterable[T], chunk_size: int) -> t.Iterable[t.List[T]]:
     >>> list(chunkify([], 2))
     []
 
-    :param it: The iterable to chunkify.
+    :param iterable: The iterable to chunkify.
     :param chunk_size: The size of the chunks.
     """
     cur = []
-    for item in it:
+    for item in iterable:
         cur.append(item)
         if len(cur) == chunk_size:
             yield cur
