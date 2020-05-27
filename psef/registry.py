@@ -26,11 +26,11 @@ auto_test_grade_calculators = Register[str, 'GradeCalculator'](
     'AutoTestGradeCalculators'
 )
 
-webhook_handlers = TableRegister[str, t.Type['WebhookBase']]('WebhookHandlers')
+webhook_handlers = TableRegister[t.Type['WebhookBase']]('WebhookHandlers')
 
 rubric_row_types = Register[str, t.Type['RubricRowBase']]('RubricRowTypes')
 
-lti_provider_handlers = TableRegister[str, t.Type['LTIProviderBase']](
+lti_provider_handlers = TableRegister[t.Type['LTIProviderBase']](
     'LTIProviderHandlers'
 )
 
