@@ -1,3 +1,5 @@
+import uuid
+
 from psef import models as m
 from psef.models.user import User
 from psef.permissions import CoursePermission, GlobalPermission
@@ -48,3 +50,32 @@ def test_user_is_enrolled():
     assert not user.is_enrolled(5)
     # But the connection still exists
     assert course.id in user.courses
+
+
+def test_is_global_admin_user(app, monkeypatch):
+    random_part = str(uuid.uuid4())
+    username = f'username_{random_part}_1'
+    user = User('', '', '', username, active=True)
+
+    assert not user.is_global_admin_user
+
+    monkeypatch.setitem(app.config, 'ADMIN_USER', username)
+
+    # User is not in db so still False
+    assert not user.is_global_admin_user
+
+    user.id = 5
+    assert user.is_global_admin_user
+
+    monkeypatch.setitem(app.config, 'ADMIN_USER', f'username_{random_part}')
+    # Should not match on some sort of prefix
+    assert not user.is_global_admin_user
+
+    monkeypatch.setitem(app.config, 'ADMIN_USER', '')
+    user._username = ''
+    # Should never be true for empty usernames
+    assert not user.is_global_admin_user
+
+    monkeypatch.setitem(app.config, 'ADMIN_USER', '1')
+    user._username = '1'
+    assert user.is_global_admin_user

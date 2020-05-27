@@ -670,6 +670,17 @@ class User(NotEqualMixin, Base):
         self.reset_token = None
 
     @property
+    def is_global_admin_user(self) -> bool:
+        """Is this the global administrator of the site.
+
+        This can only ever be ``True`` for users flushed to the database.
+        """
+        if self.id is None:
+            return False
+        global_admin_username = psef.app.config['ADMIN_USER']
+        return global_admin_username and self.username == global_admin_username
+
+    @property
     def is_active(self) -> bool:
         """Is the current user an active user.
 

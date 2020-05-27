@@ -1405,7 +1405,11 @@ class UserLTIProvider(Base, TimestampMixin):
             returned if the current user is not the resulting user).
         """
         current_user = psef.current_user
-        is_logged_in = auth.user_active(current_user)
+        is_logged_in = (
+            auth.user_active(current_user) and
+            # Never connect the global admin user to an LTI course
+            not current_user.is_global_admin_user
+        )
         token = None
         user = None
 
