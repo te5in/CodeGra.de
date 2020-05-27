@@ -164,6 +164,10 @@ class CoursePermissionChecker(PermissionChecker):
 
 
 class GlobalPermissionChecker(PermissionChecker):
+    """The base permission checker class for permissions related to a users
+        global role.
+    """
+
     def _ensure(self, perm: GPerm) -> None:
         ensure_permission(perm, user=self.user)
 
@@ -1124,7 +1128,9 @@ class TaskResultPermissions(PermissionChecker):
 
 
 class LTI1p3ProviderPermissions(GlobalPermissionChecker):
-    __slots__ = ('lti_provider', )
+    """The permission checker for :class:`psef.models.LTI1p3Provider`.
+    """
+    __slots__ = ('lti_provider', 'secret')
 
     def __init__(
         self,
@@ -1142,15 +1148,32 @@ class LTI1p3ProviderPermissions(GlobalPermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_add(self) -> None:
-        self._ensure_can_manage()
+        """Check if the current user may add this lti provider.
+        """
+        # You don' thave the permission to add based on a passed secret.
+        self._ensure(GPerm.can_manage_lti_providers)
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see(self) -> None:
+        """Check if the current user may see this lti provider.
+        """
         self._ensure_can_manage()
 
     @PermissionChecker.as_ensure_function
     def ensure_may_edit(self) -> None:
+        """Check if the current user may edit this lti provider.
+        """
         self._ensure_can_manage()
+        if self.lti_provider.is_finalized:
+            raise PermissionException(
+                (
+                    'You do not have the permission to edit this lti provider,'
+                    ' as it has already been finalized.'
+                ), (
+                    f'The LTI provider {self.lti_provider.id} has already been'
+                    ' finalized.'
+                ), APICodes.INCORRECT_PERMISSION, 403
+            )
 
 
 @login_required
