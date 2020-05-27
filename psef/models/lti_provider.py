@@ -1635,6 +1635,11 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
         based on the given ``roles_claim``, if the user is not already enrolled
         in the course.
 
+        .. todo::
+
+            Move this method to the LTI 1.3 implementation, as this only makes
+            sense when you have an LTI 1.3 roles claim.
+
         :param user: The user to possibly enrol in the course connected to this
             ``CourseLTIProvider``.
         :param roles_claim: The LTI1p3 roles claim that we should use to
@@ -1659,7 +1664,7 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
             return None
 
         unmapped_roles = psef.lti.v1_3.roles.ContextRole[
-            None].get_umapped_roles(roles_claim)
+            None].get_unmapped_roles(roles_claim)
 
         if unmapped_roles:
             logger.info(
@@ -1670,13 +1675,13 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
             base = 'Unmapped LTI Role ({})'
             for unmapped_role in unmapped_roles:
                 role = psef.models.CourseRole.get_by_name(
-                    self.course, base.format(unmapped_role.name)
+                    self.course, base.format(unmapped_role.stripped_name)
                 ).one_or_none()
                 if role:
                     user.enroll_in_course(course_role=role)
                     return None
 
-            new_role_name = base.format(unmapped_roles[0].name)
+            new_role_name = base.format(unmapped_roles[0].stripped_name)
         else:
             base = 'New LTI Role'
             for idx in range(sys.maxsize):
