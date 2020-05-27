@@ -327,14 +327,12 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         new_cool_off_period = opt_get('cool_off_period', (int, float))
         new_amount_cool_off = opt_get('amount_in_cool_off_period', int)
 
-    lti_provider: t.Optional[models.LTIProviderBase]
+    lti_provider = assig.course.lti_provider
     lms_name: t.Optional[str]
 
-    if assig.course.lti_provider is not None:
-        lti_provider = assig.course.lti_provider
+    if lti_provider is not None:
         lms_name = lti_provider.lms_name
     else:
-        lti_provider = None
         lms_name = None
 
     if new_state is not MISSING:

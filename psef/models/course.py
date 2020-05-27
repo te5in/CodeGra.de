@@ -130,7 +130,7 @@ class Course(NotEqualMixin, Base):
     )
 
     @property
-    def lti_provider(self) -> t.Optional['LTIProviderBase']:
+    def lti_provider(self) -> t.Optional['psef.models.LTIProviderBase']:
         """The LTI provider connected to this course.
 
         If this is ``None`` the course is not an LTI course.

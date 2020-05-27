@@ -676,9 +676,12 @@ class User(NotEqualMixin, Base):
         This can only ever be ``True`` for users flushed to the database.
         """
         if self.id is None:
-            return False
+            return False  # type: ignore[unreachable]
         global_admin_username = psef.app.config['ADMIN_USER']
-        return global_admin_username and self.username == global_admin_username
+        return (
+            bool(global_admin_username) and
+            (self.username == global_admin_username)
+        )
 
     @property
     def is_active(self) -> bool:
