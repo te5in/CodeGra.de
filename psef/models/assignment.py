@@ -773,6 +773,16 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         self._cgignore = json.dumps(val.export())
 
     def update_cgignore(self, version: str, data: 'helpers.JSONType') -> None:
+        """Update the cgignore file of this assignment.
+
+        :param version: The type of cgignore file to use. This should be
+            registered with ``psef.ignore.filter_handlers``.
+        :param data: The data to use for the cgignore, this should be
+            compatible for the given ``version``.
+
+        :raises APIException: If the ``version`` is unknown or if the ``data``
+            is unsupported for the given ``version``.
+        """
         filter_type = ignore.filter_handlers.get(version)
         if filter_type is None:
             raise APIException(
