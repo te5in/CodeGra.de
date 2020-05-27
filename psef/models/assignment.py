@@ -18,7 +18,6 @@ import sqlalchemy
 from sqlalchemy.orm import validates
 from mypy_extensions import DefaultArg
 from sqlalchemy.types import JSON
-from pylti1p3.lineitem import LineItem
 from typing_extensions import TypedDict
 from sqlalchemy.sql.expression import and_, func
 from sqlalchemy.orm.collections import attribute_mapped_collection
@@ -27,10 +26,10 @@ import psef
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.types import (
     _T_BASE, MyQuery, DbColumn, ColumnProxy, MyNonOrderableQuery,
-    hybrid_property, hybrid_expression
+    hybrid_property
 )
 
-from . import UUID_LENGTH, Base, DbColumn, db
+from . import UUID_LENGTH, Base, db
 from . import user as user_models
 from . import work as work_models
 from . import course as course_models
@@ -80,7 +79,8 @@ class AssignmentJSON(TypedDict, total=True):
     course: 'course_models.Course'  # Course of this assignment.
     cgignore: t.Optional['psef.helpers.JSONType']  # The cginore.
     cgignore_version: t.Optional[str]
-    whitespace_linter: bool  # Has the whitespace linter run on this assignment.
+    # Has the whitespace linter run on this assignment.
+    whitespace_linter: bool
 
     # The fixed value for the maximum that can be achieved in a rubric. This
     # can be higher and lower than the actual max. Will be `null` if unset.
@@ -153,15 +153,21 @@ class _AssignmentStateEnum(enum.IntEnum):
 @enum.unique
 class AssignmentVisibilityState(enum.IntEnum):
     """Assignment is created as a deep link, but is not yet visible for
-        listings."""
+        listings.
+
+    :ivar ~deep_linked: This assignment is not finished at the moment, but is
+        being deep linked inside an LMS.
+    :ivar ~visible: Assignment is visible and can be used as normal.
+    :ivar ~deleted: Assignment has been deleted and should be hidden.
+    """
     deep_linked = 0
-    """Assignment is visible and can be used as normal."""
     visible = 1
-    """Assignment has been deleted and should be hidden."""
     deleted = 2
 
     @property
     def is_deleted(self) -> bool:
+        """Should you see this assignment as a deleted assignment?
+        """
         return self == self.deleted
 
 
@@ -701,9 +707,11 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     def _get_deadline(self) -> t.Optional[DatetimeWithTimezone]:
         return self._deadline
 
-    def _set_deadline(self, dt: t.Optional[DatetimeWithTimezone]) -> None:
-        if self._deadline != dt:
-            self._deadline = dt
+    def _set_deadline(
+        self, new_deadline: t.Optional[DatetimeWithTimezone]
+    ) -> None:
+        if self._deadline != new_deadline:
+            self._deadline = new_deadline
             signals.ASSIGNMENT_DEADLINE_CHANGED.send(self)
 
     deadline = hybrid_property(_get_deadline, _set_deadline)
@@ -719,15 +727,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             assert self.course_id == group_set.course_id
         return group_set
 
-    @property
-    def is_being_deep_linked(self) -> bool:
-        # This is a normal property and not a hybrid_property by design, as
-        # this will prevent us from using it in a query, where you should use
-        # `is_visible`.
-        return self.visibility_state == AssignmentVisibilityState.deep_linked
-
     @hybrid_property
     def is_visible(self) -> bool:
+        """Is this assignment visible to users.
+
+        The value of this property does not depend on the current user at this
+        moment.
+        """
         return self.visibility_state == AssignmentVisibilityState.visible
 
     def mark_as_deleted(self) -> None:
@@ -795,6 +801,14 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
     @property
     def amount_in_cool_off_period(self) -> int:
+        """The maximum amount of submissions that a user may create inside the
+            cool off period.
+
+        .. warning::
+
+            Setting this property may raise an :exc:`.APIException` if the
+            value is not valid.
+        """
         return self._amount_in_cool_off_period
 
     @amount_in_cool_off_period.setter
@@ -813,6 +827,16 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
     @property
     def max_submissions(self) -> t.Optional[int]:
+        """The maximum amount of submissions a user is allowed to make.
+
+        .. warning::
+
+            Setting this property is not pure! It may raise an
+            :exc:`.APIException` if the value is not valid, it may add a
+            warning to the response, and it may change the
+            ````_changed_ambiguous_settings`` attribute. Furthermore, it may
+            also be slow as it will query the database.
+        """
         return self._max_submissions
 
     @max_submissions.setter
@@ -1892,13 +1916,24 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         return resulting_author
 
     def has_webhooks(self) -> bool:
+        """Does this assignment have any connected webhooks.
+
+        :returns: The presence of any webhooks for this assignment after
+                  querying the database.
+        """
         return db.session.query(
             psef.models.WebhookBase.query.filter_by(assignment=self).exists()
-        ).scalar() or False
+        ).scalar()
 
     def get_changed_ambiguous_combinations(
         self
     ) -> t.Iterator[_AssignmentAmbiguousSetting]:
+        """Get all new ambiguous setting combinations on this assignment.
+
+        This simply gets all ambiguous settings on an assignment and checks
+        which settings were changed since the assignment was loaded from the
+        database/created.
+        """
         for warning in self.get_all_ambiguous_combinations():
             if warning.tags & self._changed_ambiguous_settings:
                 yield warning
@@ -1967,6 +2002,22 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     def update_submission_types(
         self, *, webhook: t.Optional[bool], files: t.Optional[bool]
     ) -> None:
+        """Update the enabled submission types for this assignment.
+
+        This method has the side effect of possibly adding items to the
+        ``_changed_ambiguous_settings`` attribute. So if your setting multiple
+        properties on the assignment make sure you call
+        :meth:`.Assignment.get_changed_ambiguous_combinations` at the end. This
+        method might also add a warning to the response.
+
+        :param webhook: Should users be allowed to upload using webhooks. Pass
+            ``None`` to keep the current option.
+        :param files: Should users be allowed to upload files for a submission.
+            Pass ``None`` to keep the current option.
+
+        :raises APIException: If both ``webhook`` and ``files`` uploading will
+            be disabled at the end of this method.
+        """
         if files is not None:
             self.files_upload_enabled = files
 
