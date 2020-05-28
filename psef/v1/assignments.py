@@ -337,7 +337,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
 
     if new_state is not MISSING:
         auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
-        assig.set_state(new_state)
+        assig.set_state_with_string(new_state)
 
     if new_name is not MISSING:
         if assig.is_lti:

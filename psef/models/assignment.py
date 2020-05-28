@@ -142,7 +142,7 @@ class _AssignmentAmbiguousSetting:
 
 
 @enum.unique
-class _AssignmentStateEnum(enum.IntEnum):
+class AssignmentStateEnum(enum.IntEnum):
     """Describes in what state an :class:`.Assignment` is.
     """
     hidden = 0
@@ -155,10 +155,11 @@ class AssignmentVisibilityState(enum.IntEnum):
     """Assignment is created as a deep link, but is not yet visible for
         listings.
 
-    :ivar ~deep_linked: This assignment is not finished at the moment, but is
+    :ivar deep_linked: This assignment is not finished at the moment, but is
         being deep linked inside an LMS.
-    :ivar ~visible: Assignment is visible and can be used as normal.
-    :ivar ~deleted: Assignment has been deleted and should be hidden.
+    :ivar visible: Assignment is visible and can be used as normal.
+    :ivar ~AssignmentVisibilityState.deleted: Assignment has been deleted and
+        should be hidden.
     """
     deep_linked = 0
     visible = 1
@@ -440,10 +441,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         default=AssignmentVisibilityState.visible,
         nullable=False,
     )
-    state = db.Column(
+    _state = db.Column(
         'state',
-        db.Enum(_AssignmentStateEnum),
-        default=_AssignmentStateEnum.hidden,
+        db.Enum(AssignmentStateEnum),
+        default=AssignmentStateEnum.hidden,
         nullable=False
     )
     description = db.Column('description', db.Unicode, default='')
@@ -665,7 +666,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         visibility_state: AssignmentVisibilityState = (
             AssignmentVisibilityState.visible
         ),
-        state: _AssignmentStateEnum = None,
+        state: AssignmentStateEnum = None,
         deadline: DatetimeWithTimezone = None,
         lti_assignment_id: str = None,
         description: str = ''
@@ -876,6 +877,16 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         self._max_submissions = max_submissions
 
+    def _state_getter(self) -> AssignmentStateEnum:
+        return self._state
+
+    def _state_setter(self, new_value: AssignmentStateEnum) -> None:
+        if new_value != self._state:
+            self._state = new_value
+            signals.ASSIGNMENT_STATE_CHANGED.send(self)
+
+    state = hybrid_property(_state_getter, _state_setter)
+
     # We don't use property.setter because in that case `new_val` could only be
     # a `float` because of https://github.com/python/mypy/issues/220
     def set_max_grade(self, new_val: t.Union[None, float, int]) -> None:
@@ -1080,7 +1091,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         """
         return bool(
             self.deadline is not None and
-            self.state == _AssignmentStateEnum.open and
+            self.state == AssignmentStateEnum.open and
             not self.deadline_expired
         )
 
@@ -1088,13 +1099,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     def is_hidden(self) -> bool:
         """Is the assignment hidden.
         """
-        return self.state == _AssignmentStateEnum.hidden
+        return self.state == AssignmentStateEnum.hidden
 
     @property
     def is_done(self) -> bool:
         """Is the assignment done, which means that grades are open.
         """
-        return self.state == _AssignmentStateEnum.done
+        return self.state == AssignmentStateEnum.done
 
     @property
     def should_passback(self) -> bool:
@@ -1110,9 +1121,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         :returns: The correct name of the current state.
         """
-        if self.state == _AssignmentStateEnum.open:
+        if self.state == AssignmentStateEnum.open:
             return 'submitting' if self.is_open else 'grading'
-        return _AssignmentStateEnum(self.state).name
+        return AssignmentStateEnum(self.state).name
 
     @property
     def whitespace_linter_exists(self) -> bool:
@@ -1232,8 +1243,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         return res
 
-    def set_state(self, state: str) -> None:
-        """Update the current state (class:`_AssignmentStateEnum`).
+    def set_state_with_string(self, state: str) -> None:
+        """Update the current state (class:`AssignmentStateEnum`).
 
         You can update the state to hidden, done or open. A assignment can not
         be updated to 'submitting' or 'grading' as this is an assignment with
@@ -1244,15 +1255,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         :returns: Nothing
         """
         if state == 'open':
-            self.state = _AssignmentStateEnum.open
+            self.state = AssignmentStateEnum.open
         elif state == 'hidden':
-            self.state = _AssignmentStateEnum.hidden
+            self.state = AssignmentStateEnum.hidden
         elif state == 'done':
-            self.state = _AssignmentStateEnum.done
+            self.state = AssignmentStateEnum.done
         else:
             raise InvalidAssignmentState(f'{state} is not a valid state')
-
-        signals.ASSIGNMENT_STATE_CHANGED.send(self)
 
     def get_not_deleted_submissions(self) -> MyQuery['work_models.Work']:
         """Get a query returning all not deleted submissions to this

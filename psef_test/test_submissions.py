@@ -1030,7 +1030,7 @@ def test_get_teacher_zip_file(
     m.Assignment.query.filter_by(
         id=m.Work.query.get(work_id).assignment_id,
     ).update({
-        'state': m._AssignmentStateEnum.done,
+        'state': m.AssignmentStateEnum.done,
     }, )
 
     assert get_files(student_user, False) == {
@@ -1746,7 +1746,7 @@ def test_delete_submission_with_other_work(
             assignment.auto_test.add_to_run(m.Work.query.get(very_oldest))
         run.batch_run_done = True
 
-        assignment.set_state('done')
+        assignment.set_state_with_string('done')
         assignment.lti_grade_service_data = 'a url'
         assignment.is_lti = True
         course_lti_connection = m.CourseLTIProvider.create_and_add(

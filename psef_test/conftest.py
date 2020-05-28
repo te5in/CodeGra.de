@@ -590,8 +590,8 @@ def with_works(request):
 def assignment(course_name, state_is_hidden, session, request, with_works):
     course = m.Course.query.filter_by(name=course_name).one()
     state = (
-        m._AssignmentStateEnum.hidden
-        if state_is_hidden else m._AssignmentStateEnum.open
+        m.AssignmentStateEnum.hidden
+        if state_is_hidden else m.AssignmentStateEnum.open
     )
     assig = m.Assignment(
         name='TEST COURSE',

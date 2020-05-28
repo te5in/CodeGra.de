@@ -204,7 +204,7 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
             else:
                 assert m.Assignment.query.get(
                     lti_res['assignment']['id']
-                ).state == m._AssignmentStateEnum.open
+                ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             if due is None:
                 assert lti_res['assignment']['deadline'] == due_at.isoformat()
@@ -332,7 +332,7 @@ def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
             else:
                 assert m.Assignment.query.get(
                     lti_res['assignment']['id']
-                ).state == m._AssignmentStateEnum.open
+                ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             return lti_res['assignment'], lti_res.get(
                 'access_token', None
@@ -518,7 +518,7 @@ def test_lti_grade_passback(
             else:
                 assert m.Assignment.query.get(
                     lti_res['assignment']['id']
-                ).state == m._AssignmentStateEnum.open
+                ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             return lti_res['assignment'], lti_res.get('access_token', None)
 
@@ -769,7 +769,7 @@ def test_lti_grade_passback_blackboard(
             )
             assert m.Assignment.query.get(
                 lti_res['assignment']['id']
-            ).state == m._AssignmentStateEnum.open
+            ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             return lti_res['assignment'], token
 
@@ -952,7 +952,7 @@ def test_lti_assignment_create_and_delete(
             else:
                 assert m.Assignment.query.get(
                     lti_res['assignment']['id']
-                ).state == m._AssignmentStateEnum.open
+                ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == course_name
             return lti_res['assignment'], lti_res.get('access_token', None)
 
@@ -1070,7 +1070,7 @@ def test_lti_assignment_update(
             else:
                 assert m.Assignment.query.get(
                     lti_res['assignment']['id']
-                ).state == m._AssignmentStateEnum.open
+                ).state == m.AssignmentStateEnum.open
             return lti_res['assignment'], lti_res.get('access_token', None)
 
     with app.app_context():
@@ -1172,7 +1172,7 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
             else:
                 assert m.Assignment.query.get(
                     lti_res['assignment']['id']
-                ).state == m._AssignmentStateEnum.open
+                ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             if due is None:
                 assert lti_res['assignment']['deadline'] == due_at.isoformat()
@@ -1412,7 +1412,7 @@ def test_lti_grade_passback_with_groups(
             )
             assert m.Assignment.query.get(
                 lti_res['assignment']['id']
-            ).state == m._AssignmentStateEnum.open
+            ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             return lti_res['assignment'], lti_res.get('access_token', None)
 
@@ -1614,7 +1614,7 @@ def test_lti_grade_passback_test_submission(
             )
             assert m.Assignment.query.get(
                 lti_res['assignment']['id']
-            ).state == m._AssignmentStateEnum.open
+            ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             return lti_res['assignment'], lti_res.get('access_token', None)
 
@@ -1736,7 +1736,7 @@ def test_lti_grade_passback_moodle(
             )
             assert m.Assignment.query.get(
                 lti_res['assignment']['id']
-            ).state == m._AssignmentStateEnum.open
+            ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             return lti_res['assignment'], token
 
@@ -1909,7 +1909,7 @@ def test_lti_grade_passback_brightspace(
             )
             assert m.Assignment.query.get(
                 lti_res['assignment']['id']
-            ).state == m._AssignmentStateEnum.open
+            ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             return lti_res['assignment'], token
 

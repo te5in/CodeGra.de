@@ -58,7 +58,7 @@ def create_lti_assignment(
         is_lti=True,
     )
     res.lti_grade_service_data = str(uuid.uuid4())
-    res.set_state(state)
+    res.set_state_with_string(state)
     session.add(res)
     session.commit()
     return res

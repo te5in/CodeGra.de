@@ -450,7 +450,7 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
         raise NotImplementedError
 
     @property
-    def assignment_state(self) -> models._AssignmentStateEnum:  # pylint: disable=protected-access
+    def assignment_state(self) -> models.AssignmentStateEnum:  # pylint: disable=protected-access
         """The state of the current LTI assignment.
         """
         raise NotImplementedError
@@ -1005,12 +1005,12 @@ class CanvasLTI(LTI):
         return super().create_and_add_assignment(course=course)
 
     @property
-    def assignment_state(self) -> models._AssignmentStateEnum:
+    def assignment_state(self) -> models.AssignmentStateEnum:
         # pylint: disable=protected-access
         if self.launch_params['custom_canvas_assignment_published'] == 'true':
-            return models._AssignmentStateEnum.open
+            return models.AssignmentStateEnum.open
         else:
-            return models._AssignmentStateEnum.hidden
+            return models.AssignmentStateEnum.hidden
 
     @property
     def course_roles(self) -> t.Sequence[LTICourseRole]:
@@ -1121,9 +1121,9 @@ class BareBonesLTIProvider(LTI):
         return 'lis_result_sourcedid' in self.launch_params
 
     @property
-    def assignment_state(self) -> models._AssignmentStateEnum:
+    def assignment_state(self) -> models.AssignmentStateEnum:
         # pylint: disable=protected-access
-        return models._AssignmentStateEnum.open
+        return models.AssignmentStateEnum.open
 
     @property
     def course_roles(self) -> t.Sequence[LTICourseRole]:
