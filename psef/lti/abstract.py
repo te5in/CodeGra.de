@@ -51,7 +51,7 @@ class LTILaunchData(TypedDict):
 
 class AbstractLTIConnector(abc.ABC):
     """This the abstract LTI connector, it provides a connection between an LMS
-        using LTI and CodeGrade.
+        and CodeGrade using LTI.
     """
 
     @abc.abstractmethod
