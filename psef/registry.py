@@ -30,9 +30,8 @@ webhook_handlers = TableRegister[t.Type['WebhookBase']]('WebhookHandlers')
 
 rubric_row_types = Register[str, t.Type['RubricRowBase']]('RubricRowTypes')
 
-lti_provider_handlers = TableRegister[t.Type['LTIProviderBase']](
-    'LTIProviderHandlers'
-)
+lti_provider_handlers = TableRegister[t.Type['LTIProviderBase']
+                                      ]('LTIProviderHandlers')
 
 lti_1_3_lms_capabilities = Register[str, 'LMSCapabilities'](
     'LTI1p3LMSCapabilities'

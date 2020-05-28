@@ -152,6 +152,7 @@ class TableRegister(t.Generic[V_TABLE], Register[str, V_TABLE]):
     Finally you freeze the register, and it checks if all options declared
     using ``set_possible_options`` are also really registered.
     """
+
     def __init__(self, name: str) -> None:
         super().__init__(name)
         self.__possible_options: t.Optional[t.Sequence[str]] = None

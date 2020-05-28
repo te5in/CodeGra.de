@@ -1287,11 +1287,9 @@ def test_invalid_jwt(test_client, app, logged_in, session, error_template):
         )
 
 
-@pytest.mark.parametrize(
-    'oauth_key,err', [
-        ('unknown_lms', 400),
-    ]
-)
+@pytest.mark.parametrize('oauth_key,err', [
+    ('unknown_lms', 400),
+])
 def test_invalid_lms(
     test_client, app, logged_in, session, error_template, oauth_key, err
 ):

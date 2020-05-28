@@ -152,10 +152,7 @@ class Signal(t.Generic[T]):
         def __inner(callback: t.Callable[[Z], Y]) -> t.Callable[[Z], Y]:
             fullname = self._get_fullname(callback)
             self._check_function_not_registered(fullname)
-            task_name = (
-                f'{module}.{self.__name}'
-                f'.{fullname}.celery_task'
-            )
+            task_name = (f'{module}.{self.__name}' f'.{fullname}.celery_task')
 
             def __celery_setup(celery: Celery) -> None:
                 @celery.task(name=task_name, **(task_args or {}))
@@ -198,10 +195,10 @@ class Signal(t.Generic[T]):
             (name, cb) for (name, cb) in self.__after_request_callbacks
             if name != fullname
         ]
-        self.__immediate_callbacks = [
-            (name, cb) for (name, cb) in self.__immediate_callbacks
-            if name != fullname
-        ]
+        self.__immediate_callbacks = [(name, cb)
+                                      for (name,
+                                           cb) in self.__immediate_callbacks
+                                      if name != fullname]
         self.__registered_functions.remove(fullname)
 
     def connect_immediate(

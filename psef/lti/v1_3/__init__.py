@@ -214,6 +214,7 @@ class CGRegistration(Registration):
     This class only adds a nice constructor, so you can easily create a
     registration using a :class:`.models.LTI1p3Provider`.
     """
+
     def __init__(self, provider: 'models.LTI1p3Provider') -> None:
         assert provider._auth_login_url is not None
         assert provider._auth_token_url is not None
@@ -241,6 +242,7 @@ class CGServiceConnector(ServiceConnector):
     needed to make authenticated requests. Caching is done using our
     :mod:`cg_cache.inter_reqeust` caching functionality.
     """
+
     def __init__(self, provider: 'models.LTI1p3Provider') -> None:
         super().__init__(provider.get_registration())
         self._provider = provider
@@ -262,6 +264,7 @@ class CGGrade(grade.Grade):
     """A class implementing a grade, as needed by the :mod:`pylti1p3` library
         for the grades service.
     """
+
     def __init__(
         self,
         assignment: 'models.Assignment',
@@ -279,6 +282,7 @@ class CGAssignmentsGradesService(AssignmentsGradesService):
     Implementation is done using the :mod:`pylti1p3` library, this class simply
     adds a nicer constructor.
     """
+
     def __init__(
         self, service_connector: ServiceConnector,
         assignment: 'models.Assignment'
@@ -325,6 +329,7 @@ class CGCustomClaims:
         """This represents a replacement variable, i.e. a variable that we
             might find in the custom claims section of the LTI message.
         """
+
         def __init__(self, name: str) -> None:
             self.name = name
             assert self.name.startswith('$')
@@ -361,6 +366,7 @@ class CGCustomClaims:
         """This represents a absolute variable, i.e. any variable that is not
             present in the custom claims section of the LTI message.
         """
+
         def __init__(self, name: t.Union[str, t.List[str]]) -> None:
             self.names = helpers.maybe_wrap_in_list(name)
 
@@ -566,10 +572,6 @@ class CGDeepLinkResource(DeepLinkResource):
             goto_latest_sub=False,
         )
         return self.set_url(str(url))
-
-
-def init_app(_: PsefFlask) -> None:
-    pass
 
 
 class LTIConfig(ToolConfAbstract[FlaskRequest]):
@@ -1261,3 +1263,7 @@ class FlaskOIDCLogin(
             FlaskSessionService(f_request),
             FlaskCookieService(),
         )
+
+
+def init_app(_: PsefFlask) -> None:
+    pass
