@@ -152,8 +152,16 @@ class AssignmentStateEnum(enum.IntEnum):
 
 @enum.unique
 class AssignmentVisibilityState(enum.IntEnum):
-    """Assignment is created as a deep link, but is not yet visible for
-        listings.
+    """This enum determines what the visibility state is of this assignment.
+
+    This state is more important than that of :class:`.AssignmentStateEnum`.
+
+    .. todo::
+
+        Investigate if we can combine this class with
+        :class:`.AssignmentStateEnum`. We would really need to take care that
+        performance isn't impacted when combining, and that it actually
+        improves the clarity of the code.
 
     :ivar deep_linked: This assignment is not finished at the moment, but is
         being deep linked inside an LMS.
@@ -845,8 +853,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             Setting this property is not pure! It may raise an
             :exc:`.APIException` if the value is not valid, it may add a
             warning to the response, and it may change the
-            ````_changed_ambiguous_settings`` attribute. Furthermore, it may
-            also be slow as it will query the database.
+            ``_changed_ambiguous_settings`` attribute. Furthermore, it may also
+            be slow as it will query the database.
         """
         return self._max_submissions
 
@@ -2024,8 +2032,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         """Update the enabled submission types for this assignment.
 
         This method has the side effect of possibly adding items to the
-        ``_changed_ambiguous_settings`` attribute. So if your setting multiple
-        properties on the assignment make sure you call
+        ``_changed_ambiguous_settings`` attribute. So if you're setting
+        multiple properties on the assignment make sure you call
         :meth:`.Assignment.get_changed_ambiguous_combinations` at the end. This
         method might also add a warning to the response.
 

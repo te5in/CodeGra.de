@@ -299,8 +299,8 @@ class CGAssignmentsGradesService(AssignmentsGradesService):
 class CGCustomClaims:
     """This class represents the definition and parsing of custom claims.
 
-    This actually also uses non custom claim data, in the case the case the
-    custom claim wan't present.
+    This actually also uses non custom claim data, in the case the custom claim
+    wasn't present.
 
     The wanted variables are defined in the ``_WANTED_VARS`` array in this
     class. Each variable (wanted piece of information) has multiple options,

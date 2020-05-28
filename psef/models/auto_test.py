@@ -1,4 +1,4 @@
-"""This module defines all models needed for auto sts.
+"""This module defines all models needed for auto tests.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """

@@ -34,8 +34,8 @@ class LMSCapabilities(Protocol):
 
     @property
     def set_deadline(self) -> bool:
-        """Is it possible for users to set the deadline of a CodeGrade within
-            CodeGrade assignment?
+        """Is it possible for users to set the deadline of a CodeGrade
+            assignment within CodeGrade?
 
         This should be ``True`` if the LMS does **not** pass the deadline in
         the LTI launch, and ``False`` otherwise.

@@ -185,6 +185,8 @@ class ContextRole(AbstractRole[T], t.Generic[T]):  # pylint: disable=unsubscript
         """
         fname = self.full_name
         if fname.startswith(self._BASE):
+            # We add one to the length of the base to strip out the pound sign
+            # or the slash that follows the base.
             return fname[len(self._BASE) + 1:]
         return fname
 
