@@ -1,3 +1,43 @@
+"""This file implements the main logic for handling LTI 1.3 launches.
+
+LTI 1.3 depends on an OpenId Connect like authentication flow, I really
+recommend that you read the actual docs for LTI 1.3 (see the IMS Global
+website), but here is short recap.
+
+First a user navigates to a page of the LMS (Platform in LTI 1.3 terms, tool
+consumer in LTI 1.1 terms) which redirects the user to the OIDC login endpoint
+of CodeGrade (Tool in LTI 1.3 terms, Tool Provider in LTI 1.1 terms). We verify
+some things in this OIDC login request, and save state in the session of the
+user (to prevent replay attacks), and redirect the user to a page specified in
+the ODIC login request. The LMS now redirects the user again, but now to the
+launch url.
+
+We verify the request (by using the public key from the tool, which we will
+probably download or get from our cache, see
+:meth:`.FlaskMessageLaunch.fetch_public_key`), and verify that the state saved
+in the OIDC login request is present and correct. This finalizes the LTI stage
+of the protocol.
+
+Now we will do an extra redirection step. This is partly done to be able to
+reuse logic of our LTI 1.1 implementation (which does this for legacy reasons),
+but also to get some state inside our Vue application.
+
+We save the data in the launch request to our :class:`psef.models.BlobStorage`
+table, and redirect the user to the CodeGrade LTI launch page. Javascript on
+this page will post to the ``/api/v1/lti/launch/2`` endpoint with the id for
+the blob storage object. We will now create a :class:`.FlaskMessageLaunch`
+using this data, and execute the
+:meth:`psef.lti.abstract.do_second_step_of_lti` method.
+
+.. seealso::
+
+    The main `LTI 1.3 documentation <http://www.imsglobal.org/spec/lti/v1p3>`_.
+
+    `OIDC login flow <https://www.imsglobal.org/spec/security/v1p0/#fig_oidcflow>`_
+    from the LMS documentation. This shows the redirection flow.
+
+SPDX-License-Identifier: AGPL-3.0-only
+"""
 import copy
 import time
 import typing as t
@@ -50,23 +90,66 @@ MemberLike = TypedDict('MemberLike', {'name': str, 'email': str}, total=False)
 
 
 class _TestCookie:
+    """This class contains the functionality for a test cookie.
+
+    This cookie tests if we are able to set at all in an LTI launch.
+
+    Currently :mod:`pylti1p3` also implements some form of testing if cookies
+    are enabled, however that is done quite a bit differently. It redirects
+    users to a specific page after the OIDC login (effectively stopping the
+    launch there for a while) which checks the cookies and if it is able to set
+    cookies it resumes the LTI flow (by redirecting to the correct OIDC
+    redirection point). The advantage of this flow is that it is easier to
+    detect if cookies are not working, but it also has disadvantages. The first
+    one is that does an extra redirect for every user, even those without any
+    cookie issues, furthermore it doesn't finish the LTI launch, so we are not
+    able to use the (Canvas specific) features of the LMS to try and set
+    cookies. In other words: we now that this functionality can be achieved
+    using the library we are using, but we think our solution better suits our
+    needs.
+    """
     _NAME = 'CG_TEST_COOKIE'
     _MAX_DIFF = 600
 
     @classmethod
     def set_value(cls, service: FlaskCookieService) -> None:
+        """This method sets the test cookie in the given cookie ``service``.
+
+        :param service: The service in which you want to set the cookie.
+        """
         service.set_cookie(cls._NAME, str(int(time.time())))
+
+    @classmethod
+    def clear_cookie_in_request(cls, service: FlaskCookieService) -> None:
+        """Clear the test cookie in the given ``service``.
+        """
+        service.clear_cookie(cls._NAME)
 
     @classmethod
     def validate_value_in_request(
         cls, service: FlaskCookieService, provider: 'models.LTI1p3Provider'
     ) -> None:
+        """Validate the test cookie, for both existence and correctness.
+
+        :param service: The cookie service in which we should look for the
+            cookie.
+        :param provider: The LTI provider of this launch. This parameter is
+            used to see if we can try to do anything about the issue. See the
+            :meth:`psef.lti.v1_3.LMSCapabilities.cookie_post_message`.
+        """
         found = service.get_cookie(cls._NAME)
-        service.clear_cookie(cls._NAME)
+        # Make sure the next launch tests for existence of the cookie again.
+        cls.clear_cookie_in_request(service)
         if found is None:
             logger.info('Test cookie was not set')
             raise MissingCookieError(provider)
 
+        # We store the time in the cookie to make sure we are actually seeing a
+        # recent test cookie. This is to make sure we were able to set cookies
+        # in the last OIDC login request. The method is not really precise (it
+        # simply checks that the cookie is not too old, not that it was really
+        # set in the last OIDC login), but this class isn't used for security
+        # purposes so it doesn't really matter.
         now = time.time()
 
         try:
@@ -81,6 +164,10 @@ class _TestCookie:
 
 
 class MissingCookieError(APIException):
+    """This is the error that gets raised when we detected that we are not
+        allowed to set cookies.
+    """
+
     def __init__(self, provider: 'models.LTI1p3Provider') -> None:
         super().__init__(
             "Couldn't set needed cookies",
@@ -92,17 +179,41 @@ class MissingCookieError(APIException):
 
 
 def get_email_for_user(
-    member: MemberLike, provider: 'models.LTI1p3Provider'
+    member: MemberLike,
+    provider: 'models.LTI1p3Provider',
+    *,
+    test_student_email: str = 'test_student@codegra.de',
 ) -> str:
+    """Get the email for something that looks like an LTI member.
+
+    This method takes possible test students into account, for which it returns
+    the given ``test_student_email`` if no email was found for the student.
+
+    :param member: The received member from the LTI message.
+    :param provider: The LTI provider that received the message. This is used
+        to determine what the name of the test student would be, if anything.
+    :param test_student_email: The email to return if no email was found for
+        the given member, and we determined that the given member was indeed a
+        test student.
+
+    :raises KeyError: If the given user is not a test student and doesn't have
+        an email (i.e. this function will always return an email in that case).
+    """
     full_name = member['name']
     caps = provider.lms_capabilities
     test_stud_name = caps.test_student_name
     if test_stud_name is not None and test_stud_name == full_name:
-        return member.get('email', 'test_student@codegra.de')
+        return member.get('email', test_student_email)
     return member['email']
 
 
 class CGRegistration(Registration):
+    """This class represents a registration, something used internally by the
+        :mod:`pylti1p3` library.
+
+    This class only adds a nice constructor, so you can easily create a
+    registration using a :class:`.models.LTI1p3Provider`.
+    """
     def __init__(self, provider: 'models.LTI1p3Provider') -> None:
         assert provider._auth_login_url is not None
         assert provider._auth_token_url is not None
@@ -122,6 +233,14 @@ class CGRegistration(Registration):
 
 
 class CGServiceConnector(ServiceConnector):
+    """This class implements the authenticated back channel as defined by the
+        LTI 1.3 spec.
+
+    This is heavily used by the :mod:`pylti1p3`, and completely implemented by
+    them. The only thing we add in our subclass is caching of the access tokens
+    needed to make authenticated requests. Caching is done using our
+    :mod:`cg_cache.inter_reqeust` caching functionality.
+    """
     def __init__(self, provider: 'models.LTI1p3Provider') -> None:
         super().__init__(provider.get_registration())
         self._provider = provider
@@ -140,6 +259,9 @@ class CGServiceConnector(ServiceConnector):
 
 
 class CGGrade(grade.Grade):
+    """A class implementing a grade, as needed by the :mod:`pylti1p3` library
+        for the grades service.
+    """
     def __init__(
         self,
         assignment: 'models.Assignment',
@@ -152,6 +274,11 @@ class CGGrade(grade.Grade):
 
 
 class CGAssignmentsGradesService(AssignmentsGradesService):
+    """A class implementing the grades service for LTI 1.3.
+
+    Implementation is done using the :mod:`pylti1p3` library, this class simply
+    adds a nicer constructor.
+    """
     def __init__(
         self, service_connector: ServiceConnector,
         assignment: 'models.Assignment'
@@ -166,14 +293,38 @@ class CGAssignmentsGradesService(AssignmentsGradesService):
 
 
 class CGCustomClaims:
+    """This class represents the definition and parsing of custom claims.
+
+    This actually also uses non custom claim data, in the case the case the
+    custom claim wan't present.
+
+    The wanted variables are defined in the ``_WANTED_VARS`` array in this
+    class. Each variable (wanted piece of information) has multiple options,
+    these are the places we might find this piece of information. Each options
+    can be a :class:`.CGCustomClaims.ReplacementVar`: something we might find
+    in the custom claims, or a :class:`.CGCustomClaims.AbsoluteVar` something
+    that we might find outside of the custom claims.
+
+    The order of the options matters for two reasons: 1) it matters for how the
+    user is instructed to add the variables to their LMS when configuring
+    CodeGrade, and 2) it defines the order in which the variables are parsed.
+    The options are iterated one by one if and we find the information using an
+    option we stop parsing, i.e. earlier options take precedence.
+    """
+
     @dataclasses.dataclass(frozen=True)
     class ClaimResult:
+        """The result of parsing the custom claims.
+        """
         username: t.Optional[str]
         deadline: t.Optional[DatetimeWithTimezone]
         is_available: t.Optional[bool]
         resource_id: t.Optional[str]
 
-    class _ReplacementVar:
+    class ReplacementVar:
+        """This represents a replacement variable, i.e. a variable that we
+            might find in the custom claims section of the LTI message.
+        """
         def __init__(self, name: str) -> None:
             self.name = name
             assert self.name.startswith('$')
@@ -182,7 +333,7 @@ class CGCustomClaims:
         def matches_group(self, group: t.Sequence[str]) -> bool:
             """Check if given group matches
 
-            >>> var = CGCustomClaims._ReplacementVar('$a.b.cc.d')
+            >>> var = CGCustomClaims.ReplacementVar('$a.b.cc.d')
             >>> var.matches_group(['$a'])
             True
             >>> var.matches_group('$a.b.cc'.split('.'))
@@ -199,17 +350,24 @@ class CGCustomClaims:
 
         def find_in_data(self, data: t.Mapping[str, str],
                          key: str) -> t.Optional[str]:
+            """Find this variable in the given data.
+            """
             found_val = data.get(key, None)
             if isinstance(found_val, str) and found_val != self.name:
                 return found_val
             return None
 
-    class _AbsoluteVar:
+    class AbsoluteVar:
+        """This represents a absolute variable, i.e. any variable that is not
+            present in the custom claims section of the LTI message.
+        """
         def __init__(self, name: t.Union[str, t.List[str]]) -> None:
             self.names = helpers.maybe_wrap_in_list(name)
 
         def find_in_data(self,
                          data: t.Mapping[str, object]) -> t.Optional[str]:
+            """Find this variable in the given data.
+            """
             found_val = helpers.deep_get(data, self.names, None)
             if isinstance(found_val, str):
                 return found_val
@@ -218,14 +376,17 @@ class CGCustomClaims:
     @dataclasses.dataclass(frozen=True)
     class _Var:
         name: str
-        opts: t.List[t.Union['CGCustomClaims._ReplacementVar',
-                             'CGCustomClaims._AbsoluteVar']]
+        opts: t.List[t.Union['CGCustomClaims.ReplacementVar',
+                             'CGCustomClaims.AbsoluteVar']]
 
         def get_replacement_opts(
             self
-        ) -> t.Iterable['CGCustomClaims._ReplacementVar']:
+        ) -> t.Iterable['CGCustomClaims.ReplacementVar']:
+            """Get all options in this variable that are instances of
+                :class:`.CGCustomClaims.ReplacementVar`.
+            """
             for opt in self.opts:
-                if isinstance(opt, CGCustomClaims._ReplacementVar):
+                if isinstance(opt, CGCustomClaims.ReplacementVar):
                     yield opt
 
         def get_key(self, idx: int) -> str:
@@ -235,31 +396,31 @@ class CGCustomClaims:
         _Var(
             'cg_username',
             [
-                _ReplacementVar('$User.username'),
-                _AbsoluteVar('lis_person_sourcedid')
+                ReplacementVar('$User.username'),
+                AbsoluteVar('lis_person_sourcedid')
             ],
         ),
         _Var(
             'cg_deadline',
             [
-                _ReplacementVar('$ResourceLink.submission.endDateTime'),
-                _ReplacementVar('$Canvas.assignment.dueAt.iso8601')
+                ReplacementVar('$ResourceLink.submission.endDateTime'),
+                ReplacementVar('$Canvas.assignment.dueAt.iso8601')
             ],
         ),
         _Var(
             'cg_available_at',
-            [_ReplacementVar('$ResourceLink.submission.startDateTime')],
+            [ReplacementVar('$ResourceLink.submission.startDateTime')],
         ),
         _Var(
             'cg_is_published',
-            [_ReplacementVar('$Canvas.assignment.published')],
+            [ReplacementVar('$Canvas.assignment.published')],
         ),
         _Var(
             'cg_resource_id',
             [
-                _ReplacementVar('$ResourceLink.id'),
-                _ReplacementVar('$com.instructure.Assignment.lti.id'),
-                _AbsoluteVar([claims.RESOURCE, 'id']),
+                ReplacementVar('$ResourceLink.id'),
+                ReplacementVar('$com.instructure.Assignment.lti.id'),
+                AbsoluteVar([claims.RESOURCE, 'id']),
             ],
         ),
     ]
@@ -271,6 +432,18 @@ class CGCustomClaims:
     @classmethod
     def get_variable_claims_config(cls, lms_capabilities: 'LMSCapabilities'
                                    ) -> t.Mapping[str, str]:
+        """Get the custom claims config for the given capabilities.
+
+        :param lms_capabilities: This is used to determine which replacement
+            groups are supported, see
+            :meth:`psef.lti.v1_3.LMSCapabilities.supported_custom_replacement_groups`
+            for how this is used.
+
+        :returns: A mapping representing the wanted custom config. The key in
+                  the mapping is how the variable should be named in the custom
+                  claim, and the value is the replacement var that should be
+                  used. The values are already prefixed with the necessary '$'.
+        """
         res: t.Dict[str, str] = {}
         custom_groups = lms_capabilities.supported_custom_replacement_groups
         allowed_groups = [*cls._DEFAULT_REPLACEMENT_GROUPS, *custom_groups]
@@ -281,11 +454,6 @@ class CGCustomClaims:
                     res[var.get_key(idx)] = opt.name
 
         return res
-
-    @classmethod
-    def get_claim_keys(cls,
-                       lms_capabilities: 'LMSCapabilities') -> t.Iterable[str]:
-        yield from cls.get_variable_claims_config(lms_capabilities).keys()
 
     @classmethod
     def _get_claim(
@@ -300,7 +468,7 @@ class CGCustomClaims:
         for idx, opt in enumerate(var.opts):
             found_val: object
 
-            if isinstance(opt, cls._ReplacementVar):
+            if isinstance(opt, cls.ReplacementVar):
                 found_val = opt.find_in_data(custom_data, var.get_key(idx))
             else:
                 found_val = opt.find_in_data(base_data)
@@ -322,6 +490,15 @@ class CGCustomClaims:
         custom_claims: t.Mapping[str, str],
         base_data: t.Mapping[str, object],
     ) -> 'CGCustomClaims.ClaimResult':
+        """Parse the custom claims for the given custom claim and base data.
+
+        :param custom_claims: The custom claims to be parsed.
+        :param base_data: The base data, this should be the location where we
+            can find the :class:`.CGCustomClaims.AbsoluteVar` data.
+
+        :returns: The parsed data, please note that ``None`` will be used for
+                  data that either was not present, or could not be parsed.
+        """
         username = cls._get_claim(
             'cg_username', custom_claims, base_data, cls._str_not_empty
         )
@@ -358,10 +535,32 @@ class CGCustomClaims:
 
 
 class CGDeepLinkResource(DeepLinkResource):
+    """The class representing a deep link.
+
+    Deep links are not used by CodeGrade for their intended purpose (finding
+    content in a tool and using that in the LMS), however we still use them.
+    The UI for creating tools that support deep linking is much better in some
+    cases (Brightspace), and sometimes even required (Canvas). So CodeGrade
+    uses deeplinking in the following way: if we get a deeplinking request we
+    do not prompt anything from the user, but simply directly return a resource
+    the LMS. This resource is practically empty, and does not exist in our
+    database, but this allows us to benefit from the UI of deep linking.
+    """
+
     @classmethod
+    @cg_override.no_override
     def make(
-        cls, app: PsefFlask, message_launch: 'FlaskMessageLaunch'
+        cls, message_launch: 'FlaskMessageLaunch'
     ) -> 'CGDeepLinkResource':
+        """Make a practically empty deep link resource.
+
+        :param message_launch: The launch deep link launch in which we should
+            create the result. We use this launch to set the correct launch url
+            on the resource.
+
+        :returns: The created resource.
+        """
+        assert message_launch.is_deep_link_launch()
         self = cls()
         url = message_launch.get_lti_provider().get_launch_url(
             goto_latest_sub=False,
@@ -369,33 +568,69 @@ class CGDeepLinkResource(DeepLinkResource):
         return self.set_url(str(url))
 
 
-def init_app(app: PsefFlask) -> None:
+def init_app(_: PsefFlask) -> None:
     pass
 
 
 class LTIConfig(ToolConfAbstract[FlaskRequest]):
+    """This class implements the connection between our database an the needed
+        (by :mod:`pyltip13`) config store.
+
+    It works by finding (or verifying if you passed on in the constructor) a
+    :class:`.models.LTI1p3Provider` using the given data. This provider
+    contains the necessary data to construct the wanted, by :mod:`pylti1p3`,
+    classes.
+    """
+
     def __init__(
         self, lti_provider: t.Optional['models.LTI1p3Provider']
     ) -> None:
+        super().__init__()
+        self.reg_extended_search = True
         self._lti_provider = lti_provider
 
+    @cg_override.override
     def check_iss_has_one_client(self, iss: str) -> bool:
+        """Our issuers have multiple clients.
+
+        The issuer is not unique, some LMSes (Canvas, Blackboard) even use the
+        same ``iss`` for every deployment.
+        """
         return False
 
+    @cg_override.override
     def find_registration_by_issuer(
         self, iss: str, *args: None,
         **kwargs: t.Union[Literal['message_launch', 'oidc_login'],
                           FlaskRequest, '_LaunchData']
     ) -> t.Optional[Registration]:
+        """Find the registration in a legacy way.
+
+        This is not supported and this method will always raise an
+        :exc:`.AssertionError`.
+        """
         raise AssertionError("We don't support registration by only issuer")
 
     def find_provider_by_params(
         self, iss: str, client_id: t.Optional[str]
     ) -> 'models.LTI1p3Provider':
+        """Find the provider using the given ``iss`` and ``client_id``.
+
+        If this config already has a reference to an
+        :class:`.models.LTI1p3Provider` we simply check that the information
+        passed to us is the same as the information in the provider
+
+        :param iss: The ``iss`` of the wanted provider.
+        :param client_id: The ``client_id``, pass ``None`` if not available,
+            however in this case there really already should be a provider
+            connect to this instance.
+
+        :returns: The found provider.
+        """
         if self._lti_provider is not None:
             correct = self._lti_provider.iss == iss
-            if isinstance(client_id, str):
-                correct = correct or self._lti_provider.client_id == client_id
+            if correct and isinstance(client_id, str):
+                correct = self._lti_provider.client_id == client_id
 
             if not correct:
                 logger.error(
@@ -435,6 +670,7 @@ class LTIConfig(ToolConfAbstract[FlaskRequest]):
 
         return self._lti_provider
 
+    @cg_override.override
     def find_registration_by_params(
         self,
         iss: str,
@@ -443,21 +679,32 @@ class LTIConfig(ToolConfAbstract[FlaskRequest]):
         **kwargs: t.Union[Literal['message_launch', 'oidc_login'],
                           FlaskRequest, '_LaunchData'],
     ) -> t.Optional[Registration]:
+        """Find a registration by params.
+
+        This simply uses :meth:`.LTIConfig.find_provider_by_params`, see its
+        docstring for how it works.
+        """
         return self.find_provider_by_params(
             iss=iss, client_id=client_id
         ).get_registration()
 
+    @cg_override.override
     def find_deployment(
         self,
         iss: str,
         deployment_id: str,
     ) -> None:
+        """We don't use deployments, this always returns ``None``.
+        """
         return None
 
+    @cg_override.override
     def find_deployment_by_params(
         self, iss: str, deployment_id: str, client_id: str, *args: None,
         **kwargs: None
     ) -> None:
+        """We don't use deployments, this always returns ``None``.
+        """
         return None
 
 
@@ -466,14 +713,37 @@ class FlaskMessageLaunch(
     MessageLaunch[FlaskRequest, LTIConfig, FlaskSessionService,
                   FlaskCookieService]
 ):
+    """This class handles the launch message, and the second step launch, of
+        the LTI 1.3 protocol and our extension on it.
+
+    .. seealso::
+
+        The module documentation of :mod:`psef.lti.v1_3` for more information,
+        this class handles everything **after** the OIDC login request. See
+        :class:`.FlaskOIDCLogin` for how that is handled.
+    """
+
     @cg_override.override
     def fetch_public_key(self, key_set_url: str) -> '_KeySet':
-        provider = self.get_lti_provider()
+        """Fetch the public key at the given url.
+
+        This method uses a inter request cache for theses keys, so that keys
+        are fetched less. The key for the cache is the url at which the key can
+        be found, i.e. the cache can be shared between different LTI providers.
+
+        There is no reason to call this method manually, but it is used by the
+        :mod:`pylti1p3` library.
+
+        :param key_set_url: The url where the key can be found.
+
+        :returns: The found key, either from the cache or by querying the given
+                  ``key_set_url``.
+        """
         cache = current_app.inter_request_cache.lti_public_keys
         super_method = super().fetch_public_key
 
         return cache.get_or_set(
-            f'lti-provider-{provider.id}-{key_set_url}',
+            f'key-url-{key_set_url}',
             lambda: super_method(key_set_url),
         )
 
@@ -515,6 +785,11 @@ class FlaskMessageLaunch(
         self,
         course: 'models.Course',
     ) -> 't.Optional[models.Assignment]':
+        """Find the assignment of this launch.
+
+        :param course: The course of the launch, we will only search inside
+            this course for assignments.
+        """
         resource_id = self._get_resource_id()
         if resource_id is None:
             return None
@@ -523,9 +798,26 @@ class FlaskMessageLaunch(
             models.Assignment.lti_assignment_id == resource_id,
         ).one_or_none()
 
+    # We don't use the @cg_override.override decorator here as this method
+    # overrides one of our own classes, and I think it makes most sense if we
+    # use the decorator to signal that we override a method from a class
+    # outside of our control (external lib).
     def get_assignment(
-        self, user: 'models.User', course: 'models.Course'
+        self, user: object, course: 'models.Course'
     ) -> 'models.Assignment':
+        """Get or create the assignment in this LTI request.
+
+        :param user: Unused but required as this method overrides a method that
+            specifies it.
+        :param course: The course in which the launch is done, this parameter
+            is used. We assume that the resource (LTI speak for assignment in
+            our case) identifier is unique within a course, so we will only
+            search for assignments inside this course, and created assignments
+            will be created inside this course.
+
+        :returns: The found or created assignment, updated with the found
+                  information in this launch.
+        """
         launch_data = self.get_launch_data()
         resource_claim = launch_data[claims.RESOURCE]
         custom_claim = self.get_custom_claims()
@@ -571,16 +863,18 @@ class FlaskMessageLaunch(
 
         if not assignment.is_done:
             if custom_claim.is_available is None or custom_claim.is_available:
-                assignment.state = models._AssignmentStateEnum.open
+                assignment.state = models.AssignmentStateEnum.open
             else:
-                assignment.state = models._AssignmentStateEnum.hidden
+                assignment.state = models.AssignmentStateEnum.hidden
 
         return assignment
 
     def set_user_course_role(
         self, user: 'models.User', course: 'models.Course'
     ) -> t.Optional[str]:
-        assert course.course_lti_provider
+        assert course.course_lti_provider, (
+            'The given course is not an LTI course'
+        )
         return course.course_lti_provider.maybe_add_user_to_course(
             user,
             self.get_launch_data()[claims.ROLES],
@@ -594,6 +888,15 @@ class FlaskMessageLaunch(
     def from_request(
         cls, lti_provider: t.Optional['models.LTI1p3Provider']
     ) -> 'FlaskMessageLaunch':
+        """Create a :class:`.FlaskMessageLaunch` from **untrusted** data.
+
+        :param lti_provider: If the launch request specified which lti provider
+            to use it should be provided using this parameter. See
+            :meth:`.LTIConfig.find_provider_by_params` for how this provider is
+            used.
+
+        :returns: The created message launch.
+        """
         f_request = FlaskRequest(force_post=True)
         self = cls(
             f_request,
@@ -604,6 +907,16 @@ class FlaskMessageLaunch(
         return self
 
     def get_lti_provider(self) -> 'models.LTI1p3Provider':
+        """Get the LTI provider of this launch.
+
+        .. note::
+
+            You can only use this method on validated or restored launches.
+
+        :returns: The found lti provider, see
+                  :meth:`.LTIConfig.find_provider_by_params` for how this
+                  provider is found.
+        """
         assert self._validated or self._restored
         reg = self._registration
         assert reg is not None, 'Registration should be set at this point'
@@ -613,18 +926,30 @@ class FlaskMessageLaunch(
             client_id=client_id,
         )
 
-    # We never want to save the launch data in the session, as we have no
-    # use-case for it, and it slows down every request
     @cg_override.override
     def save_launch_data(self) -> 'FlaskMessageLaunch':
+        """Save the launch data.
+
+        We never want to save the launch data in the session, as we have no
+        use-case for it, and it slows down every request. So this method does
+        nothing, however as the base class calls this method it should not
+        raise.
+        """
         return self
 
     @cg_override.override
     def validate_deployment(self) -> 'FlaskMessageLaunch':
+        """Validate the found deployment in the launch.
+
+        This only makes sense when for implementations that hard limit the
+        valid deployments for an LTI connection. As we don't do this there is
+        nothing to validate. The base class calls this method so it should not
+        raise!
+        """
         return self
 
     def validate_has_needed_data(self) -> 'FlaskMessageLaunch':
-        """Check that all data required by CodeGrade is present.
+        """Check that all data required by CodeGrade is present in this launch.
         """
         launch_data = self.get_launch_data()
         provider = self.get_lti_provider()
@@ -669,14 +994,16 @@ class FlaskMessageLaunch(
         )
 
         custom = launch_data[claims.CUSTOM]
+        lti_provider = self.get_lti_provider()
         check_and_raise(
             (
                 'The LTI launch is missing required custom claims, the setup'
                 ' was probably done incorrectly'
-            ), custom,
-            *CGCustomClaims.get_claim_keys(
-                self.get_lti_provider().lms_capabilities
-            )
+            ),
+            custom,
+            *CGCustomClaims.get_variable_claims_config(
+                lti_provider.lms_capabilities
+            ).keys(),
         )
 
         if not self.is_deep_link_launch():
@@ -728,26 +1055,49 @@ class FlaskMessageLaunch(
 
     @cg_override.override
     def validate(self) -> 'FlaskMessageLaunch':
+        """Validate this request, both for security and data completeness.
+        """
         try:
+            # The parent method validates the security aspects of the request.
             super().validate()
         except:
+            # If the validation failed this can happen because of a lot of
+            # reasons.  However, if it happens because the user is not allowed
+            # to set cookies (and thus incorrect values were found in the
+            # session) we want to display a nicer error message to the user. To
+            # do this we use our :class:`_TestCookie` class, however this needs
+            # an LTI provider (see docs in the class for why), which we can
+            # only get using the data in the request. So in this except block
+            # we make a copy of the request (so it can never happen that this
+            # request is seen as validated) and do as if it were validated, so
+            # we can get the LTI provider.
+
             self_copy = copy.deepcopy(self)
-            self_copy._validated = True
             try:
+                # Make sure we can get the lti provider
+                self_copy._validated = True  # pylint: disable=protected-access
                 self_copy.validate_jwt_format()
                 self_copy.validate_registration()
+
                 _TestCookie.validate_value_in_request(
-                    self_copy._cookie_service, self_copy.get_lti_provider()
+                    self_copy._cookie_service,  # pylint: disable=protected-access
+                    self_copy.get_lti_provider(),
                 )
             finally:
-                self_copy._validated = False
-                self_copy._restored = False
+                # This copy never really should be leaked from this call,
+                # however in the extraordinary case that it is we make sure
+                # that it is longer seen as a validated request.
+                self_copy._validated = False  # pylint: disable=protected-access
+                self_copy._restored = False  # pylint: disable=protected-access
 
+            # The error was not a cookie error in this case.
             raise
         else:
-            _TestCookie.validate_value_in_request(
-                self._cookie_service, self.get_lti_provider()
-            )
+            # We don't need to validate this cookie (launching worked so we
+            # were able to set the necessary cookies), however we do want to
+            # clear it to reduce the size of future requests, and to make sure
+            # the validation still works for future requests.
+            _TestCookie.clear_cookie_in_request(self._cookie_service)
 
         try:
             return self.validate_has_needed_data()
@@ -756,6 +1106,11 @@ class FlaskMessageLaunch(
             raise
 
     def get_custom_claims(self) -> CGCustomClaims.ClaimResult:
+        """Get and parse the custom claim in this request.
+
+        Parsing is not really done here, but in
+        :meth:`.CGCustomClaims.get_custom_claim_data`.
+        """
         launch_data = self.get_launch_data()
         return CGCustomClaims.get_custom_claim_data(
             launch_data[claims.CUSTOM], launch_data
@@ -786,9 +1141,16 @@ class FlaskMessageLaunch(
         return user, token, updated_email
 
     def get_course(self) -> 'models.Course':
+        """Get the course of this LTI launch, or create (and add it to the db
+            session) if it does not yet exist.
+
+        :returns: The found or created course.
+        """
         launch_data = self.get_launch_data()
         deployment_id = self._get_deployment_id()
         context_claim = launch_data[claims.CONTEXT]
+        course_name = context_claim['title']
+
         course_lti_provider = db.session.query(
             models.CourseLTIProvider
         ).filter(
@@ -798,7 +1160,7 @@ class FlaskMessageLaunch(
         ).one_or_none()
 
         if course_lti_provider is None:
-            course = models.Course.create_and_add(name=context_claim['title'])
+            course = models.Course.create_and_add(name=course_name)
             course_lti_provider = models.CourseLTIProvider.create_and_add(
                 course=course,
                 lti_provider=self.get_lti_provider(),
@@ -808,11 +1170,11 @@ class FlaskMessageLaunch(
             models.db.session.flush()
         else:
             course = course_lti_provider.course
+            course.name = course_name
 
-        course.name = context_claim['title']
         if claims.NAMESROLES in launch_data:
-            course_lti_provider.names_roles_claim = launch_data[
-                claims.NAMESROLES]
+            names_roles_claim = launch_data[claims.NAMESROLES]
+            course_lti_provider.names_roles_claim = names_roles_claim
 
         return course
 
@@ -821,13 +1183,25 @@ class FlaskMessageLaunch(
         cls,
         *,
         launch_data: t.Mapping[str, object],
-        lti_provider_id: str,
+        lti_provider: 'models.LTI1p3Provider',
     ) -> 'FlaskMessageLaunch':
+        """Create a :class:`.FlaskMessageLaunch` from **trusted** input.
+
+        .. warning::
+
+            This method will skip all security checks! Do **not** use raw LTI
+            launch data as input to this method, as this will not verify that
+            the launch is valid and correct!
+
+        :param launch_data: The launch data to use as jwt body.
+        :param lti_provider: The provider of the original request.
+
+        :returns: The create message launch.
+        """
         f_request = FlaskRequest(force_post=False)
-        provider = helpers.get_or_404(models.LTI1p3Provider, lti_provider_id)
         obj = cls(
             f_request,
-            LTIConfig(provider),
+            LTIConfig(lti_provider),
             session_service=FlaskSessionService(f_request),
             cookie_service=FlaskCookieService(),
         )
@@ -842,8 +1216,24 @@ class FlaskOIDCLogin(
     OIDCLogin[FlaskRequest, LTIConfig, FlaskSessionService, FlaskCookieService,
               werkzeug.wrappers.Response]
 ):
+    """This class handles the OIDC login requests of LTI.
+
+    .. seealso::
+
+        The module documentation of :mod:`psef.lti.v1_3` for more information
+        about what part OIDC login requests play in the entire LTI 1.3 flow.
+    """
+
     @cg_override.override
     def get_redirect(self, url: str) -> FlaskRedirect:
+        """Get the redirect that you need to do after the OIDC login.
+
+        This method sets a test cookie that will later be used to verify that
+        cookies work in the browser of the user.
+
+        :param url: The url to which you want to redirect. You can probably get
+            this by searching the request for a ``target_link_uri``.
+        """
         _TestCookie.set_value(self._cookie_service)
         return FlaskRedirect(url, self._cookie_service)
 
@@ -851,6 +1241,19 @@ class FlaskOIDCLogin(
     def from_request(
         cls, lti_provider: t.Optional['models.LTI1p3Provider']
     ) -> 'FlaskOIDCLogin':
+        """Create a :class:`.FlaskOIDCLogin` from the current (global) flask
+            request.
+
+        The current request will not be copied or anything, so you cannot
+        create this object in a request and then use it in another one.
+
+        :param lti_provider: The lti provider that has initialized this OIDC
+            login. This will be checked: we will verify (when you start using
+            the returned object) that the information identifying the
+            ``lti_provider`` in the login request matches the given provider.
+
+        :returns: The created object.
+        """
         f_request = FlaskRequest(force_post=False)
         return FlaskOIDCLogin(
             f_request,

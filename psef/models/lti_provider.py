@@ -114,7 +114,7 @@ class LTIProviderBase(Base):
 
         .. note::
 
-            These ``lti_user_id``s are not globally unique!
+            A ``lti_user_id`` is not globally unique!
 
         :param lti_user_id: The id to search for.
         :returns: A user that has the given lti user id for the connected LMS,

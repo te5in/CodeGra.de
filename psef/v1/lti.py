@@ -114,7 +114,9 @@ def launch_lti() -> t.Any:
     .. :quickref: LTI; Do a LTI Launch.
     """
     params = lti_v1_1.LTI.create_from_request(flask.request).launch_params
-    return _make_blob_and_redirect(params, LTIVersion.v1_1, goto_latest_submission=False)
+    return _make_blob_and_redirect(
+        params, LTIVersion.v1_1, goto_latest_submission=False
+    )
 
 
 @api.route('/lti/', methods=['GET'])
@@ -203,9 +205,11 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
                 original_exception=data.get('original_exception'),
             )
 
+        lti_provider = helpers.get_or_404(
+            models.LTI1p3Provider, data['lti_provider_id']
+        )
         launch_message = lti_v1_3.FlaskMessageLaunch.from_message_data(
-            launch_data=data['launch_data'],
-            lti_provider_id=data['lti_provider_id'],
+            launch_data=data['launch_data'], lti_provider=lti_provider
         )
 
         if not launch_message.is_resource_launch():
@@ -373,7 +377,7 @@ def _handle_lti_advantage_launch(
 
     if message_launch.is_deep_link_launch():
         deep_link = message_launch.get_deep_link()
-        dp_resource = lti_v1_3.CGDeepLinkResource.make(app, message_launch)
+        dp_resource = lti_v1_3.CGDeepLinkResource.make(message_launch)
         return deep_link.output_response_form([dp_resource])
 
     return _make_blob_and_redirect(
