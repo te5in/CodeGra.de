@@ -42,8 +42,16 @@ class Backend(abc.ABC, t.Generic[T]):
         return f'{self._namespace}/{key}'
 
     @abc.abstractmethod
+    def clear(self, key: str) -> None:
+        """Clear the given ``key`` from the cache.
+
+        :param key: The key to clear from the cache.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def get(self, key: str) -> T:
-        """Get a the given ``key`` from the cache.
+        """Get the given ``key`` from the cache.
 
         :param key: The key you want get.
         :returns: The found value.
@@ -129,6 +137,13 @@ class RedisBackend(Backend[T], t.Generic[T]):
             raise KeyError(key)
 
         return json.loads(found)
+
+    def clear(self, key: str) -> None:
+        """Clear the given ``key`` from the cache.
+
+        .. seealso:: method :meth:`.Backend.clear`
+        """
+        self._redis.delete(self._make_key(key))
 
     def set(self, key: str, value: T) -> None:
         """Set a value with for a given ``key``.

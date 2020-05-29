@@ -656,6 +656,12 @@ class LTI1p3Provider(LTIProviderBase):
         """
         return self._finalized
 
+    @property
+    def key_set_url(self) -> t.Optional[str]:
+        """The location where you can find the public key of the LMS.
+        """
+        return self._key_set_url
+
     def update_registration(
         self,
         auth_login_url: t.Optional[str],

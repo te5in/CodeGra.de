@@ -725,6 +725,33 @@ class FlaskMessageLaunch(
         :class:`.FlaskOIDCLogin` for how that is handled.
     """
 
+    @staticmethod
+    def _make_key_set_url_cache_key(key_set_url: str) -> str:
+        return f'key-url-{key_set_url}'
+
+    @cg_override.override
+    def validate_jwt_signature(self) -> 'FlaskMessageLaunch':
+        """Validate the jwt signature in the request.
+
+        This method clears the key set url cache if the validation (implemented
+        in the base class) failed.
+        """
+        try:
+            return super().validate_jwt_signature()
+        except:  # pylint: disable=bare-except
+            # It might happen that our cache is outdated, in that case remove
+            # the cache and try to validate the signature again.
+            logger.info(
+                'Validating signature key failed, clearing cache and trying'
+                ' again'
+            )
+            key_set_url = self.get_lti_provider().key_set_url
+            if key_set_url is not None:
+                current_app.inter_request_cache.lti_public_keys.clear(
+                    self._make_key_set_url_cache_key(key_set_url)
+                )
+            return super().validate_jwt_signature()
+
     @cg_override.override
     def fetch_public_key(self, key_set_url: str) -> '_KeySet':
         """Fetch the public key at the given url.
