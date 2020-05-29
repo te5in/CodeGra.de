@@ -116,6 +116,9 @@ class LMSCapabilities(Protocol):
 
     @property
     def actual_deep_linking_required(self) -> bool:
+        """Does this LMS require actual deep linking, where the user inputs a
+            name and deadline.
+        """
         ...
 
 

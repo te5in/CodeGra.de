@@ -110,6 +110,7 @@ export default {
             deepLinkDeadline: null,
             deepLinkAssignmentName: null,
             deepLinkResponseData: null,
+            deepLinkAuthToken: null,
         };
     },
 
@@ -190,6 +191,7 @@ export default {
 
         async handleLTIDeepLink(data) {
             this.deepLinkBlobId = data.deep_link_blob_id;
+            this.deepLinkAuthToken = data.auth_token;
         },
 
         async handleLTI(data) {
@@ -288,6 +290,7 @@ export default {
                 {
                     name: this.deepLinkAssignmentName,
                     deadline: this.deepLinkDeadline,
+                    auth_token: this.deepLinkAuthToken,
                 },
             ).then(async ({ data }) => {
                 this.deepLinkResponseData = data;

@@ -18,7 +18,7 @@ import werkzeug
 import structlog
 import pylti1p3.exception
 from mypy_extensions import TypedDict
-from typing_extensions import Literal
+from typing_extensions import Final, Literal
 from pylti1p3.deep_link import DeepLink
 
 from psef import app
@@ -156,6 +156,7 @@ def get_lti_config() -> werkzeug.wrappers.Response:
 class LTIDeeplinkResult(TypedDict):
     type: Literal['deep_link']
     deep_link_blob_id: str
+    auth_token: str
 
 
 class _LTILaunchResult(TypedDict):
@@ -222,11 +223,13 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
         if launch_message.is_deep_link_launch():
             deep_link_settings = launch_message.get_deep_link_settings()
 
+            auth_token = str(uuid.uuid4())
             blob = models.BlobStorage(
                 json={
                     'type': 'deep_link_settings',
                     'deep_link_settings': deep_link_settings,
                     'deployment_id': launch_message._get_deployment_id(),
+                    'auth_token': auth_token,
                     'lti_provider_id': str(lti_provider.id),
                 },
             )
@@ -235,6 +238,7 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
             result = {
                 'type': 'deep_link',
                 'deep_link_blob_id': str(blob.id),
+                'auth_token': auth_token,
             }
         else:
             result = launch_message.do_second_step_of_lti_launch()
@@ -524,6 +528,9 @@ def deep_link_lti_assignment(
     assert isinstance(blob_json, dict)
     assert blob_json['type'] == 'deep_link_settings'
 
+    # We need a bit longer expiration here compared to other uses of the blob
+    # storage in this module as users need to have the time to actually input
+    # the needed data.
     if blob.age > timedelta(days=1):
         raise errors.APIException(
             'This deep linking session has expired, please reload',
@@ -536,8 +543,16 @@ def deep_link_lti_assignment(
     )
 
     with helpers.get_from_request_transaction() as [get, _]:
+        auth_token = get('auth_token', str)
         name = get('name', str)
         deadline_str = get('deadline', str)
+
+    if auth_token != blob_json['auth_token']:
+        raise exceptions.PermissionException(
+            'You did not provide the correct token to deep link an assignment',
+            f'The provided token {auth_token} is not correct',
+            exceptions.APICodes.INCORRECT_PERMISSION, 403
+        )
 
     deadline = parsers.parse_datetime(deadline_str)
 

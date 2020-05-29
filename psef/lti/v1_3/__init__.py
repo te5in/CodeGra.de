@@ -611,7 +611,7 @@ class CGDeepLinkResource(DeepLinkResource):
 
         self = cls()
         if deadline:
-            self._deadline = deadline
+            self._deadline = deadline  # pylint: disable=protected-access
 
         url = lti_provider.get_launch_url(goto_latest_sub=False)
         return self.set_url(str(url)).set_custom_params(
