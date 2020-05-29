@@ -75,7 +75,7 @@ T = t.TypeVar('T')
 if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import
     from .lms_capabilities import LMSCapabilities
-    from pylti1p3.message_launch import _JwtData, _LaunchData, _KeySet
+    from pylti1p3.message_launch import _JwtData, _LaunchData, _KeySet, _DeepLinkData
 
 NEEDED_AGS_SCOPES = [
     'https://purl.imsglobal.org/spec/lti-ags/scope/score',
@@ -218,7 +218,7 @@ class CGRegistration(Registration):
     def __init__(self, provider: 'models.LTI1p3Provider') -> None:
         assert provider._auth_login_url is not None
         assert provider._auth_token_url is not None
-        assert provider._key_set_url is not None
+        assert provider.key_set_url is not None
         assert provider.client_id is not None
         assert provider.iss is not None
 
@@ -227,7 +227,7 @@ class CGRegistration(Registration):
         self.set_auth_login_url(provider._auth_login_url) \
             .set_auth_token_url(provider._auth_token_url) \
             .set_client_id(provider.client_id) \
-            .set_key_set_url(provider._key_set_url) \
+            .set_key_set_url(provider.key_set_url) \
             .set_issuer(provider.iss) \
             .set_tool_public_key(provider.get_public_key()) \
             .set_tool_private_key(provider._private_key)
@@ -403,7 +403,10 @@ class CGCustomClaims:
             'cg_username',
             [
                 ReplacementVar('$User.username'),
-                AbsoluteVar('lis_person_sourcedid')
+                AbsoluteVar(['http://www.brightspace.com', 'username']),
+                # Not used at this moment by Brightspace but they might switch.
+                AbsoluteVar(['https://www.brightspace.com', 'username']),
+                AbsoluteVar('lis_person_sourcedid'),
             ],
         ),
         _Var(
@@ -429,6 +432,15 @@ class CGCustomClaims:
                 AbsoluteVar([claims.RESOURCE, 'id']),
             ],
         ),
+        # We don't support a lock date just yet, but if we do in the future we
+        # already get this info from the LTI 1.3 tools.
+        _Var(
+            'cg_lock_date',
+            [
+                ReplacementVar('$ResourceLink.available.endDateTime'),
+                ReplacementVar('$Canvas.assignment.lockAt.iso8601'),
+            ],
+        )
     ]
 
     _VAR_LOOKUP: Final = {var.name: var for var in _WANTED_VARS}
@@ -490,6 +502,12 @@ class CGCustomClaims:
     def _str_not_empty(inp: str) -> t.Optional[str]:
         return inp or None
 
+    @staticmethod
+    def _parse_isoformat(inp: str) -> t.Optional[DatetimeWithTimezone]:
+        if inp:
+            return DatetimeWithTimezone.parse_isoformat(inp)
+        return None
+
     @classmethod
     def get_custom_claim_data(
         cls,
@@ -514,13 +532,11 @@ class CGCustomClaims:
         )
 
         deadline = cls._get_claim(
-            'cg_deadline', custom_claims, base_data,
-            DatetimeWithTimezone.parse_isoformat
+            'cg_deadline', custom_claims, base_data, cls._parse_isoformat
         )
 
         available_at = cls._get_claim(
-            'cg_available_at', custom_claims, base_data,
-            DatetimeWithTimezone.parse_isoformat
+            'cg_available_at', custom_claims, base_data, cls._parse_isoformat
         )
         if available_at is None:
             is_available = cls._get_claim(
@@ -552,11 +568,33 @@ class CGDeepLinkResource(DeepLinkResource):
     the LMS. This resource is practically empty, and does not exist in our
     database, but this allows us to benefit from the UI of deep linking.
     """
+    _deadline: t.Optional[DatetimeWithTimezone]
+
+    @t.overload
+    @classmethod
+    def make(
+        cls, message_launch: 'FlaskMessageLaunch'
+    ) -> 'CGDeepLinkResource':
+        ...
+
+    @t.overload
+    @classmethod
+    def make(
+        cls,
+        *,
+        lti_provider: 'models.LTI1p3Provider',
+        deadline: DatetimeWithTimezone,
+    ) -> 'CGDeepLinkResource':
+        ...
 
     @classmethod
     @cg_override.no_override
     def make(
-        cls, message_launch: 'FlaskMessageLaunch'
+        cls,
+        message_launch: 'FlaskMessageLaunch' = None,
+        *,
+        lti_provider: 'models.LTI1p3Provider' = None,
+        deadline: t.Optional[DatetimeWithTimezone] = None,
     ) -> 'CGDeepLinkResource':
         """Make a practically empty deep link resource.
 
@@ -566,12 +604,30 @@ class CGDeepLinkResource(DeepLinkResource):
 
         :returns: The created resource.
         """
-        assert message_launch.is_deep_link_launch()
+        if lti_provider is None:
+            assert message_launch is not None
+            assert message_launch.is_deep_link_launch()
+            lti_provider = message_launch.get_lti_provider()
+
         self = cls()
-        url = message_launch.get_lti_provider().get_launch_url(
-            goto_latest_sub=False,
+        if deadline:
+            self._deadline = deadline
+
+        url = lti_provider.get_launch_url(goto_latest_sub=False)
+        return self.set_url(str(url)).set_custom_params(
+            CGCustomClaims.get_variable_claims_config(
+                lti_provider.lms_capabilities
+            )
         )
-        return self.set_url(str(url))
+
+    @cg_override.override
+    def to_dict(self) -> t.Dict[str, object]:
+        res = super().to_dict()
+        if self._deadline is not None:
+            res['submission'] = {
+                'endDateTime': self._deadline.isoformat(),
+            }
+        return res
 
 
 class LTIConfig(ToolConfAbstract[FlaskRequest]):
@@ -772,7 +828,7 @@ class FlaskMessageLaunch(
         super_method = super().fetch_public_key
 
         return cache.get_or_set(
-            f'key-url-{key_set_url}',
+            self._make_key_set_url_cache_key(key_set_url),
             lambda: super_method(key_set_url),
         )
 
@@ -1024,16 +1080,18 @@ class FlaskMessageLaunch(
 
         custom = launch_data[claims.CUSTOM]
         lti_provider = self.get_lti_provider()
-        check_and_raise(
-            (
-                'The LTI launch is missing required custom claims, the setup'
-                ' was probably done incorrectly'
-            ),
-            custom,
-            *CGCustomClaims.get_variable_claims_config(
-                lti_provider.lms_capabilities
-            ).keys(),
-        )
+        if self.is_resource_launch():
+            # We don't need this info for deep link launches.
+            check_and_raise(
+                (
+                    'The LTI launch is missing required custom claims, the setup'
+                    ' was probably done incorrectly'
+                ),
+                custom,
+                *CGCustomClaims.get_variable_claims_config(
+                    lti_provider.lms_capabilities
+                ).keys(),
+            )
 
         if not self.is_deep_link_launch():
             if not self.has_nrps():
@@ -1082,6 +1140,9 @@ class FlaskMessageLaunch(
         assert self._validated or self._restored
         return super()._get_jwt_body()
 
+    def get_deep_link_settings(self) -> '_DeepLinkData':
+        return self._get_jwt_body()[claims.DEEP_LINK]
+
     @cg_override.override
     def validate(self) -> 'FlaskMessageLaunch':
         """Validate this request, both for security and data completeness.
@@ -1101,7 +1162,7 @@ class FlaskMessageLaunch(
             # request is seen as validated) and do as if it were validated, so
             # we can get the LTI provider.
 
-            self_copy = copy.deepcopy(self)
+            self_copy = copy.copy(self)
             try:
                 # Make sure we can get the lti provider
                 self_copy._validated = True  # pylint: disable=protected-access

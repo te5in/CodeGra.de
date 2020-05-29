@@ -3,7 +3,7 @@
 <div class="assignment-state" v-if="editable">
     <b-button-group>
         <b-button-group v-if="canManageLTIState"
-                        v-b-popover.window.top.hover="`Hidden or open, managed by ${lmsName}`">
+                        v-b-popover.window.top.hover="managedByLTIPopover">
             <submit-button class="state-button larger state-hidden state-open"
                            :variant="ltiHiddenOpenVariant"
                            :duration="0"
@@ -161,6 +161,22 @@ export default {
 
         lmsName() {
             return this.$utils.getProps(this.ltiProvider, null, 'lms');
+        },
+
+        managedByLTIPopover() {
+            let curState = '';
+            switch (this.assignment.state) {
+            case states.SUBMITTING:
+            case states.OPEN:
+                curState = ', currently open';
+                break;
+            case states.HIDDEN:
+                curState = ', currently hidden';
+                break;
+            default:
+                break;
+            }
+            return `Hidden or open, managed by ${this.lmsName}${curState}.`;
         },
     },
 

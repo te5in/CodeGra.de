@@ -25,6 +25,49 @@
         </template>
     </p>
 </b-alert>
+<div v-else-if="deepLinking">
+    <local-header title="Creating new CodeGrade assignment" >
+        <cg-logo :inverted="!darkMode" />
+    </local-header>
+    <b-form-fieldset>
+        <b-input-group>
+            <b-input-group-prepend is-text>
+                Name
+                <cg-description-popover hug-text>
+                    The name of the new assignment
+                </cg-description-popover>
+            </b-input-group-prepend>
+
+            <input class="form-control"
+                   placeholder="The name of the new assignment"
+                   v-model="deepLinkAssignmentName" />
+        </b-input-group>
+    </b-form-fieldset>
+
+    <b-form-fieldset>
+        <b-input-group>
+            <b-input-group-prepend is-text>
+                Deadline
+                <cg-description-popover hug-text>
+                    The deadline of the new assignment
+                </cg-description-popover>
+            </b-input-group-prepend>
+
+            <datetime-picker v-model="deepLinkDeadline"
+                             class="assignment-deadline"
+                             placeholder="The deadline of the new assignment"/>
+        </b-input-group>
+    </b-form-fieldset>
+
+    <cg-submit-button :submit="createDeepLink"
+                      label="Create assignment"
+                      class="float-right"/>
+
+    <form ref="deepLinkResponesForm" :action="deepLinkResponseData.url" method="POST"
+          v-if="deepLinkResponseData != null">
+        <input type="hidden" name="JWT" :value="deepLinkResponseData.jwt" />
+    </form>
+</div>
 <div v-else>
     <local-header title="Opening CodeGrade" >
         <cg-logo :inverted="!darkMode" />
@@ -35,7 +78,7 @@
 
 <script>
 import 'vue-awesome/icons/times';
-import { LocalHeader } from '@/components';
+import { LocalHeader, DatetimePicker } from '@/components';
 import { mapActions, mapGetters } from 'vuex';
 import { disablePersistance } from '@/store';
 import { makeProvider } from '@/lti_providers';
@@ -63,6 +106,10 @@ export default {
             error: false,
             errorMsg: false,
             originalException: null,
+            deepLinkBlobId: null,
+            deepLinkDeadline: null,
+            deepLinkAssignmentName: null,
+            deepLinkResponseData: null,
         };
     },
 
@@ -83,6 +130,10 @@ export default {
         cookiePostMessage() {
             return this.$utils.getProps(this.originalException, null, 'lms_capabilities', 'cookie_post_message');
         },
+
+        deepLinking() {
+            return this.deepLinkBlobId != null;
+        },
     },
 
     methods: {
@@ -102,39 +153,26 @@ export default {
                     blob_id: this.$route.query.blob_id,
                 })
                 .then(async response => {
+                    this.$utils.WarningHeader.fromResponse(response).messages.forEach(warning => {
+                        this.$toasted.info(warning.text, getToastOptions());
+                    });
                     const { data } = response;
-
-                    switch (data.version) {
-                    case 'v1_1':
-                    case 'v1_3':
-                        this.$ltiProvider = makeProvider(data.data.course.lti_provider);
-                        break;
-                    default:
+                    if (data.version !== 'v1_1' && data.version !== 'v1_3') {
                         return this.$utils.AssertionError.assertNever(
                             data.version,
                             `Unknown LTI version (${data.version}) encountered.`,
                         );
                     }
-                    if (data.data.access_token) {
-                        await this.logout();
-                        disablePersistance();
-                        await this.updateAccessToken(data.data.access_token);
-                    } else {
-                        this.clearPlagiarismCases();
-                    }
 
-                    this.$utils.WarningHeader.fromResponse(response).messages.forEach(warning => {
-                        this.$toasted.info(warning.text, getToastOptions());
-                    });
-
-                    switch (data.version) {
-                    case 'v1_1':
-                    case 'v1_3':
+                    switch (data.data.type) {
+                    case 'deep_link':
+                        return this.handleLTIDeepLink(data.data);
+                    case 'normal_result':
                         return this.handleLTI(data.data);
                     default:
                         return this.$utils.AssertionError.assertNever(
-                            data.version,
-                            `Unknown LTI version (${data.version}) encountered.`,
+                            data.data.type,
+                            `Unknown LTI data type (${data.data.type}) encountered.`,
                         );
                     }
                 })
@@ -150,10 +188,22 @@ export default {
                 });
         },
 
+        async handleLTIDeepLink(data) {
+            this.deepLinkBlobId = data.deep_link_blob_id;
+        },
+
         async handleLTI(data) {
-            if (data.type !== 'normal_result') {
-                throw new Error(`Unknown LTI1.1 type: ${data.type}.`);
+            this.$ltiProvider = makeProvider(data.course.lti_provider);
+
+            if (data.access_token) {
+                await this.logout();
+                disablePersistance();
+                await this.updateAccessToken(data.access_token);
+            } else {
+                this.clearPlagiarismCases();
             }
+
+
             if (!this.assignments[data.assignment.id]) {
                 await this.reloadCourses();
             }
@@ -227,10 +277,29 @@ export default {
                 ),
             }, '*');
         },
+
+        createDeepLink() {
+            if (!this.deepLinkAssignmentName || !this.deepLinkDeadline) {
+                throw new Error('Please insert a name and deadline for the new assignment');
+            }
+
+            return this.$http.post(
+                this.$utils.buildUrl(['api', 'v1', 'lti1.3', 'deep_link', this.deepLinkBlobId]),
+                {
+                    name: this.deepLinkAssignmentName,
+                    deadline: this.deepLinkDeadline,
+                },
+            ).then(async ({ data }) => {
+                this.deepLinkResponseData = data;
+                await this.$afterRerender();
+                return this.$refs.deepLinkResponesForm.submit();
+            });
+        },
     },
 
     components: {
         LocalHeader,
+        DatetimePicker,
     },
 };
 </script>

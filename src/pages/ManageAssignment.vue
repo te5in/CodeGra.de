@@ -54,7 +54,7 @@
                     </b-input-group>
                 </b-form-fieldset>
 
-                <b-form-fieldset v-if="canEditDeadline || 1">
+                <b-form-fieldset v-if="canEditDeadline">
                     <b-input-group>
                         <b-input-group-prepend is-text slot="prepend"
                                                :class="{ 'warning': !assignment.hasDeadline }">

@@ -114,6 +114,10 @@ class LMSCapabilities(Protocol):
         """
         ...
 
+    @property
+    def actual_deep_linking_required(self) -> bool:
+        ...
+
 
 @dataclasses.dataclass(frozen=True)
 class _LMSCapabilities:
@@ -131,6 +135,8 @@ class _LMSCapabilities:
 
     use_id_in_urls: bool
 
+    actual_deep_linking_required: bool
+
     def __post_init__(self) -> None:
         lti_1_3_lms_capabilities.register(self.lms)(self)
 
@@ -146,6 +152,7 @@ _LMSCapabilities(
     cookie_post_message='requestFullWindowLaunch',
     supported_custom_replacement_groups=[['$Canvas'], ['$com', 'instructure']],
     use_id_in_urls=False,
+    actual_deep_linking_required=False,
 )
 
 _LMSCapabilities(
@@ -156,6 +163,7 @@ _LMSCapabilities(
     cookie_post_message=None,
     supported_custom_replacement_groups=[],
     use_id_in_urls=True,
+    actual_deep_linking_required=False,
 )
 
 _LMSCapabilities(
@@ -166,16 +174,18 @@ _LMSCapabilities(
     cookie_post_message=None,
     supported_custom_replacement_groups=[],
     use_id_in_urls=True,
+    actual_deep_linking_required=False,
 )
 
 _LMSCapabilities(
     lms='Brightspace',
-    set_deadline=True,
-    set_state=True,
+    set_deadline=False,
+    set_state=False,
     test_student_name=None,
     cookie_post_message=None,
     supported_custom_replacement_groups=[],
     use_id_in_urls=False,
+    actual_deep_linking_required=True,
 )
 
 lti_1_3_lms_capabilities.freeze()

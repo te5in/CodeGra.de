@@ -19,6 +19,7 @@ import structlog
 import pylti1p3.exception
 from mypy_extensions import TypedDict
 from typing_extensions import Literal
+from pylti1p3.deep_link import DeepLink
 
 from psef import app
 from cg_json import JSONResponse, jsonify
@@ -152,8 +153,13 @@ def get_lti_config() -> werkzeug.wrappers.Response:
         )
 
 
+class LTIDeeplinkResult(TypedDict):
+    type: Literal['deep_link']
+    deep_link_blob_id: str
+
+
 class _LTILaunchResult(TypedDict):
-    data: LTILaunchData
+    data: t.Union[LTILaunchData, LTIDeeplinkResult]
     version: LTIVersion
 
 
@@ -182,7 +188,7 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
                 'Decoding given JWT token failed, LTI is probably '
                 'not configured correctly. Please contact your site admin.'
             ),
-            f'The decoding of jwt failed.',
+            'The decoding of jwt failed.',
             errors.APICodes.INVALID_PARAM,
             400,
         )
@@ -191,6 +197,7 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
 
     version = LTIVersion[launch_params.get('version', LTIVersion.v1_1)]
     data = launch_params['data']
+    result: t.Union[LTILaunchData, LTIDeeplinkResult]
 
     if version == LTIVersion.v1_1:
         inst = lti_v1_1.LTI.create_from_launch_params(data)
@@ -212,14 +219,25 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
             launch_data=data['launch_data'], lti_provider=lti_provider
         )
 
-        if not launch_message.is_resource_launch():
-            raise exceptions.APIException(
-                'Unknown LTI launch received, please contact support',
-                'The received launch is not a resource launch',
-                exceptions.APICodes.INVALID_STATE, 400
-            )
+        if launch_message.is_deep_link_launch():
+            deep_link_settings = launch_message.get_deep_link_settings()
 
-        result = launch_message.do_second_step_of_lti_launch()
+            blob = models.BlobStorage(
+                json={
+                    'type': 'deep_link_settings',
+                    'deep_link_settings': deep_link_settings,
+                    'deployment_id': launch_message._get_deployment_id(),
+                    'lti_provider_id': str(lti_provider.id),
+                },
+            )
+            db.session.add(blob)
+            db.session.flush()
+            result = {
+                'type': 'deep_link',
+                'deep_link_blob_id': str(blob.id),
+            }
+        else:
+            result = launch_message.do_second_step_of_lti_launch()
     else:
         assert False
 
@@ -375,7 +393,11 @@ def _handle_lti_advantage_launch(
             goto_latest_submission=False,
         )
 
-    if message_launch.is_deep_link_launch():
+    provider = message_launch.get_lti_provider()
+    if (
+        message_launch.is_deep_link_launch() and
+        not provider.lms_capabilities.actual_deep_linking_required
+    ):
         deep_link = message_launch.get_deep_link()
         dp_resource = lti_v1_3.CGDeepLinkResource.make(message_launch)
         return deep_link.output_response_form([dp_resource])
@@ -484,3 +506,54 @@ def update_lti1p3_provider(lti_provider_id: str
     db.session.commit()
 
     return jsonify(lti_provider)
+
+
+@api.route('/lti1.3/deep_link/<uuid:deep_link_blob_id>', methods=['POST'])
+def deep_link_lti_assignment(
+    deep_link_blob_id: uuid.UUID
+) -> helpers.JSONResponse:
+    # TODO: Maybe we should use some kind of session information here to do
+    # more authentication.
+    blob = helpers.filter_single_or_404(
+        models.BlobStorage,
+        models.BlobStorage.id == deep_link_blob_id,
+        with_for_update=True,
+    )
+    db.session.delete(blob)
+    blob_json = blob.as_json()
+    assert isinstance(blob_json, dict)
+    assert blob_json['type'] == 'deep_link_settings'
+
+    if blob.age > timedelta(days=1):
+        raise errors.APIException(
+            'This deep linking session has expired, please reload',
+            f'The deep linking session with blob {blob.id} has expired',
+            errors.APICodes.OBJECT_EXPIRED, 400
+        )
+
+    provider = helpers.get_or_404(
+        models.LTI1p3Provider, blob_json['lti_provider_id']
+    )
+
+    with helpers.get_from_request_transaction() as [get, _]:
+        name = get('name', str)
+        deadline_str = get('deadline', str)
+
+    deadline = parsers.parse_datetime(deadline_str)
+
+    dp_resource = lti_v1_3.CGDeepLinkResource.make(
+        lti_provider=provider, deadline=deadline
+    ).set_title(name)
+    deep_link_settings = t.cast(t.Any, blob_json['deep_link_settings'])
+    deep_link = DeepLink(
+        lti_v1_3.CGRegistration(provider),
+        t.cast(str, blob_json['deployment_id']),
+        deep_link_settings,
+    )
+    db.session.commit()
+    return JSONResponse.make(
+        {
+            'url': deep_link_settings['deep_link_return_url'],
+            'jwt': deep_link.get_response_jwt([dp_resource]),
+        }
+    )
