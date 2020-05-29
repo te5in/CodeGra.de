@@ -603,6 +603,7 @@ class LTI1p3Provider(LTIProviderBase):
     )
     _auth_login_url = db.Column('auth_login_url', db.Unicode)
     _auth_token_url = db.Column('auth_token_url', db.Unicode)
+    _auth_audience = db.Column('auth_audience', db.Unicode)
     _key_set_url = db.Column('key_set_url', db.Unicode)
 
     _crypto_key = db.Column('crypto_key', db.LargeBinary)
@@ -662,12 +663,21 @@ class LTI1p3Provider(LTIProviderBase):
         """
         return self._key_set_url
 
+    @property
+    def auth_audience(self) -> t.Optional[str]:
+        """The OAuth2 Audience for this provider.
+        """
+        return psef.helpers.handle_none(
+            self._auth_audience, self._auth_token_url
+        )
+
     def update_registration(
         self,
         auth_login_url: t.Optional[str],
         auth_token_url: t.Optional[str],
         client_id: t.Optional[str],
         key_set_url: t.Optional[str],
+        auth_audience: t.Optional[str],
         finalize: t.Optional[bool],
     ) -> None:
         """Update this lti provider.
@@ -679,8 +689,11 @@ class LTI1p3Provider(LTIProviderBase):
         :param client_id: The new client id, pass ``None`` to keep the old one.
         :param key_set_url: The new key set url, pass ``None`` to keep the old
             one.
+        :param auth_audience: The new OAuth2 Audience this is not required for
+            all LMSes. Pass ``None`` to keep the old value.
         :param finalize: Pass ``True`` to seal this provider, and make it ready
             for use.
+
         :returns: Nothing.
         """
         assert not self._finalized
@@ -693,12 +706,17 @@ class LTI1p3Provider(LTIProviderBase):
             self._auth_token_url = auth_token_url
         if key_set_url is not None:
             self._key_set_url = key_set_url
+        if auth_audience is not None:
+            self._auth_audience = auth_audience
 
         if finalize is True:
-            all_opts = (
+            all_opts = [
                 self.client_id, self._auth_login_url, self._auth_token_url,
                 self._key_set_url
-            )
+            ]
+            if self.lms_capabilities.auth_audience_required:
+                all_opts.append(self._auth_audience)
+
             if any(opt is None for opt in all_opts):
                 raise psef.errors.APIException(
                     (
@@ -1081,12 +1099,10 @@ class LTI1p3Provider(LTIProviderBase):
             # some LMS (looking at you Blackboard) don't send an array, but
             # send a single object. So we wrap it in a list if this is the
             # case.
-            messages = member.get('message', None)
-            if messages is None:
-                logger.info('Ignoring member as there was no message')
-                continue
+            messages = member.get('message', [])
 
             get_claim_data = psef.lti.v1_3.CGCustomClaims.get_custom_claim_data
+            custom_claim = None
             for message in psef.helpers.maybe_wrap_in_list(messages):
                 try:
                     custom_claim = get_claim_data(
@@ -1101,8 +1117,6 @@ class LTI1p3Provider(LTIProviderBase):
                     )
                 else:
                     break
-            else:
-                continue
 
             if status not in {'Active', 'Inactive'}:
                 logger.info(
@@ -1119,7 +1133,9 @@ class LTI1p3Provider(LTIProviderBase):
                 user, _ = UserLTIProvider.get_or_create_user(
                     lti_user_id=member['user_id'],
                     lti_provider=self,
-                    wanted_username=custom_claim.username,
+                    wanted_username=(
+                        custom_claim.username if custom_claim else None
+                    ),
                     email=lti_v1_3.get_email_for_user(member, self),
                     full_name=member['name'],
                 )
@@ -1262,6 +1278,12 @@ class LTI1p3Provider(LTIProviderBase):
             pre_check=lambda uc: uc.course_role.course.is_lti,
             task_args=_PASSBACK_CELERY_OPTS,
             prevent_recursion=True,
+        )(cls._retrieve_users_in_course)
+
+        signals.ASSIGNMENT_CREATED.connect_celery(
+            converter=lambda a: a.course_id,
+            pre_check=pre_checker,
+            task_args=_PASSBACK_CELERY_OPTS,
         )(cls._retrieve_users_in_course)
 
 

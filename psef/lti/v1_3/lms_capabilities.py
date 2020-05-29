@@ -121,6 +121,10 @@ class LMSCapabilities(Protocol):
         """
         ...
 
+    @property
+    def auth_audience_required(self) -> bool:
+        ...
+
 
 @dataclasses.dataclass(frozen=True)
 class _LMSCapabilities:
@@ -140,6 +144,8 @@ class _LMSCapabilities:
 
     actual_deep_linking_required: bool
 
+    auth_audience_required: bool
+
     def __post_init__(self) -> None:
         lti_1_3_lms_capabilities.register(self.lms)(self)
 
@@ -156,6 +162,7 @@ _LMSCapabilities(
     supported_custom_replacement_groups=[['$Canvas'], ['$com', 'instructure']],
     use_id_in_urls=False,
     actual_deep_linking_required=False,
+    auth_audience_required=False,
 )
 
 _LMSCapabilities(
@@ -167,6 +174,7 @@ _LMSCapabilities(
     supported_custom_replacement_groups=[],
     use_id_in_urls=True,
     actual_deep_linking_required=False,
+    auth_audience_required=False,
 )
 
 _LMSCapabilities(
@@ -178,6 +186,7 @@ _LMSCapabilities(
     supported_custom_replacement_groups=[],
     use_id_in_urls=True,
     actual_deep_linking_required=False,
+    auth_audience_required=False,
 )
 
 _LMSCapabilities(
@@ -189,6 +198,7 @@ _LMSCapabilities(
     supported_custom_replacement_groups=[],
     use_id_in_urls=False,
     actual_deep_linking_required=True,
+    auth_audience_required=True,
 )
 
 lti_1_3_lms_capabilities.freeze()

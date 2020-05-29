@@ -497,6 +497,7 @@ def update_lti1p3_provider(lti_provider_id: str
         auth_token_url = opt_get('auth_token_url', str, None)
         auth_login_url = opt_get('auth_login_url', str, None)
         key_set_url = opt_get('key_set_url', str, None)
+        auth_audience = opt_get('auth_audience', str, None)
         finalize = opt_get('finalize', bool, None)
 
     lti_provider.update_registration(
@@ -504,6 +505,7 @@ def update_lti1p3_provider(lti_provider_id: str
         auth_token_url=auth_token_url,
         auth_login_url=auth_login_url,
         key_set_url=key_set_url,
+        auth_audience=auth_audience,
         finalize=finalize,
     )
 

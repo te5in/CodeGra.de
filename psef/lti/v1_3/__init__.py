@@ -221,6 +221,7 @@ class CGRegistration(Registration):
         assert provider.key_set_url is not None
         assert provider.client_id is not None
         assert provider.iss is not None
+        assert provider.auth_audience is not None
 
         self.provider = provider
 
@@ -230,6 +231,7 @@ class CGRegistration(Registration):
             .set_key_set_url(provider.key_set_url) \
             .set_issuer(provider.iss) \
             .set_tool_public_key(provider.get_public_key()) \
+            .set_auth_audience(provider.auth_audience) \
             .set_tool_private_key(provider._private_key)
 
 

@@ -131,7 +131,7 @@ def add_warning(warning: str, code: psef.exceptions.APIWarnings) -> None:
     g.request_warnings.append(psef.errors.make_warning(warning, code))
 
 
-def handle_none(value: t.Optional[T], default: Z) -> t.Union[T, Z]:
+def handle_none(value: t.Optional[T], default: TT) -> t.Union[T, TT]:
     """Get the given ``value`` or ``default`` if ``value`` is ``None``.
 
     >>> handle_none(None, 5)

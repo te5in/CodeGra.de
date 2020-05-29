@@ -695,6 +695,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         self._changed_ambiguous_settings: t.Set[AssignmentAmbiguousSettingTag]
         self._on_orm_load()
 
+        signals.ASSIGNMENT_CREATED.send(self)
+
     @sqlalchemy.orm.reconstructor
     def _on_orm_load(self) -> None:
         self._changed_ambiguous_settings = set()
