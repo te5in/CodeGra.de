@@ -232,14 +232,6 @@ class User(NotEqualMixin, Base):
     def __hash__(self) -> int:
         return hash(self.id)
 
-    @t.overload
-    def is_enrolled(self, course: 'course_models.Course') -> bool:
-        ...
-
-    @t.overload
-    def is_enrolled(self, course: int) -> bool:
-        ...
-
     def is_enrolled(
         self, course: t.Union[int, 'course_models.Course']
     ) -> bool:

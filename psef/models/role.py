@@ -327,7 +327,7 @@ class CourseRole(AbstractRole[CoursePermission], Base):
         *,
         include_hidden: bool = False,
     ) -> MyQuery['CourseRole']:
-        """Get a course role within the given course with the course.
+        """Get a course role within the given course.
 
         :param course: The course to get the role in.
         :param name: The name of the role.
