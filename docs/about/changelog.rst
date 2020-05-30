@@ -13,6 +13,10 @@ Version *Next*
   code can now be rendered side by side, the amount of context lines before and
   after each match is configurable, and it is possible to export to a docx
   file.
+- Add LTI 1.3 implementation `(#1277)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1277>`__. This makes the
+  integration in the LMS even better, allowing better workflows for group
+  assignments and easier assignment creation.
 
 **Fixes**
 
