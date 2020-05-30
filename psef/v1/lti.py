@@ -1,8 +1,10 @@
-"""
-This module implements all lti routes. Please note that a lot of these routes
-are not useful for most clients as the ``/lti/launch/1`` route can only be used
-by an approved LTI provider and the ``/lti/launch/2`` route can only be used
-directly after a successful lti launch.
+"""This module implements all lti routes.
+
+.. warning::
+
+    Most of the routes in this modules should not be considered public. Only
+    routes in this module explicitly stating that they are part of the public
+    API should be considered stable and public.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
@@ -18,7 +20,7 @@ import werkzeug
 import structlog
 import pylti1p3.exception
 from mypy_extensions import TypedDict
-from typing_extensions import Final, Literal
+from typing_extensions import Literal
 from pylti1p3.deep_link import DeepLink
 
 from psef import app
@@ -111,8 +113,6 @@ def _make_blob_and_redirect(
 @features.feature_required(features.Feature.LTI)
 def launch_lti() -> t.Any:
     """Do a LTI launch.
-
-    .. :quickref: LTI; Do a LTI Launch.
     """
     params = lti_v1_1.LTI.create_from_request(flask.request).launch_params
     return _make_blob_and_redirect(
@@ -124,7 +124,9 @@ def launch_lti() -> t.Any:
 def get_lti_config() -> werkzeug.wrappers.Response:
     """Get a LTI config xml for this CodeGrade instance
 
-    .. :quickref: LTI; Get the configuration for a LMS.
+    .. :quickref: LTI; Get the configuration for a LTI 1.1 provider.
+
+    This route is part of the public API.
 
     :qparam str lms: The name of the LMS to get the config for. This is
         required.
@@ -154,6 +156,14 @@ def get_lti_config() -> werkzeug.wrappers.Response:
 
 
 class LTIDeeplinkResult(TypedDict):
+    """The result of a LTI launch when an actual deep link is required.
+
+    :ivar type: Always ``"deep_link"``.
+    :ivar deep_link_blob_id: The id of the blob that stores the deep link
+        information.
+    :ivar auth_token: The authentication token you can use to finish the LTI
+        deep link later on.
+    """
     type: Literal['deep_link']
     deep_link_blob_id: str
     auth_token: str
@@ -228,7 +238,7 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
                 json={
                     'type': 'deep_link_settings',
                     'deep_link_settings': deep_link_settings,
-                    'deployment_id': launch_message._get_deployment_id(),
+                    'deployment_id': launch_message.deployment_id,
                     'auth_token': auth_token,
                     'lti_provider_id': str(lti_provider.id),
                 },
@@ -257,8 +267,6 @@ def second_phase_lti_launch(
 ) -> helpers.JSONResponse[t.Union[_LTILaunchResult, t.Dict[str, t.Any]]]:
     """Do the second part of an LTI launch.
 
-    .. :quickref: LTI; Do the callback of a LTI launch.
-
     :>json string blob_id: The id of the blob which you got from the lti launch
         redirect.
 
@@ -284,6 +292,11 @@ def second_phase_lti_launch(
 def do_oidc_login(
     lti_provider_id: t.Optional[str] = None
 ) -> werkzeug.wrappers.Response:
+    """Do an LTI 1.3 OIDC login.
+
+    :param lti_provider_id: The id of the provider doing the launch, not
+        required for LMSes that pass all required information.
+    """
     req = helpers.maybe_unwrap_proxy(flask.request, flask.Request)
     if req.method == 'GET':
         target = req.args.get('target_link_uri')
@@ -336,6 +349,15 @@ def do_oidc_login(
 
 @api.route('/lti1.3/jwks/<lti_provider_id>', methods=['GET'])
 def get_lti_provider_jwks(lti_provider_id: str) -> helpers.JSONResponse:
+    """Get the JWKS of a given provider.
+
+    .. :quickref: LTI; Get the public key of a provider in JWKS format.
+
+    This route is part of the public API.
+
+    :param lti_provider_id: The id of the provider from which you want to get
+        the JWKS.
+    """
     lti_provider = helpers.filter_single_or_404(
         models.LTI1p3Provider, models.LTI1p3Provider.id == lti_provider_id
     )
@@ -346,6 +368,11 @@ def get_lti_provider_jwks(lti_provider_id: str) -> helpers.JSONResponse:
 @api.route('/lti1.3/launch', methods=['POST'])
 def handle_lti_advantage_launch(lti_provider_id: t.Optional[str] = None
                                 ) -> t.Union[str, werkzeug.wrappers.Response]:
+    """Do a LTI 1.3 launch to the submission page.
+
+    :param lti_provider_id: The id of the provider doing the launch, not
+        required for LMSes that pass all required information.
+    """
 
     return _handle_lti_advantage_launch(lti_provider_id, goto_latest_sub=False)
 
@@ -357,6 +384,11 @@ def handle_lti_advantage_launch(lti_provider_id: t.Optional[str] = None
 def handle_lti_advantage_launch_to_latest_sub(
     lti_provider_id: t.Optional[str] = None
 ) -> t.Union[str, werkzeug.wrappers.Response]:
+    """Do a LTI 1.3 launch to the latest submission
+
+    :param lti_provider_id: The id of the provider doing the launch, not
+        required for LMSes that pass all required information.
+    """
     return _handle_lti_advantage_launch(lti_provider_id, goto_latest_sub=True)
 
 
@@ -418,7 +450,15 @@ def _handle_lti_advantage_launch(
 
 
 @api.route('/lti1.3/config/<lti_provider_id>', methods=['GET'])
-def get_lti1_3_config(lti_provider_id: str) -> helpers.JSONResponse:
+def get_lti1_3_config(lti_provider_id: str) -> helpers.JSONResponse[object]:
+    """Get the LTI 1.3 config in such a way that it can be used by the LMS
+    connected to this provider.
+
+    :param lti_provider_id: The id of the provider you want to get the
+        configuration for.
+
+    :returns: An opaque object that is useful only for the LMS.
+    """
     lti_provider = helpers.filter_single_or_404(
         models.LTI1p3Provider, models.LTI1p3Provider.id == lti_provider_id
     )
@@ -429,6 +469,14 @@ def get_lti1_3_config(lti_provider_id: str) -> helpers.JSONResponse:
 @auth.login_required
 def list_lti1p3_provider(
 ) -> helpers.JSONResponse[t.List[models.LTI1p3Provider]]:
+    """List all known LTI 1.3 providers for this instance.
+
+    .. :quickref: LTI; List all known LTI 1.3 providers.
+
+    This route is part of the public API.
+
+    :returns: A list of all known LTI 1.3 providers.
+    """
     providers = [
         prov for prov in models.LTI1p3Provider.query
         if auth.LTI1p3ProviderPermissions(prov).ensure_may_see.as_bool()
@@ -439,6 +487,19 @@ def list_lti1p3_provider(
 @api.route('/lti1.3/providers/', methods=['POST'])
 @auth.login_required
 def create_lti1p3_provider() -> helpers.JSONResponse[models.LTI1p3Provider]:
+    """Create a new LTI 1.3 provider.
+
+    .. :quickref: LTI; Create a new LTI 1.3 provider.
+
+    This route is part of the public API.
+
+    :<json str iss: The iss of the new provider.
+    :<json str lms: The LMS of the new provider, this should be known LMS.
+    :<json str indented_use: The intended use of the provider. Like which
+        organization will be using the provider, this can be any string.
+
+    :returns: The just created provider.
+    """
     with helpers.get_from_request_transaction() as [get, _]:
         iss = get('iss', str)
         caps = get(
@@ -471,6 +532,16 @@ def create_lti1p3_provider() -> helpers.JSONResponse[models.LTI1p3Provider]:
 @api.route('/lti1.3/providers/<lti_provider_id>', methods=['GET'])
 def get_lti1p3_provider(lti_provider_id: str
                         ) -> helpers.JSONResponse[models.LTI1p3Provider]:
+    """Get a LTI 1.3 provider.
+
+    .. :quickref: LTI; Get a LTI 1.3 provider by id.
+
+    This route is part of the public API.
+
+    :param lti_provider_id: The id of the provider you want to get.
+
+    :returns: The requested LTI 1.3 provider.
+    """
     lti_provider = helpers.filter_single_or_404(
         models.LTI1p3Provider, models.LTI1p3Provider.id == lti_provider_id
     )
@@ -484,6 +555,26 @@ def get_lti1p3_provider(lti_provider_id: str
 @api.route('/lti1.3/providers/<lti_provider_id>', methods=['PATCH'])
 def update_lti1p3_provider(lti_provider_id: str
                            ) -> helpers.JSONResponse[models.LTI1p3Provider]:
+    """Update the given LTI 1.3 provider.
+
+    .. :quickref: LTI; Update the information of an LTI 1.3 provider.
+
+    This route is part of the public API.
+
+    :param lti_provider_id: The id of the provider you want to update.
+
+    :<json str client_id: The new client id.
+    :<json str auth_token_url: The new authentication token url.
+    :<json str auth_login_url: The new authentication login url.
+    :<json str key_set_url: The new key set url.
+    :<json str auth_audience: The new OAuth2 audience.
+    :<json bool finalize: Should this provider be finalized.
+
+    All input JSON is optional, when not provided that attribute will not be
+    updated.
+
+    :returns: The updated LTI 1.3 provider.
+    """
     lti_provider = helpers.filter_single_or_404(
         models.LTI1p3Provider, models.LTI1p3Provider.id == lti_provider_id
     )
@@ -515,11 +606,19 @@ def update_lti1p3_provider(lti_provider_id: str
 
 
 @api.route('/lti1.3/deep_link/<uuid:deep_link_blob_id>', methods=['POST'])
-def deep_link_lti_assignment(
-    deep_link_blob_id: uuid.UUID
-) -> helpers.JSONResponse:
-    # TODO: Maybe we should use some kind of session information here to do
-    # more authentication.
+def deep_link_lti_assignment(deep_link_blob_id: uuid.UUID
+                             ) -> helpers.JSONResponse[t.Mapping[str, str]]:
+    """Create a deeplink response for the given blob.
+
+    :<json name: The name of the new assignment.
+    :<json deadline: The deadline of the new assignment, formatted as an
+        ISO8601 datetime string.
+    :<json auth_token: The authentication token received after the initial LTI
+        launch.
+
+    :>json url: The url you should use to post the given ``jwt`` to.
+    :>json jwt: The JWT that should be posted to the outputted ``url``.
+    """
     blob = helpers.filter_single_or_404(
         models.BlobStorage,
         models.BlobStorage.id == deep_link_blob_id,

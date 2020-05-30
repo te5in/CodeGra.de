@@ -87,7 +87,7 @@ class AbstractRole(abc.ABC, t.Generic[T]):
     @classmethod
     def codegrade_role_name_used(cls, name: str) -> bool:
         """Is the given name used for any known LTI role as CodeGrade role
-            name.
+        name.
 
         This is true if there is any role ``l`` for which
         ``l.codegrade_role_name == name``.

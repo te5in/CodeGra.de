@@ -1,5 +1,5 @@
 """This module implements the needed abstract connector classes for
-    ``pylti1p3``.
+``pylti1p3``.
 
 The main library we use for LTI 1.3 (:mod:`.pylti1p3`) abstracts the
 web-framework used away using classes that have to implement specific
@@ -166,7 +166,7 @@ class FlaskCookieService(CookieService):
         self, response: werkzeug.wrappers.Response
     ) -> werkzeug.wrappers.Response:
         """Update the given ``response`` to actually set the cookies set by
-            this instance.
+        this instance.
 
         :param response: The response to update. This response will be mutated.
 

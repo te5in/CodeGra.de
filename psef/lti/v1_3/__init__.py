@@ -165,7 +165,7 @@ class _TestCookie:
 
 class MissingCookieError(APIException):
     """This is the error that gets raised when we detected that we are not
-        allowed to set cookies.
+    allowed to set cookies.
     """
 
     def __init__(self, provider: 'models.LTI1p3Provider') -> None:
@@ -209,7 +209,7 @@ def get_email_for_user(
 
 class CGRegistration(Registration):
     """This class represents a registration, something used internally by the
-        :mod:`pylti1p3` library.
+    :mod:`pylti1p3` library.
 
     This class only adds a nice constructor, so you can easily create a
     registration using a :class:`.models.LTI1p3Provider`.
@@ -237,7 +237,7 @@ class CGRegistration(Registration):
 
 class CGServiceConnector(ServiceConnector):
     """This class implements the authenticated back channel as defined by the
-        LTI 1.3 spec.
+    LTI 1.3 spec.
 
     This is heavily used by the :mod:`pylti1p3`, and completely implemented by
     them. The only thing we add in our subclass is caching of the access tokens
@@ -251,6 +251,13 @@ class CGServiceConnector(ServiceConnector):
 
     @cg_override.override
     def get_access_token(self, scopes: t.Sequence[str]) -> str:
+        """Get the access token for the given scopes.
+
+        This method is simply a caching wrapper over the implementation of the
+        base implementation.
+
+        :param scopes: The scopes for which you want to get an access token.
+        """
         scopes = sorted(scopes)
         scopes_str = '|'.join(scopes)
         cache = current_app.inter_request_cache.lti_access_tokens
@@ -329,7 +336,7 @@ class CGCustomClaims:
 
     class ReplacementVar:
         """This represents a replacement variable, i.e. a variable that we
-            might find in the custom claims section of the LTI message.
+        might find in the custom claims section of the LTI message.
         """
 
         def __init__(self, name: str) -> None:
@@ -366,7 +373,7 @@ class CGCustomClaims:
 
     class AbsoluteVar:
         """This represents a absolute variable, i.e. any variable that is not
-            present in the custom claims section of the LTI message.
+        present in the custom claims section of the LTI message.
         """
 
         def __init__(self, name: t.Union[str, t.List[str]]) -> None:
@@ -391,7 +398,7 @@ class CGCustomClaims:
             self
         ) -> t.Iterable['CGCustomClaims.ReplacementVar']:
             """Get all options in this variable that are instances of
-                :class:`.CGCustomClaims.ReplacementVar`.
+            :class:`.CGCustomClaims.ReplacementVar`.
             """
             for opt in self.opts:
                 if isinstance(opt, CGCustomClaims.ReplacementVar):
@@ -634,7 +641,7 @@ class CGDeepLinkResource(DeepLinkResource):
 
 class LTIConfig(ToolConfAbstract[FlaskRequest]):
     """This class implements the connection between our database an the needed
-        (by :mod:`pyltip13`) config store.
+    (by :mod:`pyltip13`) config store.
 
     It works by finding (or verifying if you passed on in the constructor) a
     :class:`.models.LTI1p3Provider` using the given data. This provider
@@ -774,7 +781,7 @@ class FlaskMessageLaunch(
                   FlaskCookieService]
 ):
     """This class handles the launch message, and the second step launch, of
-        the LTI 1.3 protocol and our extension on it.
+    the LTI 1.3 protocol and our extension on it.
 
     .. seealso::
 
@@ -966,6 +973,15 @@ class FlaskMessageLaunch(
             user,
             self.get_launch_data()[claims.ROLES],
         )
+
+    @property
+    def deployment_id(self) -> str:
+        """The deployment id of this LTI launch.
+
+        Accessing this property raises an :exc:`.LTIException` when the
+        deployment id was not found the launch data.
+        """
+        return self._get_deployment_id()
 
     @cg_override.override
     def _get_request_param(self, key: str) -> object:
@@ -1234,7 +1250,7 @@ class FlaskMessageLaunch(
 
     def get_course(self) -> 'models.Course':
         """Get the course of this LTI launch, or create (and add it to the db
-            session) if it does not yet exist.
+        session) if it does not yet exist.
 
         :returns: The found or created course.
         """
@@ -1334,7 +1350,7 @@ class FlaskOIDCLogin(
         cls, lti_provider: t.Optional['models.LTI1p3Provider']
     ) -> 'FlaskOIDCLogin':
         """Create a :class:`.FlaskOIDCLogin` from the current (global) flask
-            request.
+        request.
 
         The current request will not be copied or anything, so you cannot
         create this object in a request and then use it in another one.

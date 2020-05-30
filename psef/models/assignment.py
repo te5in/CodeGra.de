@@ -1023,8 +1023,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         assigned without a grade.
 
         :param user_id: The id of the user to check for
+
         :returns: A boolean indicating if user has work assigned that does not
-            have grade or a selected rubric item
+                  have grade or a selected rubric item
         """
         latest = self.get_from_latest_submissions(work_models.Work.id)
         sql = latest.filter(

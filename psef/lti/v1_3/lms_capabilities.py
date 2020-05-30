@@ -35,7 +35,7 @@ class LMSCapabilities(Protocol):
     @property
     def set_deadline(self) -> bool:
         """Is it possible for users to set the deadline of a CodeGrade
-            assignment within CodeGrade?
+        assignment within CodeGrade?
 
         This should be ``True`` if the LMS does **not** pass the deadline in
         the LTI launch, and ``False`` otherwise.
@@ -45,7 +45,7 @@ class LMSCapabilities(Protocol):
     @property
     def set_state(self) -> bool:
         """Should the state of the assignment be set within CodeGrade and not
-            be copied from the LMS?
+        be copied from the LMS?
 
         If ``False`` users are not allowed to change to state of the assignment
         within CodeGrade (they can always set the state to done).
@@ -61,7 +61,7 @@ class LMSCapabilities(Protocol):
     @property
     def cookie_post_message(self) -> t.Optional[str]:
         """The name of the iframe ``postMessage`` we can send to the LMS to
-            notify that we want to set cookies in a full window.
+        notify that we want to set cookies in a full window.
 
         This property is ugly, and shows that these capabilities are not really
         a very good abstraction: Only Canvas supports this, and it is not that
@@ -117,12 +117,15 @@ class LMSCapabilities(Protocol):
     @property
     def actual_deep_linking_required(self) -> bool:
         """Does this LMS require actual deep linking, where the user inputs a
-            name and deadline.
+        name and deadline.
         """
         ...
 
     @property
     def auth_audience_required(self) -> bool:
+        """Is it required to set a separate OAuth2 Audience for this LMS before
+        we can finalize it.
+        """
         ...
 
 
