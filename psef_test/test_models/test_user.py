@@ -7,12 +7,13 @@ from psef.permissions import CoursePermission, GlobalPermission
 
 def test_user_has_permission():
     user_without_role = User('', '', '', '', active=True)
-    assert not user_without_role.has_permission(
-        GlobalPermission.can_edit_own_password
-    )
-    assert not user_without_role.has_permission(
-        CoursePermission.can_submit_own_work, course_id=1
-    )
+    user_not_active = User('', '', '', '', active=False)
+
+    for user in [user_without_role, user_not_active]:
+        assert not user.has_permission(GlobalPermission.can_edit_own_password)
+        assert not user.has_permission(
+            CoursePermission.can_submit_own_work, course_id=1
+        )
 
 
 def test_get_all_permissions(describe):
