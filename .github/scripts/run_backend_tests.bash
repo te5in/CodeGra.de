@@ -49,6 +49,7 @@ export BASE_DATABASE_URI='postgresql://postgres:postgres@localhost:5432/ci_test_
 pytest --cov cg_worker_pool \
        --cov cg_threading_utils \
        --cov cg_signals \
+       --cov cg_cache \
        --cov-report term-missing \
        "$(pwd)/cg_worker_pool/tests/" \
        "$(pwd)/cg_threading_utils/tests/" \
