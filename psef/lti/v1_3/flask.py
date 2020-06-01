@@ -84,14 +84,12 @@ class FlaskSessionService(SessionService):
         assert False, 'We never want to save the launch data in the session'
 
     def save_nonce(self, nonce: str) -> None:
+        logger.info('Saving nonce', nonce=nonce)
         flask.session[self._get_key('lti-nonce')] = nonce
 
     def check_nonce(self, nonce: str) -> bool:
         nonce_key = self._get_key('lti-nonce')
-        try:
-            session_nonce = self.data_storage.get_value(nonce_key)
-        except KeyError:
-            return False
+        session_nonce = self.data_storage.get_value(nonce_key)
         logger.info(
             'Checking nonce',
             session_nonce=session_nonce,

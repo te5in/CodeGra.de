@@ -329,6 +329,7 @@ def do_oidc_login(
             goto_latest_submission=False,
         )
     except pylti1p3.exception.OIDCException as exc:
+        logger.info('Login request went wrong', exc_info=True)
         return _make_blob_and_redirect(
             {
                 'type': 'exception',

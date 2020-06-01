@@ -724,6 +724,11 @@ def stub_function_class():
         def called(self):
             return len(self.args) > 0
 
+        @property
+        def called_amount(self):
+            assert len(self.args) == len(self.kwargs)
+            return len(self.args)
+
         def reset(self):
             self.args = []
             self.kwargs = []

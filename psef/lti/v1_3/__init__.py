@@ -1088,8 +1088,10 @@ class FlaskMessageLaunch(
             ' CodeGrade requires the {} of the user.'
         )
         check_and_raise(user_err_msg.format('name'), launch_data, 'name')
-        if provider.lms_capabilities.test_student_name != launch_data['name']:
-            check_and_raise(user_err_msg.format('email'), launch_data, 'email')
+        try:
+            get_email_for_user(launch_data, provider)
+        except KeyError:
+            raise get_exc(user_err_msg.format('email'), launch_data, ['email'])
 
         context = launch_data.get(claims.CONTEXT)
         check_and_raise(
@@ -1102,8 +1104,8 @@ class FlaskMessageLaunch(
             # We don't need this info for deep link launches.
             check_and_raise(
                 (
-                    'The LTI launch is missing required custom claims, the setup'
-                    ' was probably done incorrectly'
+                    'The LTI launch is missing required custom claims, the'
+                    ' setup was probably done incorrectly'
                 ),
                 custom,
                 *CGCustomClaims.get_variable_claims_config(
@@ -1111,13 +1113,12 @@ class FlaskMessageLaunch(
                 ).keys(),
             )
 
-        if not self.is_deep_link_launch():
             if not self.has_nrps():
                 raise get_exc(
                     (
-                        'It looks like the NamesRoles Provisioning service is not'
-                        ' enabled for this LTI deployment, please check your'
-                        ' configuration.'
+                        'It looks like the NamesRoles Provisioning service is'
+                        ' not enabled for this LTI deployment, please check'
+                        ' your configuration.'
                     ),
                     launch_data,
                     claims.NAMESROLES,
@@ -1139,8 +1140,8 @@ class FlaskMessageLaunch(
             check_and_raise(
                 (
                     'We do not have the required permissions for passing back'
-                    ' grades and updating deadlines in the LMS, please check your'
-                    ' configuration'
+                    ' grades and updating deadlines in the LMS, please check'
+                    ' your configuration'
                 ),
                 {s: True
                  for s in scopes},
