@@ -28,6 +28,7 @@ BrokerConfig = TypedDict(  # pylint: disable=invalid-name
         'AUTO_TEST_TYPE': 'models.RunnerType',
         'AWS_INSTANCE_TYPE': str,
         'AWS_TAG_VALUE': str,
+        'DEV_RUNNER_IP': str,
         'MAX_AMOUNT_OF_RUNNERS': int,
         'MAX_AMOUNT_OF_RUNNERS_PER_JOB': int,
         'CELERY_CONFIG': t.Dict,
@@ -105,6 +106,10 @@ class BrokerFlask(flask.Flask):
         )
         self.config['AWS_TAG_VALUE'] = _parser['General'].get(
             'AWS_TAG_VALUE', 'normal'
+        )
+
+        self.config['DEV_RUNNER_IP'] = _parser['General'].get(
+            'DEV_RUNNER_IP', '127.0.0.1'
         )
 
         self.config['START_TIMEOUT_TIME'] = _parser['General'].getint(

@@ -342,7 +342,7 @@ class DevRunner(Runner):
 
     @classmethod
     def _create(cls: t.Type[_Y]) -> _Y:
-        return cls(ipaddr='127.0.0.1')
+        return cls(ipaddr=app.config['DEV_RUNNER_IP'])
 
     def start_runner(self) -> None:
         pass
