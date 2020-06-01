@@ -317,3 +317,65 @@ def test_do_simple_launch(
 
         assert assig_created.was_send_once
         assert assig_created.signal_arg.lti_assignment_id == lti_assig_id
+
+
+@pytest.mark.parametrize(
+    'launch_data,lms,iss', [
+        (BRIGHTSPACE_DATA, 'Brightspace', 'https://partners.brightspace.com'),
+        (CANVAS_DATA, 'Canvas', 'https://canvas.instructure.com'),
+    ]
+)
+def test_get_providers(
+    test_client, describe, logged_in, admin_user, teacher_user, watch_signal,
+    launch_data, lms, iss
+):
+    with describe('pre-check'), logged_in(admin_user):
+        test_client.req(
+            'get',
+            f'/api/v1/lti1.3/providers/',
+            200,
+            result=[],
+        )
+
+    with describe('setup'), logged_in(admin_user):
+        provider = make_provider(
+            test_client,
+            lms,
+            iss=iss,
+            client_id=str(uuid.uuid4()) + '_lms=' + lms,
+        )
+        assig_created = watch_signal(signals.ASSIGNMENT_CREATED)
+
+    with describe('should get registered providers'), logged_in(admin_user):
+        res = test_client.req(
+            'get',
+            f'/api/v1/lti1.3/providers/',
+            200,
+            result=[provider],
+        )
+
+    with describe('should be possible to add multiple providers for the same LMS'), logged_in(admin_user):
+        provider2 = make_provider(
+            test_client,
+            lms,
+            iss=iss,
+            client_id=str(uuid.uuid4()) + '_lms=' + lms,
+        )
+
+    with describe('should get registered providers'), logged_in(admin_user):
+        test_client.req(
+            'get',
+            f'/api/v1/lti1.3/providers/',
+            200,
+            result=[provider, provider2],
+        )
+
+    with describe('should not be visible to non-admin users'), logged_in(teacher_user):
+        test_client.req(
+            'get',
+            f'/api/v1/lti1.3/providers/',
+            200,
+            result=[],
+        )
+
+    assert assig_created.was_send_n_times(0)

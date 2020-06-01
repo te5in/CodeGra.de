@@ -635,6 +635,10 @@ def watch_signal(stub_function_class):
             __name__ = f'signal_watcher_{idx}'
 
             @property
+            def send_amount(self):
+                return len(self.args)
+
+            @property
             def signal_arg(self):
                 # This property only makes sense if the signal was send exactly
                 # once
@@ -645,8 +649,10 @@ def watch_signal(stub_function_class):
 
             @property
             def was_send_once(self):
-                found = len(self.args)
-                return found == 1
+                return self.was_send_n_times(1)
+
+            def was_send_n_times(self, n):
+                return self.called_amount == n
 
         watcher = Watcher()
 
