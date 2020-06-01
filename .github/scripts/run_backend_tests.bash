@@ -53,11 +53,12 @@ pytest --cov cg_worker_pool \
        "$(pwd)/cg_worker_pool/tests/" \
        "$(pwd)/cg_threading_utils/tests/" \
        "$(pwd)/cg_signals/tests/" \
+       "$(pwd)/cg_cache/tests/" \
        -vvvv
 res1="$?"
 
 timeout -k 600 600 \
-        pytest --cov psef --cov cg_signals \
+        pytest --cov psef --cov cg_signals --cov cg_cache \
         --cov-append \
         --postgresql="${BASE_DATABASE_URI}gw5" \
         --cov-report term-missing \
@@ -68,7 +69,7 @@ res2="$?"
 rm "$(pwd)/psef_test/test_auto_test.py"
 
 timeout -k 900 900 \
-        pytest --cov psef --cov cg_signals \
+        pytest --cov psef --cov cg_signals --cov cg_cache \
         --cov-append \
         --postgresql="$BASE_DATABASE_URI" \
         --cov-report term-missing \

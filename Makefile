@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-TEST_FILE?=cg_worker_pool/tests/ cg_threading_utils/tests/ psef_test/
+TEST_FILE?=cg_worker_pool/tests/ cg_threading_utils/tests/ cg_signals/tests cg_cache/tests/ psef_test/
 SHELL=/bin/bash
 TEST_FLAGS?=
 PYTHON?=env/bin/python3

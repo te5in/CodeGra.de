@@ -120,6 +120,11 @@ def cache_within_request_make_key(
             key = make_key(arg)
             return _cache_or_call(master_key, key, fun, (arg, ), {})
 
+        def clear_cache() -> None:
+            g.cg_function_cache[master_key] = {}
+
+        __inner.clear_cache = clear_cache  # type: ignore
+
         return __inner
 
     return __wrapper

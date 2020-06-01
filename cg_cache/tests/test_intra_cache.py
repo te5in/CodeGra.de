@@ -86,3 +86,40 @@ def test_cache_in_cls(app):
         # This should not be cached
         assert a3.calc() is a3
         assert len(lst) == 2
+
+
+def test_with_object_id(app):
+    amount_called = 0
+
+    class ObjectWithId:
+        def __init__(self, id, number):
+            self.id = id
+            self.number = number
+
+        def __hash__(self):
+            return self.number
+
+        @c.cache_for_object_id
+        def get_self(self):
+            nonlocal amount_called
+            amount_called += 1
+            return self
+
+    obj1 = ObjectWithId(1, 5)
+    obj2 = ObjectWithId(2, 5)
+    obj3 = ObjectWithId(1, 10)
+
+    with app.app_context():
+        assert obj1.get_self() is obj1
+        assert amount_called == 1
+        assert obj2.get_self() is obj2
+        assert amount_called == 2
+        assert obj3.get_self() is obj1
+        assert amount_called == 2
+
+        obj3.get_self.clear_cache()
+
+        assert obj3.get_self() is obj3
+        assert obj2.get_self() is obj2
+        assert obj1.get_self() is obj3
+        assert amount_called == 4
