@@ -85,7 +85,7 @@ def create_lti1p3_assignment(session, course):
     return assig
 
 
-def create_lti1p3_course(test_client, session, provider, membership_url = None):
+def create_lti1p3_course(test_client, session, provider, membership_url=None):
     course = to_db_object(create_course(test_client), m.Course)
     course_lti_prov = m.CourseLTIProvider.create_and_add(
         course=course,
