@@ -9,6 +9,7 @@ from psef.helpers import (
     RepeatedTimer, defer, deep_get, on_not_none, try_for_every
 )
 from psef.exceptions import APIException
+from psef.helpers.register import Register
 
 
 def test_broker_session(monkeypatch):
@@ -179,3 +180,23 @@ def test_on_not_none():
     obj2 = object()
     assert on_not_none(obj1, lambda _: obj2) is obj2
     assert on_not_none(None, lambda _: obj1) is None
+
+
+def test_get_from_map_transaction_with_register():
+    register = Register('Test')
+
+    obj1 = object()
+    register.register('val1')(obj1)
+    register.register('val2')('Wow')
+
+    with h.get_from_map_transaction({'k': 'val1'}) as [get, _]:
+        res = get('k', register)
+
+    assert res == ('val1', obj1)
+    assert res[1] is obj1
+
+    with pytest.raises(APIException) as exc:
+        with h.get_from_map_transaction({'k': 'no_val'}) as [get, _]:
+            res = get('k', register)
+
+    assert 'TestRegister" (= val1, val2), was "no_val' in exc.value.description

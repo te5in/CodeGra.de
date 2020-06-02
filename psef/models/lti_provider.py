@@ -1362,14 +1362,9 @@ class UserLTIProvider(Base, TimestampMixin):
     def user_is_linked(cls, user: 'user_models.User') -> bool:
         """Is the given user known in any LTIProvider
         """
-        return psef.helpers.handle_none(
-            db.session.query(
-                db.session.query(cls).filter(
-                    cls.user_id == user.id,
-                ).exists()
-            ).scalar(),
-            False,
-        )
+        return db.session.query(
+            cls.query.filter(cls.user_id == user.id).exists()
+        ).scalar()
 
     @classmethod
     def _create_user(
