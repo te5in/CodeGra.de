@@ -102,3 +102,13 @@ def test_disconnect():
     signal.send('6')
     assert len(found) == 1
     assert '6' not in found
+
+
+def test_connect_after_request():
+    signal = Signal('MY_NAME')
+
+    def cb():
+        return None
+
+    signal.connect_after_request(cb)
+    assert signal.is_connected(cb)
