@@ -568,7 +568,7 @@ class LTI1p3Provider(LTIProviderBase):
     """
     __mapper_args__ = {'polymorphic_identity': 'lti1.3'}
 
-    if t.TYPE_CHECKING:
+    if t.TYPE_CHECKING:  # pragma: no cover
         client_id = db.Column('client_id', db.Unicode)
 
     @property
@@ -860,22 +860,22 @@ class LTI1p3Provider(LTIProviderBase):
         db.session.commit()
 
     @classmethod
-    def _user_in_course(
+    def _passback_new_user(
         cls, user_course_id_tsp: t.Tuple[int, int, str]
     ) -> None:
         user_id, course_id, timestamp = user_course_id_tsp
 
         course = course_models.Course.query.get(course_id)
         user = user_models.User.query.get(user_id)
-
-        if course is None or user is None or not user.is_enrolled(course):
-            return
         self = cls._get_self_from_course(course)
-        if self is None:
+
+        if (
+            course is None or self is None or user is None or
+            not user.is_enrolled(course)
+        ):
             return
 
-        for assig in assignment_models.Assignment.query.filter(
-            assignment_models.Assignment.course == course,
+        for assig in course.get_assignments().filter(
             assignment_models.Assignment.is_lti,
             assignment_models.Assignment.is_visible,
         ):
@@ -1274,6 +1274,17 @@ class LTI1p3Provider(LTIProviderBase):
         )(cls._passback_submission)
 
         signals.USER_ADDED_TO_COURSE.connect_celery(
+            converter=lambda uc: (
+                uc.user.id,
+                uc.course_role.course_id,
+                DatetimeWithTimezone.utcnow().isoformat(),
+            ),
+            pre_check=lambda uc: uc.course_role.course.is_lti,
+            task_args=_PASSBACK_CELERY_OPTS,
+            prevent_recursion=True,
+        )(cls._passback_new_user)
+
+        signals.USER_ADDED_TO_COURSE.connect_celery(
             converter=lambda uc: uc.course_role.course_id,
             pre_check=lambda uc: uc.course_role.course.is_lti,
             task_args=_PASSBACK_CELERY_OPTS,
@@ -1632,11 +1643,12 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
             claim[mem_url_claim] = furl.furl(claim[mem_url_claim]).add(
                 {'rlid': rlid}
             )
-        else:
-            logger.info(
+        else:  # pragma: no cover
+            logger.warning(
                 'No rlid found or claim is missing url',
                 claim=claim,
                 rlid=rlid,
+                report_to_sentry=True,
             )
             return []
 

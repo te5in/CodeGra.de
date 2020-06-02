@@ -2,8 +2,8 @@ import uuid
 
 import pytest
 
+import helpers
 import psef.signals as signals
-from lti1p3_helpers import make_provider
 
 
 @pytest.mark.parametrize(
@@ -25,7 +25,7 @@ def test_get_providers(
         )
 
     with describe('setup'), logged_in(admin_user):
-        provider = make_provider(
+        provider = helpers.create_lti1p3_provider(
             test_client,
             lms,
             iss=iss,
@@ -44,7 +44,7 @@ def test_get_providers(
     with describe(
         'should be possible to add multiple providers for the same LMS'
     ), logged_in(admin_user):
-        provider2 = make_provider(
+        provider2 = helpers.create_lti1p3_provider(
             test_client,
             lms,
             iss=iss,

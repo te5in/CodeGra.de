@@ -651,6 +651,10 @@ def watch_signal(stub_function_class):
             def was_send_once(self):
                 return self.was_send_n_times(1)
 
+            @property
+            def was_not_send(self):
+                return len(self.args) == 0
+
             def was_send_n_times(self, n):
                 return self.called_amount == n
 

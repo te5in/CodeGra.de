@@ -27,6 +27,10 @@ def get_id(obj):
         return obj.id
 
 
+def to_db_object(obj, cls):
+    return cls.query.get(get_id(obj))
+
+
 def create_marker(marker):
     def outer(*vals, **kwargs):
         def inner(vals):
@@ -62,6 +66,45 @@ def create_lti_assignment(
     session.add(res)
     session.commit()
     return res
+
+
+def create_lti1p3_provider(
+    test_client,
+    lms,
+    iss=None,
+    client_id=None,
+    auth_token_url=None,
+    auth_login_url=None,
+    key_set_url=None,
+    auth_audience=None
+):
+    prov = test_client.req(
+        'post',
+        '/api/v1/lti1.3/providers/',
+        200,
+        data={
+            'lms': lms,
+            'iss': iss or str(uuid.uuid4()),
+            'intended_use': 'A test provider',
+        }
+    )
+
+    def make_data(**data):
+        return {k: v or 'http://' + str(uuid.uuid4()) for k, v in data.items()}
+
+    return test_client.req(
+        'patch',
+        f'/api/v1/lti1.3/providers/{get_id(prov)}',
+        200,
+        data=make_data(
+            client_id=client_id,
+            auth_token_url=auth_token_url,
+            auth_login_url=auth_login_url,
+            auth_audience=auth_audience,
+            key_set_url=key_set_url,
+            finalize=True,
+        )
+    )
 
 
 def create_lti_course(session, app, user=None):
