@@ -80,6 +80,8 @@
 
 
 <script>
+import { hasAttr } from '@/utils';
+
 import DescriptionPopover from './DescriptionPopover';
 
 export default {
@@ -101,10 +103,10 @@ export default {
     methods: {
         emitUpdate(data) {
             const updated = this.$utils.deepCopy(this.value);
-            if (data.maxSubmissions) {
+            if (hasAttr(data, 'maxSubmissions')) {
                 updated.maxSubmissions = data.maxSubmissions;
             }
-            if (data.coolOff) {
+            if (hasAttr(data, 'coolOff')) {
                 Object.assign(updated.coolOff, data.coolOff);
             }
 
