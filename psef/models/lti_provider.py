@@ -1093,7 +1093,7 @@ class LTI1p3Provider(LTIProviderBase):
         for member in members:
             logger.info('Got member', member=member)
             status = member.get('status', 'Active')
-            if status not in {'Active', 'Inactive'}:
+            if status not in {'Active', 'Inactive'}:  # pragma: no cover
                 logger.info(
                     'Got unsupported status', member=member, status=status
                 )

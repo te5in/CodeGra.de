@@ -11,6 +11,8 @@ external_url = http://localhost:1234
 redis_cache_url = redis://localhost:6379/cg_cache
 EOF
 
+pip install fakeredis
+
 create_db() {
     DBNAME="ci_test_gw${1}"
     export SQLALCHEMY_DATABASE_URI="postgresql://postgres:postgres@localhost:5432/${DBNAME}"
