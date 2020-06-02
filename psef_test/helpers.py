@@ -28,6 +28,8 @@ def get_id(obj):
 
 
 def to_db_object(obj, cls):
+    if isinstance(obj, cls):
+        return obj
     return cls.query.get(get_id(obj))
 
 
@@ -66,6 +68,36 @@ def create_lti_assignment(
     session.add(res)
     session.commit()
     return res
+
+
+def create_lti1p3_assignment(session, course):
+    course = to_db_object(course, m.Course)
+    assert course.is_lti
+    assig = psef.models.Assignment(
+        course=course,
+        name=f'LTI 1.3 ASSIG {uuid.uuid4()}',
+        is_lti=True,
+        visibility_state=psef.models.AssignmentVisibilityState.visible,
+        lti_assignment_id=str(uuid.uuid4()),
+    )
+    session.add(assig)
+    session.commit()
+    return assig
+
+
+def create_lti1p3_course(test_client, session, provider, membership_url = None):
+    course = to_db_object(create_course(test_client), m.Course)
+    course_lti_prov = m.CourseLTIProvider.create_and_add(
+        course=course,
+        lti_provider=provider,
+        lti_context_id=str(uuid.uuid4()),
+        deployment_id=str(uuid.uuid4()),
+    )
+    course_lti_prov.names_roles_claim = {
+        'context_memberships_url': membership_url or str(uuid.uuid4()),
+    }
+    session.commit()
+    return course, course_lti_prov
 
 
 def create_lti1p3_provider(

@@ -1093,6 +1093,11 @@ class LTI1p3Provider(LTIProviderBase):
         for member in members:
             logger.info('Got member', member=member)
             status = member.get('status', 'Active')
+            if status not in {'Active', 'Inactive'}:
+                logger.info(
+                    'Got unsupported status', member=member, status=status
+                )
+                continue
 
             # This is NOT a typo, the claim is really called 'message' and it
             # contains an array of messages. However, for some strange reason
@@ -1118,12 +1123,6 @@ class LTI1p3Provider(LTIProviderBase):
                 else:
                     break
 
-            if status not in {'Active', 'Inactive'}:
-                logger.info(
-                    'Got unsupported status', member=member, status=status
-                )
-                continue
-
             logger.info(
                 'Adding member to course',
                 member=member,
@@ -1133,8 +1132,8 @@ class LTI1p3Provider(LTIProviderBase):
                 user, _ = UserLTIProvider.get_or_create_user(
                     lti_user_id=member['user_id'],
                     lti_provider=self,
-                    wanted_username=(
-                        custom_claim.username if custom_claim else None
+                    wanted_username=psef.helpers.on_not_none(
+                        custom_claim, lambda claim: claim.username
                     ),
                     email=lti_v1_3.get_email_for_user(member, self),
                     full_name=member['name'],
@@ -1629,14 +1628,14 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
 
         assert isinstance(self.names_roles_claim, dict)
         claim = copy.copy(self.names_roles_claim)
-        rlid = db.session.query(
-            assignment_models.Assignment.lti_assignment_id
-        ).filter(
-            assignment_models.Assignment.course_id == self.course_id,
+        rlid = self.course.get_assignments().filter(
             assignment_models.Assignment.lti_assignment_id.isnot(None),
             assignment_models.Assignment.is_visible,
-        ).order_by(assignment_models.Assignment.created_at.desc()
-                   ).limit(1).scalar()
+        ).order_by(
+            assignment_models.Assignment.created_at.desc(),
+        ).with_entities(
+            assignment_models.Assignment.lti_assignment_id,
+        ).limit(1).scalar()
 
         mem_url_claim: Final = 'context_memberships_url'
         if rlid is not None and isinstance(claim[mem_url_claim], str):

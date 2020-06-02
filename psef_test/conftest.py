@@ -623,13 +623,17 @@ def filename(request):
 
 
 @pytest.fixture
-def watch_signal(stub_function_class):
+def watch_signal(stub_function_class, session):
     undos = []
     idx = 0
 
-    def make_watcher(signal):
+    def make_watcher(signal, *, flush_db=False, clear_all_but=False):
         nonlocal idx
         idx += 1
+
+        def maybe_flush():
+            if flush_db:
+                session.flush()
 
         class Watcher(stub_function_class):
             __name__ = f'signal_watcher_{idx}'
@@ -658,10 +662,13 @@ def watch_signal(stub_function_class):
             def was_send_n_times(self, n):
                 return self.called_amount == n
 
-        watcher = Watcher()
+        watcher = Watcher(maybe_flush)
 
+        if clear_all_but is not False:
+            undos.append(signal.disable_all_but(clear_all_but))
         signal.connect_immediate(watcher)
-        undos.append(lambda: signal.disconnect(watcher))
+        if clear_all_but is False:
+            undos.append(lambda: signal.disconnect(watcher))
 
         return watcher
 

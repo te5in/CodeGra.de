@@ -144,6 +144,20 @@ def handle_none(value: t.Optional[T], default: TT) -> t.Union[T, TT]:
     return default if value is None else value
 
 
+def on_not_none(value: t.Optional[T], callback: t.Callable[[T], K]) -> t.Optional[K]:
+    """Call a given ``callback`` if the given ``value`` is not none.
+
+    :param value: The value to operate on if not ``None``.
+    :param callback: The callback to call with ``value`` if the ``value`` is
+        not ``None``.
+
+    :returns: The return of the ``callback`` or ``None``.
+    """
+    if value is not None:
+        return callback(value)
+    return None
+
+
 def add_deprecate_warning(warning: str) -> None:
     """Add a deprecation warning to the request.
 

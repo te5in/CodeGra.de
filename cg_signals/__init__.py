@@ -19,6 +19,7 @@ actions somewhere else. Using signals has a few advantages:
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
+import itertools
 from inspect import getmodule
 
 import structlog
@@ -58,6 +59,45 @@ class Signal(t.Generic[T]):
             t.Tuple[str, t.Callable[[T], object]]] = []
         self.__celery_todo: t.List[t.Callable[[Celery], None]] = []
 
+    def disable_all_but(
+        self, to_keep: t.Sequence[t.Callable[[object], object]]
+    ) -> t.Callable[[], None]:
+        """Remove all registered handlers from this signal.
+
+        .. warning::
+
+            This method is really only here because it is extremely useful when
+            testing, don't use it in normal code.
+
+        :returns: A function you can call to restore the signal to the state it
+                  was in before you called this method.
+        """
+        old_after = self.__after_request_callbacks
+        old_immediate = self.__immediate_callbacks
+        old_registered = self.__registered_functions
+        old_celery_todo = self.__celery_todo
+        to_keep_set = {self._get_fullname(f) for f in to_keep}
+
+        def restore() -> None:
+            self.__registered_functions = old_registered
+            self.__celery_todo = old_celery_todo
+            self.__immediate_callbacks = old_immediate
+            self.__after_request_callbacks = old_after
+
+        self.__after_request_callbacks = [
+            f for f in self.__after_request_callbacks if f[0] in to_keep_set
+        ]
+        self.__immediate_callbacks = [
+            f for f in self.__immediate_callbacks if f[0] in to_keep_set
+        ]
+        self.__celery_todo = []
+        self.__registered_functions = set(
+            name for name, _ in itertools.
+            chain(self.__immediate_callbacks, self.__after_request_callbacks)
+        )
+
+        return restore
+
     def _check_function_not_registered(self, name: str) -> None:
         assert (
             name not in self.__registered_functions
@@ -71,10 +111,14 @@ class Signal(t.Generic[T]):
         :param value: The value you want to emit.
         :returns: Nothing.
         """
+        logger.info('Sending signal', signal_name=self.__name)
         if self.__celery_todo:  # pragma: no cover
             raise AssertionError(
                 'The Signal still has uninitialized celery listeners'
             )
+
+        for _, callback in self.__immediate_callbacks:
+            callback(value)
 
         if self.__after_request_callbacks:
 
@@ -83,9 +127,6 @@ class Signal(t.Generic[T]):
                     callback(value)
 
             callback_after_this_request(send_dispatch)
-
-        for _, callback in self.__immediate_callbacks:
-            callback(value)
 
     def __repr__(self) -> str:
         cls = self.__class__
@@ -265,3 +306,10 @@ class Signal(t.Generic[T]):
             return fun
 
         return __wrapper
+
+    def is_connected(self, fun: t.Callable[[object], object]) -> bool:
+        """Check if the given function is connected to this signal.
+
+        :param fun: The function to check for.
+        """
+        return self._get_fullname(fun) in self.__registered_functions
