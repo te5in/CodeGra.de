@@ -7,7 +7,7 @@ from lti1p3_helpers import make_provider
 
 
 @pytest.mark.parametrize(
-    'launch_data,lms,iss', [
+    'lms,iss', [
         ('Brightspace', 'https://partners.brightspace.com'),
         ('Canvas', 'https://canvas.instructure.com'),
     ]

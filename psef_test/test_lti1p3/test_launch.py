@@ -101,8 +101,8 @@ BASE_LAUNCH_DATA = {
         ],
     },
     'https://purl.imsglobal.org/spec/lti/claim/lis': {
-        'course_offering_sourcedid': 'partners.brightspace.com:CodeGrade1',
-        'course_section_sourcedid': 'partners.brightspace.com:CodeGrade1',
+        'course_offering_sourcedid': 'example_lms:CodeGrade1',
+        'course_section_sourcedid': 'example_lms:CodeGrade1',
     },
     'https://purl.imsglobal.org/spec/lti/claim/launch_presentation': {
         'locale': 'en-us',
@@ -251,8 +251,8 @@ def do_oidc_and_lti_launch(
     ]
 )
 def test_do_simple_launch(
-    test_client, describe, logged_in, admin_user, watch_signal,
-    monkeypatch_validate_jwt, launch_data, lms, iss
+    test_client, describe, logged_in, admin_user, watch_signal, launch_data,
+    lms, iss, monkeypatch_validate_jwt
 ):
     with describe('setup'), logged_in(admin_user):
         provider = make_provider(
