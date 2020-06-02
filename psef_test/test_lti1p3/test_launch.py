@@ -9,6 +9,7 @@ import helpers
 import psef.models as m
 import psef.signals as signals
 import psef.lti.v1_3 as lti1p3
+from lti1p3_helpers import make_provider
 
 LTI_JWT_SECRET = str(uuid.uuid4())
 
@@ -243,45 +244,6 @@ def do_oidc_and_lti_launch(
     return oidc, launch
 
 
-def make_provider(
-    test_client,
-    lms,
-    iss=None,
-    client_id=None,
-    auth_token_url=None,
-    auth_login_url=None,
-    key_set_url=None,
-    auth_audience=None
-):
-    prov = test_client.req(
-        'post',
-        '/api/v1/lti1.3/providers/',
-        200,
-        data={
-            'lms': lms,
-            'iss': iss or str(uuid.uuid4()),
-            'intended_use': 'A test provider',
-        }
-    )
-
-    def make_data(**data):
-        return {k: v or 'http://' + str(uuid.uuid4()) for k, v in data.items()}
-
-    return test_client.req(
-        'patch',
-        f'/api/v1/lti1.3/providers/{helpers.get_id(prov)}',
-        200,
-        data=make_data(
-            client_id=client_id,
-            auth_token_url=auth_token_url,
-            auth_login_url=auth_login_url,
-            auth_audience=auth_audience,
-            key_set_url=key_set_url,
-            finalize=True,
-        )
-    )
-
-
 @pytest.mark.parametrize(
     'launch_data,lms,iss', [
         (BRIGHTSPACE_DATA, 'Brightspace', 'https://partners.brightspace.com'),
@@ -317,65 +279,3 @@ def test_do_simple_launch(
 
         assert assig_created.was_send_once
         assert assig_created.signal_arg.lti_assignment_id == lti_assig_id
-
-
-@pytest.mark.parametrize(
-    'launch_data,lms,iss', [
-        (BRIGHTSPACE_DATA, 'Brightspace', 'https://partners.brightspace.com'),
-        (CANVAS_DATA, 'Canvas', 'https://canvas.instructure.com'),
-    ]
-)
-def test_get_providers(
-    test_client, describe, logged_in, admin_user, teacher_user, watch_signal,
-    launch_data, lms, iss
-):
-    with describe('pre-check'), logged_in(admin_user):
-        test_client.req(
-            'get',
-            f'/api/v1/lti1.3/providers/',
-            200,
-            result=[],
-        )
-
-    with describe('setup'), logged_in(admin_user):
-        provider = make_provider(
-            test_client,
-            lms,
-            iss=iss,
-            client_id=str(uuid.uuid4()) + '_lms=' + lms,
-        )
-        assig_created = watch_signal(signals.ASSIGNMENT_CREATED)
-
-    with describe('should get registered providers'), logged_in(admin_user):
-        res = test_client.req(
-            'get',
-            f'/api/v1/lti1.3/providers/',
-            200,
-            result=[provider],
-        )
-
-    with describe('should be possible to add multiple providers for the same LMS'), logged_in(admin_user):
-        provider2 = make_provider(
-            test_client,
-            lms,
-            iss=iss,
-            client_id=str(uuid.uuid4()) + '_lms=' + lms,
-        )
-
-    with describe('should get registered providers'), logged_in(admin_user):
-        test_client.req(
-            'get',
-            f'/api/v1/lti1.3/providers/',
-            200,
-            result=[provider, provider2],
-        )
-
-    with describe('should not be visible to non-admin users'), logged_in(teacher_user):
-        test_client.req(
-            'get',
-            f'/api/v1/lti1.3/providers/',
-            200,
-            result=[],
-        )
-
-    assert assig_created.was_send_n_times(0)
