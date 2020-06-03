@@ -73,9 +73,10 @@ def create_lti_assignment(
 def create_lti1p3_user(session, provider):
     n_id = str(uuid.uuid4())
     username = f'LTI1p3_USER_{uuid.uuid4()}'
-    user, _ = m.UserLTIProvider.get_or_create_user(
-        n_id, provider, username, 'A LTI 1.3 user', 'user@lti.com'
-    )
+    with psef.auth.as_current_user(None):
+        user, _ = m.UserLTIProvider.get_or_create_user(
+            n_id, provider, username, 'A LTI 1.3 user', 'user@lti.com'
+        )
     session.commit()
     u_id = user.id
     return LocalProxy(lambda: m.User.query.get(u_id))

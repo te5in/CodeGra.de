@@ -1056,7 +1056,14 @@ class LTI1p3Provider(LTIProviderBase):
 
             grade.set_user_id(lti_user_id)
             try:
-                res = grades_service.put_grade(grade)
+                # The ``grade`` is mutable, and we also mutate it in the
+                # loop. The call ``put_grade`` shouldn't mutate ``grade`` and
+                # it shouldn't keep a reference after the call, so not copying
+                # should be safe. The advantage of copying is that in testing
+                # it is easier with a copy to see for whom a grade was passed
+                # back, furthermore it is also nice and defensive for if the
+                # library ever changes its implementation.
+                res = grades_service.put_grade(copy.copy(grade))
             except pylti1p3.exception.LtiException:
                 logger.info(
                     'Passing back grade failed',

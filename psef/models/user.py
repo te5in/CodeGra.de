@@ -265,10 +265,10 @@ class User(NotEqualMixin, Base):
             course_role.course_id,
         ), 'User is already enrolled in the given course'
 
+        self.courses[course_role.course_id] = course_role
         signals.USER_ADDED_TO_COURSE.send(
             signals.UserToCourseData(user=self, course_role=course_role)
         )
-        self.courses[course_role.course_id] = course_role
 
     def contains_user(self, possible_member: 'User') -> bool:
         """Check if given user is part of this user.

@@ -22,13 +22,10 @@ import typing as t
 import itertools
 from inspect import getmodule
 
-import structlog
 from typing_extensions import Final, Literal
 
 from cg_celery import Celery
 from cg_flask_helpers import callback_after_this_request
-
-logger = structlog.get_logger()
 
 T = t.TypeVar('T')
 Z = t.TypeVar('Z')
@@ -111,7 +108,6 @@ class Signal(t.Generic[T]):
         :param value: The value you want to emit.
         :returns: Nothing.
         """
-        logger.info('Sending signal', signal_name=self.__name)
         if self.__celery_todo:  # pragma: no cover
             raise AssertionError(
                 'The Signal still has uninitialized celery listeners'
@@ -193,7 +189,7 @@ class Signal(t.Generic[T]):
         def __inner(callback: t.Callable[[Z], Y]) -> t.Callable[[Z], Y]:
             fullname = self._get_fullname(callback)
             self._check_function_not_registered(fullname)
-            task_name = (f'{module}.{self.__name}' f'.{fullname}.celery_task')
+            task_name = f'{module}.{self.__name}.{fullname}.celery_task'
 
             def __celery_setup(celery: Celery) -> None:
                 @celery.task(name=task_name, **(task_args or {}))
