@@ -583,3 +583,62 @@ def test_passback_with_bonus_points(
 
         assert stub_passback.args[0][0].get_score_given() == 14
         assert stub_passback.args[0][0].get_score_maximum() == 10
+
+
+def test_delete_submission_of_group(
+    lti1p3_provider, describe, logged_in, admin_user, watch_signal,
+    stub_function, test_client, session, tomorrow
+):
+    with describe('setup'), logged_in(admin_user):
+        watch_signal(signals.WORK_CREATED, clear_all_but=[])
+        watch_signal(signals.GRADE_UPDATED, clear_all_but=[])
+        watch_signal(signals.USER_ADDED_TO_COURSE, clear_all_but=[])
+        stub_function(
+            pylti1p3.service_connector.ServiceConnector,
+            'get_access_token', lambda: ''
+        )
+        stub_passback = stub_function(
+            pylti1p3.assignments_grades.AssignmentsGradesService, 'put_grade'
+        )
+
+        course, course_conn = helpers.create_lti1p3_course(
+            test_client, session, lti1p3_provider
+        )
+        assig = helpers.create_lti1p3_assignment(
+            session, course, state='done', deadline=tomorrow
+        )
+
+        # Create some users and let them have individual submissions
+        g_user1 = helpers.create_lti1p3_user(session, lti1p3_provider)
+        g_user2 = helpers.create_lti1p3_user(session, lti1p3_provider)
+        for user in [g_user1, g_user2]:
+            course_conn.maybe_add_user_to_course(user, ['Learner'])
+            sub = helpers.create_submission(test_client, assig, for_user=user)
+            helpers.to_db_object(sub, m.Work).set_grade(
+                5.0, m.User.resolve(admin_user)
+            )
+
+        # Place the users in a group, with a submission with a different grade
+        # than their individual submission.
+        gset = helpers.create_group_set(test_client, course, 1, 2, [assig])
+        helpers.create_group(test_client, gset, [g_user1, g_user2])
+        gsub = helpers.create_submission(test_client, assig, for_user=g_user2)
+        helpers.to_db_object(gsub, m.Work).set_grade(
+            6.0, m.User.resolve(admin_user)
+        )
+
+        session.commit()
+
+    with describe(
+        'deleting group submission passes back individual submissions'
+    ):
+        with logged_in(admin_user):
+            test_client.req(
+                'delete', f'/api/v1/submissions/{helpers.get_id(gsub)}', 204
+            )
+
+        assert stub_passback.called_amount == 2
+
+        # The grade passed back is that of their individual submission
+        assert stub_passback.args[0][0].get_score_given() == 5.0
+        assert stub_passback.args[1][0].get_score_given() == 5.0
