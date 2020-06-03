@@ -70,7 +70,18 @@ def create_lti_assignment(
     return res
 
 
-def create_lti1p3_assignment(session, course):
+def create_lti1p3_user(session, provider):
+    n_id = str(uuid.uuid4())
+    username = f'LTI1p3_USER_{uuid.uuid4()}'
+    user, _ = m.UserLTIProvider.get_or_create_user(
+        n_id, provider, username, 'A LTI 1.3 user', 'user@lti.com'
+    )
+    session.commit()
+    u_id = user.id
+    return LocalProxy(lambda: m.User.query.get(u_id))
+
+
+def create_lti1p3_assignment(session, course, state='hidden', deadline=None):
     course = to_db_object(course, m.Course)
     assert course.is_lti
     assig = psef.models.Assignment(
@@ -80,6 +91,9 @@ def create_lti1p3_assignment(session, course):
         visibility_state=psef.models.AssignmentVisibilityState.visible,
         lti_assignment_id=str(uuid.uuid4()),
     )
+    assig.lti_grade_service_data = {'lineitem': 'http://{uuid.uuid4()}.com'}
+    assig.set_state_with_string(state)
+    assig.deadline = deadline
     session.add(assig)
     session.commit()
     return assig

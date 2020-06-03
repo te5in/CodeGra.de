@@ -623,6 +623,16 @@ def filename(request):
 
 
 @pytest.fixture
+def stub_function(stub_function_class, session, monkeypatch):
+    def inner_stub_function(module, name, *args, **kwargs):
+        stub = stub_function_class(*args, **kwargs)
+        monkeypatch.setattr(module, name, stub)
+        return stub
+
+    yield inner_stub_function
+
+
+@pytest.fixture
 def watch_signal(stub_function_class, session):
     undos = []
     idx = 0
@@ -665,6 +675,7 @@ def watch_signal(stub_function_class, session):
         watcher = Watcher(maybe_flush)
 
         if clear_all_but is not False:
+            assert all(signal.is_connected(f) for f in clear_all_but)
             undos.append(signal.disable_all_but(clear_all_but))
         signal.connect_immediate(watcher)
         if clear_all_but is False:
@@ -706,6 +717,9 @@ def stub_function_class():
 
         def __call__(self, *args, **kwargs):
             return self.make_callable(self.ret_func)(*args, **kwargs)
+
+        def set_impl(self, fn):
+            self.ret_func = fn
 
         @property
         def all_args(self):
@@ -912,4 +926,14 @@ def canvas_lti1p1_provider(session):
     prov = m.LTI1p1Provider(key='canvas2')
     session.add(prov)
     session.commit()
+    yield prov
+
+
+@pytest.fixture
+def lti1p3_provider(logged_in, admin_user, test_client):
+    with logged_in(admin_user):
+        prov = helpers.to_db_object(
+            helpers.create_lti1p3_provider(test_client, 'Canvas'),
+            m.LTI1p3Provider
+        )
     yield prov

@@ -4,21 +4,13 @@ import uuid
 import furl
 import pytest
 import pylti1p3.names_roles
+import pylti1p3.service_connector
+import pylti1p3.assignments_grades
 
 import helpers
 import psef.models as m
 import psef.signals as signals
 import psef.lti.v1_3.claims as claims
-
-
-@pytest.fixture
-def lti1p3_provider(logged_in, admin_user, test_client):
-    with logged_in(admin_user):
-        prov = helpers.to_db_object(
-            helpers.create_lti1p3_provider(test_client, 'Canvas'),
-            m.LTI1p3Provider
-        )
-    yield prov
 
 
 def test_get_self_from_course(
@@ -143,7 +135,8 @@ def test_retrieve_users_in_course(
         return_value = [
             {
                 'status': 'Active',
-                'message': {},
+                # Not correct at all, but the function should still not crash.
+                'message': object(),
                 'user_id': new_user_id1,
                 'email': 'hello@codegrade.com',
                 'name': 'USER1',
@@ -193,88 +186,100 @@ def test_retrieve_users_in_course(
         assert not stub_get.called
 
 
-def test_can_poll_names_again(
-    describe, lti1p3_provider, test_client, admin_user, logged_in, session,
-    watch_signal, monkeypatch, stub_function_class
+def test_delete_submission_passback(
+    lti1p3_provider, describe, logged_in, admin_user, watch_signal,
+    stub_function, test_client, session, tomorrow
 ):
     with describe('setup'), logged_in(admin_user):
-        # Disable signal
-        watch_signal(signals.ASSIGNMENT_CREATED, clear_all_but=[])
-        course, course_lti = helpers.create_lti1p3_course(
+        watch_signal(signals.WORK_CREATED, clear_all_but=[])
+        watch_signal(signals.GRADE_UPDATED, clear_all_but=[])
+        watch_signal(signals.USER_ADDED_TO_COURSE, clear_all_but=[])
+        stub_function(
+            pylti1p3.service_connector.ServiceConnector,
+            'get_access_token', lambda: ''
+        )
+        stub_passback = stub_function(
+            pylti1p3.assignments_grades.AssignmentsGradesService, 'put_grade'
+        )
+
+        course, course_conn = helpers.create_lti1p3_course(
             test_client, session, lti1p3_provider
         )
-        helpers.create_lti1p3_assignment(session, course)
-        stub_get = stub_function_class(lambda: [])
-        monkeypatch.setattr(
-            pylti1p3.names_roles.NamesRolesProvisioningService, 'get_members',
-            stub_get
+        assig = helpers.create_lti1p3_assignment(
+            session, course, state='done', deadline=tomorrow
+        )
+        user = helpers.create_lti1p3_user(session, lti1p3_provider)
+        lti_user_id = m.UserLTIProvider.query.filter_by(user=user
+                                                        ).one().lti_user_id
+        course_conn.maybe_add_user_to_course(user, ['Learner'])
+
+        sub_oldest, sub_older, sub_middle, sub_newest = [
+            helpers.to_db_object(
+                helpers.create_submission(test_client, assig, for_user=user),
+                m.Work
+            ) for _ in range(4)
+        ]
+        signal = watch_signal(
+            signals.WORK_DELETED,
+            clear_all_but=[m.LTI1p3Provider._delete_submission]
         )
 
-    with describe('can poll if we never polled'):
-        assert course_lti.can_poll_names_again()
+        def do_delete(sub):
+            with logged_in(admin_user):
+                test_client.req(
+                    'delete', f'/api/v1/submissions/{helpers.get_id(sub)}', 204
+                )
 
-    with describe('calling get_members updates last poll date'):
-        assert course_lti.last_names_roles_poll is None
-        course_lti.get_members(object())
-        assert course_lti.last_names_roles_poll is not None
-
-    with describe('now we cannot poll again as we just did that'):
-        assert not course_lti.can_poll_names_again()
-
-
-def test_maybe_add_user_to_course(
-    describe, lti1p3_provider, test_client, admin_user, logged_in, session,
-    watch_signal
-):
-    with describe('setup'), logged_in(admin_user):
-        course, conn = helpers.create_lti1p3_course(
-            test_client, session, lti1p3_provider
-        )
-        signal = watch_signal(signals.USER_ADDED_TO_COURSE, clear_all_but=[])
-        user = helpers.create_user_with_role(session, 'Teacher', [])
-        user2 = helpers.create_user_with_role(session, 'Teacher', [])
-        user3 = helpers.create_user_with_role(session, 'Teacher', [])
-        user4 = helpers.create_user_with_role(session, 'Teacher', [])
-        user5 = helpers.create_user_with_role(session, 'Teacher', [])
-        student_role = m.CourseRole.query.filter_by(
-            name='Student', course=course
-        ).one()
-        assert student_role is not None
-
-    with describe('adding user without roles claim always creates a new role'):
-        conn.maybe_add_user_to_course(user, [])
+    with describe('Delete non newest'):
+        do_delete(sub_older)
         assert signal.was_send_once
-        assert user.is_enrolled(course)
-        assert user.courses[course.id].name == 'New LTI Role'
+        assert not stub_passback.called
 
-        signal.reset()
-        conn.maybe_add_user_to_course(user2, [])
+    with describe('Calling method for non existing work simply does nothing'):
+        m.LTI1p3Provider._delete_submission(1000000)
+        assert not stub_passback.called
+
+    with describe('Calling method for non deleted work does nothing'):
+        m.LTI1p3Provider._delete_submission(helpers.get_id(sub_newest))
+        assert not stub_passback.called
+
+    with describe('Delete newest should passback grade of new newest'):
+        sub_middle.set_grade(5.0, m.User.resolve(admin_user))
+        session.commit()
+        # We should have removed the grade_updated signal
+        assert not stub_passback.called
+
+        do_delete(sub_newest)
         assert signal.was_send_once
-        assert user2.is_enrolled(course)
-        assert user2.courses[course.id].name == 'New LTI Role (1)'
-        assert user2.courses[course.id].id != user.courses[course.id].id
+        assert stub_passback.called_amount == 1
+        grade, = stub_passback.all_args[0].values()
+        assert grade.get_score_given() == 5.0
+        assert grade.get_user_id() == lti_user_id
 
-    with describe('user already in course does nothing'):
-        conn.maybe_add_user_to_course(user, ['Learner'])
-        assert signal.was_not_send
-        assert user.courses[course.id].name == 'New LTI Role'
+    with describe('Deleting new newest should passback next non deleted'):
+        sub_older.set_grade(6.0, m.User.resolve(admin_user))
+        sub_oldest.set_grade(8.0, m.User.resolve(admin_user))
+        session.commit()
+        assert not m.GradeHistory.query.filter_by(work=sub_oldest
+                                                  ).one().passed_back
 
-    with describe('adding user with known role uses that role'):
-        conn.maybe_add_user_to_course(user3, ['Learner'])
+        do_delete(sub_middle)
         assert signal.was_send_once
-        assert user3.is_enrolled(course)
-        assert user3.courses[course.id].id == student_role.id
+        assert stub_passback.called_amount == 1
+        grade, = stub_passback.all_args[0].values()
+        # Should passback oldest as we deleted older in an earlier block
+        assert grade.get_score_given() == 8.0
+        assert grade.get_user_id() == lti_user_id
 
-    with describe(
-        'Using unmapped role creates a new role if it does not exist'
-    ):
-        conn.maybe_add_user_to_course(user4, ['Student', 'Other role'])
-        assert signal.was_send_once
-        assert user4.is_enrolled(course)
-        assert user4.courses[course.id].name == 'Unmapped LTI Role (Student)'
+        # Should update history
+        assert m.GradeHistory.query.filter_by(work=sub_oldest
+                                              ).one().passed_back
 
-        signal.reset()
-        conn.maybe_add_user_to_course(user5, ['Other role', 'Student'])
+    with describe('Deleting without any existing submission should passback'):
+        do_delete(sub_oldest)
         assert signal.was_send_once
-        assert user5.is_enrolled(course)
-        assert user5.courses[course.id].name == 'Unmapped LTI Role (Student)'
+        assert stub_passback.called_amount == 1
+        grade, = stub_passback.all_args[0].values()
+        assert grade.get_score_given() is None
+        assert grade.get_grading_progress() == 'NotReady'
+        assert grade.get_user_id() == lti_user_id

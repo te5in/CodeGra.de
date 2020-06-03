@@ -841,11 +841,13 @@ class LTI1p3Provider(LTIProviderBase):
 
         if not work.deleted:
             logger.info('Work was not deleted', work=work)
+            return
 
+        group_of_user = work.user.group
         for author in work.get_all_authors():
             # pylint: disable=protected-access
             latest_sub = assig.get_latest_submission_for_user(
-                author, group_of_user=work.user.group
+                author, group_of_user=group_of_user
             ).one_or_none()
 
             if latest_sub is None:
@@ -1255,7 +1257,9 @@ class LTI1p3Provider(LTIProviderBase):
         )(cls._passback_grades)
 
         signals.WORK_DELETED.connect_celery(
-            pre_check=lambda wd: pre_checker(wd.deleted_work.assignment),
+            pre_check=lambda wd: (
+                wd.was_latest and pre_checker(wd.deleted_work.assignment)
+            ),  # yapf: disable
             converter=lambda wd: wd.deleted_work.id,
             task_args=_PASSBACK_CELERY_OPTS
         )(cls._delete_submission)
