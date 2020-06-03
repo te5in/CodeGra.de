@@ -527,3 +527,59 @@ def test_passback_single_submission(
         assert stub_passback.called_amount == 1
         assert stub_passback.args[0][0].get_score_given() is None
         assert stub_passback.args[0][0].get_activity_progress() == 'Submitted'
+
+
+def test_passback_with_bonus_points(
+    lti1p3_provider, describe, logged_in, admin_user, watch_signal,
+    stub_function, test_client, session, tomorrow
+):
+    with describe('setup'), logged_in(admin_user):
+        watch_signal(signals.WORK_CREATED, clear_all_but=[])
+        watch_signal(signals.USER_ADDED_TO_COURSE, clear_all_but=[])
+        signal = watch_signal(
+            signals.GRADE_UPDATED,
+            clear_all_but=[m.LTI1p3Provider._passback_submission]
+        )
+
+        stub_function(
+            pylti1p3.service_connector.ServiceConnector,
+            'get_access_token', lambda: ''
+        )
+        stub_passback = stub_function(
+            pylti1p3.assignments_grades.AssignmentsGradesService, 'put_grade',
+            raise_pylti1p3_exc
+        )
+
+        course, course_conn = helpers.create_lti1p3_course(
+            test_client, session, lti1p3_provider
+        )
+        assig = helpers.create_lti1p3_assignment(
+            session, course, state='done', deadline=tomorrow
+        )
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{helpers.get_id(assig)}',
+            200,
+            data={'max_grade': 15}
+        )
+
+        user = helpers.create_lti1p3_user(session, lti1p3_provider)
+        course_conn.maybe_add_user_to_course(user, [])
+
+        sub = helpers.to_db_object(
+            helpers.create_submission(test_client, assig, for_user=user),
+            m.Work
+        )
+
+    with describe('can passback bonus points'), logged_in(admin_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{helpers.get_id(sub)}',
+            200,
+            data={'grade': 14},
+        )
+        assert signal.was_send_once
+        assert stub_passback.called_amount == 1
+
+        assert stub_passback.args[0][0].get_score_given() == 14
+        assert stub_passback.args[0][0].get_score_maximum() == 10
