@@ -18,15 +18,15 @@ import typing as t
 from datetime import timedelta
 from dataclasses import dataclass
 
-import flask
 import structlog
-import flask.sessions
 import werkzeug.wrappers
 from pylti1p3.cookie import CookieService
 from pylti1p3.request import Request
 from pylti1p3.session import SessionService
 from pylti1p3.redirect import Redirect
 
+import flask
+import flask.sessions
 from cg_dt_utils import DatetimeWithTimezone
 
 logger = structlog.get_logger()
@@ -45,9 +45,12 @@ class FlaskRequest(Request):
     def __init__(self, *, force_post: bool) -> None:
         self._force_post = force_post
 
-    def is_secure(self) -> bool:
-        assert flask.request.is_secure, 'All LTI requests should be secure'
-        return True
+    def is_secure(self) -> bool:  # pragma: no cover
+        """Check if request is secure.
+        """
+        # Method is not used, but we have to implement it for to adhere to the
+        # base class.
+        return flask.request.is_secure
 
     @property
     def session(self) -> t.MutableMapping[str, t.Any]:
@@ -97,15 +100,6 @@ class FlaskSessionService(SessionService):
             wanted_nonce=nonce,
         )
         return session_nonce == nonce
-
-    def save_state_params(
-        self, state: str, params: t.Dict[str, object]
-    ) -> None:
-        self.data_storage.set_value(self._get_key(state), params)
-
-    def get_state_params(self, state: str) -> t.Dict[str, object]:
-        logger.info('Getting state params', state=state, session=flask.session)
-        return self.data_storage.get_value(self._get_key(state))
 
 
 class FlaskCookieService(CookieService):
@@ -214,9 +208,18 @@ class FlaskRedirect(Redirect[werkzeug.wrappers.Response]):
         return self._cookie_service.update_response(response)
 
     def do_redirect(self) -> werkzeug.wrappers.Response:
-        return self._process_response(flask.redirect(self._location, code=303))
+        return self._process_response(
+            flask.redirect(self.get_redirect_url(), code=303)
+        )
 
-    def do_js_redirect(self) -> werkzeug.wrappers.Response:
+    def do_js_redirect(self) -> werkzeug.wrappers.Response:  # pragma: no cover
+        """This method does a redirect using javascript
+
+        .. note::
+
+            Don't use this method, simply redirect using
+            :meth:`.FlaskRedirect.do_redirect`
+        """
         return self._process_response(
             flask.Response(
                 (
@@ -228,7 +231,10 @@ class FlaskRedirect(Redirect[werkzeug.wrappers.Response]):
             )
         )
 
-    def set_redirect_url(self, location: str) -> None:
+    def set_redirect_url(self, location: str) -> None:  # pragma: no cover
+        """Set the redirect url of this redirect.
+        """
+        # We have to override this method, but we don't actually use it.
         self._location = location
 
     def get_redirect_url(self) -> str:

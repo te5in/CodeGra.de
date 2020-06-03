@@ -4,6 +4,7 @@ import pprint
 
 import jwt
 import furl
+import flask
 import pytest
 import pylti1p3.names_roles
 import pylti1p3.assignments_grades
@@ -353,3 +354,66 @@ def test_do_simple_launch(
         assert assig_created.was_send_once
         assert launch_result3['data']['course']['id'] == course['id']
         assert launch_result3['data']['assignment']['id'] != assig['id']
+
+
+@pytest.mark.parametrize('with_id', [True, False])
+def test_do_oidc_with_get(test_client, lti1p3_provider, with_id, describe):
+    with describe('setup'):
+        redirect_uri = str(uuid.uuid4())
+        login_hint = str(uuid.uuid4())
+        url = '/api/v1/lti1.3/login'
+        if with_id:
+            url += '/' + str(lti1p3_provider.id)
+
+    with describe('can do oidc launch with GET request'), test_client as c:
+        redirect = c.get(
+            furl.furl(url).add({
+                'target_link_uri': redirect_uri,
+                'iss': lti1p3_provider.iss,
+                'login_hint': login_hint,
+            }).tostr(),
+        )
+        assert redirect.status_code == 303
+        assert redirect.headers['Location'].startswith(
+            lti1p3_provider._auth_login_url
+        )
+        assert flask.session
+
+
+def test_with_wrong_nonce(
+    test_client, describe, logged_in, admin_user, monkeypatched_passback
+):
+    with describe('setup'), logged_in(admin_user):
+        lti_assig_id = str(uuid.uuid4())
+        lti_course_id = str(uuid.uuid4())
+        lms = 'Canvas'
+        provider = helpers.create_lti1p3_provider(
+            test_client,
+            lms,
+            iss='https://canvas.instructure.com',
+            client_id=str(uuid.uuid4()) + '_lms=' + lms
+        )
+
+    with describe('can do oidc launch with GET request'), test_client as c:
+        oidc = do_oidc_login(c, provider)
+        with c.session_transaction() as sess:
+            s_service = lti1p3.flask.FlaskSessionService(
+                lti1p3.flask.FlaskRequest(force_post=False)
+            )
+            sess[s_service._get_key('lti-nonce')] = 'Not correct'
+
+        response = do_lti_launch(
+            c,
+            provider,
+            make_launch_data(
+                CANVAS_DATA,
+                provider,
+                {
+                    'Assignment.id': lti_assig_id,
+                    'Course.id': lti_course_id,
+                },
+            ),
+            oidc,
+            400,
+        )
+        assert response['message'] == 'Invalid Nonce'
