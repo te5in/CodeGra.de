@@ -1018,6 +1018,8 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             'auto_test_id': self.auto_test_id,
             'result_ids': [r.id for r in results],
             'student_ids': [r.work.user_id for r in results],
+            'student_infos': [self._get_student_info(r) for r in results],
+            'assignment_info': self._get_assignment_info(),
             'sets': [s.get_instructions(self) for s in self.auto_test.sets],
             'fixtures': [(f.name, f.id) for f in self.auto_test.fixtures],
             'setup_script': self.auto_test.setup_script,
@@ -1026,6 +1028,25 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             'run_setup_script': self.auto_test.run_setup_script,
             # TODO: Set this in a more intelligent way
             'poll_after_done': True,
+        }
+
+    def _get_assignment_info(
+        self,
+    ) -> auto_test_module.AssignmentInformation:
+        deadline = self.auto_test.assignment.deadline
+        assert deadline is not None
+
+        return {
+            'deadline': deadline.isoformat(),
+        }
+
+    @staticmethod
+    def _get_student_info(result: AutoTestResult) -> auto_test_module.StudentInformation:
+        return {
+            'work_id': result.work.id,
+            'result_id': result.id,
+            'student_id': result.work.user_id,
+            'created_at': result.work.created_at.isoformat(),
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:

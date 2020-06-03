@@ -42,6 +42,7 @@ import cg_logger
 import cg_worker_pool
 import cg_threading_utils
 from cg_timers import timed_code, timed_function
+from cg_dt_utils import DatetimeWithTimezone
 
 from .. import models, helpers
 from ..helpers import JSONType, RepeatedTimer, defer
@@ -655,6 +656,26 @@ class SetInstructions(TypedDict, total=True):
     stop_points: float
 
 
+class AssignmentInformation(TypedDict, total=True):
+    """Information about the assignment that this AutoTest belongs to.
+
+    :ivar deadline: The deadline of the assignment.
+    """
+    deadline: str
+
+
+class StudentInformation(TypedDict, total=True):
+    """Information about the submission that the AutoTest runs on.
+
+    :ivar id: The id of the submission.
+    :ivar created_at: The datetime when the work was submitted.
+    """
+    work_id: int
+    result_id: int
+    student_id: int
+    created_at: str
+
+
 class RunnerInstructions(TypedDict, total=True):
     """Instructions for a complete auto test run.
 
@@ -675,6 +696,8 @@ class RunnerInstructions(TypedDict, total=True):
     auto_test_id: int
     result_ids: t.List[int]
     student_ids: t.List[int]
+    student_infos: t.Optional[t.List[StudentInformation]]
+    assignment_info: t.Optional[AssignmentInformation]
     sets: t.List[SetInstructions]
     fixtures: t.List[t.Tuple[str, int]]
     setup_script: str
@@ -863,6 +886,7 @@ class StartedContainer:
         self._network_is_enabled = True
         self._networks: t.List[Network] = []
         self._fixtures_dir: t.Optional[str] = None
+        self._extra_env: t.MutableMapping[str, str] = {}
 
     def _stop_container(self) -> None:
         _stop_container(self._container)
@@ -1139,7 +1163,7 @@ class StartedContainer:
             f':{home_dir}/bin/'
         )
 
-        return {
+        return self._extra_env.copy().update({
             'PATH': f'{extra_path}:/usr/sbin/:/sbin/:{env["PATH"]}',
             'USER': user,
             'LOGUSER': user,
@@ -1151,7 +1175,36 @@ class StartedContainer:
             'AT_OUTPUT': self.output_dir,
             'LANG': 'en_US.UTF-8',
             'LC_ALL': 'en_US.UTF-8',
+        })
+
+    @contextlib.contextmanager
+    def extra_env(
+        self,
+        instructions: RunnerInstructions,
+        result_id: int,
+    ) -> None:
+        assig_info = instructions.get('assignment_info', {})
+        student_info = next(
+            (
+                s
+                for s in instructions.get('student_infos', [])
+                if s['result_id'] == result_id
+            ),
+            {},
+        )
+
+        extra_env = {
+            'DEADLINE': assig_info.get('deadline', ''),
+            'WORK_ID': student_info.get('work_id', ''),
+            'STUDENT_ID': student_info.get('student_id', ''),
+            'SUBMITTED_AT': student_info.get('created_at', ''),
         }
+
+        try:
+            self._extra_env = { k: v for k, v in extra_env.items if v }
+            yield
+        finally:
+            self._extra_env = {}
 
     @staticmethod
     def _signal_start() -> None:
@@ -1973,7 +2026,7 @@ class AutoTestRunner:
                                 achieved_percentage=helpers.safe_div(
                                     total_points, possible_points, 1
                                 ),
-                                yield_core=yield_core
+                                yield_core=yield_core,
                             )
                         )
                     except StopRunningStepsException:
@@ -2220,7 +2273,7 @@ class AutoTestRunner:
                     if patch_res.json()['taken']:
                         opts.mark_work_as_finished(work)
                     else:
-                        with cg_logger.bound_to_logger(result_id=result_id):
+                        with cg_logger.bound_to_logger(result_id=result_id), cont.extra_env(self.instructions, work.result_id):
                             if self._run_student(cont, cpu, result_id):
                                 opts.mark_work_as_finished(work)
                             else:
