@@ -211,7 +211,7 @@ export default class CanvasSetup extends Vue {
 
     get jsonUrl(): string {
         return this.$utils.buildUrl(
-            ['api', 'v1', 'lti1.3', 'config', this.ltiProvider.id],
+            ['api', 'v1', 'lti1.3', 'providers', this.ltiProvider.id, 'config'],
             {
                 baseUrl: this.$userConfig.externalUrl,
             },

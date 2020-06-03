@@ -450,7 +450,7 @@ def _handle_lti_advantage_launch(
     )
 
 
-@api.route('/lti1.3/config/<lti_provider_id>', methods=['GET'])
+@api.route('/lti1.3/providers/<lti_provider_id>/config', methods=['GET'])
 def get_lti1_3_config(lti_provider_id: str) -> helpers.JSONResponse[object]:
     """Get the LTI 1.3 config in such a way that it can be used by the LMS
     connected to this provider.
