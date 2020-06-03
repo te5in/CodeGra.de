@@ -11,6 +11,7 @@ import helpers
 import psef.models as m
 import psef.signals as signals
 import psef.lti.v1_3.claims as claims
+from cg_dt_utils import DatetimeWithTimezone
 
 
 def raise_pylti1p3_exc():
@@ -289,6 +290,14 @@ def test_delete_submission_passback(
         assert grade.get_grading_progress() == 'NotReady'
         assert grade.get_user_id() == lti_user_id
 
+    with describe('Passing back deleted sub should do nothing'):
+        lti1p3_provider._passback_grade(
+            assignment=assig,
+            sub=sub_newest,
+            timestamp=DatetimeWithTimezone.utcnow()
+        )
+        assert not stub_passback.called
+
 
 def test_passing_back_all_grades(
     lti1p3_provider, describe, logged_in, admin_user, watch_signal,
@@ -456,3 +465,65 @@ def test_failing_passback(
         hist = m.GradeHistory.query.filter_by(work=sub).one()
         assert hist
         assert not hist.passed_back
+
+
+def test_passback_single_submission(
+    lti1p3_provider, describe, logged_in, admin_user, watch_signal,
+    stub_function, test_client, session, tomorrow
+):
+    with describe('setup'), logged_in(admin_user):
+        watch_signal(signals.WORK_CREATED, clear_all_but=[])
+        watch_signal(signals.USER_ADDED_TO_COURSE, clear_all_but=[])
+        signal = watch_signal(
+            signals.GRADE_UPDATED,
+            clear_all_but=[m.LTI1p3Provider._passback_submission]
+        )
+
+        stub_function(
+            pylti1p3.service_connector.ServiceConnector,
+            'get_access_token', lambda: ''
+        )
+        stub_passback = stub_function(
+            pylti1p3.assignments_grades.AssignmentsGradesService, 'put_grade',
+            raise_pylti1p3_exc
+        )
+
+        course, course_conn = helpers.create_lti1p3_course(
+            test_client, session, lti1p3_provider
+        )
+        assig = helpers.create_lti1p3_assignment(
+            session, course, state='done', deadline=tomorrow
+        )
+
+        user = helpers.create_lti1p3_user(session, lti1p3_provider)
+        course_conn.maybe_add_user_to_course(user, [])
+
+        older_sub, newest_sub = [
+            helpers.to_db_object(
+                helpers.create_submission(test_client, assig, for_user=user),
+                m.Work
+            ) for _ in range(2)
+        ]
+
+    with describe('calling directly with non existing assignment is a noop'):
+        m.LTI1p3Provider._passback_submission((newest_sub.id, 100000))
+        assert not stub_passback.called
+
+    with describe('changing grade of non newest sub does not passback'):
+        older_sub.set_grade(5.0, admin_user)
+        assert signal.was_send_once
+        assert not stub_passback.called
+
+    with describe('changing grade on newest sub passes the new grade back'):
+        newest_sub.set_grade(9.5, m.User.resolve(admin_user))
+        assert signal.was_send_once
+        assert stub_passback.called_amount == 1
+        assert stub_passback.args[0][0].get_score_given() == 9.5
+
+    with describe('unsetting grade should passback something without grade'):
+        newest_sub.set_grade(None, m.User.resolve(admin_user))
+
+        assert signal.was_send_once
+        assert stub_passback.called_amount == 1
+        assert stub_passback.args[0][0].get_score_given() is None
+        assert stub_passback.args[0][0].get_activity_progress() == 'Submitted'

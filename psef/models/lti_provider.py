@@ -896,40 +896,35 @@ class LTI1p3Provider(LTIProviderBase):
         cls, work_assignment_id: t.Tuple[int, int]
     ) -> None:
         work_id, assignment_id = work_assignment_id
-        try:
-            assig, self = cls._get_self_from_assignment_id(assignment_id)
-            now = DatetimeWithTimezone.utcnow()
+        assig, self = cls._get_self_from_assignment_id(assignment_id)
+        now = DatetimeWithTimezone.utcnow()
 
-            if self is None or assig is None:
-                logger.info(
-                    'Could not find self or assignment',
-                    found_self=self,
-                    found_assignment=assig
-                )
-                return
-
-            work = assig.get_all_latest_submissions().filter(
-                work_models.Work.id == work_id
-            ).one_or_none()
-            if work is None:
-                logger.info(
-                    'Submission is not the latest',
-                    assignment=assig,
-                    work_id=work_id
-                )
-                return
-
-            # pylint: disable=protected-access
-            self._passback_grade(
-                sub=work,
-                assignment=assig,
-                timestamp=now,
+        if self is None or assig is None:
+            logger.info(
+                'Could not find self or assignment',
+                found_self=self,
+                found_assignment=assig
             )
-            db.session.commit()
+            return
 
-        except:
-            logger.info('Error when passing back', exc_info=True)
-            raise
+        work = assig.get_all_latest_submissions().filter(
+            work_models.Work.id == work_id
+        ).one_or_none()
+        if work is None:
+            logger.info(
+                'Submission is not the latest',
+                assignment=assig,
+                work_id=work_id
+            )
+            return
+
+        # pylint: disable=protected-access
+        self._passback_grade(
+            sub=work,
+            assignment=assig,
+            timestamp=now,
+        )
+        db.session.commit()
 
     @classmethod
     def _passback_grades(cls, assignment_id: int) -> None:
