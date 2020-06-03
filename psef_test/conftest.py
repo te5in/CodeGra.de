@@ -691,9 +691,9 @@ def watch_signal(stub_function_class, session):
 
 @pytest.fixture
 def make_function_spy(monkeypatch, stub_function_class):
-    def make_spy(module, name):
+    def make_spy(module, name, *, pass_self=False):
         orig = getattr(module, name)
-        spy = stub_function_class(orig, with_args=True)
+        spy = stub_function_class(orig, with_args=True, pass_self=pass_self)
         monkeypatch.setattr(module, name, spy)
         return spy
 

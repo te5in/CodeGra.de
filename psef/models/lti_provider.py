@@ -316,17 +316,15 @@ class LTI1p1Provider(LTIProviderBase):
         _, self = cls._get_self_from_assignment_id(assignment_id)
         submission = work_models.Work.query.get(work_id)
 
-        if self is None or submission is None:
-            return
-
-        logger.info(
-            'Creating submission in lms',
-            submission=submission,
-            lti_provider=self,
-        )
-        # pylint: disable=protected-access
-        self._passback_grade(submission, initial=True)
-        db.session.commit()
+        if self is not None and submission is not None:
+            logger.info(
+                'Creating submission in lms',
+                submission=submission,
+                lti_provider=self,
+            )
+            # pylint: disable=protected-access
+            self._passback_grade(submission, initial=True)
+            db.session.commit()
 
     @classmethod
     def _passback_grades(
@@ -409,7 +407,9 @@ class LTI1p1Provider(LTIProviderBase):
 
         assig_results = sub.assignment.assignment_results
         for user in sub.get_all_authors():
-            if user.is_test_student or user.id not in assig_results:
+            if user.is_test_student or user.id not in assig_results:  # pragma: no cover
+                # We actually cover this line, but python optimizes it out:
+                # https://github.com/nedbat/coveragepy/issues/198
                 continue
             sourcedid = assig_results[user.id].sourcedid
             if sourcedid is None:  # pragma: no cover
