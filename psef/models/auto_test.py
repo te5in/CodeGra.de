@@ -1030,9 +1030,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             'poll_after_done': True,
         }
 
-    def _get_assignment_info(
-        self,
-    ) -> auto_test_module.AssignmentInformation:
+    def _get_assignment_info(self, ) -> auto_test_module.AssignmentInformation:
         deadline = self.auto_test.assignment.deadline
         assert deadline is not None
 
@@ -1041,7 +1039,9 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         }
 
     @staticmethod
-    def _get_student_info(result: AutoTestResult) -> auto_test_module.StudentInformation:
+    def _get_student_info(
+        result: AutoTestResult
+    ) -> auto_test_module.StudentInformation:
         return {
             'work_id': result.work.id,
             'result_id': result.id,

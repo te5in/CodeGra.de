@@ -667,7 +667,10 @@ class AssignmentInformation(TypedDict, total=True):
 class StudentInformation(TypedDict, total=True):
     """Information about the submission that the AutoTest runs on.
 
-    :ivar id: The id of the submission.
+    :ivar work_id: The id of the :class:`Work`.
+    :ivar result_id: The id of the :class:`AutoTestResult` corresponding to
+        this work.
+    :ivar student_id: The id of the :class:`User` who submitted the work.
     :ivar created_at: The datetime when the work was submitted.
     """
     work_id: int
@@ -683,7 +686,13 @@ class RunnerInstructions(TypedDict, total=True):
     :ivar run_id: The id of this auto test run.
     :ivar auto_test_id: The id of this AutoTest configuration.
     :ivar result_ids: The ids of the results this runner should produce. These
-        can be seen as submissions.
+        can be seen as submissions. (Deprecated, use ``student_infos`` instead)
+    :ivar student_ids: The ids of the user corresponding to the result with id
+        at the same index in the ``result_ids`` list. (Deprecated, use
+        ``student_infos`` instead)
+    :ivar assignment_info: Assignment information made available to AutoTest
+        steps.
+    :ivar student_infos: List of information associated to each result.
     :ivar sets: The sets that this AutoTest configuration contain.
     :ivar setup_script: The setup script that should be run for each student.
     :ivar run_setup_script: The setup script that should be run once.
@@ -886,7 +895,7 @@ class StartedContainer:
         self._network_is_enabled = True
         self._networks: t.List[Network] = []
         self._fixtures_dir: t.Optional[str] = None
-        self._extra_env: t.MutableMapping[str, str] = {}
+        self._extra_env: t.Dict[str, str] = {}
 
     def _stop_container(self) -> None:
         _stop_container(self._container)
@@ -1163,48 +1172,35 @@ class StartedContainer:
             f':{home_dir}/bin/'
         )
 
-        return self._extra_env.copy().update({
-            'PATH': f'{extra_path}:/usr/sbin/:/sbin/:{env["PATH"]}',
-            'USER': user,
-            'LOGUSER': user,
-            'HOME': home_dir,
-            'DEBIAN_FRONTEND': 'noninteractive',
-            'TERM': 'dumb',
-            'FIXTURES': self.fixtures_dir,
-            'STUDENT': f'{_get_home_dir(username)}/student/',
-            'AT_OUTPUT': self.output_dir,
-            'LANG': 'en_US.UTF-8',
-            'LC_ALL': 'en_US.UTF-8',
-        })
+        new_env = self._extra_env.copy()
+        new_env.update(
+            {
+                'PATH': f'{extra_path}:/usr/sbin/:/sbin/:{env["PATH"]}',
+                'USER': user,
+                'LOGUSER': user,
+                'HOME': home_dir,
+                'DEBIAN_FRONTEND': 'noninteractive',
+                'TERM': 'dumb',
+                'FIXTURES': self.fixtures_dir,
+                'STUDENT': f'{_get_home_dir(username)}/student/',
+                'AT_OUTPUT': self.output_dir,
+                'LANG': 'en_US.UTF-8',
+                'LC_ALL': 'en_US.UTF-8',
+            }
+        )
+        return new_env
 
     @contextlib.contextmanager
-    def extra_env(
-        self,
-        instructions: RunnerInstructions,
-        result_id: int,
-    ) -> None:
-        assig_info = instructions.get('assignment_info', {})
-        student_info = next(
-            (
-                s
-                for s in instructions.get('student_infos', [])
-                if s['result_id'] == result_id
-            ),
-            {},
-        )
-
-        extra_env = {
-            'DEADLINE': assig_info.get('deadline', ''),
-            'WORK_ID': student_info.get('work_id', ''),
-            'STUDENT_ID': student_info.get('student_id', ''),
-            'SUBMITTED_AT': student_info.get('created_at', ''),
-        }
+    def extra_env(self, extra_env: t.Mapping[str, str]) -> t.Iterator:
+        old_extra_env = self._extra_env
+        new_extra_env = old_extra_env.copy()
+        new_extra_env.update(extra_env)
 
         try:
-            self._extra_env = { k: v for k, v in extra_env.items if v }
+            self._extra_env = new_extra_env
             yield
         finally:
-            self._extra_env = {}
+            self._extra_env = old_extra_env
 
     @staticmethod
     def _signal_start() -> None:
@@ -2273,7 +2269,12 @@ class AutoTestRunner:
                     if patch_res.json()['taken']:
                         opts.mark_work_as_finished(work)
                     else:
-                        with cg_logger.bound_to_logger(result_id=result_id), cont.extra_env(self.instructions, work.result_id):
+                        extra_env = self._get_student_env(
+                            self.instructions, work.result_id
+                        )
+                        with cg_logger.bound_to_logger(
+                            result_id=result_id
+                        ), cont.extra_env(extra_env):
                             if self._run_student(cont, cpu, result_id):
                                 opts.mark_work_as_finished(work)
                             else:
@@ -2283,6 +2284,45 @@ class AutoTestRunner:
                                 # amount of time.
                                 retry_work(work)
                             return
+
+    @staticmethod
+    def _get_student_env(
+        instructions: RunnerInstructions,
+        result_id: int,
+    ) -> t.Mapping[str, str]:
+        extra_env = {}
+
+        assig_info = instructions.get('assignment_info')
+        if assig_info is not None:
+            extra_env['CG_DEADLINE'] = assig_info['deadline']
+        else:
+            logger.warning(
+                'No assignment info in runner instructions',
+                instructions=instructions,
+            )
+
+        student_infos = instructions.get('student_infos')
+        if student_infos is not None:
+            student_info: t.Optional[StudentInformation]
+            student_info = next(
+                (s for s in student_infos if s['result_id'] == result_id),
+                None,
+            )
+            if student_info is not None:
+                extra_env.update(
+                    {
+                        'CG_WORK_ID': str(student_info['work_id']),
+                        'CG_STUDENT_ID': str(student_info['student_id']),
+                        'CG_SUBMITTED_AT': student_info['created_at'],
+                    }
+                )
+            else:
+                logger.warning(
+                    'No student info in runner instructions',
+                    instructions=instructions,
+                )
+
+        return extra_env
 
     def _started_heartbeat(self) -> 'RepeatedTimer':
         def push_heartbeat() -> None:
