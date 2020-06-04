@@ -1,7 +1,9 @@
 import copy
+import json
 import uuid
 import pprint
 from re import compile as regex
+from random import randint
 from datetime import timedelta
 
 import jwt
@@ -9,8 +11,10 @@ import furl
 import flask
 import pytest
 import freezegun
+import jwcrypto.jwk
 import pylti1p3.names_roles
 import pylti1p3.assignments_grades
+import pylti1p3.message_validators
 from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 
 import helpers
@@ -92,7 +96,7 @@ def replace_values(base_data, replace_dict):
 
 BASE_LAUNCH_DATA = {
     'aud': 'client_id',
-    'exp': 1590999956,
+    'exp': (DatetimeWithTimezone.utcnow() + timedelta(days=1)).timestamp(),
     'nbf': 1590998156,
     'iat': 1590998156,
     'sub': '91f41e6b-a507-4168-9347-204b9316f03d_6324',
@@ -208,7 +212,9 @@ def make_launch_data(base, provider, override_replace={}):
     )
 
 
-def do_oidc_login(test_client, provider, with_id=False):
+def do_oidc_login(
+    test_client, provider, with_id=False, redirect_to=None, override_data={}
+):
     provider = m.LTI1p3Provider.query.get(helpers.get_id(provider))
 
     redirect_uri = str(uuid.uuid4())
@@ -224,29 +230,45 @@ def do_oidc_login(test_client, provider, with_id=False):
             'iss': provider.iss,
             'client_id': provider.client_id,
             'login_hint': login_hint,
+            **override_data,
         }
     )
     assert redirect.status_code == 303
-    assert redirect.headers['Location'].startswith(provider._auth_login_url)
+    if redirect_to is None:
+        assert redirect.headers['Location'].startswith(
+            provider._auth_login_url
+        )
+    else:
+        assert redirect.headers['Location'].startswith(redirect_to)
     return furl.furl(redirect.headers['Location']).asdict()
 
 
 def do_lti_launch(
-    test_client, provider, data, oidc_result, status, with_id=False
+    test_client,
+    provider,
+    data,
+    oidc_result,
+    status,
+    with_id=False,
+    make_jwt=None,
 ):
+
     oidc_params = dict(oidc_result['query']['params'])
     url = '/api/v1/lti1.3/launch'
     if with_id:
         url += '/' + str(provider.id)
+    if make_jwt is None:
+        make_jwt = lambda d, oidc: jwt.encode(
+            {**d, 'nonce': oidc['nonce']},
+            LTI_JWT_SECRET,
+            algorithm='HS256',
+        )
+
+    made_jwt = make_jwt(data, oidc_params)
     response = test_client.post(
         url,
         data={
-            'id_token':
-                jwt.encode(
-                    {**data, 'nonce': oidc_params['nonce']},
-                    LTI_JWT_SECRET,
-                    algorithm='HS256',
-                ),
+            'id_token': made_jwt,
             'state': oidc_params['state'],
         },
     )
@@ -281,7 +303,8 @@ def do_oidc_and_lti_launch(
 )
 def test_do_simple_launch(
     test_client, describe, logged_in, admin_user, watch_signal, launch_data,
-    lms, iss, monkeypatched_validate_jwt, monkeypatched_passback
+    lms, iss, monkeypatched_validate_jwt, monkeypatched_passback, yesterday,
+    tomorrow
 ):
     with describe('setup'), logged_in(admin_user):
         provider = helpers.create_lti1p3_provider(
@@ -295,6 +318,9 @@ def test_do_simple_launch(
         lti_assig_id = str(uuid.uuid4())
         lti_assig_id2 = str(uuid.uuid4())
         lti_course_id = str(uuid.uuid4())
+        deadline = DatetimeWithTimezone.utcnow() + timedelta(
+            days=randint(3, 10)
+        )
 
     with describe('Initial launch creates assignment and course'):
         _, launch_result = do_oidc_and_lti_launch(
@@ -306,6 +332,8 @@ def test_do_simple_launch(
                 {
                     'Assignment.id': lti_assig_id,
                     'Course.id': lti_course_id,
+                    'cg_deadline': deadline.isoformat(),
+                    'cg_available_at': tomorrow.isoformat(),
                 },
             ),
         )
@@ -319,7 +347,10 @@ def test_do_simple_launch(
         assert passback_arg[0].get_activity_progress() == 'Initialized'
 
         assert assig_created.was_send_once
-        assert assig_created.signal_arg.lti_assignment_id == lti_assig_id
+        created_assig = m.Assignment.query.get(assig_created.signal_arg.id)
+        assert created_assig.lti_assignment_id == lti_assig_id
+        assert created_assig.deadline == deadline
+        assert launch_result['data']['assignment']['state'] == 'hidden'
 
         assert launch_result['version'] == 'v1_3'
         assert launch_result['data']['type'] == 'normal_result'
@@ -329,6 +360,7 @@ def test_do_simple_launch(
         assert course['is_lti']
 
     with describe('Second launch does not create assignment again'):
+        new_deadline = deadline + timedelta(days=1)
         _, launch_result2 = do_oidc_and_lti_launch(
             test_client,
             provider,
@@ -338,6 +370,8 @@ def test_do_simple_launch(
                 {
                     'Course.id': lti_course_id,
                     'Assignment.id': lti_assig_id,
+                    'cg_deadline': new_deadline.isoformat(),
+                    'cg_available_at': yesterday.isoformat(),
                 },
             ),
         )
@@ -348,6 +382,10 @@ def test_do_simple_launch(
         assert assig_created.was_not_send
         assert launch_result2['data']['course']['id'] == course['id']
         assert launch_result2['data']['assignment']['id'] == assig['id']
+        # Deadline should be updated
+        assert launch_result2['data']['assignment'
+                                      ]['deadline'] == new_deadline.isoformat()
+        assert launch_result2['data']['assignment']['state'] == 'submitting'
 
     with describe('New launch in same course only creates assignment'):
         _, launch_result3 = do_oidc_and_lti_launch(
@@ -369,6 +407,8 @@ def test_do_simple_launch(
         assert assig_created.was_send_once
         assert launch_result3['data']['course']['id'] == course['id']
         assert launch_result3['data']['assignment']['id'] != assig['id']
+        # Deadline was not passed so it should not be set
+        assert launch_result3['data']['assignment']['deadline'] is None
 
 
 @pytest.mark.parametrize('with_id', [True, False])
@@ -619,3 +659,223 @@ def test_launch_with_missing_data(
         )
         assert user_added.was_send_once
         assert user_added.signal_arg.user.email == 'test_student@codegra.de'
+
+
+def test_error_when_no_cookies(test_client, describe, logged_in, admin_user):
+    with describe('setup'), logged_in(admin_user):
+        lti_assig_id = str(uuid.uuid4())
+        lti_course_id = str(uuid.uuid4())
+        lms = 'Canvas'
+        provider = helpers.create_lti1p3_provider(
+            test_client,
+            lms,
+            iss='https://canvas.instructure.com',
+            client_id=str(uuid.uuid4()) + '_lms=' + lms
+        )
+        data = make_launch_data(
+            CANVAS_DATA, provider,
+            {'Assignment.id': lti_assig_id, 'Course.id': lti_course_id}
+        )
+
+        def assert_is_cookie_error(response):
+            assert response['message'] == "Couldn't set needed cookies"
+            assert response['code'] == 'LTI1_3_ERROR'
+            assert response['original_exception']['code'
+                                                  ] == 'LTI1_3_COOKIE_ERROR'
+
+    with describe('error when no cookies are present at all'):
+        oidc = do_oidc_login(test_client, provider)
+        test_client.cookie_jar.clear()
+        response = do_lti_launch(test_client, provider, data, oidc, 400)
+        assert_is_cookie_error(response)
+
+    with describe('error when old launch cookies are present'):
+        oidc = do_oidc_login(test_client, provider)
+        old_jar = copy.copy(test_client.cookie_jar)
+        test_client.cookie_jar.clear()
+
+        with freezegun.freeze_time(
+            DatetimeWithTimezone.utcnow() + timedelta(hours=1)
+        ):
+            oidc = do_oidc_login(test_client, provider)
+            test_client.cookie_jar = old_jar
+            response = do_lti_launch(test_client, provider, data, oidc, 400)
+            assert_is_cookie_error(response)
+
+    with describe('error when cookie has bogus value'):
+        oidc = do_oidc_login(test_client, provider)
+        all_cookies = list(test_client.cookie_jar)
+        test_client.cookie_jar.clear()
+        for cook in all_cookies:
+            cook.value = 'HAHA BOGUS VALUE'
+            test_client.cookie_jar.set_cookie(cook)
+
+        response = do_lti_launch(test_client, provider, data, oidc, 400)
+        assert_is_cookie_error(response)
+
+
+def test_error_when_launching_without_resource_id(
+    test_client, describe, logged_in, admin_user, stub_function
+):
+    with describe('setup'), logged_in(admin_user):
+        # Make sure our own validation works, so don't use the one of pytli1p3
+        stub_function(
+            pylti1p3.message_validators.ResourceMessageValidator,
+            'validate', lambda: True
+        )
+        provider = helpers.create_lti1p3_provider(
+            test_client,
+            'Canvas',
+            iss='https://canvas.instructure.com',
+            client_id=str(uuid.uuid4()) + '_lms=' + 'Canvas'
+        )
+
+        data = make_launch_data(
+            CANVAS_DATA,
+            provider,
+            {
+                'Assignment.id': None,
+                'Course.id': 'asdfs',
+            },
+        )
+
+    with describe('should fail without email'):
+        _, err = do_oidc_and_lti_launch(test_client, provider, data, 400)
+        assert 'No resource id was provided for this launch' in err['message']
+
+
+def test_launch_with_incorrect_provider(
+    test_client, describe, logged_in, admin_user, stub_function,
+    monkeypatched_passback, session, app
+):
+    with describe('setup'), logged_in(admin_user):
+        # Make sure our own validation works, so don't use the one of pytli1p3
+        stub_function(
+            pylti1p3.message_validators.ResourceMessageValidator,
+            'validate', lambda: True
+        )
+        provider = helpers.to_db_object(
+            helpers.create_lti1p3_provider(
+                test_client,
+                'Canvas',
+                iss='https://canvas.instructure.com',
+                client_id=str(uuid.uuid4()) + '_lms=' + 'Canvas'
+            ), m.LTI1p3Provider
+        )
+
+        def assert_launch_errors(msg, override, with_id=False):
+            oidc = do_oidc_login(
+                test_client,
+                provider,
+                redirect_to=app.config['EXTERNAL_URL'],
+                override_data=override,
+                with_id=with_id,
+            )
+            blob_id = dict(oidc['query']['params'])['blob_id']
+            err = test_client.req(
+                'post',
+                '/api/v1/lti/launch/2?extended',
+                400,
+                data={'blob_id': blob_id}
+            )
+            assert msg in err['message']
+            return err
+
+    with describe('cannot launch with non finalized provider'):
+        provider._finalized = False
+        session.commit()
+        assert_launch_errors('This LTI connection is not yet finalized', {})
+        provider._finalized = True
+        session.commit()
+
+    with describe('cannot launch with incorrect iss'):
+        for with_id in [True, False]:
+            assert_launch_errors(
+                'This LMS was not found as a LTIProvider',
+                {'iss': 'OTHER ISS'},
+                with_id=with_id,
+            )
+
+
+@pytest.mark.parametrize('monkeypatched_validate_jwt', ['NO_ERR'])
+def test_validate_jwt_body(
+    test_client, describe, logged_in, admin_user, stub_function, session, app,
+    monkeypatched_validate_jwt, monkeypatched_passback
+):
+    with describe('setup'), logged_in(admin_user):
+        stub_err = lambda: False
+
+        super_decode = jwt.decode
+
+        def maybe_err(*args, **kwargs):
+            if stub_err() and not flask.request.path.endswith('launch/2'):
+                raise jwt.InvalidTokenError('CG TEST ERROR')
+            return super_decode(*args, **kwargs)
+
+        stub_decode = stub_function(jwt, 'decode', maybe_err, with_args=True)
+
+        key = jwcrypto.jwk.JWK.generate(kty='RSA')
+        kid = str(uuid.uuid4())
+        public_key = {
+            'keys': [{**json.loads(key.export_public()), 'kid': kid}],
+        }
+        stub_fetch = stub_function(
+            pylti1p3.message_launch.MessageLaunch,
+            'fetch_public_key', lambda: public_key
+        )
+
+        provider = helpers.create_lti1p3_provider(
+            test_client,
+            'Canvas',
+            iss='https://canvas.instructure.com',
+            client_id=str(uuid.uuid4()) + '_lms=' + 'Canvas'
+        )
+        data = make_launch_data(
+            CANVAS_DATA, provider,
+            {'Assignment.id': 'a_id', 'Course.id': 'c_id'}
+        )
+
+        def make_jwt(data, oidc_params):
+            return jwt.encode(
+                {**data, 'nonce': oidc_params['nonce']},
+                key.export_to_pem(private_key=True, password=None),
+                algorithm='RS256',
+                headers={'kid': kid},
+            )
+
+        def do_launch(status):
+            oidc = do_oidc_login(test_client, provider)
+            return do_lti_launch(
+                test_client, provider, data, oidc, status, make_jwt=make_jwt
+            )
+
+    with describe('should not error when stub_decode does not error'):
+        stub_err = lambda: False
+        do_launch(200)
+        assert stub_fetch.called_amount == 1
+
+    with describe('should error when stub_decodes errors'):
+        # Flush all cache so fetch count is correct
+        app.inter_request_cache.lti_access_tokens._redis.flushall()
+
+        stub_err = lambda: True
+        err = do_launch(400)
+        assert err['message'] == "Can't decode id_token: CG TEST ERROR"
+        # Twice, as it should refresh the token after an error
+        assert stub_fetch.called_amount == 2
+
+    with describe('failing once should result in a successful launch'):
+        # Flush all cache so fetch count is correct
+        app.inter_request_cache.lti_access_tokens._redis.flushall()
+
+        amount = 1
+        def _err_once():
+            nonlocal amount
+            if amount > 0:
+                amount -= 1
+                return True
+            return False
+        stub_err = _err_once
+
+        do_launch(200)
+        assert stub_fetch.called_amount == 2

@@ -310,14 +310,13 @@ def do_oidc_login(
         red = oidc.get_redirect_object(target)
     except exceptions.APIException as exc:
         logger.info('Login request went wrong', exc_info=True)
+        message = exc.message
 
         if exc.api_code == exceptions.APICodes.OBJECT_NOT_FOUND:
             message = (
                 'This LMS was not found as a LTIProvider for CodeGrade, this'
                 ' is probably caused by a wrong setup.'
             )
-        else:
-            message = exc.message
 
         return _make_blob_and_redirect(
             {

@@ -552,7 +552,7 @@ class CGCustomClaims:
                 'cg_is_published',
                 custom_claims,
                 base_data,
-                lambda x: x == 'true',
+                lambda x: x.lower() == 'true',
             )
         else:
             is_available = DatetimeWithTimezone.utcnow() >= available_at
@@ -693,7 +693,15 @@ class LTIConfig(ToolConfAbstract[FlaskRequest]):
 
         :returns: The found provider.
         """
-        if self._lti_provider is not None:
+        if self._lti_provider is None:
+            filters = [models.LTI1p3Provider.iss == iss]
+            if isinstance(client_id, str):
+                filters.append(models.LTI1p3Provider.client_id == client_id)
+
+            self._lti_provider = helpers.filter_single_or_404(
+                models.LTI1p3Provider, *filters
+            )
+        else:
             correct = self._lti_provider.iss == iss
             if correct and isinstance(client_id, str):
                 correct = self._lti_provider.client_id == client_id
@@ -716,14 +724,6 @@ class LTIConfig(ToolConfAbstract[FlaskRequest]):
                         ' provider'
                     ), APICodes.OBJECT_NOT_FOUND, 404
                 )
-        else:
-            filters = [models.LTI1p3Provider.iss == iss]
-            if isinstance(client_id, str):
-                filters.append(models.LTI1p3Provider.client_id == client_id)
-
-            self._lti_provider = helpers.filter_single_or_404(
-                models.LTI1p3Provider, *filters
-            )
 
         if not self._lti_provider.is_finalized:
             raise APIException(
@@ -811,6 +811,8 @@ class FlaskMessageLaunch(
             )
             key_set_url = self.get_lti_provider().key_set_url
             if key_set_url is not None:
+                assert self._registration is not None
+                self._registration.set_key_set(None)
                 current_app.inter_request_cache.lti_public_keys.clear(
                     self._make_key_set_url_cache_key(key_set_url)
                 )
@@ -884,11 +886,10 @@ class FlaskMessageLaunch(
             this course for assignments.
         """
         resource_id = self._get_resource_id()
-        if resource_id is None:
-            return None
 
         return course.get_assignments().filter(
             models.Assignment.lti_assignment_id == resource_id,
+            models.Assignment.lti_assignment_id.isnot(None),
         ).one_or_none()
 
     # We don't use the @cg_override.override decorator here as this method
@@ -1069,10 +1070,11 @@ class FlaskMessageLaunch(
 
         def check_and_raise(
             msg: str,
-            mapping: t.Mapping[str, object],
+            mapping: t.Optional[t.Mapping[str, object]],
             *keys: str,
         ) -> None:
-            missing: t.Iterable[str]
+            if mapping is None:
+                mapping = {}
             missing = [key for key in keys if key not in mapping]
 
             if missing:
@@ -1096,7 +1098,7 @@ class FlaskMessageLaunch(
 
         if self.is_resource_launch():
             lti_provider = self.get_lti_provider()
-            custom = launch_data.get(claims.CUSTOM, {})
+            custom = launch_data.get(claims.CUSTOM)
 
             # We don't need this info for deep link launches.
             check_and_raise(
