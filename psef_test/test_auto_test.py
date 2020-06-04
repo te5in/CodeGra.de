@@ -1129,6 +1129,13 @@ def test_update_auto_test_set(basic, test_client, logged_in, describe):
         update_suite(network_disabled=True)
         assert suite['network_disabled'] is True
 
+    with describe('Suite submission info can be enabled and disabled'), logged_in(teacher):
+        update_suite(submission_info=True)
+        assert suite['submission_info'] is True
+
+        update_suite(submission_info=False)
+        assert suite['submission_info'] is False
+
     with describe('Remove steps'), logged_in(teacher):
         assert suite['steps']
         update_suite(steps=[])
@@ -2626,3 +2633,98 @@ def test_running_old_submission(
         assert session.query(
             m.AutoTestResult
         ).filter_by(work_id=res[-1]['work_id']).one().state.name == 'passed'
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+def test_submission_info_env_vars(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session,
+    stub_function_class, assert_similar, monkeypatch_for_run
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+
+        with logged_in(teacher):
+            assig = m.Assignment.query.get(assig_id)
+            # yapf: disable
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig_id, {
+                    'sets': [{
+                        'suites': [{
+                            'submission_info': True,
+                            'steps': [{
+                                'run_p': 'echo $CG_DEADLINE',
+                                'name': 'DEADLINE',
+                            }, {
+                                'run_p': 'echo $CG_SUBMITTED_AT',
+                                'name': 'SUBMITTED_AT',
+                            }, {
+                                'run_p': 'echo $CG_WORK_ID',
+                                'name': 'WORK_ID',
+                            }, {
+                                'run_p': 'echo $CG_STUDENT_ID',
+                                'name': 'STUDENT_ID',
+                            }]
+                        }],
+                    }, {
+                        'suites': [{
+                            'submission_info': False,
+                            'steps': [{
+                                'run_p': 'echo $CG_DEADLINE',
+                                'name': 'DEADLINE',
+                            }, {
+                                'run_p': 'echo $CG_SUBMITTED_AT',
+                                'name': 'SUBMITTED_AT',
+                            }, {
+                                'run_p': 'echo $CG_WORK_ID',
+                                'name': 'WORK_ID',
+                            }, {
+                                'run_p': 'echo $CG_STUDENT_ID',
+                                'name': 'STUDENT_ID',
+                            }]
+                        }],
+                    }],
+                }
+            )
+            # yapf: enable
+
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+    with describe('start_auto_test'):
+        t = m.AutoTest.query.get(test['id'])
+        with logged_in(teacher):
+            work = helpers.create_submission(
+                test_client, assig_id, for_user=student.username
+            )
+
+        with logged_in(teacher):
+            run_id = test_client.req('post', f'{url}/runs/', 200)['id']
+            session.commit()
+
+        monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, )
+        )
+        thread.start()
+        thread.join()
+
+        res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
+                                                        ).one()
+
+    with describe('should contain expected data only when enabled'):
+        expected = {
+            'DEADLINE': assig.deadline.isoformat(),
+            'SUBMITTED_AT': work['created_at'],
+            'WORK_ID': work['id'],
+            'STUDENT_ID': work['user']['id'],
+        }
+
+        for step_result in res.step_results:
+            step = step_result.step
+            output = step_result.log['stdout']
+
+            if step.suite.submission_info:
+                assert output == f'{expected[step.name]}\n'
+            else:
+                assert output == '\n'
