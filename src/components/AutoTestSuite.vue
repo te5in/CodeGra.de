@@ -84,20 +84,20 @@
             </b-btn>
         </b-button-toolbar>
 
-        <collapse v-model="advancedOptionsCollapsed" class="border rounded px-3 py-2 mt-3">
-            <div slot="handle" class="collapse-handle mb-0 text-muted font-italic">
+        <collapse v-model="advancedOptionsCollapsed" class="border rounded py-2 mt-3">
+            <div slot="handle" class="collapse-handle mb-0 px-3 text-muted font-italic">
                 <icon name="caret-down" />
                 Advanced options
             </div>
 
-            <div class="mt-3">
+            <div class="mt-3 px-3">
                 <b-form-fieldset>
                     <label :for="timeoutId">
                         Timeout per step (seconds)
 
-                        <description-popover hug-text>
+                        <cg-description-popover hug-text>
                             If a single step takes longer than specified, the step will fail.
-                        </description-popover>
+                        </cg-description-popover>
                     </label>
 
                     <input :id="timeoutId"
@@ -108,16 +108,68 @@
                            v-model="internalValue.commandTimeLimit" />
                 </b-form-fieldset>
 
-                <b-form-fieldset class="mb-0">
+                <b-form-fieldset>
                     <b-form-checkbox name="network-disabled"
                                      class="mr-1"
                                      v-model="internalValue.networkDisabled">
                         Network disabled
 
-                        <description-popover hug-text>
+                        <cg-description-popover hug-text>
                             Only turn this option off if you want students' code to access the
                             internet.
-                        </description-popover>
+                        </cg-description-popover>
+                    </b-form-checkbox>
+                </b-form-fieldset>
+
+                <b-form-fieldset class="mb-0">
+                    <b-form-checkbox name="submission-info-env-vars"
+                                     class="mr-1"
+                                     v-model="internalValue.submissionInfo">
+                        Submission information environment variables
+
+                        <cg-description-popover hug-text
+                                                boundary="window"
+                                                placement="righttop"
+                                                width="24rem">
+                            <p class="mb-2">
+                                Makes the following environment variables available to all steps in
+                                this suite:
+                            </p>
+
+                            <p class="mb-0"><code>$CG_DEADLINE</code></p>
+                            <p class="mb-2">
+                                The deadline of this assignment, in
+                                <a href="https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations"
+                                   target="_blank"
+                                   class="inline-link">
+                                    ISO 8601
+                                </a> format.
+                            </p>
+
+                            <p class="mb-0"><code>$CG_SUBMITTED_AT</code></p>
+                            <p class="mb-2">
+                                The date and time this work was submitted on, in
+                                <a href="https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations"
+                                   target="_blank"
+                                   class="inline-link">
+                                    ISO 8601
+                                </a> format.
+                            </p>
+
+                            <p class="mb-0"><code>$CG_WORK_ID</code></p>
+                            <p class="mb-2">
+                                An identifier unique to this submission. Useful to generate
+                                randomized input for your tests. Will change every time the
+                                student submits their work.
+                            </p>
+
+                            <p class="mb-0"><code>$CG_STUDENT_ID</code></p>
+                            <p class="mb-0">
+                                An identifier unique to the student who created this
+                                submission. Useful to generate randomized input for your
+                                tests. Will stay the same for every submission of a student.
+                            </p>
+                        </cg-description-popover>
                     </b-form-checkbox>
                 </b-form-fieldset>
             </div>
@@ -188,7 +240,8 @@
 
             <b-popover :target="optionsPopoverId"
                        triggers="click blur"
-                       placement="left">
+                       placement="left"
+                       custom-class="auto-test-suite-options-popover">
                 <table class="text-left">
                     <tr>
                         <td class="pr-2">
@@ -210,6 +263,18 @@
                                              class="mr-0 readably-disabled float-right"
                                              disabled
                                              v-model="value.networkDisabled"/>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td>
+                            Submission info
+                        </td>
+                        <td>
+                            <b-form-checkbox name="submission-info-env-vars"
+                                             class="mr-0 readably-disabled float-right"
+                                             disabled
+                                             v-model="value.submissionInfo"/>
                         </td>
                     </tr>
                 </table>
@@ -272,7 +337,6 @@ import { getProps } from '@/utils';
 import Collapse from './Collapse';
 import SubmitButton from './SubmitButton';
 import AutoTestStep from './AutoTestStep';
-import DescriptionPopover from './DescriptionPopover';
 
 export default {
     name: 'auto-test-suite',
@@ -508,7 +572,6 @@ export default {
         SlickItem,
         SlickList,
         AutoTestStep,
-        DescriptionPopover,
     },
 
     directives: {
@@ -656,7 +719,7 @@ export default {
     }
 }
 
-.popover .custom-checkbox input[name='network-disabled'] ~ label {
+.auto-test-suite-options-popover .custom-checkbox label {
     &::before,
     &::after {
         left: -1rem;

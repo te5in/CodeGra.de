@@ -423,6 +423,8 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         connected to.
     :>json network_disabled: Should the network be disabled during the
         execution of this suite.
+    :>json submission_info: Should submission information be included in the
+        environment.
     :>json id: The id of the suite, if not given a new suite will be created
         (OPTIONAL).
     :>json command_time_limit: The maximum amount of time a single command may
@@ -446,6 +448,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         steps = get('steps', list)
         rubric_row_id = get('rubric_row_id', int)
         network_disabled = get('network_disabled', bool)
+        submission_info = get('submission_info', bool)
         suite_id = opt('id', int, None)
         time_limit = opt('command_time_limit', (float, int), None)
 
@@ -468,6 +471,8 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         suite.command_time_limit = time_limit
 
     suite.network_disabled = network_disabled
+
+    suite.submission_info = submission_info
 
     if suite.rubric_row_id != rubric_row_id:
         assig = suite.auto_test_set.auto_test.assignment

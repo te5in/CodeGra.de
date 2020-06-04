@@ -66,6 +66,14 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
         server_default='FALSE',
     )
 
+    submission_info = db.Column(
+        'submission_info',
+        db.Boolean,
+        nullable=False,
+        default=False,
+        server_default='FALSE',
+    )
+
     auto_test_set_id = db.Column(
         'auto_test_set_id',
         db.Integer,
@@ -104,6 +112,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
             'id': self.id,
             'steps': [s.get_instructions() for s in steps],
             'network_disabled': self.network_disabled,
+            'submission_info': self.submission_info,
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:
@@ -112,6 +121,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
             'steps': self.steps,
             'rubric_row': self.rubric_row,
             'network_disabled': self.network_disabled,
+            'submission_info': self.submission_info,
             'command_time_limit': self.command_time_limit,
         }
 
@@ -169,6 +179,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
         return AutoTestSuite(
             rubric_row=self.rubric_row,
             network_disabled=self.network_disabled,
+            submission_info=self.submission_info,
             steps=[s.copy() for s in self.steps],
             command_time_limit=self.command_time_limit,
         )

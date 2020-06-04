@@ -637,10 +637,13 @@ class SuiteInstructions(TypedDict, total=True):
     :ivar ~.StepInstructions.id: The id of the suite.
     :ivar steps: The steps of this suite.
     :ivar network_disabled: Should this suite be run with networking disabled.
+    :ivar submission_info: Should submission information be included in the
+        environment.
     """
     id: int
     steps: t.List[StepInstructions]
     network_disabled: bool
+    submission_info: bool
 
 
 class SetInstructions(TypedDict, total=True):
@@ -1974,9 +1977,14 @@ class AutoTestRunner:
                 cpu_core.yield_core()
             snap.pin_to_core(cpu_core.get_core_number())
 
+        if test_suite['submission_info']:
+            extra_env = self._get_student_env(work.result_id)
+        else:
+            extra_env = {}
+
         with student_container.as_snapshot(
             test_suite['network_disabled']
-        ) as snap:
+        ) as snap, student_container.extra_env(extra_env):
             url = f'{self.base_url}/results/{result_id}/step_results/'
 
             for idx, test_step in enumerate(test_suite['steps']):
@@ -2269,12 +2277,9 @@ class AutoTestRunner:
                     if patch_res.json()['taken']:
                         opts.mark_work_as_finished(work)
                     else:
-                        extra_env = self._get_student_env(
-                            self.instructions, work.result_id
-                        )
                         with cg_logger.bound_to_logger(
                             result_id=result_id
-                        ), cont.extra_env(extra_env):
+                        ):
                             if self._run_student(cont, cpu, result_id):
                                 opts.mark_work_as_finished(work)
                             else:
@@ -2286,10 +2291,8 @@ class AutoTestRunner:
                             return
 
     @staticmethod
-    def _get_student_env(
-        instructions: RunnerInstructions,
-        result_id: int,
-    ) -> t.Mapping[str, str]:
+    def _get_student_env(result_id: int) -> t.Mapping[str, str]:
+        instructions = self.instructions
         extra_env = {}
 
         assig_info = instructions.get('assignment_info')
