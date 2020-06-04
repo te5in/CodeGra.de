@@ -132,12 +132,12 @@
                                                 placement="righttop"
                                                 width="24rem">
                             <p class="mb-2">
-                                Makes the following environment variables available to all steps in
-                                this suite:
+                                Makes the <code>$CG_INFO</code> environment variable available,
+                                which is a JSON object with the following keys:
                             </p>
 
-                            <p class="mb-0"><code>$CG_DEADLINE</code></p>
                             <p class="mb-2">
+                                <code class="mr-1">deadline</code>
                                 The deadline of this assignment, in
                                 <a href="https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations"
                                    target="_blank"
@@ -146,8 +146,8 @@
                                 </a> format.
                             </p>
 
-                            <p class="mb-0"><code>$CG_SUBMITTED_AT</code></p>
                             <p class="mb-2">
+                                <code class="mr-1">submitted_at</code>
                                 The date and time this work was submitted on, in
                                 <a href="https://en.wikipedia.org/wiki/ISO_8601#Combined_date_and_time_representations"
                                    target="_blank"
@@ -156,15 +156,15 @@
                                 </a> format.
                             </p>
 
-                            <p class="mb-0"><code>$CG_WORK_ID</code></p>
                             <p class="mb-2">
-                                An identifier unique to this submission. Useful to generate
+                                <code class="mr-1">result_id</code>
+                                An identifier unique to an AutoTest result. Useful to generate
                                 randomized input for your tests. Will change every time the
                                 student submits their work.
                             </p>
 
-                            <p class="mb-0"><code>$CG_STUDENT_ID</code></p>
                             <p class="mb-0">
+                                <code class="mr-1">student_id</code>
                                 An identifier unique to the student who created this
                                 submission. Useful to generate randomized input for your
                                 tests. Will stay the same for every submission of a student.

@@ -671,13 +671,11 @@ class AssignmentInformation(TypedDict, total=True):
 class StudentInformation(TypedDict, total=True):
     """Information about the submission that the AutoTest runs on.
 
-    :ivar work_id: The id of the :class:`Work`.
     :ivar result_id: The id of the :class:`AutoTestResult` corresponding to
         this work.
     :ivar student_id: The id of the :class:`User` who submitted the work.
     :ivar created_at: The datetime when the work was submitted.
     """
-    work_id: int
     result_id: int
     student_id: int
     created_at: str
@@ -2020,10 +2018,10 @@ class AutoTestRunner:
                 cpu_core.yield_core()
             snap.pin_to_core(cpu_core.get_core_number())
 
-        if test_suite.get('submission_info', False):
-            extra_env = self._get_suite_env(result_id)
-        else:
-            extra_env = {}
+        extra_env = self._get_suite_env(
+            result_id,
+            submission_info=test_suite.get('submission_info', False),
+        )
 
         with student_container.as_snapshot(
             test_suite['network_disabled']
@@ -2331,14 +2329,35 @@ class AutoTestRunner:
                                 retry_work(work)
                             return
 
-    def _get_suite_env(self, result_id: int) -> t.Mapping[str, str]:
+    def _get_suite_env(
+        self,
+        result_id: int,
+        *,
+        submission_info: bool,
+    ) -> t.Mapping[str, str]:
+        """Get environment variables to be set in the AutoTest environment of
+        the given result.
+
+        :param result_id: The id of the result to get the environment for.
+        :param submission_info: Whether to include the submission information.
+        :returns: A mapping from environment variable name to value.
+        """
+        env = { 'CG_INFO': '{}' }
+
+        if submission_info:
+            env['CG_INFO'] = self._get_submission_info_json(result_id)
+
+        return env
+
+    def _get_submission_info_json(self, result_id: int) -> str:
         """Get information associated with the submission to be included in the
         AutoTest environment.
 
         :param result_id: The id of the result to get the information for.
+        :returns: A JSON object with the information encoded as a string.
         """
         instructions = self.instructions
-        extra_env = {}
+        submission_info: t.MutableMapping[str, object] = {}
 
         # TODO: The information we need on the instructions is still marked as
         # optional, to keep backward compatibility. This information should be
@@ -2346,8 +2365,7 @@ class AutoTestRunner:
 
         assig_info = instructions.get('assignment_info')
         if assig_info is not None:
-            deadline = assig_info['deadline']
-            extra_env['CG_DEADLINE'] = '' if deadline is None else deadline
+            submission_info['deadline'] = assig_info['deadline']
         else:
             logger.warning(
                 'No assignment info in runner instructions',
@@ -2362,11 +2380,11 @@ class AutoTestRunner:
                 None,
             )
         if student_info is not None:
-            extra_env.update(
+            submission_info.update(
                 {
-                    'CG_WORK_ID': str(student_info['work_id']),
-                    'CG_STUDENT_ID': str(student_info['student_id']),
-                    'CG_SUBMITTED_AT': student_info['created_at'],
+                    'result_id': student_info['result_id'],
+                    'student_id': student_info['student_id'],
+                    'submitted_at': student_info['created_at'],
                 }
             )
         else:
@@ -2375,7 +2393,7 @@ class AutoTestRunner:
                 instructions=instructions,
             )
 
-        return extra_env
+        return json.dumps(submission_info)
 
     def _started_heartbeat(self) -> 'RepeatedTimer':
         def push_heartbeat() -> None:

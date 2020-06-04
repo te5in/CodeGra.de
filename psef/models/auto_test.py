@@ -1062,7 +1062,6 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         :param result: The result to get the information for.
         """
         return {
-            'work_id': result.work.id,
             'result_id': result.id,
             'student_id': result.work.user_id,
             'created_at': result.work.created_at.isoformat(),

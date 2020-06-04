@@ -2654,34 +2654,16 @@ def test_submission_info_env_vars(
                         'suites': [{
                             'submission_info': True,
                             'steps': [{
-                                'run_p': 'echo $CG_DEADLINE',
-                                'name': 'DEADLINE',
-                            }, {
-                                'run_p': 'echo $CG_SUBMITTED_AT',
-                                'name': 'SUBMITTED_AT',
-                            }, {
-                                'run_p': 'echo $CG_WORK_ID',
-                                'name': 'WORK_ID',
-                            }, {
-                                'run_p': 'echo $CG_STUDENT_ID',
-                                'name': 'STUDENT_ID',
+                                'run_p': 'echo "$CG_INFO"',
+                                'name': 'With info',
                             }]
                         }],
                     }, {
                         'suites': [{
                             'submission_info': False,
                             'steps': [{
-                                'run_p': 'echo $CG_DEADLINE',
-                                'name': 'DEADLINE',
-                            }, {
-                                'run_p': 'echo $CG_SUBMITTED_AT',
-                                'name': 'SUBMITTED_AT',
-                            }, {
-                                'run_p': 'echo $CG_WORK_ID',
-                                'name': 'WORK_ID',
-                            }, {
-                                'run_p': 'echo $CG_STUDENT_ID',
-                                'name': 'STUDENT_ID',
+                                'run_p': 'echo "$CG_INFO"',
+                                'name': 'Without info',
                             }]
                         }],
                     }],
@@ -2715,17 +2697,17 @@ def test_submission_info_env_vars(
 
     with describe('should contain expected data only when enabled'):
         expected = {
-            'DEADLINE': assig.deadline.isoformat(),
-            'SUBMITTED_AT': work['created_at'],
-            'WORK_ID': work['id'],
-            'STUDENT_ID': work['user']['id'],
+            'deadline': assig.deadline.isoformat(),
+            'submitted_at': work['created_at'],
+            'result_id': res.id,
+            'student_id': work['user']['id'],
         }
 
         for step_result in res.step_results:
             step = step_result.step
-            output = step_result.log['stdout']
+            output = json.loads(step_result.log['stdout'])
 
             if step.suite.submission_info:
-                assert output == f'{expected[step.name]}\n'
+                assert output == expected
             else:
-                assert output == '\n'
+                assert output == {}
