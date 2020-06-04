@@ -2306,26 +2306,26 @@ class AutoTestRunner:
                 instructions=instructions,
             )
 
+        student_info: t.Optional[StudentInformation] = None
         student_infos = instructions.get('student_infos')
         if student_infos is not None:
-            student_info: t.Optional[StudentInformation]
             student_info = next(
                 (s for s in student_infos if s['result_id'] == result_id),
                 None,
             )
-            if student_info is not None:
-                extra_env.update(
-                    {
-                        'CG_WORK_ID': str(student_info['work_id']),
-                        'CG_STUDENT_ID': str(student_info['student_id']),
-                        'CG_SUBMITTED_AT': student_info['created_at'],
-                    }
-                )
-            else:
-                logger.warning(
-                    'No student info in runner instructions',
-                    instructions=instructions,
-                )
+        if student_info is not None:
+            extra_env.update(
+                {
+                    'CG_WORK_ID': str(student_info['work_id']),
+                    'CG_STUDENT_ID': str(student_info['student_id']),
+                    'CG_SUBMITTED_AT': student_info['created_at'],
+                }
+            )
+        else:
+            logger.warning(
+                'No student info in runner instructions',
+                instructions=instructions,
+            )
 
         return extra_env
 
