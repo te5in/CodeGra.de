@@ -869,12 +869,14 @@ def test_validate_jwt_body(
         app.inter_request_cache.lti_access_tokens._redis.flushall()
 
         amount = 1
+
         def _err_once():
             nonlocal amount
             if amount > 0:
                 amount -= 1
                 return True
             return False
+
         stub_err = _err_once
 
         do_launch(200)
