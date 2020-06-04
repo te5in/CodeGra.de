@@ -1150,11 +1150,15 @@ class StartedContainer:
         os.setuid(user_uid)
 
     def _create_env(self, username: str) -> t.Dict:
-        """Create the env for within a lxc subprocess call
+        """Create the env for within a lxc subprocess call.
+
+        Overrides environment variables set with
+        :meth:`StartedContainer.extra_env`.
 
         >>> import getpass
         >>> cur_user = getpass.getuser()
-        >>> env = StartedContainer(None, '', {})._create_env(cur_user)
+        >>> cont = StartedContainer(None, '', {})
+        >>> env = cont._create_env(cur_user)
         >>> env['USER'] == cur_user
         True
         >>> isinstance(env['USER'], str)
@@ -1165,6 +1169,9 @@ class StartedContainer:
         True
         >>> isinstance(env['STUDENT'], str)
         True
+        >>> with cont.extra_env({ 'PATH': '' }):
+        ...     cont._create_env(cur_user)['PATH'] == ''
+        False
         """
         env = os.environ
 
@@ -1196,6 +1203,38 @@ class StartedContainer:
 
     @contextlib.contextmanager
     def extra_env(self, extra_env: t.Mapping[str, str]) -> t.Iterator:
+        """Temporarily set extra environment variables in all processes that
+        run in this container.
+
+        Supports nesting. Variables defined in the inner context manager take
+        precedence over variables defined in the outer one.
+
+        :param extra_env: The extra environment variables to set. This is a
+            mapping from variable name to value.
+
+        >>> import getpass
+        >>> cur_user = getpass.getuser()
+        >>> cont = StartedContainer(None, '', {})
+        >>> with cont.extra_env({ 'a': 'a' }):
+        ...     cont._create_env(cur_user).get('a')
+        'a'
+        >>> with cont.extra_env({ 'a': 'a' }):
+        ...     with cont.extra_env({ 'b': 'b' }):
+        ...         cont._create_env(cur_user).get('a')
+        ...         cont._create_env(cur_user).get('b')
+        ...     cont._create_env(cur_user).get('a')
+        ...     cont._create_env(cur_user).get('b')
+        'a'
+        'b'
+        'a'
+        >>> with cont.extra_env({ 'a': 'a' }):
+        ...     with cont.extra_env({ 'a': 'b' }):
+        ...         cont._create_env(cur_user).get('a')
+        ...     cont._create_env(cur_user).get('a')
+        'b'
+        'a'
+        >>> cont._create_env(cur_user).get('a')
+        """
         old_extra_env = self._extra_env
         new_extra_env = old_extra_env.copy()
         new_extra_env.update(extra_env)
