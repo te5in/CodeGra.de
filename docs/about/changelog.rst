@@ -13,6 +13,11 @@ Version *Next*
   code can now be rendered side by side, the amount of context lines before and
   after each match is configurable, and it is possible to export to a docx
   file.
+- Include submission information in AutoTest environment `(#1361)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1361>`__. Some information
+  about a submission is now available in AutoTest as environment variables.
+  This is useful to automatically subtract points based on the submission date
+  and deadline, or to generate a unique input for each submission or student.
 
 **Fixes**
 
