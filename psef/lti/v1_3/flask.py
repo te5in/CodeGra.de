@@ -18,15 +18,15 @@ import typing as t
 from datetime import timedelta
 from dataclasses import dataclass
 
+import flask
 import structlog
+import flask.sessions
 import werkzeug.wrappers
 from pylti1p3.cookie import CookieService
 from pylti1p3.request import Request
 from pylti1p3.session import SessionService
 from pylti1p3.redirect import Redirect
 
-import flask
-import flask.sessions
 from cg_dt_utils import DatetimeWithTimezone
 
 logger = structlog.get_logger()

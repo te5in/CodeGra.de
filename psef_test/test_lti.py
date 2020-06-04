@@ -1548,7 +1548,9 @@ def test_lti_grade_passback_test_submission(
     make_function_spy
 ):
     source_id = str(uuid.uuid4())
-    passback_spy = make_function_spy(m.LTI1p1Provider, '_passback_grade', pass_self=True)
+    passback_spy = make_function_spy(
+        m.LTI1p1Provider, '_passback_grade', pass_self=True
+    )
 
     class Patch:
         def __init__(self):
