@@ -1069,14 +1069,11 @@ class FlaskMessageLaunch(
 
         def check_and_raise(
             msg: str,
-            mapping: t.Optional[t.Mapping[str, object]],
+            mapping: t.Mapping[str, object],
             *keys: str,
         ) -> None:
             missing: t.Iterable[str]
-            if mapping:
-                missing = [key for key in keys if key not in mapping]
-            else:
-                missing = keys
+            missing = [key for key in keys if key not in mapping]
 
             if missing:
                 raise get_exc(msg, mapping, missing)
@@ -1097,9 +1094,10 @@ class FlaskMessageLaunch(
             'The LTI launch did not contain a context', context, 'id', 'title'
         )
 
-        custom = launch_data[claims.CUSTOM]
-        lti_provider = self.get_lti_provider()
         if self.is_resource_launch():
+            lti_provider = self.get_lti_provider()
+            custom = launch_data.get(claims.CUSTOM, {})
+
             # We don't need this info for deep link launches.
             check_and_raise(
                 (

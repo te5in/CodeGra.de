@@ -51,6 +51,12 @@ def monkeypatched_validate_jwt(monkeypatch, stub_function_class):
     yield stub
 
 
+def remove_from(d1, key):
+    res = copy.copy(d1)
+    del res[key]
+    return res
+
+
 def merge(d1, d2):
     res = copy.copy(d1)
 
@@ -555,3 +561,61 @@ def test_real_deep_link_launch(test_client, describe, logged_in, admin_user):
         assert content_items[0]['title'] == 'assig_name'
         assert content_items[0]['submission']['endDateTime'
                                               ] == deadline.isoformat()
+
+
+def test_launch_with_missing_data(
+    test_client, describe, logged_in, admin_user, watch_signal
+):
+    with describe('setup'), logged_in(admin_user):
+        user_added = watch_signal(
+            signals.USER_ADDED_TO_COURSE, clear_all_but=[]
+        )
+        provider = helpers.create_lti1p3_provider(
+            test_client,
+            'Canvas',
+            iss='https://canvas.instructure.com',
+            client_id=str(uuid.uuid4()) + '_lms=' + 'Canvas'
+        )
+
+        data = make_launch_data(
+            CANVAS_DATA,
+            provider,
+            {
+                'Assignment.id': 'asdf',
+                'Course.id': 'asdfs',
+            },
+        )
+
+        def ensure_fails(data, err_msg):
+            _, launch = do_oidc_and_lti_launch(
+                test_client, provider, data, 400
+            )
+            assert err_msg in launch['message']
+            assert user_added.was_not_send
+            return launch
+
+    with describe('should fail without email'):
+        ensure_fails(
+            remove_from(data, 'email'), 'requires the email of the user'
+        )
+
+    with describe('should fail without nrps'):
+        ensure_fails(
+            remove_from(data, lti1p3.claims.NAMESROLES),
+            'NamesRoles Provisioning service is not enabled'
+        )
+
+    with describe('should fail without custom args'):
+        ensure_fails(
+            remove_from(data, lti1p3.claims.CUSTOM),
+            'The LTI launch is missing required custom claims'
+        )
+
+    with describe('not fail without email for test student'):
+        do_oidc_and_lti_launch(
+            test_client,
+            provider,
+            remove_from(merge(data, {'name': 'Test Student'}), 'email'),
+        )
+        assert user_added.was_send_once
+        assert user_added.signal_arg.user.email == 'test_student@codegra.de'
