@@ -665,7 +665,7 @@ class AssignmentInformation(TypedDict, total=True):
 
     :ivar deadline: The deadline of the assignment.
     """
-    deadline: str
+    deadline: t.Optional[str]
 
 
 class StudentInformation(TypedDict, total=True):
@@ -1981,14 +1981,14 @@ class AutoTestRunner:
                 cpu_core.yield_core()
             snap.pin_to_core(cpu_core.get_core_number())
 
-        if test_suite['submission_info']:
+        if test_suite.get('submission_info', False):
             extra_env = self._get_suite_env(result_id)
         else:
             extra_env = {}
 
         with student_container.as_snapshot(
             test_suite['network_disabled']
-        ) as snap, student_container.extra_env(extra_env):
+        ) as snap, snap.extra_env(extra_env):
             url = f'{self.base_url}/results/{result_id}/step_results/'
 
             for idx, test_step in enumerate(test_suite['steps']):
@@ -2281,9 +2281,7 @@ class AutoTestRunner:
                     if patch_res.json()['taken']:
                         opts.mark_work_as_finished(work)
                     else:
-                        with cg_logger.bound_to_logger(
-                            result_id=result_id
-                        ):
+                        with cg_logger.bound_to_logger(result_id=result_id):
                             if self._run_student(cont, cpu, result_id):
                                 opts.mark_work_as_finished(work)
                             else:
@@ -2300,7 +2298,8 @@ class AutoTestRunner:
 
         assig_info = instructions.get('assignment_info')
         if assig_info is not None:
-            extra_env['CG_DEADLINE'] = assig_info['deadline']
+            deadline = assig_info['deadline']
+            extra_env['CG_DEADLINE'] = '' if deadline is None else deadline
         else:
             logger.warning(
                 'No assignment info in runner instructions',

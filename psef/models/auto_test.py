@@ -1041,13 +1041,13 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             'poll_after_done': True,
         }
 
-    def _get_assignment_info(self, ) -> auto_test_module.AssignmentInformation:
+    def _get_assignment_info(self) -> auto_test_module.AssignmentInformation:
         deadline = self.auto_test.assignment.deadline
-        assert deadline is not None
 
-        return {
-            'deadline': deadline.isoformat(),
-        }
+        if deadline is None:
+            return {'deadline': None}
+        else:
+            return {'deadline': deadline.isoformat()}
 
     @staticmethod
     def _get_student_info(

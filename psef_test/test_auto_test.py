@@ -1129,7 +1129,8 @@ def test_update_auto_test_set(basic, test_client, logged_in, describe):
         update_suite(network_disabled=True)
         assert suite['network_disabled'] is True
 
-    with describe('Suite submission info can be enabled and disabled'), logged_in(teacher):
+    with describe('Suite submission info can be enabled and disabled'
+                  ), logged_in(teacher):
         update_suite(submission_info=True)
         assert suite['submission_info'] is True
 

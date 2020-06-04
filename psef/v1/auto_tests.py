@@ -448,7 +448,7 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         steps = get('steps', list)
         rubric_row_id = get('rubric_row_id', int)
         network_disabled = get('network_disabled', bool)
-        submission_info = get('submission_info', bool)
+        submission_info = opt('submission_info', bool, False)
         suite_id = opt('id', int, None)
         time_limit = opt('command_time_limit', (float, int), None)
 
