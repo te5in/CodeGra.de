@@ -1042,6 +1042,9 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
         }
 
     def _get_assignment_info(self) -> auto_test_module.AssignmentInformation:
+        """Get information about the assignment that should be available in the
+        AutoTest environment.
+        """
         deadline = self.auto_test.assignment.deadline
 
         if deadline is None:
@@ -1053,6 +1056,11 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     def _get_student_info(
         result: AutoTestResult
     ) -> auto_test_module.StudentInformation:
+        """Get information about the submission that should be available in the
+        AutoTest environment.
+
+        :param result: The result to get the information for.
+        """
         return {
             'work_id': result.work.id,
             'result_id': result.id,

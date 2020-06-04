@@ -2332,8 +2332,17 @@ class AutoTestRunner:
                             return
 
     def _get_suite_env(self, result_id: int) -> t.Mapping[str, str]:
+        """Get information associated with the submission to be included in the
+        AutoTest environment.
+
+        :param result_id: The id of the result to get the information for.
+        """
         instructions = self.instructions
         extra_env = {}
+
+        # TODO: The information we need on the instructions is still marked as
+        # optional, to keep backward compatibility. This information should be
+        # required in the future, which will slightly simplify the code below.
 
         assig_info = instructions.get('assignment_info')
         if assig_info is not None:
