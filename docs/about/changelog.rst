@@ -44,7 +44,8 @@ Version *Next*
   `(#1333) <https://github.com/CodeGra-de/CodeGra.de/pull/1333>`__,
   `(#1352) <https://github.com/CodeGra-de/CodeGra.de/pull/1352>`__,
   `(#1355) <https://github.com/CodeGra-de/CodeGra.de/pull/1355>`__,
-  `(#1356) <https://github.com/CodeGra-de/CodeGra.de/pull/1356>`__.
+  `(#1356) <https://github.com/CodeGra-de/CodeGra.de/pull/1356>`__,
+  `(#1360) <https://github.com/CodeGra-de/CodeGra.de/pull/1360>`__.
 
 Version LowVoltage
 -------------------

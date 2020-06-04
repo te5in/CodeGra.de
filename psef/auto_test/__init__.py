@@ -29,6 +29,7 @@ from pathlib import Path
 from multiprocessing import Event, Queue, context, managers
 
 import lxc  # typing: ignore
+import furl
 import urllib3
 import requests
 import structlog
@@ -1750,11 +1751,14 @@ class AutoTestRunner:
         )
 
     def _work_producer(self, last_call: bool) -> t.List[cg_worker_pool.Work]:
-        url = (
-            f'{self.base_url}/runs/{self.instructions["run_id"]}/'
-            f'results/?last_call={last_call}?limit={_get_amount_cpus() * 4}'
+        url = furl.furl(self.base_url).add(
+            path=['runs', self.instructions['run_id'], 'results', ''],
+            args={
+                'last_call': last_call,
+                'limit': _get_amount_cpus() * 4,
+            },
         )
-        res = self.req.get(url, timeout=_REQUEST_TIMEOUT)
+        res = self.req.get(str(url), timeout=_REQUEST_TIMEOUT)
         res.raise_for_status()
         return [cg_worker_pool.Work(**item) for item in res.json()]
 
