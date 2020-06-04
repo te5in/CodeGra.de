@@ -437,7 +437,8 @@ def _handle_lti_advantage_launch(
     ):
         deep_link = message_launch.get_deep_link()
         dp_resource = lti_v1_3.CGDeepLinkResource.make(message_launch)
-        return deep_link.output_response_form([dp_resource])
+        form = deep_link.output_response_form([dp_resource])
+        return f'<!DOCTYPE html>\n<html><body>{form}</body></html>'
 
     return _make_blob_and_redirect(
         {
@@ -634,6 +635,8 @@ def deep_link_lti_assignment(deep_link_blob_id: uuid.UUID
     # storage in this module as users need to have the time to actually input
     # the needed data.
     if blob.age > timedelta(days=1):
+        # Really delete the blob in this case too.
+        db.session.commit()
         raise errors.APIException(
             'This deep linking session has expired, please reload',
             f'The deep linking session with blob {blob.id} has expired',

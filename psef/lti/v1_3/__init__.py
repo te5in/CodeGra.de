@@ -577,7 +577,7 @@ class CGDeepLinkResource(DeepLinkResource):
     the LMS. This resource is practically empty, and does not exist in our
     database, but this allows us to benefit from the UI of deep linking.
     """
-    _deadline: t.Optional[DatetimeWithTimezone]
+    _deadline: t.Optional[DatetimeWithTimezone] = None
 
     @t.overload
     @classmethod
@@ -619,8 +619,7 @@ class CGDeepLinkResource(DeepLinkResource):
             lti_provider = message_launch.get_lti_provider()
 
         self = cls()
-        if deadline:
-            self._deadline = deadline  # pylint: disable=protected-access
+        self._deadline = deadline  # pylint: disable=protected-access
 
         url = lti_provider.get_launch_url(goto_latest_sub=False)
         return self.set_url(str(url)).set_custom_params(

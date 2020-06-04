@@ -1,20 +1,27 @@
 import copy
 import uuid
 import pprint
+from re import compile as regex
+from datetime import timedelta
 
 import jwt
 import furl
 import flask
 import pytest
+import freezegun
 import pylti1p3.names_roles
 import pylti1p3.assignments_grades
+from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 
 import helpers
 import psef.models as m
 import psef.signals as signals
 import psef.lti.v1_3 as lti1p3
+from cg_dt_utils import DatetimeWithTimezone
 
 LTI_JWT_SECRET = str(uuid.uuid4())
+
+DEEP_LINK = '__CG_EXPECT_DEEP_LINK__'
 
 
 @pytest.fixture
@@ -237,6 +244,8 @@ def do_lti_launch(
             'state': oidc_params['state'],
         },
     )
+    if status == DEEP_LINK:
+        return response
     assert response.status_code == 303
     url = furl.furl(response.headers['Location'])
     blob_id = dict(url.asdict()['query']['params'])['blob_id']
@@ -417,3 +426,132 @@ def test_with_wrong_nonce(
             400,
         )
         assert response['message'] == 'Invalid Nonce'
+
+
+def test_direct_deep_link_launch(test_client, describe, logged_in, admin_user):
+    with describe('setup'), logged_in(admin_user):
+        canvas_provider = helpers.create_lti1p3_provider(
+            test_client,
+            'Canvas',
+            iss='https://canvas.instructure.com',
+            client_id=str(uuid.uuid4()) + '_lms=' + 'Canvas'
+        )
+        return_url = f'https://{uuid.uuid4()}.com'
+        deep_link_data = {
+            lti1p3.claims.MESSAGE_TYPE: 'LtiDeepLinkingRequest',
+            lti1p3.claims.DEEP_LINK: {
+                'data': 'DP_DATA',
+                'deep_link_return_url': return_url,
+                'accept_types': ['ltiResourceLink'],
+                'accept_presentation_document_targets': 'PRES',
+            },
+        }
+        canvas_launch_data = make_launch_data(
+            merge(CANVAS_DATA, deep_link_data), canvas_provider, {}
+        )
+
+    with describe('deep link to canvas should directly return resource'):
+        _, launch = do_oidc_and_lti_launch(
+            test_client, canvas_provider, canvas_launch_data, status=DEEP_LINK
+        )
+        form = launch.data
+        parsed = defused_xml_fromstring(form.decode('utf8'))
+        assert parsed.tag == 'html'
+        form, = parsed.findall('body/form')
+        assert form.attrib['action'] == return_url
+        assert form.attrib['method'] == 'POST'
+        child, = form.getchildren()
+        assert child.attrib['name'] == 'JWT'
+        assert child.attrib['type'] == 'hidden'
+        jwt_value = child.attrib['value']
+        assert jwt.decode(jwt_value, verify=False)
+
+
+def test_real_deep_link_launch(test_client, describe, logged_in, admin_user):
+    with describe('setup'), logged_in(admin_user):
+        brightspace_provider = helpers.create_lti1p3_provider(
+            test_client,
+            'Brightspace',
+            iss='https://partners.brightspace.com',
+            client_id=str(uuid.uuid4()) + '_lms=' + 'Lichtruimte'
+        )
+        return_url = f'https://{uuid.uuid4()}.com'
+        deep_link_data = {
+            lti1p3.claims.MESSAGE_TYPE: 'LtiDeepLinkingRequest',
+            lti1p3.claims.DEEP_LINK: {
+                'data': 'DP_DATA',
+                'deep_link_return_url': return_url,
+                'accept_types': ['ltiResourceLink'],
+                'accept_presentation_document_targets': 'PRES',
+            },
+        }
+        launch_data = make_launch_data(
+            merge(BRIGHTSPACE_DATA, deep_link_data), brightspace_provider, {}
+        )
+
+        def get_new_deep_link():
+            _, launch = do_oidc_and_lti_launch(
+                test_client, brightspace_provider, launch_data
+            )
+            assert launch['data']['type'] == 'deep_link'
+            blob_id = launch['data']['deep_link_blob_id']
+            auth_token = launch['data']['auth_token']
+            return auth_token, f'/api/v1/lti1.3/deep_link/{blob_id}'
+
+    with describe('have to provide correct auth token to use blob id'):
+        auth_token, url = get_new_deep_link()
+        res = test_client.req(
+            'post',
+            url,
+            403,
+            data={
+                'auth_token': f'WRONG_{auth_token}',
+                'name': 'assig_name',
+                'deadline': 'NOT A DEADLINE',
+            },
+            result={
+                '__allow_extra__': True,
+                'message': regex('not provide the correct token'),
+            }
+        )
+
+    with describe('too old blob id is also rejected'):
+        auth_token, url = get_new_deep_link()
+        with freezegun.freeze_time(
+            DatetimeWithTimezone.utcnow() + timedelta(days=2)
+        ):
+            test_client.req(
+                'post',
+                url,
+                400,
+                result={
+                    '__allow_extra__': True,
+                    'message': regex('^This deep linking session has expired'),
+                }
+            )
+
+    with describe('returns deep link form if all is correct'):
+        auth_token, url = get_new_deep_link()
+        deadline = DatetimeWithTimezone.utcnow() + timedelta(days=4)
+        res = test_client.req(
+            'post',
+            url,
+            200,
+            data={
+                'auth_token': auth_token,
+                'name': 'assig_name',
+                'deadline': deadline.isoformat(),
+            },
+            result={
+                'jwt': str,
+                'url': return_url,
+            }
+        )
+        jwt_parsed = jwt.decode(res['jwt'], verify=False)
+        content_items = jwt_parsed[
+            'https://purl.imsglobal.org/spec/lti-dl/claim/content_items']
+        assert isinstance(content_items, list)
+        assert len(content_items) == 1
+        assert content_items[0]['title'] == 'assig_name'
+        assert content_items[0]['submission']['endDateTime'
+                                              ] == deadline.isoformat()
