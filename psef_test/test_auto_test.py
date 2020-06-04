@@ -376,6 +376,7 @@ def test_create_auto_test_suite(basic, test_client, logged_in, describe):
                 'steps': [],
                 'rubric_row_id': rubric[0]['id'],
                 'network_disabled': False,
+                'submission_info': False,
             }
         )
 
@@ -391,6 +392,7 @@ def test_create_auto_test_suite(basic, test_client, logged_in, describe):
                         'id': int,
                         'rubric_row': {**rubric[0], 'locked': 'auto_test'},
                         'network_disabled': False,
+                        'submission_info': False,
                         'steps': [],
                         # This is set in the conftest.py
                         'command_time_limit': 3,
@@ -409,6 +411,7 @@ def test_create_auto_test_suite(basic, test_client, logged_in, describe):
                 'steps': [],
                 'rubric_row_id': rubric[0]['id'],
                 'network_disabled': False,
+                'submission_info': False,
             }
         )
 
@@ -1118,7 +1121,7 @@ def test_update_auto_test_set(basic, test_client, logged_in, describe):
         update_set(stop_points=0.5)
         assert test['sets'][0]['stop_points'] == 0.5
 
-    with describe('Set internet can be enabled and disabled'
+    with describe('Suite internet can be enabled and disabled'
                   ), logged_in(teacher):
         update_suite(network_disabled=False)
         assert suite['network_disabled'] is False
@@ -1281,6 +1284,7 @@ def test_update_locked_rubric(
                     'steps': [helpers.get_auto_test_io_step()],
                     'rubric_row_id': rubric[0]['id'],
                     'network_disabled': True,
+                    'submission_info': False,
                 },
                 include_response=True,
             )

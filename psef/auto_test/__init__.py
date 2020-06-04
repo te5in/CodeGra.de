@@ -1982,7 +1982,7 @@ class AutoTestRunner:
             snap.pin_to_core(cpu_core.get_core_number())
 
         if test_suite['submission_info']:
-            extra_env = self._get_student_env(result_id)
+            extra_env = self._get_suite_env(result_id)
         else:
             extra_env = {}
 
@@ -2294,7 +2294,7 @@ class AutoTestRunner:
                                 retry_work(work)
                             return
 
-    def _get_student_env(self, result_id: int) -> t.Mapping[str, str]:
+    def _get_suite_env(self, result_id: int) -> t.Mapping[str, str]:
         instructions = self.instructions
         extra_env = {}
 
