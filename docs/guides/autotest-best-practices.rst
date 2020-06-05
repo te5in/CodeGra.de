@@ -294,10 +294,17 @@ object with the following keys:
           deadline = datetime.datetime.fromisoformat(info['deadline'])
           submitted_at = datetime.datetime.fromisoformat(info['submitted_at'])
 
-          delta = (submitted_at - deadline).days
-          delta = max(0, min(10, delta))
+          days_late = (submitted_at - deadline).days
 
-          print(10 - delta / 10)
+          if days_late <= 0:
+              print('submitted on time :)')
+              print(1.0)
+          elif days_late <= 10:
+              print('{} days late'.format(days_late))
+              print(1 - days_late / 10)
+          else:
+              print('very late, maximum penalty')
+              print(0.0)
 
 .. example:: generating random inputs
 
