@@ -753,7 +753,7 @@ def stub_function_class():
 
         @property
         def called(self):
-            return len(self.args) > 0
+            return self.called_amount > 0
 
         @property
         def called_amount(self):
