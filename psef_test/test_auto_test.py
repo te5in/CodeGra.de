@@ -2637,19 +2637,26 @@ def test_running_old_submission(
 
 
 @pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('deadline', ['tomorrow', None])
 def test_submission_info_env_vars(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
-    describe, live_server, lxc_stub, monkeypatch, app, session,
-    stub_function_class, assert_similar, monkeypatch_for_run
+    describe, live_server, lxc_stub, monkeypatch, app, session, deadline,
+    stub_function_class, assert_similar, monkeypatch_for_run, admin_user
 ):
     with describe('setup'):
-        course, assig_id, teacher, student = basic
+        course, _, teacher, student = basic
+
+        with logged_in(admin_user):
+            assig = helpers.create_assignment(
+                test_client,
+                course,
+                deadline=deadline,
+            )
 
         with logged_in(teacher):
-            assig = m.Assignment.query.get(assig_id)
             # yapf: disable
             test = helpers.create_auto_test_from_dict(
-                test_client, assig_id, {
+                test_client, assig['id'], {
                     'sets': [{
                         'suites': [{
                             'submission_info': True,
@@ -2676,9 +2683,14 @@ def test_submission_info_env_vars(
     with describe('start_auto_test'):
         t = m.AutoTest.query.get(test['id'])
         with logged_in(teacher):
-            work = helpers.create_submission(
-                test_client, assig_id, for_user=student.username
-            )
+            if deadline is None:
+                work = helpers.create_submission(
+                    test_client, assig['id'], is_test_submission=True
+                )
+            else:
+                work = helpers.create_submission(
+                    test_client, assig['id'], for_user=student.username
+                )
 
         with logged_in(teacher):
             run_id = test_client.req('post', f'{url}/runs/', 200)['id']
@@ -2697,11 +2709,13 @@ def test_submission_info_env_vars(
 
     with describe('should contain expected data only when enabled'):
         expected = {
-            'deadline': assig.deadline.isoformat(),
+            'deadline': None if deadline is None else assig['deadline'],
             'submitted_at': work['created_at'],
             'result_id': res.id,
             'student_id': work['user']['id'],
         }
+
+        assert len(res.step_results) == 2
 
         for step_result in res.step_results:
             step = step_result.step

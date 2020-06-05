@@ -43,7 +43,6 @@ import cg_logger
 import cg_worker_pool
 import cg_threading_utils
 from cg_timers import timed_code, timed_function
-from cg_dt_utils import DatetimeWithTimezone
 
 from .. import models, helpers
 from ..helpers import JSONType, RepeatedTimer, defer
@@ -2366,7 +2365,7 @@ class AutoTestRunner:
         assig_info = instructions.get('assignment_info')
         if assig_info is not None:
             submission_info['deadline'] = assig_info['deadline']
-        else:
+        else:  # pragma: no cover
             logger.warning(
                 'No assignment info in runner instructions',
                 instructions=instructions,
@@ -2387,7 +2386,7 @@ class AutoTestRunner:
                     'submitted_at': student_info['created_at'],
                 }
             )
-        else:
+        else:  # pragma: no cover
             logger.warning(
                 'No student info in runner instructions',
                 instructions=instructions,
