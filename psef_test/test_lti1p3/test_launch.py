@@ -1026,7 +1026,7 @@ def test_launch_to_latest_submission(
         response = test_client.post(
             url,
             data={
-            'id_token': made_jwt,
+                'id_token': made_jwt,
                 'state': oidc_params['state'],
             },
         )
