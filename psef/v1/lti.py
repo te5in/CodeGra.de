@@ -402,11 +402,6 @@ def _handle_lti_advantage_launch(
 ) -> t.Union[str, werkzeug.wrappers.Response]:
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
-    plat_red_url = flask.request.args.get('platform_redirect_url')
-    full_win_launch = flask.request.args.get('full_win_launch_requested')
-    if full_win_launch == '1' and plat_red_url:
-        return flask.redirect(plat_red_url)
-
     try:
         provider = _maybe_get_provider(lti_provider_id)
         message_launch = lti_v1_3.FlaskMessageLaunch.from_request(
@@ -433,6 +428,11 @@ def _handle_lti_advantage_launch(
             version=LTIVersion.v1_3,
             goto_latest_submission=False,
         )
+
+    plat_red_url = flask.request.args.get('platform_redirect_url')
+    full_win_launch = flask.request.args.get('full_win_launch_requested')
+    if full_win_launch == '1' and plat_red_url:
+        return flask.redirect(plat_red_url)
 
     provider = message_launch.get_lti_provider()
     if (

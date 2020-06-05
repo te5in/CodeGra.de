@@ -1033,3 +1033,64 @@ def test_launch_to_latest_submission(
         assert response.status_code == 303
         url = furl.furl(response.headers['Location'])
         assert url.query.params['goto_latest_submission'] == 'True'
+
+
+def test_launch_redirect_to_given_page(
+    test_client, describe, logged_in, admin_user, app
+):
+    with describe('setup'), logged_in(admin_user):
+        red_url = f'https://{uuid.uuid4()}.com'
+        provider = helpers.create_lti1p3_provider(
+            test_client,
+            'Canvas',
+            iss='https://canvas.instructure.com',
+            client_id=str(uuid.uuid4()) + '_lms=' + 'Canvas'
+        )
+        data = make_launch_data(
+            CANVAS_DATA,
+            provider,
+            {
+                'Assignment.id': 'assig id',
+                'Course.id': 'asdfs',
+            },
+        )
+        url = furl.furl('/api/v1/lti1.3/launch').add({
+            'platform_redirect_url': red_url,
+            'full_win_launch_requested': '1',
+        }).tostr()
+        oidc = do_oidc_login(test_client, provider)
+        oidc_params = oidc.query.params
+
+    with describe('should redirect to url given in launch request'):
+        made_jwt = jwt.encode(
+            {**data, 'nonce': oidc_params['nonce']},
+            LTI_JWT_SECRET,
+            algorithm='HS256',
+        )
+
+        response = test_client.post(
+            url,
+            data={
+                'id_token': made_jwt,
+                'state': oidc_params['state'],
+            },
+        )
+        assert response.status_code == 302
+        # Should redirect to the given get parameter url
+        assert response.headers['Location'] == red_url
+
+    with describe('should check jwt before redirecting'):
+        oidc = do_oidc_login(test_client, provider)
+
+        response = test_client.post(
+            url,
+            data={
+                'id_token': 'NOT_VALID_JWT',
+                'state': oidc_params['state'],
+            },
+        )
+        assert response.status_code == 303
+        assert response.headers['Location'] != red_url
+        assert response.headers['Location'].startswith(
+            app.config['EXTERNAL_URL']
+        )
