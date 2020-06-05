@@ -274,13 +274,15 @@ object with the following keys:
     You want to automatically subtract 1 point from the total rubric score for
     each day after the deadline, up to a maximum of 10 points subtracted.
 
-    1. Set up a rubric category with items ranging from -10 to 0.
+    1. Set up a rubric category with 11 items ranging from -10 to 0.
     2. Create a new AutoTest category linked to the new rubric category, and
-       check the  "Submission information" checkbox.
+       check the  "Submission information" checkbox under "Advanced options".
     3. Add a "Capture points" step with an appropriate name and the following
        settings:
+
        * Program to test: ``python3 $FIXTURES/deadline.py``
        * Regex to match: ``\f``
+
     4. Upload the following script as a fixture with the name ``deadline.py``:
 
        .. code-block:: python
@@ -290,11 +292,10 @@ object with the following keys:
           import json
           import datetime
 
-          info = json.loads(os.environ['CG_INFO'])
-          deadline = datetime.datetime.fromisoformat(info['deadline'])
-          submitted_at = datetime.datetime.fromisoformat(info['submitted_at'])
-
-          days_late = (submitted_at - deadline).days
+          cg_info      = json.loads(os.environ['CG_INFO'])
+          deadline     = datetime.datetime.fromisoformat(cg_info['deadline'])
+          submitted_at = datetime.datetime.fromisoformat(cg_info['submitted_at'])
+          days_late    = (submitted_at - deadline).days
 
           if days_late <= 0:
               print('submitted on time :)')
