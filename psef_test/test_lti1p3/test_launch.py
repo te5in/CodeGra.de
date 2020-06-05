@@ -99,7 +99,7 @@ BASE_LAUNCH_DATA = {
     'exp': (DatetimeWithTimezone.utcnow() + timedelta(days=1)).timestamp(),
     'nbf': 1590998156,
     'iat': 1590998156,
-    'sub': '91f41e6b-a507-4168-9347-204b9316f03d_6324',
+    'sub': 'User.id',
     'given_name': 'CodeGrade',
     'family_name': 'Administrator',
     'name': 'CodeGrade Administrator',
@@ -881,3 +881,57 @@ def test_validate_jwt_body(
 
         do_launch(200)
         assert stub_fetch.called_amount == 2
+
+
+def test_copying_email_from_launch(
+    test_client, describe, logged_in, admin_user, stub_function,
+    monkeypatched_passback, session
+):
+    with describe('setup'), logged_in(admin_user):
+        email1 = str(uuid.uuid4())
+        email2 = str(uuid.uuid4())
+        provider = helpers.create_lti1p3_provider(
+            test_client,
+            'Canvas',
+            iss='https://canvas.instructure.com',
+            client_id=str(uuid.uuid4()) + '_lms=' + 'Canvas'
+        )
+
+        lti_user_id = str(uuid.uuid4())
+        data = make_launch_data(
+            CANVAS_DATA,
+            provider,
+            {
+                'Assignment.id': 'assig id',
+                'Course.id': 'asdfs',
+                'User.id': lti_user_id,
+            },
+        )
+
+    with describe('should create a user with the given email'):
+        do_oidc_and_lti_launch(
+            test_client, provider, merge(data, {'email': email1}), 200
+        )
+        user = m.UserLTIProvider.query.filter_by(lti_user_id=lti_user_id
+                                                 ).one().user
+        assert user.email == email1
+
+    with describe('should not always copy the new email'):
+        do_oidc_and_lti_launch(
+            test_client, provider, merge(data, {'email': email2}), 200
+        )
+        user2 = m.UserLTIProvider.query.filter_by(lti_user_id=lti_user_id
+                                                  ).one().user
+        assert user2 == user
+        assert user2.email == email1
+
+    with describe('should copy the email if instructed'):
+        user.reset_email_on_lti = True
+        session.commit()
+        do_oidc_and_lti_launch(
+            test_client, provider, merge(data, {'email': email2}), 200
+        )
+        user3 = m.UserLTIProvider.query.filter_by(lti_user_id=lti_user_id
+                                                  ).one().user
+        assert user2 == user
+        assert user3.email == email2

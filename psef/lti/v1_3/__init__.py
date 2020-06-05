@@ -672,6 +672,11 @@ class LTIConfig(ToolConfAbstract[FlaskRequest]):
     ) -> t.Optional[Registration]:
         """Find the registration in a legacy way.
 
+        >>> LTIConfig(None).find_registration_by_issuer('anything')
+        Traceback (most recent call last):
+        ...
+        AssertionError
+
         This is not supported and this method will always raise an
         :exc:`.AssertionError`.
         """
@@ -761,6 +766,9 @@ class LTIConfig(ToolConfAbstract[FlaskRequest]):
         deployment_id: str,
     ) -> None:
         """We don't use deployments, this always returns ``None``.
+
+        >>> LTIConfig(None).find_deployment('anything', 'anything') is None
+        True
         """
         return None
 
@@ -770,6 +778,9 @@ class LTIConfig(ToolConfAbstract[FlaskRequest]):
         **kwargs: None
     ) -> None:
         """We don't use deployments, this always returns ``None``.
+
+        >>> LTIConfig(None).find_deployment('anything', 'anything') is None
+        True
         """
         return None
 
