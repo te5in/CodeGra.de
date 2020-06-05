@@ -206,55 +206,11 @@ const DRIVERS = [
     'memoryStorageDriver',
 ];
 
-let inLTI = false;
-Vue.util.defineReactive(
-    Vue.prototype,
-    '$inLTI',
-    inLTI,
-    val => {
-        if (val === undefined) {
-            // PASS
-        } else if (val === true) {
-            inLTI = val;
-        } else {
-            throw new TypeError(`You can only set $inLTI to true, not to ${val}.`);
-        }
-    },
-    true,
-);
+Vue.util.defineReactive(Vue.prototype, '$inLTI', false, null, true);
 
-let ltiProvider = null;
-Vue.util.defineReactive(
-    Vue.prototype,
-    '$ltiProvider',
-    ltiProvider,
-    val => {
-        if (ltiProvider === null) {
-            ltiProvider = val;
-        } else {
-            throw new TypeError('You can only set $ltiProvider once');
-        }
-    },
-    true,
-);
+Vue.util.defineReactive(Vue.prototype, '$ltiProvider', null, null, true);
 
-let LTIAssignmentId = null;
-Vue.util.defineReactive(
-    Vue.prototype,
-    '$LTIAssignmentId',
-    LTIAssignmentId,
-    val => {
-        if (val == null) {
-            throw new TypeError('You cannot set $LTIAssignmentId to null or undefined');
-        }
-        if (LTIAssignmentId == null || val === LTIAssignmentId) {
-            LTIAssignmentId = val;
-        } else {
-            throw new TypeError('You cannot change $LTIAssignmentId property once it is set');
-        }
-    },
-    true,
-);
+Vue.util.defineReactive(Vue.prototype, '$LTIAssignmentId', null, null, true);
 
 try {
     Vue.prototype.$devMode = process.env.NODE_ENV === 'development';

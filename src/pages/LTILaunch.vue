@@ -308,9 +308,4 @@ export default {
     justify-content: center;
     align-items: center;
 }
-
-.cg-logo {
-    height: 1.5rem;
-    width: auto;
-}
 </style>
