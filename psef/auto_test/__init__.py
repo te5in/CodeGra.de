@@ -2342,7 +2342,7 @@ class AutoTestRunner:
         :param submission_info: Whether to include the submission information.
         :returns: A mapping from environment variable name to value.
         """
-        env = { 'CG_INFO': '{}' }
+        env = {'CG_INFO': '{}'}
 
         if submission_info:
             env['CG_INFO'] = self._get_submission_info_json(result_id)
