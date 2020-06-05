@@ -962,3 +962,32 @@ def test_cannot_do_second_launch_with_any_blob(test_client, describe, session):
                 'message': regex('^Decoding given JWT token failed,.*'),
             },
         )
+
+
+def test_wrong_launch_to_oidc_login(
+    test_client, describe, session, app, logged_in, admin_user
+):
+    with describe('setup'), logged_in(admin_user):
+        provider = helpers.create_lti1p3_provider(
+            test_client,
+            'Canvas',
+            iss='other iss',
+            client_id=str(uuid.uuid4()) + '_lms=' + 'Canvas'
+        )
+    with describe('incorrect oidc login shows a nice error page'):
+        oidc = do_oidc_login(
+            test_client,
+            provider,
+            redirect_to=app.config['EXTERNAL_URL'],
+            override_data={'iss': None}
+        )
+        blob_id = dict(oidc['query']['params'])['blob_id']
+        test_client.req(
+            'post',
+            '/api/v1/lti/launch/2?extended',
+            400,
+            data={'blob_id': blob_id},
+            result={
+                '__allow_extra__': True, 'message': 'Could not find issuer'
+            },
+        )

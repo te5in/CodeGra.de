@@ -779,7 +779,7 @@ class LTIConfig(ToolConfAbstract[FlaskRequest]):
     ) -> None:
         """We don't use deployments, this always returns ``None``.
 
-        >>> LTIConfig(None).find_deployment('anything', 'anything') is None
+        >>> LTIConfig(None).find_deployment_by_params('any', '', '') is None
         True
         """
         return None
