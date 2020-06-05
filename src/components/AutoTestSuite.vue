@@ -268,7 +268,7 @@
 
                     <tr>
                         <td>
-                            Submission info
+                            Submission information
                         </td>
                         <td>
                             <b-form-checkbox name="submission-info-env-vars"
