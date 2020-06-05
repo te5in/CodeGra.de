@@ -217,7 +217,7 @@ class CGRegistration(Registration):
 
     def __init__(self, provider: 'models.LTI1p3Provider') -> None:
         assert provider._auth_login_url is not None
-        assert provider._auth_token_url is not None
+        assert provider.auth_token_url is not None
         assert provider.key_set_url is not None
         assert provider.client_id is not None
         assert provider.iss is not None
@@ -226,7 +226,7 @@ class CGRegistration(Registration):
         self.provider = provider
 
         self.set_auth_login_url(provider._auth_login_url) \
-            .set_auth_token_url(provider._auth_token_url) \
+            .set_auth_token_url(provider.auth_token_url) \
             .set_client_id(provider.client_id) \
             .set_key_set_url(provider.key_set_url) \
             .set_issuer(provider.iss) \
@@ -262,11 +262,11 @@ class CGServiceConnector(ServiceConnector):
         scopes_str = '|'.join(scopes)
         cache = current_app.inter_request_cache.lti_access_tokens
         super_method = super().get_access_token
-
-        return cache.get_or_set(
-            f'lti-provider-{self._provider.id}-{scopes_str}',
-            lambda: super_method(scopes),
+        cache_key = (
+            f'{self._provider.id}-{self._provider.auth_token_url}-{scopes_str}'
         )
+
+        return cache.get_or_set(cache_key, lambda: super_method(scopes))
 
 
 class CGGrade(grade.Grade):

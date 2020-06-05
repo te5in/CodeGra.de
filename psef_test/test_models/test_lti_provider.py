@@ -3,6 +3,7 @@ import uuid
 
 import furl
 import pytest
+import requests
 import pylti1p3.names_roles
 import pylti1p3.service_connector
 import pylti1p3.assignments_grades
@@ -10,6 +11,7 @@ import pylti1p3.assignments_grades
 import helpers
 import psef.models as m
 import psef.signals as signals
+import requests_stubs
 import psef.lti.v1_3.claims as claims
 from cg_dt_utils import DatetimeWithTimezone
 
@@ -301,24 +303,33 @@ def test_delete_submission_passback(
 
 def test_passing_back_all_grades(
     lti1p3_provider, describe, logged_in, admin_user, watch_signal,
-    stub_function, test_client, session, tomorrow
+    stub_function, test_client, session, tomorrow, make_function_spy
 ):
     with describe('setup'), logged_in(admin_user):
         watch_signal(signals.WORK_CREATED, clear_all_but=[])
         watch_signal(signals.GRADE_UPDATED, clear_all_but=[])
         watch_signal(signals.USER_ADDED_TO_COURSE, clear_all_but=[])
+        watch_signal(signals.WORK_DELETED, clear_all_but=[])
         signal = watch_signal(
             signals.ASSIGNMENT_STATE_CHANGED,
             clear_all_but=[m.LTI1p3Provider._passback_grades]
         )
 
-        stub_function(
+        stub_get_acccess_token = stub_function(
             pylti1p3.service_connector.ServiceConnector,
             'get_access_token', lambda: ''
         )
-        stub_passback = stub_function(
-            pylti1p3.assignments_grades.AssignmentsGradesService, 'put_grade'
+        stub_passback = make_function_spy(
+            pylti1p3.assignments_grades.AssignmentsGradesService,
+            'put_grade',
+            pass_self=True
         )
+
+        # Make a session with a response that returns json when the `json`
+        # method is called
+        req_session = requests_stubs.session_maker()()
+        req_session.Response.json = lambda _=None: {}
+        stub_requests_post = stub_function(requests, 'post', req_session.post)
 
         course, course_conn = helpers.create_lti1p3_course(
             test_client, session, lti1p3_provider
@@ -361,11 +372,14 @@ def test_passing_back_all_grades(
         assig.set_state_with_string('open')
         assert signal.was_send_once
         assert not stub_passback.called
+        assert not stub_get_acccess_token.called
 
     with describe('changing to done does passback'):
         assig.set_state_with_string('done')
         assert signal.was_send_once
         assert stub_passback.called_amount == len(all_students)
+        # Calls should be cached
+        assert stub_get_acccess_token.called_amount == 1
 
         p1, p2, p3 = stub_passback.args
 
@@ -379,6 +393,18 @@ def test_passing_back_all_grades(
         # Does not have a submission
         assert p3[0].get_score_given() is None
         assert p3[0].get_user_id() == lti_user_ids[1]
+
+    with describe('toggling to open and done should do a new passback'):
+        assig.set_state_with_string('open')
+        assert signal.was_send_once
+        assert not stub_passback.called
+        assert not stub_get_acccess_token.called
+
+        assig.set_state_with_string('done')
+        assert signal.was_send_n_times(2)
+        assert stub_passback.called
+        # access token should still be cached
+        assert not stub_get_acccess_token.called
 
 
 def test_passback_for_new_student(

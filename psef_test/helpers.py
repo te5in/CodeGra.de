@@ -92,7 +92,10 @@ def create_lti1p3_assignment(session, course, state='hidden', deadline=None):
         visibility_state=psef.models.AssignmentVisibilityState.visible,
         lti_assignment_id=str(uuid.uuid4()),
     )
-    assig.lti_grade_service_data = {'lineitem': 'http://{uuid.uuid4()}.com'}
+    assig.lti_grade_service_data = {
+        'lineitem': f'http://{uuid.uuid4()}.com',
+        'scope': ['https://purl.imsglobal.org/spec/lti-ags/scope/score'],
+    }
     assig.set_state_with_string(state)
     assig.deadline = deadline
     session.add(assig)

@@ -671,6 +671,12 @@ class LTI1p3Provider(LTIProviderBase):
             self._auth_audience, self._auth_token_url
         )
 
+    @property
+    def auth_token_url(self) -> t.Optional[str]:
+        """The url where you can get an access token.
+        """
+        return self._auth_token_url
+
     def update_registration(
         self,
         auth_login_url: t.Optional[str],
