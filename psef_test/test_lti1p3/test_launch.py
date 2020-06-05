@@ -240,7 +240,7 @@ def do_oidc_login(
         )
     else:
         assert redirect.headers['Location'].startswith(redirect_to)
-    return furl.furl(redirect.headers['Location']).asdict()
+    return furl.furl(redirect.headers['Location'])
 
 
 def do_lti_launch(
@@ -253,7 +253,7 @@ def do_lti_launch(
     make_jwt=None,
 ):
 
-    oidc_params = dict(oidc_result['query']['params'])
+    oidc_params = oidc_result.query.params
     url = '/api/v1/lti1.3/launch'
     if with_id:
         url += '/' + str(provider.id)
@@ -276,7 +276,8 @@ def do_lti_launch(
         return response
     assert response.status_code == 303
     url = furl.furl(response.headers['Location'])
-    blob_id = dict(url.asdict()['query']['params'])['blob_id']
+    assert url.query.params['goto_latest_submission'] == 'False'
+    blob_id = url.query.params['blob_id']
     return test_client.req(
         'post',
         '/api/v1/lti/launch/2?extended',
@@ -776,7 +777,7 @@ def test_launch_with_incorrect_provider(
                 override_data=override,
                 with_id=with_id,
             )
-            blob_id = dict(oidc['query']['params'])['blob_id']
+            blob_id = oidc.query.params['blob_id']
             err = test_client.req(
                 'post',
                 '/api/v1/lti/launch/2?extended',
@@ -981,7 +982,7 @@ def test_wrong_launch_to_oidc_login(
             redirect_to=app.config['EXTERNAL_URL'],
             override_data={'iss': None}
         )
-        blob_id = dict(oidc['query']['params'])['blob_id']
+        blob_id = oidc.query.params['blob_id']
         test_client.req(
             'post',
             '/api/v1/lti/launch/2?extended',
@@ -991,3 +992,44 @@ def test_wrong_launch_to_oidc_login(
                 '__allow_extra__': True, 'message': 'Could not find issuer'
             },
         )
+
+
+def test_launch_to_latest_submission(
+    test_client, describe, logged_in, admin_user
+):
+    with describe('setup'), logged_in(admin_user):
+        provider = helpers.create_lti1p3_provider(
+            test_client,
+            'Canvas',
+            iss='https://canvas.instructure.com',
+            client_id=str(uuid.uuid4()) + '_lms=' + 'Canvas'
+        )
+        data = make_launch_data(
+            CANVAS_DATA,
+            provider,
+            {
+                'Assignment.id': 'assig id',
+                'Course.id': 'asdfs',
+            },
+        )
+    with describe('incorrect oidc login shows a nice error page'):
+        oidc = do_oidc_login(test_client, provider)
+
+        oidc_params = oidc.query.params
+        url = '/api/v1/lti1.3/launch_to_latest_submission'
+        made_jwt = jwt.encode(
+            {**data, 'nonce': oidc_params['nonce']},
+            LTI_JWT_SECRET,
+            algorithm='HS256',
+        )
+
+        response = test_client.post(
+            url,
+            data={
+            'id_token': made_jwt,
+                'state': oidc_params['state'],
+            },
+        )
+        assert response.status_code == 303
+        url = furl.furl(response.headers['Location'])
+        assert url.query.params['goto_latest_submission'] == 'True'
