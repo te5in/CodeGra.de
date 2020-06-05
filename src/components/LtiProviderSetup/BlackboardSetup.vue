@@ -393,7 +393,7 @@ export default class BlackboardSetup extends Vue {
 
     get jwksUrl(): string {
         return this.$utils.buildUrl(
-            ['api', 'v1', 'lti1.3', 'jwks', this.ltiProvider.id], {
+            ['api', 'v1', 'lti1.3', 'providers', this.ltiProvider.id, 'jwks'], {
                 baseUrl: this.$userConfig.externalUrl,
             },
         );

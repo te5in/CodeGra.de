@@ -315,6 +315,8 @@ def test_do_simple_launch(
         )
         user_added = watch_signal(signals.USER_ADDED_TO_COURSE)
         assig_created = watch_signal(signals.ASSIGNMENT_CREATED)
+
+        lti_user_id = str(uuid.uuid4())
         lti_assig_id = str(uuid.uuid4())
         lti_assig_id2 = str(uuid.uuid4())
         lti_course_id = str(uuid.uuid4())
@@ -334,6 +336,7 @@ def test_do_simple_launch(
                     'Course.id': lti_course_id,
                     'cg_deadline': deadline.isoformat(),
                     'cg_available_at': tomorrow.isoformat(),
+                    'User.id': lti_user_id,
                 },
             ),
         )
@@ -372,6 +375,7 @@ def test_do_simple_launch(
                     'Assignment.id': lti_assig_id,
                     'cg_deadline': new_deadline.isoformat(),
                     'cg_available_at': yesterday.isoformat(),
+                    'User.id': lti_user_id,
                 },
             ),
         )
@@ -397,6 +401,7 @@ def test_do_simple_launch(
                 {
                     'Course.id': lti_course_id,
                     'Assignment.id': lti_assig_id2,
+                    'User.id': lti_user_id,
                 },
             ),
         )
@@ -917,21 +922,43 @@ def test_copying_email_from_launch(
         assert user.email == email1
 
     with describe('should not always copy the new email'):
-        do_oidc_and_lti_launch(
+        _, launch = do_oidc_and_lti_launch(
             test_client, provider, merge(data, {'email': email2}), 200
         )
         user2 = m.UserLTIProvider.query.filter_by(lti_user_id=lti_user_id
                                                   ).one().user
         assert user2 == user
         assert user2.email == email1
+        assert launch['data']['updated_email'] is None
 
     with describe('should copy the email if instructed'):
         user.reset_email_on_lti = True
         session.commit()
-        do_oidc_and_lti_launch(
+        _, launch = do_oidc_and_lti_launch(
             test_client, provider, merge(data, {'email': email2}), 200
         )
         user3 = m.UserLTIProvider.query.filter_by(lti_user_id=lti_user_id
                                                   ).one().user
         assert user2 == user
         assert user3.email == email2
+        assert not user3.reset_email_on_lti
+        assert launch['data']['updated_email'] == email2
+
+
+def test_cannot_do_second_launch_with_any_blob(test_client, describe, session):
+    with describe('setup'):
+        blob = m.BlobStorage(json={'hi': 'he'})
+        session.add(blob)
+        session.commit()
+
+    with describe('cannot use other blob for second part of the launch'):
+        test_client.req(
+            'post',
+            '/api/v1/lti/launch/2?extended',
+            400,
+            data={'blob_id': str(blob.id)},
+            result={
+                '__allow_extra__': True,
+                'message': regex('^Decoding given JWT token failed,.*'),
+            },
+        )

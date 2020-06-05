@@ -347,13 +347,18 @@ def do_oidc_login(
     return red.do_redirect()
 
 
+@api.route('/lti1.3/providers/<lti_provider_id>/jwks', methods=['GET'])
 @api.route('/lti1.3/jwks/<lti_provider_id>', methods=['GET'])
-def get_lti_provider_jwks(lti_provider_id: str) -> helpers.JSONResponse:
+def get_lti_provider_jwks(
+    lti_provider_id: str
+) -> helpers.JSONResponse[t.Mapping[str, t.List[t.Mapping[str, str]]]]:
     """Get the JWKS of a given provider.
 
     .. :quickref: LTI; Get the public key of a provider in JWKS format.
 
-    This route is part of the public API.
+    The ``/api/v1/lti1.3/providers/<lti_provider_id>/jwks`` route is part of
+    the public API. The ``/api/v1/lti1.3/jwks/<lti_provider_id>`` is not and
+    **will** be removed in a future version.
 
     :param lti_provider_id: The id of the provider from which you want to get
         the JWKS.

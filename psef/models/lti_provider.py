@@ -1173,15 +1173,16 @@ class LTI1p3Provider(LTIProviderBase):
         """Get the config used by this lti provider for setup.
         """
 
-        def get_url(ext: str = '') -> str:
-            return f'{current_app.config["EXTERNAL_URL"]}{ext}'
+        def get_url(*to_add: str) -> str:
+            return furl.furl(current_app.config["EXTERNAL_URL"]
+                             ).add(path=to_add).tostr()
 
         return {
             'title': 'CodeGrade',
             'description': 'Programming education made intuitive!',
             'privacy_level': 'public',
-            'oidc_initiation_url': get_url('/api/v1/lti1.3/login'),
-            'target_link_uri': get_url('/api/v1/lti1.3/launch'),
+            'oidc_initiation_url': get_url('api', 'v1', 'lti1.3', 'login'),
+            'target_link_uri': self.get_launch_url(False).tostr(),
             'scopes': psef.lti.v1_3.NEEDED_SCOPES,
             'extensions':
                 [
@@ -1210,7 +1211,10 @@ class LTI1p3Provider(LTIProviderBase):
                             }
                     }
                 ],
-            'public_jwk': self.get_public_jwk(),
+            'public_jwk_url':
+                get_url(
+                    'api', 'v1', 'lti1.3', 'providers', str(self.id), 'jwks'
+                ),
             'custom_fields': self._custom_fields,
         }
 

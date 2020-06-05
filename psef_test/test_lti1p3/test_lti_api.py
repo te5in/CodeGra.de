@@ -190,16 +190,22 @@ def test_update_lti_provider(
 
 @pytest.mark.parametrize('lms', ['Canvas'])
 def test_get_json_config_for_provider(
-    test_client, describe, lms, logged_in, admin_user
+        test_client, describe, lms, logged_in, admin_user, app, monkeypatch
 ):
     with describe('setup'), logged_in(admin_user):
         prov = helpers.create_lti1p3_provider(test_client, lms)
         url = f'/api/v1/lti1.3/providers/{helpers.get_id(prov)}/config'
+        ext_url = f'{uuid.uuid4()}.com'
+        monkeypatch.setitem(app.config, 'EXTERNAL_URL', ext_url)
 
     with describe(
         'should be possible to get json config without being logged in'
     ):
-        test_client.req('get', url, 200, result=dict)
+        test_client.req('get', url, 200, result={
+            '__allow_extra__': True,
+            'target_link_uri': f'{ext_url}/api/v1/lti1.3/launch',
+            'oidc_initiation_url': f'{ext_url}/api/v1/lti1.3/login',
+        })
 
 
 @pytest.mark.parametrize('lms,err_code', [('Moodle', 200), ('Canvas', 400)])
@@ -222,4 +228,22 @@ def test_setting_deadline_for_assignment(
             f'/api/v1/assignments/{helpers.get_id(assig)}',
             err_code,
             data={'deadline': tomorrow.isoformat()}
+        )
+
+
+@pytest.mark.parametrize('lms', ['Canvas'])
+def test_get_jwks_for_provider(
+    test_client, describe, lms, logged_in, admin_user
+):
+    with describe('setup'), logged_in(admin_user):
+        prov = helpers.to_db_object(
+            helpers.create_lti1p3_provider(test_client, lms), m.LTI1p3Provider
+        )
+        url = f'/api/v1/lti1.3/providers/{helpers.get_id(prov)}/jwks'
+
+    with describe(
+        'should be possible to get json config without being logged in'
+    ):
+        test_client.req(
+            'get', url, 200, result={'keys': [prov.get_public_jwk()]}
         )
