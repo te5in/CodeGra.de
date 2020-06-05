@@ -304,6 +304,10 @@
 # Should it be possible to email students.
 # email_students = false
 
+# The url to a redis instance we will use to store a inter request cache. This
+# is cache is required for LTI 1.3.
+# redis_cache_url =
+
 # All LTI consumer keys mapped to secret keys. Please add your own, these ARE
 # case sensitive.
 [LTI Consumer keys]

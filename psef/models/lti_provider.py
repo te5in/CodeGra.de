@@ -818,7 +818,7 @@ class LTI1p3Provider(LTIProviderBase):
         return self.key
 
     def get_registration(self) -> 'lti_v1_3.CGRegistration':
-        """Get the connector to talk to the LMS with.
+        """Get a registration object for this provider.
         """
         return lti_v1_3.CGRegistration(self)
 
@@ -1185,7 +1185,7 @@ class LTI1p3Provider(LTIProviderBase):
 
         return {
             'title': 'CodeGrade',
-            'description': 'Programming education made intuitive!',
+            'description': 'Deliver engaging feedback on code.',
             'privacy_level': 'public',
             'oidc_initiation_url': get_url('api', 'v1', 'lti1.3', 'login'),
             'target_link_uri': self.get_launch_url(False).tostr(),

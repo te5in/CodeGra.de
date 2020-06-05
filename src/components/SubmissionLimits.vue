@@ -4,12 +4,12 @@
         <b-input-group class="max-submissions">
             <b-input-group-prepend is-text slot="prepend">
                 Maximum amount of submissions
-                <description-popover hug-text>
+                <cg-description-popover hug-text>
                     The maximum amount of submissions, inclusive, students will
                     be able to make. If you leave this value empty,
                     or set it to 0, students will be able to make an
                     infinite amount of submissions.
-                </description-popover>
+                </cg-description-popover>
             </b-input-group-prepend>
 
             <input class="form-control"
@@ -28,13 +28,13 @@
         <b-input-group class="cool-off-period-wrapper">
             <b-input-group-prepend is-text slot="prepend">
                 Cool off period
-                <description-popover hug-text>
+                <cg-description-popover hug-text>
                     The minimum amount of time there should be
                     between submissions. The first input determines
                     the amount of submissions, and the second the
                     time in minutes. You can set the time to zero to
                     disable this limit.
-                </description-popover>
+                </cg-description-popover>
             </b-input-group-prepend>
 
             <input class="form-control amount-in-cool-off-period"
@@ -78,44 +78,33 @@
 </div>
 </template>
 
+<script lang="ts">
+import { Vue, Component, Prop } from 'vue-property-decorator';
 
-<script>
-import { hasAttr } from '@/utils';
-
-import DescriptionPopover from './DescriptionPopover';
-
-export default {
-    name: 'submission-limits',
-
-    props: {
-        value: {
-            type: Object,
-            required: true,
-        },
-    },
-
-    data() {
-        return {
-            parseFloat,
-        };
-    },
-
-    methods: {
-        emitUpdate(data) {
-            const updated = this.$utils.deepCopy(this.value);
-            if (hasAttr(data, 'maxSubmissions')) {
-                updated.maxSubmissions = data.maxSubmissions;
-            }
-            if (hasAttr(data, 'coolOff')) {
-                Object.assign(updated.coolOff, data.coolOff);
-            }
-
-            this.$emit('input', updated);
-        },
-    },
-
-    components: {
-        DescriptionPopover,
-    },
+type MaxSubmissions = string | number;
+type CoolOff = {
+    period: string | number,
+    amount: string | number;
 };
+
+type Value = { maxSubmissions?: MaxSubmissions, coolOff?: CoolOff };
+
+@Component
+export default class SubmissionLimits extends Vue {
+    @Prop({ required: true }) value!: Value;
+
+    public parseFloat = parseFloat;
+
+    emitUpdate(data: Value) {
+        const updated = this.$utils.deepCopy(this.value);
+        if (this.$utils.hasAttr(data, 'maxSubmissions')) {
+            updated.maxSubmissions = data.maxSubmissions;
+        }
+        if (this.$utils.hasAttr(data, 'coolOff')) {
+            Object.assign(updated.coolOff, data.coolOff);
+        }
+
+        this.$emit('input', updated);
+    }
+}
 </script>

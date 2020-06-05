@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="blackboard-setup">
-    <wizzard-wrapper v-if="adminSetup">
+    <cg-wizard-wrapper v-if="adminSetup">
         <template #title="{ page, totalPages }">
             Initial blackboard setup {{ page }} / {{ totalPages }}
         </template>
@@ -72,7 +72,8 @@
             </table>
 
             <p>
-                After clicking clicking "Register application and generate API Key" you can
+                After clicking "Register application and generate API Key" you
+                can
                 <a href="#" @click.prevent="nextPage" class="inline-link">continue to the next step</a>.
             </p>
         </template>
@@ -119,11 +120,11 @@
                 :submit="submitAdminData"
                 @after-success="$emit('done')" />
         </template>
-    </wizzard-wrapper>
+    </cg-wizard-wrapper>
 
-    <wizzard-wrapper
+    <cg-wizard-wrapper
         v-else
-        v-model="wizzardPage"
+        v-model="wizardPage"
         use-local-header
         :get-next-page-disabled-popover="nextPageDisabled">
         <template #header-wrapper="{ position }"
@@ -313,7 +314,7 @@
                 Your Blackboard integration has been finalized, and is now ready to use!
             </p>
         </template>
-    </wizzard-wrapper>
+    </cg-wizard-wrapper>
 </div>
 </template>
 
@@ -327,11 +328,8 @@ import 'vue-awesome/icons/list';
 import { mapGetters } from 'vuex';
 import * as api from '@/api/v1';
 
-import WizzardWrapper from '@/components/WizzardWrapper';
-
 @Component({
     components: {
-        WizzardWrapper,
         Icon,
     },
     computed: {
@@ -345,7 +343,7 @@ export default class BlackboardSetup extends Vue {
 
     @Prop({ default: false }) adminSetup!: boolean;
 
-    wizzardPage: number = 1;
+    wizardPage: number = 1;
 
     readonly darkMode!: boolean;
 
@@ -416,10 +414,6 @@ export default class BlackboardSetup extends Vue {
             .join('\n');
     }
 
-    copyPublicKey() {
-        return this.$copyText(this.ltiProvider.public_key);
-    }
-
     copyCustomParameters() {
         return this.$copyText(this.customParameters);
     }
@@ -452,7 +446,7 @@ export default class BlackboardSetup extends Vue {
     }
 
     afterFinalizeProvider() {
-        this.wizzardPage = 4;
+        this.wizardPage = 4;
     }
 }
 </script>
@@ -491,13 +485,5 @@ pre {
         transform: scale(1);
         opacity: 1;
     }
-}
-</style>
-
-
-<style lang="less">
-.blackboard-setup .wizzard-step-wrapper {
-    margin: 0 auto;
-    max-width: 45rem;
 }
 </style>

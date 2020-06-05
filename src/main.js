@@ -55,6 +55,7 @@ import DescriptionPopover from './components/DescriptionPopover';
 import CgLogo from './components/CgLogo';
 import CatchError from './components/CatchError';
 import Toggle from './components/Toggle';
+import WizardWrapper from './components/WizardWrapper';
 /* eslint-enable import/first */
 
 Vue.component('cg-relative-time', RelativeTime);
@@ -65,6 +66,7 @@ Vue.component('cg-description-popover', DescriptionPopover);
 Vue.component('cg-logo', CgLogo);
 Vue.component('cg-catch-error', CatchError);
 Vue.component('cg-toggle', Toggle);
+Vue.component('cg-wizard-wrapper', WizardWrapper);
 
 Vue.use(BootstrapVue);
 Vue.use(Toasted);
@@ -242,9 +244,9 @@ Vue.util.defineReactive(
     '$LTIAssignmentId',
     LTIAssignmentId,
     val => {
-        // if (val == null) {
-        //     throw new TypeError('You cannot set $LTIAssignmentId to null or undefined');
-        // }
+        if (val == null) {
+            throw new TypeError('You cannot set $LTIAssignmentId to null or undefined');
+        }
         if (LTIAssignmentId == null || val === LTIAssignmentId) {
             LTIAssignmentId = val;
         } else {

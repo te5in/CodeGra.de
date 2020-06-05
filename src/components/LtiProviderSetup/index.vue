@@ -2,9 +2,7 @@
 <template>
 <div class="lti-provider-setup">
     <div v-if="ltiProvider.finalized">
-        <local-header>
-            <h4>Provider setup was already finished</h4>
-        </local-header>
+        <local-header show-logo title="Provider setup was already finished" />
 
         This LTI provider has already been setup. If this was <b>not</b> done by
         you please contact support as soon as possible!

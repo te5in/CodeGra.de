@@ -26,9 +26,7 @@
     </p>
 </b-alert>
 <div v-else-if="deepLinking">
-    <local-header title="Creating new CodeGrade assignment" >
-        <cg-logo :inverted="!darkMode" />
-    </local-header>
+    <local-header title="Creating new CodeGrade assignment" show-logo />
     <b-form-fieldset>
         <b-input-group>
             <b-input-group-prepend is-text>
@@ -69,9 +67,7 @@
     </form>
 </div>
 <div v-else>
-    <local-header title="Opening CodeGrade" >
-        <cg-logo :inverted="!darkMode" />
-    </local-header>
+    <local-header title="Opening CodeGrade" show-logo />
     <cg-loader />
 </div>
 </template>
@@ -119,7 +115,6 @@ export default {
     },
 
     computed: {
-        ...mapGetters('pref', ['darkMode']),
         ...mapGetters('courses', ['assignments']),
         ...mapGetters('user', { myUserId: 'id' }),
         ...mapGetters('submissions', ['getSubmissionsByUser']),

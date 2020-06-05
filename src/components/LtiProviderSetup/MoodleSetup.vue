@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="moodle-setup">
-    <wizzard-wrapper
-        v-model="wizzardPage"
+    <cg-wizard-wrapper
+        v-model="wizardPage"
         use-local-header
         :get-next-page-disabled-popover="nextPageDisabled">
         <template #header-wrapper="{ position }"
@@ -253,7 +253,7 @@
                 Your Moodle integration has been finalized, and is now ready to use!
             </p>
         </template>
-    </wizzard-wrapper>
+    </cg-wizard-wrapper>
 </div>
 </template>
 
@@ -267,11 +267,8 @@ import 'vue-awesome/icons/list';
 import { mapGetters } from 'vuex';
 import * as api from '@/api/v1';
 
-import WizzardWrapper from '@/components/WizzardWrapper';
-
 @Component({
     components: {
-        WizzardWrapper,
         Icon,
     },
     computed: {
@@ -283,7 +280,7 @@ export default class MoodleSetup extends Vue {
 
     @Prop({ required: true }) secret!: string | null;
 
-    wizzardPage: number = 1;
+    wizardPage: number = 1;
 
     readonly darkMode!: boolean;
 
@@ -378,7 +375,7 @@ export default class MoodleSetup extends Vue {
     }
 
     afterFinalizeProvider() {
-        this.wizzardPage = 4;
+        this.wizardPage = 4;
     }
 }
 </script>
@@ -417,13 +414,5 @@ pre {
         transform: scale(1);
         opacity: 1;
     }
-}
-</style>
-
-
-<style lang="less">
-.moodle-setup .wizzard-step-wrapper {
-    margin: 0 auto;
-    max-width: 45rem;
 }
 </style>

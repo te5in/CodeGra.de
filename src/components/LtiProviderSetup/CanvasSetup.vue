@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="canvas-setup">
-    <wizzard-wrapper
-        v-model="wizzardPage"
+    <cg-wizard-wrapper
+        v-model="wizardPage"
         use-local-header
         :get-next-page-disabled-popover="nextPageDisabled">
         <template #header-wrapper="{ position }"
@@ -38,7 +38,7 @@
             <pre><code>{{ jsonUrl }}</code></pre>
 
             <p>
-                Now please enter the following url in the "Redirect URIs" box:
+                Now please enter the following urls in the "Redirect URIs" box:
             </p>
 
             <pre><code>{{ redirectUrl }}</code></pre>
@@ -53,11 +53,12 @@
 
         <template #page-2="{ nextPage }">
             <p>
-                You should now have created the developer keys, and you should be
-                back on the overview page for all the Developer keys in
-                Canvas. Under the category "Details" there should be a relative long
-                number for the just created key, this is the "client id" for
-                CodeGrade. Please copy it, and paste it in the input below.
+                You should now have created the developer keys, and you should
+                be back on the overview page for all the Developer keys in
+                Canvas. Under the category "Details" there should be a
+                relatively long number for the just created key, this is the
+                "client id" for CodeGrade. Please copy it, and paste it in the
+                input below.
 
             </p>
 
@@ -80,11 +81,12 @@
 
         <template #page-3>
             <p>
-                For the final step we need to add CodeGrade as an external app to the canvas installation.
-                Select the "Settings" option in the sidebar, and select the
-                "Apps" tab, and click the button to add an app. A modal should
-                appear, and select "By Client ID" for the "Configuration
-                Type". For the "Client ID" insert <code>{{ ltiProvider.client_id }}</code>.
+                For the final step we need to add CodeGrade as an external app
+                to the canvas installation.  Select the "Settings" option in the
+                sidebar in Canvas, and select the "Apps" tab, and click the
+                button to add an app. A modal should appear, and select "By
+                Client ID" for the "Configuration Type". For the "Client ID"
+                insert <code>{{ ltiProvider.client_id }}</code>.
             </p>
 
             <p>
@@ -93,6 +95,12 @@
             </p>
 
             <advanced-collapse class="mb-3">
+                <p>
+                    These options are the same for all Canvas default production
+                    instances, however you can change them if you have a custom
+                    Canvas setup.
+                </p>
+
                 <b-form-group>
                     <b-input-group prepend="Key set url">
                         <input class="form-control"
@@ -109,7 +117,7 @@
                     </b-input-group>
                 </b-form-group>
 
-                <b-form-group>
+                <b-form-group class="mb-0">
                     <b-input-group prepend="Auth login url">
                         <input class="form-control"
                                v-model="authLoginUrl"
@@ -139,24 +147,21 @@
                 Your Canvas integration has been finalized, and is now ready to use!
             </p>
         </template>
-    </wizzard-wrapper>
+    </cg-wizard-wrapper>
 </div>
 </template>
 
 <script lang="ts">
-    import { Vue, Component, Prop } from 'vue-property-decorator';
+import { Vue, Component, Prop } from 'vue-property-decorator';
 
 import { mapGetters } from 'vuex';
 import * as api from '@/api/v1';
-
-import WizzardWrapper from '@/components/WizzardWrapper';
 
 // @ts-ignore
 import AdvancedCollapse from '@/components/AdvancedCollapse';
 
 @Component({
     components: {
-        WizzardWrapper,
         AdvancedCollapse,
     },
     computed: {
@@ -168,7 +173,7 @@ export default class CanvasSetup extends Vue {
 
     @Prop({ required: true }) secret!: string | null;
 
-    wizzardPage: number = 1;
+    wizardPage: number = 1;
 
     readonly darkMode!: boolean;
 
@@ -257,7 +262,7 @@ export default class CanvasSetup extends Vue {
     }
 
     afterFinalizeProvider() {
-        this.wizzardPage = 4;
+        this.wizardPage = 4;
     }
 }
 </script>
@@ -274,13 +279,5 @@ pre {
     display: block;
     margin-bottom: 1rem;
     color: @color-code;
-}
-</style>
-
-
-<style lang="less">
-.canvas-setup .wizzard-step-wrapper {
-    margin: 0 auto;
-    max-width: 45rem;
 }
 </style>

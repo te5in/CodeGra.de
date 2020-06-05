@@ -700,6 +700,7 @@ export function parseBool<T extends string | boolean>(value: T, dflt = true): bo
  * @returns: A boolean if the input is a http(s) url.
  */
 export const isValidHttpUrl: (input: string) => boolean = (() => {
+    const STARTS_WITH_HTTPS = /^https?/;
     const URL_PATTERN = new RegExp('^(https?:\\/\\/)' + // protocol
         '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
         '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
@@ -707,5 +708,20 @@ export const isValidHttpUrl: (input: string) => boolean = (() => {
         '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
         '(\\#[-a-z\\d_]*)?$', 'i');
 
-    return (input: string): boolean => !!URL_PATTERN.test(input);
+    return (input: string): boolean => {
+        if (URL_PATTERN.test(input)) {
+            // URL only is too lenient (`new URL('https://a')` is fine), but we
+            // use it as an extra check to make sure the regex above is never
+            // allowing things that `URL` doesn't think is a URL.
+            let url;
+            try {
+                url = new URL(input);
+            } catch (_) {
+                return false;
+            }
+
+            return !!STARTS_WITH_HTTPS.test(url.protocol);
+        }
+        return false;
+    };
 })();

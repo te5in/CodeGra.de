@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="wizzard-wrapper">
+<div class="wizard-wrapper">
     <component :is="useLocalHeader ? 'local-header' : 'div'"
                class="d-flex mb-2">
         <slot name="header-wrapper" position="prepend" />
@@ -30,9 +30,9 @@
         <slot name="header-wrapper" position="append" />
     </component>
 
-    <div class="wizzard-step-wrapper">
+    <div class="wizard-step-wrapper">
         <slot :name="`page-${curPage}`"
-              class="wizzard-step"
+              class="wizard-step"
               :next-page="gotoNextPage"
               :prev-page="gotoPrevPage"/>
     </div>
@@ -40,6 +40,17 @@
 </template>
 
 <script lang="ts">
+/* TODO: Make it possible to use this component non linearly
+ *
+ * The wizard is now purely linear. If we want to use it more in the future it
+ * will probably be nice to conditionally skip or include certain pages. But
+ * we can wait with that until the need actually arises. Might be nice if we
+ * could then also specify an identifier for a page other than its page
+ * number, e.g. `<template slot="page-0-generate-blackboard-keys">`, so that
+ * we can then do `goToPage('generate-blackboard-keys')`. Just an idea though
+ * that I thought was worth mentioning.
+ */
+
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator';
 
 // @ts-ignore
@@ -51,7 +62,7 @@ import 'vue-awesome/icons/arrow-left';
 import LocalHeader from './LocalHeader';
 
 @Component({ components: { Icon, LocalHeader } })
-export default class WizzardWrapper extends Vue {
+export default class WizardWrapper extends Vue {
     curPage: number = 1;
 
     @Prop({ default: false }) useLocalHeader!: boolean;
@@ -73,7 +84,7 @@ export default class WizzardWrapper extends Vue {
 
     get totalPages(): number {
         const res = Object.keys(this.$scopedSlots).reduce((acc, item) => {
-            if (item === 'title') {
+            if (item === 'title' || item === 'header-wrapper') {
                 return acc;
             } else if (!item.startsWith('page')) {
                 // eslint-disable-next-line
@@ -121,3 +132,10 @@ export default class WizzardWrapper extends Vue {
     }
 }
 </script>
+
+<style lang="less" scoped>
+.wizard-step-wrapper {
+    margin: 0 auto;
+    max-width: 45rem;
+}
+</style>

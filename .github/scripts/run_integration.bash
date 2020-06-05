@@ -41,6 +41,7 @@ wget https://github.com/CodeGra-de/jplag/releases/download/v2.14.2-SNAPSHOT/jpla
 export PYTHONPATH="$PYTHONPATH:${PWD}"
 PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -c "create database $DBNAME;" || exit 1
 PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres "$DBNAME" -c "create extension \"citext\";" || exit 1
+PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres "$DBNAME" -c "create extension \"uuid-ossp\";" || exit 1
 ./manage.py db upgrade
 ./manage.py test_data
 

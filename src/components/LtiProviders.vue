@@ -169,10 +169,10 @@ export default class LtiProviders extends Vue {
         switch (this.newLMSName) {
             case 'Brightspace':
             case 'Moodle':
+            case 'Canvas':
             case null:
                 return false;
             case 'Blackboard':
-            case 'Canvas':
                 return true;
             default:
                 return this.$utils.AssertionError.assertNever(this.newLMSName);
