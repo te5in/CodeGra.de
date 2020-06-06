@@ -72,7 +72,7 @@ lti_provider_handlers.set_possible_options(_ALL_LTI_PROVIDERS)
 T_LTI_PROV = t.TypeVar('T_LTI_PROV', bound='LTIProviderBase')  # pylint: disable=invalid-name
 
 
-class LTIProviderBase(Base):
+class LTIProviderBase(Base, TimestampMixin):
     """This class defines a connection between CodeGrade and an LMS.
 
     This class not implement the logic for the handling for the LTI messages,
@@ -275,6 +275,7 @@ class LTIProviderBase(Base):
             'id': str(self.id),
             'lms': self.lms_name,
             'version': self._lti_provider_version,
+            'created_at': self.created_at.isoformat(),
         }
 
 

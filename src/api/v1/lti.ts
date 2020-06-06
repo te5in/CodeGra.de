@@ -7,6 +7,7 @@ import { LTI1p3Capabilities } from '@/lti_providers';
 type BaseLTIProviderServerData = {
     id: string;
     lms: string;
+    created_at: string;
 };
 
 type LTI1p1ProviderServerData = BaseLTIProviderServerData & {

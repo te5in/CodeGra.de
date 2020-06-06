@@ -156,6 +156,7 @@ def create_lti1p3_provider(
             'custom_fields': dict,
             'public_jwk': dict,
             'public_key': str,
+            'created_at': str,
         },
     )
 
@@ -183,6 +184,7 @@ def create_lti1p3_provider(
             'capabilities': dict,
             'edit_secret': None,
             'finalized': True,
+            'created_at': str,
         },
     )
 

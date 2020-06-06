@@ -484,8 +484,9 @@ def list_lti1p3_provider(
     :returns: A list of all known LTI 1.3 providers.
     """
     providers = [
-        prov for prov in models.LTI1p3Provider.query
-        if auth.LTI1p3ProviderPermissions(prov).ensure_may_see.as_bool()
+        prov for prov in models.LTI1p3Provider.query.order_by(
+            models.LTI1p3Provider.created_at.asc(),
+        ) if auth.LTI1p3ProviderPermissions(prov).ensure_may_see.as_bool()
     ]
     return jsonify(providers)
 
