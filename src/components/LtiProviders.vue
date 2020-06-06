@@ -36,7 +36,7 @@
                         <span v-if="ltiProvider.intended_use">{{ ltiProvider.intended_use }}</span>
                         <span v-else class="text-muted">Unknown</span>
                     </td>
-                    <td>{{ ltiProvider.lms }}</td>
+                    <td>{{ ltiProvider.lms }} (<code>{{ ltiProvider.iss }}</code>)</td>
                     <td>{{ ltiProvider.finalized ? 'Yes' : 'No' }}</td>
                     <td class="shrink">
                         <template v-if="!ltiProvider.finalized">

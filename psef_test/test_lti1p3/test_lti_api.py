@@ -170,6 +170,15 @@ def test_update_lti_provider(
                   ), logged_in(admin_user):
         test_client.req('patch', url, 400, data={'finalize': True})
 
+    with describe('Can also update the iss'), logged_in(admin_user):
+        test_client.req(
+            'patch',
+            url,
+            200,
+            data={'iss': 'NEW ISS!!'},
+            result={'__allow_extra__': True, 'iss': 'NEW ISS!!'},
+        )
+
     with describe('cannot edit after it is finalized'), logged_in(admin_user):
         prov = test_client.req(
             'patch',

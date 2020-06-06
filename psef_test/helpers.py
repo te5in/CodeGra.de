@@ -128,15 +128,35 @@ def create_lti1p3_provider(
     key_set_url=None,
     auth_audience=None
 ):
+    intended_use = 'A test provider'
+    iss = iss or str(uuid.uuid4())
     prov = test_client.req(
         'post',
         '/api/v1/lti1.3/providers/',
         200,
         data={
             'lms': lms,
-            'iss': iss or str(uuid.uuid4()),
-            'intended_use': 'A test provider',
-        }
+            'iss': iss,
+            'intended_use': intended_use,
+        },
+        result={
+            'id': str,
+            'lms': lms,
+            'intended_use': intended_use,
+            'version': 'lti1.3',
+            'iss': iss,
+            'capabilities': dict,
+            'edit_secret': str,
+            'finalized': False,
+            'auth_login_url': None,
+            'auth_token_url': None,
+            'client_id': None,
+            'key_set_url': None,
+            'auth_audience': None,
+            'custom_fields': dict,
+            'public_jwk': dict,
+            'public_key': str,
+        },
     )
 
     def make_data(**data):
@@ -153,7 +173,17 @@ def create_lti1p3_provider(
             auth_audience=auth_audience,
             key_set_url=key_set_url,
             finalize=True,
-        )
+        ),
+        result={
+            'id': str,
+            'lms': lms,
+            'intended_use': intended_use,
+            'version': 'lti1.3',
+            'iss': iss,
+            'capabilities': dict,
+            'edit_secret': None,
+            'finalized': True,
+        },
     )
 
 

@@ -16,12 +16,12 @@ type LTI1p1ProviderServerData = BaseLTIProviderServerData & {
 type BaseLTI1p3ProviderServerData = BaseLTIProviderServerData & {
     intended_use: string;
     capabilities: LTI1p3Capabilities;
+    iss: string | null;
     version: 'lti1.3';
 };
 
 export type NonFinalizedLTI1p3ProviderServerData = BaseLTI1p3ProviderServerData & {
     finalized: false;
-    iss: string | null;
     auth_login_url: string | null;
     auth_token_url: string | null;
     client_id: string | null;
@@ -31,6 +31,7 @@ export type NonFinalizedLTI1p3ProviderServerData = BaseLTI1p3ProviderServerData 
     edit_key: string | null;
     edit_secret: string | null;
     public_key: string;
+    auth_audience: string | null;
 };
 
 type FinalizedLTI1p3ProviderServerData = BaseLTI1p3ProviderServerData & {
@@ -71,6 +72,8 @@ export function updateLti1p3Provider(
         auth_login_url?: string;
         key_set_url?: string;
         finalize?: boolean;
+        auth_audience?: string;
+        iss?: string;
         /* eslint-enable camelcase */
     },
 ): Promise<AxiosResponse<LTI1p3ProviderServerData>> {

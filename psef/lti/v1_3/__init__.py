@@ -702,6 +702,13 @@ class LTIConfig(ToolConfAbstract[FlaskRequest]):
             filters = [models.LTI1p3Provider.iss == iss]
             if isinstance(client_id, str):
                 filters.append(models.LTI1p3Provider.client_id == client_id)
+            else:  # pragma: no cover
+                logger.warning(
+                    'Have to search for an LTI tool without client_id',
+                    tool_iss=iss,
+                    tool_client_id=client_id,
+                    report_to_sentry=True,
+                )
 
             self._lti_provider = helpers.filter_single_or_404(
                 models.LTI1p3Provider, *filters

@@ -4,8 +4,10 @@
     <div v-if="ltiProvider.finalized">
         <local-header show-logo title="Provider setup was already finished" />
 
-        This LTI provider has already been setup. If this was <b>not</b> done by
-        you please contact support as soon as possible!
+        <p>
+            This LTI provider has already been setup. If this was <b>not</b>
+            done by you please contact support as soon as possible!
+        </p>
     </div>
     <component :is="wantedComponent"
                @update-provider="$emit('update-provider', $event)"
@@ -23,6 +25,7 @@ import * as api from '@/api/v1';
 import CanvasSetup from './CanvasSetup';
 import MoodleSetup from './MoodleSetup';
 import BlackboardSetup from './BlackboardSetup';
+import BrightspaceSetup from './BrightspaceSetup';
 // @ts-ignore
 import LocalHeader from '../LocalHeader';
 
@@ -40,6 +43,8 @@ export default class LtiProviderSetup extends Vue {
                 return MoodleSetup;
             case 'Blackboard':
                 return BlackboardSetup;
+            case 'Brightspace':
+                return BrightspaceSetup;
             default:
                 return this.$utils.AssertionError.assert(false, `Unknown lms: ${this.ltiProvider.lms}`);
         }

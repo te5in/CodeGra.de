@@ -590,6 +590,7 @@ def update_lti1p3_provider(lti_provider_id: str
     ).ensure_may_edit()
 
     with helpers.get_from_request_transaction() as [_, opt_get]:
+        iss = opt_get('iss', str, None)
         client_id = opt_get('client_id', str, None)
         auth_token_url = opt_get('auth_token_url', str, None)
         auth_login_url = opt_get('auth_login_url', str, None)
@@ -598,6 +599,7 @@ def update_lti1p3_provider(lti_provider_id: str
         finalize = opt_get('finalize', bool, None)
 
     lti_provider.update_registration(
+        iss=iss,
         client_id=client_id,
         auth_token_url=auth_token_url,
         auth_login_url=auth_login_url,

@@ -679,6 +679,7 @@ class LTI1p3Provider(LTIProviderBase):
 
     def update_registration(
         self,
+        iss: t.Optional[str],
         auth_login_url: t.Optional[str],
         auth_token_url: t.Optional[str],
         client_id: t.Optional[str],
@@ -704,6 +705,8 @@ class LTI1p3Provider(LTIProviderBase):
         """
         assert not self._finalized
 
+        if iss is not None:
+            self.key = iss
         if client_id is not None:
             self.client_id = client_id
         if auth_login_url is not None:
@@ -1233,6 +1236,7 @@ class LTI1p3Provider(LTIProviderBase):
             'intended_use': self._intended_use,
             'capabilities': self.lms_capabilities,
             'edit_secret': None,
+            'iss': self.iss,
         }
 
         if not self._finalized:
@@ -1240,11 +1244,11 @@ class LTI1p3Provider(LTIProviderBase):
                 res['edit_secret'] = self.edit_secret
             res = {
                 **res,
-                'iss': self.iss,
                 'auth_login_url': self._auth_login_url,
                 'auth_token_url': self._auth_token_url,
                 'client_id': self.client_id,
                 'key_set_url': self._key_set_url,
+                'auth_audience': self._auth_audience,
                 'custom_fields': self._custom_fields,
                 'public_jwk': self.get_public_jwk(),
                 'public_key': self.get_public_key(),
