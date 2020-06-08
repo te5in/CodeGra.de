@@ -156,7 +156,11 @@ export default {
         sortedResults() {
             return this.results.slice().sort((a, b) => {
                 if (a.finished) {
-                    return b.finished ? (b.startedAt || '').localeCompare(a.startedAt || '') : 1;
+                    if (!b.finished) {
+                        return 1;
+                    } else {
+                        return (b.startedAt || '').localeCompare(a.startedAt || '');
+                    }
                 } else {
                     if (b.finished) {
                         return -1;
