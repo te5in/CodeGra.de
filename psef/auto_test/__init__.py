@@ -1154,8 +1154,7 @@ class StartedContainer:
 
         >>> import getpass
         >>> cur_user = getpass.getuser()
-        >>> cont = StartedContainer(None, '', {})
-        >>> env = cont._create_env(cur_user)
+        >>> env = StartedContainer(None, '', {})._create_env(cur_user)
         >>> env['USER'] == cur_user
         True
         >>> isinstance(env['USER'], str)
@@ -1166,9 +1165,6 @@ class StartedContainer:
         True
         >>> isinstance(env['STUDENT'], str)
         True
-        >>> with cont.extra_env({ 'PATH': '' }):
-        ...     cont._create_env(cur_user)['PATH'] == ''
-        False
         """
         env = os.environ
 
@@ -1208,29 +1204,6 @@ class StartedContainer:
 
         :param extra_env: The extra environment variables to set. This is a
             mapping from variable name to value.
-
-        >>> import getpass
-        >>> cur_user = getpass.getuser()
-        >>> cont = StartedContainer(None, '', {})
-        >>> with cont.extra_env({ 'a': 'a' }):
-        ...     cont._create_env(cur_user).get('a')
-        'a'
-        >>> with cont.extra_env({ 'a': 'a' }):
-        ...     with cont.extra_env({ 'b': 'b' }):
-        ...         cont._create_env(cur_user).get('a')
-        ...         cont._create_env(cur_user).get('b')
-        ...     cont._create_env(cur_user).get('a')
-        ...     cont._create_env(cur_user).get('b')
-        'a'
-        'b'
-        'a'
-        >>> with cont.extra_env({ 'a': 'a' }):
-        ...     with cont.extra_env({ 'a': 'b' }):
-        ...         cont._create_env(cur_user).get('a')
-        ...     cont._create_env(cur_user).get('a')
-        'b'
-        'a'
-        >>> cont._create_env(cur_user).get('a')
         """
         old_extra_env = self._extra_env
         new_extra_env = old_extra_env.copy()

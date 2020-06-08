@@ -2725,3 +2725,43 @@ def test_submission_info_env_vars(
                 assert output == expected
             else:
                 assert output == {}
+
+with test_broker_extra_env_vars(describe):
+    cur_user = getpass.getuser()
+    cont = psef.auto_test.StartedContainer(None, '', {})
+
+    # Ensure initial conditions are as expected.
+    with describe('env vars "a" and "b" should not exist by default'):
+        env = cont._create_env(cur_user)
+        assert env.get('a') == None
+        assert env.get('b') == None
+
+    with describe('should include variables in the extra env'):
+        with cont.extra_env({ 'a': 'a' }):
+            env = cont._create_env(cur_user)
+            assert env.get('a') == 'a'
+
+    with describe('should support nesting'):
+        with cont.extra_env({ 'a': 'a' }):
+            with cont.extra_env({ 'b': 'b' }):
+                env = cont._create_env(cur_user)
+                assert env.get('a') == 'a'
+                assert env.get('b') == 'b'
+
+            env = cont._create_env(cur_user)
+            assert env.get('a') ==  'a'
+            assert env.get('b') ==  None
+
+    with describe('inner envs should override outer envs'):
+        with cont.extra_env({ 'a': 'a' }):
+            with cont.extra_env({ 'a': 'b' }):
+                env = cont._create_env(cur_user)
+                assert env.get('a') == 'b'
+
+            env = cont._create_env(cur_user)
+            assert env.get('a') == 'a'
+
+    with describe('should not override standard env vars'):
+        with cont.extra_env({ 'PATH': '' }):
+            env = cont._create_env(cur_user)
+            assert env['PATH'] != ''
