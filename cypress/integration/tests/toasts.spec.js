@@ -1,4 +1,4 @@
-context('No network connection', () => {
+context('General messages', () => {
     // It is not possible to stub a "no response" in Cypress, so we can't
     // really test this.
     it.skip('Should show a toast if the server does not respond within a few seconds', () => {
@@ -36,6 +36,43 @@ context('No network connection', () => {
             response: '',
             status: 500,
         });
+
+        // A request must be sent to the server, so just reload the courses.
+        cy.get('.sidebar').within(() => {
+            cy.get('.sidebar-entry-courses').click();
+            cy.get('.submenu:last .refresh-button').click();
+        });
+
+        cy.wait(10000);
+        cy.get('.toast')
+            .should('contain', 'Unknown error')
+            .should('be.visible');
+    });
+
+    it('should show the same toast for a second time, after it has been closed', () => {
+        cy.visit('/');
+        cy.login('admin', 'admin');
+
+        cy.server();
+        cy.route({
+            method: 'GET',
+            url: '/api/v1/**',
+            response: '',
+            status: 500,
+        });
+
+        // A request must be sent to the server, so just reload the courses.
+        cy.get('.sidebar').within(() => {
+            cy.get('.sidebar-entry-courses').click();
+            cy.get('.submenu:last .refresh-button').click();
+        });
+
+        cy.wait(10000);
+        cy.get('.toast')
+            .should('contain', 'Unknown error')
+            .should('be.visible')
+            .find('.close')
+            .click();
 
         // A request must be sent to the server, so just reload the courses.
         cy.get('.sidebar').within(() => {

@@ -412,7 +412,7 @@ Promise.all([
             },
 
             deleteError(err) {
-                this.caughtErrors = this.caughtErrors.filter(other => other.tag === err.tag);
+                this.caughtErrors = this.caughtErrors.filter(other => other.tag !== err.tag);
             },
         },
 
