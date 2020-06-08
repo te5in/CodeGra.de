@@ -1253,7 +1253,7 @@ def get_user_submissions(
             models.Work.assignment_id.in_([a.id for a in assignments]),
             # Use _deleted because we already know the assignment exists.
             ~models.Work._deleted,  # pylint: disable=protected-access
-        )
+        ).order_by(models.Work.created_at.asc())
         subs = {assig.id: [] for assig in assignments}
         for sub in get_subs(query):
             subs[sub.assignment_id].append(sub)

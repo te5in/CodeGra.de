@@ -319,6 +319,7 @@ def test_get_latest_submissions_of_user(
             f'/api/v1/assignments/{deleted_assig_id}',
             204,
         )
+        base_url = f'/api/v1/courses/{course_id}'
 
     with describe('nonexisting course'), logged_in(teacher):
         test_client.req(
@@ -339,21 +340,21 @@ def test_get_latest_submissions_of_user(
     with describe('user not in course'), logged_in(teacher):
         test_client.req(
             'get',
-            f'/api/v1/courses/{course_id}/users/{student_user.id}/submissions/',
+            f'{base_url}/users/{student_user.id}/submissions/',
             400,
             result=error_template,
         )
 
     with describe('teacher should get all submissions'), logged_in(teacher):
-        res = test_client.req(
+        test_client.req(
             'get',
-            f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
+            f'{base_url}/users/{student.id}/submissions/',
             200,
             result=all_subs,
         )
         test_client.req(
             'get',
-            f'/api/v1/courses/{course_id}/users/{other_student.id}/submissions/',
+            f'{base_url}/users/{other_student.id}/submissions/',
             200,
             result=no_subs,
         )
@@ -362,7 +363,7 @@ def test_get_latest_submissions_of_user(
                   ), logged_in(student):
         test_client.req(
             'get',
-            f'/api/v1/courses/{course_id}/users/{other_student.id}/submissions/',
+            f'{base_url}/users/{other_student.id}/submissions/',
             403,
             result=error_template,
         )
@@ -371,7 +372,7 @@ def test_get_latest_submissions_of_user(
                   ), logged_in(student):
         res = test_client.req(
             'get',
-            f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
+            f'{base_url}/users/{student.id}/submissions/',
             200,
             result=all_visible_subs,
         )
@@ -380,7 +381,7 @@ def test_get_latest_submissions_of_user(
                   ), logged_in(student):
         test_client.req(
             'get',
-            f'/api/v1/courses/{course_id}/users/{other_student.id}/submissions/',
+            f'{base_url}/users/{other_student.id}/submissions/',
             403,
             result=error_template,
         )
@@ -389,7 +390,7 @@ def test_get_latest_submissions_of_user(
         with logged_in(teacher):
             res = test_client.req(
                 'get',
-                f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
+                f'{base_url}/users/{student.id}/submissions/',
                 200,
                 result=all_subs,
             )
@@ -397,7 +398,7 @@ def test_get_latest_submissions_of_user(
         with logged_in(student):
             res = test_client.req(
                 'get',
-                f'/api/v1/courses/{course_id}/users/{student.id}/submissions/',
+                f'{base_url}/users/{student.id}/submissions/',
                 200,
                 result=all_visible_subs,
             )
@@ -406,21 +407,23 @@ def test_get_latest_submissions_of_user(
         with logged_in(teacher):
             res = test_client.req(
                 'get',
-                f'/api/v1/courses/{course_id}/users/{student.id}/submissions/?latest_only',
+                f'{base_url}/users/{student.id}/submissions/?latest_only',
                 200,
                 result=latest_subs,
             )
             res = test_client.req(
-                'get',
-                f'/api/v1/courses/{course_id}/users/{other_student.id}/submissions/?latest_only',
+                'get', (
+                    f'{base_url}/users/{other_student.id}/submissions'
+                    '/?latest_only'
+                ),
                 200,
-                result=no_subs,
+                result=no_subs
             )
 
         with logged_in(student):
             res = test_client.req(
                 'get',
-                f'/api/v1/courses/{course_id}/users/{student.id}/submissions/?latest_only',
+                f'{base_url}/users/{student.id}/submissions/?latest_only',
                 200,
                 result=latest_visible_subs,
             )
