@@ -220,7 +220,7 @@ Promise.all([
     const app = new Vue({
         el: '#app',
         router,
-        template: '<App @error-hidden="deleteError"/>',
+        template: '<App/>',
         components: { App },
         store: store.store,
 
@@ -380,39 +380,32 @@ Promise.all([
             },
 
             notLoggedInError(message) {
-                this.addError({
+                this.$emit('cg::app::toast', {
                     tag: 'NotLoggedIn',
                     title: 'Not logged in',
                     message,
+                    variant: 'danger',
                 });
             },
 
             backendError() {
-                this.addError({
+                this.$emit('cg::app::toast', {
                     tag: 'BackendError',
                     title: 'Unknown error',
                     message:
                         'An unexpected error occurred. Please try again in a moment or contact support if this persists.',
+                    variant: 'danger',
                 });
             },
 
             connectionError() {
-                this.addError({
+                this.$emit('cg::app::toast', {
                     tag: 'ConnectionError',
                     title: 'Connection error',
                     message:
                         'There was an error connecting to the server... Please try again later.',
+                    variant: 'danger',
                 });
-            },
-
-            addError(err) {
-                if (!this.caughtErrors.find(other => other.tag === err.tag)) {
-                    this.caughtErrors.push(err);
-                }
-            },
-
-            deleteError(err) {
-                this.caughtErrors = this.caughtErrors.filter(other => other.tag !== err.tag);
             },
         },
 

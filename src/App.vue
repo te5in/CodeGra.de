@@ -20,16 +20,16 @@
     </template>
     <div v-if="showFrameBorder" class="frame-border border"/>
 
-    <b-toast v-for="error in $root.caughtErrors"
-             :key="error.tag"
+    <b-toast v-for="toast in toasts"
+             :key="toast.tag"
              toaster="b-toaster-top-right"
-             variant="danger"
-             :title="error.title"
+             :variant="toast.variant"
+             :title="toast.title"
              visible
              no-auto-hide
              solid
-             @hide="$emit('error-hidden', error)">
-        {{ error.message }}
+             @hide="deleteToast(toast)">
+        {{ toast.message }}
     </b-toast>
 </div>
 </template>
@@ -77,6 +77,7 @@ export default {
         return {
             loading: true,
             showContent: false,
+            toasts: [],
         };
     },
 
@@ -107,6 +108,16 @@ export default {
     methods: {
         ...mapActions('user', ['verifyLogin']),
         ...mapActions('courses', ['loadCourses']),
+
+        addToast(toast) {
+            if (!this.toasts.find(other => other.tag === toast.tag)) {
+                this.toasts.push(toast);
+            }
+        },
+
+        deleteToast(toast) {
+            this.toasts = this.toasts.filter(other => other.tag !== toast.tag);
+        },
     },
 
     created() {
@@ -140,6 +151,8 @@ export default {
     },
 
     mounted() {
+        this.$root.$on('cg::app::toast', this.addToast);
+
         this.verifyLogin()
             .then(() => (this.loggedIn ? this.loadCourses() : Promise.resolve()))
             .then(
@@ -166,6 +179,10 @@ export default {
                 }
                 this.showContent = true;
             });
+    },
+
+    destroyed() {
+        this.$root.$off('cg::app::toast', this.addToast);
     },
 
     components: {
