@@ -46,7 +46,7 @@ export default class LtiProviderSetup extends Vue {
             case 'Brightspace':
                 return BrightspaceSetup;
             default:
-                return this.$utils.AssertionError.assert(false, `Unknown lms: ${this.ltiProvider.lms}`);
+                return this.$utils.AssertionError.assertNever(this.ltiProvider.lms, `Unknown lms: ${this.ltiProvider.lms}`);
         }
     }
 }

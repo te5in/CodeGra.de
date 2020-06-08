@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import axios, { AxiosResponse } from 'axios';
 import { buildUrl } from '@/utils';
-import { LTI1p3Capabilities } from '@/lti_providers';
+import { LTI1p3Capabilities, LTI1p3ProviderName } from '@/lti_providers';
 
 /* eslint-disable camelcase */
 type BaseLTIProviderServerData = {
@@ -18,6 +18,7 @@ type BaseLTI1p3ProviderServerData = BaseLTIProviderServerData & {
     intended_use: string;
     capabilities: LTI1p3Capabilities;
     iss: string | null;
+    lms: LTI1p3ProviderName;
     version: 'lti1.3';
 };
 
