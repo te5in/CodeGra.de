@@ -54,7 +54,7 @@
                 </b-popover>
             </b-button>
 
-            <b-button v-if="canEmailStudents"
+            <b-button v-if="!submission.user.is_test_student && canEmailStudents"
                       id="codeviewer-email-student"
                       v-b-popover.top.hover="`Email the author${submission.user.isGroup ? 's' : ''} of this submission`"
                       v-b-modal.codeviewer-email-student-modal>

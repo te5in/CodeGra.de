@@ -664,7 +664,10 @@ export default {
 
     watch: {
         result() {
-            if (this.singleResult && this.result == null) {
+            if (!this.singleResult) {
+                return;
+            }
+            if (this.result == null || !this.result.hasExtended) {
                 this.loadSingleResult();
             }
         },
