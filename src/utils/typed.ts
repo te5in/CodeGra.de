@@ -195,6 +195,7 @@ export function buildUrl(
         prefix = `${args.protocol.toString()}//${args.host.toString()}`;
     } else if (args.baseUrl != null) {
         AssertionError.typeAssert<undefined>(args.protocol);
+        AssertionError.typeAssert<undefined>(args.host);
         prefix = args.baseUrl;
         if (args.baseUrl.endsWith('/')) {
             prefix += '/';
