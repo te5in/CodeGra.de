@@ -312,6 +312,7 @@
 <span class="sd">    :ivar can_manage_site_users: Users with this permission can change the global permissions for other users on the site.</span>
 <span class="sd">    :ivar can_search_users: Users with this permission can search for users on the side, this means they can see all other users on the site.</span>
 <span class="sd">    :ivar can_impersonate_users: Users with this permission can impersonate users, i.e. they can login as other users.</span>
+<span class="sd">    :ivar can_manage_lti_providers: Users with this permission can edit and list existing, and create new LTI providers.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="nd">@staticmethod</span>
@@ -325,7 +326,8 @@
     <span class="n">can_create_courses</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">can_manage_site_users</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">can_search_users</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">can_impersonate_users</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+    <span class="n">can_impersonate_users</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">can_manage_lti_providers</span> <span class="o">=</span> <span class="n">_PermissionValue</span><span class="p">(</span><span class="n">item</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="CoursePermission"><a class="viewcode-back" href="../../psef_api/psef.html#psef.permissions.CoursePermission">[docs]</a><span class="nd">@enum</span><span class="o">.</span><span class="n">unique</span>

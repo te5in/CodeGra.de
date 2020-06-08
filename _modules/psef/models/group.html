@@ -212,6 +212,7 @@
 <span class="kn">from</span> <span class="nn">sqlalchemy.sql.expression</span> <span class="kn">import</span> <span class="n">func</span> <span class="k">as</span> <span class="n">sql_func</span>
 
 <span class="kn">import</span> <span class="nn">psef</span>
+<span class="kn">import</span> <span class="nn">cg_cache.intra_request</span>
 <span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
 <span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">MyQueryTuple</span><span class="p">,</span> <span class="n">hybrid_property</span>
 
@@ -219,7 +220,6 @@
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">user</span> <span class="k">as</span> <span class="n">user_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">work</span> <span class="k">as</span> <span class="n">work_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">_MyQuery</span>
-<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">cache</span>
 <span class="kn">from</span> <span class="nn">..helpers</span> <span class="kn">import</span> <span class="n">NotEqualMixin</span>
 <span class="kn">from</span> <span class="nn">..exceptions</span> <span class="kn">import</span> <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIException</span>
 <span class="kn">from</span> <span class="nn">.link_tables</span> <span class="kn">import</span> <span class="n">users_groups</span>
@@ -250,8 +250,6 @@
 <span class="sd">        is used to submissions as the group.</span>
 <span class="sd">    :ivar group_set: The :class:`.GroupSet` this group is connected to.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">_MyQuery</span><span class="p">[</span><span class="s1">&#39;Group&#39;</span><span class="p">]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;Group&#39;</span>
 
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -320,7 +318,7 @@
     <span class="k">def</span> <span class="fm">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
         <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Group.has_as_member"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.group.Group.has_as_member">[docs]</a>    <span class="nd">@cache</span><span class="o">.</span><span class="n">cache_within_request</span>
+<div class="viewcode-block" id="Group.has_as_member"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.group.Group.has_as_member">[docs]</a>    <span class="nd">@cg_cache</span><span class="o">.</span><span class="n">intra_request</span><span class="o">.</span><span class="n">cache_within_request</span>
     <span class="k">def</span> <span class="nf">has_as_member</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Check if the given user is member of this group.</span>
 
@@ -526,8 +524,6 @@
 <span class="sd">        can be used to submit a submission.</span>
 <span class="sd">    :ivar maximum_size: The maximum amount of members a group can ever have.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">_MyQuery</span><span class="p">[</span><span class="s1">&#39;GroupSet&#39;</span><span class="p">]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;GroupSet&#39;</span>
 
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>

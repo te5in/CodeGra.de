@@ -223,7 +223,7 @@
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">MyQuery</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">db</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">work</span> <span class="k">as</span> <span class="n">work_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">auto_test_step</span> <span class="k">as</span> <span class="n">auto_test_step_models</span>
-<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span><span class="p">,</span> <span class="n">signals</span>
 <span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auto_test</span> <span class="k">as</span> <span class="n">auto_test_module</span>
 <span class="kn">from</span> <span class="nn">..helpers</span> <span class="kn">import</span> <span class="n">NotEqualMixin</span>
 <span class="kn">from</span> <span class="nn">..registry</span> <span class="kn">import</span> <span class="n">auto_test_handlers</span><span class="p">,</span> <span class="n">auto_test_grade_calculators</span>
@@ -241,8 +241,6 @@
 <div class="viewcode-block" id="AutoTestSuite"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test.AutoTestSuite">[docs]</a><span class="k">class</span> <span class="nc">AutoTestSuite</span><span class="p">(</span><span class="n">Base</span><span class="p">,</span> <span class="n">TimestampMixin</span><span class="p">,</span> <span class="n">IdMixin</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;This class represents a Suite (also known as category) in an AutoTest.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AutoTestSuite&#39;</span><span class="p">]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AutoTestSuite&#39;</span>
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
@@ -377,8 +375,6 @@
 <div class="viewcode-block" id="AutoTestSet"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test.AutoTestSet">[docs]</a><span class="k">class</span> <span class="nc">AutoTestSet</span><span class="p">(</span><span class="n">Base</span><span class="p">,</span> <span class="n">TimestampMixin</span><span class="p">,</span> <span class="n">IdMixin</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;This class represents a set (also known as level) of an AutoTest.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AutoTestSet&#39;</span><span class="p">]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AutoTestSet&#39;</span>
 
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -436,9 +432,6 @@
 <span class="sd">    :class:`.AutoTestRun`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AutoTestResult&#39;</span>
-
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AutoTestResult&#39;</span><span class="p">]]</span>
 
     <span class="n">auto_test_run_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;auto_test_run_id&#39;</span><span class="p">,</span>
@@ -760,8 +753,6 @@
 <span class="sd">    A single run might have multiple runners, as a runner might crash and in</span>
 <span class="sd">    this case it is replaced by a new runner.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AutoTestRunner&#39;</span><span class="p">]]</span>
 
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AutoTestRunner&#39;</span>
 
@@ -848,9 +839,6 @@
 <span class="sd">    At the moment each AutoTest will always only have one AutoTestRun.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AutoTestRun&#39;</span>
-
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AutoTestRun&#39;</span><span class="p">]]</span>
 
     <span class="n">auto_test_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;auto_test_id&#39;</span><span class="p">,</span>
@@ -1386,8 +1374,6 @@
 <span class="sd">        can be used to submit a submission.</span>
 <span class="sd">    :ivar maximum_size: The maximum amount of members a group can ever have.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AutoTest&#39;</span><span class="p">]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AutoTest&#39;</span>
 
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -1578,7 +1564,9 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="o">.</span><span class="n">from_iterable</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">suites</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sets</span><span class="p">)</span>
 
-<div class="viewcode-block" id="AutoTest.add_to_run"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test.AutoTest.add_to_run">[docs]</a>    <span class="k">def</span> <span class="nf">add_to_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">:</span> <span class="s1">&#39;work_models.Work&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<div class="viewcode-block" id="AutoTest.add_to_run"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test.AutoTest.add_to_run">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="nd">@signals</span><span class="o">.</span><span class="n">WORK_CREATED</span><span class="o">.</span><span class="n">connect_immediate</span>
+    <span class="k">def</span> <span class="nf">add_to_run</span><span class="p">(</span><span class="n">work</span><span class="p">:</span> <span class="s1">&#39;work_models.Work&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Add the given work to the continuous feedback run.</span>
 
 <span class="sd">        This function only does something if there is an continuous feedback</span>
@@ -1593,9 +1581,11 @@
 <span class="sd">            This function changes the session if it returns ``True``, so a</span>
 <span class="sd">            commit is necessary in that case.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">run</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span>
-        <span class="k">if</span> <span class="n">run</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">auto_test</span>
+        <span class="k">if</span> <span class="bp">self</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">run</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span>
 
         <span class="n">run_id</span> <span class="o">=</span> <span class="n">run</span><span class="o">.</span><span class="n">id</span>
         <span class="n">AutoTestResult</span><span class="o">.</span><span class="n">get_results_by_user</span><span class="p">(</span><span class="n">work</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
@@ -1622,6 +1612,24 @@
         <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">True</span></div>
 
+    <span class="nd">@staticmethod</span>
+    <span class="nd">@signals</span><span class="o">.</span><span class="n">WORK_DELETED</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+        <span class="s1">&#39;immediate&#39;</span><span class="p">,</span>
+        <span class="n">pre_check</span><span class="o">=</span><span class="k">lambda</span> <span class="n">wd</span><span class="p">:</span> <span class="n">wd</span><span class="o">.</span><span class="n">was_latest</span><span class="p">,</span>
+        <span class="n">converter</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">def</span> <span class="nf">_on_work_deletion</span><span class="p">(</span><span class="n">work_deletion</span><span class="p">:</span> <span class="n">signals</span><span class="o">.</span><span class="n">WorkDeletedData</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="n">work_deletion</span><span class="o">.</span><span class="n">deleted_work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">auto_test</span>
+        <span class="k">if</span> <span class="bp">self</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">work_deletion</span><span class="o">.</span><span class="n">new_latest</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reset_work</span><span class="p">(</span><span class="n">work_deletion</span><span class="o">.</span><span class="n">new_latest</span><span class="p">)</span>
+
+        <span class="n">callback_after_this_request</span><span class="p">(</span>
+            <span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">update_latest_results_in_broker</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="p">)</span>
+
 <div class="viewcode-block" id="AutoTest.reset_work"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test.AutoTest.reset_work">[docs]</a>    <span class="k">def</span> <span class="nf">reset_work</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">:</span> <span class="s1">&#39;work_models.Work&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Reset the result beloning to the given work.</span>
 
@@ -1630,10 +1638,9 @@
 <span class="sd">        :param work: The work for which we should reset the work.</span>
 <span class="sd">        :returns: Nothing.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span>
-
         <span class="n">run</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span>
+        <span class="k">assert</span> <span class="n">run</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;Cannot reset work on AutoTest without run&#39;</span>
+
         <span class="n">run_id</span> <span class="o">=</span> <span class="n">run</span><span class="o">.</span><span class="n">id</span>
         <span class="n">result</span> <span class="o">=</span> <span class="n">AutoTestResult</span><span class="o">.</span><span class="n">get_results_by_user</span><span class="p">(</span><span class="n">work</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span>
             <span class="n">auto_test_run_id</span><span class="o">=</span><span class="n">run_id</span><span class="p">,</span> <span class="n">work_id</span><span class="o">=</span><span class="n">work</span><span class="o">.</span><span class="n">id</span>

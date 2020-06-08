@@ -217,6 +217,7 @@
 <span class="kn">import</span> <span class="nn">sqlalchemy</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.orm</span> <span class="kn">import</span> <span class="n">validates</span>
 <span class="kn">from</span> <span class="nn">mypy_extensions</span> <span class="kn">import</span> <span class="n">DefaultArg</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy.types</span> <span class="kn">import</span> <span class="n">JSON</span>
 <span class="kn">from</span> <span class="nn">typing_extensions</span> <span class="kn">import</span> <span class="n">TypedDict</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.sql.expression</span> <span class="kn">import</span> <span class="n">and_</span><span class="p">,</span> <span class="n">func</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.orm.collections</span> <span class="kn">import</span> <span class="n">attribute_mapped_collection</span>
@@ -224,10 +225,11 @@
 <span class="kn">import</span> <span class="nn">psef</span>
 <span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
 <span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">_T_BASE</span><span class="p">,</span> <span class="n">MyQuery</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">ColumnProxy</span><span class="p">,</span> <span class="n">MyNonOrderableQuery</span>
+    <span class="n">_T_BASE</span><span class="p">,</span> <span class="n">MyQuery</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">ColumnProxy</span><span class="p">,</span> <span class="n">MyNonOrderableQuery</span><span class="p">,</span>
+    <span class="n">hybrid_property</span>
 <span class="p">)</span>
 
-<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">UUID_LENGTH</span><span class="p">,</span> <span class="n">Base</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">db</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">UUID_LENGTH</span><span class="p">,</span> <span class="n">Base</span><span class="p">,</span> <span class="n">db</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">user</span> <span class="k">as</span> <span class="n">user_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">work</span> <span class="k">as</span> <span class="n">work_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">course</span> <span class="k">as</span> <span class="n">course_models</span>
@@ -235,17 +237,20 @@
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">rubric</span> <span class="k">as</span> <span class="n">rubric_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">analytics</span> <span class="k">as</span> <span class="n">analytics_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">auto_test</span> <span class="k">as</span> <span class="n">auto_test_models</span>
-<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span><span class="p">,</span> <span class="n">ignore</span><span class="p">,</span> <span class="n">helpers</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span><span class="p">,</span> <span class="n">ignore</span><span class="p">,</span> <span class="n">helpers</span><span class="p">,</span> <span class="n">signals</span>
 <span class="kn">from</span> <span class="nn">.role</span> <span class="kn">import</span> <span class="n">CourseRole</span>
 <span class="kn">from</span> <span class="nn">.permission</span> <span class="kn">import</span> <span class="n">Permission</span><span class="p">,</span> <span class="n">PermissionComp</span>
 <span class="kn">from</span> <span class="nn">..exceptions</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIException</span><span class="p">,</span> <span class="n">PermissionException</span><span class="p">,</span> <span class="n">InvalidAssignmentState</span>
+    <span class="n">APICodes</span><span class="p">,</span> <span class="n">APIWarnings</span><span class="p">,</span> <span class="n">APIException</span><span class="p">,</span> <span class="n">PermissionException</span><span class="p">,</span>
+    <span class="n">InvalidAssignmentState</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">.link_tables</span> <span class="kn">import</span> <span class="n">user_course</span><span class="p">,</span> <span class="n">users_groups</span><span class="p">,</span> <span class="n">course_permissions</span>
 <span class="kn">from</span> <span class="nn">..permissions</span> <span class="kn">import</span> <span class="n">CoursePermission</span> <span class="k">as</span> <span class="n">CPerm</span>
 
 <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
     <span class="c1"># pylint: disable=unused-import</span>
+    <span class="kn">from</span> <span class="nn">pylti1p3.assignments_grades</span> <span class="kn">import</span> <span class="n">_AssignmentsGradersData</span>
+    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">group</span> <span class="k">as</span> <span class="n">group_models</span>
     <span class="n">cached_property</span> <span class="o">=</span> <span class="nb">property</span>  <span class="c1"># pylint: disable=invalid-name</span>
 <span class="k">else</span><span class="p">:</span>
     <span class="c1"># pylint: disable=unused-import</span>
@@ -274,7 +279,8 @@
     <span class="n">course</span><span class="p">:</span> <span class="s1">&#39;course_models.Course&#39;</span>  <span class="c1"># Course of this assignment.</span>
     <span class="n">cgignore</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.helpers.JSONType&#39;</span><span class="p">]</span>  <span class="c1"># The cginore.</span>
     <span class="n">cgignore_version</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
-    <span class="n">whitespace_linter</span><span class="p">:</span> <span class="nb">bool</span>  <span class="c1"># Has the whitespace linter run on this assignment.</span>
+    <span class="c1"># Has the whitespace linter run on this assignment.</span>
+    <span class="n">whitespace_linter</span><span class="p">:</span> <span class="nb">bool</span>
 
     <span class="c1"># The fixed value for the maximum that can be achieved in a rubric. This</span>
     <span class="c1"># can be higher and lower than the actual max. Will be `null` if unset.</span>
@@ -335,13 +341,43 @@
     <span class="n">tags</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Set</span><span class="p">[</span><span class="n">AssignmentAmbiguousSettingTag</span><span class="p">]</span>
 
 
-<span class="nd">@enum</span><span class="o">.</span><span class="n">unique</span>
-<span class="k">class</span> <span class="nc">_AssignmentStateEnum</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">IntEnum</span><span class="p">):</span>
+<div class="viewcode-block" id="AssignmentStateEnum"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentStateEnum">[docs]</a><span class="nd">@enum</span><span class="o">.</span><span class="n">unique</span>
+<span class="k">class</span> <span class="nc">AssignmentStateEnum</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">IntEnum</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Describes in what state an :class:`.Assignment` is.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">hidden</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="nb">open</span> <span class="o">=</span> <span class="mi">1</span>
-    <span class="n">done</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">done</span> <span class="o">=</span> <span class="mi">2</span></div>
+
+
+<div class="viewcode-block" id="AssignmentVisibilityState"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentVisibilityState">[docs]</a><span class="nd">@enum</span><span class="o">.</span><span class="n">unique</span>
+<span class="k">class</span> <span class="nc">AssignmentVisibilityState</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">IntEnum</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This enum determines what the visibility state is of this assignment.</span>
+
+<span class="sd">    This state is more important than that of :class:`.AssignmentStateEnum`.</span>
+
+<span class="sd">    .. todo::</span>
+
+<span class="sd">        Investigate if we can combine this class with</span>
+<span class="sd">        :class:`.AssignmentStateEnum`. We would really need to take care that</span>
+<span class="sd">        performance isn&#39;t impacted when combining, and that it actually</span>
+<span class="sd">        improves the clarity of the code.</span>
+
+<span class="sd">    :ivar deep_linked: This assignment is not finished at the moment, but is</span>
+<span class="sd">        being deep linked inside an LMS.</span>
+<span class="sd">    :ivar visible: Assignment is visible and can be used as normal.</span>
+<span class="sd">    :ivar ~AssignmentVisibilityState.deleted: Assignment has been deleted and</span>
+<span class="sd">        should be hidden.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">deep_linked</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">visible</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">deleted</span> <span class="o">=</span> <span class="mi">2</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_deleted</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Should you see this assignment as a deleted assignment?</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">deleted</span></div>
 
 
 <div class="viewcode-block" id="AssignmentAssignedGrader"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentAssignedGrader">[docs]</a><span class="k">class</span> <span class="nc">AssignmentAssignedGrader</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
@@ -351,8 +387,6 @@
 <span class="sd">    The user linked to the assignment is an assigned grader. In this link the</span>
 <span class="sd">    weight is the weight this user was given when assigning.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AssignmentAssignedGrader&#39;</span><span class="p">]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AssignmentAssignedGrader&#39;</span>
     <span class="n">weight</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;weight&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">user_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
@@ -382,9 +416,6 @@
 <span class="sd">    :ivar ~.AssignmentGraderDone.assignment_id: The id of the assignment that</span>
 <span class="sd">        is linked.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;AssignmentGraderDone&#39;</span><span class="p">]]</span>
-        <span class="n">query</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AssignmentGraderDone&#39;</span>
     <span class="n">user_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;User_id&#39;</span><span class="p">,</span>
@@ -429,8 +460,6 @@
 <span class="sd">        :py:class:`.Flake8` metadata about the `flake8` program).</span>
 <span class="sd">    :ivar config: The config that was passed to the linter.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>  <span class="c1"># type: t.ClassVar[MyQuery[&#39;AssignmentLinter&#39;]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AssignmentLinter&#39;</span>  <span class="c1"># type: str</span>
     <span class="c1"># This has to be a String object as the id has to be a non guessable uuid.</span>
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
@@ -572,8 +601,6 @@
 <span class="sd">    :ivar ~.AssignmentResult.assignment_id: The id of the assignment this</span>
 <span class="sd">        belongs to.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>  <span class="c1"># type: t.ClassVar[MyQuery[&#39;AssignmentResult&#39;]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AssignmentResult&#39;</span>
     <span class="n">sourcedid</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;sourcedid&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
     <span class="n">user_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
@@ -610,17 +637,22 @@
 <span class="sd">    :ivar rubric_rows: The rubric rows that make up the rubric for this</span>
 <span class="sd">        assignment.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>  <span class="c1"># type:  t.ClassVar[MyQuery[&#39;Assignment&#39;]]</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s2">&quot;Assignment&quot;</span>
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">name</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">_cgignore</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;cgignore&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
     <span class="n">_cgignore_version</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;cgignore_version&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
-    <span class="n">state</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+
+    <span class="n">visibility_state</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;visibility_state&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="n">AssignmentVisibilityState</span><span class="p">),</span>
+        <span class="n">default</span><span class="o">=</span><span class="n">AssignmentVisibilityState</span><span class="o">.</span><span class="n">visible</span><span class="p">,</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">_state</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;state&#39;</span><span class="p">,</span>
-        <span class="n">db</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="n">_AssignmentStateEnum</span><span class="p">),</span>
-        <span class="n">default</span><span class="o">=</span><span class="n">_AssignmentStateEnum</span><span class="o">.</span><span class="n">hidden</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="n">AssignmentStateEnum</span><span class="p">),</span>
+        <span class="n">default</span><span class="o">=</span><span class="n">AssignmentStateEnum</span><span class="o">.</span><span class="n">hidden</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
     <span class="n">description</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
@@ -632,7 +664,7 @@
         <span class="n">default</span><span class="o">=</span><span class="n">DatetimeWithTimezone</span><span class="o">.</span><span class="n">utcnow</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
-    <span class="n">deadline</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;deadline&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+    <span class="n">_deadline</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;deadline&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">TIMESTAMP</span><span class="p">(</span><span class="n">timezone</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
 
     <span class="n">_mail_task_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;mail_task_id&#39;</span><span class="p">,</span>
@@ -659,6 +691,9 @@
         <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">_max_grade</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;max_grade&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+    <span class="c1"># This is always `None` for LTI 1.3. As LTI 1.3 supports sending more than</span>
+    <span class="c1"># the set maximum amount of points.</span>
     <span class="n">lti_points_possible</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;lti_points_possible&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Float</span><span class="p">,</span>
@@ -667,8 +702,19 @@
     <span class="p">)</span>
 
     <span class="c1"># All stuff for LTI</span>
-    <span class="n">lti_assignment_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">lti_outcome_service_url</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
+    <span class="n">lti_assignment_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;lti_assignment_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
+    <span class="n">is_lti</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;is_lti&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># This is the lti outcome service url for LTI 1.1 and for LTI 1.3 this is</span>
+    <span class="c1"># the data passed under the</span>
+    <span class="c1"># &quot;https://purl.imsglobal.org/spec/lti-ags/claim/endpoint&quot; claim.</span>
+    <span class="n">lti_grade_service_data</span><span class="p">:</span> <span class="n">ColumnProxy</span><span class="p">[</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;_AssignmentsGradersData&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span>
+    <span class="n">lti_grade_service_data</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;lti_grade_service_data&#39;</span><span class="p">,</span> <span class="n">JSON</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
 
     <span class="n">assigned_graders</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">MutableMapping</span><span class="p">[</span>
         <span class="nb">int</span><span class="p">,</span> <span class="n">AssignmentAssignedGrader</span><span class="p">]</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
@@ -788,19 +834,11 @@
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">deleted</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="s1">&#39;deleted&#39;</span><span class="p">,</span>
-        <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
-        <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;false&#39;</span><span class="p">,</span>
-        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-    <span class="p">)</span>
-
     <span class="n">_cool_off_period</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;cool_off_period&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Interval</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
 
-    <span class="n">amount_in_cool_off_period</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">_amount_in_cool_off_period</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;amount_in_cool_off_period&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
@@ -808,7 +846,7 @@
         <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;1&#39;</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">max_submissions</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+    <span class="n">_max_submissions</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;max_amount_of_submissions&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span>
     <span class="p">)</span>
 
@@ -820,50 +858,74 @@
         <span class="n">db</span><span class="o">.</span><span class="n">CheckConstraint</span><span class="p">(</span>
             <span class="s1">&#39;amount_in_cool_off_period &gt;= 1&#39;</span><span class="p">,</span>
             <span class="n">name</span><span class="o">=</span><span class="s1">&#39;amount_in_cool_off_period_check&#39;</span>
+        <span class="p">),</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">UniqueConstraint</span><span class="p">(</span>
+            <span class="n">lti_assignment_id</span><span class="p">,</span>
+            <span class="n">course_id</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s1">&#39;ltiassignmentid_courseid_unique&#39;</span><span class="p">,</span>
         <span class="p">)</span>
     <span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="o">*</span><span class="p">,</span>
-        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">lti_assignment_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
         <span class="n">course</span><span class="p">:</span> <span class="s1">&#39;course_models.Course&#39;</span><span class="p">,</span>
-        <span class="n">state</span><span class="p">:</span> <span class="n">_AssignmentStateEnum</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_lti</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">visibility_state</span><span class="p">:</span> <span class="n">AssignmentVisibilityState</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">AssignmentVisibilityState</span><span class="o">.</span><span class="n">visible</span>
+        <span class="p">),</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">AssignmentStateEnum</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">deadline</span><span class="p">:</span> <span class="n">DatetimeWithTimezone</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">lti_assignment_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
-            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
-            <span class="n">lti_assignment_id</span><span class="o">=</span><span class="n">lti_assignment_id</span><span class="p">,</span>
-            <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span>
             <span class="n">course</span><span class="o">=</span><span class="n">course</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">visibility_state</span><span class="o">=</span><span class="n">visibility_state</span><span class="p">,</span>
             <span class="n">state</span><span class="o">=</span><span class="n">state</span><span class="p">,</span>
             <span class="n">deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+            <span class="n">lti_assignment_id</span><span class="o">=</span><span class="n">lti_assignment_id</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="n">description</span><span class="p">,</span>
+            <span class="n">is_lti</span><span class="o">=</span><span class="n">is_lti</span><span class="p">,</span>
             <span class="n">analytics_workspaces</span><span class="o">=</span><span class="p">[</span>
                 <span class="n">analytics_models</span><span class="o">.</span><span class="n">AnalyticsWorkspace</span><span class="p">(</span><span class="n">assignment</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
             <span class="p">],</span>
         <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_changed_ambiguous_settings</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Set</span><span class="p">[</span><span class="n">AssignmentAmbiguousSettingTag</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_on_orm_load</span><span class="p">()</span>
+
+        <span class="n">signals</span><span class="o">.</span><span class="n">ASSIGNMENT_CREATED</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="nd">@sqlalchemy</span><span class="o">.</span><span class="n">orm</span><span class="o">.</span><span class="n">reconstructor</span>
+    <span class="k">def</span> <span class="nf">_on_orm_load</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_changed_ambiguous_settings</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__structlog__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+            <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="s1">&#39;visibility_state&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">visibility_state</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s1">&#39;course_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_id</span><span class="p">,</span>
+        <span class="p">}</span>
 
     <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Check if two Assignments are equal.</span>
-
-<span class="sd">        &gt;&gt;&gt; a1 = Assignment(name=&#39;&#39;, course=None)</span>
-<span class="sd">        &gt;&gt;&gt; a1.id = 5</span>
-<span class="sd">        &gt;&gt;&gt; a1 == object()</span>
-<span class="sd">        False</span>
-<span class="sd">        &gt;&gt;&gt; a2 = Assignment(name=&#39;&#39;, course=None)</span>
-<span class="sd">        &gt;&gt;&gt; a2.id = 6</span>
-<span class="sd">        &gt;&gt;&gt; a1_1 = Assignment(name=&#39;&#39;, course=None)</span>
-<span class="sd">        &gt;&gt;&gt; a1_1.id = 5</span>
-<span class="sd">        &gt;&gt;&gt; a1 == a2</span>
-<span class="sd">        False</span>
-<span class="sd">        &gt;&gt;&gt; a1_1 == a1</span>
-<span class="sd">        True</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;Check if two Assignments are equal.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Assignment</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">id</span>
         <span class="k">return</span> <span class="bp">NotImplemented</span>
+
+    <span class="k">def</span> <span class="nf">_get_deadline</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_deadline</span>
+
+    <span class="k">def</span> <span class="nf">_set_deadline</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">new_deadline</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_deadline</span> <span class="o">!=</span> <span class="n">new_deadline</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_deadline</span> <span class="o">=</span> <span class="n">new_deadline</span>
+            <span class="n">signals</span><span class="o">.</span><span class="n">ASSIGNMENT_DEADLINE_CHANGED</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="n">deadline</span> <span class="o">=</span> <span class="n">hybrid_property</span><span class="p">(</span><span class="n">_get_deadline</span><span class="p">,</span> <span class="n">_set_deadline</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Assignment.validate_group_set"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.validate_group_set">[docs]</a>    <span class="nd">@validates</span><span class="p">(</span><span class="s1">&#39;group_set&#39;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">validate_group_set</span><span class="p">(</span>
@@ -876,13 +938,27 @@
             <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_id</span> <span class="o">==</span> <span class="n">group_set</span><span class="o">.</span><span class="n">course_id</span>
         <span class="k">return</span> <span class="n">group_set</span></div>
 
+    <span class="nd">@hybrid_property</span>
+    <span class="k">def</span> <span class="nf">is_visible</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Is this assignment visible to users.</span>
+
+<span class="sd">        The value of this property does not depend on the current user at this</span>
+<span class="sd">        moment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">visibility_state</span> <span class="o">==</span> <span class="n">AssignmentVisibilityState</span><span class="o">.</span><span class="n">visible</span>
+
+    <span class="k">def</span> <span class="nf">mark_as_deleted</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">visibility_state</span> <span class="o">=</span> <span class="n">AssignmentVisibilityState</span><span class="o">.</span><span class="n">deleted</span>
+
+    <span class="n">GRADE_SCALE</span> <span class="o">=</span> <span class="mi">10</span>
+
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">max_grade</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Get the maximum grade possible for this assignment.</span>
 
 <span class="sd">        :returns: The maximum a grade for a submission.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="mi">10</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_grade</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_grade</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">GRADE_SCALE</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_grade</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_grade</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">cgignore</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">ignore</span><span class="o">.</span><span class="n">SubmissionFilter</span><span class="p">]:</span>
@@ -901,8 +977,32 @@
 
     <span class="nd">@cgignore</span><span class="o">.</span><span class="n">setter</span>
     <span class="k">def</span> <span class="nf">cgignore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">ignore</span><span class="o">.</span><span class="n">SubmissionFilter</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_changed_ambiguous_settings</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+            <span class="n">AssignmentAmbiguousSettingTag</span><span class="o">.</span><span class="n">cgignore</span>
+        <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_cgignore_version</span> <span class="o">=</span> <span class="n">ignore</span><span class="o">.</span><span class="n">filter_handlers</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">val</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_cgignore</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">val</span><span class="o">.</span><span class="n">export</span><span class="p">())</span>
+
+<div class="viewcode-block" id="Assignment.update_cgignore"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.update_cgignore">[docs]</a>    <span class="k">def</span> <span class="nf">update_cgignore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="s1">&#39;helpers.JSONType&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Update the cgignore file of this assignment.</span>
+
+<span class="sd">        :param version: The type of cgignore file to use. This should be</span>
+<span class="sd">            registered with ``psef.ignore.filter_handlers``.</span>
+<span class="sd">        :param data: The data to use for the cgignore, this should be</span>
+<span class="sd">            compatible for the given ``version``.</span>
+
+<span class="sd">        :raises APIException: If the ``version`` is unknown or if the ``data``</span>
+<span class="sd">            is unsupported for the given ``version``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">filter_type</span> <span class="o">=</span> <span class="n">ignore</span><span class="o">.</span><span class="n">filter_handlers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">filter_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
+                <span class="s1">&#39;The given ignore version was not found.&#39;</span><span class="p">,</span> <span class="p">(</span>
+                    <span class="s1">&#39;The known values are:&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39; </span><span class="si">{</span><span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ignore</span><span class="o">.</span><span class="n">filter_handlers</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="p">),</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">OBJECT_NOT_FOUND</span><span class="p">,</span> <span class="mi">404</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cgignore</span> <span class="o">=</span> <span class="n">filter_type</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">cool_off_period</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">:</span>
@@ -915,7 +1015,87 @@
 
     <span class="nd">@cool_off_period</span><span class="o">.</span><span class="n">setter</span>
     <span class="k">def</span> <span class="nf">cool_off_period</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delta</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_changed_ambiguous_settings</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+            <span class="n">AssignmentAmbiguousSettingTag</span><span class="o">.</span><span class="n">cool_off</span>
+        <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_cool_off_period</span> <span class="o">=</span> <span class="n">delta</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">amount_in_cool_off_period</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;The maximum amount of submissions that a user may create inside the</span>
+<span class="sd">            cool off period.</span>
+
+<span class="sd">        .. warning::</span>
+
+<span class="sd">            Setting this property may raise an :exc:`.APIException` if the</span>
+<span class="sd">            value is not valid.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_amount_in_cool_off_period</span>
+
+    <span class="nd">@amount_in_cool_off_period</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">amount_in_cool_off_period</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_amount</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">new_amount</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
+                <span class="p">(</span>
+                    <span class="s1">&#39;The minimum amount of submissions that can be done in a&#39;</span>
+                    <span class="s1">&#39; cool of period should be at least one&#39;</span>
+                <span class="p">),</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;The given amount </span><span class="si">{</span><span class="n">new_amount</span><span class="si">}</span><span class="s1"> is too low for&#39;</span>
+                    <span class="s1">&#39; `amount_in_cool_off_period`&#39;</span>
+                <span class="p">),</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span> <span class="mi">400</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_amount_in_cool_off_period</span> <span class="o">=</span> <span class="n">new_amount</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">max_submissions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;The maximum amount of submissions a user is allowed to make.</span>
+
+<span class="sd">        .. warning::</span>
+
+<span class="sd">            Setting this property is not pure! It may raise an</span>
+<span class="sd">            :exc:`.APIException` if the value is not valid, it may add a</span>
+<span class="sd">            warning to the response, and it may change the</span>
+<span class="sd">            ``_changed_ambiguous_settings`` attribute. Furthermore, it may also</span>
+<span class="sd">            be slow as it will query the database.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_submissions</span>
+
+    <span class="nd">@max_submissions</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">max_submissions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_submissions</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_changed_ambiguous_settings</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+            <span class="n">AssignmentAmbiguousSettingTag</span><span class="o">.</span><span class="n">max_submissions</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">helpers</span><span class="o">.</span><span class="n">handle_none</span><span class="p">(</span><span class="n">max_submissions</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
+                <span class="s1">&#39;You have to allow at least one submission&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;The set maximum amount of submissions is too low&#39;</span><span class="p">,</span>
+                <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_PARAM</span><span class="p">,</span> <span class="mi">400</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">max_submissions</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_not_deleted_submissions</span><span class="p">()</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span>
+                <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">having</span><span class="p">(</span><span class="n">sqlalchemy</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">max_submissions</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">():</span>
+            <span class="n">helpers</span><span class="o">.</span><span class="n">add_warning</span><span class="p">(</span>
+                <span class="p">(</span>
+                    <span class="s1">&#39;There are already users with more submission than the&#39;</span>
+                    <span class="s1">&#39; set max submissions amount&#39;</span>
+                <span class="p">),</span>
+                <span class="n">APIWarnings</span><span class="o">.</span><span class="n">LIMIT_ALREADY_EXCEEDED</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_submissions</span> <span class="o">=</span> <span class="n">max_submissions</span>
+
+    <span class="k">def</span> <span class="nf">_state_getter</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssignmentStateEnum</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span>
+
+    <span class="k">def</span> <span class="nf">_state_setter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_value</span><span class="p">:</span> <span class="n">AssignmentStateEnum</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">new_value</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">new_value</span>
+            <span class="n">signals</span><span class="o">.</span><span class="n">ASSIGNMENT_STATE_CHANGED</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="n">state</span> <span class="o">=</span> <span class="n">hybrid_property</span><span class="p">(</span><span class="n">_state_getter</span><span class="p">,</span> <span class="n">_state_setter</span><span class="p">)</span>
 
     <span class="c1"># We don&#39;t use property.setter because in that case `new_val` could only be</span>
     <span class="c1"># a `float` because of https://github.com/python/mypy/issues/220</span>
@@ -929,14 +1109,6 @@
 
     <span class="n">min_grade</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="sd">&quot;&quot;&quot;The minimum grade for a submission in this assignment.&quot;&quot;&quot;</span>
-
-    <span class="k">def</span> <span class="nf">_submit_grades</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">subs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_from_latest_submissions</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">subs</span><span class="p">),</span> <span class="mi">10</span><span class="p">):</span>
-            <span class="n">psef</span><span class="o">.</span><span class="n">tasks</span><span class="o">.</span><span class="n">passback_grades</span><span class="p">(</span>
-                <span class="p">[</span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">subs</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span> <span class="o">+</span> <span class="mi">10</span><span class="p">]],</span>
-                <span class="n">assignment_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
-            <span class="p">)</span>
 
 <div class="viewcode-block" id="Assignment.change_notifications"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.change_notifications">[docs]</a>    <span class="k">def</span> <span class="nf">change_notifications</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -1051,8 +1223,9 @@
 <span class="sd">        assigned without a grade.</span>
 
 <span class="sd">        :param user_id: The id of the user to check for</span>
+
 <span class="sd">        :returns: A boolean indicating if user has work assigned that does not</span>
-<span class="sd">            have grade or a selected rubric item</span>
+<span class="sd">                  have grade or a selected rubric item</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">latest</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_from_latest_submissions</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
         <span class="n">sql</span> <span class="o">=</span> <span class="n">latest</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
@@ -1070,14 +1243,6 @@
         <span class="p">)</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">sql</span><span class="o">.</span><span class="n">exists</span><span class="p">())</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span> <span class="ow">or</span> <span class="kc">False</span></div>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">is_lti</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Is this assignment a LTI assignment.</span>
-
-<span class="sd">        :returns: A boolean indicating if this is the case.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">lti_outcome_service_url</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">max_rubric_points</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
@@ -1114,16 +1279,6 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">deadline_expired</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Has the deadline of this assignment expired.</span>
-
-<span class="sd">        &gt;&gt;&gt; a = Assignment(name=&#39;&#39;, deadline=None, course=None)</span>
-<span class="sd">        &gt;&gt;&gt; a.deadline_expired</span>
-<span class="sd">        False</span>
-<span class="sd">        &gt;&gt;&gt; from datetime import datetime</span>
-<span class="sd">        &gt;&gt;&gt; before = datetime.utcnow()</span>
-<span class="sd">        &gt;&gt;&gt; helpers.get_request_start_time = datetime.utcnow</span>
-<span class="sd">        &gt;&gt;&gt; a.deadline = before</span>
-<span class="sd">        &gt;&gt;&gt; a.deadline_expired</span>
-<span class="sd">        True</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">deadline</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">False</span>
@@ -1147,7 +1302,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">deadline</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="n">_AssignmentStateEnum</span><span class="o">.</span><span class="n">open</span> <span class="ow">and</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="n">AssignmentStateEnum</span><span class="o">.</span><span class="n">open</span> <span class="ow">and</span>
             <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">deadline_expired</span>
         <span class="p">)</span>
 
@@ -1155,19 +1310,19 @@
     <span class="k">def</span> <span class="nf">is_hidden</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Is the assignment hidden.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="n">_AssignmentStateEnum</span><span class="o">.</span><span class="n">hidden</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="n">AssignmentStateEnum</span><span class="o">.</span><span class="n">hidden</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">is_done</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Is the assignment done, which means that grades are open.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="n">_AssignmentStateEnum</span><span class="o">.</span><span class="n">done</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="n">AssignmentStateEnum</span><span class="o">.</span><span class="n">done</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">should_passback</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Should we passback the current grade.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_done</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_done</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_lti</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">state_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -1177,9 +1332,9 @@
 
 <span class="sd">        :returns: The correct name of the current state.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="n">_AssignmentStateEnum</span><span class="o">.</span><span class="n">open</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="n">AssignmentStateEnum</span><span class="o">.</span><span class="n">open</span><span class="p">:</span>
             <span class="k">return</span> <span class="s1">&#39;submitting&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_open</span> <span class="k">else</span> <span class="s1">&#39;grading&#39;</span>
-        <span class="k">return</span> <span class="n">_AssignmentStateEnum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+        <span class="k">return</span> <span class="n">AssignmentStateEnum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">whitespace_linter_exists</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -1299,8 +1454,8 @@
 
         <span class="k">return</span> <span class="n">res</span>
 
-<div class="viewcode-block" id="Assignment.set_state"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.set_state">[docs]</a>    <span class="k">def</span> <span class="nf">set_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Update the current state (class:`_AssignmentStateEnum`).</span>
+<div class="viewcode-block" id="Assignment.set_state_with_string"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.set_state_with_string">[docs]</a>    <span class="k">def</span> <span class="nf">set_state_with_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Update the current state (class:`AssignmentStateEnum`).</span>
 
 <span class="sd">        You can update the state to hidden, done or open. A assignment can not</span>
 <span class="sd">        be updated to &#39;submitting&#39; or &#39;grading&#39; as this is an assignment with</span>
@@ -1311,13 +1466,11 @@
 <span class="sd">        :returns: Nothing</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">state</span> <span class="o">==</span> <span class="s1">&#39;open&#39;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">_AssignmentStateEnum</span><span class="o">.</span><span class="n">open</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">AssignmentStateEnum</span><span class="o">.</span><span class="n">open</span>
         <span class="k">elif</span> <span class="n">state</span> <span class="o">==</span> <span class="s1">&#39;hidden&#39;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">_AssignmentStateEnum</span><span class="o">.</span><span class="n">hidden</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">AssignmentStateEnum</span><span class="o">.</span><span class="n">hidden</span>
         <span class="k">elif</span> <span class="n">state</span> <span class="o">==</span> <span class="s1">&#39;done&#39;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">_AssignmentStateEnum</span><span class="o">.</span><span class="n">done</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lti_outcome_service_url</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_submit_grades</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">AssignmentStateEnum</span><span class="o">.</span><span class="n">done</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">InvalidAssignmentState</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s1"> is not a valid state&#39;</span><span class="p">)</span></div>
 
@@ -1339,7 +1492,7 @@
             <span class="o">~</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">_deleted</span><span class="p">,</span>  <span class="c1"># pylint: disable=protected-access</span>
         <span class="p">)</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">deleted</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_visible</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">base_query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">sqlalchemy</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">false</span><span class="p">())</span>
 
         <span class="k">return</span> <span class="n">base_query</span></div>
@@ -1347,6 +1500,8 @@
 <div class="viewcode-block" id="Assignment.get_latest_submission_for_user"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.get_latest_submission_for_user">[docs]</a>    <span class="k">def</span> <span class="nf">get_latest_submission_for_user</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">user</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">group_of_user</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;group_models.Group&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MyNonOrderableQuery</span><span class="p">[</span><span class="s1">&#39;work_models.Work&#39;</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Get the latest non deleted submission for a given user.</span>
 
@@ -1360,6 +1515,9 @@
 <span class="sd">            `get_from_latest_submission`.</span>
 
 <span class="sd">        :param user: The user to get the latest non deleted submission for.</span>
+<span class="sd">        :param group_of_user: The group that the user belongs to for this</span>
+<span class="sd">            assignment. This parameter prevents that the database is queried to</span>
+<span class="sd">            check if the user is in a group.</span>
 <span class="sd">        :returns: A query that should not be reordered that contains the latest</span>
 <span class="sd">            submission for the given user.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1373,7 +1531,11 @@
             <span class="c1"># submissions for a user.)</span>
             <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">desc</span><span class="p">()</span>
         <span class="p">]</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_set_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+
+        <span class="n">group_user_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">group_of_user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">group_user_id</span> <span class="o">=</span> <span class="n">group_of_user</span><span class="o">.</span><span class="n">virtual_user_id</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_set_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">group_user_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
                 <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Group</span><span class="o">.</span><span class="n">virtual_user_id</span>
             <span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">group_set_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">group_set_id</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
@@ -1444,7 +1606,7 @@
 <span class="sd">            submissions.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">base_query</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="o">*</span><span class="n">to_query</span><span class="p">)</span><span class="o">.</span><span class="n">select_from</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">deleted</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_visible</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">base_query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">sqlalchemy</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">false</span><span class="p">())</span>
 
         <span class="c1"># TODO: Investigate this subquery here. We need to do that right now as</span>
@@ -1909,7 +2071,7 @@
                 <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="p">,</span>
                 <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span>
             <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Group</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span> <span class="ow">or</span> <span class="kc">False</span></div>
+        <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span></div>
 
 <div class="viewcode-block" id="Assignment.get_author_handing_in"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.get_author_handing_in">[docs]</a>    <span class="k">def</span> <span class="nf">get_author_handing_in</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">request_args</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
@@ -1983,10 +2145,28 @@
 
         <span class="k">return</span> <span class="n">resulting_author</span></div>
 
-    <span class="k">def</span> <span class="nf">has_webhooks</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<div class="viewcode-block" id="Assignment.has_webhooks"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.has_webhooks">[docs]</a>    <span class="k">def</span> <span class="nf">has_webhooks</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Does this assignment have any connected webhooks.</span>
+
+<span class="sd">        :returns: The presence of any webhooks for this assignment after</span>
+<span class="sd">                  querying the database.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
             <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">WebhookBase</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">assignment</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span> <span class="ow">or</span> <span class="kc">False</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Assignment.get_changed_ambiguous_combinations"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.get_changed_ambiguous_combinations">[docs]</a>    <span class="k">def</span> <span class="nf">get_changed_ambiguous_combinations</span><span class="p">(</span>
+        <span class="bp">self</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterator</span><span class="p">[</span><span class="n">_AssignmentAmbiguousSetting</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Get all new ambiguous setting combinations on this assignment.</span>
+
+<span class="sd">        This simply gets all ambiguous settings on an assignment and checks</span>
+<span class="sd">        which settings were changed since the assignment was loaded from the</span>
+<span class="sd">        database/created.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">warning</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_all_ambiguous_combinations</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">warning</span><span class="o">.</span><span class="n">tags</span> <span class="o">&amp;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_changed_ambiguous_settings</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">warning</span></div>
 
 <div class="viewcode-block" id="Assignment.get_all_ambiguous_combinations"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.get_all_ambiguous_combinations">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_ambiguous_combinations</span><span class="p">(</span>
         <span class="bp">self</span>
@@ -2047,7 +2227,50 @@
                 <span class="p">)</span>
             <span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">res</span></div></div>
+        <span class="k">return</span> <span class="n">res</span></div>
+
+<div class="viewcode-block" id="Assignment.update_submission_types"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.update_submission_types">[docs]</a>    <span class="k">def</span> <span class="nf">update_submission_types</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">webhook</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">],</span> <span class="n">files</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Update the enabled submission types for this assignment.</span>
+
+<span class="sd">        This method has the side effect of possibly adding items to the</span>
+<span class="sd">        ``_changed_ambiguous_settings`` attribute. So if you&#39;re setting</span>
+<span class="sd">        multiple properties on the assignment make sure you call</span>
+<span class="sd">        :meth:`.Assignment.get_changed_ambiguous_combinations` at the end. This</span>
+<span class="sd">        method might also add a warning to the response.</span>
+
+<span class="sd">        :param webhook: Should users be allowed to upload using webhooks. Pass</span>
+<span class="sd">            ``None`` to keep the current option.</span>
+<span class="sd">        :param files: Should users be allowed to upload files for a submission.</span>
+<span class="sd">            Pass ``None`` to keep the current option.</span>
+
+<span class="sd">        :raises APIException: If both ``webhook`` and ``files`` uploading will</span>
+<span class="sd">            be disabled at the end of this method.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">files</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">files_upload_enabled</span> <span class="o">=</span> <span class="n">files</span>
+
+        <span class="k">if</span> <span class="n">webhook</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_changed_ambiguous_settings</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+                <span class="n">AssignmentAmbiguousSettingTag</span><span class="o">.</span><span class="n">webhook</span>
+            <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">webhook_upload_enabled</span> <span class="o">=</span> <span class="n">webhook</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">webhook_upload_enabled</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_webhooks</span><span class="p">():</span>
+                <span class="n">helpers</span><span class="o">.</span><span class="n">add_warning</span><span class="p">(</span>
+                    <span class="p">(</span>
+                        <span class="s1">&#39;This assignment already has existing webhooks, these &#39;</span>
+                        <span class="s1">&#39;will continue to work&#39;</span>
+                    <span class="p">),</span> <span class="n">APIWarnings</span><span class="o">.</span><span class="n">EXISTING_WEBHOOKS_EXIST</span>
+                <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">webhook_upload_enabled</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">files_upload_enabled</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
+                <span class="s1">&#39;At least one way of uploading needs to be enabled&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;It is not possible to disable both webhook and files uploads&#39;</span><span class="p">,</span>
+                <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span> <span class="mi">400</span>
+            <span class="p">)</span></div></div>
 </pre></div>
 
            </div>

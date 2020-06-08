@@ -352,6 +352,54 @@ working.</p>
 </tr>
 </thead>
 <tbody>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#post--api-v1-lti-launch-1">POST /api/v1/lti/launch/1</a></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#post--api-v1-lti-launch-2">POST /api/v1/lti/launch/2</a></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#post--api-v1-lti1.3-launch_to_latest_submission-(lti_provider_id)">POST /api/v1/lti1.3/launch_to_latest_submission/(lti_provider_id)</a></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#post--api-v1-lti1.3-launch_to_latest_submission">POST /api/v1/lti1.3/launch_to_latest_submission</a></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#post--api-v1-lti1.3-launch-(lti_provider_id)">POST /api/v1/lti1.3/launch/(lti_provider_id)</a></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#post--api-v1-lti1.3-launch">POST /api/v1/lti1.3/launch</a></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#get--api-v1-lti1.3-login-(lti_provider_id)">GET /api/v1/lti1.3/login/(lti_provider_id)</a></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#get--api-v1-lti1.3-login">GET /api/v1/lti1.3/login</a></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#post--api-v1-lti1.3-login-(lti_provider_id)">POST /api/v1/lti1.3/login/(lti_provider_id)</a></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#post--api-v1-lti1.3-login">POST /api/v1/lti1.3/login</a></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#get--api-v1-lti1.3-providers-(lti_provider_id)-config">GET /api/v1/lti1.3/providers/(lti_provider_id)/config</a></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#post--api-v1-lti1.3-deep_link-(uuid-deep_link_blob_id)">POST /api/v1/lti1.3/deep_link/(uuid:deep_link_blob_id)</a></p></td>
+<td></td>
+</tr>
 <tr class="row-even"><td><p>About</p></td>
 <td><p><a class="reference external" href="#get--api-v1-about">GET /api/v1/about</a></p></td>
 <td><p>Get the version and features.</p></td>
@@ -721,16 +769,32 @@ working.</p>
 <td><p>Delete a single group set by id.</p></td>
 </tr>
 <tr class="row-even"><td><p>LTI</p></td>
-<td><p><a class="reference external" href="#post--api-v1-lti-launch-1">POST /api/v1/lti/launch/1</a></p></td>
-<td><p>Do a LTI Launch.</p></td>
+<td><p><a class="reference external" href="#get--api-v1-lti1.3-providers-">GET /api/v1/lti1.3/providers/</a></p></td>
+<td><p>List all known LTI 1.3 providers.</p></td>
 </tr>
 <tr class="row-odd"><td></td>
-<td><p><a class="reference external" href="#post--api-v1-lti-launch-2">POST /api/v1/lti/launch/2</a></p></td>
-<td><p>Do the callback of a LTI launch.</p></td>
+<td><p><a class="reference external" href="#post--api-v1-lti1.3-providers-">POST /api/v1/lti1.3/providers/</a></p></td>
+<td><p>Create a new LTI 1.3 provider.</p></td>
 </tr>
 <tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-lti-">GET /api/v1/lti/</a></p></td>
-<td><p>Get the configuration for a LMS.</p></td>
+<td><p>Get the configuration for a LTI 1.1 provider.</p></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#get--api-v1-lti1.3-jwks-(lti_provider_id)">GET /api/v1/lti1.3/jwks/(lti_provider_id)</a></p></td>
+<td><p>Get the public key of a provider in JWKS format.</p></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#get--api-v1-lti1.3-providers-(lti_provider_id)-jwks">GET /api/v1/lti1.3/providers/(lti_provider_id)/jwks</a></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#get--api-v1-lti1.3-providers-(lti_provider_id)">GET /api/v1/lti1.3/providers/(lti_provider_id)</a></p></td>
+<td><p>Get a LTI 1.3 provider by id.</p></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#patch--api-v1-lti1.3-providers-(lti_provider_id)">PATCH /api/v1/lti1.3/providers/(lti_provider_id)</a></p></td>
+<td><p>Update the information of an LTI 1.3 provider.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Linter</p></td>
 <td><p><a class="reference external" href="#get--api-v1-linters-(linter_id)-linter_instances-(linter_instance_id)">GET /api/v1/linters/(linter_id)/linter_instances/(linter_instance_id)</a></p></td>
@@ -3888,6 +3952,7 @@ which global permissions this user has.</p></li>
 <dt id="get--api-v1-lti-">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/lti/</code><a class="headerlink" href="#get--api-v1-lti-" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get a LTI config xml for this CodeGrade instance</p>
+<p>This route is part of the public API.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Query Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -3928,16 +3993,8 @@ required.</p></li>
 redirect.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Request JSON Object</dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>assignment</strong> – The assignment that the LTI launch was for.</p></li>
-<li><p><strong>new_role_created</strong> (<em>bool</em>) – Was a new role created in the LTI launch.</p></li>
-<li><p><strong>access_token</strong> – A fresh access token for the current user. This value
-is not always available, this depends on internal state so you should
-simply check.</p></li>
-<li><p><strong>updated_email</strong> – The new email of the current user. This is value is
-also not always available, check!</p></li>
-</ul>
+<dt class="field-even">Response JSON Object</dt>
+<dd class="field-even"><p>A _LTILaunch instance.</p>
 </dd>
 <dt class="field-odd">Possible error responses</dt>
 <dd class="field-odd"><p><a class="reference internal" href="psef_api/psef.html#psef.exceptions.APIException" title="psef.exceptions.APIException"><strong>APIException</strong></a> – If the given Jwt token is not valid. (INVALID_PARAM)</p>
@@ -3947,7 +4004,281 @@ also not always available, check!</p></li>
 
 <dl class="field-list simple">
 <dt class="field-odd">rtype</dt>
-<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference internal" href="psef_api/psef.html#psef.models.assignment.Assignment" title="psef.models.assignment.Assignment"><code class="xref py py-class docutils literal notranslate"><span class="pre">Assignment</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></a>, <code class="docutils literal notranslate"><span class="pre">None</span></code>]]]</p>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">_LTILaunchResult</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></a>]]]</p>
+</dd>
+</dl>
+<dl class="http post">
+<dt id="post--api-v1-lti1.3-deep_link-(uuid-deep_link_blob_id)">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/lti1.3/deep_link/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">deep_link_blob_id</em><span class="sig-paren">)</span><a class="headerlink" href="#post--api-v1-lti1.3-deep_link-(uuid-deep_link_blob_id)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a deeplink response for the given blob.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Request JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – The name of the new assignment.</p></li>
+<li><p><strong>deadline</strong> – The deadline of the new assignment, formatted as an
+ISO8601 datetime string.</p></li>
+<li><p><strong>auth_token</strong> – The authentication token received after the initial LTI
+launch.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Response JSON Object</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>url</strong> – The url you should use to post the given <code class="docutils literal notranslate"><span class="pre">jwt</span></code> to.</p></li>
+<li><p><strong>jwt</strong> – The JWT that should be posted to the outputted <code class="docutils literal notranslate"><span class="pre">url</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</p>
+</dd>
+</dl>
+<dl class="http get">
+<dt id="get--api-v1-lti1.3-jwks-(lti_provider_id)">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/lti1.3/jwks/</code><span class="sig-paren">(</span><em class="sig-param">lti_provider_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-lti1.3-jwks-(lti_provider_id)" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="http get">
+<dt id="get--api-v1-lti1.3-providers-(lti_provider_id)-jwks">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/lti1.3/providers/</code><span class="sig-paren">(</span><em class="sig-param">lti_provider_id</em><span class="sig-paren">)</span><code class="sig-name descname">/jwks</code><a class="headerlink" href="#get--api-v1-lti1.3-providers-(lti_provider_id)-jwks" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the JWKS of a given provider.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">/api/v1/lti1.3/providers/&lt;lti_provider_id&gt;/jwks</span></code> route is part of
+the public API. The <code class="docutils literal notranslate"><span class="pre">/api/v1/lti1.3/jwks/&lt;lti_provider_id&gt;</span></code> is not and
+<strong>will</strong> be removed in a future version.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lti_provider_id</strong> – The id of the provider from which you want to get
+the JWKS.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Mapping" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mapping</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]]]</p>
+</dd>
+</dl>
+<dl class="http post">
+<dt id="post--api-v1-lti1.3-launch-(lti_provider_id)">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/lti1.3/launch/</code><span class="sig-paren">(</span><em class="sig-param">lti_provider_id</em><span class="sig-paren">)</span><a class="headerlink" href="#post--api-v1-lti1.3-launch-(lti_provider_id)" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="http post">
+<dt id="post--api-v1-lti1.3-launch">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/lti1.3/launch</code><a class="headerlink" href="#post--api-v1-lti1.3-launch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Do a LTI 1.3 launch to the submission page.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lti_provider_id</strong> – The id of the provider doing the launch, not
+required for LMSes that pass all required information.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code>]</p>
+</dd>
+</dl>
+<dl class="http post">
+<dt id="post--api-v1-lti1.3-launch_to_latest_submission-(lti_provider_id)">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/lti1.3/launch_to_latest_submission/</code><span class="sig-paren">(</span><em class="sig-param">lti_provider_id</em><span class="sig-paren">)</span><a class="headerlink" href="#post--api-v1-lti1.3-launch_to_latest_submission-(lti_provider_id)" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="http post">
+<dt id="post--api-v1-lti1.3-launch_to_latest_submission">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/lti1.3/launch_to_latest_submission</code><a class="headerlink" href="#post--api-v1-lti1.3-launch_to_latest_submission" title="Permalink to this definition">¶</a></dt>
+<dd><p>Do a LTI 1.3 launch to the latest submission</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lti_provider_id</strong> – The id of the provider doing the launch, not
+required for LMSes that pass all required information.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code>]</p>
+</dd>
+</dl>
+<dl class="http get">
+<dt id="get--api-v1-lti1.3-login-(lti_provider_id)">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/lti1.3/login/</code><span class="sig-paren">(</span><em class="sig-param">lti_provider_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-lti1.3-login-(lti_provider_id)" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="http get">
+<dt id="get--api-v1-lti1.3-login">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/lti1.3/login</code><a class="headerlink" href="#get--api-v1-lti1.3-login" title="Permalink to this definition">¶</a></dt>
+<dd><p>Do an LTI 1.3 OIDC login.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lti_provider_id</strong> – The id of the provider doing the launch, not
+required for LMSes that pass all required information.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></p>
+</dd>
+</dl>
+<dl class="http post">
+<dt id="post--api-v1-lti1.3-login-(lti_provider_id)">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/lti1.3/login/</code><span class="sig-paren">(</span><em class="sig-param">lti_provider_id</em><span class="sig-paren">)</span><a class="headerlink" href="#post--api-v1-lti1.3-login-(lti_provider_id)" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="http post">
+<dt id="post--api-v1-lti1.3-login">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/lti1.3/login</code><a class="headerlink" href="#post--api-v1-lti1.3-login" title="Permalink to this definition">¶</a></dt>
+<dd><p>Do an LTI 1.3 OIDC login.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lti_provider_id</strong> – The id of the provider doing the launch, not
+required for LMSes that pass all required information.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></p>
+</dd>
+</dl>
+<dl class="http post">
+<dt id="post--api-v1-lti1.3-providers-">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/lti1.3/providers/</code><a class="headerlink" href="#post--api-v1-lti1.3-providers-" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new LTI 1.3 provider.</p>
+<p>This route is part of the public API.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Request JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>iss</strong> (<em>str</em>) – The iss of the new provider.</p></li>
+<li><p><strong>lms</strong> (<em>str</em>) – The LMS of the new provider, this should be known LMS.</p></li>
+<li><p><strong>indented_use</strong> (<em>str</em>) – The intended use of the provider. Like which
+organization will be using the provider, this can be any string.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Response JSON Object</dt>
+<dd class="field-even"><p>The just created provider.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.lti_provider.LTI1p3Provider" title="psef.models.lti_provider.LTI1p3Provider"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTI1p3Provider</span></code></a>]</p>
+</dd>
+</dl>
+<dl class="http get">
+<dt id="get--api-v1-lti1.3-providers-">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/lti1.3/providers/</code><a class="headerlink" href="#get--api-v1-lti1.3-providers-" title="Permalink to this definition">¶</a></dt>
+<dd><p>List all known LTI 1.3 providers for this instance.</p>
+<p>This route is part of the public API.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Response JSON Object</dt>
+<dd class="field-odd"><p>A list of all known LTI 1.3 providers.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.lti_provider.LTI1p3Provider" title="psef.models.lti_provider.LTI1p3Provider"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTI1p3Provider</span></code></a>]]</p>
+</dd>
+</dl>
+<dl class="http get">
+<dt id="get--api-v1-lti1.3-providers-(lti_provider_id)">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/lti1.3/providers/</code><span class="sig-paren">(</span><em class="sig-param">lti_provider_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-lti1.3-providers-(lti_provider_id)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a LTI 1.3 provider.</p>
+<p>This route is part of the public API.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lti_provider_id</strong> – The id of the provider you want to get.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Response JSON Object</dt>
+<dd class="field-even"><p>The requested LTI 1.3 provider.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.lti_provider.LTI1p3Provider" title="psef.models.lti_provider.LTI1p3Provider"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTI1p3Provider</span></code></a>]</p>
+</dd>
+</dl>
+<dl class="http patch">
+<dt id="patch--api-v1-lti1.3-providers-(lti_provider_id)">
+<code class="sig-name descname">PATCH </code><code class="sig-name descname">/api/v1/lti1.3/providers/</code><span class="sig-paren">(</span><em class="sig-param">lti_provider_id</em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-v1-lti1.3-providers-(lti_provider_id)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update the given LTI 1.3 provider.</p>
+<p>This route is part of the public API.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lti_provider_id</strong> – The id of the provider you want to update.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Request JSON Object</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>client_id</strong> (<em>str</em>) – The new client id.</p></li>
+<li><p><strong>auth_token_url</strong> (<em>str</em>) – The new authentication token url.</p></li>
+<li><p><strong>auth_login_url</strong> (<em>str</em>) – The new authentication login url.</p></li>
+<li><p><strong>key_set_url</strong> (<em>str</em>) – The new key set url.</p></li>
+<li><p><strong>auth_audience</strong> (<em>str</em>) – The new OAuth2 audience.</p></li>
+<li><p><strong>finalize</strong> (<em>bool</em>) – Should this provider be finalized.</p></li>
+</ul>
+</dd>
+</dl>
+<p>All input JSON is optional, when not provided that attribute will not be
+updated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Response JSON Object</dt>
+<dd class="field-odd"><p>The updated LTI 1.3 provider.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.lti_provider.LTI1p3Provider" title="psef.models.lti_provider.LTI1p3Provider"><code class="xref py py-class docutils literal notranslate"><span class="pre">LTI1p3Provider</span></code></a>]</p>
+</dd>
+</dl>
+<dl class="http get">
+<dt id="get--api-v1-lti1.3-providers-(lti_provider_id)-config">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/lti1.3/providers/</code><span class="sig-paren">(</span><em class="sig-param">lti_provider_id</em><span class="sig-paren">)</span><code class="sig-name descname">/config</code><a class="headerlink" href="#get--api-v1-lti1.3-providers-(lti_provider_id)-config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the LTI 1.3 config in such a way that it can be used by the LMS
+connected to this provider.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lti_provider_id</strong> – The id of the provider you want to get the
+configuration for.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Response JSON Object</dt>
+<dd class="field-even"><p>An opaque object that is useful only for the LMS.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a>]</p>
 </dd>
 </dl>
 <dl class="http get">

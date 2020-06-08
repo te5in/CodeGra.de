@@ -90,6 +90,22 @@ Source code documentation of ``psef``
     :undoc-members:
     :show-inheritance:
 
+``psef.lti.v1_1``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: psef.lti.v1_1
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+``psef.lti.v1_3``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: psef.lti.v1_3
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 ``psef.mail``
 ------------------------
 

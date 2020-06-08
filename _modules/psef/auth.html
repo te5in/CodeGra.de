@@ -363,6 +363,15 @@
         <span class="n">ensure_any_of_permissions</span><span class="p">(</span><span class="n">perms</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">)</span></div>
 
 
+<div class="viewcode-block" id="GlobalPermissionChecker"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.GlobalPermissionChecker">[docs]</a><span class="k">class</span> <span class="nc">GlobalPermissionChecker</span><span class="p">(</span><span class="n">PermissionChecker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The base permission checker class for permissions related to a users</span>
+<span class="sd">        global role.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_ensure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">perm</span><span class="p">:</span> <span class="n">GPerm</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ensure_permission</span><span class="p">(</span><span class="n">perm</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">)</span></div>
+
+
 <span class="nd">@jwt</span><span class="o">.</span><span class="n">user_loader_callback_loader</span>
 <span class="k">def</span> <span class="nf">_load_user</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.models.User&#39;</span><span class="p">]:</span>
     <span class="k">return</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">user_id</span><span class="p">))</span>
@@ -463,7 +472,7 @@
     <span class="k">else</span><span class="p">:</span>
         <span class="n">label</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;The user &quot;</span><span class="si">{</span><span class="n">user</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot; is&#39;</span>
 
-    <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">virtual</span> <span class="ow">or</span> <span class="n">course_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">user</span><span class="o">.</span><span class="n">courses</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">user</span><span class="o">.</span><span class="n">is_enrolled</span><span class="p">(</span><span class="n">course_id</span><span class="p">):</span>
         <span class="k">raise</span> <span class="n">PermissionException</span><span class="p">(</span>
             <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1"> not enrolled in this course.&#39;</span><span class="p">,</span>
             <span class="sa">f</span><span class="s1">&#39;The user &quot;</span><span class="si">{</span><span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1">&quot; is not enrolled in course &quot;</span><span class="si">{</span><span class="n">course_id</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">,</span>
@@ -696,7 +705,11 @@
 
     <span class="c1"># We do not passback test student grades, so we do not need them to</span>
     <span class="c1"># be present in the assignment_results</span>
-    <span class="k">if</span> <span class="n">assig</span><span class="o">.</span><span class="n">is_lti</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">author</span><span class="o">.</span><span class="n">is_test_student</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">author</span><span class="o">.</span><span class="n">is_test_student</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="k">elif</span> <span class="p">(</span><span class="ow">not</span> <span class="n">assig</span><span class="o">.</span><span class="n">is_lti</span><span class="p">)</span> <span class="ow">or</span> <span class="n">assig</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="k">elif</span> <span class="n">assig</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span><span class="o">.</span><span class="n">member_sourcedid_required</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">author</span><span class="o">.</span><span class="n">group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">members</span> <span class="o">=</span> <span class="n">author</span><span class="o">.</span><span class="n">group</span><span class="o">.</span><span class="n">members</span>
         <span class="k">else</span><span class="p">:</span>
@@ -705,9 +718,11 @@
         <span class="k">if</span> <span class="nb">any</span><span class="p">(</span>
             <span class="n">assig</span><span class="o">.</span><span class="n">id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">member</span><span class="o">.</span><span class="n">assignment_results</span> <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">members</span>
         <span class="p">):</span>
+            <span class="c1"># An assignment can never be an LTI assignment when the course is</span>
+            <span class="c1"># not an LTI course.</span>
             <span class="k">assert</span> <span class="n">assig</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-
             <span class="n">lms</span> <span class="o">=</span> <span class="n">assig</span><span class="o">.</span><span class="n">course</span><span class="o">.</span><span class="n">lti_provider</span><span class="o">.</span><span class="n">lms_name</span>
+
             <span class="k">if</span> <span class="n">author</span><span class="o">.</span><span class="n">group</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;Some authors haven&#39;t opened the assignment in </span><span class="si">{</span><span class="n">lms</span><span class="si">}</span><span class="s2"> yet&quot;</span><span class="p">,</span>
@@ -1308,6 +1323,57 @@
                 <span class="s1">&#39;This task result does not belong to you&#39;</span><span class="p">,</span> <span class="p">(</span>
                     <span class="sa">f</span><span class="s1">&#39;The task result </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">task_result</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1"> does not belong to&#39;</span>
                     <span class="sa">f</span><span class="s1">&#39; </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="si">}</span><span class="s1">.&#39;</span>
+                <span class="p">),</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">INCORRECT_PERMISSION</span><span class="p">,</span> <span class="mi">403</span>
+            <span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="LTI1p3ProviderPermissions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.LTI1p3ProviderPermissions">[docs]</a><span class="k">class</span> <span class="nc">LTI1p3ProviderPermissions</span><span class="p">(</span><span class="n">GlobalPermissionChecker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The permission checker for :class:`psef.models.LTI1p3Provider`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;lti_provider&#39;</span><span class="p">,</span> <span class="s1">&#39;secret_is_correct&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">lti_provider</span><span class="p">:</span> <span class="s1">&#39;psef.models.LTI1p3Provider&#39;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">secret</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lti_provider</span><span class="p">:</span> <span class="n">Final</span> <span class="o">=</span> <span class="n">lti_provider</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">secret_is_correct</span><span class="p">:</span> <span class="n">Final</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">secret</span> <span class="o">==</span> <span class="nb">str</span><span class="p">(</span><span class="n">lti_provider</span><span class="o">.</span><span class="n">edit_secret</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_ensure_can_manage</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">secret_is_correct</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure</span><span class="p">(</span><span class="n">GPerm</span><span class="o">.</span><span class="n">can_manage_lti_providers</span><span class="p">)</span>
+
+<div class="viewcode-block" id="LTI1p3ProviderPermissions.ensure_may_add"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.LTI1p3ProviderPermissions.ensure_may_add">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_add</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Check if the current user may add this lti provider.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># You don&#39; thave the permission to add based on a passed secret.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure</span><span class="p">(</span><span class="n">GPerm</span><span class="o">.</span><span class="n">can_manage_lti_providers</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="LTI1p3ProviderPermissions.ensure_may_see"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.LTI1p3ProviderPermissions.ensure_may_see">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_see</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Check if the current user may see this lti provider.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_can_manage</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="LTI1p3ProviderPermissions.ensure_may_edit"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.LTI1p3ProviderPermissions.ensure_may_edit">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_edit</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Check if the current user may edit this lti provider.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_can_manage</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lti_provider</span><span class="o">.</span><span class="n">is_finalized</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">PermissionException</span><span class="p">(</span>
+                <span class="p">(</span>
+                    <span class="s1">&#39;You do not have the permission to edit this lti provider,&#39;</span>
+                    <span class="s1">&#39; as it has already been finalized.&#39;</span>
+                <span class="p">),</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;The LTI provider </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">lti_provider</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1"> has already been&#39;</span>
+                    <span class="s1">&#39; finalized.&#39;</span>
                 <span class="p">),</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">INCORRECT_PERMISSION</span><span class="p">,</span> <span class="mi">403</span>
             <span class="p">)</span></div></div>
 

@@ -212,7 +212,7 @@
 <span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
 <span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers</span> <span class="kn">import</span> <span class="n">mixins</span>
 
-<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">UUID_LENGTH</span><span class="p">,</span> <span class="n">Base</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">db</span><span class="p">,</span> <span class="n">_MyQuery</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">MyQuery</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">db</span>
 <span class="kn">from</span> <span class="nn">.role</span> <span class="kn">import</span> <span class="n">CourseRole</span>
 <span class="kn">from</span> <span class="nn">.user</span> <span class="kn">import</span> <span class="n">User</span>
 <span class="kn">from</span> <span class="nn">.work</span> <span class="kn">import</span> <span class="n">Work</span>
@@ -220,7 +220,6 @@
 <span class="kn">from</span> <span class="nn">.assignment</span> <span class="kn">import</span> <span class="n">Assignment</span>
 <span class="kn">from</span> <span class="nn">.link_tables</span> <span class="kn">import</span> <span class="n">user_course</span>
 <span class="kn">from</span> <span class="nn">..permissions</span> <span class="kn">import</span> <span class="n">CoursePermission</span>
-<span class="kn">from</span> <span class="nn">.lti_provider</span> <span class="kn">import</span> <span class="n">LTIProvider</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">structlog</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
 
@@ -272,8 +271,6 @@
     <span class="sd">&quot;&quot;&quot;Describes a mapping from a keyword to a replacement text that is shared</span>
 <span class="sd">    amongst the teachers and TAs of the course.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">_MyQuery</span><span class="p">[</span><span class="s1">&#39;CourseSnippet&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;CourseSnippet&#39;</span>
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">key</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -316,8 +313,6 @@
 <span class="sd">    :param lti_course_id: The id of the course in LTI</span>
 <span class="sd">    :param lti_provider: The LTI provider</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="n">_MyQuery</span><span class="p">[</span><span class="s1">&#39;Course&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Base</span><span class="o">.</span><span class="n">query</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s2">&quot;Course&quot;</span>
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">name</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
@@ -328,15 +323,21 @@
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="c1"># All stuff for LTI</span>
-    <span class="n">lti_course_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">course_lti_provider</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">CourseLTIProvider</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;course&quot;</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
 
-    <span class="n">lti_provider_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
-        <span class="n">db</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="n">UUID_LENGTH</span><span class="p">),</span> <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;LTIProvider.id&#39;</span><span class="p">)</span>
-    <span class="p">)</span>
-    <span class="n">lti_provider</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
-        <span class="k">lambda</span><span class="p">:</span> <span class="n">LTIProvider</span><span class="p">,</span> <span class="n">foreign_keys</span><span class="o">=</span><span class="n">lti_provider_id</span>
-    <span class="p">)</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">lti_provider</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.models.LTIProviderBase&#39;</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;The LTI provider connected to this course.</span>
+
+<span class="sd">        If this is ``None`` the course is not an LTI course.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_lti_provider</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_lti_provider</span><span class="o">.</span><span class="n">lti_provider</span>
 
     <span class="n">virtual</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;virtual&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
@@ -376,23 +377,16 @@
     <span class="k">def</span> <span class="nf">create_and_add</span><span class="p">(</span>
         <span class="bp">cls</span><span class="p">,</span>
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">lti_course_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">lti_provider</span><span class="p">:</span> <span class="s1">&#39;LTIProvider&#39;</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">virtual</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Course&#39;</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Create a new course and add it to the current database session.</span>
 
 <span class="sd">        :param name: The name of the new course.</span>
-<span class="sd">        :param lti_course_id: The id of the course for the LMS.</span>
-<span class="sd">        :param lti_provider: The lti provider. Either both ``lti_course_id``</span>
-<span class="sd">            and ``lti_provider`` should be ``None``, or both should be a valid</span>
-<span class="sd">            value.</span>
 <span class="sd">        :param virtual: Is this a virtual course.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="bp">self</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span>
             <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
-            <span class="n">lti_course_id</span><span class="o">=</span><span class="n">lti_course_id</span><span class="p">,</span>
-            <span class="n">lti_provider</span><span class="o">=</span><span class="n">lti_provider</span><span class="p">,</span>
             <span class="n">virtual</span><span class="o">=</span><span class="n">virtual</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="n">virtual</span><span class="p">:</span>
@@ -458,6 +452,17 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">id</span>
         <span class="k">return</span> <span class="bp">NotImplemented</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_lti</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Is this course a LTI course.</span>
+
+<span class="sd">        :returns: A boolean indicating if this is the case.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_lti_provider</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__structlog__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">}</span>
+
     <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Creates a JSON serializable representation of this object.</span>
 
@@ -479,8 +484,9 @@
             <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
             <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
             <span class="s1">&#39;created_at&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
-            <span class="s1">&#39;is_lti&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">lti_course_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s1">&#39;is_lti&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_lti</span><span class="p">,</span>
             <span class="s1">&#39;virtual&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">virtual</span><span class="p">,</span>
+            <span class="s1">&#39;lti_provider&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">lti_provider</span><span class="p">,</span>
         <span class="p">}</span>
 
 <div class="viewcode-block" id="Course.get_all_visible_assignments"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.course.Course.get_all_visible_assignments">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_visible_assignments</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="s1">&#39;Assignment&#39;</span><span class="p">]:</span>
@@ -494,7 +500,7 @@
             <span class="k">return</span> <span class="p">[]</span>
 
         <span class="n">assigs</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterable</span><span class="p">[</span><span class="n">Assignment</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">assig</span> <span class="k">for</span> <span class="n">assig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignments</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">assig</span><span class="o">.</span><span class="n">deleted</span>
+            <span class="n">assig</span> <span class="k">for</span> <span class="n">assig</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignments</span> <span class="k">if</span> <span class="n">assig</span><span class="o">.</span><span class="n">is_visible</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">psef</span><span class="o">.</span><span class="n">current_user</span><span class="o">.</span><span class="n">has_permission</span><span class="p">(</span>
             <span class="n">CoursePermission</span><span class="o">.</span><span class="n">can_see_hidden_assignments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span>
@@ -504,9 +510,11 @@
             <span class="n">assigs</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">deadline</span> <span class="ow">or</span> <span class="n">DatetimeWithTimezone</span><span class="o">.</span><span class="n">max</span>
         <span class="p">)</span></div>
 
-<div class="viewcode-block" id="Course.get_all_users_in_course"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.course.Course.get_all_users_in_course">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_users_in_course</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">include_test_students</span><span class="p">:</span> <span class="nb">bool</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;_MyQuery[t.Tuple[User, CourseRole]]&#39;</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">get_assignments</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;Assignment&#39;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">Assignment</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">Assignment</span><span class="o">.</span><span class="n">course</span> <span class="o">==</span> <span class="bp">self</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Course.get_all_users_in_course"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.course.Course.get_all_users_in_course">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_users_in_course</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">include_test_students</span><span class="p">:</span> <span class="nb">bool</span>
+                                <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;t.Tuple[User, CourseRole]&#39;</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Get a query that returns all users in the current course and their</span>
 <span class="sd">            role.</span>
 
@@ -547,7 +555,9 @@
             <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;VIRTUAL_COURSE__</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">virtual</span><span class="o">=</span><span class="kc">True</span>
         <span class="p">)</span>
         <span class="n">assig</span> <span class="o">=</span> <span class="n">Assignment</span><span class="p">(</span>
-            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Virtual assignment - </span><span class="si">{</span><span class="n">tree</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">course</span><span class="o">=</span><span class="bp">self</span>
+            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Virtual assignment - </span><span class="si">{</span><span class="n">tree</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="n">course</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">is_lti</span><span class="o">=</span><span class="kc">False</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assignments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">assig</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">tree</span><span class="o">.</span><span class="n">values</span><span class="p">):</span>
@@ -585,7 +595,7 @@
             <span class="n">role</span> <span class="o">=</span> <span class="n">CourseRole</span><span class="p">(</span>
                 <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Test_Student_Role__</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
                 <span class="n">course</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
-                <span class="n">hidden</span><span class="o">=</span><span class="kc">True</span>
+                <span class="n">hidden</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">role</span><span class="p">)</span>
             <span class="n">user</span> <span class="o">=</span> <span class="n">User</span><span class="o">.</span><span class="n">create_new_test_student</span><span class="p">()</span>

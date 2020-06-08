@@ -221,7 +221,7 @@
     <span class="c1"># Sphinx fails with this decorator for whatever reason.</span>
     <span class="n">cache_within_request</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span>  <span class="c1"># pylint: disable=invalid-name</span>
 <span class="k">else</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">..cache</span> <span class="kn">import</span> <span class="n">cache_within_request</span>
+    <span class="kn">from</span> <span class="nn">cg_cache.intra_request</span> <span class="kn">import</span> <span class="n">cache_within_request</span>
 
 
 <div class="viewcode-block" id="PermissionComp"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.permission.PermissionComp">[docs]</a><span class="k">class</span> <span class="nc">PermissionComp</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">Generic</span><span class="p">[</span><span class="n">_T</span><span class="p">],</span> <span class="n">Comparator</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>  <span class="c1"># pylint: disable=missing-docstring,too-many-ancestors</span>
@@ -256,8 +256,6 @@
 <span class="sd">        this permission is global for the entire site.</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="n">query</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;Permission&#39;</span>
 
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
