@@ -857,10 +857,10 @@ export default {
             if (this.autoTestId != null) {
                 return this.storeLoadAutoTest({
                     autoTestId: this.autoTestId,
-                }).catch(err => this.$utils.handleHttpError({
+                }).catch(this.$utils.makeHttpErrorHandler({
                     // The user may not have permission to see the results yet.
                     403: () => {},
-                }, err));
+                }));
             } else {
                 return Promise.resolve();
             }

@@ -670,6 +670,20 @@ Cypress.Commands.add('parentsUpto', { prevSubject: true }, (subject, selector) =
     // the selector instead of the last parent that doesn't.
     return cy.wrap(subject).parentsUntil(selector).parent();
 });
+
+Cypress.Commands.add('shouldReload', fn => {
+    // Check that executing the given function causes a page reload.
+
+    // Set a property on window that will be gone after the reload.
+    cy.window().should('not.have.property', 'beforeReload');
+    cy.window().then(w => w.beforeReload = true);
+    cy.window().should('have.property', 'beforeReload', true);
+
+    fn();
+
+    cy.window().should('not.have.property', 'beforeReload');
+});
+
 //
 //
 // -- This is a child command --

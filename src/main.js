@@ -31,7 +31,6 @@ import 'reflect-metadata';
 import BootstrapVue from 'bootstrap-vue';
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
-import Toasted from 'vue-toasted';
 import localforage from 'localforage';
 import memoryStorageDriver from 'localforage-memoryStorageDriver';
 import VueMasonry from 'vue-masonry-css';
@@ -41,8 +40,9 @@ import moment from 'moment';
 import App from '@/App';
 import router, { setRestoreRoute } from '@/router';
 import * as utils from '@/utils';
+import { NO_LOGIN_REQUIRED_ROUTES } from '@/constants';
 import '@/icons';
-import { store } from './store';
+import * as store from './store';
 import { NotificationStore } from './store/modules/notification';
 import * as mutationTypes from './store/mutation-types';
 import './my-vue';
@@ -71,7 +71,6 @@ Vue.component('cg-number-input', NumberInput);
 Vue.component('cg-wizard-wrapper', WizardWrapper);
 
 Vue.use(BootstrapVue);
-Vue.use(Toasted);
 Vue.use(VueMasonry);
 Vue.use(VueClipboard);
 
@@ -105,8 +104,8 @@ moment.updateLocale('en', {
 });
 
 axios.defaults.transformRequest.push((data, headers) => {
-    if (store.state.user.jwtToken) {
-        headers.Authorization = `Bearer ${store.state.user.jwtToken}`;
+    if (store.store.state.user.jwtToken) {
+        headers.Authorization = `Bearer ${store.store.state.user.jwtToken}`;
     }
     return data;
 });
@@ -142,62 +141,6 @@ axiosRetry(axios, {
         return delay + randomSum;
     },
 });
-
-axios.interceptors.response.use(
-    response => response,
-    (() => {
-        let toastVisible = false;
-        return error => {
-            const { config, response, request } = error;
-
-            if (!toastVisible && !response && request) {
-                toastVisible = true;
-                Vue.toasted.error(
-                    'There was an error connecting to the server... Please try again later',
-                    {
-                        position: 'bottom-center',
-                        closeOnSwipe: false,
-                        duration: 3000,
-                        onComplete: () => {
-                            toastVisible = false;
-                        },
-                    },
-                );
-            } else if (
-                config &&
-                config.method === 'get' &&
-                response.status === 401 &&
-                !config.url.match(/\/api\/v1\/login.*/)
-            ) {
-                if (router.currentRoute.name !== 'login') {
-                    setRestoreRoute(router.currentRoute);
-                    store.dispatch('user/logout').then(() => {
-                        router.push({ name: 'login' });
-                    });
-                }
-                if (!toastVisible) {
-                    toastVisible = true;
-                    Vue.toasted.error(
-                        'You are currently not logged in. Please log in to view this page.',
-                        {
-                            position: 'bottom-center',
-                            closeOnSwipe: false,
-                            action: {
-                                text: '✖',
-                                onClick(_, toastObject) {
-                                    toastObject.goAway(0);
-                                    toastVisible = false;
-                                },
-                            },
-                        },
-                    );
-                }
-            }
-
-            throw error;
-        };
-    })(),
-);
 
 Vue.prototype.$http = axios;
 
@@ -262,12 +205,12 @@ Promise.all([
             }
         }
         if (courseId) {
-            return store.dispatch('courses/loadCourses').then(() => {
-                const map = store.getters['courses/courses'][courseId].permissions;
+            return store.store.dispatch('courses/loadCourses').then(() => {
+                const map = store.store.getters['courses/courses'][courseId].permissions;
                 return makeResponse(map);
             });
         } else {
-            return Promise.resolve(makeResponse(store.getters['user/permissions']));
+            return Promise.resolve(makeResponse(store.store.getters['user/permissions']));
         }
     };
 
@@ -281,7 +224,7 @@ Promise.all([
         router,
         template: '<App/>',
         components: { App },
-        store,
+        store: store.store,
 
         data() {
             return {
@@ -298,11 +241,16 @@ Promise.all([
                 now: moment(),
                 epoch: getUTCEpoch(),
 
+                caughtErrors: [],
                 $loadFullNotifications: false,
             };
         },
 
         created() {
+            axios.interceptors.response.use(res => res, this.httpErrorHandler);
+
+            store.onVueCreated(this);
+
             window.addEventListener('resize', () => {
                 this.screenWidth = window.innerWidth;
             });
@@ -362,6 +310,53 @@ Promise.all([
             $epoch() {
                 return this.epoch;
             },
+
+            httpErrorHandler() {
+                return utils.makeHttpErrorHandler({
+                    401: err => {
+                        const { config } = err;
+
+                        if (
+                            !config ||
+                            config.method !== 'get' ||
+                            config.url.match(/\/api\/v1\/login/) ||
+                            NO_LOGIN_REQUIRED_ROUTES.has(router.currentRoute.name)
+                        ) {
+                            return;
+                        }
+
+                        if (store.store.getters['user/dangerousJwtToken'] == null) {
+                            this.notLoggedInError(
+                                'You are currently not logged in. Please log in to view this page.',
+                            );
+                        } else {
+                            this.notLoggedInError(
+                                'Your session has expired. Please log in again to view this page.',
+                            );
+                        }
+
+                        if (router.currentRoute.name !== 'login') {
+                            setRestoreRoute(router.currentRoute);
+                            store.store.dispatch('user/logout').then(() => {
+                                router.push({ name: 'login' });
+                            });
+                        }
+                        throw err;
+                    },
+                    '5xx': err => {
+                        const { request } = err;
+
+                        if (request) {
+                            this.backendError();
+                        }
+                        throw err;
+                    },
+                    noResponse: err => {
+                        this.connectionError();
+                        throw err;
+                    },
+                });
+            },
         },
 
         methods: {
@@ -384,6 +379,35 @@ Promise.all([
                 setTimeout(() => {
                     this._loadNotifications();
                 }, sleepTime);
+            },
+
+            notLoggedInError(message) {
+                this.$emit('cg::app::toast', {
+                    tag: 'NotLoggedIn',
+                    title: 'Not logged in',
+                    message,
+                    variant: 'danger',
+                });
+            },
+
+            backendError() {
+                this.$emit('cg::app::toast', {
+                    tag: 'BackendError',
+                    title: 'Unknown error',
+                    message:
+                        'An unexpected error occurred. Please try again in a moment or contact support if this persists.',
+                    variant: 'danger',
+                });
+            },
+
+            connectionError() {
+                this.$emit('cg::app::toast', {
+                    tag: 'ConnectionError',
+                    title: 'Connection error',
+                    message:
+                        'There was an error connecting to the server... Please try again later.',
+                    variant: 'danger',
+                });
             },
         },
 

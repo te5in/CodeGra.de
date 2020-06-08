@@ -81,19 +81,6 @@ import { makeProvider } from '@/lti_providers';
 
 import { setPageTitle } from './title';
 
-function getToastOptions() {
-    return {
-        position: 'bottom-center',
-        closeOnSwipe: false,
-        action: {
-            text: '✖',
-            onClick: (e, toastObject) => {
-                toastObject.goAway(0);
-            },
-        },
-    };
-}
-
 export default {
     name: 'lti-launch-page',
 
@@ -150,7 +137,11 @@ export default {
                 })
                 .then(async response => {
                     this.$utils.WarningHeader.fromResponse(response).messages.forEach(warning => {
-                        this.$toasted.info(warning.text, getToastOptions());
+                        this.$root.$emit('cg::app::toast', {
+                            tag: `LTIWarning-${warning.code}`,
+                            title: 'Warning',
+                            message: warning.text,
+                        });
                     });
                     const { data } = response;
                     if (data.version !== 'v1_1' && data.version !== 'v1_3') {
@@ -207,21 +198,23 @@ export default {
             this.$LTIAssignmentId = data.assignment.id;
 
             if (data.new_role_created) {
-                this.$toasted.info(
-                    `You do not have any permissions yet, please ask your teacher to enable them for your role "${
+                this.$root.$emit('cg::app::toast', {
+                    tag: 'LTINewRoleCreated',
+                    title: 'New role created',
+                    message: `You do not have any permissions yet, please ask your teacher to enable them for your role "${
                         data.new_role_created
                     }".`,
-                    getToastOptions(),
-                );
+                });
             }
 
             if (data.updated_email) {
-                this.$toasted.info(
-                    `Your email was updated to "${
+                this.$root.$emit('cg::app::toast', {
+                    tag: 'LTIEmailUpdated',
+                    title: 'Email was updated',
+                    message: `Your email was updated to "${
                         data.updated_email
                     }" which is the email registered with your ${data.custom_lms_name}.`,
-                    getToastOptions(),
-                );
+                });
             }
 
             if (this.$route.query.redirect && this.$route.query.redirect.startsWith('/')) {
