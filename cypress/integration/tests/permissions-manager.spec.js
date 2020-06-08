@@ -29,7 +29,7 @@ context('changing a permission', () => {
                 .contains('.toast', 'Permissions have changed')
                 .should('be.visible')
                 .find('.toast-body')
-                .should('contain', 'Reload the page to apply the changes')
+                .should('contain', 'Click here to reload the page and apply the changes')
                 .click();
         });
     });
