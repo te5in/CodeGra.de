@@ -81,13 +81,22 @@
         </b-input-group>
     </b-form-fieldset>
 
-    <b-toast :visible="showChangedMessage"
+    <b-toast v-if="$inLTI"
+             :visible="showChangedMessage"
+             toaster="b-toaster-top-right"
+             title="Permissions have changed"
+             no-auto-hide
+             solid>
+           Reload CodeGrade to apply the changes.
+    </b-toast>
+    <b-toast v-else
+             :visible="showChangedMessage"
              toaster="b-toaster-top-right"
              title="Permissions have changed"
              no-auto-hide
              solid
              href="javascript:window.location.reload()">
-           Reload the page to apply the changes.
+           Click here to reload the page and apply the changes.
     </b-toast>
 </div>
 </template>

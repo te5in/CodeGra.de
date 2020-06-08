@@ -41,6 +41,7 @@ import moment from 'moment';
 import App from '@/App';
 import router, { setRestoreRoute } from '@/router';
 import * as utils from '@/utils';
+import { NO_LOGIN_REQUIRED_ROUTES } from '@/constants';
 import * as store from './store';
 import { NotificationStore } from './store/modules/notification';
 import * as mutationTypes from './store/mutation-types';
@@ -377,7 +378,8 @@ Promise.all([
                         if (
                             !config ||
                             config.method !== 'get' ||
-                            config.url.match(/\/api\/v1\/login/)
+                            config.url.match(/\/api\/v1\/login/) ||
+                            NO_LOGIN_REQUIRED_ROUTES.has(router.curentRoute.name)
                         ) {
                             return;
                         }
