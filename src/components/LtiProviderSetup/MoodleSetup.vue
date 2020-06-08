@@ -213,6 +213,13 @@
             </p>
 
             <b-form-group class="mb-3">
+                <b-input-group prepend="Platform ID">
+                    <input class="form-control"
+                           v-model="iss" />
+                </b-input-group>
+            </b-form-group>
+
+            <b-form-group class="mb-3">
                 <b-input-group prepend="Client ID">
                     <input class="form-control"
                            v-model="clientId" />
@@ -294,6 +301,8 @@ export default class MoodleSetup extends Vue {
 
     moodleBaseUrl: string | null = null;
 
+    iss: string | null = this.ltiProvider.iss;
+
     get showLogo(): boolean {
         return (this.$root as any).$isMediumWindow;
     }
@@ -361,7 +370,8 @@ export default class MoodleSetup extends Vue {
     }
 
     finalizeProvider() {
-        if (!this.clientId || !this.authTokenUrl || !this.authLoginUrl || !this.keySetUrl) {
+        if (!this.clientId || !this.authTokenUrl || !this.authLoginUrl || !this.keySetUrl ||
+                !this.iss) {
             throw new Error('Please provide a value for every input.');
         }
 
@@ -370,6 +380,7 @@ export default class MoodleSetup extends Vue {
             auth_token_url: this.authTokenUrl,
             auth_login_url: this.authLoginUrl,
             key_set_url: this.keySetUrl,
+            iss: this.iss,
             finalize: true,
         });
     }
