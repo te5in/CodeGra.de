@@ -39,6 +39,7 @@ export const MANAGE_COURSE_PERMISSIONS = Object.freeze(<const>[
 export const MANAGE_SITE_PERIMSSIONS = Object.freeze(<const>[
     'can_manage_site_users',
     'can_impersonate_users',
+    'can_manage_lti_providers',
 ]);
 
 export const PASSWORD_UNIQUE_MESSAGE =
@@ -54,9 +55,14 @@ export const NO_LOGIN_REQUIRED_ROUTES = new Set(<const>[
     'lti-launch',
     'login_and_redirect',
     'unsubscribe',
+    'lti_provider_setup',
 ]);
 
-export const NO_SIDEBAR_ROUTES = new Set(<const>['lti-launch', 'unsubscribe']);
+export const NO_SIDEBAR_ROUTES = new Set(<const>[
+    'lti-launch',
+    'unsubscribe',
+    'lti_provider_setup',
+]);
 
 export const NO_FOOTER_ROUTES = new Set(<const>[
     'submission',

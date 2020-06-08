@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-TEST_FILE?=cg_worker_pool/tests/ cg_threading_utils/tests/ psef_test/
+TEST_FILE?=cg_worker_pool/tests/ cg_threading_utils/tests/ cg_signals/tests cg_cache/tests/ psef_test/
 SHELL=/bin/bash
 TEST_FLAGS?=
 PYTHON?=env/bin/python3
 export PYTHONPATH=$(CURDIR)
-PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger cg_worker_pool cg_threading_utils cg_flask_helpers cg_dt_utils
+PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger cg_worker_pool cg_threading_utils cg_flask_helpers cg_dt_utils cg_signals cg_cache
 PY_ALL_MODULES=$(PY_MODULES) psef_test
 
 .PHONY: test_setup
@@ -35,7 +35,7 @@ doctest: test_setup
 	       --cov cg_worker_pool \
 	       --cov-append \
 	       --cov-report term-missing \
-	       --doctest-modules psef \
+	       --doctest-modules psef --doctest-modules cg_cache \
 	       -vvvvv $(TEST_FLAGS)
 
 .PHONY: reset_db_broker
@@ -79,7 +79,7 @@ broker_start_dev_celery:
 
 .PHONY: start_dev_celery
 start_dev_celery:
-	DEBUG=on env/bin/celery worker --app=runcelery:celery -EB
+	bash ./.scripts/start_celery.bash
 
 .PHONY: start_dev_server
 start_dev_server:

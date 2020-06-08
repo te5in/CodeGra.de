@@ -163,6 +163,15 @@ class CoursePermissionChecker(PermissionChecker):
         ensure_any_of_permissions(perms, self.course_id, user=self.user)
 
 
+class GlobalPermissionChecker(PermissionChecker):
+    """The base permission checker class for permissions related to a users
+        global role.
+    """
+
+    def _ensure(self, perm: GPerm) -> None:
+        ensure_permission(perm, user=self.user)
+
+
 @jwt.user_loader_callback_loader
 def _load_user(user_id: int) -> t.Optional['psef.models.User']:
     return psef.models.User.query.get(int(user_id))
@@ -263,7 +272,7 @@ def ensure_enrolled(
     else:
         label = f'The user "{user.name}" is'
 
-    if user.virtual or course_id not in user.courses:
+    if not user.is_enrolled(course_id):
         raise PermissionException(
             f'{label} not enrolled in this course.',
             f'The user "{user.id}" is not enrolled in course "{course_id}"',
@@ -496,7 +505,11 @@ def ensure_can_submit_work(
 
     # We do not passback test student grades, so we do not need them to
     # be present in the assignment_results
-    if assig.is_lti and not author.is_test_student:
+    if author.is_test_student:
+        pass
+    elif (not assig.is_lti) or assig.course.lti_provider is None:
+        pass
+    elif assig.course.lti_provider.member_sourcedid_required:
         if author.group is not None:
             members = author.group.members
         else:
@@ -505,9 +518,11 @@ def ensure_can_submit_work(
         if any(
             assig.id not in member.assignment_results for member in members
         ):
+            # An assignment can never be an LTI assignment when the course is
+            # not an LTI course.
             assert assig.course.lti_provider is not None
-
             lms = assig.course.lti_provider.lms_name
+
             if author.group:
                 raise APIException(
                     f"Some authors haven't opened the assignment in {lms} yet",
@@ -1108,6 +1123,57 @@ class TaskResultPermissions(PermissionChecker):
                 'This task result does not belong to you', (
                     f'The task result {self.task_result.id} does not belong to'
                     f' {self.user}.'
+                ), APICodes.INCORRECT_PERMISSION, 403
+            )
+
+
+class LTI1p3ProviderPermissions(GlobalPermissionChecker):
+    """The permission checker for :class:`psef.models.LTI1p3Provider`.
+    """
+    __slots__ = ('lti_provider', 'secret_is_correct')
+
+    def __init__(
+        self,
+        lti_provider: 'psef.models.LTI1p3Provider',
+        *,
+        secret: str = None
+    ) -> None:
+        self.lti_provider: Final = lti_provider
+        self.secret_is_correct: Final = (
+            secret == str(lti_provider.edit_secret)
+        )
+
+    def _ensure_can_manage(self) -> None:
+        if self.secret_is_correct:
+            return
+        self._ensure(GPerm.can_manage_lti_providers)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_add(self) -> None:
+        """Check if the current user may add this lti provider.
+        """
+        # You don' thave the permission to add based on a passed secret.
+        self._ensure(GPerm.can_manage_lti_providers)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        """Check if the current user may see this lti provider.
+        """
+        self._ensure_can_manage()
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_edit(self) -> None:
+        """Check if the current user may edit this lti provider.
+        """
+        self._ensure_can_manage()
+        if self.lti_provider.is_finalized:
+            raise PermissionException(
+                (
+                    'You do not have the permission to edit this lti provider,'
+                    ' as it has already been finalized.'
+                ), (
+                    f'The LTI provider {self.lti_provider.id} has already been'
+                    ' finalized.'
                 ), APICodes.INCORRECT_PERMISSION, 403
             )
 

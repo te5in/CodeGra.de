@@ -30,7 +30,7 @@ def get_analytics(ana_id: int) -> JSONResponse[models.AnalyticsWorkspace]:
     workspace = helpers.get_or_404(
         models.AnalyticsWorkspace,
         ana_id,
-        also_error=lambda a: a.assignment.deleted
+        also_error=lambda a: not a.assignment.is_visible
     )
     auth.AnalyticsWorkspacePermissions(workspace).ensure_may_see()
     return JSONResponse.make(workspace)
@@ -59,7 +59,7 @@ def get_data_source(
     workspace = helpers.get_or_404(
         models.AnalyticsWorkspace,
         ana_id,
-        also_error=lambda a: a.assignment.deleted
+        also_error=lambda a: not a.assignment.is_visible
     )
     auth.AnalyticsWorkspacePermissions(workspace).ensure_may_see()
 

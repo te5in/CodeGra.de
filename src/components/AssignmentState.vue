@@ -3,7 +3,7 @@
 <div class="assignment-state" v-if="editable">
     <b-button-group>
         <b-button-group v-if="canManageLTIState"
-                        v-b-popover.window.top.hover="`Hidden or open, managed by ${lmsName}`">
+                        v-b-popover.window.top.hover="managedByLTIPopover">
             <submit-button class="state-button larger state-hidden state-open"
                            :variant="ltiHiddenOpenVariant"
                            :duration="0"
@@ -88,8 +88,6 @@ import 'vue-awesome/icons/clock-o';
 import 'vue-awesome/icons/pencil';
 import 'vue-awesome/icons/check';
 
-import ltiProviders from '@/lti_providers';
-
 import * as states from '../store/assignment-states';
 
 import Loader from './Loader';
@@ -153,12 +151,32 @@ export default {
             return st === states.DONE ? 'success' : 'outline-success';
         },
 
+        ltiProvider() {
+            return this.$utils.getProps(this.assignment, null, 'course', 'ltiProvider');
+        },
+
         canManageLTIState() {
-            return this.assignment.is_lti && ltiProviders[this.lmsName].supportsStateManagement;
+            return this.$utils.getProps(this.ltiProvider, false, 'supportsStateManagement');
         },
 
         lmsName() {
-            return this.assignment.lms_name;
+            return this.$utils.getProps(this.ltiProvider, null, 'lms');
+        },
+
+        managedByLTIPopover() {
+            let curState = '';
+            switch (this.assignment.state) {
+            case states.SUBMITTING:
+            case states.OPEN:
+                curState = ', currently open';
+                break;
+            case states.HIDDEN:
+                curState = ', currently hidden';
+                break;
+            default:
+                break;
+            }
+            return `Hidden or open, managed by ${this.lmsName}${curState}.`;
         },
     },
 

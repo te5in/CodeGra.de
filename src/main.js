@@ -55,6 +55,7 @@ import DescriptionPopover from './components/DescriptionPopover';
 import CgLogo from './components/CgLogo';
 import CatchError from './components/CatchError';
 import Toggle from './components/Toggle';
+import WizardWrapper from './components/WizardWrapper';
 /* eslint-enable import/first */
 
 Vue.component('cg-relative-time', RelativeTime);
@@ -65,6 +66,7 @@ Vue.component('cg-description-popover', DescriptionPopover);
 Vue.component('cg-logo', CgLogo);
 Vue.component('cg-catch-error', CatchError);
 Vue.component('cg-toggle', Toggle);
+Vue.component('cg-wizard-wrapper', WizardWrapper);
 
 Vue.use(BootstrapVue);
 Vue.use(VueMasonry);
@@ -147,53 +149,11 @@ const DRIVERS = [
     'memoryStorageDriver',
 ];
 
-let inLTI = false;
-Vue.util.defineReactive(
-    Vue.prototype,
-    '$inLTI',
-    inLTI,
-    val => {
-        if (val === true) {
-            inLTI = val;
-        } else {
-            throw new TypeError('You can only set $inLTI to true');
-        }
-    },
-    true,
-);
+Vue.util.defineReactive(Vue.prototype, '$inLTI', false, null, true);
 
-let ltiProvider = null;
-Vue.util.defineReactive(
-    Vue.prototype,
-    '$ltiProvider',
-    ltiProvider,
-    val => {
-        if (ltiProvider === null) {
-            ltiProvider = val;
-        } else {
-            throw new TypeError('You can only set $ltiProvider once');
-        }
-    },
-    true,
-);
+Vue.util.defineReactive(Vue.prototype, '$ltiProvider', null, null, true);
 
-let LTIAssignmentId = null;
-Vue.util.defineReactive(
-    Vue.prototype,
-    '$LTIAssignmentId',
-    LTIAssignmentId,
-    val => {
-        if (val == null) {
-            throw new TypeError('You cannot set this to null or undefined');
-        }
-        if (LTIAssignmentId == null || val === LTIAssignmentId) {
-            LTIAssignmentId = val;
-        } else {
-            throw new TypeError('You cannot change this property once it is set');
-        }
-    },
-    true,
-);
+Vue.util.defineReactive(Vue.prototype, '$LTIAssignmentId', null, null, true);
 
 try {
     Vue.prototype.$devMode = process.env.NODE_ENV === 'development';

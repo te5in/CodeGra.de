@@ -870,7 +870,7 @@ def test_can_see_linter_feedback_before_done(
         else:
             assert False
 
-    assignment.state = m._AssignmentStateEnum.open
+    assignment.state = m.AssignmentStateEnum.open
 
     course = assignment.course
     course_users = course.get_all_users_in_course(include_test_students=False

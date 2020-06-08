@@ -43,12 +43,12 @@ def upgrade():
 
     exists = conn.execute(text(\"\"\"SELECT id from "Permission" where name = :perm_name\"\"\"), perm_name='{perm_name}').fetchall()
     if exists:
-        True
+        return
 
     new_perm_id = conn.execute(text(\"\"\"
     INSERT INTO "Permission" (name, default_value, course_permission)
-    SELECT ':perm_name', :default_value, :course_permission RETURNING id
-    \"\"\"), perm_name='{perm_name}', default_value=default_value, course_permission={course_permission}).scalar()
+    SELECT :perm_name, :default_value, :course_permission RETURNING id
+    \"\"\"), perm_name='{perm_name}', default_value={default_value}, course_permission={course_permission}).scalar()
 
 {extra}
 

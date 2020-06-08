@@ -12,6 +12,7 @@ from sqlalchemy.sql.expression import or_ as sql_or
 from sqlalchemy.sql.expression import func as sql_func
 
 import psef
+import cg_cache.intra_request
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.types import MyQueryTuple, hybrid_property
 
@@ -19,7 +20,6 @@ from . import Base, DbColumn, db
 from . import user as user_models
 from . import work as work_models
 from . import _MyQuery
-from .. import cache
 from ..helpers import NotEqualMixin
 from ..exceptions import APICodes, APIException
 from .link_tables import users_groups
@@ -50,8 +50,6 @@ class Group(Base):
         is used to submissions as the group.
     :ivar group_set: The :class:`.GroupSet` this group is connected to.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['Group']]
     __tablename__ = 'Group'
 
     id = db.Column('id', db.Integer, primary_key=True)
@@ -120,7 +118,7 @@ class Group(Base):
     def __hash__(self) -> int:
         return hash(self.id)
 
-    @cache.cache_within_request
+    @cg_cache.intra_request.cache_within_request
     def has_as_member(self, user: 'user_models.User') -> bool:
         """Check if the given user is member of this group.
 
@@ -326,8 +324,6 @@ class GroupSet(NotEqualMixin, Base):
         can be used to submit a submission.
     :ivar maximum_size: The maximum amount of members a group can ever have.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['GroupSet']]
     __tablename__ = 'GroupSet'
 
     id = db.Column('id', db.Integer, primary_key=True)

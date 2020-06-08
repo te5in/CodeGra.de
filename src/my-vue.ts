@@ -3,6 +3,7 @@ import 'vue';
 import { Moment } from 'moment';
 import { AxiosStatic } from 'axios';
 import * as typedUtils from '@/utils/typed';
+import UserConfig from './userConfig';
 
 // 2. Specify a file with the types you want to augment
 //    Vue has the constructor type in types/vue.d.ts
@@ -15,5 +16,6 @@ declare module 'vue/types/vue' {
         $now: Moment;
 
         $loadFullNotifications: boolean;
+        $userConfig: typeof UserConfig;
     }
 }

@@ -5,8 +5,11 @@ from multiprocessing.sharedctypes import Value
 import pytest
 
 import psef.helpers as h
-from psef.helpers import RepeatedTimer, defer
+from psef.helpers import (
+    RepeatedTimer, defer, deep_get, on_not_none, try_for_every
+)
 from psef.exceptions import APIException
+from psef.helpers.register import Register
 
 
 def test_broker_session(monkeypatch):
@@ -108,3 +111,92 @@ def test_get_from_map_transaction():
     assert e1 != e2
     assert fl == 5.0
     assert missing is _missing
+
+
+def test_try_for_every():
+    calls = []
+
+    class MyError(Exception):
+        pass
+
+    def asserts_is_not_one(value):
+        calls.append(value)
+        if value == 1:
+            raise MyError
+
+    try_for_every([2, 1], asserts_is_not_one)
+    assert calls == [2]
+
+    calls.clear()
+    try_for_every([1, 1, 2, 3], asserts_is_not_one)
+    assert calls == [1, 1, 2]
+
+    calls.clear()
+    with pytest.raises(MyError):
+        try_for_every([1, 1, 1], asserts_is_not_one)
+    assert calls == [1, 1, 1]
+
+    calls.clear()
+    with pytest.raises(MyError):
+        try_for_every([1], asserts_is_not_one, to_except=AssertionError)
+    assert calls == [1]
+
+    calls.clear()
+    obj = object()
+    try_for_every([obj], asserts_is_not_one, to_except=AssertionError)
+    assert calls == [obj]
+    assert calls[0] is obj
+
+    def assert_no(_):
+        assert False
+
+    # Doesn't fail as the function is never called
+    try_for_every([], assert_no)
+
+
+def test_deep_get():
+    obj1 = object()
+    obj2 = object()
+    obj3 = object()
+
+    mapping = {
+        '1': {
+            '2': [4],
+            '3': None,
+            '4': {5: obj1},
+        },
+        '6': obj2,
+    }
+
+    assert deep_get(mapping, ['not_present', 'subkey'], obj3) is obj3
+    assert deep_get(mapping, ['1', '2', 0], obj3) is obj3
+    assert deep_get(mapping, ['6'], obj3) is obj2
+    assert deep_get(mapping, ['1', '4', 5], obj3) is obj1
+    assert deep_get(mapping, ['6', '6'], obj3) is obj3
+
+
+def test_on_not_none():
+    obj1 = object()
+    obj2 = object()
+    assert on_not_none(obj1, lambda _: obj2) is obj2
+    assert on_not_none(None, lambda _: obj1) is None
+
+
+def test_get_from_map_transaction_with_register():
+    register = Register('Test')
+
+    obj1 = object()
+    register.register('val1')(obj1)
+    register.register('val2')('Wow')
+
+    with h.get_from_map_transaction({'k': 'val1'}) as [get, _]:
+        res = get('k', register)
+
+    assert res == ('val1', obj1)
+    assert res[1] is obj1
+
+    with pytest.raises(APIException) as exc:
+        with h.get_from_map_transaction({'k': 'no_val'}) as [get, _]:
+            res = get('k', register)
+
+    assert 'TestRegister" (= val1, val2), was "no_val' in exc.value.description

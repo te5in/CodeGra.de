@@ -5,7 +5,10 @@ cat >config.ini <<EOF
 [Back-end]
 external_url = http://localhost:1234
 proxy_base_domain = test.com
+redis_cache_url = redis://localhost:6379/cg_cache
 EOF
+
+pip install -r test_requirements.txt
 
 npm run build &
 NPM_PID="$!"
