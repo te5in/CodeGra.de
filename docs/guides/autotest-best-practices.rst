@@ -298,7 +298,7 @@ object with the following keys:
           cg_info      = json.loads(os.environ['CG_INFO'])
           deadline     = datetime.datetime.fromisoformat(cg_info['deadline'])
           submitted_at = datetime.datetime.fromisoformat(cg_info['submitted_at'])
-          days_late    = math.ceil((submitted_at - deadline).total_seconds / ONE_DAY)
+          days_late    = math.ceil((submitted_at - deadline) / ONE_DAY)
 
           if days_late <= 0:
               print('submitted on time :)')
