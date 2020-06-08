@@ -190,9 +190,9 @@
             </p>
             <p>
                 Click the "New Deployment" button, after
-                which you should presented with a page to create the new
-                deployment. Please again go through each option presented by
-                Brightspace, and copy the value from the table below, if it is
+                which you should be presented with a page to create the new
+                deployment. Please go through each option presented by
+                Brightspace again, and copy the value from the table below, if it is
                 not present please keep the default value in Brightspace.
             </p>
 
@@ -257,7 +257,7 @@
                 CodeGrade. To do this click on the "View Links" link in
                 Brightspace. The page this link will load should contain a "New
                 Link" button, please click it. This will open up a screen to
-                create a new link. Pleas copy the information from the table
+                create a new link. Please copy the information from the table
                 below into the inputs in Brightspace, again ignoring information
                 not present in the table below.
             </p>
