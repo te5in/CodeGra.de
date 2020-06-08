@@ -2727,7 +2727,7 @@ def test_submission_info_env_vars(
                 assert output == {}
 
 
-with test_broker_extra_env_vars(describe):
+def test_broker_extra_env_vars(describe):
     cur_user = getpass.getuser()
     cont = psef.auto_test.StartedContainer(None, '', {})
 
