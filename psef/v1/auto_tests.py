@@ -423,8 +423,8 @@ def update_or_create_auto_test_suite(auto_test_id: int, auto_test_set_id: int
         connected to.
     :>json network_disabled: Should the network be disabled during the
         execution of this suite.
-    :>json submission_info: Should submission information be included in the
-        environment.
+    :>json submission_info: (Optional) Should submission information be
+        included in the environment.
     :>json id: The id of the suite, if not given a new suite will be created
         (OPTIONAL).
     :>json command_time_limit: The maximum amount of time a single command may
