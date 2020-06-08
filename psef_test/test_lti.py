@@ -465,18 +465,21 @@ def test_lti_grade_passback(
             assert isinstance(headers, dict)
             assert headers['Content-Type'] == 'application/xml'
             assert isinstance(body, bytes)
+            assert uri.startswith(source_url)
             last_xml = body.decode('utf-8')
             return '', SUCCESS_XML
 
     patch_request = Patch()
     monkeypatch.setattr(oauth2.Client, 'request', patch_request)
+    source_url = f'http://source_url-{uuid.uuid4()}.com'
+    source_id = 'NON_EXISTING2!'
 
     def do_lti_launch(
         username='A the A-er',
         lti_id='USER_ID',
-        source_id='NON_EXISTING2!',
         published='false',
         canvas_id='MY_COURSE_ID_100',
+        source_id=source_id,
     ):
         nonlocal last_xml
         with app.app_context():
@@ -497,7 +500,7 @@ def test_lti_grade_passback(
                 'context_id': 'NO_CONTEXT!!',
                 'context_title': 'WRONG_TITLE!!',
                 'oauth_consumer_key': 'my_lti',
-                'lis_outcome_service_url': source_id,
+                'lis_outcome_service_url': source_url,
                 'custom_canvas_points_possible': lti_max_points,
             }
             if source_id:
@@ -558,7 +561,7 @@ def test_lti_grade_passback(
         assig, token = do_lti_launch()
         work = get_upload_file(token, assig['id'])
         assert patch_request.called
-        assert_initial_passback(last_xml, patch_request.source_id)
+        assert_initial_passback(last_xml, source_id)
 
     with describe('Setting grade when assig is not done should not passback'):
         set_grade(token, 5.0, work['id'])
@@ -579,7 +582,7 @@ def test_lti_grade_passback(
         assert patch_request.called
         assert_grade_set_to(
             last_xml,
-            patch_request.source_id,
+            source_id,
             lti_max_points,
             5.0,
             raw=False,
@@ -606,7 +609,7 @@ def test_lti_grade_passback(
         assert patch_request.called
         assert_grade_set_to(
             last_xml,
-            patch_request.source_id,
+            source_id,
             lti_max_points,
             6,
             raw=False,
@@ -616,7 +619,7 @@ def test_lti_grade_passback(
     with describe('Setting grade to `None` should do a delete request'):
         set_grade(token, None, work['id'])
         assert patch_request.called
-        assert_grade_deleted(last_xml, patch_request.source_id)
+        assert_grade_deleted(last_xml, source_id)
 
     with describe('Setting max grade should work'):
         with app.app_context():
@@ -636,7 +639,7 @@ def test_lti_grade_passback(
         assert patch_request.called
         assert_grade_set_to(
             last_xml,
-            patch_request.source_id,
+            source_id,
             lti_max_points,
             6.0,
             raw=False,
@@ -648,7 +651,7 @@ def test_lti_grade_passback(
         assert patch_request.called
         assert_grade_set_to(
             last_xml,
-            patch_request.source_id,
+            source_id,
             lti_max_points,
             11.0,
             raw=True,
