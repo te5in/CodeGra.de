@@ -31,7 +31,6 @@ from ..helpers import (
     make_empty_response
 )
 from ..signals import WORK_DELETED, WorkDeletedData
-from ..exceptions import PermissionException
 from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
