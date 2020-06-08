@@ -17,7 +17,7 @@
 
         <template #page-1="{ nextPage }">
             <p>
-                To connect CodeGrade to brightspace open first Brightspace and
+                To connect CodeGrade to brightspace first open Brightspace and
                 click on the gear icon on the top right of your screen. A
                 dropdown should appear, in which you should select the "Manage
                 Extensibility" option. A new page should load, in which you
