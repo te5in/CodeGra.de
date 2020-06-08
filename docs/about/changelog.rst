@@ -18,6 +18,11 @@ Version *Next*
   integration in the LMS even better, allowing better workflows for group
   assignments and easier assignment creation.
 
+**Updates**
+
+- Use Bootstrap-Vue toasts instead of vue-toasted
+  `(#1319) <https://github.com/CodeGra-de/CodeGra.de/pull/1319>`__,
+
 **Fixes**
 
 - Fix AutoTest result being in state "done" while it has steps that are in
