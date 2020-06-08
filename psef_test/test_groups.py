@@ -1204,7 +1204,7 @@ def test_seeing_teacher_revision_in_group(
 
     with describe('Can see teacher files after assig is done'
                   ), logged_in(user_with_perm):
-        assignment.set_state('done')
+        assignment.set_state_with_string('done')
         session.commit()
 
         test_client.req(

@@ -128,12 +128,12 @@ import typing as t
 
 import cg_sqlalchemy_helpers
 from cg_sqlalchemy_helpers import UUID_LENGTH
+from cg_cache.intra_request import cache_within_request
 from cg_sqlalchemy_helpers.types import (  # pylint: disable=unused-import
     MyDb, MyQuery, DbColumn, _MyQuery
 )
 
 from .. import PsefFlask
-from ..cache import cache_within_request
 
 db: MyDb = cg_sqlalchemy_helpers.make_db()  # pylint: disable=invalid-name
 
@@ -168,12 +168,15 @@ if True:  # pylint: disable=using-constant-test
     from .course import Course, CourseSnippet, CourseRegistrationLink
     from .assignment import (
         Assignment, AssignmentLinter, AssignmentResult, AssignmentDoneType,
-        AssignmentGraderDone, AssignmentAssignedGrader, _AssignmentStateEnum,
-        AssignmentAmbiguousSettingTag
+        AssignmentGraderDone, AssignmentAssignedGrader, AssignmentStateEnum,
+        AssignmentAmbiguousSettingTag, AssignmentVisibilityState
     )
     from .permission import Permission
     from .user import User
-    from .lti_provider import LTIProvider
+    from .lti_provider import (
+        LTIProviderBase, LTI1p1Provider, UserLTIProvider, LTI1p3Provider,
+        CourseLTIProvider
+    )
     from .file import (
         File, FileOwner, AutoTestFixture, FileMixin, NestedFileMixin,
         AutoTestOutputFile

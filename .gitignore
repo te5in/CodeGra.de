@@ -31,3 +31,4 @@ PRIVACY_STATEMENT.md
 /.nyc_output/
 /src/userConfig.js
 .#*
+/src/userConfig.ts

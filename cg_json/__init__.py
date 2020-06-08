@@ -4,6 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import enum
 import json as system_json
+import uuid
 import typing as t
 import contextlib
 from json import JSONEncoder
@@ -57,9 +58,11 @@ class CustomJSONEncoder(JSONEncoder):
 
         :param obj: The object that should be converted to JSON.
         """
-        try:
+        if isinstance(o, uuid.UUID):
+            return str(o)
+        elif hasattr(o, '__to_json__'):
             return o.__to_json__()
-        except AttributeError:  # pragma: no cover
+        else:
             return super().default(o)
 
 
@@ -76,7 +79,7 @@ def get_extended_encoder_class(
         class.
     """
 
-    class CustomExtendedJSONEncoder(JSONEncoder):
+    class CustomExtendedJSONEncoder(CustomJSONEncoder):
         """This JSON encoder is used to enable the JSON serialization of custom
         classes.
 
@@ -96,14 +99,8 @@ def get_extended_encoder_class(
             :param o: The object that should be converted to JSON.
             """
             if hasattr(o, '__extended_to_json__') and use_extended(o):
-                try:
-                    return o.__extended_to_json__()
-                except AttributeError:  # pragma: no cover
-                    pass
-
-            try:
-                return o.__to_json__()
-            except AttributeError:  # pragma: no cover
+                return o.__extended_to_json__()
+            else:
                 return super().default(o)
 
     return CustomExtendedJSONEncoder

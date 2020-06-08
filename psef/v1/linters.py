@@ -40,7 +40,7 @@ def delete_linter_output(linter_id: str) -> EmptyResponse:
     linter = helpers.get_or_404(
         models.AssignmentLinter,
         linter_id,
-        also_error=lambda l: l.assignment.deleted
+        also_error=lambda l: not l.assignment.is_visible
     )
 
     auth.ensure_permission(CPerm.can_use_linter, linter.assignment.course_id)
@@ -81,7 +81,7 @@ def get_linter_state(linter_id: str) -> t.Union[ExtendedJSONResponse[
         models.AssignmentLinter,
         linter_id,
         options=options,
-        also_error=lambda l: l.assignment.deleted
+        also_error=lambda l: not l.assignment.is_visible
     )
 
     auth.ensure_permission(CPerm.can_use_linter, linter.assignment.course_id)

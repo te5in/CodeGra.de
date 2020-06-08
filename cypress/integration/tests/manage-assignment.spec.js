@@ -97,11 +97,13 @@ context('Manage Assignment', () => {
                 }
             }
 
-            cy.get('.max-submissions input').clear().type('{ctrl}{enter}');
+            cy.get('.max-submissions input').should('have.value', '5');
+            cy.get('.max-submissions input').clear();
+            cy.get('.max-submissions input').should('have.value', '');
+            cy.get('.max-submissions .submit-button').submit('success');
             cy.get('.submission-uploader')
                 .find('.submission-limiting')
                 .should('not.exist');
-            cy.get('.max-submissions input').should('have.value', '');
 
             cy.get('.max-submissions input').clear().type('-10');
             cy.get('.max-submissions .submit-button').submit('error', {

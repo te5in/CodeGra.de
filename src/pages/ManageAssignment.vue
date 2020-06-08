@@ -92,86 +92,23 @@
                     <assignment-submit-types :assignment-id="assignmentId"/>
                 </b-form-fieldset>
 
-                <b-form-fieldset v-if="canEditInfo">
-                    <b-input-group class="max-submissions">
-                        <b-input-group-prepend is-text slot="prepend">
-                            Maximum amount of submissions
-                            <description-popover hug-text>
-                                The maximum amount of submissions, inclusive, students will
-                                be able to make. If you leave this value empty,
-                                or set it to 0, students will be able to make an
-                                infinite amount of submissions.
-                            </description-popover>
-                        </b-input-group-prepend>
+                <submission-limits v-if="canEditInfo"
+                                   v-model="assignmentTempSubmissionLimits"
+                                   @update-cool-off="() => $refs.updateCoolOffPeriod.onClick()"
+                                   @update-max-submissions="() => $refs.updateMaxSubmissions.onClick()"
+                                   >
+                    <b-input-group-append slot="max-submissions">
+                        <submit-button :submit="submitMaxSubmissions"
+                                       ref="updateMaxSubmissions"
+                                       @success="afterSubmitMaxSubmissions"/>
+                    </b-input-group-append>
 
-                        <input class="form-control"
-                               type="number"
-                               min="0"
-                               @keyup.ctrl.enter="$refs.updateMaxSubmissions.onClick"
-                               v-model="assignmentTempMaxSubmissions"
-                               placeholder="Infinite"/>
-
-                        <b-input-group-append>
-                            <submit-button :submit="submitMaxSubmissions"
-                                           ref="updateMaxSubmissions"
-                                           @success="afterSubmitMaxSubmissions"/>
-                        </b-input-group-append>
-                    </b-input-group>
-                </b-form-fieldset>
-
-                <b-form-fieldset v-if="canEditInfo">
-                    <b-input-group class="cool-off-period-wrapper">
-                        <b-input-group-prepend is-text slot="prepend">
-                            Cool off period
-                            <description-popover hug-text>
-                                The minimum amount of time there should be
-                                between submissions. The first input determines
-                                the amount of submissions, and the second the
-                                time in minutes. You can set the time to zero to
-                                disable this limit.
-                            </description-popover>
-                        </b-input-group-prepend>
-
-                        <input class="form-control amount-in-cool-off-period"
-                               type="number"
-                               min="0"
-                               @keyup.ctrl.enter="$refs.updateCoolOffPeriod.onClick"
-                               v-model="assignmentTempAmountInCoolOff"/>
-
-                        <b-input-group-prepend is-text>
-                            <template v-if="parseInt(assignmentTempAmountInCoolOff, 10) === 1">
-                                submission
-                            </template>
-                            <template v-else>
-                                submissions
-                            </template>
-                            every
-                        </b-input-group-prepend>
-
-                        <input class="form-control cool-off-period"
-                               type="number"
-                               min="0"
-                               step="1"
-                               @keyup.ctrl.enter="$refs.updateCoolOffPeriod.onClick"
-                               v-model="assignmentTempCoolOffDuration"
-                               placeholder="0"/>
-
-                        <b-input-group-append is-text>
-                            <template v-if="parseFloat(assignmentTempCoolOffDuration) === 1">
-                                minute
-                            </template>
-                            <template v-else>
-                                minutes
-                            </template>
-                        </b-input-group-append>
-
-                        <b-input-group-append>
-                            <submit-button :submit="submitCoolOffPeriod"
-                                           ref="updateCoolOffPeriod"
-                                           @success="afterSubmitCoolOffPeriod"/>
-                        </b-input-group-append>
-                    </b-input-group>
-                </b-form-fieldset>
+                    <b-input-group-append slot="cool-off-period">
+                        <submit-button :submit="submitCoolOffPeriod"
+                                        ref="updateCoolOffPeriod"
+                                        @success="afterSubmitCoolOffPeriod"/>
+                    </b-input-group-append>
+                </submission-limits>
             </div>
 
             <div class="col-lg-12">
@@ -391,8 +328,6 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
 
-import ltiProviders from '@/lti_providers';
-
 import {
     AssignmentState,
     DivideSubmissions,
@@ -414,6 +349,7 @@ import {
     DatetimePicker,
     AutoTest,
     AssignmentSubmitTypes,
+    SubmissionLimits,
 } from '@/components';
 
 export default {
@@ -427,9 +363,7 @@ export default {
             gradersLoadedOnce: false,
             assignmentTempName: '',
             assignmentTempDeadline: '',
-            assignmentTempMaxSubmissions: null,
-            assignmentTempCoolOffDuration: null,
-            assignmentTempAmountInCoolOff: null,
+            assignmentTempSubmissionLimits: null,
             permissions: null,
             loading: true,
             loadingInner: true,
@@ -457,13 +391,12 @@ export default {
             return `/api/v1/assignments/${this.assignment.id}`;
         },
 
-        lmsName() {
-            return this.assignment.lms_name;
+        ltiProvider() {
+            return this.$utils.getProps(this.assignment, null, 'course', 'ltiProvider');
         },
 
-        ltiProvider() {
-            const lms = this.lmsName;
-            return lms ? ltiProviders[lms] : null;
+        lmsName() {
+            return this.$utils.getProps(this.ltiProvider, null, 'lms');
         },
 
         canEditState() {
@@ -628,9 +561,14 @@ export default {
                     this.permissions = this.assignment.course.permissions;
                     this.assignmentTempName = this.assignment.name;
                     this.assignmentTempDeadline = this.assignment.getDeadlineAsString();
-                    this.assignmentTempMaxSubmissions = this.assignment.max_submissions;
-                    this.assignmentTempCoolOffDuration = this.assignment.coolOffPeriod.asMinutes();
-                    this.assignmentTempAmountInCoolOff = this.assignment.amount_in_cool_off_period;
+
+                    this.assignmentTempSubmissionLimits = {
+                        maxSubmissions: this.assignment.max_submissions,
+                        coolOff: {
+                            period: this.assignment.coolOffPeriod.asMinutes(),
+                            amount: this.assignment.amount_in_cool_off_period,
+                        },
+                    };
                 }
             };
 
@@ -697,7 +635,8 @@ export default {
         },
 
         submitMaxSubmissions() {
-            let value = this.assignmentTempMaxSubmissions;
+            const orig = this.assignmentTempSubmissionLimits.maxSubmissions;
+            let value = orig;
 
             if (
                 value == null ||
@@ -718,14 +657,14 @@ export default {
                     max_submissions: value,
                 })
                 .then(response => {
-                    response.cgOldValue = this.assignmentTempMaxSubmissions;
+                    response.cgOldValue = orig;
                     return response;
                 });
         },
 
         afterSubmitMaxSubmissions({ data, cgOldValue }) {
-            if (this.assignmentTempMaxSubmissions === cgOldValue) {
-                this.assignmentTempMaxSubmissions = data.max_submissions;
+            if (this.assignmentTempSubmissionLimits.maxSubmissions === cgOldValue) {
+                this.assignmentTempSubmissionLimits.maxSubmissions = data.max_submissions;
             }
 
             this.updateAssignment({
@@ -737,14 +676,15 @@ export default {
         },
 
         submitCoolOffPeriod() {
-            const period = parseFloat(this.assignmentTempCoolOffDuration || 0);
+            const { coolOff } = this.assignmentTempSubmissionLimits;
+            const period = parseFloat(coolOff.period || 0);
             if (period == null || Number.isNaN(period) || period < 0) {
                 throw new Error(
                     'The given cool off period should be a number higher or equal to 0',
                 );
             }
 
-            const amount = parseInt(this.assignmentTempAmountInCoolOff, 10);
+            const amount = parseInt(coolOff.amount, 10);
             if (amount == null || Number.isNaN(amount) || amount < 1) {
                 throw new Error(
                     'The given amount in cool off period should be a number higher or equal to 1',
@@ -757,10 +697,7 @@ export default {
                     amount_in_cool_off_period: amount,
                 })
                 .then(response => {
-                    response.cgOldValue = {
-                        period: this.assignmentTempCoolOffDuration,
-                        amount: this.assignmentTempAmountInCoolOff,
-                    };
+                    response.cgOldValue = coolOff;
                     return response;
                 });
         },
@@ -773,12 +710,16 @@ export default {
                     amount_in_cool_off_period: data.amount_in_cool_off_period,
                 },
             }).then(assignment => {
-                if (cgOldValue.period === this.assignmentTempCoolOffDuration) {
-                    this.assignmentTempCoolOffDuration = assignment.coolOffPeriod.asMinutes();
+                const { coolOff } = this.assignmentTempSubmissionLimits;
+
+                if (cgOldValue.period === coolOff.period) {
+                    coolOff.period = assignment.coolOffPeriod.asMinutes();
                 }
-                if (cgOldValue.amount === this.assignmentTempAmountInCoolOff) {
-                    this.assignmentTempAmountInCoolOff = assignment.amount_in_cool_off_period;
+                if (cgOldValue.amount === coolOff.amount) {
+                    coolOff.amount = assignment.amount_in_cool_off_period;
                 }
+
+                this.assignmentTempSubmissionLimits.coolOff = coolOff;
             });
         },
     },
@@ -804,6 +745,7 @@ export default {
         DatetimePicker,
         AutoTest,
         AssignmentSubmitTypes,
+        SubmissionLimits,
     },
 };
 </script>

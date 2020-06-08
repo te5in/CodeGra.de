@@ -20,17 +20,16 @@ import oauth2
 import dateutil
 import httplib2
 import structlog
-import flask_jwt_extended as flask_jwt
 from mypy_extensions import TypedDict
 from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 
 from cg_dt_utils import DatetimeWithTimezone
 
-from . import app, auth, models, helpers, features, current_user
-from .auth import user_active
-from .models import db
-from .helpers import register
-from .exceptions import APICodes, APIWarnings, APIException
+from .. import app, auth, models, helpers, features
+from ..models import db
+from ..helpers import register, try_for_every
+from .abstract import AbstractLTIConnector
+from ..exceptions import APICodes, APIWarnings, APIException
 
 logger = structlog.get_logger()
 
@@ -226,14 +225,18 @@ class LTIGlobalRole(LTIRole):
 
 T_LTI = t.TypeVar('T_LTI', bound='LTI')  # pylint: disable=invalid-name
 
-lti_classes: register.Register[str, t.Type['LTI']] = register.Register()
+lti_classes: register.Register[str, t.
+                               Type['LTI']] = register.Register('LTIClasses')
 
 
 # TODO: This class has so many public methods as they are properties. A lot of
 # them can be converted to private properties which should be done.
-class LTI:  # pylint: disable=too-many-public-methods
+class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
     """The base LTI class.
     """
+
+    def get_lms_name(self) -> str:
+        return self.lti_provider.lms_name
 
     @staticmethod
     def supports_lti_launch_as_result() -> bool:  # pragma: no cover
@@ -255,7 +258,7 @@ class LTI:  # pylint: disable=too-many-public-methods
     def __init__(
         self,
         params: t.Mapping[str, str],
-        lti_provider: models.LTIProvider = None
+        lti_provider: models.LTI1p1Provider = None
     ) -> None:
         self.launch_params = params
 
@@ -264,12 +267,12 @@ class LTI:  # pylint: disable=too-many-public-methods
         else:
             lti_id = params['lti_provider_id']
             self.lti_provider = helpers.get_or_404(
-                models.LTIProvider,
+                models.LTI1p1Provider,
                 lti_id,
             )
 
         self.key = self.lti_provider.key
-        self.secret = self.lti_provider.secret
+        self.secrets = self.lti_provider.secrets
 
     @staticmethod
     def create_from_request(req: flask.Request) -> 'LTI':
@@ -283,11 +286,15 @@ class LTI:  # pylint: disable=too-many-public-methods
         """
         params = req.form.copy()
 
-        lti_provider = models.LTIProvider.query.filter_by(
+        lti_provider = models.db.session.query(
+            models.LTI1p1Provider
+        ).filter_by(
             key=params['oauth_consumer_key'],
         ).first()
         if lti_provider is None:
-            lti_provider = models.LTIProvider(key=params['oauth_consumer_key'])
+            lti_provider = models.LTI1p1Provider(
+                key=params['oauth_consumer_key']
+            )
             db.session.add(lti_provider)
             db.session.commit()
 
@@ -304,7 +311,10 @@ class LTI:  # pylint: disable=too-many-public-methods
         self = cls(launch_params, lti_provider)
         launch_params['custom_lms_name'] = lti_provider.lms_name
 
-        auth.ensure_valid_oauth(self.key, self.secret, req)
+        try_for_every(
+            reversed(self.secrets),
+            lambda secret: auth.ensure_valid_oauth(self.key, secret, req),
+        )
 
         return self
 
@@ -440,7 +450,7 @@ class LTI:  # pylint: disable=too-many-public-methods
         raise NotImplementedError
 
     @property
-    def assignment_state(self) -> models._AssignmentStateEnum:  # pylint: disable=protected-access
+    def assignment_state(self) -> models.AssignmentStateEnum:  # pylint: disable=protected-access
         """The state of the current LTI assignment.
         """
         raise NotImplementedError
@@ -511,60 +521,13 @@ class LTI:  # pylint: disable=too-many-public-methods
             optionally the updated email of the user as a string, this is
             ``None`` if the email was not updated.
         """
-        is_logged_in = user_active(current_user)
-        token = None
-        user = None
-
-        lti_user = models.User.query.filter_by(lti_user_id=self.user_id
-                                               ).first()
-
-        if is_logged_in and current_user.lti_user_id == self.user_id:
-            # The currently logged in user is now using LTI
-            user = current_user
-
-        elif lti_user is not None:
-            # LTI users are used before the current logged user.
-            token = flask_jwt.create_access_token(
-                identity=lti_user.id,
-                fresh=True,
-            )
-            user = lti_user
-        elif is_logged_in and current_user.lti_user_id is None:
-            # TODO show some sort of screen if this linking is wanted
-            current_user.lti_user_id = self.user_id
-            db.session.flush()
-            user = current_user
-        else:
-            # New LTI user id is found and no user is logged in or the current
-            # user has a different LTI user id. A new user is created and
-            # logged in.
-            i = 0
-
-            def _get_username() -> str:
-                return self.username + (f' ({i})' if i > 0 else '')
-
-            while db.session.query(
-                models.User.query.filter_by(username=_get_username()).exists()
-            ).scalar():  # pragma: no cover
-                i += 1
-
-            user = models.User(
-                lti_user_id=self.user_id,
-                name=self.full_name,
-                email=self.user_email,
-                active=True,
-                password=None,
-                username=_get_username(),
-            )
-            db.session.add(user)
-            db.session.flush()
-
-            token = flask_jwt.create_access_token(
-                identity=user.id,
-                fresh=True,
-            )
-
-        assert user is not None
+        user, token = models.UserLTIProvider.get_or_create_user(
+            lti_user_id=self.user_id,
+            lti_provider=self.lti_provider,
+            wanted_username=self.username,
+            full_name=self.full_name,
+            email=self.user_email,
+        )
 
         updated_email = None
         if user.reset_email_on_lti:
@@ -577,12 +540,23 @@ class LTI:  # pylint: disable=too-many-public-methods
     def get_course(self) -> models.Course:
         """Get the current LTI course as a psef course.
         """
-        course = models.Course.query.filter_by(lti_course_id=self.course_id
-                                               ).first()
-        if course is None:
-            course = models.Course.create_and_add(
-                name=self.course_name, lti_course_id=self.course_id
+        course_lti_provider = models.db.session.query(
+            models.CourseLTIProvider,
+        ).filter(
+            models.CourseLTIProvider.lti_course_id == self.course_id,
+            models.CourseLTIProvider.lti_provider == self.lti_provider,
+        ).one_or_none()
+
+        if course_lti_provider is None:
+            course = models.Course.create_and_add(name=self.course_name)
+            course_lti_provider = models.CourseLTIProvider.create_and_add(
+                course=course,
+                lti_provider=self.lti_provider,
+                lti_context_id=self.course_id,
+                deployment_id=self.course_id,
             )
+        else:
+            course = course_lti_provider.course
 
         if course.name != self.course_name:
             logger.info(
@@ -592,7 +566,6 @@ class LTI:  # pylint: disable=too-many-public-methods
             )
             course.name = self.course_name
 
-        course.lti_provider = self.lti_provider
         db.session.flush()
 
         return course
@@ -610,7 +583,8 @@ class LTI:  # pylint: disable=too-many-public-methods
             course=course,
             deadline=self.get_assignment_deadline(),
             lti_assignment_id=self.assignment_id,
-            description=''
+            description='',
+            is_lti=True,
         )
         db.session.add(assignment)
         db.session.flush()
@@ -621,29 +595,17 @@ class LTI:  # pylint: disable=too-many-public-methods
     ) -> models.Assignment:
         """Get the current LTI assignment as a psef assignment.
         """
-        assignment = models.Assignment.query.filter_by(
-            lti_assignment_id=self.assignment_id,
+        assignment = models.Assignment.query.filter(
+            models.Assignment.lti_assignment_id == self.assignment_id,
+            models.Assignment.course == course,
         ).first()
         if assignment is None:
+            logger.info(
+                'Creating new assignment',
+                lti_assignment_id=self.assignment_id,
+                course_id=course.id,
+            )
             assignment = self.create_and_add_assignment(course=course)
-
-        if assignment.deleted:
-            raise APIException(
-                'The launched assignment has been deleted on CodeGrade',
-                f'The assignment "{assignment.id}" has been deleted',
-                APICodes.OBJECT_NOT_FOUND, 404
-            )
-
-        if assignment.course != course:  # pragma: no cover
-            raise APIException(
-                (
-                    'The assignment was previously connected to a different'
-                    ' course.'
-                ), (
-                    f'The assignment {self.assignment_id} was previously'
-                    f' connected to {course.id}'
-                ), APICodes.INVALID_STATE, 400
-            )
 
         if self.has_result_sourcedid():
             if assignment.id in user.assignment_results:
@@ -661,7 +623,7 @@ class LTI:  # pylint: disable=too-many-public-methods
             assignment.lti_points_possible = self.assignment_points_possible
 
         if self.has_outcome_service_url():
-            assignment.lti_outcome_service_url = self.outcome_service_url
+            assignment.lti_grade_service_data = self.outcome_service_url
 
         if not assignment.is_done:
             assignment.state = self.assignment_state
@@ -693,8 +655,6 @@ class LTI:  # pylint: disable=too-many-public-methods
             in the config of the app is used.
 
         :param models.User user: The user to set the role for.
-        :returns: Nothing
-        :rtype: None
         """
         if user.role is None:
             global_roles = self.global_roles
@@ -714,7 +674,7 @@ class LTI:  # pylint: disable=too-many-public-methods
             ).one()
 
     def set_user_course_role(self, user: models.User,
-                             course: models.Course) -> t.Union[str, bool]:
+                             course: models.Course) -> t.Optional[str]:
         """Set the course role for the given course and user if there is no
         such role just yet.
 
@@ -724,48 +684,54 @@ class LTI:  # pylint: disable=too-many-public-methods
 
         :param models.User user: The user to set the course role  for.
         :param models.Course course: The course to connect to user to.
-        :returns: True if a new role was created.
+        :returns: The name of the new role created, or ``None`` if no role was
+            created.
         """
-        if course.id not in user.courses:
-            unkown_roles: t.List[str] = []
-            course_roles = self.course_roles
-            logger.info(
-                'Checking course roles',
-                given_course_roles=course_roles,
+        if user.is_enrolled(course):
+            return None
+
+        unknown_roles: t.List[str] = []
+        course_roles = self.course_roles
+        logger.info(
+            'Checking course roles',
+            given_course_roles=course_roles,
+        )
+        for role in course_roles:
+            if role.codegrade_role_name is None:
+                # TODO: Do this check a bit cleaner, but for now this is fine.
+                if role.name != 'Admin':
+                    unknown_roles.append(role.name)
+                continue
+            crole = models.CourseRole.query.filter_by(
+                course_id=course.id, name=role.codegrade_role_name
+            ).one()
+            user.enroll_in_course(course_role=crole)
+            return None
+
+        if not features.has_feature(features.Feature.AUTOMATIC_LTI_ROLE):
+            raise APIException(
+                'The given LTI role could not be found or was not valid. '
+                'Please ask your instructor or site administrator.',
+                f'No role in "{list(self.course_roles)}" is a known LTI role',
+                APICodes.INVALID_STATE, 400
             )
-            for role in course_roles:
-                if role.codegrade_role_name is None:
-                    unkown_roles.append(role.name)
-                    continue
-                crole = models.CourseRole.query.filter_by(
-                    course_id=course.id, name=role.codegrade_role_name
-                ).one()
-                user.courses[course.id] = crole
-                return False
 
-            if not features.has_feature(features.Feature.AUTOMATIC_LTI_ROLE):
-                raise APIException(
-                    'The given LTI role could not be found or was not valid. '
-                    'Please ask your instructor or site administrator.',
-                    f'No role in "{list(self.course_roles)}" is a known LTI role',
-                    APICodes.INVALID_STATE, 400
-                )
+        # Add a new course role
+        new_created: t.Optional[str] = None
 
-            # Add a new course role
-            new_created: t.Union[bool, str] = False
-            new_role = (unkown_roles + ['New LTI Role'])[0]
-            existing_role = models.CourseRole.query.filter_by(
-                course_id=course.id, name=new_role
-            ).first()
-            if existing_role is None:
-                existing_role = models.CourseRole(
-                    course=course, name=new_role, hidden=False
-                )
-                db.session.add(existing_role)
-                new_created = new_role
-            user.courses[course.id] = existing_role
-            return new_created
-        return False
+        new_role = (unknown_roles + ['New LTI Role'])[0]
+        existing_role = models.CourseRole.query.filter_by(
+            course_id=course.id, name=new_role
+        ).first()
+        if existing_role is None:
+            existing_role = models.CourseRole(
+                course=course, name=new_role, hidden=False
+            )
+            db.session.add(existing_role)
+            new_created = new_role
+
+        user.enroll_in_course(course_role=existing_role)
+        return new_created
 
     def has_result_sourcedid(self) -> bool:
         """Check if the current LTI request has a ``sourcedid`` field.
@@ -1039,12 +1005,12 @@ class CanvasLTI(LTI):
         return super().create_and_add_assignment(course=course)
 
     @property
-    def assignment_state(self) -> models._AssignmentStateEnum:
+    def assignment_state(self) -> models.AssignmentStateEnum:
         # pylint: disable=protected-access
         if self.launch_params['custom_canvas_assignment_published'] == 'true':
-            return models._AssignmentStateEnum.open
+            return models.AssignmentStateEnum.open
         else:
-            return models._AssignmentStateEnum.hidden
+            return models.AssignmentStateEnum.hidden
 
     @property
     def course_roles(self) -> t.Sequence[LTICourseRole]:
@@ -1155,9 +1121,9 @@ class BareBonesLTIProvider(LTI):
         return 'lis_result_sourcedid' in self.launch_params
 
     @property
-    def assignment_state(self) -> models._AssignmentStateEnum:
+    def assignment_state(self) -> models.AssignmentStateEnum:
         # pylint: disable=protected-access
-        return models._AssignmentStateEnum.open
+        return models.AssignmentStateEnum.open
 
     @property
     def course_roles(self) -> t.Sequence[LTICourseRole]:
@@ -1628,6 +1594,7 @@ class OutcomeResponse:
     >>> get_file = lambda name: open(
     ... os.path.join(
     ...   os.path.dirname(__file__),
+    ...   '..',
     ...   '..',
     ...   'test_data',
     ...   'example_strings',

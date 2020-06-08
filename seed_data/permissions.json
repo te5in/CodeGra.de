@@ -386,5 +386,12 @@
     "course_permission": true,
     "short_description": "Can email students",
     "long_description": "Users with this permission can email students using the contact student button."
+  },
+  "can_manage_lti_providers": {
+    "default_value": false,
+    "course_permission": false,
+    "short_description": "Manage LTI providers",
+    "long_description": "Users with this permission can edit and list existing, and create new LTI providers.",
+    "warning": "This is a really powerful permission, only give to users you trust completely."
   }
 }

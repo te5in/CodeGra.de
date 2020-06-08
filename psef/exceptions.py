@@ -84,11 +84,8 @@ class APICodes(IntEnum):
     TOO_MANY_SUBMISSIONS = 41
     COOL_OFF_PERIOD_ACTIVE = 42
     MAILING_FAILED = 43
-
-
-class InvalidAssignmentState(TypeError):
-    """Exception used to signal the assignment state is invalid.
-    """
+    LTI1_3_ERROR = 44
+    LTI1_3_COOKIE_ERROR = 45
 
 
 class APIException(Exception):
@@ -180,3 +177,16 @@ class InvalidStateException(Exception):
     def __init__(self, reason: str) -> None:
         super().__init__(self, reason)
         self.reason = reason
+
+
+class InvalidAssignmentState(APIException):
+    """Exception used to signal the assignment state is invalid.
+    """
+
+    def __init__(self, state: str) -> None:
+        super().__init__(
+            'The selected state is not valid',
+            'The state {} is not a valid state'.format(state),
+            APICodes.INVALID_PARAM, 400
+        )
+        self._state = state

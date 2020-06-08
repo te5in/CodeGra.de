@@ -201,6 +201,14 @@ export default {
             return this.group.members.length >= this.groupSet.maximum_size;
         },
 
+        ltiProvider() {
+            return this.$utils.getProps(this.course, null, 'ltiProvider');
+        },
+
+        lmsName() {
+            return this.$utils.getProps(this.ltiProvider, null, 'lms');
+        },
+
         ltiTexts() {
             const divStart = '<div style="text-align: justify">';
             const divEnd = '</div>';
@@ -208,7 +216,7 @@ export default {
 
             // Group members can never be groups themselves.
             const makeName = user => (myId === user.id ? 'You' : this.$utils.htmlEscape(user.name));
-            const lmsName = this.$utils.htmlEscape(this.assignment.lms_name);
+            const lmsName = this.$utils.htmlEscape(this.lmsName);
 
             const loading = user => `${divStart}We cannot submit the
 submission. ${makeName(user)} should open the assignment through

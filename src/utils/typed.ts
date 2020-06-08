@@ -39,9 +39,8 @@ export function htmlEscape(inputString: string) {
     return str;
 }
 
-export type OneOrOther<T, Y> = (T & { [K in keyof Y]?: never }) | (Y & { [K in keyof T]?: never });
-
 export type AllOrNone<T> = T | { [K in keyof T]?: never };
+export type OneOrOther<T, Y> = (T & { [K in keyof Y]?: never }) | (Y & { [K in keyof T]?: never });
 
 export function fromEntries<T>(vals: [string | number, T][]): Record<string, T> {
     return (Object as any).fromEntries(vals);
@@ -154,6 +153,14 @@ export class AssertionError extends Error {
             throw new AssertionError(msg);
         }
     }
+
+    static assertNever(value: never, msg?: string): never {
+        throw new AssertionError(msg ?? `The value ${value} was never expected to exist`);
+    }
+
+    static typeAssert<T>(_: T): void {
+        // NOT EMPTY
+    }
 }
 
 export function buildUrl(
@@ -162,10 +169,11 @@ export function buildUrl(
         query?: Record<string, string>;
         hash?: string;
         addTrailingSlash?: boolean;
-    } & AllOrNone<{
+    } & OneOrOther<AllOrNone<{
         host: string;
         protocol: string;
-    }> = {},
+    }>, { baseUrl: string | null }>
+        = {},
 ): string {
     let mainPart;
     let initialSlash = '';
@@ -173,7 +181,7 @@ export function buildUrl(
         mainPart = parts;
     } else {
         initialSlash = '/';
-        mainPart = parts.map(part => encodeURIComponent(part)).join('/');
+        mainPart = parts.map(part => encodeURIComponent(coerceToString(part))).join('/');
     }
     if (args.addTrailingSlash) {
         mainPart = `${mainPart}/`;
@@ -182,18 +190,30 @@ export function buildUrl(
     let prefix = '';
     if (args.protocol != null) {
         initialSlash = '/';
+
+        AssertionError.typeAssert<undefined>(args.baseUrl);
         prefix = `${args.protocol.toString()}//${args.host.toString()}`;
+    } else if (args.baseUrl != null) {
+        AssertionError.typeAssert<undefined>(args.protocol);
+        AssertionError.typeAssert<undefined>(args.host);
+        prefix = args.baseUrl;
+        if (args.baseUrl.endsWith('/')) {
+            prefix += '/';
+        }
     }
 
     let query = '';
     if (args.query) {
-        const params = Object.entries(args.query)
-            .reduce((acc, [key, value]) => {
-                acc.append(key, value);
-                return acc;
-            }, new URLSearchParams())
-            .toString();
-        query = `?${params}`;
+        const queryEntries = Object.entries(args.query);
+        if (queryEntries.length > 0) {
+            const params = queryEntries
+                .reduce((acc, [key, value]) => {
+                    acc.append(key, value);
+                    return acc;
+                }, new URLSearchParams())
+                .toString();
+            query = `?${params}`;
+        }
     }
 
     let hash = '';
@@ -451,10 +471,9 @@ export function formatDate(date: string | moment.Moment): string {
         .format('YYYY-MM-DDTHH:mm');
 }
 
-export function mapToObject<T extends Object, KK extends keyof T = keyof T>(
-    arr: ReadonlyArray<KK>,
-    // eslint-disable-next-line no-undef
-    mapper: (el: KK, index: number) => [KK, T[typeof el]],
+export function mapToObject<T extends Object, Y, KK extends keyof T = keyof T>(
+    arr: ReadonlyArray<Y>,
+    mapper: (el: Y, index: number) => [KK, T[KK]],
     initial: T = <T>{},
 ): T {
     return arr.reduce((acc, el, index) => {
@@ -675,3 +694,35 @@ export function parseBool<T extends string | boolean>(value: T, dflt = true): bo
 
     return dflt;
 }
+
+/** Test if a given string is a valid http or https url.
+ *
+ * @param input: The input to check for.
+ * @returns: A boolean if the input is a http(s) url.
+ */
+export const isValidHttpUrl: (input: string) => boolean = (() => {
+    const STARTS_WITH_HTTPS = /^https?/;
+    const URL_PATTERN = new RegExp('^(https?:\\/\\/)' + // protocol
+        '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
+        '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+        '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+        '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+        '(\\#[-a-z\\d_]*)?$', 'i');
+
+    return (input: string): boolean => {
+        if (URL_PATTERN.test(input)) {
+            // URL only is too lenient (`new URL('https://a')` is fine), but we
+            // use it as an extra check to make sure the regex above is never
+            // allowing things that `URL` doesn't think is a URL.
+            let url;
+            try {
+                url = new URL(input);
+            } catch (_) {
+                return false;
+            }
+
+            return !!STARTS_WITH_HTTPS.test(url.protocol);
+        }
+        return false;
+    };
+})();

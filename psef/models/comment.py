@@ -22,7 +22,6 @@ from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 from . import Base, db
 from . import file as file_models
 from . import user as user_models
-from . import _MyQuery
 from . import notification as n_models
 from .. import auth, db_locks, current_app, current_user
 
@@ -368,8 +367,6 @@ class CommentBase(IdMixin, Base):
 
     A comment is always linked to a specific line in a file.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['CommentBase']] = Base.query
     __tablename__ = "Comment"
     file_id = db.Column(
         'File_id',

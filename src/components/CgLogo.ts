@@ -53,8 +53,8 @@ export default Vue.extend({
                 },
                 ctx.data.attrs,
             ),
-            class: staticClass,
-            style: ctx.data.staticStyle,
+            class: [ctx.data.class, staticClass],
+            style: [ctx.data.style, ctx.data.staticStyle],
         });
     },
 });

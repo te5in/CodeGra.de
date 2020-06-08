@@ -400,7 +400,7 @@ def test_delete_code_as_student(
             result=None,
         )
 
-        assignment.state = m._AssignmentStateEnum.done
+        assignment.state = m.AssignmentStateEnum.done
         session.commit()
 
         test_client.req(
@@ -875,7 +875,7 @@ def test_update_code(
         assert adjust_code(code_id, 200) == code_id
 
         m.Assignment.query.filter_by(id=assignment.id).update({
-            'state': m._AssignmentStateEnum.done
+            'state': m.AssignmentStateEnum.done
         })
 
         adjust_code(code_id, 403)
@@ -899,14 +899,14 @@ def test_update_code(
         adjust_code(code_id, 403)
 
     m.Assignment.query.filter_by(id=assignment.id).update({
-        'state': m._AssignmentStateEnum.open
+        'state': m.AssignmentStateEnum.open
     })
     # Cannot adjust teacher rev as student
     with logged_in(student_user):
         adjust_code(new_id, 403)
 
     m.Assignment.query.filter_by(id=assignment.id).update({
-        'state': m._AssignmentStateEnum.open,
+        'state': m.AssignmentStateEnum.open,
         'deadline': DatetimeWithTimezone.utcnow() - datetime.timedelta(days=1),
     })
     # Cannot change code after deadline as student
@@ -1062,7 +1062,7 @@ def test_rename_code(
         )
 
         m.Assignment.query.filter_by(id=assignment.id).update({
-            'state': m._AssignmentStateEnum.done
+            'state': m.AssignmentStateEnum.done
         })
         rename(
             files['entries'][0]['id'],
