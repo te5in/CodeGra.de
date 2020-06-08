@@ -402,6 +402,12 @@ export default {
         },
 
         dragStop(event) {
+            // Only add a new comment if a) a drag event was started _inside_ the code viewer,
+            // b) the button used is the primary mouse button, and c) The mouse didn't move more
+            // than a few pixels. Expanding the file tree often leads to the mouse cursor being
+            // over the code viewer when the mouse button is released, triggering the creation of
+            // a new reply if any of these conditions weren't there.
+
             if (this.dragEvent != null && event.button === 0 && !this.movedTooFar(event)) {
                 this.addFeedback(event);
             }
