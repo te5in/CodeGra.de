@@ -50,7 +50,7 @@ def test_connecting_multiple_times():
     def fun2(_):
         pass
 
-    not signal.is_connected(fun1)
+    assert not signal.is_connected(fun1)
     signal.connect_immediate(fun1)
     # Can connect multiple
     signal.connect_immediate(fun2)
@@ -72,7 +72,7 @@ def test_connecting_multiple_times():
         # Cannot connect redefinition of function
         signal.connect_immediate(fun1)
 
-    signal.is_connected(fun1)
+    assert signal.is_connected(fun1)
 
     # Can connect function with same name defined in another scope
     was_connected = connect_fun1(signal)

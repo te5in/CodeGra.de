@@ -11,7 +11,7 @@ external_url = http://localhost:1234
 redis_cache_url = redis://localhost:6379/cg_cache
 EOF
 
-pip install fakeredis
+pip install -r test_requirements.txt
 
 create_db() {
     DBNAME="ci_test_gw${1}"

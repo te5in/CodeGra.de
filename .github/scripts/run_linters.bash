@@ -8,7 +8,7 @@ proxy_base_domain = test.com
 redis_cache_url = redis://localhost:6379/cg_cache
 EOF
 
-pip install fakeredis
+pip install -r test_requirements.txt
 
 npm run build &
 NPM_PID="$!"
