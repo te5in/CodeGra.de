@@ -15,6 +15,7 @@ import tempfile
 import threading
 import contextlib
 import subprocess
+import collections
 import urllib.parse
 import multiprocessing
 from operator import itemgetter
@@ -25,8 +26,9 @@ import requests
 import structlog
 import mypy_extensions
 from flask import g, request
+from werkzeug.local import LocalProxy
 from mypy_extensions import Arg
-from typing_extensions import Literal, Protocol
+from typing_extensions import Final, Literal, Protocol
 from sqlalchemy.dialects import postgresql
 from werkzeug.datastructures import FileStorage
 from sqlalchemy.sql.expression import or_
@@ -42,7 +44,7 @@ from cg_flask_helpers import (
 )
 from cg_sqlalchemy_helpers.types import Base, MyQuery, DbColumn
 
-from . import validate, jsonify_options
+from . import register, validate, jsonify_options
 from .. import errors, current_tester
 
 if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
@@ -58,6 +60,7 @@ T_CONTRA = t.TypeVar('T_CONTRA', contravariant=True)  # pylint: disable=invalid-
 T_STOP_THREAD = t.TypeVar('T_STOP_THREAD', bound='StoppableThread')  # pylint: disable=invalid-name
 T_CAL = t.TypeVar('T_CAL', bound=t.Callable)  # pylint: disable=invalid-name
 TT = t.TypeVar('TT')
+K = t.TypeVar('K')  # pylint: disable=invalid-name
 TTT = t.TypeVar('TTT', bound='IsInstanceType')
 ZZ = t.TypeVar('ZZ')
 Z = t.TypeVar('Z', bound='Comparable')
@@ -77,7 +80,18 @@ class MissingType(enum.Enum):
     token = 0
 
 
-MISSING: MissingType = MissingType.token
+class UnsetType(enum.Enum):
+    token = '__CG_UNSET__'
+
+
+class _RequiredButMissingType(enum.Enum):
+    token = '__CG_REQUIRED_BUT_MISSING__'
+
+
+MISSING: Literal[MissingType.token] = MissingType.token
+_REQUIRED_BUT_MISSING: Literal[_RequiredButMissingType.token
+                               ] = _RequiredButMissingType.token
+UNSET: Literal[UnsetType.token] = UnsetType.token
 
 
 def init_app(app: 'psef.Flask') -> None:
@@ -117,7 +131,7 @@ def add_warning(warning: str, code: psef.exceptions.APIWarnings) -> None:
     g.request_warnings.append(psef.errors.make_warning(warning, code))
 
 
-def handle_none(value: t.Optional[T], default: Z) -> t.Union[T, Z]:
+def handle_none(value: t.Optional[T], default: TT) -> t.Union[T, TT]:
     """Get the given ``value`` or ``default`` if ``value`` is ``None``.
 
     >>> handle_none(None, 5)
@@ -128,6 +142,21 @@ def handle_none(value: t.Optional[T], default: Z) -> t.Union[T, Z]:
     5.5
     """
     return default if value is None else value
+
+
+def on_not_none(value: t.Optional[T],
+                callback: t.Callable[[T], K]) -> t.Optional[K]:
+    """Call a given ``callback`` if the given ``value`` is not none.
+
+    :param value: The value to operate on if not ``None``.
+    :param callback: The callback to call with ``value`` if the ``value`` is
+        not ``None``.
+
+    :returns: The return of the ``callback`` or ``None``.
+    """
+    if value is not None:
+        return callback(value)
+    return None
 
 
 def add_deprecate_warning(warning: str) -> None:
@@ -532,7 +561,7 @@ def get_in_or_error(
 def _filter_or_404(
     model: t.Type[Y],
     get_all: Literal[True],
-    criteria: t.Tuple,
+    criteria: t.Sequence[DbColumn[bool]],
     also_error: t.Optional[t.Callable[[t.List[Y]], bool]],
     with_for_update: t.Union[bool, LockType],
     options: t.Optional[t.List[t.Any]] = None,
@@ -545,7 +574,7 @@ def _filter_or_404(
 def _filter_or_404(
     model: t.Type[Y],
     get_all: Literal[False],
-    criteria: t.Tuple,
+    criteria: t.Sequence[DbColumn[bool]],
     also_error: t.Optional[t.Callable[[Y], bool]],
     with_for_update: t.Union[bool, LockType],
     options: t.Optional[t.List[t.Any]] = None,
@@ -557,7 +586,7 @@ def _filter_or_404(
 def _filter_or_404(
     model: t.Type[Y],
     get_all: bool,
-    criteria: t.Tuple,
+    criteria: t.Sequence[DbColumn[bool]],
     also_error: t.Optional[t.Callable[[t.Any], bool]],
     with_for_update: t.Union[bool, LockType],
     options: t.Optional[t.List[t.Any]] = None,
@@ -604,7 +633,7 @@ def _filter_or_404(
 
 def filter_all_or_404(
     model: t.Type[Y],
-    *criteria: t.Any,
+    *criteria: DbColumn[bool],
     with_for_update: t.Union[bool, LockType] = False,
 ) -> t.Sequence[Y]:
     """Get all objects of the specified model filtered by the specified
@@ -629,7 +658,7 @@ def filter_all_or_404(
 
 def filter_single_or_404(
     model: t.Type[Y],
-    *criteria: t.Any,
+    *criteria: DbColumn[bool],
     also_error: t.Optional[t.Callable[[Y], bool]] = None,
     with_for_update: t.Union[bool, LockType] = False,
     options: t.Optional[t.List[t.Any]] = None,
@@ -770,9 +799,13 @@ def ensure_on_test_server() -> None:
     assert current_tester._get_current_object() is not None
 
 
-def _get_type_name(typ: t.Union[t.Type, t.Tuple[t.Type, ...]]) -> str:
+def _get_type_name(
+    typ: t.Union[t.Type, t.Tuple[t.Type, ...], register.Register]
+) -> str:
     if isinstance(typ, tuple):
-        return ', '.join(ty.__name__ for ty in typ)
+        return ', '.join(map(_get_type_name, typ))
+    elif isinstance(typ, register.Register):
+        return 'UnionOf[{}]'.format(', '.join(map(str, typ.keys())))
     else:
         return typ.__name__
 
@@ -801,25 +834,37 @@ def get_key_from_dict(
     return val
 
 
-class TransactionGet(Protocol[T_CONTRA]):
+class TransactionGet(Protocol[K]):
     """Protocol for a function to get something with a given type from a map.
     """
 
     @t.overload
-    def __call__(self, to_get: T_CONTRA, typ: t.Type[T]) -> T:
+    def __call__(self, to_get: K, typ: t.Type[T]) -> T:
         ...
 
     @t.overload
     def __call__(
-        self, to_get: T_CONTRA, typ: t.Type[T], *,
-        transform: t.Callable[[T], TT]
+        self,
+        t_get: K,
+        typ: register.Register[K, T],
+        transform: t.Callable[[t.Tuple[K, T]], TT],
     ) -> TT:
         ...
 
     @t.overload
     def __call__(
         self,
-        to_get: T_CONTRA,
+        to_get: K,
+        typ: t.Type[T],
+        *,
+        transform: t.Callable[[T], TT],
+    ) -> TT:
+        ...
+
+    @t.overload
+    def __call__(
+        self,
+        to_get: K,
         typ: t.Tuple[t.Type[T], t.Type[TT]],
     ) -> t.Union[T, TT]:
         ...
@@ -837,11 +882,30 @@ class TransactionOptionalGet(Protocol[T_CONTRA]):
 
     @t.overload
     def __call__(
+        self, to_get: T_CONTRA, typ: t.Tuple[t.Type[T], t.Type[TT]],
+        default: ZZ
+    ) -> t.Union[T, TT, ZZ]:
+        ...
+
+    @t.overload
+    def __call__(self, to_get: T_CONTRA,
+                 typ: t.Type[T]) -> t.Union[T, Literal[MissingType.token]]:
+        ...
+
+    @t.overload
+    def __call__(
         self,
         to_get: T_CONTRA,
         typ: t.Tuple[t.Type[T], t.Type[TT]],
-        default: ZZ,
-    ) -> t.Union[T, TT, ZZ]:
+    ) -> t.Union[T, TT, Literal[MissingType.token]]:
+        ...
+
+    @t.overload
+    def __call__(
+        self,
+        to_get: T_CONTRA,
+        typ: t.Tuple[t.Type[T], t.Type[TT], t.Type[ZZ]],
+    ) -> t.Union[T, TT, ZZ, Literal[MissingType.token]]:
         ...
 
 
@@ -875,7 +939,7 @@ def get_from_map_transaction(
 
     def get(
         key: T,
-        typ: t.Union[t.Type, t.Tuple[t.Type, ...]],
+        typ: t.Union[t.Type, t.Tuple[t.Type, ...], register.Register],
         *,
         transform: t.Callable[[TT], TTT] = None,
     ) -> TTT:
@@ -887,6 +951,8 @@ def get_from_map_transaction(
             isinstance(value, str)
         ):
             value = t.cast(TT, typ.__members__.get(value, MISSING))
+        elif isinstance(typ, register.Register):
+            value = t.cast(TT, (value, typ.get_or(value, MISSING)))
 
         if transform is not None and value is not MISSING:
             return transform(t.cast(TT, value))
@@ -894,8 +960,10 @@ def get_from_map_transaction(
         return t.cast(TTT, value)
 
     def optional_get(
-        key: T, typ: t.Union[t.Type, t.Tuple[t.Type, ...]], default: ZZ
-    ) -> t.Union[TT, ZZ]:
+        key: T,
+        typ: t.Union[t.Type, t.Tuple[t.Type, ...]],
+        default: t.Any = MISSING
+    ) -> object:
         if key not in mapping:
             all_keys_requested.append(key)
             return default
@@ -934,7 +1002,8 @@ def get_from_request_transaction(
 
 
 def ensure_keys_in_dict(
-    mapping: t.Mapping[T, object], keys: t.Sequence[t.Tuple[T, IsInstanceType]]
+    mapping: t.Mapping[T, object],
+    keys: t.Sequence[t.Tuple[T, t.Union[IsInstanceType, register.Register]]]
 ) -> None:
     """Ensure that the given keys are in the given mapping.
 
@@ -963,9 +1032,17 @@ def ensure_keys_in_dict(
                     f'{key} was of wrong type'
                     f' (should be a member of "{_get_type_name(check_type)}"'
                     f' (= {", ".join(it.name for it in check_type)})'
-                    f', was "{mapping[key]}")'
+                    f', was "{value}")'
                 )
                 type_wrong = True
+        elif isinstance(check_type, register.Register):
+            if value not in check_type:
+                missing.append(
+                    f'{key} was of wrong type'
+                    f' (should be a member of "{check_type}"'
+                    f' (= {", ".join(map(str, check_type.keys()))})'
+                    f', was "{value}")'
+                )
         elif (
             (not isinstance(value, check_type)) or
             (check_type == int and isinstance(value, bool))
@@ -1666,6 +1743,10 @@ def maybe_wrap_in_list(maybe_lst: t.Union[t.List[T], T]) -> t.List[T]:
     >>> lst_item = [object()]
     >>> maybe_wrap_in_list(lst_item) is lst_item
     True
+    >>> class my_list(list): pass
+    >>> obj = my_list(['5'])
+    >>> maybe_wrap_in_list(obj) is obj
+    True
 
     :param maybe_lst: The item to maybe wrap.
     :returns: The item wrapped or just the item.
@@ -1703,6 +1784,31 @@ def contains_duplicate(it_to_check: t.Iterable[T_Hashable]) -> bool:
     return False
 
 
+def chunkify(iterable: t.Iterable[T],
+             chunk_size: int) -> t.Iterable[t.List[T]]:
+    """Chunkify the given iterable with chunks of size ``chunk_size``.
+
+    >>> list(chunkify(range(5), 2))
+    [[0, 1], [2, 3], [4]]
+    >>> list(chunkify(range(4), 2))
+    [[0, 1], [2, 3]]
+    >>> list(chunkify([], 2))
+    []
+
+    :param iterable: The iterable to chunkify.
+    :param chunk_size: The size of the chunks.
+    """
+    cur = []
+    for item in iterable:
+        cur.append(item)
+        if len(cur) == chunk_size:
+            yield cur
+            cur = []
+
+    if cur:
+        yield cur
+
+
 def flatten(it_to_flatten: t.Iterable[t.Iterable[T]]) -> t.List[T]:
     """Flatten a given iterable of iterables to a list.
 
@@ -1720,3 +1826,103 @@ def flatten(it_to_flatten: t.Iterable[t.Iterable[T]]) -> t.List[T]:
     :returns: A fresh flattened list.
     """
     return [x for wrap in it_to_flatten for x in wrap]
+
+
+def maybe_unwrap_proxy(
+    item: t.Union[T, LocalProxy], typ: t.Type[T], *, check: bool = False
+) -> T:
+    """Unwrap the possible local proxy for a given object.
+
+    >>> obj1 = object()
+    >>> prox = LocalProxy(lambda: obj1)
+    >>> maybe_unwrap_proxy(obj1, object, check=True) is obj1
+    True
+    >>> maybe_unwrap_proxy(prox, object, check=True) is obj1
+    True
+    >>> maybe_unwrap_proxy(prox, int, check=False) is obj1
+    True
+    >>> maybe_unwrap_proxy(prox, int, check=True)
+    Traceback (most recent call last):
+    ...
+    AssertionError
+    >>> maybe_unwrap_proxy(5, str, check=True)
+    Traceback (most recent call last):
+    ...
+    AssertionError
+
+    :param item: The item we should unwrap.
+    :param typ: The type that ``item`` is expected to be, this is unused during
+        runtime if ``check`` is ``False``.
+    :param check: Should we enforce that the resulting item is an instance of
+        ``typ``.
+    :returns: If the given ``item`` was a LocalProxy
+        `_get_current_object()` is called and the return value is returned,
+        otherwise the given ``item`` is returned.
+    :raises AssertionError: If the given ``item`` was not of type ``type`` and
+        ``check`` was ``True`` unwrapping.
+    """
+    if isinstance(item, LocalProxy):
+        # pylint: disable=protected-access
+        found = item._get_current_object()
+    else:
+        found = item
+
+    if check and not isinstance(found, typ):
+        raise AssertionError(f'The given item is not a {typ}')
+
+    return found
+
+
+def deep_get(
+    dictionary: t.Mapping[str, t.Any], keys: t.List[str], dflt: t.Any
+) -> t.Any:
+    """Get the given keys from the given dictionary.
+
+    .. note::
+
+        This method destroys any type checking done by ``mypy``, if at all
+        possible not use this method please don't. This method really is not meant to be
+        used with a literal value for ``keys``.
+
+    :param dictionary: The mapping from which you want to get the keys.
+    :param keys: The keys to get.
+    :param dflt: The value to return if one of the ``keys`` is not present in a
+        mapping, or if one of the intermediate values is not an instance of
+        :class:`.collections.Mapping`.
+
+    :returns: The found value or ``dflt``.
+    """
+    val: t.Any = dictionary
+    for key in keys:
+        if not isinstance(val, collections.Mapping) or key not in val:
+            return dflt
+        val = val[key]
+    return val
+
+
+def try_for_every(
+    options: t.Iterable[T],
+    fun: t.Callable[[T], object],
+    to_except: t.Type[Exception] = Exception
+) -> None:
+    """Try a function for multiple values until it passes.
+
+    :param options: The options to try.
+    :param fun: The function to call for every option.
+    :param to_except: The errors to except, by default all errors are excepted.
+
+    :returns: Nothing.
+    :raises Exception: If the given ``fun`` errors for every given option.
+    """
+    if not options:
+        return
+
+    for option in options:
+        try:
+            fun(option)
+        except to_except as e:  # pylint: disable=broad-except
+            err = e
+        else:
+            break
+    else:
+        raise err

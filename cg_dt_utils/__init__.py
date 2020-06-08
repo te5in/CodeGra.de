@@ -6,6 +6,8 @@ import time
 import typing as t
 import datetime
 
+import dateutil.parser
+
 __all__ = ['DatetimeWithTimezone', 'now']
 
 if t.TYPE_CHECKING:  # pragma: no cover
@@ -58,6 +60,12 @@ if t.TYPE_CHECKING:  # pragma: no cover
         ) -> 'DatetimeWithTimezone':
             ...
 
+        @classmethod
+        def parse_isoformat(
+            cls, isoformat: str, default_tz: datetime.timezone = ...
+        ) -> 'DatetimeWithTimezone':
+            ...
+
     # pylint: enable=all
 else:
 
@@ -82,6 +90,13 @@ else:
         @staticmethod
         def utcfromtimestamp(timestamp: float) -> 'DatetimeWithTimezone':
             return _utcfromtimestamp(timestamp).replace(tzinfo=_utc)
+
+        @classmethod
+        def parse_isoformat(
+            cls, isoformat: str, default_tz: datetime.timezone = _utc
+        ) -> 'DatetimeWithTimezone':
+            dt = dateutil.parser.isoparse(isoformat)
+            return cls.from_datetime(dt, default_tz=default_tz)
 
         @classmethod
         def utcnow(cls) -> 'DatetimeWithTimezone':

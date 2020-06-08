@@ -41,12 +41,32 @@ const getters = {
         }
         return getSubmission(state, subId);
     },
-    getSubmissionsByUser: state => (assignmentId, userId) => {
+    getSubmissionsByUser: (state, otherGetters) => (
+        assignmentId,
+        userId,
+        { includeGroupSubmissions = false } = {},
+    ) => {
         const res = [];
         utils.getProps(state.submissionsByUser, [], assignmentId, userId).forEach(subId => {
             res.push(getSubmission(state, subId));
         });
         res.sort((a, b) => a.createdAt - b.createdAt);
+
+        // These are always seen as newer so insert these at the end of the
+        // array.
+        if (includeGroupSubmissions) {
+            const latestGroupSub = otherGetters.getGroupSubmissionOfUser(assignmentId, userId);
+            if (latestGroupSub) {
+                otherGetters
+                    .getSubmissionsByUser(assignmentId, latestGroupSub.userId, {
+                        includeGroupSubmissions: false,
+                    })
+                    .forEach(groupSub => {
+                        res.push(groupSub);
+                    });
+            }
+        }
+
         return res;
     },
 };

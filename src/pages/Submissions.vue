@@ -340,7 +340,6 @@ import 'vue-awesome/icons/git';
 import 'vue-awesome/icons/envelope';
 import 'vue-awesome/icons/comments-o';
 
-import ltiProviders from '@/lti_providers';
 import { NONEXISTENT } from '@/constants';
 import GroupsManagement from '@/components/GroupsManagement';
 import {
@@ -371,7 +370,6 @@ export default {
             loading: true,
             loadingInner: true,
             wrongFiles: [],
-            ltiProviders,
             selectedCat: '',
             filteredSubmissions: [],
             gitData: null,
@@ -495,8 +493,12 @@ export default {
             return this.$route.params.courseId;
         },
 
+        ltiProvider() {
+            return this.$utils.getProps(this.assignment, null, 'course', 'ltiProvider');
+        },
+
         lmsName() {
-            return this.$utils.getProps(this.assignment, null, 'lms_name');
+            return this.$utils.getProps(this.ltiProvider, null, 'lms');
         },
 
         webhookUploadEnabled() {

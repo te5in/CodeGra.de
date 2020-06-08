@@ -28,7 +28,7 @@ from psef.helpers import (
 
 from . import api
 from .. import limiter, parsers, features
-from ..lti import LTICourseRole
+from ..lti.v1_1 import LTICourseRole
 from ..permissions import CoursePermMap
 from ..permissions import CoursePermission as CPerm
 from ..permissions import GlobalPermission as GPerm
@@ -477,12 +477,11 @@ def create_new_assignment(course_id: int) -> JSONResponse[models.Assignment]:
             f'The course "{course_id}" is a LTI course',
             APICodes.INVALID_STATE, 400
         )
-    else:
-        assert course.lti_course_id is None
 
     assig = models.Assignment(
         name=name,
         course=course,
+        is_lti=False,
     )
     db.session.add(assig)
     db.session.commit()
@@ -1014,7 +1013,7 @@ def create_or_edit_registration_link(
     else:
         link = helpers.filter_single_or_404(
             models.CourseRegistrationLink,
-            models.CourseRegistrationLink.id == link_id,
+            models.CourseRegistrationLink.id == uuid.UUID(link_id),
             also_error=lambda l: l.course_id != course.id
         )
 

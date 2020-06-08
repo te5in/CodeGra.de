@@ -37,6 +37,10 @@
                 <icon name="angle-double-down" v-else/>
             </b-button>
         </b-input-group-append>
+
+        <template v-if="showLogo">
+            <cg-logo :inverted="!darkMode" class="local-header-logo" />
+        </template>
     </b-button-toolbar>
 
     <div class="always-extra-header" v-if="alwaysShowExtraSlot">
@@ -51,6 +55,8 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex';
+
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/angle-double-down';
 import 'vue-awesome/icons/angle-double-up';
@@ -85,9 +91,16 @@ export default {
             type: Boolean,
             default: false,
         },
+
+        showLogo: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     computed: {
+        ...mapGetters('pref', ['darkMode']),
+
         hasExtraSlot() {
             if (this.forceExtraDrawer !== undefined) {
                 return this.forceExtraDrawer;
@@ -183,6 +196,11 @@ export default {
     @{dark-mode} {
         border-color: @color-primary-darkest;
     }
+}
+
+.cg-logo.local-header-logo {
+    height: 1.5rem;
+    width: auto;
 }
 </style>
 

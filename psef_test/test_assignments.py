@@ -4441,8 +4441,7 @@ def test_upload_files_with_duplicate_filenames(
 
 
 def test_get_latest_submissions_only(
-    logged_in, session, test_client, admin_user, tomorrow, describe,
-    monkeypatch_celery
+    logged_in, session, test_client, admin_user, tomorrow, describe
 ):
     with describe('setup'):
         with logged_in(admin_user):
@@ -4523,16 +4522,19 @@ def test_get_latest_submissions_only(
     with describe(
         'When the assignment is deleted no submissions should be found'
     ):
-        assig.deleted = True
+        assig.mark_as_deleted()
         session.flush()
 
+        # No latest submissions should be found
         assert not assig.get_all_latest_submissions().all()
-        for user_id in [sub2['user']['id'], sub3['user']['id']]:
+
+        for user in [sub2['user'], sub3['user']]:
+            # Each individual user should also not have a latest submission
             assert assig.get_latest_submission_for_user(
-                m.User.query.get(user_id)
+                m.User.query.get(helpers.get_id(user))
             ).first() is None
 
-        assig.deleted = False
+        assig.visibility_state = m.AssignmentVisibilityState.visible
         session.flush()
 
     with describe(

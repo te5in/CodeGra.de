@@ -113,7 +113,7 @@ def test_get_all_extended_courses(ta_user, test_client, logged_in, session):
 )
 def test_get_course_data(
     error_template, request, logged_in, test_client, named_user, course_name,
-    role, session, add_lti
+    role, session, add_lti, canvas_lti1p1_provider
 ):
     perm_err = request.node.get_closest_marker('perm_error')
     data_err = request.node.get_closest_marker('data_error')
@@ -128,7 +128,12 @@ def test_get_course_data(
         course = session.query(m.Course).filter_by(name=course_name).one()
         course_id = course.id
         if not error and add_lti:
-            course.lti_course_id = 5
+            m.CourseLTIProvider.create_and_add(
+                course=course,
+                lti_provider=canvas_lti1p1_provider,
+                lti_context_id='5',
+                deployment_id='5',
+            )
             session.commit()
         test_client.req(
             'get',
@@ -141,6 +146,7 @@ def test_get_course_data(
                 'created_at': str,
                 'is_lti': add_lti,
                 'virtual': False,
+                'lti_provider': canvas_lti1p1_provider if add_lti else None,
             }
         )
 
@@ -182,6 +188,7 @@ def test_add_course(
                 'created_at': str,
                 'virtual': False,
                 'is_lti': False,
+                'lti_provider': None,
             }
         )
 
@@ -197,6 +204,7 @@ def test_add_course(
                     'created_at': str,
                     'is_lti': False,
                     'virtual': False,
+                    'lti_provider': None,
                 }
             )
 
@@ -647,6 +655,7 @@ def test_get_courseroles(
                     'created_at': str,
                     'is_lti': False,
                     'virtual': False,
+                    'lti_provider': None,
                 },
             }
             if extended:
@@ -926,7 +935,6 @@ def test_delete_courseroles(
             assert not any(role_name == r['name'] for r in new_roles)
 
 
-@pytest.mark.parametrize('course_n', ['Programmeertalen'])
 @pytest.mark.parametrize(
     'role_name', [
         data_error(error=403)('Student'),
@@ -935,8 +943,8 @@ def test_delete_courseroles(
     ]
 )
 def test_delete_lti_courseroles(
-    role_name, teacher_user, course_n, session, test_client, logged_in,
-    request, error_template
+    role_name, admin_user, session, test_client, logged_in, request,
+    error_template, app
 ):
     data_err = request.node.get_closest_marker('data_error')
 
@@ -945,11 +953,9 @@ def test_delete_lti_courseroles(
     else:
         error = False
 
-    course = session.query(m.Course).filter_by(name=course_n).one()
-    course.lti_provider = m.LTIProvider('my_lti')
-    session.commit()
+    course = helpers.create_lti_course(session, app, admin_user)
 
-    with logged_in(teacher_user):
+    with logged_in(admin_user):
         test_client.req(
             'post',
             f'/api/v1/courses/{course.id}/roles/',
@@ -1090,8 +1096,8 @@ def test_searching_user_in_course(
     else:
         other_course = m.Course.create_and_add(name='Other course')
         session.flush()
-        other_course_teacher_role = m.CourseRole.query.filter_by(
-            course_id=other_course.id, name='Teacher'
+        other_course_teacher_role = m.CourseRole.get_by_name(
+            course=other_course, name='Teacher'
         ).one()
         teacher_user.courses[other_course.id] = other_course_teacher_role
         session.commit()

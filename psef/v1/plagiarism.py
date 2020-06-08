@@ -37,7 +37,7 @@ def delete_plagiarism_run(plagiarism_id: int, ) -> EmptyResponse:
     run = helpers.get_or_404(
         models.PlagiarismRun,
         plagiarism_id,
-        also_error=lambda p: p.assignment.deleted
+        also_error=lambda p: not p.assignment.is_visible
     )
     auth.ensure_permission(
         CPerm.can_manage_plagiarism, run.assignment.course_id
@@ -77,7 +77,7 @@ def get_plagiarism_run(
                 models.PlagiarismCase.work2
             ).selectinload(models.Work.selected_items),
         ],
-        also_error=lambda p: p.assignment.deleted
+        also_error=lambda p: not p.assignment.is_visible
     )
     auth.ensure_permission(CPerm.can_view_plagiarism, run.assignment.course_id)
 
@@ -114,7 +114,7 @@ def get_plagiarism_run_cases(
         models.PlagiarismRun,
         plagiarism_id,
         options=[],
-        also_error=lambda p: p.assignment.deleted
+        also_error=lambda p: not p.assignment.is_visible
     )
     auth.ensure_permission(CPerm.can_view_plagiarism, run.assignment.course_id)
 

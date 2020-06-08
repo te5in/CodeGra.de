@@ -7,9 +7,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 import typing as t
 from collections import OrderedDict
 
+if t.TYPE_CHECKING:  # pragma: no cover
+    from ..models import Base  # pylint: disable=unused-import
+
 T = t.TypeVar('T')  # pylint: disable=invalid-name
 V = t.TypeVar('V')  # pylint: disable=invalid-name
 TT = t.TypeVar('TT')  # pylint: disable=invalid-name
+V_TABLE = t.TypeVar('V_TABLE', bound=t.Type['Base'])  # pylint: disable=invalid-name
 
 
 class Register(t.Generic[T, V]):  # pylint: disable=unsubscriptable-object
@@ -35,8 +39,20 @@ class Register(t.Generic[T, V]):  # pylint: disable=unsubscriptable-object
     True
     """
 
-    def __init__(self) -> None:
+    def __init__(self, name: str = None) -> None:
+        self.__name = name
         self.__map: t.Dict[T, V] = OrderedDict()
+        self.__frozen = False
+
+    def freeze(self) -> None:
+        self.__frozen = True
+
+    def __str__(self) -> str:
+        name = 'Anonymous' if self.__name is None else self.__name
+        return f'{name}Register'
+
+    def assert_not_frozen(self) -> None:
+        assert not self.__frozen, 'This register is frozen'
 
     def register(self, key: T) -> t.Callable[[V], V]:
         """A decorator that can be used to register a single key.
@@ -58,6 +74,7 @@ class Register(t.Generic[T, V]):  # pylint: disable=unsubscriptable-object
         :param keys: The keys to register.
         :returns: A decorator that registers the given keys.
         """
+        self.assert_not_frozen()
 
         def __decorator(cls: V) -> V:
             for key in keys:
@@ -66,6 +83,12 @@ class Register(t.Generic[T, V]):  # pylint: disable=unsubscriptable-object
             return cls
 
         return __decorator
+
+    def __contains__(self, key: T) -> bool:
+        return key in self.__map
+
+    def get_or(self, key: T, default: TT) -> t.Union[V, TT]:
+        return self.__map.get(key, default)
 
     def get(self, key: T) -> t.Optional[V]:
         return self.__map.get(key)
@@ -102,3 +125,73 @@ class Register(t.Generic[T, V]):  # pylint: disable=unsubscriptable-object
             if val == needle:
                 return key
         return default
+
+
+class TableRegister(t.Generic[V_TABLE], Register[str, V_TABLE]):
+    """A registry especially designed for SQLAlchemy tables.
+
+    This registry solves a small, but annoying, problem when using a
+    :class:`.Register` with SQLAlchemy tables and the ``polymorphic_identity``
+    feature. The first one is that you need to define all options in an enum in
+    you base class, however you can only define (and register) your tables
+    after the base class is defined. So you cannot use the ``.keys()`` method
+    to define this enum.
+
+    Then when defining it is annoying as you want the key under which you
+    register your table to be the same as the value set for
+    ``polymorphic_identity``, however this identity value is used by SQLAlchemy
+    during creation of the class (yes, class not instance!) so setting it in
+    decorator is not possible.
+
+    This class solves those problems by making the workflow a bit different.
+    First of all you define all possible options using the
+    :meth:`.TableRegister.set_all_possible_options`. Later on you an register a
+    table using the :meth:`.TableRegister.register_table` method which will
+    read the key from the ``polymorphic_identity``.
+
+    Finally you freeze the register, and it checks if all options declared
+    using ``set_possible_options`` are also really registered.
+    """
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+        self.__possible_options: t.Optional[t.Sequence[str]] = None
+
+    def set_possible_options(self, options: t.Sequence[str]) -> None:
+        """Set all possible options.
+        """
+        self.assert_not_frozen()
+        assert self.__possible_options is None, 'Options already set'
+        self.__possible_options = options
+
+    def freeze(self) -> None:
+        assert self.__possible_options is not None
+        assert set(self.keys()) == set(self.__possible_options)
+        super().freeze()
+
+    def register_table(self, cls: V_TABLE) -> V_TABLE:
+        """Register an SQLAlchemy table in this register.
+
+        The name under which the table is registered is read from
+        ``cls.__mapper_args__['polymorphic_identity]``.
+
+        :param cls: The table to register.
+
+        :returns: The table unmodified.
+        """
+        assert self.__possible_options is not None, (
+            'Possible options not yet set'
+        )
+        name = getattr(
+            cls,
+            '__mapper_args__',
+            {},
+        ).get('polymorphic_identity', None)
+
+        assert (
+            name is not None and name in self.__possible_options
+        ), f'Unknown key: {name}'
+        assert self.get(name) is None, 'Cannot register twice'
+        self.register(name)(cls)
+
+        return cls

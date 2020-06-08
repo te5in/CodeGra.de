@@ -287,46 +287,68 @@ def test_batch_run_auto_test(
     indirect=True
 )
 def test_delete_submission(
-    logged_in, assignment_real_works, session, monkeypatch,
+    assignment_real_works, session, monkeypatch, canvas_lti1p1_provider,
     stub_function_class, describe
 ):
     assignment, submission = assignment_real_works
     passback = stub_function_class(lambda: True)
-    monkeypatch.setattr(psef.lti.LTI, '_passback_grade', passback)
+    monkeypatch.setattr(psef.lti.v1_1.LTI, '_passback_grade', passback)
+
+    def do_delete(was_latest, new_latest=None):
+        psef.signals.WORK_DELETED.send(
+            psef.signals.WorkDeletedData(
+                deleted_work=m.Work.query.get(helpers.get_id(submission)),
+                was_latest=was_latest,
+                new_latest=new_latest,
+            )
+        )
 
     with describe('deleting submission without lti should work'):
-        t._delete_submission_1(submission['id'], assignment.id)
+        do_delete(True)
+        assert not passback.called
 
+        canvas_lti1p1_provider._delete_submission(
+            (helpers.get_id(submission), assignment.id)
+        )
         assert not passback.called
 
     user_id = submission['user']['id']
     assignment.assignment_results[user_id] = m.AssignmentResult(
         sourcedid='wow', user_id=user_id
     )
-    assignment.course.lti_provider = m.LTIProvider(key='my_lti')
-    assignment.lti_outcome_service_url = 'http://aaa'
+    m.CourseLTIProvider.create_and_add(
+        lti_context_id=str(uuid.uuid4()),
+        course=assignment.course,
+        lti_provider=canvas_lti1p1_provider,
+        deployment_id='',
+    )
+    assignment.lti_grade_service_data = 'http://aaa'
+    assignment.is_lti = True
     session.commit()
 
     with describe('deleting newest submission'):
-        t._delete_submission_1(submission['id'], assignment.id)
+        do_delete(was_latest=True)
 
         assert len(passback.all_args) == 1
         assert passback.all_args[0]['grade'] is None
         passback.reset()
 
     with describe('deleting non newest should not delete grade'):
-        session.add(m.Work(user_id=user_id, assignment=assignment))
+        sub_new = m.Work(user_id=user_id, assignment=assignment)
+        session.add(sub_new)
         session.commit()
 
-        t._delete_submission_1(submission['id'], assignment.id)
+        do_delete(was_latest=False, new_latest=None)
         assert not passback.called
 
     with describe('deleting in non existing assignment'):
-        t._delete_submission_1(submission['id'], None)
+        canvas_lti1p1_provider._delete_submission(
+            (helpers.get_id(submission), None)
+        )
         assert not passback.called
 
     with describe('deleting in non existing submissions'):
-        t._delete_submission_1(-1, assignment.id)
+        canvas_lti1p1_provider._delete_submission((-1, assignment.id))
         assert not passback.called
 
 

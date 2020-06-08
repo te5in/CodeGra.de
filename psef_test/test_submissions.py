@@ -8,10 +8,11 @@ import pytest
 from pytest import approx
 
 import psef
+import helpers
 import psef.tasks as tasks
 import psef.models as m
 from helpers import (
-    create_course, create_marker, create_assignment, create_submission,
+    get_id, create_course, create_marker, create_assignment, create_submission,
     create_user_with_role
 )
 from cg_dt_utils import DatetimeWithTimezone
@@ -771,50 +772,61 @@ def test_clearing_rubric(
         ) == (2 if error else 1)
 
 
-@pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
 def test_selecting_wrong_rubric(
-    request, test_client, logged_in, error_template, ta_user,
-    assignment_real_works, session, course_name, teacher_user, student_user
+    test_client, logged_in, error_template, session, admin_user, tomorrow,
+    describe
 ):
-    assignment, work = assignment_real_works
-    course = m.Course.query.filter_by(name=course_name).one()
-
-    other_assignment = m.Assignment(name='OTHER ASSIGNMENT', course=course)
-    other_work = m.Work(
-        assignment=other_assignment, user=student_user._get_current_object()
-    )
-    session.add(other_assignment)
-    session.add(other_work)
-    session.commit()
-    other_work_id = other_work.id
-
-    rubric = {
-        'rows': [{
-            'header': 'My header',
-            'description': 'My description',
-            'items': [{
-                'description': '5points',
-                'header': 'bladie',
-                'points': 5
-            }, {
-                'description': '10points',
-                'header': 'bladie',
-                'points': 10,
-            }]
-        }]
-    }  # yapf: disable
-
-    with logged_in(teacher_user):
-        rubric = test_client.req(
-            'put',
-            f'/api/v1/assignments/{assignment.id}/rubrics/',
-            200,
-            data=rubric
+    with describe('Setup'), logged_in(admin_user):
+        course = helpers.create_course(test_client)
+        assignment = helpers.create_assignment(
+            test_client, course, state='open', deadline=tomorrow
         )
 
-    with logged_in(ta_user):
+        other_course = helpers.create_course(test_client)
+        other_assignment = helpers.create_assignment(
+            test_client, other_course, state='open', deadline=tomorrow
+        )
+
+        student_user = helpers.create_user_with_role(
+            session, 'Student', [course, other_course]
+        )
+        with logged_in(student_user):
+            _ = helpers.create_submission(test_client, assignment)
+            other_work = helpers.create_submission(
+                test_client, other_assignment
+            )
+
+        rubric = {
+            'rows': [{
+                'header': 'My header',
+                'description': 'My description',
+                'items': [{
+                    'description': '5points',
+                    'header': 'bladie',
+                    'points': 5
+                }, {
+                    'description': '10points',
+                    'header': 'bladie',
+                    'points': 10,
+                }]
+            }]
+        }  # yapf: disable
+
+    with describe('Create rubric in one assignment'):
+        with logged_in(admin_user):
+            rubric = test_client.req(
+                'put',
+                f'/api/v1/assignments/{get_id(assignment)}/rubrics/',
+                200,
+                data=rubric
+            )
+
+    with describe('Cannot use rubric from other assignment'
+                  ), logged_in(admin_user):
+        # Note the use of `other_work` which is another course and in another
+        # assignment.
         test_client.req(
-            'patch', f'/api/v1/submissions/{other_work_id}/'
+            'patch', f'/api/v1/submissions/{get_id(other_work)}/'
             f'rubricitems/{rubric[0]["items"][0]["id"]}',
             400,
             result=error_template
@@ -1018,7 +1030,7 @@ def test_get_teacher_zip_file(
     m.Assignment.query.filter_by(
         id=m.Work.query.get(work_id).assignment_id,
     ).update({
-        'state': m._AssignmentStateEnum.done,
+        'state': m.AssignmentStateEnum.done,
     }, )
 
     assert get_files(student_user, False) == {
@@ -1669,9 +1681,14 @@ def test_delete_submission(
 
 
 def test_delete_submission_with_other_work(
-    test_client, logged_in, admin_user, session, monkeypatch_celery, describe,
-    monkeypatch, stub_function_class, app, make_function_spy
+    test_client, logged_in, admin_user, session, describe, monkeypatch,
+    stub_function_class, app, make_function_spy, canvas_lti1p1_provider,
+    watch_signal
 ):
+    # TODO: Split up this test. The test does way too much. It was written
+    # before we had signals, so it not only tests that those are dispatched
+    # correctly, it also tests that we handle the signals correctly.
+
     with describe('setup'), logged_in(admin_user):
         course = create_course(test_client)
         assignment = m.Assignment.query.get(
@@ -1681,12 +1698,16 @@ def test_delete_submission_with_other_work(
         )
         student = create_user_with_role(session, 'Student', course)
 
-        stub_passback_task = make_function_spy(tasks, 'passback_grades')
+        signal = watch_signal(psef.signals.WORK_DELETED)
 
         stub_passback = stub_function_class(lambda: 0)
-        monkeypatch.setattr(psef.lti.LTI, '_passback_grade', stub_passback)
+        monkeypatch.setattr(
+            psef.lti.v1_1.LTI, '_passback_grade', stub_passback
+        )
 
-        stub_delete_submission = make_function_spy(tasks, 'delete_submission')
+        stub_delete_submission = make_function_spy(
+            m.LTI1p1Provider, '_delete_submission'
+        )
 
         stub_adjust = stub_function_class(lambda: 0)
         monkeypatch.setattr(tasks, 'adjust_amount_runners', stub_adjust)
@@ -1725,9 +1746,15 @@ def test_delete_submission_with_other_work(
             assignment.auto_test.add_to_run(m.Work.query.get(very_oldest))
         run.batch_run_done = True
 
-        assignment.set_state('done')
-        assignment.lti_outcome_service_url = 'a url'
-        assignment.course.lti_provider = m.LTIProvider(key='my_lti')
+        assignment.set_state_with_string('done')
+        assignment.lti_grade_service_data = 'a url'
+        assignment.is_lti = True
+        course_lti_connection = m.CourseLTIProvider.create_and_add(
+            course=assignment.course,
+            lti_provider=canvas_lti1p1_provider,
+            lti_context_id='HALLO',
+            deployment_id=''
+        )
         session.commit()
         assignment.assignment_results[student.id] = m.AssignmentResult(
             user_id=student.id, sourcedid='5', assignment_id=assignment.id
@@ -1736,16 +1763,24 @@ def test_delete_submission_with_other_work(
 
     with describe('delete not newest submission'), logged_in(admin_user):
         test_client.req('delete', f'/api/v1/submissions/{middle}', 204)
-        assert not stub_passback_task.called
+        assert signal.was_send_once
+        assert signal.signal_arg.deleted_work.id == middle
+        assert not signal.signal_arg.was_latest
+        assert signal.signal_arg.new_latest is None
+
         assert not stub_delete_submission.called
         assert not stub_adjust.called
         assert not stub_clear.called
 
     with describe('delete newest submission'), logged_in(admin_user):
         test_client.req('delete', f'/api/v1/submissions/{newest}', 204)
+        assert signal.was_send_once
+        assert signal.signal_arg.deleted_work.id == newest
+        assert signal.signal_arg.was_latest
+        # Not the middle as that one is already deleted
+        assert signal.signal_arg.new_latest.id == oldest
+
         assert stub_passback.called
-        assert stub_passback_task.called
-        assert stub_passback_task.all_args[0][0] == [oldest]
         assert not stub_delete_submission.called
         assert stub_adjust.called
         assert not stub_clear.called
@@ -1758,8 +1793,11 @@ def test_delete_submission_with_other_work(
         test_client.req(
             'delete', f'/api/v1/submissions/{from_test_student_newest}', 204
         )
-        assert stub_passback_task.called
-        assert stub_passback_task.all_args[0][0] == [from_test_student_oldest]
+        assert signal.was_send_once
+        assert signal.signal_arg.deleted_work.id == from_test_student_newest
+        assert signal.signal_arg.was_latest
+        assert signal.signal_arg.new_latest.id == from_test_student_oldest
+
         assert not stub_passback.called
         assert not stub_delete_submission.called
 
@@ -1769,8 +1807,11 @@ def test_delete_submission_with_other_work(
                                                 ).one().final_result is False
         test_client.req('delete', f'/api/v1/submissions/{oldest}', 204)
 
-        assert stub_passback_task.called
-        assert stub_passback_task.all_args[0][0] == [very_oldest]
+        assert signal.was_send_once
+        assert signal.signal_arg.deleted_work.id == oldest
+        assert signal.signal_arg.was_latest
+        assert signal.signal_arg.new_latest.id == very_oldest
+
         assert not stub_delete_submission.called
         assert stub_adjust.called
 
@@ -1783,11 +1824,17 @@ def test_delete_submission_with_other_work(
 
     with describe('without AutoTest run or lti'), logged_in(admin_user):
         assignment.auto_test._runs = []
-        assignment.course.lti_provider = None
+        session.delete(course_lti_connection)
+        assignment.is_lti = False
         session.commit()
         test_client.req('delete', f'/api/v1/submissions/{very_oldest}', 204)
 
-        assert not stub_passback_task.called
+        # Should still be send
+        assert signal.was_send_once
+        assert signal.signal_arg.deleted_work.id == very_oldest
+        assert signal.signal_arg.was_latest
+        assert signal.signal_arg.new_latest.id == super_oldest
+
         assert not stub_delete_submission.called
         assert not stub_adjust.called
         assert not stub_clear.called
@@ -2094,21 +2141,18 @@ def test_uploading_invalid_file(
 
 
 @pytest.mark.parametrize(
-    'max_grade', [
-        10,
-        4,
-        15,
-        http_error(error=400)('Hello'),
-        http_error(error=400)(-2),
-    ]
-)
-@pytest.mark.parametrize(
     'named_user', [
         'Robin',
         http_error(error=403)('Student2'),
         http_error(error=403)('Thomas Schaper'),
     ],
     indirect=True
+)
+@pytest.mark.parametrize(
+    'max_grade',
+    [10, 4, 15,
+     http_error(error=400)('Hello'),
+     http_error(error=400)(-2)],
 )
 @pytest.mark.parametrize('filename', ['test_flake8.tar.gz'], indirect=True)
 def test_maximum_grade(
