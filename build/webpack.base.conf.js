@@ -111,14 +111,14 @@ module.exports = {
     new VueLoaderPlugin(),
     new CreateFileWebpack({
         path: resolve('src'),
-        fileName: 'userConfig.js',
+        fileName: 'userConfig.ts',
         content: `// eslint-disable-next-line
-const userConfig = Object.freeze(${JSON.stringify(userConfig)});
+const userConfig = Object.freeze(<const>${JSON.stringify(userConfig)});
 export default userConfig;
 `,
     }),
       new webpack.ProvidePlugin({
-          'UserConfig': [resolve('src/userConfig.js'), 'default'],
+          'UserConfig': [resolve('src/userConfig.ts'), 'default'],
       }),
   ],
 }

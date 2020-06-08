@@ -7,6 +7,8 @@ it is possible that a row doesn't exist just yet.
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import enum
+import typing as t
+import hashlib
 
 import sqlalchemy
 
@@ -24,6 +26,7 @@ class LockNamespaces(enum.Enum):
         case.
     """
     comment_base = 1
+    user = 2
 
 
 NAMESPACE_RESERVE_BITS = 8
@@ -31,11 +34,20 @@ MAX_LOCK_VALUE = 2 ** 63
 MAX_GIVEN_VALUE = MAX_LOCK_VALUE >> NAMESPACE_RESERVE_BITS
 
 
-def acquire_lock(namespace: LockNamespaces, value: int) -> None:
+def acquire_lock(namespace: LockNamespaces, value: t.Union[int, str]) -> None:
     """Acquire a database user level lock in the given namespace.
 
     :returns: Nothing, the lock will be released at the end of the transaction.
     """
+    if isinstance(value, str):
+        # This doesn't have to be cryptographically secure, we just want a
+        # consistent (this is really important!) integer between 0 and
+        # `MAX_GIVEN_VALUE`.
+        value = (
+            abs(int(hashlib.sha256(value.encode('utf8')).hexdigest(), 16)) %
+            MAX_GIVEN_VALUE
+        )
+
     assert value > 0, 'Value should be a positive number'
     assert value < MAX_GIVEN_VALUE, 'Max value should not be exceeded'
 

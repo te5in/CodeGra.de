@@ -13,6 +13,10 @@ Version *Next*
   code can now be rendered side by side, the amount of context lines before and
   after each match is configurable, and it is possible to export to a docx
   file.
+- Add LTI 1.3 implementation `(#1277)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1277>`__. This makes the
+  integration in the LMS even better, allowing better workflows for group
+  assignments and easier assignment creation.
 - Include submission information in AutoTest environment `(#1361)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1361>`__. Some information
   about a submission is now available in AutoTest as a JSON object that is

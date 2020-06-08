@@ -76,92 +76,6 @@ def _lint_instances_1(
     ).run(linter_instance_ids)
 
 
-# This task acks late and retries on exceptions. For the exact meaning of these
-# variables see the celery documentation. But basically ``acks_late`` means
-# that a task will only be removed from the queue AFTER it has finished
-# processing, if the worker dies during processing it will simply restart. The
-# ``max_retry`` parameter means that if the worker throws an exception during
-# processing the task will also be retried, with a maximum of 10. The
-# ``reject_on_worker_lost`` means that if a worker suddenly dies while
-# processing the task (if the machine fails, or if the main process is killed
-# with the ``KILL`` signal) the task will also be retried.
-@celery.task(acks_late=True, max_retries=10, reject_on_worker_lost=True)  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-def _passback_grades_1(
-    submission_ids: t.Sequence[int],
-    *,
-    assignment_id: int = None,
-    initial: bool = False
-) -> None:
-    if not submission_ids:  # pragma: no cover
-        return
-
-    assignment = p.models.Assignment.query.filter_by(
-        id=assignment_id
-    ).with_for_update().one_or_none()
-    if assignment is None:  # pragma: no cover
-        subs = p.models.Work.query.filter(
-            t.cast(p.models.DbColumn[int], p.models.Work.id).in_(
-                submission_ids,
-            ),
-            ~p.models.Work.deleted,
-        ).order_by(
-            p.models.Work.user_id,
-            t.cast(DbColumn[object], p.models.Work.created_at).desc()
-        ).all()
-    else:
-        subs = assignment.get_all_latest_submissions().filter(
-            t.cast(DbColumn[int], p.models.Work.id).in_(submission_ids)
-        ).all()
-
-    found_ids = [s.id for s in subs]
-    logger.info(
-        'Passback grades',
-        gotten_submissions=submission_ids,
-        found_submissions=found_ids,
-        all_found=len(subs) == len(submission_ids),
-        difference=list(set(submission_ids) ^ set(found_ids))
-    )
-
-    for sub in subs:
-        sub.passback_grade(initial=initial)
-
-    p.models.db.session.commit()
-
-
-@celery.task
-def _delete_submission_1(work_id: int, assignment_id: int) -> None:
-    assignment = p.models.Assignment.query.filter_by(
-        id=assignment_id
-    ).with_for_update().one_or_none()
-    if assignment is None:
-        logger.info('Could not find assignment', assignment_id=assignment_id)
-        return
-    if assignment.course.lti_provider is None:
-        logger.info(
-            'Not an LTI submission, ignoring', assignment_id=assignment_id
-        )
-        return
-
-    # TODO: This has a bug: if a user has a group submission, that is already
-    # deleted, and now his/her latest personal submission is deleted, this
-    # personal submission is not found, as we think the deleted group
-    # submission (which we ignore) is the latest submission.
-    # TODO: Another possible bug is that if a user has two submissions, and the
-    # latest is already deleted, and now we delete the new latest this is also
-    # not registered as the latest submission.
-    # In other words: this code works for common cases, but is hopelessly
-    # broken for all other cases :(
-    sub = assignment.get_all_latest_submissions(include_deleted=True).filter(
-        p.models.Work.id == work_id
-    ).one_or_none()
-
-    if sub is None:
-        logger.info('Could not find submission', work_id=work_id)
-        return
-    logger.info('Deleting grade for submission', work_id=sub.id)
-    assignment.course.lti_provider.delete_grade_for_submission(sub)
-
-
 @celery.task
 def _send_reminder_mails_1(assignment_id: int) -> None:
     assig = p.models.Assignment.query.get(assignment_id)
@@ -236,23 +150,25 @@ def _run_plagiarism_control_1(  # pylint: disable=too-many-branches,too-many-sta
         if base_code_dir:
             shutil.rmtree(base_code_dir)
 
-    def set_state(state: p.models.PlagiarismState) -> None:
-        assert plagiarism_run
-        plagiarism_run.state = state
-        p.models.db.session.commit()
-
     with p.helpers.defer(
         at_end,
     ), tempfile.TemporaryDirectory(
     ) as result_dir, tempfile.TemporaryDirectory(
     ) as tempdir, tempfile.TemporaryDirectory() as archive_dir:
         plagiarism_run = p.models.PlagiarismRun.query.get(plagiarism_run_id)
+
         if plagiarism_run is None:  # pragma: no cover
             logger.info(
                 'Plagiarism run was already deleted',
                 plagiarism_run_id=plagiarism_run_id,
             )
             return
+
+        def set_state(state: p.models.PlagiarismState) -> None:
+            assert plagiarism_run is not None
+            plagiarism_run.state = state
+            p.models.db.session.commit()
+
         set_state(p.models.PlagiarismState.started)
 
         supports_progress = plagiarism_run.plagiarism_cls.supports_progress()
@@ -401,7 +317,7 @@ def _run_autotest_batch_runs_1() -> None:
     retry_kwargs={'max_retries': 15}
 )
 def _notify_broker_of_new_job_1(
-    run_id: t.Union[int, p.models.AutoTestRun],
+    run_id: t.Union[int, 'p.models.AutoTestRun'],
     wanted_runners: t.Optional[int] = 1
 ) -> None:
     if isinstance(run_id, int):
@@ -875,7 +791,6 @@ def _send_email_as_user_1(
     p.models.db.session.commit()
 
 
-passback_grades = _passback_grades_1.delay  # pylint: disable=invalid-name
 lint_instances = _lint_instances_1.delay  # pylint: disable=invalid-name
 add = _add_1.delay  # pylint: disable=invalid-name
 send_done_mail = _send_done_mail_1.delay  # pylint: disable=invalid-name
@@ -886,7 +801,6 @@ notify_broker_end_of_job = _notify_broker_end_of_job_1.delay  # pylint: disable=
 notify_broker_kill_single_runner = _notify_broker_kill_single_runner_1.delay  # pylint: disable=invalid-name
 adjust_amount_runners = _adjust_amount_runners_1.delay  # pylint: disable=invalid-name
 kill_runners_and_adjust = _kill_runners_and_adjust_1.delay  # pylint: disable=invalid-name
-delete_submission = _delete_submission_1.delay  # pylint: disable=invalid-name
 update_latest_results_in_broker = _update_latest_results_in_broker_1.delay  # pylint: disable=invalid-name
 clone_commit_as_submission = _clone_commit_as_submission_1.delay  # pylint: disable=invalid-name
 delete_file_at_time = _delete_file_at_time_1.delay  # pylint: disable=invalid-name

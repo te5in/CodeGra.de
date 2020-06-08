@@ -5,6 +5,7 @@ import axios from 'axios';
 import moment from 'moment';
 
 import { Assignment } from '@/models';
+import { makeProvider } from '@/lti_providers';
 
 import * as types from '../mutation-types';
 import { MANAGE_ASSIGNMENT_PERMISSIONS, MANAGE_GENERAL_COURSE_PERMISSIONS } from '../../constants';
@@ -192,6 +193,18 @@ const mutations = {
             course.canManage = manageCourses[course.id] || false;
             course.canManageAssignments = manageAssigs[course.id] || false;
             course.canCreateAssignments = createAssigs[course.id] || false;
+
+            Object.defineProperty(course, 'ltiProvider', {
+                get() {
+                    const provider = this.lti_provider;
+                    if (provider == null) {
+                        return null;
+                    } else {
+                        return makeProvider(provider);
+                    }
+                },
+                enumerable: true,
+            });
 
             Object.defineProperty(course, 'isStudent', {
                 get() {

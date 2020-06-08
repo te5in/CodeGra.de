@@ -2,7 +2,6 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-
 import os
 import enum
 import typing as t
@@ -10,11 +9,13 @@ import zipfile
 import tempfile
 from collections import defaultdict
 
+import structlog
 import sqlalchemy
 import sqlalchemy.sql as sql
 from sqlalchemy import orm, select
 from sqlalchemy.orm import undefer, selectinload
 from sqlalchemy.types import JSON
+from typing_extensions import Literal
 
 import psef
 import cg_timers
@@ -28,13 +29,15 @@ from . import user as user_models
 from . import group as group_models
 from . import _MyQuery
 from . import assignment as assignment_models
-from .. import auth, helpers, features
+from .. import auth, helpers, signals, features
 from .linter import LinterState, LinterComment, LinterInstance
 from .rubric import RubricItem, WorkRubricItem
 from .comment import CommentBase
 from ..helpers import JSONType
 from ..exceptions import PermissionException
 from ..permissions import CoursePermission
+
+logger = structlog.get_logger()
 
 
 class GradeOrigin(enum.Enum):
@@ -55,8 +58,6 @@ class GradeHistory(Base):
     :ivar ~.GradeHistory.work: What work does this grade belong to.
     :ivar ~.GradeHistory.user: What user added this grade.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['GradeHistory']] = Base.query
     __tablename__ = "GradeHistory"
     id = db.Column('id', db.Integer, primary_key=True)
     changed_at = db.Column(
@@ -145,8 +146,6 @@ class Work(Base):
     """This object describes a single work or submission of a
     :class:`user_models.User` for an :class:`.assignment_models.Assignment`.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[_MyQuery['Work']]
     __tablename__ = "Work"  # type: str
     id = db.Column('id', db.Integer, primary_key=True)
     assignment_id = db.Column(
@@ -230,7 +229,7 @@ class Work(Base):
     def _get_deleted(self) -> bool:
         """Is this submission deleted.
         """
-        return self._deleted or self.assignment.deleted
+        return self._deleted or not self.assignment.is_visible
 
     @hybrid_expression
     def _get_deleted_expr(cls: t.Type['Work']) -> 'DbColumn[bool]':
@@ -238,7 +237,7 @@ class Work(Base):
         """
         # pylint: disable=no-self-argument
         return select(
-            [sql.or_(cls._deleted, assignment_models.Assignment.deleted)]
+            [sql.or_(cls._deleted, ~assignment_models.Assignment.is_visible)]
         ).where(
             cls.assignment_id == assignment_models.Assignment.id,
         ).label('deleted')
@@ -268,6 +267,7 @@ class Work(Base):
                 ignore_errors=True,
             )
 
+    @signals.WORK_CREATED.connect_immediate
     def run_linter(self) -> None:
         """Run all linters for the assignment on this work.
 
@@ -405,7 +405,7 @@ class Work(Base):
         self,
         new_grade: t.Optional[float],
         user: 'user_models.User',
-        never_passback: bool = False,
+        grade_origin: Literal[GradeOrigin.human] = GradeOrigin.human
     ) -> GradeHistory:
         ...
 
@@ -413,7 +413,6 @@ class Work(Base):
     def set_grade(  # pylint: disable=function-redefined,missing-docstring,unused-argument,no-self-use
         self,
         *,
-        never_passback: bool = False,
         grade_origin: GradeOrigin,
     ) -> GradeHistory:
         ...
@@ -422,7 +421,6 @@ class Work(Base):
         self,
         new_grade: t.Union[float, None, helpers.MissingType] = helpers.MISSING,
         user: t.Optional['user_models.User'] = None,
-        never_passback: bool = False,
         grade_origin: GradeOrigin = GradeOrigin.human,
     ) -> GradeHistory:
         """Set the grade to the new grade.
@@ -443,7 +441,6 @@ class Work(Base):
         if new_grade is not helpers.MISSING:
             assert isinstance(new_grade, (float, int, type(None)))
             self._grade = new_grade
-        passback = self.assignment.should_passback
         grade = self.grade
         history = GradeHistory(
             is_rubric=self._grade is None and grade is not None,
@@ -455,15 +452,7 @@ class Work(Base):
         )
         self.grade_histories.append(history)
 
-        if not never_passback and passback:
-            work_id = self.id
-            assignment_id = self.assignment_id
-            helpers.callback_after_this_request(
-                lambda: psef.tasks.passback_grades(
-                    [work_id],
-                    assignment_id=assignment_id,
-                )
-            )
+        signals.GRADE_UPDATED.send(self)
 
         return history
 
@@ -473,32 +462,6 @@ class Work(Base):
         this work.
         """
         return sum(item.points for item in self.selected_items)
-
-    def passback_grade(self, initial: bool = False) -> None:
-        """Initiates a passback of the grade to the LTI consumer via the
-        :class:`.LTIProvider`.
-
-        :param initial: Should we do a initial LTI grade passback with no
-            result so that the real grade won't show as too late.
-        :returns: Nothing
-        """
-        lti_provider = self.assignment.course.lti_provider
-        assert lti_provider
-
-        lti_provider.passback_grade(self, initial)
-
-        if not initial:
-            newest_grade_history_id = db.session.query(
-                t.cast(DbColumn[int], GradeHistory.id)
-            ).filter_by(work_id=self.id).order_by(
-                t.cast(
-                    DbColumn[DatetimeWithTimezone], GradeHistory.changed_at
-                ).desc(),
-            ).limit(1).with_for_update()
-
-            db.session.query(GradeHistory).filter(
-                GradeHistory.id == newest_grade_history_id.as_scalar(),
-            ).update({'passed_back': True}, synchronize_session='fetch')
 
     def select_rubric_items(
         self,
@@ -536,6 +499,12 @@ class Work(Base):
             self.selected_items.append(item)
 
         self.set_grade(None, user)
+
+    def __structlog__(self) -> t.Mapping[str, t.Union[int, str]]:
+        return {
+            'type': self.__class__.__name__,
+            'id': self.id,
+        }
 
     def __to_json__(self) -> t.MutableMapping[str, t.Any]:
         """Returns the JSON serializable representation of this work.
@@ -1005,21 +974,7 @@ class Work(Base):
         db.session.add(self)
         db.session.flush()
 
-        if self.assignment.is_lti:
-            # TODO: Doing this for a LMS other than Canvas is probably not a
-            # good idea as it will result in a wrong submission date.
-            helpers.callback_after_this_request(
-                lambda: psef.tasks.passback_grades(
-                    [self.id],
-                    assignment_id=assignment.id,
-                    initial=True,
-                )
-            )
-
-        self.run_linter()
-
-        if self.assignment.auto_test is not None:
-            self.assignment.auto_test.add_to_run(self)
+        signals.WORK_CREATED.send(self)
 
         return self
 

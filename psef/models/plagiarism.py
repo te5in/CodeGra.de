@@ -10,7 +10,7 @@ import psef
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.types import ColumnProxy
 
-from . import Base, db, _MyQuery
+from . import Base, db
 from .. import auth
 from .assignment import Assignment
 from ..exceptions import PermissionException
@@ -34,10 +34,8 @@ class PlagiarismMatch(Base):
     :ivar ~.PlagiarismMatch.file2_end: Same as ``file1_end`` but for the second
         file.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[_MyQuery['PlagiarismMatch']]
-
     __tablename__ = 'PlagiarismMatch'
+
     id = db.Column('id', db.Integer, primary_key=True)
 
     file1_id = db.Column(
@@ -128,9 +126,6 @@ class PlagiarismCase(Base):
     :ivar ~.PlagiarismCase.match_max: The maximum similarity between the two
         matches. What the value exactly means differs per provider.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[_MyQuery['PlagiarismCase']]
-
     __tablename__ = 'PlagiarismCase'
     id = db.Column('id', db.Integer, primary_key=True)
 
@@ -314,8 +309,6 @@ class PlagiarismRun(Base):
     :ivar ~.PlagiarismRun.assignment_id: The id of the assignment this
         belongs to.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['PlagiarismRun']] = Base.query
     __tablename__ = 'PlagiarismRun'
 
     id = db.Column('id', db.Integer, primary_key=True)

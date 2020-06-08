@@ -18,7 +18,7 @@ from mypy_extensions import TypedDict
 from typing_extensions import Protocol
 
 import psef.files
-from psef import app, tasks, current_user
+from psef import app, current_user
 from cg_sqlalchemy_helpers.types import ColumnProxy
 
 from . import api
@@ -30,6 +30,7 @@ from ..helpers import (
     ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response
 )
+from ..signals import WORK_DELETED, WorkDeletedData
 from ..exceptions import PermissionException
 from ..permissions import CoursePermission as CPerm
 
@@ -247,11 +248,14 @@ def delete_submission(submission_id: int) -> EmptyResponse:
         with_for_update=True
     )
     user = submission.user
-    was_latest = db.session.query(
-        assignment.get_from_latest_submissions(
-            models.Work.id
-        ).filter_by(id=submission.id).exists()
-    ).scalar()
+    was_latest = helpers.handle_none(
+        db.session.query(
+            assignment.get_from_latest_submissions(
+                models.Work.id
+            ).filter_by(id=submission.id).exists()
+        ).scalar(),
+        False,
+    )
 
     logger.info(
         'Deleting submission',
@@ -265,36 +269,17 @@ def delete_submission(submission_id: int) -> EmptyResponse:
     submission.deleted = True
     db.session.flush()
 
-    if was_latest:
-        new_latest = assignment.get_all_latest_submissions().filter_by(
-            user_id=user.id
-        ).one_or_none()
-
-        if (
-            assignment.auto_test is not None and
-            assignment.auto_test.run is not None
-        ):
-            at_run_id = assignment.auto_test.run.id
-            helpers.callback_after_this_request(
-                lambda: psef.tasks.update_latest_results_in_broker(at_run_id)
-            )
-
-        if new_latest:
-            if assignment.should_passback:
-                new_latest_id = new_latest.id
-                helpers.callback_after_this_request(
-                    lambda: tasks.passback_grades(
-                        [new_latest_id],
-                        assignment_id=assignment.id,
-                    )
-                )
-            if assignment.auto_test:
-                # This function also sets `final_result` if needed
-                assignment.auto_test.reset_work(new_latest)
-        else:
-            helpers.callback_after_this_request(
-                lambda: tasks.delete_submission(submission_id, assignment.id)
-            )
+    WORK_DELETED.send(
+        WorkDeletedData(
+            deleted_work=submission,
+            was_latest=was_latest,
+            new_latest=(
+                assignment.get_all_latest_submissions().filter_by(
+                    user_id=user.id
+                ).one_or_none() if was_latest else None
+            ),
+        )
+    )
 
     db.session.commit()
 
@@ -1062,7 +1047,7 @@ def get_dir_contents(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
 
-    file_id: str = request.args.get('file_id', '')
+    file_id = request.args.get('file_id', None, type=int)
     path: str = request.args.get('path', '')
 
     exclude_owner = models.File.get_exclude_owner(
@@ -1072,7 +1057,7 @@ def get_dir_contents(
 
     auth.ensure_can_view_files(work, exclude_owner == FileOwner.student)
 
-    if file_id:
+    if file_id is not None:
         file = helpers.filter_single_or_404(
             models.File,
             models.File.id == file_id,

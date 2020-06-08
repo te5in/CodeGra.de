@@ -97,14 +97,12 @@ def app(request):
         'MAX_NORMAL_UPLOAD_SIZE': 4 * 2 ** 20,  # 4 mb
         'MAX_LARGE_UPLOAD_SIZE': 100 * 2 ** 20,  # 100mb
         'LTI_CONSUMER_KEY_SECRETS': {
-            'my_lti': 'Canvas:12345678',
-            'no_secret': 'Canvas:',
-            'no_lms': ':12345678',
-            'no_colon': '12345678',
-            'unknown_lms': 'unknown:12345678',
-            'blackboard_lti': 'Blackboard:12345678',
-            'moodle_lti': 'Moodle:12345678',
-            'brightspace_lti': 'BrightSpace:12345678',
+            'my_lti': ('Canvas', ['12345678']),
+            'canvas2': ('Canvas', ['123456789']),
+            'unknown_lms': ('unknown', ['12345678']),
+            'blackboard_lti': ('Blackboard', ['12345678']),
+            'moodle_lti': ('Moodle', ['12345678']),
+            'brightspace_lti': ('BrightSpace', ['12345678']),
         },
         'LTI_SECRET_KEY': 'hunter123',
         'SECRET_KEY': 'hunter321',
@@ -451,6 +449,12 @@ def db(app, request):
                     shell=True
                 )
                 subprocess.check_output(
+                    'psql {} -c \'create extension "uuid-ossp"\''.format(
+                        db_name.replace('postgresql:///', '')
+                    ),
+                    shell=True
+                )
+                subprocess.check_output(
                     'psql {} -c \'create extension "citext"\''.format(
                         db_name.replace('postgresql:///', '')
                     ),
@@ -532,13 +536,11 @@ def session(app, db, use_transaction):
             psef.permissions.database_permissions_sanity_check(app)
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def monkeypatch_celery(app, monkeypatch):
-    psef.tasks.celery.conf.task_always_eager = True
-    psef.tasks.celery.conf.task_eager_propagates = True
+    monkeypatch.setattr(psef.tasks.celery.conf, 'task_always_eager', True)
+    monkeypatch.setattr(psef.tasks.celery.conf, 'task_eager_propagates', True)
     yield
-    psef.tasks.celery.conf.task_always_eager = False
-    psef.tasks.celery.conf.task_eager_propagates = False
 
 
 @pytest.fixture(params=['Programmeertalen'])
@@ -588,15 +590,16 @@ def with_works(request):
 def assignment(course_name, state_is_hidden, session, request, with_works):
     course = m.Course.query.filter_by(name=course_name).one()
     state = (
-        m._AssignmentStateEnum.hidden
-        if state_is_hidden else m._AssignmentStateEnum.open
+        m.AssignmentStateEnum.hidden
+        if state_is_hidden else m.AssignmentStateEnum.open
     )
     assig = m.Assignment(
         name='TEST COURSE',
         state=state,
         course=course,
         deadline=DatetimeWithTimezone.utcnow() +
-        datetime.timedelta(days=1 if request.param == 'new' else -1)
+        datetime.timedelta(days=1 if request.param == 'new' else -1),
+        is_lti=False,
     )
     session.add(assig)
     session.commit()
@@ -620,10 +623,77 @@ def filename(request):
 
 
 @pytest.fixture
+def stub_function(stub_function_class, session, monkeypatch):
+    def inner_stub_function(module, name, *args, **kwargs):
+        stub = stub_function_class(*args, **kwargs)
+        monkeypatch.setattr(module, name, stub)
+        return stub
+
+    yield inner_stub_function
+
+
+@pytest.fixture
+def watch_signal(stub_function_class, session):
+    undos = []
+    idx = 0
+
+    def make_watcher(signal, *, flush_db=False, clear_all_but=False):
+        nonlocal idx
+        idx += 1
+
+        def maybe_flush():
+            if flush_db:
+                session.flush()
+
+        class Watcher(stub_function_class):
+            __name__ = f'signal_watcher_{idx}'
+
+            @property
+            def send_amount(self):
+                return len(self.args)
+
+            @property
+            def signal_arg(self):
+                # This property only makes sense if the signal was send exactly
+                # once
+                assert self.was_send_once
+                all_args = self.all_args
+                assert len(all_args[0]) == 1
+                return all_args[0][0]
+
+            @property
+            def was_send_once(self):
+                return self.was_send_n_times(1)
+
+            @property
+            def was_not_send(self):
+                return len(self.args) == 0
+
+            def was_send_n_times(self, n):
+                return self.called_amount == n
+
+        watcher = Watcher(maybe_flush)
+
+        if clear_all_but is not False:
+            assert all(signal.is_connected(f) for f in clear_all_but)
+            undos.append(signal.disable_all_but(clear_all_but))
+        signal.connect_immediate(watcher)
+        if clear_all_but is False:
+            undos.append(lambda: signal.disconnect(watcher))
+
+        return watcher
+
+    yield make_watcher
+
+    for undo in undos:
+        undo()
+
+
+@pytest.fixture
 def make_function_spy(monkeypatch, stub_function_class):
-    def make_spy(module, name):
+    def make_spy(module, name, *, pass_self=False):
         orig = getattr(module, name)
-        spy = stub_function_class(orig, with_args=True)
+        spy = stub_function_class(orig, with_args=True, pass_self=pass_self)
         monkeypatch.setattr(module, name, spy)
         return spy
 
@@ -647,6 +717,9 @@ def stub_function_class():
 
         def __call__(self, *args, **kwargs):
             return self.make_callable(self.ret_func)(*args, **kwargs)
+
+        def set_impl(self, fn):
+            self.ret_func = fn
 
         @property
         def all_args(self):
@@ -680,7 +753,12 @@ def stub_function_class():
 
         @property
         def called(self):
-            return len(self.args) > 0
+            return self.called_amount > 0
+
+        @property
+        def called_amount(self):
+            assert len(self.args) == len(self.kwargs)
+            return len(self.args)
 
         def reset(self):
             self.args = []
@@ -841,3 +919,21 @@ def tomorrow():
 @pytest.fixture
 def yesterday():
     yield DatetimeWithTimezone.utcnow() - datetime.timedelta(days=1)
+
+
+@pytest.fixture
+def canvas_lti1p1_provider(session):
+    prov = m.LTI1p1Provider(key='canvas2')
+    session.add(prov)
+    session.commit()
+    yield prov
+
+
+@pytest.fixture
+def lti1p3_provider(logged_in, admin_user, test_client):
+    with logged_in(admin_user):
+        prov = helpers.to_db_object(
+            helpers.create_lti1p3_provider(test_client, 'Canvas'),
+            m.LTI1p3Provider
+        )
+    yield prov

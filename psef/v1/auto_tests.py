@@ -33,7 +33,7 @@ def _get_at_set_by_ids(
     def also_error(at_set: models.AutoTestSet) -> bool:
         return (
             at_set.auto_test_id != auto_test_id or
-            at_set.auto_test.assignment.deleted
+            not at_set.auto_test.assignment.is_visible
         )
 
     return filter_single_or_404(
@@ -127,7 +127,7 @@ def create_auto_test() -> JSONResponse[models.AutoTest]:
     assignment = filter_single_or_404(
         models.Assignment,
         models.Assignment.id == assignment_id,
-        ~models.Assignment.deleted,
+        models.Assignment.is_visible,
         with_for_update=True
     )
     auth.ensure_permission(CPerm.can_edit_autotest, assignment.course_id)
@@ -169,7 +169,7 @@ def delete_auto_test(auto_test_id: int) -> EmptyResponse:
         models.AutoTest,
         models.AutoTest.id == auto_test_id,
         with_for_update=True,
-        also_error=lambda at: at.assignment.deleted,
+        also_error=lambda at: not at.assignment.is_visible,
     )
 
     auth.ensure_permission(
@@ -206,7 +206,8 @@ def get_fixture_contents(
         models.AutoTestFixture,
         fixture_id,
         also_error=(
-            lambda f: f.auto_test_id != at_id or f.auto_test.assignment.deleted
+            lambda f: f.auto_test_id != at_id or not f.auto_test.assignment.
+            is_visible
         )
     )
 
@@ -238,7 +239,8 @@ def hide_or_open_fixture(at_id: int, fixture_id: int) -> EmptyResponse:
         models.AutoTestFixture,
         models.AutoTestFixture.id == fixture_id,
         also_error=(
-            lambda f: f.auto_test_id != at_id or f.auto_test.assignment.deleted
+            lambda f: f.auto_test_id != at_id or not f.auto_test.assignment.
+            is_visible
         ),
     )
 
@@ -275,7 +277,7 @@ def update_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
     auto_test = get_or_404(
         models.AutoTest,
         auto_test_id,
-        also_error=lambda at: at.assignment.deleted
+        also_error=lambda at: not at.assignment.is_visible
     )
     auth.ensure_permission(
         CPerm.can_edit_autotest, auto_test.assignment.course_id
@@ -308,7 +310,7 @@ def create_auto_test_set(auto_test_id: int
     auto_test = get_or_404(
         models.AutoTest,
         auto_test_id,
-        also_error=lambda at: at.assignment.deleted
+        also_error=lambda at: not at.assignment.is_visible
     )
     auth.ensure_permission(
         CPerm.can_edit_autotest, auto_test.assignment.course_id
@@ -690,7 +692,7 @@ def get_auto_test_results_for_user(
     def also_error(atr: models.AutoTestRun) -> bool:
         return (
             atr.auto_test_id != auto_test_id or
-            atr.auto_test.assignment.deleted
+            not atr.auto_test.assignment.is_visible
         )
 
     run = filter_single_or_404(
@@ -736,7 +738,7 @@ def get_auto_test_result(auto_test_id: int, run_id: int, result_id: int
     test = get_or_404(
         models.AutoTest,
         auto_test_id,
-        also_error=lambda at: at.assignment.deleted
+        also_error=lambda at: not at.assignment.is_visible
     )
     auth.ensure_can_view_autotest(test)
 
@@ -773,7 +775,7 @@ def copy_auto_test(auto_test_id: int) -> JSONResponse[models.AutoTest]:
     test = get_or_404(
         models.AutoTest,
         auto_test_id,
-        also_error=lambda at: at.assignment.deleted
+        also_error=lambda at: not at.assignment.is_visible
     )
     auth.ensure_can_view_autotest(test)
     for fixture in test.fixtures:
@@ -853,7 +855,7 @@ def get_auto_test_result_proxy(
     test = get_or_404(
         models.AutoTest,
         auto_test_id,
-        also_error=lambda at: at.assignment.deleted
+        also_error=lambda at: not at.assignment.is_visible
     )
     auth.ensure_can_view_autotest(test)
     if not test.assignment.is_done:

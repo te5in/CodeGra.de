@@ -20,6 +20,7 @@ import sentry_sdk.utils
 import flask_jwt_extended as flask_jwt
 from flask import g, request
 from sentry_sdk.hub import Hub
+from mypy_extensions import KwArg
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
@@ -377,11 +378,26 @@ def configure_logging(
 
 
 @contextlib.contextmanager
-def bound_to_logger(**vals: object) -> t.Generator[None, None, None]:
+def bound_to_logger(**vals: object
+                    ) -> t.Generator[t.Callable[[KwArg()], None], None, None]:
     """Bind values to logger for a certain block.
+
+    :param **vals: The parameters you want to bind to the logger in this block.
+
+    :yields: A method that you can the same way you called this method to bind
+             more items to the logger that will also be dropped as soon as this
+             context manager exists.
     """
+    bound = list(vals.keys())
     logger.bind(**vals)
+    # Remove reference to ``vals``
+    del vals
+
+    def bind_extra(**to_bind: object) -> None:
+        bound.extend(to_bind.keys())
+        logger.bind(**to_bind)
+
     try:
-        yield
+        yield bind_extra
     finally:
-        logger.try_unbind(*vals.keys())
+        logger.try_unbind(*bound)

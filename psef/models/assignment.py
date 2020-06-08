@@ -17,6 +17,7 @@ import structlog
 import sqlalchemy
 from sqlalchemy.orm import validates
 from mypy_extensions import DefaultArg
+from sqlalchemy.types import JSON
 from typing_extensions import TypedDict
 from sqlalchemy.sql.expression import and_, func
 from sqlalchemy.orm.collections import attribute_mapped_collection
@@ -24,10 +25,11 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 import psef
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.types import (
-    _T_BASE, MyQuery, DbColumn, ColumnProxy, MyNonOrderableQuery
+    _T_BASE, MyQuery, DbColumn, ColumnProxy, MyNonOrderableQuery,
+    hybrid_property
 )
 
-from . import UUID_LENGTH, Base, DbColumn, db
+from . import UUID_LENGTH, Base, db
 from . import user as user_models
 from . import work as work_models
 from . import course as course_models
@@ -35,17 +37,20 @@ from . import linter as linter_models
 from . import rubric as rubric_models
 from . import analytics as analytics_models
 from . import auto_test as auto_test_models
-from .. import auth, ignore, helpers
+from .. import auth, ignore, helpers, signals
 from .role import CourseRole
 from .permission import Permission, PermissionComp
 from ..exceptions import (
-    APICodes, APIException, PermissionException, InvalidAssignmentState
+    APICodes, APIWarnings, APIException, PermissionException,
+    InvalidAssignmentState
 )
 from .link_tables import user_course, users_groups, course_permissions
 from ..permissions import CoursePermission as CPerm
 
 if t.TYPE_CHECKING:  # pragma: no cover
     # pylint: disable=unused-import
+    from pylti1p3.assignments_grades import _AssignmentsGradersData
+    from . import group as group_models
     cached_property = property  # pylint: disable=invalid-name
 else:
     # pylint: disable=unused-import
@@ -74,7 +79,8 @@ class AssignmentJSON(TypedDict, total=True):
     course: 'course_models.Course'  # Course of this assignment.
     cgignore: t.Optional['psef.helpers.JSONType']  # The cginore.
     cgignore_version: t.Optional[str]
-    whitespace_linter: bool  # Has the whitespace linter run on this assignment.
+    # Has the whitespace linter run on this assignment.
+    whitespace_linter: bool
 
     # The fixed value for the maximum that can be achieved in a rubric. This
     # can be higher and lower than the actual max. Will be `null` if unset.
@@ -136,12 +142,42 @@ class _AssignmentAmbiguousSetting:
 
 
 @enum.unique
-class _AssignmentStateEnum(enum.IntEnum):
+class AssignmentStateEnum(enum.IntEnum):
     """Describes in what state an :class:`.Assignment` is.
     """
     hidden = 0
     open = 1
     done = 2
+
+
+@enum.unique
+class AssignmentVisibilityState(enum.IntEnum):
+    """This enum determines what the visibility state is of this assignment.
+
+    This state is more important than that of :class:`.AssignmentStateEnum`.
+
+    .. todo::
+
+        Investigate if we can combine this class with
+        :class:`.AssignmentStateEnum`. We would really need to take care that
+        performance isn't impacted when combining, and that it actually
+        improves the clarity of the code.
+
+    :ivar deep_linked: This assignment is not finished at the moment, but is
+        being deep linked inside an LMS.
+    :ivar visible: Assignment is visible and can be used as normal.
+    :ivar ~AssignmentVisibilityState.deleted: Assignment has been deleted and
+        should be hidden.
+    """
+    deep_linked = 0
+    visible = 1
+    deleted = 2
+
+    @property
+    def is_deleted(self) -> bool:
+        """Should you see this assignment as a deleted assignment?
+        """
+        return self == self.deleted
 
 
 class AssignmentAssignedGrader(Base):
@@ -151,8 +187,6 @@ class AssignmentAssignedGrader(Base):
     The user linked to the assignment is an assigned grader. In this link the
     weight is the weight this user was given when assigning.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[MyQuery['AssignmentAssignedGrader']]
     __tablename__ = 'AssignmentAssignedGrader'
     weight = db.Column('weight', db.Float, nullable=False)
     user_id = db.Column(
@@ -182,9 +216,6 @@ class AssignmentGraderDone(Base):
     :ivar ~.AssignmentGraderDone.assignment_id: The id of the assignment that
         is linked.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[MyQuery['AssignmentGraderDone']]
-        query = Base.query
     __tablename__ = 'AssignmentGraderDone'
     user_id = db.Column(
         'User_id',
@@ -229,8 +260,6 @@ class AssignmentLinter(Base):
         :py:class:`.Flake8` metadata about the `flake8` program).
     :ivar config: The config that was passed to the linter.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[MyQuery['AssignmentLinter']]
     __tablename__ = 'AssignmentLinter'  # type: str
     # This has to be a String object as the id has to be a non guessable uuid.
     id = db.Column(
@@ -372,8 +401,6 @@ class AssignmentResult(Base):
     :ivar ~.AssignmentResult.assignment_id: The id of the assignment this
         belongs to.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[MyQuery['AssignmentResult']]
     __tablename__ = 'AssignmentResult'
     sourcedid = db.Column('sourcedid', db.Unicode)
     user_id = db.Column(
@@ -410,17 +437,22 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     :ivar rubric_rows: The rubric rows that make up the rubric for this
         assignment.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type:  t.ClassVar[MyQuery['Assignment']]
     __tablename__ = "Assignment"
     id = db.Column('id', db.Integer, primary_key=True)
     name = db.Column('name', db.Unicode, nullable=False)
     _cgignore = db.Column('cgignore', db.Unicode)
     _cgignore_version = db.Column('cgignore_version', db.Unicode)
-    state = db.Column(
+
+    visibility_state = db.Column(
+        'visibility_state',
+        db.Enum(AssignmentVisibilityState),
+        default=AssignmentVisibilityState.visible,
+        nullable=False,
+    )
+    _state = db.Column(
         'state',
-        db.Enum(_AssignmentStateEnum),
-        default=_AssignmentStateEnum.hidden,
+        db.Enum(AssignmentStateEnum),
+        default=AssignmentStateEnum.hidden,
         nullable=False
     )
     description = db.Column('description', db.Unicode, default='')
@@ -432,7 +464,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         default=DatetimeWithTimezone.utcnow,
         nullable=False
     )
-    deadline = db.Column('deadline', db.TIMESTAMP(timezone=True))
+    _deadline = db.Column('deadline', db.TIMESTAMP(timezone=True))
 
     _mail_task_id = db.Column(
         'mail_task_id',
@@ -459,6 +491,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         default=None,
     )
     _max_grade = db.Column('max_grade', db.Float, nullable=True, default=None)
+
+    # This is always `None` for LTI 1.3. As LTI 1.3 supports sending more than
+    # the set maximum amount of points.
     lti_points_possible = db.Column(
         'lti_points_possible',
         db.Float,
@@ -467,8 +502,19 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     )
 
     # All stuff for LTI
-    lti_assignment_id = db.Column(db.Unicode, unique=True)
-    lti_outcome_service_url = db.Column(db.Unicode)
+    lti_assignment_id = db.Column(
+        'lti_assignment_id', db.Unicode, nullable=True
+    )
+    is_lti = db.Column('is_lti', db.Boolean, nullable=False, default=False)
+
+    # This is the lti outcome service url for LTI 1.1 and for LTI 1.3 this is
+    # the data passed under the
+    # "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint" claim.
+    lti_grade_service_data: ColumnProxy[
+        t.Union[None, '_AssignmentsGradersData', str]]
+    lti_grade_service_data = db.Column(
+        'lti_grade_service_data', JSON, nullable=True
+    )
 
     assigned_graders: t.MutableMapping[
         int, AssignmentAssignedGrader] = db.relationship(
@@ -588,19 +634,11 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         nullable=False,
     )
 
-    deleted = db.Column(
-        'deleted',
-        db.Boolean,
-        default=False,
-        server_default='false',
-        nullable=False,
-    )
-
     _cool_off_period = db.Column(
         'cool_off_period', db.Interval, default=None, nullable=True
     )
 
-    amount_in_cool_off_period = db.Column(
+    _amount_in_cool_off_period = db.Column(
         'amount_in_cool_off_period',
         db.Integer,
         default=1,
@@ -608,7 +646,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         server_default='1',
     )
 
-    max_submissions = db.Column(
+    _max_submissions = db.Column(
         'max_amount_of_submissions', db.Integer, default=None, nullable=True
     )
 
@@ -620,50 +658,74 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         db.CheckConstraint(
             'amount_in_cool_off_period >= 1',
             name='amount_in_cool_off_period_check'
+        ),
+        db.UniqueConstraint(
+            lti_assignment_id,
+            course_id,
+            name='ltiassignmentid_courseid_unique',
         )
     )
 
     def __init__(
         self,
-        *,
-        name: str,
-        lti_assignment_id: str = None,
-        description: str = '',
         course: 'course_models.Course',
-        state: _AssignmentStateEnum = None,
+        is_lti: bool,
+        name: str = None,
+        visibility_state: AssignmentVisibilityState = (
+            AssignmentVisibilityState.visible
+        ),
+        state: AssignmentStateEnum = None,
         deadline: DatetimeWithTimezone = None,
+        lti_assignment_id: str = None,
+        description: str = ''
     ) -> None:
         super().__init__(
-            name=name,
-            lti_assignment_id=lti_assignment_id,
-            description=description,
             course=course,
+            name=name,
+            visibility_state=visibility_state,
             state=state,
             deadline=deadline,
+            lti_assignment_id=lti_assignment_id,
+            description=description,
+            is_lti=is_lti,
             analytics_workspaces=[
                 analytics_models.AnalyticsWorkspace(assignment=self)
             ],
         )
+        self._changed_ambiguous_settings: t.Set[AssignmentAmbiguousSettingTag]
+        self._on_orm_load()
+
+        signals.ASSIGNMENT_CREATED.send(self)
+
+    @sqlalchemy.orm.reconstructor
+    def _on_orm_load(self) -> None:
+        self._changed_ambiguous_settings = set()
+
+    def __structlog__(self) -> t.Mapping[str, t.Union[str, int]]:
+        return {
+            'type': self.__class__.__name__,
+            'id': self.id,
+            'visibility_state': self.visibility_state.name,
+            'course_id': self.course_id,
+        }
 
     def __eq__(self, other: object) -> bool:
-        """Check if two Assignments are equal.
-
-        >>> a1 = Assignment(name='', course=None)
-        >>> a1.id = 5
-        >>> a1 == object()
-        False
-        >>> a2 = Assignment(name='', course=None)
-        >>> a2.id = 6
-        >>> a1_1 = Assignment(name='', course=None)
-        >>> a1_1.id = 5
-        >>> a1 == a2
-        False
-        >>> a1_1 == a1
-        True
-        """
+        """Check if two Assignments are equal."""
         if isinstance(other, Assignment):
             return self.id == other.id
         return NotImplemented
+
+    def _get_deadline(self) -> t.Optional[DatetimeWithTimezone]:
+        return self._deadline
+
+    def _set_deadline(
+        self, new_deadline: t.Optional[DatetimeWithTimezone]
+    ) -> None:
+        if self._deadline != new_deadline:
+            self._deadline = new_deadline
+            signals.ASSIGNMENT_DEADLINE_CHANGED.send(self)
+
+    deadline = hybrid_property(_get_deadline, _set_deadline)
 
     @validates('group_set')
     def validate_group_set(
@@ -676,13 +738,27 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             assert self.course_id == group_set.course_id
         return group_set
 
+    @hybrid_property
+    def is_visible(self) -> bool:
+        """Is this assignment visible to users.
+
+        The value of this property does not depend on the current user at this
+        moment.
+        """
+        return self.visibility_state == AssignmentVisibilityState.visible
+
+    def mark_as_deleted(self) -> None:
+        self.visibility_state = AssignmentVisibilityState.deleted
+
+    GRADE_SCALE = 10
+
     @property
     def max_grade(self) -> float:
         """Get the maximum grade possible for this assignment.
 
         :returns: The maximum a grade for a submission.
         """
-        return 10 if self._max_grade is None else self._max_grade
+        return self.GRADE_SCALE if self._max_grade is None else self._max_grade
 
     @property
     def cgignore(self) -> t.Optional[ignore.SubmissionFilter]:
@@ -701,8 +777,32 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
     @cgignore.setter
     def cgignore(self, val: ignore.SubmissionFilter) -> None:
+        self._changed_ambiguous_settings.add(
+            AssignmentAmbiguousSettingTag.cgignore
+        )
         self._cgignore_version = ignore.filter_handlers.find(type(val), None)
         self._cgignore = json.dumps(val.export())
+
+    def update_cgignore(self, version: str, data: 'helpers.JSONType') -> None:
+        """Update the cgignore file of this assignment.
+
+        :param version: The type of cgignore file to use. This should be
+            registered with ``psef.ignore.filter_handlers``.
+        :param data: The data to use for the cgignore, this should be
+            compatible for the given ``version``.
+
+        :raises APIException: If the ``version`` is unknown or if the ``data``
+            is unsupported for the given ``version``.
+        """
+        filter_type = ignore.filter_handlers.get(version)
+        if filter_type is None:
+            raise APIException(
+                'The given ignore version was not found.', (
+                    'The known values are:'
+                    f' {", ".join(ignore.filter_handlers.keys())}'
+                ), APICodes.OBJECT_NOT_FOUND, 404
+            )
+        self.cgignore = filter_type.parse(data)
 
     @property
     def cool_off_period(self) -> datetime.timedelta:
@@ -715,7 +815,87 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
     @cool_off_period.setter
     def cool_off_period(self, delta: datetime.timedelta) -> None:
+        self._changed_ambiguous_settings.add(
+            AssignmentAmbiguousSettingTag.cool_off
+        )
         self._cool_off_period = delta
+
+    @property
+    def amount_in_cool_off_period(self) -> int:
+        """The maximum amount of submissions that a user may create inside the
+            cool off period.
+
+        .. warning::
+
+            Setting this property may raise an :exc:`.APIException` if the
+            value is not valid.
+        """
+        return self._amount_in_cool_off_period
+
+    @amount_in_cool_off_period.setter
+    def amount_in_cool_off_period(self, new_amount: int) -> None:
+        if new_amount < 1:
+            raise APIException(
+                (
+                    'The minimum amount of submissions that can be done in a'
+                    ' cool of period should be at least one'
+                ), (
+                    f'The given amount {new_amount} is too low for'
+                    ' `amount_in_cool_off_period`'
+                ), APICodes.INVALID_PARAM, 400
+            )
+        self._amount_in_cool_off_period = new_amount
+
+    @property
+    def max_submissions(self) -> t.Optional[int]:
+        """The maximum amount of submissions a user is allowed to make.
+
+        .. warning::
+
+            Setting this property is not pure! It may raise an
+            :exc:`.APIException` if the value is not valid, it may add a
+            warning to the response, and it may change the
+            ``_changed_ambiguous_settings`` attribute. Furthermore, it may also
+            be slow as it will query the database.
+        """
+        return self._max_submissions
+
+    @max_submissions.setter
+    def max_submissions(self, max_submissions: t.Optional[int]) -> None:
+        self._changed_ambiguous_settings.add(
+            AssignmentAmbiguousSettingTag.max_submissions
+        )
+        if helpers.handle_none(max_submissions, 1) <= 0:
+            raise APIException(
+                'You have to allow at least one submission',
+                'The set maximum amount of submissions is too low',
+                APICodes.INVALID_PARAM, 400
+            )
+
+        if max_submissions is not None and db.session.query(
+            self.get_not_deleted_submissions().group_by(
+                work_models.Work.user_id
+            ).having(sqlalchemy.sql.func.count() > max_submissions).exists()
+        ).scalar():
+            helpers.add_warning(
+                (
+                    'There are already users with more submission than the'
+                    ' set max submissions amount'
+                ),
+                APIWarnings.LIMIT_ALREADY_EXCEEDED,
+            )
+
+        self._max_submissions = max_submissions
+
+    def _state_getter(self) -> AssignmentStateEnum:
+        return self._state
+
+    def _state_setter(self, new_value: AssignmentStateEnum) -> None:
+        if new_value != self._state:
+            self._state = new_value
+            signals.ASSIGNMENT_STATE_CHANGED.send(self)
+
+    state = hybrid_property(_state_getter, _state_setter)
 
     # We don't use property.setter because in that case `new_val` could only be
     # a `float` because of https://github.com/python/mypy/issues/220
@@ -729,14 +909,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
     min_grade = 0
     """The minimum grade for a submission in this assignment."""
-
-    def _submit_grades(self) -> None:
-        subs = self.get_from_latest_submissions(work_models.Work.id).all()
-        for i in range(0, len(subs), 10):
-            psef.tasks.passback_grades(
-                [s[0] for s in subs[i:i + 10]],
-                assignment_id=self.id,
-            )
 
     def change_notifications(
         self,
@@ -851,8 +1023,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         assigned without a grade.
 
         :param user_id: The id of the user to check for
+
         :returns: A boolean indicating if user has work assigned that does not
-            have grade or a selected rubric item
+                  have grade or a selected rubric item
         """
         latest = self.get_from_latest_submissions(work_models.Work.id)
         sql = latest.filter(
@@ -870,14 +1043,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         ).group_by(work_models.Work.id)
 
         return db.session.query(sql.exists()).scalar() or False
-
-    @property
-    def is_lti(self) -> bool:
-        """Is this assignment a LTI assignment.
-
-        :returns: A boolean indicating if this is the case.
-        """
-        return self.lti_outcome_service_url is not None
 
     @property
     def max_rubric_points(self) -> t.Optional[float]:
@@ -914,16 +1079,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     @property
     def deadline_expired(self) -> bool:
         """Has the deadline of this assignment expired.
-
-        >>> a = Assignment(name='', deadline=None, course=None)
-        >>> a.deadline_expired
-        False
-        >>> from datetime import datetime
-        >>> before = datetime.utcnow()
-        >>> helpers.get_request_start_time = datetime.utcnow
-        >>> a.deadline = before
-        >>> a.deadline_expired
-        True
         """
         if self.deadline is None:
             return False
@@ -947,7 +1102,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         """
         return bool(
             self.deadline is not None and
-            self.state == _AssignmentStateEnum.open and
+            self.state == AssignmentStateEnum.open and
             not self.deadline_expired
         )
 
@@ -955,19 +1110,19 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     def is_hidden(self) -> bool:
         """Is the assignment hidden.
         """
-        return self.state == _AssignmentStateEnum.hidden
+        return self.state == AssignmentStateEnum.hidden
 
     @property
     def is_done(self) -> bool:
         """Is the assignment done, which means that grades are open.
         """
-        return self.state == _AssignmentStateEnum.done
+        return self.state == AssignmentStateEnum.done
 
     @property
     def should_passback(self) -> bool:
         """Should we passback the current grade.
         """
-        return self.is_done and self.course.lti_provider is not None
+        return self.is_done and self.is_lti
 
     @property
     def state_name(self) -> str:
@@ -977,9 +1132,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         :returns: The correct name of the current state.
         """
-        if self.state == _AssignmentStateEnum.open:
+        if self.state == AssignmentStateEnum.open:
             return 'submitting' if self.is_open else 'grading'
-        return _AssignmentStateEnum(self.state).name
+        return AssignmentStateEnum(self.state).name
 
     @property
     def whitespace_linter_exists(self) -> bool:
@@ -1099,8 +1254,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         return res
 
-    def set_state(self, state: str) -> None:
-        """Update the current state (class:`_AssignmentStateEnum`).
+    def set_state_with_string(self, state: str) -> None:
+        """Update the current state (class:`AssignmentStateEnum`).
 
         You can update the state to hidden, done or open. A assignment can not
         be updated to 'submitting' or 'grading' as this is an assignment with
@@ -1111,13 +1266,11 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         :returns: Nothing
         """
         if state == 'open':
-            self.state = _AssignmentStateEnum.open
+            self.state = AssignmentStateEnum.open
         elif state == 'hidden':
-            self.state = _AssignmentStateEnum.hidden
+            self.state = AssignmentStateEnum.hidden
         elif state == 'done':
-            self.state = _AssignmentStateEnum.done
-            if self.lti_outcome_service_url is not None:
-                self._submit_grades()
+            self.state = AssignmentStateEnum.done
         else:
             raise InvalidAssignmentState(f'{state} is not a valid state')
 
@@ -1139,7 +1292,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             ~work_models.Work._deleted,  # pylint: disable=protected-access
         )
 
-        if self.deleted:
+        if not self.is_visible:
             return base_query.filter(sqlalchemy.sql.false())
 
         return base_query
@@ -1147,6 +1300,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     def get_latest_submission_for_user(
         self,
         user: 'user_models.User',
+        *,
+        group_of_user: t.Optional['group_models.Group'] = None,
     ) -> MyNonOrderableQuery['work_models.Work']:
         """Get the latest non deleted submission for a given user.
 
@@ -1160,6 +1315,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             `get_from_latest_submission`.
 
         :param user: The user to get the latest non deleted submission for.
+        :param group_of_user: The group that the user belongs to for this
+            assignment. This parameter prevents that the database is queried to
+            check if the user is in a group.
         :returns: A query that should not be reordered that contains the latest
             submission for the given user.
         """
@@ -1173,7 +1331,11 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             # submissions for a user.)
             work_models.Work.id.desc()
         ]
-        if self.group_set_id is not None:
+
+        group_user_id = None
+        if group_of_user is not None:
+            group_user_id = group_of_user.virtual_user_id
+        elif self.group_set_id is not None:
             group_user_id = db.session.query(
                 psef.models.Group.virtual_user_id
             ).filter_by(group_set_id=self.group_set_id).filter(
@@ -1244,7 +1406,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             submissions.
         """
         base_query = db.session.query(*to_query).select_from(work_models.Work)
-        if self.deleted:
+        if not self.is_visible:
             return base_query.filter(sqlalchemy.sql.false())
 
         # TODO: Investigate this subquery here. We need to do that right now as
@@ -1709,7 +1871,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
                 user_models.User,
                 user_models.User.id == work_models.Work.user_id
             ).join(psef.models.Group).exists()
-        ).scalar() or False
+        ).scalar()
 
     def get_author_handing_in(
         self, request_args: t.Mapping[str, str]
@@ -1784,9 +1946,27 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         return resulting_author
 
     def has_webhooks(self) -> bool:
+        """Does this assignment have any connected webhooks.
+
+        :returns: The presence of any webhooks for this assignment after
+                  querying the database.
+        """
         return db.session.query(
             psef.models.WebhookBase.query.filter_by(assignment=self).exists()
-        ).scalar() or False
+        ).scalar()
+
+    def get_changed_ambiguous_combinations(
+        self
+    ) -> t.Iterator[_AssignmentAmbiguousSetting]:
+        """Get all new ambiguous setting combinations on this assignment.
+
+        This simply gets all ambiguous settings on an assignment and checks
+        which settings were changed since the assignment was loaded from the
+        database/created.
+        """
+        for warning in self.get_all_ambiguous_combinations():
+            if warning.tags & self._changed_ambiguous_settings:
+                yield warning
 
     def get_all_ambiguous_combinations(
         self
@@ -1848,3 +2028,46 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             )
 
         return res
+
+    def update_submission_types(
+        self, *, webhook: t.Optional[bool], files: t.Optional[bool]
+    ) -> None:
+        """Update the enabled submission types for this assignment.
+
+        This method has the side effect of possibly adding items to the
+        ``_changed_ambiguous_settings`` attribute. So if you're setting
+        multiple properties on the assignment make sure you call
+        :meth:`.Assignment.get_changed_ambiguous_combinations` at the end. This
+        method might also add a warning to the response.
+
+        :param webhook: Should users be allowed to upload using webhooks. Pass
+            ``None`` to keep the current option.
+        :param files: Should users be allowed to upload files for a submission.
+            Pass ``None`` to keep the current option.
+
+        :raises APIException: If both ``webhook`` and ``files`` uploading will
+            be disabled at the end of this method.
+        """
+        if files is not None:
+            self.files_upload_enabled = files
+
+        if webhook is not None:
+            self._changed_ambiguous_settings.add(
+                AssignmentAmbiguousSettingTag.webhook
+            )
+
+            self.webhook_upload_enabled = webhook
+            if not self.webhook_upload_enabled and self.has_webhooks():
+                helpers.add_warning(
+                    (
+                        'This assignment already has existing webhooks, these '
+                        'will continue to work'
+                    ), APIWarnings.EXISTING_WEBHOOKS_EXIST
+                )
+
+        if not any([self.webhook_upload_enabled, self.files_upload_enabled]):
+            raise APIException(
+                'At least one way of uploading needs to be enabled',
+                'It is not possible to disable both webhook and files uploads',
+                APICodes.INVALID_STATE, 400
+            )

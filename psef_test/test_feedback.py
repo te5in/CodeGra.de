@@ -447,7 +447,7 @@ def test_get_feedback(
         )
 
     assig = session.query(m.Assignment).get(assig_id)
-    assig.state = m._AssignmentStateEnum.done
+    assig.state = m.AssignmentStateEnum.done
     session.commit()
 
     with logged_in(named_user):
@@ -506,7 +506,7 @@ def test_can_see_user_feedback_before_done_permission(
             data={'comment': 'for line - 1'},
         )
 
-    assignment.state = m._AssignmentStateEnum.open
+    assignment.state = m.AssignmentStateEnum.open
 
     course = assignment.course
     course_users = course.get_all_users_in_course(include_test_students=False
@@ -747,7 +747,7 @@ def test_get_all_feedback(
             assert res.status_code == 404
 
     assig = session.query(m.Assignment).get(assig_id)
-    assig.state = m._AssignmentStateEnum.done
+    assig.state = m.AssignmentStateEnum.done
     session.commit()
 
     with logged_in(named_user):
@@ -907,7 +907,7 @@ def test_get_assignment_all_feedback(
             match_res(res)
 
     assig = session.query(m.Assignment).get(assig_id)
-    assig.state = m._AssignmentStateEnum.done
+    assig.state = m.AssignmentStateEnum.done
     session.commit()
 
     with logged_in(named_user):

@@ -172,7 +172,7 @@
     "sinon-chai": "^2.8.0",
     "ts-jest": "^25.3.1",
     "ttypescript": "^1.5.10",
-    "typescript": "^3.9.0-beta",
+    "typescript": "^3.9.5",
     "url-loader": "^0.5.8",
     "vti": "0.0.3",
     "vue-jest": "^3.0.5",
