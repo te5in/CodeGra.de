@@ -30859,11 +30859,6 @@
         }
       }
     },
-    "tether": {
-      "version": "1.4.7",
-      "resolved": "https://registry.npmjs.org/tether/-/tether-1.4.7.tgz",
-      "integrity": "sha512-Z0J1aExjoFU8pybVkQAo/vD2wfSO63r+XOPfWQMC5qtf1bI7IWqNk4MiyBcgvvnY8kqnY06dVdvwTK2S3PU/Fw=="
-    },
     "text-encoding": {
       "version": "0.6.4",
       "resolved": "https://registry.npmjs.org/text-encoding/-/text-encoding-0.6.4.tgz",
@@ -31487,9 +31482,9 @@
       }
     },
     "typescript": {
-      "version": "3.9.0-dev.20200426",
-      "resolved": "https://registry.npmjs.org/typescript/-/typescript-3.9.0-dev.20200426.tgz",
-      "integrity": "sha512-0MRHJbVaaQ0W2pwC1v1Z5u2ucgvXC6nV6tIMZDgRCgwn1Rv+kB/lVMaXPw86Ug+bvrAr+IHprlRTPB56JqYRvA==",
+      "version": "3.9.5",
+      "resolved": "https://registry.npmjs.org/typescript/-/typescript-3.9.5.tgz",
+      "integrity": "sha512-hSAifV3k+i6lEoCJ2k6R2Z/rp/H3+8sdmcn5NrS3/3kE7+RyZXm9aqvxWqjEXHAd8b0pShatpcdMTvEdvAJltQ==",
       "dev": true
     },
     "typescript-eslint-parser": {
