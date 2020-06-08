@@ -100,12 +100,12 @@
                                            @keydown.ctrl.enter="() => addSnippetButton.onClick()"/>
                                     <b-input-group-append>
                                         <cg-submit-button ref="addSnippetButton"
-                                                       class="add-snippet-btn"
-                                                       :submit="addSnippet"
-                                                       :confirm="addSnippetConfirm"
-                                                       :container="`#${componentId}-add-snippet-wrapper`"
-                                                       @after-success="afterAddSnippet"
-                                                       @error="inputDisabled = false">
+                                                          class="add-snippet-btn"
+                                                          :submit="addSnippet"
+                                                          :confirm="addSnippetConfirm"
+                                                          :container="`#${componentId}-add-snippet-wrapper`"
+                                                          @after-success="afterAddSnippet"
+                                                          @error="inputDisabled = false">
                                             <icon :scale="1" name="check"/>
                                         </cg-submit-button>
                                     </b-input-group-append>
@@ -117,33 +117,33 @@
             </template>
         </b-tabs>
 
-                    <div class="save-button-wrapper">
-                        <cg-submit-button
-                            ref="deleteButton"
-                            variant="danger"
-                            name="delete-feedback"
-                            :submit="deleteFeedback"
-                            @error="inputDisabled = false"
-                            :confirm="(reply.isEmpty && internalReply.isEmpty) ?  '' : 'Are you sure you want to delete this comment?'"
-                            @after-success="afterDeleteFeedback"
-                            label="Delete" />
+        <div class="save-button-wrapper">
+            <cg-submit-button
+                ref="deleteButton"
+                variant="danger"
+                name="delete-feedback"
+                :submit="deleteFeedback"
+                @error="inputDisabled = false"
+                :confirm="(reply.isEmpty && internalReply.isEmpty) ?  '' : 'Are you sure you want to delete this comment?'"
+                @after-success="afterDeleteFeedback"
+                label="Delete" />
 
-                        <cg-submit-button :submit="cancelEditing"
-                                          :wait-at-least="0"
-                                          @after-success="afterCancel"
-                                          @after-error="afterCancel"
-                                          :duration="0"
-                                          :confirm="cancelEditingConfirmMessage"
-                                          variant="outline-primary"
-                                          label="Cancel"/>
+            <cg-submit-button :submit="cancelEditing"
+                              :wait-at-least="0"
+                              @after-success="afterCancel"
+                              @after-error="afterCancel"
+                              :duration="0"
+                              :confirm="cancelEditingConfirmMessage"
+                              variant="outline-primary"
+                              label="Cancel"/>
 
-                        <cg-submit-button :submit="submitFeedback"
-                                       @after-success="afterSubmitFeedback"
-                                       @error="inputDisabled = false"
-                                       ref="submitButton"
-                                       name="submit-feedback"
-                                       label="Save"  />
-                    </div>
+            <cg-submit-button :submit="submitFeedback"
+                              @after-success="afterSubmitFeedback"
+                              @error="inputDisabled = false"
+                              ref="submitButton"
+                              name="submit-feedback"
+                              label="Save"  />
+        </div>
     </b-card>
 
     <div v-else>
@@ -175,23 +175,23 @@
                 </b-btn>
 
                 <b-popover :target="`${componentId}-history-btn`"
-                        v-if="canSeeEdits && reply.lastEdit"
-                        triggers="click blur"
-                        title="Edit history"
-                        custom-class="feedback-reply-edit-history-popover p-0"
-                        :container="componentId"
-                        placement="leftbottom">
+                           v-if="canSeeEdits && reply.lastEdit"
+                           triggers="click blur"
+                           title="Edit history"
+                           custom-class="feedback-reply-edit-history-popover p-0"
+                           :container="componentId"
+                           placement="leftbottom">
                     <feedback-reply-history :reply="reply"/>
                 </b-popover>
 
                 <template v-if="!nonEditable">
                     <b-btn @click="showExternalImages = !showExternalImages"
-                        class="state-default"
-                        v-b-popover.top.hover="externalImagesTogglePopover"
-                        v-if="hasExternalImages">
+                           class="state-default"
+                           v-b-popover.top.hover="externalImagesTogglePopover"
+                           v-if="hasExternalImages">
                         <icon name="picture-o"
-                            v-if="showExternalImages"
-                            class="enabled"/>
+                              v-if="showExternalImages"
+                              class="enabled"/>
                         <span v-else class="strikethrough disabled">
                             <icon name="picture-o" />
                         </span>
@@ -211,9 +211,9 @@
                     </cg-submit-button>
 
                     <b-btn @click="startEdit"
-                        v-if="editable"
-                        class="state-default"
-                        name="edit-feedback">
+                           v-if="editable"
+                           class="state-default"
+                           name="edit-feedback">
                         <icon name="pencil"/>
                     </b-btn>
                 </template>

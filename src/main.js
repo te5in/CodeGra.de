@@ -68,7 +68,6 @@ Vue.component('cg-catch-error', CatchError);
 Vue.component('cg-toggle', Toggle);
 Vue.component('cg-number-input', NumberInput);
 
-Vue.component('fa-icon', Icon);
 Vue.use(BootstrapVue);
 Vue.use(Toasted);
 Vue.use(VueMasonry);

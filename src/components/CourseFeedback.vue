@@ -68,7 +68,7 @@
         <ol v-else
             class="mb-0 pl-0">
             <template v-for="(assig, i) in sortedAssignments">
-                <li v-if="submissions[assig.id] == null"
+                <li v-if="submissionsByAssignmentId[assig.id] == null"
                      class="border-top cursor-not-allowed">
                     <h6 class="assignment-name no-submission p-3 mb-0 text-muted">
                         {{ assig.name }}
@@ -80,7 +80,7 @@
                 </li>
 
                 <li v-else
-                    v-for="sub in [submissions[assig.id]]"
+                    v-for="sub in [submissionsByAssignmentId[assig.id]]"
                     :key="sub.id"
                     class="border-top">
                     <collapse :collapsed="shouldCollapse(sub)">
@@ -170,7 +170,7 @@
                             show-inline-feedback
                             :non-editable="true"
                             :context-lines="contextLines"
-                            :should-render-general="shouldRenderGeneral"
+                            :should-render-general="shouldRenderGeneral(sub)"
                             :should-render-thread="shouldRenderThread"
                             :should-fade-reply="shouldFadeReply"
                             :open-files-in-new-tab="!$inLTI">
@@ -207,7 +207,7 @@ import {
 } from '@/models';
 import { Search } from '@/utils/search';
 import { defaultdict } from '@/utils/defaultdict';
-import { flatMap1, filterMap, Just, Nothing } from '@/utils';
+import { isEmpty, flatMap1, filterMap, Just, Nothing } from '@/utils';
 import { NONEXISTENT } from '@/constants';
 
 import { FeedbackOverview } from '@/components';
@@ -309,7 +309,7 @@ export default class CourseFeedback extends Vue {
 
     public filter: string = '';
 
-    public submissions: Readonly<Record<number, Submission | null>> = {};
+    public submissionsByAssignmentId: Readonly<Record<number, Submission | null>> = {};
 
     public settingsCollapsed: boolean = true;
 
@@ -336,7 +336,9 @@ export default class CourseFeedback extends Vue {
     }
 
     get assignments(): ReadonlyArray<Assignment> {
-        let assigs = Object.keys(this.submissions).map((id: string) => this.allAssignments[id]);
+        let assigs = Object.keys(this.submissionsByAssignmentId).map(
+            (id: string) => this.allAssignments[id],
+        );
 
         if (this.excludeSubmission != null) {
             assigs = assigs.filter(a => a.id !== this.excludeSubmission.assignment.id);
@@ -346,9 +348,15 @@ export default class CourseFeedback extends Vue {
     }
 
     get sortedAssignments(): ReadonlyArray<Assignment> {
+        // The order of the assignment depends on a few factors. If the filter is empty,
+        // assignments are sorted on their deadline, latest first, and assignments with no
+        // deadline set are sorted last. If the filter is not empty, assignments are sorted
+        // on the amount of comments matching the filter. Assignments for which this is equal
+        // are then sorted based on their deadline.
+
         return [...this.assignments].sort((a, b) => {
-            const subA = this.submissions[a.id];
-            const subB = this.submissions[b.id];
+            const subA = this.submissionsByAssignmentId[a.id];
+            const subB = this.submissionsByAssignmentId[b.id];
 
             if (subB == null) {
                 return -1;
@@ -377,7 +385,7 @@ export default class CourseFeedback extends Vue {
 
     get otherSubmissions(): ReadonlyArray<Submission> {
         return filterMap(this.assignments, assig => {
-            const sub = this.submissions[assig.id];
+            const sub = this.submissionsByAssignmentId[assig.id];
             return sub == null ? Nothing : Just(sub);
         });
     }
@@ -405,28 +413,29 @@ export default class CourseFeedback extends Vue {
     }
 
     get searchableUserFeedback(): ReadonlyArray<InlineFeedbackRecord> {
-        return flatMap1(
-            this.otherSubmissions,
-            sub => {
-                if (sub.feedback == null) {
-                    return [];
-                }
+        function getThreadFb(thread: FeedbackLine): InlineFeedbackRecord[] {
+            return thread.replies.map(reply => ({
+                inline: reply.message,
+                comment: reply.message,
+                author: reply.author?.readableName ?? '',
+                thread,
+                reply,
+            }));
+        }
 
-                return flatMap1(
-                    Object.values(sub.feedback.user),
-                    fileFb => flatMap1(
-                        Object.values(fileFb),
-                        thread => thread.replies.map(reply => ({
-                            inline: reply.message,
-                            comment: reply.message,
-                            author: reply.author?.readableName ?? '',
-                            thread,
-                            reply,
-                        })),
-                    ),
-                );
-            },
-        );
+        function getFileFeedback(fileFb: Record<number, FeedbackLine>): InlineFeedbackRecord[] {
+            return flatMap1(Object.values(fileFb), getThreadFb);
+        }
+
+        function getSubmissionFeedback(sub: Submission): InlineFeedbackRecord[] {
+            if (sub.feedback == null) {
+                return [];
+            }
+
+            return flatMap1(Object.values(sub.feedback.user), getFileFeedback);
+        }
+
+        return flatMap1(this.otherSubmissions, getSubmissionFeedback);
     }
 
     get filteredUserFeedback(): Readonly<Record<number, Set<number>>> {
@@ -465,7 +474,7 @@ export default class CourseFeedback extends Vue {
 
     get totalFeedbackCounts(): Readonly<Record<number, number>> {
         return this.otherSubmissions.reduce((acc: Record<number, number>, sub) => {
-            const fb = this.$utils.getProps(sub, null, 'feedback');
+            const fb = sub.feedback;
             if (fb != null) {
                 acc[sub.id] = fb.countEntries();
             }
@@ -479,7 +488,7 @@ export default class CourseFeedback extends Vue {
                 return acc;
             }
             const result = this.$utils.getProps(this.allRubricResults, null, sub.id);
-            if (Object.values(result.selected).length > 0) {
+            if (!isEmpty(result.selected)) {
                 acc[sub.id] = result;
             }
             return acc;
@@ -517,39 +526,37 @@ export default class CourseFeedback extends Vue {
     loadCourseFeedback() {
         this.loading = true;
         this.error = null;
-        this.submissions = [];
+        this.submissionsByAssignmentId = [];
 
         this.loadUserSubmissions({
             courseId: this.course.id,
             userId: this.user.id,
-        }).then(
-            subs => {
-                this.submissions = subs;
-                return Promise.all(
-                    filterMap(Object.values(subs), sub => {
-                        if (sub == null) {
-                            return Nothing;
-                        }
-                        return Just(Promise.all([
-                            this.loadFeedback({
-                                assignmentId: sub.assignmentId,
-                                submissionId: sub.id,
-                            }),
-                            this.loadRubric({
-                                assignmentId: sub.assignmentId,
-                            }).catch(this.$utils.makeHttpErrorHandler({
-                                // Assignment may not have a rubric.
-                                404: () => ({}),
-                            })),
-                            this.loadRubricResult({
-                                assignmentId: sub.assignmentId,
-                                submissionId: sub.id,
-                            }),
-                        ]));
-                    }),
-                );
-            },
-        ).catch(err => {
+        }).then(subs => {
+            this.submissionsByAssignmentId = subs;
+            return Promise.all(
+                filterMap(Object.values(subs), sub => {
+                    if (sub == null) {
+                        return Nothing;
+                    }
+                    return Just(Promise.all([
+                        this.loadFeedback({
+                            assignmentId: sub.assignmentId,
+                            submissionId: sub.id,
+                        }),
+                        this.loadRubric({
+                            assignmentId: sub.assignmentId,
+                        }).catch(this.$utils.makeHttpErrorHandler({
+                            // Assignment may not have a rubric.
+                            404: () => ({}),
+                        })),
+                        this.loadRubricResult({
+                            assignmentId: sub.assignmentId,
+                            submissionId: sub.id,
+                        }),
+                    ]));
+                }),
+            );
+        }).catch(err => {
             this.error = this.$utils.getErrorMessage(err);
         }).then(() => {
             this.loading = false;

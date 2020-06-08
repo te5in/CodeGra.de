@@ -925,6 +925,10 @@ class WorkPermissions(CoursePermissionChecker):
         super().__init__(course_id=work.assignment.course_id)
         self.work = work
 
+    # TODO: We should move the functions `ensure_can_see_grade`,
+    # `ensure_can_see_general_feedback`, and `ensure_can_see_linter_feedback`
+    # into this class.
+
     @PermissionChecker.as_ensure_function
     def ensure_may_see_grade(self) -> None:
         """Ensure the current user can see the grade of the work.

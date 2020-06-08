@@ -16,7 +16,7 @@
     <div class="scroller">
         <b-card header="General feedback"
                 class="general-feedback"
-                v-if="shouldRenderGeneral(submission)">
+                v-if="shouldRenderGeneral">
             <pre v-if="generalFeedback"
                  class="text-wrap-pre mb-0">{{ generalFeedback }}</pre>
             <span v-else class="text-muted font-italic">
@@ -130,14 +130,23 @@ export default {
             type: Number,
             default: 3,
         },
+        // Boolean indicating whether the general feedback should be rendered
+        // or not.
         shouldRenderGeneral: {
-            type: Function,
-            default: () => true,
+            type: Boolean,
+            default: true,
         },
+        // A function that determines whether a given feedback thread should be
+        // rendered. The function is given a FeedbackLine model as its only
+        // argument and should return a boolean indicating whether the thread
+        // should be rendered or not.
         shouldRenderThread: {
             type: Function,
             default: () => true,
         },
+        // A function that receives a thread and a reply as arguments, and
+        // returns a boolean value indicating whether a reply within a thread
+        // should be faded.
         shouldFadeReply: {
             type: Function,
             default: () => false,

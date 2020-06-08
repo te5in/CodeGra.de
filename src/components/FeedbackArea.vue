@@ -101,6 +101,9 @@ export default class FeedbackArea extends Vue {
 
     @Prop({ default: false }) readonly nonEditable!: boolean;
 
+    // A function that receives a thread and a reply as arguments, and returns
+    // a boolean value indicating whether a reply within a thread should be
+    // faded.
     @Prop({ default: () => false })
     readonly shouldFadeReply!: (thread: FeedbackLine, reply: FeedbackReplyModel) => boolean;
 
@@ -198,8 +201,8 @@ export default class FeedbackArea extends Vue {
     @Watch('fadedReplies', { immediate: true })
     onFadedReplies() {
         const hasFaded = this.fadedReplies.size > 0;
-        const unfadedHidden = [...this.hiddenReplies].map(r => !this.fadedReplies.has(r));
-        if (hasFaded && unfadedHidden.some(x => x)) {
+        const unfadedHidden = [...this.hiddenReplies].filter(r => !this.fadedReplies.has(r));
+        if (hasFaded && unfadedHidden.length > 0) {
             this.showAllReplies();
         }
     }

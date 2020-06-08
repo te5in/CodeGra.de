@@ -139,7 +139,6 @@
         </template>
     </local-header>
 
-    {{ $root.isLargeWindow }}
     <loader page-loader
             class="submission-page-inner-loader"
             v-if="loadingInner"/>
