@@ -45,7 +45,15 @@ export default {
         ...mapActions('user', ['login', 'logout']),
 
         impersonate() {
-            return this.$http.post('/api/v1/login?impersonate', {
+            return this.$http.post(this.$utils.buildUrl(
+                ['api', 'v1', 'login'],
+                {
+                    query: {
+                        impersonate: '1',
+                        with_permissions: '1',
+                    },
+                },
+            ), {
                 own_password: this.password,
                 username: this.otherUser.username,
             });
