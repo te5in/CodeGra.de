@@ -206,7 +206,7 @@
 
         <template #page-3>
             <p>
-                After saving an item for CodeGrade should appear under "Tools".
+                After saving, an item for CodeGrade should appear under "Tools".
                 In this item please click the list icon (<icon name="list" />),
                 this should open a modal, with a lot of information, please copy
                 that information into the inputs below.

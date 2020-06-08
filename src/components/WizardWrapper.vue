@@ -2,7 +2,7 @@
 <template>
 <div class="wizard-wrapper">
     <component :is="useLocalHeader ? 'local-header' : 'div'"
-               class="d-flex mb-2">
+               class="d-flex mb-4">
         <slot name="header-wrapper" position="prepend" />
 
         <b-btn @click="gotoPrevPage"

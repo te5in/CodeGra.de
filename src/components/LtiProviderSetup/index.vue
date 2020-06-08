@@ -26,10 +26,8 @@ import CanvasSetup from './CanvasSetup';
 import MoodleSetup from './MoodleSetup';
 import BlackboardSetup from './BlackboardSetup';
 import BrightspaceSetup from './BrightspaceSetup';
-// @ts-ignore
-import LocalHeader from '../LocalHeader';
 
-@Component({ components: { LocalHeader } })
+@Component({})
 export default class LtiProviderSetup extends Vue {
     @Prop({ required: true }) ltiProvider!: api.lti.LTI1p3ProviderServerData;
 
