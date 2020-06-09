@@ -1131,6 +1131,40 @@
         <span class="p">)</span></div>
 
 
+<div class="viewcode-block" id="WorkPermissions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.WorkPermissions">[docs]</a><span class="k">class</span> <span class="nc">WorkPermissions</span><span class="p">(</span><span class="n">CoursePermissionChecker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The permission checker for :class:`psef.models.Work`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;work&#39;</span><span class="p">,</span> <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">:</span> <span class="s1">&#39;psef.models.Work&#39;</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">course_id</span><span class="o">=</span><span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">work</span> <span class="o">=</span> <span class="n">work</span>
+
+    <span class="c1"># TODO: We should move the functions `ensure_can_see_grade`,</span>
+    <span class="c1"># `ensure_can_see_general_feedback`, and `ensure_can_see_linter_feedback`</span>
+    <span class="c1"># into this class.</span>
+
+<div class="viewcode-block" id="WorkPermissions.ensure_may_see_grade"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.WorkPermissions.ensure_may_see_grade">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_see_grade</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Ensure the current user can see the grade of the work.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ensure_can_see_grade</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">work</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WorkPermissions.ensure_may_see_general_feedback"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.WorkPermissions.ensure_may_see_general_feedback">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_see_general_feedback</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.models.User&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Ensure the given user can see the general feedback of the work.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ensure_can_see_general_feedback</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">work</span><span class="p">,</span> <span class="n">user</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WorkPermissions.ensure_may_see_linter_feedback"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.WorkPermissions.ensure_may_see_linter_feedback">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_see_linter_feedback</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Ensure the current user can see the linter feedback of the work.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ensure_can_see_linter_feedback</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">work</span><span class="p">)</span></div></div>
+
+
 <div class="viewcode-block" id="FeedbackBasePermissions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.FeedbackBasePermissions">[docs]</a><span class="k">class</span> <span class="nc">FeedbackBasePermissions</span><span class="p">(</span><span class="n">CoursePermissionChecker</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;The permission checker for :class:`psef.models.CommentBase`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>

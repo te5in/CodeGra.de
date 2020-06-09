@@ -810,11 +810,8 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">rubric_rows</span><span class="p">:</span>
             <span class="n">res</span><span class="p">[</span><span class="s1">&#39;rubric_result&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__rubric_to_json__</span><span class="p">()</span>
 
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">auth</span><span class="o">.</span><span class="n">ensure_can_see_general_feedback</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">PermissionException</span><span class="p">:</span>
-            <span class="k">pass</span>
-        <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">auth</span><span class="o">.</span><span class="n">WorkPermissions</span><span class="p">(</span><span class="bp">self</span>
+                                <span class="p">)</span><span class="o">.</span><span class="n">ensure_may_see_general_feedback</span><span class="o">.</span><span class="n">as_bool</span><span class="p">():</span>
             <span class="n">res</span><span class="p">[</span><span class="s1">&#39;comment&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment</span>
             <span class="k">if</span> <span class="n">psef</span><span class="o">.</span><span class="n">current_user</span><span class="o">.</span><span class="n">has_permission</span><span class="p">(</span>
                 <span class="n">CoursePermission</span><span class="o">.</span><span class="n">can_view_feedback_author</span><span class="p">,</span>
