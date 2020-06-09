@@ -280,7 +280,7 @@ object with the following keys:
     3. Add a "Capture points" step with an appropriate name and the following
        settings:
 
-       * Program to test: ``python3 $FIXTURES/deadline.py``
+       * Program to test: ``python3.7 $FIXTURES/deadline.py``
        * Regex to match: ``\f``
 
     4. Upload the following script as a fixture with the name ``deadline.py``:
@@ -334,4 +334,4 @@ object with the following keys:
               print(random.random())
 
     2. Create a run program step and pipe the generated numbers to the
-       student's code with ``python3 generate.py | my_test_script``.
+       student's code with ``python3.7 generate.py | my_test_script``.
