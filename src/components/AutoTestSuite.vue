@@ -163,12 +163,18 @@
                                 student submits their work.
                             </p>
 
-                            <p class="mb-0">
+                            <p class="mb-2">
                                 <code class="mr-1">student_id</code>
                                 An identifier unique to the student who created this
                                 submission. Useful to generate randomized input for your
                                 tests. Will stay the same for every submission of a student.
                             </p>
+
+                            Check out <a target="_blank"
+                               href="https://docs.codegra.de/guides/autotest-best-practices.html#how-to-access-submission-metadata-from-the-tests"
+                               class="inline-link">
+                                the documentation
+                            </a> for some concrete examples on how this can be used.
                         </cg-description-popover>
                     </b-form-checkbox>
                 </b-form-fieldset>
