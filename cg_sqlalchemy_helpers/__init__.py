@@ -15,13 +15,12 @@ from sqlalchemy.orm import deferred as _deferred
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy_utils import UUIDType as _UUIDType
 from sqlalchemy_utils import force_auto_coercion
-from sqlalchemy.dialects.postgresql import ARRAY
 
 from cg_dt_utils import DatetimeWithTimezone
 
 from . import types, mixins
 from .types import (
-    JSONB, TIMESTAMP, CIText, DbEnum, DbType, Comparator, TypeDecorator,
+    ARRAY, JSONB, TIMESTAMP, CIText, DbEnum, DbType, Comparator, TypeDecorator,
     hybrid_property, hybrid_expression
 )
 
@@ -41,35 +40,6 @@ def make_db() -> types.MyDb:
 
 
 _T = t.TypeVar('_T')
-
-
-class ArrayOfEnum(t.Generic[T], TypeDecorator, DbType[t.Tuple[T, ...]]):  # pylint: disable=too-many-ancestors
-    """A class to use enums in a Postgres array.
-    """
-
-    impl = ARRAY
-
-    def __init__(self, item_type: DbEnum[T]):
-        super().__init__(item_type, as_tuple=True, dimensions=1)
-
-    def bind_expression(self, bindvalue: object) -> object:
-        return sqlalchemy.cast(bindvalue, self)
-
-    def result_processor(self, dialect: object,
-                         coltype: object) -> t.Callable[[object], object]:
-        super_rp = super().result_processor(dialect, coltype)
-
-        def handle_raw_string(value: str) -> t.List[str]:
-            match_group = re.match(r"^{(.*)}$", value)
-            inner = match_group and match_group.group(1)
-            return inner.split(",") if inner else []
-
-        def process(value: t.Optional[object]) -> object:
-            if value is None:
-                return None
-            return super_rp(handle_raw_string(t.cast(str, value)))
-
-        return process
 
 
 def init_app(db: types.MyDb, app: Flask) -> None:

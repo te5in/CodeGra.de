@@ -10,7 +10,7 @@ import typing as t
 import sqlalchemy
 from typing_extensions import Literal, TypedDict
 
-from cg_sqlalchemy_helpers import ArrayOfEnum
+from cg_sqlalchemy_helpers import ARRAY
 from cg_sqlalchemy_helpers.types import DbEnum
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
@@ -79,7 +79,7 @@ class Notification(Base, IdMixin, TimestampMixin, NotEqualMixin):
     )
     reasons = db.Column(
         'reasons',
-        ArrayOfEnum(NotificationReasonEnum()),
+        ARRAY(NotificationReasonEnum(), as_tuple=True, dimensions=1),
         nullable=False,
     )
 
