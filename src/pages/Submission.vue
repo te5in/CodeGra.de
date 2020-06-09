@@ -59,7 +59,6 @@
                       v-b-popover.top.hover="`Email the author${submission.user.isGroup ? 's' : ''} of this submission`"
                       v-b-modal.codeviewer-email-student-modal>
                 <icon name="envelope"/>
-
             </b-button>
 
             <b-modal v-if="canEmailStudents"
@@ -146,17 +145,19 @@
     <template v-else>
         <div class="cat-wrapper"
              :class="{ hidden: selectedCat !== 'code' }">
-            <component v-if="!hiddenCats.has('code')"
-                       :is="$root.$isLargeWindow ? 'rs-panes' : 'div'"
-                       allow-resize
-                       split-to="columns"
-                       :size="75"
-                       :step="50"
-                       units="percents"
-                       class="code-wrapper"
-                       id="submission-page-inner"
-                       :min-size="30"
-                       :max-size="85">
+            <rs-panes v-if="!hiddenCats.has('code')"
+                      allow-resize
+                      :split-to="$root.$isLargeWindow ? 'columns' : 'rows'"
+                      @update:size="splitRatio = $event"
+                      :on-drag-started="() => { resizingFileViewer = true; }"
+                      :on-drag-finished="() => { resizingFileViewer = false; }"
+                      :size="splitRatio"
+                      :step="50"
+                      units="percents"
+                      class="code-wrapper"
+                      id="submission-page-inner"
+                      :min-size="30"
+                      :max-size="85">
                 <file-viewer
                     slot="firstPane"
                     :assignment="assignment"
@@ -168,14 +169,44 @@
                     :show-whitespace="showWhitespace"
                     :show-inline-feedback="selectedCat === 'code' && showInlineFeedback && revision === 'student'"
                     :language="selectedLanguage"
-                    @language="languageChanged" />
+                    @language="languageChanged"
+                    :resizing="resizingFileViewer"/>
 
-                <div class="file-tree-container border rounded p-0 mt-3 mt-lg-0" slot="secondPane">
-                    <file-tree :assignment="assignment"
-                               :submission="submission"
-                               :revision="revision" />
+                <div v-if="course.isStudent"
+                     slot="secondPane"
+                     class="h-100 overflow-hidden">
+                    <div class="file-tree-container border rounded overflow-auto">
+                        <file-tree
+                            :assignment="assignment"
+                            :submission="submission"
+                            :revision="revision"/>
+                    </div>
                 </div>
-            </component>
+
+                <b-tabs v-else
+                        class="submission-sidebar"
+                        slot="secondPane"
+                        nav-class="border-bottom-0"
+                        no-fade
+                        v-model="currentSidebarTab">
+                    <b-tab title="Files"
+                           class="border rounded-bottom rounded-right">
+                        <file-tree
+                            :assignment="assignment"
+                            :submission="submission"
+                            :revision="revision" />
+                    </b-tab>
+
+                    <b-tab title="Feedback"
+                           class="border rounded overflow-hidden">
+                        <course-feedback
+                            v-if="!hiddenSidebarTabs.has('feedback')"
+                            :course="course"
+                            :user="submission.user"
+                            :exclude-submission="submission" />
+                    </b-tab>
+                </b-tabs>
+            </rs-panes>
         </div>
 
         <div class="cat-wrapper"
@@ -183,9 +214,9 @@
             <feedback-overview v-if="!hiddenCats.has('feedback-overview')"
                                :assignment="assignment"
                                :submission="submission"
+                               :context-lines="contextAmount"
                                :show-whitespace="showWhitespace"
-                               :show-inline-feedback="selectedCat === 'feedback-overview'"
-                               :can-see-feedback="canSeeUserFeedback" />
+                               :show-inline-feedback="selectedCat === 'feedback-overview'" />
         </div>
 
         <div class="cat-wrapper"
@@ -224,8 +255,8 @@ import 'vue-awesome/icons/edit';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/exclamation-triangle';
 import 'vue-awesome/icons/history';
+import 'vue-awesome/icons/archive';
 import 'vue-awesome/icons/envelope';
-import 'vue-awesome/icons/binoculars';
 import ResSplitPane from 'vue-resize-split-pane';
 
 import { mapGetters, mapActions } from 'vuex';
@@ -245,6 +276,7 @@ import {
     GradeViewer,
     GradeHistory,
     GeneralFeedbackArea,
+    CourseFeedback,
     Loader,
     LocalHeader,
     PreferenceManager,
@@ -267,17 +299,22 @@ export default {
             selectedCat: '',
             hiddenCats: new Set(),
 
+            splitRatio: 75,
+            currentSidebarTab: 0,
+            hiddenSidebarTabs: new Set(['feedback']),
+
             showWhitespace: true,
             selectedLanguage: 'Default',
             showInlineFeedback: true,
             currentFile: null,
+            resizingFileViewer: false,
 
             error: null,
         };
     },
 
     computed: {
-        ...mapGetters('pref', ['contextAmount', 'fontSize']),
+        ...mapGetters('pref', ['contextAmount']),
         ...mapGetters('user', {
             userId: 'id',
             userPerms: 'permissions',
@@ -504,6 +541,14 @@ export default {
             ];
         },
 
+        sidebarTabs() {
+            const tabs = ['files'];
+            if (this.canGiveLineFeedback) {
+                tabs.push('feedback');
+            }
+            return tabs;
+        },
+
         hasFeedback() {
             const fb = this.feedback;
 
@@ -512,23 +557,9 @@ export default {
 
         numFeedbackItems() {
             if (!this.feedback || !this.submission) {
-                return null;
+                return 0;
             }
-
-            return Object.values(this.feedback.user).reduce(
-                (acc, file) => Object.values(file).reduce(
-                    (innerAcc, feedback) => {
-                        if (!feedback.isEmpty && feedback.replies.some(
-                            r => !r.isEmpty,
-                        )) {
-                            return innerAcc + 1;
-                        }
-                        return innerAcc;
-                    },
-                    acc,
-                ),
-                this.submission.comment ? 1 : 0,
-            );
+            return this.feedback.countEntries();
         },
 
         showContinuousBadge() {
@@ -694,6 +725,13 @@ export default {
                 this.hiddenCats.delete(this.selectedCat);
             },
         },
+
+        currentSidebarTab: {
+            immediate: true,
+            handler(newVal) {
+                this.openSidebarTab(newVal);
+            },
+        },
     },
 
     methods: {
@@ -755,6 +793,12 @@ export default {
                 this.categories.filter(c => c.id !== this.selectedCat).map(c => c.id),
             );
 
+            // Reset the hidden tabs so the feedback of other submissions will
+            // not be loaded until the feedback tab is clicked.
+            this.splitRatio = 75;
+            this.currentSidebarTab = 0;
+            this.hiddenSidebarTabs = new Set(this.sidebarTabs.slice(1));
+
             const promises = [
                 this.storeLoadFileTree({
                     assignmentId: this.assignmentId,
@@ -800,10 +844,10 @@ export default {
             if (this.autoTestId != null) {
                 return this.storeLoadAutoTest({
                     autoTestId: this.autoTestId,
-                }).catch(err => this.$utils.handleHttpError({
+                }).catch(this.$utils.makeHttpErrorHandler({
                     // The user may not have permission to see the results yet.
                     403: () => {},
-                }, err));
+                }));
             } else {
                 return Promise.resolve();
             }
@@ -891,6 +935,17 @@ export default {
         inlineFeedbackChanged(val) {
             this.showInlineFeedback = val;
         },
+
+        openSidebarTab(idx) {
+            const tab = this.sidebarTabs[idx];
+            const wasHidden = this.hiddenSidebarTabs.delete(tab);
+
+            // Only resize the first time, and only if the sidebar is less than
+            // half of the width of the page.
+            if (wasHidden && tab === 'feedback' && this.splitRatio > 50) {
+                this.splitRatio = 50;
+            }
+        },
     },
 
     components: {
@@ -903,6 +958,7 @@ export default {
         GradeViewer,
         GradeHistory,
         GeneralFeedbackArea,
+        CourseFeedback,
         Loader,
         LocalHeader,
         PreferenceManager,
@@ -976,25 +1032,22 @@ export default {
     max-height: 100%;
 
     @media @media-no-large {
+        width: 100%;
         height: 100%;
     }
 }
 
 .file-tree-container {
     max-height: 100%;
-    overflow: auto;
+}
 
-    @media @media-no-large {
-        flex: 0 0 auto;
-    }
+.file-tree,
+.course-feedback {
+    max-height: 100%;
 }
 
 .file-tree {
-    max-height: 100%;
-
-    @media @media-no-large {
-        max-height: 15vh;
-    }
+    overflow: auto;
 }
 
 .grade-viewer {
@@ -1012,16 +1065,20 @@ export default {
 
     .code-wrapper.pane-rs {
         position: relative;
+
+        &.rows {
+            padding-left: 15px;
+            padding-right: 15px;
+        }
     }
 
     .code-wrapper .Resizer {
         z-index: 0;
     }
 
-    .code-wrapper > .Resizer.columnsres {
+    .code-wrapper > .Resizer {
         background-color: transparent !important;
         border: none !important;
-        width: 1rem !important;
         margin: 0 !important;
         position: relative;
 
@@ -1039,17 +1096,64 @@ export default {
             z-index: 10;
         }
 
-        &:before {
-            transform: translate(-2px, -4px);
+        &.columnsres {
+            width: 1rem !important;
+
+            &:before {
+                transform: translate(-2px, -4px);
+            }
+
+            &:after {
+                transform: translate(-2px, +1px);
+            }
         }
 
-        &:after {
-            transform: translate(-2px, +1px);
+        &.rowsres {
+            width: 100% !important;
+            height: 1rem !important;
+
+            &:before {
+                transform: translate(-4px, -2px);
+            }
+
+            &:after {
+                transform: translate(+1px, -2px);
+            }
         }
     }
 
     .category-selector .badge {
         font-size: 1em !important;
+    }
+
+    .submission-sidebar {
+        width: 100%;
+        max-height: 100%;
+        display: flex;
+        flex-direction: column;
+
+        .nav-tabs {
+            position: relative;
+            z-index: 1;
+        }
+
+        .tab-content {
+            display: flex;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        .tab-pane {
+            flex: 1 1 auto;
+            min-height: 0;
+            max-width: 100%;
+        }
+
+        @media @media-no-large {
+            .nav-item .nav-link {
+                padding: 0.25rem 0.5rem;
+            }
+        }
     }
 }
 </style>

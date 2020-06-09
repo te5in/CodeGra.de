@@ -637,10 +637,13 @@ class SuiteInstructions(TypedDict, total=True):
     :ivar ~.StepInstructions.id: The id of the suite.
     :ivar steps: The steps of this suite.
     :ivar network_disabled: Should this suite be run with networking disabled.
+    :ivar submission_info: Should submission information be included in the
+        environment.
     """
     id: int
     steps: t.List[StepInstructions]
     network_disabled: bool
+    submission_info: bool
 
 
 class SetInstructions(TypedDict, total=True):
@@ -656,6 +659,27 @@ class SetInstructions(TypedDict, total=True):
     stop_points: float
 
 
+class AssignmentInformation(TypedDict, total=True):
+    """Information about the assignment that this AutoTest belongs to.
+
+    :ivar deadline: The deadline of the assignment.
+    """
+    deadline: t.Optional[str]
+
+
+class StudentInformation(TypedDict, total=True):
+    """Information about the submission that the AutoTest runs on.
+
+    :ivar result_id: The id of the :class:`AutoTestResult` corresponding to
+        this work.
+    :ivar student_id: The id of the :class:`User` who submitted the work.
+    :ivar created_at: The datetime when the work was submitted.
+    """
+    result_id: int
+    student_id: int
+    created_at: str
+
+
 class RunnerInstructions(TypedDict, total=True):
     """Instructions for a complete auto test run.
 
@@ -663,7 +687,13 @@ class RunnerInstructions(TypedDict, total=True):
     :ivar run_id: The id of this auto test run.
     :ivar auto_test_id: The id of this AutoTest configuration.
     :ivar result_ids: The ids of the results this runner should produce. These
-        can be seen as submissions.
+        can be seen as submissions. (Deprecated, use ``student_infos`` instead)
+    :ivar student_ids: The ids of the user corresponding to the result with id
+        at the same index in the ``result_ids`` list. (Deprecated, use
+        ``student_infos`` instead)
+    :ivar assignment_info: Assignment information made available to AutoTest
+        steps.
+    :ivar student_infos: List of information associated to each result.
     :ivar sets: The sets that this AutoTest configuration contain.
     :ivar setup_script: The setup script that should be run for each student.
     :ivar run_setup_script: The setup script that should be run once.
@@ -676,6 +706,8 @@ class RunnerInstructions(TypedDict, total=True):
     auto_test_id: int
     result_ids: t.List[int]
     student_ids: t.List[int]
+    student_infos: t.Optional[t.List[StudentInformation]]
+    assignment_info: t.Optional[AssignmentInformation]
     sets: t.List[SetInstructions]
     fixtures: t.List[t.Tuple[str, int]]
     setup_script: str
@@ -864,6 +896,7 @@ class StartedContainer:
         self._network_is_enabled = True
         self._networks: t.List[Network] = []
         self._fixtures_dir: t.Optional[str] = None
+        self._extra_env: t.Dict[str, str] = {}
 
     def _stop_container(self) -> None:
         _stop_container(self._container)
@@ -1114,7 +1147,10 @@ class StartedContainer:
         os.setuid(user_uid)
 
     def _create_env(self, username: str) -> t.Dict:
-        """Create the env for within a lxc subprocess call
+        """Create the env for within a lxc subprocess call.
+
+        Overrides environment variables set with
+        :meth:`StartedContainer.extra_env`.
 
         >>> import getpass
         >>> cur_user = getpass.getuser()
@@ -1140,19 +1176,44 @@ class StartedContainer:
             f':{home_dir}/bin/'
         )
 
-        return {
-            'PATH': f'{extra_path}:/usr/sbin/:/sbin/:{env["PATH"]}',
-            'USER': user,
-            'LOGUSER': user,
-            'HOME': home_dir,
-            'DEBIAN_FRONTEND': 'noninteractive',
-            'TERM': 'dumb',
-            'FIXTURES': self.fixtures_dir,
-            'STUDENT': f'{_get_home_dir(username)}/student/',
-            'AT_OUTPUT': self.output_dir,
-            'LANG': 'en_US.UTF-8',
-            'LC_ALL': 'en_US.UTF-8',
-        }
+        new_env = self._extra_env.copy()
+        new_env.update(
+            {
+                'PATH': f'{extra_path}:/usr/sbin/:/sbin/:{env["PATH"]}',
+                'USER': user,
+                'LOGUSER': user,
+                'HOME': home_dir,
+                'DEBIAN_FRONTEND': 'noninteractive',
+                'TERM': 'dumb',
+                'FIXTURES': self.fixtures_dir,
+                'STUDENT': f'{_get_home_dir(username)}/student/',
+                'AT_OUTPUT': self.output_dir,
+                'LANG': 'en_US.UTF-8',
+                'LC_ALL': 'en_US.UTF-8',
+            }
+        )
+        return new_env
+
+    @contextlib.contextmanager
+    def extra_env(self, extra_env: t.Mapping[str, str]) -> t.Iterator:
+        """Temporarily set extra environment variables in all processes that
+        run in this container.
+
+        Supports nesting. Variables defined in the inner context manager take
+        precedence over variables defined in the outer one.
+
+        :param extra_env: The extra environment variables to set. This is a
+            mapping from variable name to value.
+        """
+        old_extra_env = self._extra_env
+        new_extra_env = old_extra_env.copy()
+        new_extra_env.update(extra_env)
+
+        try:
+            self._extra_env = new_extra_env
+            yield
+        finally:
+            self._extra_env = old_extra_env
 
     @staticmethod
     def _signal_start() -> None:
@@ -1929,9 +1990,14 @@ class AutoTestRunner:
                 cpu_core.yield_core()
             snap.pin_to_core(cpu_core.get_core_number())
 
+        extra_env = self._get_suite_env(
+            result_id,
+            submission_info=test_suite.get('submission_info', False),
+        )
+
         with student_container.as_snapshot(
             test_suite['network_disabled']
-        ) as snap:
+        ) as snap, snap.extra_env(extra_env):
             url = f'{self.base_url}/results/{result_id}/step_results/'
 
             for idx, test_step in enumerate(test_suite['steps']):
@@ -1977,7 +2043,7 @@ class AutoTestRunner:
                                 achieved_percentage=helpers.safe_div(
                                     total_points, possible_points, 1
                                 ),
-                                yield_core=yield_core
+                                yield_core=yield_core,
                             )
                         )
                     except StopRunningStepsException:
@@ -2234,6 +2300,72 @@ class AutoTestRunner:
                                 # amount of time.
                                 retry_work(work)
                             return
+
+    def _get_suite_env(
+        self,
+        result_id: int,
+        *,
+        submission_info: bool,
+    ) -> t.Mapping[str, str]:
+        """Get environment variables to be set in the AutoTest environment of
+        the given result.
+
+        :param result_id: The id of the result to get the environment for.
+        :param submission_info: Whether to include the submission information.
+        :returns: A mapping from environment variable name to value.
+        """
+        env = {'CG_INFO': '{}'}
+
+        if submission_info:
+            env['CG_INFO'] = self._get_submission_info_json(result_id)
+
+        return env
+
+    def _get_submission_info_json(self, result_id: int) -> str:
+        """Get information associated with the submission to be included in the
+        AutoTest environment.
+
+        :param result_id: The id of the result to get the information for.
+        :returns: A JSON object with the information encoded as a string.
+        """
+        instructions = self.instructions
+        submission_info: t.MutableMapping[str, object] = {}
+
+        # TODO: The information we need on the instructions is still marked as
+        # optional, to keep backward compatibility. This information should be
+        # required in the future, which will slightly simplify the code below.
+
+        assig_info = instructions.get('assignment_info')
+        if assig_info is not None:
+            submission_info['deadline'] = assig_info['deadline']
+        else:  # pragma: no cover
+            logger.warning(
+                'No assignment info in runner instructions',
+                instructions=instructions,
+            )
+
+        student_info: t.Optional[StudentInformation] = None
+        student_infos = instructions.get('student_infos')
+        if student_infos is not None:
+            student_info = next(
+                (s for s in student_infos if s['result_id'] == result_id),
+                None,
+            )
+        if student_info is not None:
+            submission_info.update(
+                {
+                    'result_id': student_info['result_id'],
+                    'student_id': student_info['student_id'],
+                    'submitted_at': student_info['created_at'],
+                }
+            )
+        else:  # pragma: no cover
+            logger.warning(
+                'No student info in runner instructions',
+                instructions=instructions,
+            )
+
+        return json.dumps(submission_info)
 
     def _started_heartbeat(self) -> 'RepeatedTimer':
         def push_heartbeat() -> None:

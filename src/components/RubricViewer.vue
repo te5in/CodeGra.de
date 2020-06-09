@@ -178,9 +178,9 @@ export default {
                 if (this.autoTestConfigId) {
                     this.storeLoadAutoTest({
                         autoTestId: this.autoTestConfigId,
-                    }).catch(err => this.$utils.handleHttpError({
+                    }).catch(this.$utils.makeHttpErrorHandler({
                         403: () => {},
-                    }, err));
+                    }));
                 }
             },
         },
@@ -267,7 +267,7 @@ export default {
 <style lang="less">
 @import '~mixins.less';
 
-.rubric-viewer {
+.rubric-viewer-row {
     .nav-tabs .nav-link {
         padding: 0.25rem 0.5rem;
 

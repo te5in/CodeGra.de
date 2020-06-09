@@ -24,6 +24,7 @@ Flask-SQLAlchemy==2.4.3
 freezegun==0.3.15
 furl==2.1.0
 git+http://github.com/CodeGra-de/python3-lxc.git
+git+https://github.com/CodeGra-de/pylti1.3.git
 git+https://github.com/i-kiwamu/python3-oauth2.git
 git+https://github.com/libre-man/HTTPdomain#subdirectory=httpdomain
 git+https://github.com/libre-man/sphinx-autodoc-typehints
@@ -32,6 +33,7 @@ html2text==2020.1.16
 humanfriendly==8.2
 isort==4.3.21
 itsdangerous==1.1.0
+jwcrypto==0.6.0
 mistune==0.8.4
 mypy==0.780
 mypy-extensions==0.4.3
@@ -46,6 +48,7 @@ pytest-cov==2.9.0
 pytest-describe==0.12.0
 pytest-xdist==1.32.0
 python-dateutil==2.8.1
+redis==3.3.7
 regex==2020.6.8
 sentry-sdk[flask]==0.14.4
 six==1.15.0

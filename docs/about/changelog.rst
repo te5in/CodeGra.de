@@ -8,11 +8,31 @@ Version *Next*
 
 **Features**
 
+- Course feedback `(#1342)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1335>`__. Adds an overview of
+  all the feedback a student received over an entire course. Teachers have
+  access to this overview on the submission page in the same location as the
+  file tree. For students there is an extra button on the submissions page.
 - Improve plagiarism document rendering `(#1335)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1335>`__. Matching blocks of
   code can now be rendered side by side, the amount of context lines before and
   after each match is configurable, and it is possible to export to a docx
   file.
+- Add LTI 1.3 implementation `(#1277)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1277>`__. This makes the
+  integration in the LMS even better, allowing better workflows for group
+  assignments and easier assignment creation.
+- Include submission information in AutoTest environment `(#1361)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1361>`__. Some information
+  about a submission is now available in AutoTest as a JSON object that is
+  stored in an environment variables. This is useful to automatically subtract
+  points based on the submission date and deadline, or to generate a unique
+  input for each submission or student.
+
+**Updates**
+
+- Use Bootstrap-Vue toasts instead of vue-toasted
+  `(#1319) <https://github.com/CodeGra-de/CodeGra.de/pull/1319>`__,
 
 **Fixes**
 

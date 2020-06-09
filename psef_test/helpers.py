@@ -8,8 +8,10 @@ import datetime
 from copy import deepcopy
 
 import pytest
+from flask import _app_ctx_stack as ctx_stack
 from werkzeug.local import LocalProxy
 
+import psef
 import psef.models as m
 from cg_dt_utils import DatetimeWithTimezone
 from psef.permissions import CoursePermission as CPerm
@@ -23,6 +25,12 @@ def get_id(obj):
         return obj
     else:
         return obj.id
+
+
+def to_db_object(obj, cls):
+    if isinstance(obj, cls):
+        return obj
+    return cls.query.get(get_id(obj))
 
 
 def create_marker(marker):
@@ -48,26 +56,161 @@ def create_lti_assignment(
     if deadline == 'tomorrow':
         deadline = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
 
-    res = m.Assignment(name=name, course=course, deadline=deadline)
-    res.lti_assignment_id = str(uuid.uuid4())
-    res.lti_outcome_service_url = str(uuid.uuid4())
-
-    res.set_state(state)
+    res = m.Assignment(
+        name=name,
+        course=course,
+        deadline=deadline,
+        lti_assignment_id=str(uuid.uuid4()),
+        is_lti=True,
+    )
+    res.lti_grade_service_data = str(uuid.uuid4())
+    res.set_state_with_string(state)
     session.add(res)
     session.commit()
     return res
 
 
-def create_lti_course(session, app):
+def create_lti1p3_user(session, provider):
+    n_id = str(uuid.uuid4())
+    username = f'LTI1p3_USER_{uuid.uuid4()}'
+    with psef.auth.as_current_user(None):
+        user, _ = m.UserLTIProvider.get_or_create_user(
+            n_id, provider, username, 'A LTI 1.3 user', 'user@lti.com'
+        )
+    session.commit()
+    u_id = user.id
+    return LocalProxy(lambda: m.User.query.get(u_id))
+
+
+def create_lti1p3_assignment(session, course, state='hidden', deadline=None):
+    course = to_db_object(course, m.Course)
+    assert course.is_lti
+    assig = psef.models.Assignment(
+        course=course,
+        name=f'LTI 1.3 ASSIG {uuid.uuid4()}',
+        is_lti=True,
+        visibility_state=psef.models.AssignmentVisibilityState.visible,
+        lti_assignment_id=str(uuid.uuid4()),
+    )
+    assig.lti_grade_service_data = {
+        'lineitem': f'http://{uuid.uuid4()}.com',
+        'scope': ['https://purl.imsglobal.org/spec/lti-ags/scope/score'],
+    }
+    assig.set_state_with_string(state)
+    assig.deadline = deadline
+    session.add(assig)
+    session.commit()
+    return assig
+
+
+def create_lti1p3_course(test_client, session, provider, membership_url=None):
+    course = to_db_object(create_course(test_client), m.Course)
+    course_lti_prov = m.CourseLTIProvider.create_and_add(
+        course=course,
+        lti_provider=provider,
+        lti_context_id=str(uuid.uuid4()),
+        deployment_id=str(uuid.uuid4()),
+    )
+    course_lti_prov.names_roles_claim = {
+        'context_memberships_url': membership_url or str(uuid.uuid4()),
+    }
+    session.commit()
+    return course, course_lti_prov
+
+
+def create_lti1p3_provider(
+    test_client,
+    lms,
+    iss=None,
+    client_id=None,
+    auth_token_url=None,
+    auth_login_url=None,
+    key_set_url=None,
+    auth_audience=None
+):
+    intended_use = 'A test provider'
+    iss = iss or str(uuid.uuid4())
+    prov = test_client.req(
+        'post',
+        '/api/v1/lti1.3/providers/',
+        200,
+        data={
+            'lms': lms,
+            'iss': iss,
+            'intended_use': intended_use,
+        },
+        result={
+            'id': str,
+            'lms': lms,
+            'intended_use': intended_use,
+            'version': 'lti1.3',
+            'iss': iss,
+            'capabilities': dict,
+            'edit_secret': str,
+            'finalized': False,
+            'auth_login_url': None,
+            'auth_token_url': None,
+            'client_id': None,
+            'key_set_url': None,
+            'auth_audience': None,
+            'custom_fields': dict,
+            'public_jwk': dict,
+            'public_key': str,
+            'created_at': str,
+        },
+    )
+
+    def make_data(**data):
+        return {k: v or 'http://' + str(uuid.uuid4()) for k, v in data.items()}
+
+    return test_client.req(
+        'patch',
+        f'/api/v1/lti1.3/providers/{get_id(prov)}',
+        200,
+        data=make_data(
+            client_id=client_id,
+            auth_token_url=auth_token_url,
+            auth_login_url=auth_login_url,
+            auth_audience=auth_audience,
+            key_set_url=key_set_url,
+            finalize=True,
+        ),
+        result={
+            'id': str,
+            'lms': lms,
+            'intended_use': intended_use,
+            'version': 'lti1.3',
+            'iss': iss,
+            'capabilities': dict,
+            'edit_secret': None,
+            'finalized': True,
+            'created_at': str,
+        },
+    )
+
+
+def create_lti_course(session, app, user=None):
     name = f'__NEW_LTI_COURSE__-{uuid.uuid4()}'
     key = list(app.config['LTI_CONSUMER_KEY_SECRETS'].keys())[0]
-    provider = m.LTIProvider(key=key)
-    assert provider is not None
-    c = m.Course.create_and_add(
-        name=name,
-        lti_provider=provider,
-        lti_course_id=str(uuid.uuid4()),
+    lti_provider = m.LTI1p1Provider(key=key)
+    assert lti_provider is not None
+
+    c = m.Course.create_and_add(name=name)
+
+    if user:
+        user = m.User.resolve(user)
+        user.courses[c.id] = m.CourseRole.query.filter_by(
+            course=c, name='Teacher'
+        ).one()
+
+    lti_context_id = str(uuid.uuid4())
+    m.CourseLTIProvider.create_and_add(
+        course=c,
+        lti_provider=lti_provider,
+        lti_context_id=lti_context_id,
+        deployment_id=lti_context_id,
     )
+
     session.commit()
     return c
 
@@ -458,6 +601,7 @@ def create_auto_test(
                     ],
                     'rubric_row_id': rubric[rubric_index]['id'],
                     'network_disabled': bool(idx2),
+                    'submission_info': bool(idx2),
                 },
             )
 
@@ -575,6 +719,7 @@ def create_auto_test_from_dict(test_client, assig, at_dict):
                     'steps': prepare_steps(at_suite['steps']),
                     'rubric_row_id': get_id(rubric[rubric_index]),
                     'network_disabled': at_suite.get('network_disabled', True),
+                    'submission_info': at_suite.get('submission_info', False),
                 },
             )
             rubric_index += 1

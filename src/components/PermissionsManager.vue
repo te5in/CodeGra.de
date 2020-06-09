@@ -81,18 +81,23 @@
         </b-input-group>
     </b-form-fieldset>
 
-    <transition name="fade" appear>
-        <!-- v-if and show are used to make sure the transition works -->
-        <b-alert dismissible
-                 show
-                 v-if="!hideChanged && Object.values(changed).some(x => x)"
-                 @input="hideWarning"
-                 variant="info"
-                 class="perm-warning">
-            Reload the page to apply the changes.
-        </b-alert>
-    </transition>
-
+    <b-toast v-if="$inLTI"
+             :visible="showChangedMessage"
+             toaster="b-toaster-top-right"
+             title="Permissions have changed"
+             no-auto-hide
+             solid>
+           Reload CodeGrade to apply the changes.
+    </b-toast>
+    <b-toast v-else
+             :visible="showChangedMessage"
+             toaster="b-toaster-top-right"
+             title="Permissions have changed"
+             no-auto-hide
+             solid
+             href="javascript:window.location.reload()">
+           Click here to reload the page and apply the changes.
+    </b-toast>
 </div>
 </template>
 
@@ -182,6 +187,10 @@ export default {
                 }
                 return acc;
             }, new Set());
+        },
+
+        showChangedMessage() {
+            return !this.hideChanged && Object.values(this.changed).some(x => x);
         },
     },
 

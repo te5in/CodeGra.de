@@ -405,17 +405,15 @@ def test_jplag(
 @pytest.mark.parametrize('bb_tar_gz', ['correct.tar.gz'])
 def test_jplag_old_assignments(
     bb_tar_gz, logged_in, assignment, test_client, teacher_user,
-    error_template, monkeypatch, monkeypatch_celery, session
+    error_template, monkeypatch, session
 ):
     other_assignment = psef.models.Assignment(
-        name='TEST COURSE',
-        course=assignment.course,
+        name='TEST COURSE', course=assignment.course, is_lti=False
     )
     session.add(other_assignment)
     other_course = psef.models.Course.create_and_add(name='Other course')
     other_course_assignment = psef.models.Assignment(
-        name='OTHER COURSE ASSIGNMENT',
-        course=other_course,
+        name='OTHER COURSE ASSIGNMENT', course=other_course, is_lti=False
     )
     session.add(other_course_assignment)
     session.commit()

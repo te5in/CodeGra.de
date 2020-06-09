@@ -20,7 +20,7 @@ from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers.types import DbType, ColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
-from . import Base, db, _MyQuery
+from . import Base, db
 from .. import auth, helpers, exceptions
 from ..helpers import (
     JSONType, between, ensure_json_dict, get_from_map_transaction
@@ -100,8 +100,6 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
     """
     __tablename__ = 'AutoTestStep'
 
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AutoTestStepBase']]
     id = db.Column('id', db.Integer, primary_key=True)
 
     order = db.Column('order', db.Integer, nullable=False)
@@ -872,9 +870,6 @@ class _CheckPoints(AutoTestStepBase):
 class AutoTestStepResult(Base, TimestampMixin, IdMixin):
     """This class represents the result of a single AutoTest step.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AutoTestStepResult']]
-
     auto_test_step_id = db.Column(
         'auto_test_step_id',
         db.Integer,

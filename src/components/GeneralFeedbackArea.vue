@@ -44,7 +44,6 @@
                            ref="submitButton"
                            :confirm="confirmMsg"
                            :submit="submitFeedback"
-                           @success="afterSubmitFeedback"
                            @after-success="maybeHidePopover"
                            @reject-confirm="maybeHidePopover($event, true)"
                            @click.native.capture="manualSave = true"
@@ -137,23 +136,13 @@ export default {
     methods: {
         ...mapActions('user', ['refreshSnippets']),
         ...mapActions('submissions', ['updateSubmission']),
+        ...mapActions('feedback', ['updateGeneralFeedback']),
 
         submitFeedback() {
-            const data = { feedback: this.feedback || '' };
-
-            return this.$http.patch(`/api/v1/submissions/${this.submission.id}`, data);
-        },
-
-        afterSubmitFeedback() {
-            this.updateSubmission({
-                assignmentId: this.assignment.id,
-                submissionId: this.submission.id,
-                submissionProps: {
-                    comment: this.feedback || '',
-                    comment_author: {
-                        id: this.userId,
-                    },
-                },
+            return this.updateGeneralFeedback({
+                assignmentId: this.submission.assignmentId,
+                submissionId: this.submissionId,
+                feedback: this.feedback,
             });
         },
 

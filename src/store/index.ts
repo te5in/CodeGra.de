@@ -3,8 +3,6 @@ import Vue from 'vue';
 import Vuex from 'vuex';
 // @ts-ignore
 import createPersistedState from 'vuex-persistedstate';
-// @ts-ignore
-import Toasted from 'vue-toasted';
 
 import { getStoreBuilder } from 'vuex-typex';
 
@@ -32,7 +30,7 @@ const debug = process.env.NODE_ENV !== 'production';
 const plugins = [];
 
 let disabledPersistance = false;
-let toastMessage: any = null;
+let toastMessage: string | null = null;
 
 try {
     plugins.push(
@@ -54,22 +52,9 @@ try {
         }),
     );
 } catch (e) {
-    Vue.use(Toasted);
-    toastMessage = (Vue as any).toasted.error(
-        'Unable to persistently store user credentials, please check you browser privacy levels. You will not be logged-in in other tabs or when reloading.',
-        {
-            position: 'bottom-center',
-            fullWidth: true,
-            closeOnSwipe: false,
-            fitToScreen: true,
-            action: {
-                text: '✖',
-                onClick(_: Object, toastObject: any) {
-                    toastObject.goAway(0);
-                },
-            },
-        },
-    );
+    toastMessage = `Unable to persistently store user credentials, please check
+        you browser privacy levels. You will not be logged-in in other tabs or
+        when reloading.`;
 }
 
 const rootBuilder = getStoreBuilder<RootState>();
@@ -99,7 +84,16 @@ export const store = rootBuilder.vuexStore({
 
 export function disablePersistance() {
     disabledPersistance = true;
-    if (toastMessage != null) {
-        toastMessage.goAway(0);
+}
+
+export function onVueCreated($root: Vue) {
+    if (!disabledPersistance && toastMessage != null) {
+        $root.$bvToast.toast(toastMessage, {
+            title: 'Warning',
+            variant: 'warning',
+            toaster: 'b-toaster-top-right',
+            noAutoHide: true,
+            solid: true,
+        });
     }
 }

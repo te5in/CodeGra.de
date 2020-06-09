@@ -417,7 +417,7 @@ context('Inline feedback', () => {
             it('should show a message if no inline feedback is given', () => {
                 cy.openCategory('Feedback overview');
                 cy.get('.inline-feedback')
-                    .should('contain', 'This submission has no line comments.');
+                    .should('contain', 'This submission has no inline feedback.');
             });
         });
 

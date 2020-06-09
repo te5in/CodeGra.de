@@ -615,9 +615,9 @@ export default {
                         this.resetRubric();
                         this.maybeLoadOtherAssignments();
                     },
-                    err => this.$utils.handleHttpError({
+                    this.$utils.makeHttpErrorHandler({
                         404: () => {},
-                    }, err),
+                    }),
                 ),
                 this.autoTestConfigId &&
                     this.storeLoadAutoTest({

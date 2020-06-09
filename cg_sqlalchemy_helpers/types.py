@@ -12,7 +12,7 @@ from typing import Union
 from typing import Optional as Opt
 from datetime import timedelta
 
-from typing_extensions import Literal
+from typing_extensions import Literal, Protocol
 
 import cg_dt_utils
 
@@ -488,6 +488,11 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
     It has no implementation and instantiating an instance raises an error.
     '''
 
+    def compile(
+        self, *, dialect: object = None, compile_kwargs: t.Dict[str, object]
+    ) -> object:
+        ...
+
     def __init__(self) -> None:
         raise ValueError
 
@@ -605,8 +610,13 @@ class Mapper(t.Generic[_T_BASE]):
         ...
 
 
+class _QueryProxy:
+    def __get__(self, _: object, type: t.Type[_T_BASE]) -> 'MyQuery[_T_BASE]':
+        ...
+
+
 class Base:  # pragma: no cover
-    query = None  # type: t.ClassVar[t.Any]
+    query: t.ClassVar[_QueryProxy]
 
     def __init__(self, *args: t.Any, **kwargs: t.Any) -> None:
         pass

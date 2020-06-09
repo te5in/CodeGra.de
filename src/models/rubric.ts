@@ -544,7 +544,7 @@ export class Rubric<T extends number | undefined | null> {
     }
 }
 
-interface RubricResultItemServerData extends RubricItemServerData {
+export interface RubricResultItemServerData extends RubricItemServerData {
     multiplier: number;
 }
 

@@ -31487,9 +31487,9 @@
       }
     },
     "typescript": {
-      "version": "3.9.0-dev.20200426",
-      "resolved": "https://registry.npmjs.org/typescript/-/typescript-3.9.0-dev.20200426.tgz",
-      "integrity": "sha512-0MRHJbVaaQ0W2pwC1v1Z5u2ucgvXC6nV6tIMZDgRCgwn1Rv+kB/lVMaXPw86Ug+bvrAr+IHprlRTPB56JqYRvA==",
+      "version": "3.9.5",
+      "resolved": "https://registry.npmjs.org/typescript/-/typescript-3.9.5.tgz",
+      "integrity": "sha512-hSAifV3k+i6lEoCJ2k6R2Z/rp/H3+8sdmcn5NrS3/3kE7+RyZXm9aqvxWqjEXHAd8b0pShatpcdMTvEdvAJltQ==",
       "dev": true
     },
     "typescript-eslint-parser": {
@@ -34129,11 +34129,6 @@
       "resolved": "https://registry.npmjs.org/vue-template-es2015-compiler/-/vue-template-es2015-compiler-1.9.1.tgz",
       "integrity": "sha512-4gDntzrifFnCEvyoO8PqyJDmguXgVPxKiIxrBKjIowvL9l+N66196+72XVYR8BBf1Uv1Fgt3bGevJ+sEmxfZzw==",
       "dev": true
-    },
-    "vue-toasted": {
-      "version": "1.1.24",
-      "resolved": "https://registry.npmjs.org/vue-toasted/-/vue-toasted-1.1.24.tgz",
-      "integrity": "sha1-cVo3HfpJDMcQ/+2q6uYf2KjE960="
     },
     "vue2-dropzone": {
       "version": "3.5.8",

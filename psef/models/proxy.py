@@ -11,13 +11,11 @@ from collections import defaultdict
 
 from sqlalchemy_utils import UUIDType
 
+from cg_cache.intra_request import cache_within_request
 from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 
-from . import (
-    Base, File, MyQuery, FileOwner, NestedFileMixin, AutoTestOutputFile, db
-)
+from . import Base, File, FileOwner, NestedFileMixin, AutoTestOutputFile, db
 from .. import app, helpers
-from ..cache import cache_within_request
 from ..exceptions import APICodes, APIException
 
 T = t.TypeVar('T')
@@ -60,8 +58,6 @@ class Proxy(Base, UUIDMixin, TimestampMixin):
         this proxy. This is never ``None`` if ``base_work_file_id`` is not
         ``None``, and always ``None`` otherwise.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[MyQuery['Proxy']]
     __tablename__ = 'proxy'
 
     state = db.Column(

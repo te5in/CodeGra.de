@@ -60,6 +60,7 @@ export class AutoTestSuiteData {
             getProps(d, UserConfig.autoTest.auto_test_max_command_time, 'command_time_limit'),
         );
         Vue.set(this, 'networkDisabled', getProps(d, true, 'network_disabled'));
+        Vue.set(this, 'submissionInfo', getProps(d, false, 'submission_info'));
     }
 
     getStepTrackingIds() {
@@ -75,6 +76,7 @@ export class AutoTestSuiteData {
             steps: deepCopy(this.steps),
             rubric_row: this.rubricRow,
             network_disabled: this.networkDisabled,
+            submission_info: this.submissionInfo,
             command_time_limit: this.commandTimeLimit,
         });
     }
@@ -120,6 +122,7 @@ export class AutoTestSuiteData {
                 rubric_row_id: this.rubricRow.id,
                 command_time_limit: Number(this.commandTimeLimit),
                 network_disabled: getProps(this, true, 'networkDisabled'),
+                submission_info: getProps(this, false, 'submissionInfo'),
             })
             .then(
                 res => {

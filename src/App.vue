@@ -19,6 +19,18 @@
         </div>
     </template>
     <div v-if="showFrameBorder" class="frame-border border"/>
+
+    <b-toast v-for="toast in toasts"
+             :key="toast.tag"
+             toaster="b-toaster-top-right"
+             :variant="toast.variant"
+             :title="toast.title"
+             visible
+             no-auto-hide
+             solid
+             @hide="deleteToast(toast)">
+        {{ toast.message }}
+    </b-toast>
 </div>
 </template>
 
@@ -65,6 +77,7 @@ export default {
         return {
             loading: true,
             showContent: false,
+            toasts: [],
         };
     },
 
@@ -95,6 +108,16 @@ export default {
     methods: {
         ...mapActions('user', ['verifyLogin']),
         ...mapActions('courses', ['loadCourses']),
+
+        addToast(toast) {
+            if (!this.toasts.find(other => other.tag === toast.tag)) {
+                this.toasts.push(toast);
+            }
+        },
+
+        deleteToast(toast) {
+            this.toasts = this.toasts.filter(other => other.tag !== toast.tag);
+        },
     },
 
     created() {
@@ -128,6 +151,8 @@ export default {
     },
 
     mounted() {
+        this.$root.$on('cg::app::toast', this.addToast);
+
         this.verifyLogin()
             .then(() => (this.loggedIn ? this.loadCourses() : Promise.resolve()))
             .then(
@@ -154,6 +179,10 @@ export default {
                 }
                 this.showContent = true;
             });
+    },
+
+    destroyed() {
+        this.$root.$off('cg::app::toast', this.addToast);
     },
 
     components: {
@@ -196,14 +225,6 @@ export default {
     }
 }
 
-.ie-banner {
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
-    right: 1rem;
-    z-index: 100;
-}
-
 .frame-border {
     position: fixed;
     top: 0;
@@ -211,7 +232,9 @@ export default {
     right: 0;
     bottom: 0;
     pointer-events: none;
-    z-index: 1000;
+
+    // Must be greater than .sticky-top and .local-header
+    z-index: 1030;
 
     @{dark-mode} {
         display: none;
