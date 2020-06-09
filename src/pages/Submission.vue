@@ -198,7 +198,6 @@
                     </b-tab>
 
                     <b-tab title="Feedback"
-                           @click="hiddenSidebarTabs.delete('feedback')"
                            class="border rounded overflow-hidden">
                         <course-feedback
                             v-if="!hiddenSidebarTabs.has('feedback')"
@@ -543,22 +542,10 @@ export default {
         },
 
         sidebarTabs() {
-            const tabs = [
-                {
-                    id: 'files',
-                    name: 'Files',
-                    help: 'Show the files of this submission.',
-                },
-            ];
-
+            const tabs = ['files'];
             if (this.canGiveLineFeedback) {
-                tabs.push({
-                    id: 'feedback',
-                    name: 'Feedback',
-                    help: 'Show feedback given on other assignments in this course.',
-                });
+                tabs.push('feedback');
             }
-
             return tabs;
         },
 
@@ -742,11 +729,7 @@ export default {
         currentSidebarTab: {
             immediate: true,
             handler(newVal) {
-                const tab = this.sidebarTabs[newVal];
-                this.hiddenSidebarTabs.delete(tab.id);
-                if (tab.id === 'feedback') {
-                    this.splitRatio = Math.min(50, this.splitRatio);
-                }
+                this.openSidebarTab(newVal);
             },
         },
     },
@@ -814,7 +797,7 @@ export default {
             // not be loaded until the feedback tab is clicked.
             this.splitRatio = 75;
             this.currentSidebarTab = 0;
-            this.hiddenSidebarTabs = new Set(this.sidebarTabs.slice(1).map(t => t.id));
+            this.hiddenSidebarTabs = new Set(this.sidebarTabs.slice(1));
 
             const promises = [
                 this.storeLoadFileTree({
@@ -951,6 +934,17 @@ export default {
 
         inlineFeedbackChanged(val) {
             this.showInlineFeedback = val;
+        },
+
+        openSidebarTab(idx) {
+            const tab = this.sidebarTabs[idx];
+            const wasHidden = this.hiddenSidebarTabs.delete(tab);
+
+            // Only resize the first time, and only if the sidebar is less than
+            // half of the width of the page.
+            if (wasHidden && tab === 'feedback' && this.splitRatio > 50) {
+                this.splitRatio = Math.min(50, this.splitRatio);
+            }
         },
     },
 
