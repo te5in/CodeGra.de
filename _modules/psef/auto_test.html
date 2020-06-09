@@ -837,10 +837,13 @@
 <span class="sd">    :ivar ~.StepInstructions.id: The id of the suite.</span>
 <span class="sd">    :ivar steps: The steps of this suite.</span>
 <span class="sd">    :ivar network_disabled: Should this suite be run with networking disabled.</span>
+<span class="sd">    :ivar submission_info: Should submission information be included in the</span>
+<span class="sd">        environment.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">steps</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">StepInstructions</span><span class="p">]</span>
-    <span class="n">network_disabled</span><span class="p">:</span> <span class="nb">bool</span></div>
+    <span class="n">network_disabled</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">submission_info</span><span class="p">:</span> <span class="nb">bool</span></div>
 
 
 <div class="viewcode-block" id="SetInstructions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.SetInstructions">[docs]</a><span class="k">class</span> <span class="nc">SetInstructions</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
@@ -856,6 +859,27 @@
     <span class="n">stop_points</span><span class="p">:</span> <span class="nb">float</span></div>
 
 
+<div class="viewcode-block" id="AssignmentInformation"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.AssignmentInformation">[docs]</a><span class="k">class</span> <span class="nc">AssignmentInformation</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Information about the assignment that this AutoTest belongs to.</span>
+
+<span class="sd">    :ivar deadline: The deadline of the assignment.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">deadline</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="StudentInformation"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.StudentInformation">[docs]</a><span class="k">class</span> <span class="nc">StudentInformation</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Information about the submission that the AutoTest runs on.</span>
+
+<span class="sd">    :ivar result_id: The id of the :class:`AutoTestResult` corresponding to</span>
+<span class="sd">        this work.</span>
+<span class="sd">    :ivar student_id: The id of the :class:`User` who submitted the work.</span>
+<span class="sd">    :ivar created_at: The datetime when the work was submitted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">result_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">student_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">created_at</span><span class="p">:</span> <span class="nb">str</span></div>
+
+
 <div class="viewcode-block" id="RunnerInstructions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.RunnerInstructions">[docs]</a><span class="k">class</span> <span class="nc">RunnerInstructions</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Instructions for a complete auto test run.</span>
 
@@ -863,7 +887,13 @@
 <span class="sd">    :ivar run_id: The id of this auto test run.</span>
 <span class="sd">    :ivar auto_test_id: The id of this AutoTest configuration.</span>
 <span class="sd">    :ivar result_ids: The ids of the results this runner should produce. These</span>
-<span class="sd">        can be seen as submissions.</span>
+<span class="sd">        can be seen as submissions. (Deprecated, use ``student_infos`` instead)</span>
+<span class="sd">    :ivar student_ids: The ids of the user corresponding to the result with id</span>
+<span class="sd">        at the same index in the ``result_ids`` list. (Deprecated, use</span>
+<span class="sd">        ``student_infos`` instead)</span>
+<span class="sd">    :ivar assignment_info: Assignment information made available to AutoTest</span>
+<span class="sd">        steps.</span>
+<span class="sd">    :ivar student_infos: List of information associated to each result.</span>
 <span class="sd">    :ivar sets: The sets that this AutoTest configuration contain.</span>
 <span class="sd">    :ivar setup_script: The setup script that should be run for each student.</span>
 <span class="sd">    :ivar run_setup_script: The setup script that should be run once.</span>
@@ -876,6 +906,8 @@
     <span class="n">auto_test_id</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">result_ids</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
     <span class="n">student_ids</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="n">student_infos</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">StudentInformation</span><span class="p">]]</span>
+    <span class="n">assignment_info</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">AssignmentInformation</span><span class="p">]</span>
     <span class="n">sets</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">SetInstructions</span><span class="p">]</span>
     <span class="n">fixtures</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span>
     <span class="n">setup_script</span><span class="p">:</span> <span class="nb">str</span>
@@ -1064,6 +1096,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_network_is_enabled</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_networks</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">Network</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_fixtures_dir</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_extra_env</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
 
     <span class="k">def</span> <span class="nf">_stop_container</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">_stop_container</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_container</span><span class="p">)</span>
@@ -1314,7 +1347,10 @@
         <span class="n">os</span><span class="o">.</span><span class="n">setuid</span><span class="p">(</span><span class="n">user_uid</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_create_env</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Create the env for within a lxc subprocess call</span>
+        <span class="sd">&quot;&quot;&quot;Create the env for within a lxc subprocess call.</span>
+
+<span class="sd">        Overrides environment variables set with</span>
+<span class="sd">        :meth:`StartedContainer.extra_env`.</span>
 
 <span class="sd">        &gt;&gt;&gt; import getpass</span>
 <span class="sd">        &gt;&gt;&gt; cur_user = getpass.getuser()</span>
@@ -1340,19 +1376,44 @@
             <span class="sa">f</span><span class="s1">&#39;:</span><span class="si">{</span><span class="n">home_dir</span><span class="si">}</span><span class="s1">/bin/&#39;</span>
         <span class="p">)</span>
 
-        <span class="k">return</span> <span class="p">{</span>
-            <span class="s1">&#39;PATH&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">extra_path</span><span class="si">}</span><span class="s1">:/usr/sbin/:/sbin/:</span><span class="si">{</span><span class="n">env</span><span class="p">[</span><span class="s2">&quot;PATH&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;USER&#39;</span><span class="p">:</span> <span class="n">user</span><span class="p">,</span>
-            <span class="s1">&#39;LOGUSER&#39;</span><span class="p">:</span> <span class="n">user</span><span class="p">,</span>
-            <span class="s1">&#39;HOME&#39;</span><span class="p">:</span> <span class="n">home_dir</span><span class="p">,</span>
-            <span class="s1">&#39;DEBIAN_FRONTEND&#39;</span><span class="p">:</span> <span class="s1">&#39;noninteractive&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;TERM&#39;</span><span class="p">:</span> <span class="s1">&#39;dumb&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;FIXTURES&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fixtures_dir</span><span class="p">,</span>
-            <span class="s1">&#39;STUDENT&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">_get_home_dir</span><span class="p">(</span><span class="n">username</span><span class="p">)</span><span class="si">}</span><span class="s1">/student/&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;AT_OUTPUT&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span>
-            <span class="s1">&#39;LANG&#39;</span><span class="p">:</span> <span class="s1">&#39;en_US.UTF-8&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;LC_ALL&#39;</span><span class="p">:</span> <span class="s1">&#39;en_US.UTF-8&#39;</span><span class="p">,</span>
-        <span class="p">}</span>
+        <span class="n">new_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extra_env</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">new_env</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s1">&#39;PATH&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">extra_path</span><span class="si">}</span><span class="s1">:/usr/sbin/:/sbin/:</span><span class="si">{</span><span class="n">env</span><span class="p">[</span><span class="s2">&quot;PATH&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;USER&#39;</span><span class="p">:</span> <span class="n">user</span><span class="p">,</span>
+                <span class="s1">&#39;LOGUSER&#39;</span><span class="p">:</span> <span class="n">user</span><span class="p">,</span>
+                <span class="s1">&#39;HOME&#39;</span><span class="p">:</span> <span class="n">home_dir</span><span class="p">,</span>
+                <span class="s1">&#39;DEBIAN_FRONTEND&#39;</span><span class="p">:</span> <span class="s1">&#39;noninteractive&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;TERM&#39;</span><span class="p">:</span> <span class="s1">&#39;dumb&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;FIXTURES&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fixtures_dir</span><span class="p">,</span>
+                <span class="s1">&#39;STUDENT&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">_get_home_dir</span><span class="p">(</span><span class="n">username</span><span class="p">)</span><span class="si">}</span><span class="s1">/student/&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;AT_OUTPUT&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span>
+                <span class="s1">&#39;LANG&#39;</span><span class="p">:</span> <span class="s1">&#39;en_US.UTF-8&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;LC_ALL&#39;</span><span class="p">:</span> <span class="s1">&#39;en_US.UTF-8&#39;</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">new_env</span>
+
+<div class="viewcode-block" id="StartedContainer.extra_env"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.StartedContainer.extra_env">[docs]</a>    <span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
+    <span class="k">def</span> <span class="nf">extra_env</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">extra_env</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Iterator</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Temporarily set extra environment variables in all processes that</span>
+<span class="sd">        run in this container.</span>
+
+<span class="sd">        Supports nesting. Variables defined in the inner context manager take</span>
+<span class="sd">        precedence over variables defined in the outer one.</span>
+
+<span class="sd">        :param extra_env: The extra environment variables to set. This is a</span>
+<span class="sd">            mapping from variable name to value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">old_extra_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extra_env</span>
+        <span class="n">new_extra_env</span> <span class="o">=</span> <span class="n">old_extra_env</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">new_extra_env</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">extra_env</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_extra_env</span> <span class="o">=</span> <span class="n">new_extra_env</span>
+            <span class="k">yield</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_extra_env</span> <span class="o">=</span> <span class="n">old_extra_env</span></div>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_signal_start</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -2129,9 +2190,14 @@
                 <span class="n">cpu_core</span><span class="o">.</span><span class="n">yield_core</span><span class="p">()</span>
             <span class="n">snap</span><span class="o">.</span><span class="n">pin_to_core</span><span class="p">(</span><span class="n">cpu_core</span><span class="o">.</span><span class="n">get_core_number</span><span class="p">())</span>
 
+        <span class="n">extra_env</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_suite_env</span><span class="p">(</span>
+            <span class="n">result_id</span><span class="p">,</span>
+            <span class="n">submission_info</span><span class="o">=</span><span class="n">test_suite</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;submission_info&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+        <span class="p">)</span>
+
         <span class="k">with</span> <span class="n">student_container</span><span class="o">.</span><span class="n">as_snapshot</span><span class="p">(</span>
             <span class="n">test_suite</span><span class="p">[</span><span class="s1">&#39;network_disabled&#39;</span><span class="p">]</span>
-        <span class="p">)</span> <span class="k">as</span> <span class="n">snap</span><span class="p">:</span>
+        <span class="p">)</span> <span class="k">as</span> <span class="n">snap</span><span class="p">,</span> <span class="n">snap</span><span class="o">.</span><span class="n">extra_env</span><span class="p">(</span><span class="n">extra_env</span><span class="p">):</span>
             <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}</span><span class="s1">/results/</span><span class="si">{</span><span class="n">result_id</span><span class="si">}</span><span class="s1">/step_results/&#39;</span>
 
             <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">test_step</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">test_suite</span><span class="p">[</span><span class="s1">&#39;steps&#39;</span><span class="p">]):</span>
@@ -2177,7 +2243,7 @@
                                 <span class="n">achieved_percentage</span><span class="o">=</span><span class="n">helpers</span><span class="o">.</span><span class="n">safe_div</span><span class="p">(</span>
                                     <span class="n">total_points</span><span class="p">,</span> <span class="n">possible_points</span><span class="p">,</span> <span class="mi">1</span>
                                 <span class="p">),</span>
-                                <span class="n">yield_core</span><span class="o">=</span><span class="n">yield_core</span>
+                                <span class="n">yield_core</span><span class="o">=</span><span class="n">yield_core</span><span class="p">,</span>
                             <span class="p">)</span>
                         <span class="p">)</span>
                     <span class="k">except</span> <span class="n">StopRunningStepsException</span><span class="p">:</span>
@@ -2434,6 +2500,72 @@
                                 <span class="c1"># amount of time.</span>
                                 <span class="n">retry_work</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>
                             <span class="k">return</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_suite_env</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">result_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">submission_info</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Get environment variables to be set in the AutoTest environment of</span>
+<span class="sd">        the given result.</span>
+
+<span class="sd">        :param result_id: The id of the result to get the environment for.</span>
+<span class="sd">        :param submission_info: Whether to include the submission information.</span>
+<span class="sd">        :returns: A mapping from environment variable name to value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">env</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;CG_INFO&#39;</span><span class="p">:</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">submission_info</span><span class="p">:</span>
+            <span class="n">env</span><span class="p">[</span><span class="s1">&#39;CG_INFO&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_submission_info_json</span><span class="p">(</span><span class="n">result_id</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">env</span>
+
+    <span class="k">def</span> <span class="nf">_get_submission_info_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get information associated with the submission to be included in the</span>
+<span class="sd">        AutoTest environment.</span>
+
+<span class="sd">        :param result_id: The id of the result to get the information for.</span>
+<span class="sd">        :returns: A JSON object with the information encoded as a string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">instructions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instructions</span>
+        <span class="n">submission_info</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">MutableMapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># TODO: The information we need on the instructions is still marked as</span>
+        <span class="c1"># optional, to keep backward compatibility. This information should be</span>
+        <span class="c1"># required in the future, which will slightly simplify the code below.</span>
+
+        <span class="n">assig_info</span> <span class="o">=</span> <span class="n">instructions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;assignment_info&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">assig_info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">submission_info</span><span class="p">[</span><span class="s1">&#39;deadline&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">assig_info</span><span class="p">[</span><span class="s1">&#39;deadline&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s1">&#39;No assignment info in runner instructions&#39;</span><span class="p">,</span>
+                <span class="n">instructions</span><span class="o">=</span><span class="n">instructions</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">student_info</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">StudentInformation</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">student_infos</span> <span class="o">=</span> <span class="n">instructions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;student_infos&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">student_infos</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">student_info</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">student_infos</span> <span class="k">if</span> <span class="n">s</span><span class="p">[</span><span class="s1">&#39;result_id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">result_id</span><span class="p">),</span>
+                <span class="kc">None</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">student_info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">submission_info</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s1">&#39;result_id&#39;</span><span class="p">:</span> <span class="n">student_info</span><span class="p">[</span><span class="s1">&#39;result_id&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;student_id&#39;</span><span class="p">:</span> <span class="n">student_info</span><span class="p">[</span><span class="s1">&#39;student_id&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;submitted_at&#39;</span><span class="p">:</span> <span class="n">student_info</span><span class="p">[</span><span class="s1">&#39;created_at&#39;</span><span class="p">],</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s1">&#39;No student info in runner instructions&#39;</span><span class="p">,</span>
+                <span class="n">instructions</span><span class="o">=</span><span class="n">instructions</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">submission_info</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_started_heartbeat</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;RepeatedTimer&#39;</span><span class="p">:</span>
         <span class="k">def</span> <span class="nf">push_heartbeat</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>

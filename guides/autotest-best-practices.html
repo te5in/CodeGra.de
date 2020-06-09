@@ -110,6 +110,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#how-to-use-io-tests-with-floating-point-numbers">How to use IO tests with floating point numbers</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#how-to-let-io-tests-pass-when-the-exit-code-is-not-0">How to let IO tests pass when the exit code is not 0</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#how-to-view-autotest-generated-files">How to view AutoTest generated files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-to-access-submission-metadata-from-the-tests">How to access submission metadata from the tests</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="creating-an-assignment.html">Create a CodeGrade assignment</a></li>
@@ -474,6 +475,93 @@ AutoTest, such as compiled objects or IPython notebooks. By default generated
 files are not saved, but they will be when you write them to the <code class="docutils literal notranslate"><span class="pre">$AT_OUTPUT</span></code>
 directory. The files will then be accessible through the “Autotest output”
 section of the file browser in the Code Viewer.</p>
+</div>
+<div class="section" id="how-to-access-submission-metadata-from-the-tests">
+<h2>How to access submission metadata from the tests<a class="headerlink" href="#how-to-access-submission-metadata-from-the-tests" title="Permalink to this headline">¶</a></h2>
+<p>You may want to access some submission metadata in your tests, for example to
+automatically subtract points when a student submitted after the deadline, or
+you maybe you need to generate input for the tests but want it to be different
+for each student. To enable this you first need to check the “Submission
+information” checkbox in the “Advanced options” list at the bottom of the
+AutoTest category editing window.</p>
+<p>When you have done this, all steps in the current category will have an extra
+environment variable named <code class="docutils literal notranslate"><span class="pre">$CG_INFO</span></code> defined. This variable contains a JSON
+object with the following keys:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">deadline</span></code> The deadline of this assignment.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">submitted_at</span></code> The date and time the student submitted their work.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">result_id</span></code> An identifier unique to this AutoTest result. This value changes
+every time the AutoTest is run, even if it is run multiple times for the same
+submission of the same student.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">student_id</span></code> An identifier unique to the student for which the AutoTest is
+run. This value stays constant between runs of different submissions by the
+same student.</p></li>
+</ul>
+<div class="admonition example-directive">
+<div class="first"><p class="first admonition-title" id="Example-subtracting-points-for-late-submissions">Example: subtracting points for late submissions<a class="headerlink" href="#Example-subtracting-points-for-late-submissions" title="Permalink to this example">¶</a><p></div><p>You want to automatically subtract 1 point from the total rubric score for
+each day after the deadline, up to a maximum of 10 points subtracted.</p>
+<ol class="last arabic">
+<li><p>Set up a rubric category with 11 items ranging from -10 to 0.</p></li>
+<li><p>Create a new AutoTest category linked to the new rubric category, and
+check the  “Submission information” checkbox under “Advanced options”.</p></li>
+<li><p>Add a “Capture points” step with an appropriate name and the following
+settings:</p>
+<ul class="simple">
+<li><p>Program to test: <code class="docutils literal notranslate"><span class="pre">python3.7</span> <span class="pre">$FIXTURES/deadline.py</span></code></p></li>
+<li><p>Regex to match: <code class="docutils literal notranslate"><span class="pre">\f</span></code></p></li>
+</ul>
+</li>
+<li><p>Upload the following script as a fixture with the name <code class="docutils literal notranslate"><span class="pre">deadline.py</span></code>:</p>
+<div class="highlight-python notranslate" id="deadline-py"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+
+<span class="n">ONE_DAY</span>      <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="n">cg_info</span>      <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;CG_INFO&#39;</span><span class="p">])</span>
+<span class="n">deadline</span>     <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromisoformat</span><span class="p">(</span><span class="n">cg_info</span><span class="p">[</span><span class="s1">&#39;deadline&#39;</span><span class="p">])</span>
+<span class="n">submitted_at</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromisoformat</span><span class="p">(</span><span class="n">cg_info</span><span class="p">[</span><span class="s1">&#39;submitted_at&#39;</span><span class="p">])</span>
+<span class="n">days_late</span>    <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">((</span><span class="n">submitted_at</span> <span class="o">-</span> <span class="n">deadline</span><span class="p">)</span> <span class="o">/</span> <span class="n">ONE_DAY</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">days_late</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;submitted on time :)&#39;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="k">elif</span> <span class="n">days_late</span> <span class="o">&lt;=</span> <span class="mi">10</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> days late&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">days_late</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">days_late</span> <span class="o">/</span> <span class="mi">10</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;very late, maximum penalty&#39;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</div>
+<div class="admonition example-directive">
+<div class="first"><p class="first admonition-title" id="Example-generating-random-inputs">Example: generating random inputs<a class="headerlink" href="#Example-generating-random-inputs" title="Permalink to this example">¶</a><p></div><p>You want to generate a list of 100 random numbers as inputs to the tests.</p>
+<ol class="last arabic">
+<li><p>Create a Python script named <code class="docutils literal notranslate"><span class="pre">generate.py</span></code> to generate the inputs. It
+uses the <code class="docutils literal notranslate"><span class="pre">student_id</span></code> key of <code class="docutils literal notranslate"><span class="pre">$CG_INFO</span></code> to seed the random number
+generator.  This has the consequence that the generated list of numbers
+stays the same between submissions of the same student. Upload the
+script created in step 1 as a fixture.</p>
+<div class="highlight-python notranslate" id="generate-py"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">random</span>
+
+<span class="n">info</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;CG_INFO&#39;</span><span class="p">])</span>
+<span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;student_id&#39;</span><span class="p">])</span>
+
+<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">())</span>
+</pre></div>
+</div>
+</li>
+<li><p>Create a run program step and pipe the generated numbers to the
+student’s code with <code class="docutils literal notranslate"><span class="pre">python3.7</span> <span class="pre">generate.py</span> <span class="pre">|</span> <span class="pre">my_test_script</span></code>.</p></li>
+</ol>
+</div>
 </div>
 </div>
 

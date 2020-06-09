@@ -22,6 +22,12 @@ Version *Next*
   <https://github.com/CodeGra-de/CodeGra.de/pull/1277>`__. This makes the
   integration in the LMS even better, allowing better workflows for group
   assignments and easier assignment creation.
+- Include submission information in AutoTest environment `(#1361)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1361>`__. Some information
+  about a submission is now available in AutoTest as a JSON object that is
+  stored in an environment variables. This is useful to automatically subtract
+  points based on the submission date and deadline, or to generate a unique
+  input for each submission or student.
 
 **Updates**
 

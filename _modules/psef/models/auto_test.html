@@ -264,6 +264,14 @@
         <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;FALSE&#39;</span><span class="p">,</span>
     <span class="p">)</span>
 
+    <span class="n">submission_info</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;submission_info&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;FALSE&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+
     <span class="n">auto_test_set_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;auto_test_set_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
@@ -302,6 +310,7 @@
             <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
             <span class="s1">&#39;steps&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">get_instructions</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">steps</span><span class="p">],</span>
             <span class="s1">&#39;network_disabled&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">network_disabled</span><span class="p">,</span>
+            <span class="s1">&#39;submission_info&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">submission_info</span><span class="p">,</span>
         <span class="p">}</span></div>
 
     <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
@@ -310,6 +319,7 @@
             <span class="s1">&#39;steps&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">,</span>
             <span class="s1">&#39;rubric_row&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">rubric_row</span><span class="p">,</span>
             <span class="s1">&#39;network_disabled&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">network_disabled</span><span class="p">,</span>
+            <span class="s1">&#39;submission_info&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">submission_info</span><span class="p">,</span>
             <span class="s1">&#39;command_time_limit&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">command_time_limit</span><span class="p">,</span>
         <span class="p">}</span>
 
@@ -367,6 +377,7 @@
         <span class="k">return</span> <span class="n">AutoTestSuite</span><span class="p">(</span>
             <span class="n">rubric_row</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rubric_row</span><span class="p">,</span>
             <span class="n">network_disabled</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">network_disabled</span><span class="p">,</span>
+            <span class="n">submission_info</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">submission_info</span><span class="p">,</span>
             <span class="n">steps</span><span class="o">=</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">],</span>
             <span class="n">command_time_limit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">command_time_limit</span><span class="p">,</span>
         <span class="p">)</span></div>
@@ -1206,6 +1217,8 @@
             <span class="s1">&#39;auto_test_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_test_id</span><span class="p">,</span>
             <span class="s1">&#39;result_ids&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">r</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">],</span>
             <span class="s1">&#39;student_ids&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">r</span><span class="o">.</span><span class="n">work</span><span class="o">.</span><span class="n">user_id</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">],</span>
+            <span class="s1">&#39;student_infos&#39;</span><span class="p">:</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_student_info</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">],</span>
+            <span class="s1">&#39;assignment_info&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_assignment_info</span><span class="p">(),</span>
             <span class="s1">&#39;sets&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">get_instructions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">sets</span><span class="p">],</span>
             <span class="s1">&#39;fixtures&#39;</span><span class="p">:</span> <span class="p">[(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">fixtures</span><span class="p">],</span>
             <span class="s1">&#39;setup_script&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">setup_script</span><span class="p">,</span>
@@ -1215,6 +1228,32 @@
             <span class="c1"># TODO: Set this in a more intelligent way</span>
             <span class="s1">&#39;poll_after_done&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
         <span class="p">}</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_assignment_info</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">auto_test_module</span><span class="o">.</span><span class="n">AssignmentInformation</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get information about the assignment that should be available in the</span>
+<span class="sd">        AutoTest environment.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">deadline</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">deadline</span>
+
+        <span class="k">if</span> <span class="n">deadline</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;deadline&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;deadline&#39;</span><span class="p">:</span> <span class="n">deadline</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()}</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_get_student_info</span><span class="p">(</span>
+        <span class="n">result</span><span class="p">:</span> <span class="n">AutoTestResult</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">auto_test_module</span><span class="o">.</span><span class="n">StudentInformation</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get information about the submission that should be available in the</span>
+<span class="sd">        AutoTest environment.</span>
+
+<span class="sd">        :param result: The result to get the information for.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;result_id&#39;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="s1">&#39;student_id&#39;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">work</span><span class="o">.</span><span class="n">user_id</span><span class="p">,</span>
+            <span class="s1">&#39;created_at&#39;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">work</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+        <span class="p">}</span>
 
     <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
         <span class="k">return</span> <span class="p">{</span>

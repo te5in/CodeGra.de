@@ -245,3 +245,93 @@ AutoTest, such as compiled objects or IPython notebooks. By default generated
 files are not saved, but they will be when you write them to the ``$AT_OUTPUT``
 directory. The files will then be accessible through the "Autotest output"
 section of the file browser in the Code Viewer.
+
+How to access submission metadata from the tests
+--------------------------------------------------
+
+You may want to access some submission metadata in your tests, for example to
+automatically subtract points when a student submitted after the deadline, or
+you maybe you need to generate input for the tests but want it to be different
+for each student. To enable this you first need to check the "Submission
+information" checkbox in the "Advanced options" list at the bottom of the
+AutoTest category editing window.
+
+When you have done this, all steps in the current category will have an extra
+environment variable named ``$CG_INFO`` defined. This variable contains a JSON
+object with the following keys:
+
+* ``deadline`` The deadline of this assignment.
+* ``submitted_at`` The date and time the student submitted their work.
+* ``result_id`` An identifier unique to this AutoTest result. This value changes
+  every time the AutoTest is run, even if it is run multiple times for the same
+  submission of the same student.
+* ``student_id`` An identifier unique to the student for which the AutoTest is
+  run. This value stays constant between runs of different submissions by the
+  same student.
+
+.. example:: subtracting points for late submissions
+
+    You want to automatically subtract 1 point from the total rubric score for
+    each day after the deadline, up to a maximum of 10 points subtracted.
+
+    1. Set up a rubric category with 11 items ranging from -10 to 0.
+    2. Create a new AutoTest category linked to the new rubric category, and
+       check the  "Submission information" checkbox under "Advanced options".
+    3. Add a "Capture points" step with an appropriate name and the following
+       settings:
+
+       * Program to test: ``python3.7 $FIXTURES/deadline.py``
+       * Regex to match: ``\f``
+
+    4. Upload the following script as a fixture with the name ``deadline.py``:
+
+       .. code-block:: python
+          :name: deadline-py
+
+          import os
+          import json
+          import math
+          import datetime
+
+          ONE_DAY      = datetime.timedelta(days=1)
+
+          cg_info      = json.loads(os.environ['CG_INFO'])
+          deadline     = datetime.datetime.fromisoformat(cg_info['deadline'])
+          submitted_at = datetime.datetime.fromisoformat(cg_info['submitted_at'])
+          days_late    = math.ceil((submitted_at - deadline) / ONE_DAY)
+
+          if days_late <= 0:
+              print('submitted on time :)')
+              print(1.0)
+          elif days_late <= 10:
+              print('{} days late'.format(days_late))
+              print(1 - days_late / 10)
+          else:
+              print('very late, maximum penalty')
+              print(0.0)
+
+.. example:: generating random inputs
+
+    You want to generate a list of 100 random numbers as inputs to the tests.
+
+    1. Create a Python script named ``generate.py`` to generate the inputs. It
+       uses the ``student_id`` key of ``$CG_INFO`` to seed the random number
+       generator.  This has the consequence that the generated list of numbers
+       stays the same between submissions of the same student. Upload the
+       script created in step 1 as a fixture.
+
+       .. code-block:: python
+          :name: generate-py
+
+          import os
+          import json
+          import random
+
+          info = json.loads(os.environ['CG_INFO'])
+          random.seed(info['student_id'])
+
+          for _ in range(100):
+              print(random.random())
+
+    2. Create a run program step and pipe the generated numbers to the
+       student's code with ``python3.7 generate.py | my_test_script``.
