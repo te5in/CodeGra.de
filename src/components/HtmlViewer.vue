@@ -68,6 +68,8 @@
             <input type="submit">
         </form>
 
+        <div class="resizing-overlay"
+             v-if="resizing"/>
         <iframe name="myIframe"
                 src=""
                 ref="iframe"
@@ -126,6 +128,10 @@ export default {
         showInlineFeedback: {
             type: Boolean,
             default: true,
+        },
+        resizing: {
+            type: Boolean,
+            default: false,
         },
     },
 
@@ -371,5 +377,11 @@ export default {
         flex: 1;
         text-align: right;
     }
+}
+
+.resizing-overlay {
+    position: absolute;
+    height: 100%;
+    width: 100%;
 }
 </style>
