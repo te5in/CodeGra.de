@@ -4,7 +4,6 @@ import moment from 'moment';
 import { hasAttr, getProps } from './typed';
 
 export * from './typed';
-export * from './error';
 
 export function formatTimePart(num) {
     return `${num < 10 ? '0' : ''}${num}`;

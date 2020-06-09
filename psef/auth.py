@@ -931,6 +931,40 @@ def ensure_can_edit_members_of_group(
         )
 
 
+class WorkPermissions(CoursePermissionChecker):
+    """The permission checker for :class:`psef.models.Work`.
+    """
+    __slots__ = ('work', )
+
+    def __init__(self, work: 'psef.models.Work'):
+        super().__init__(course_id=work.assignment.course_id)
+        self.work = work
+
+    # TODO: We should move the functions `ensure_can_see_grade`,
+    # `ensure_can_see_general_feedback`, and `ensure_can_see_linter_feedback`
+    # into this class.
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see_grade(self) -> None:
+        """Ensure the current user can see the grade of the work.
+        """
+        ensure_can_see_grade(self.work)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see_general_feedback(
+        self, user: t.Optional['psef.models.User'] = None
+    ) -> None:
+        """Ensure the given user can see the general feedback of the work.
+        """
+        ensure_can_see_general_feedback(self.work, user)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see_linter_feedback(self) -> None:
+        """Ensure the current user can see the linter feedback of the work.
+        """
+        ensure_can_see_linter_feedback(self.work)
+
+
 class FeedbackBasePermissions(CoursePermissionChecker):
     """The permission checker for :class:`psef.models.CommentBase`.
     """

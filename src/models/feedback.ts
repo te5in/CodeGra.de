@@ -360,7 +360,7 @@ export class Feedback {
     readonly user: { [key: string]: { [key: number]: FeedbackLine } };
 
     constructor(
-        public readonly general: string | null,
+        public readonly general: string,
         public readonly linter: LinterFeedbackServerData,
         userLines: FeedbackLine[],
     ) {
@@ -383,7 +383,7 @@ export class Feedback {
             });
         }
 
-        const general = feedback?.general ?? null;
+        const general = feedback?.general ?? '';
         const linter = feedback?.linter ?? {};
 
         const userLines =
@@ -432,5 +432,22 @@ export class Feedback {
 
     getFeedbackLine(fileId: string, lineNumber: number): FeedbackLine {
         return this.user[fileId][lineNumber];
+    }
+
+    updateGeneralFeedback(general: string) {
+        return new Feedback(general, this.linter, [...this.userLines]);
+    }
+
+    countEntries(): number {
+        return Object.values(this.user).reduce(
+            (acc, file) =>
+                Object.values(file).reduce((innerAcc, feedback) => {
+                    if (!feedback.isEmpty && feedback.replies.some(r => !r.isEmpty)) {
+                        return innerAcc + 1;
+                    }
+                    return innerAcc;
+                }, acc),
+            this.general.length > 0 ? 1 : 0,
+        );
     }
 }

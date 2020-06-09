@@ -247,6 +247,188 @@ def test_get_course_assignments(
             assert len(expected) == len(res) == len(found)
 
 
+def test_get_latest_submissions_of_user(
+    describe, logged_in, session, test_client, error_template, admin_user,
+    student_user
+):
+    with describe('setup'), logged_in(admin_user):
+        course_id = helpers.get_id(helpers.create_course(test_client))
+
+        teacher = helpers.create_user_with_role(session, 'Teacher', course_id)
+        student = helpers.create_user_with_role(session, 'Student', course_id)
+        other_student = helpers.create_user_with_role(
+            session,
+            'Student',
+            course_id,
+        )
+
+        assigs = {}
+        for state in ['hidden', 'open', 'done']:
+            assig = helpers.create_assignment(
+                test_client,
+                course_id=course_id,
+                state=state,
+                deadline='tomorrow',
+            )
+            assigs[assig['id']] = assig
+
+        all_subs = {
+            str(assig_id): [
+                helpers.create_submission(
+                    test_client,
+                    assignment_id=assig_id,
+                    for_user=student,
+                ) for _ in range(2)
+            ]
+            for assig_id in assigs
+        }
+
+        latest_subs = {
+            assig_id: assig_subs[-1:]
+            for assig_id, assig_subs in all_subs.items()
+        }
+
+        def get_visible(subs):
+            return {
+                str(assig_id): subs[str(assig_id)]
+                for assig_id, assig in assigs.items()
+                if assig['state'] != 'hidden'
+            }
+
+        all_visible_subs = get_visible(all_subs)
+
+        latest_visible_subs = get_visible(latest_subs)
+
+        no_subs = {str(assig_id): [] for assig_id in assigs}
+
+        deleted_assig_id = helpers.get_id(
+            helpers.create_assignment(
+                test_client,
+                course_id=course_id,
+                state='done',
+                deadline='tomorrow',
+            )
+        )
+        helpers.create_submission(
+            test_client,
+            assignment_id=deleted_assig_id,
+            for_user=student,
+        )
+        test_client.req(
+            'delete',
+            f'/api/v1/assignments/{deleted_assig_id}',
+            204,
+        )
+        base_url = f'/api/v1/courses/{course_id}'
+
+    with describe('nonexisting course'), logged_in(teacher):
+        test_client.req(
+            'get',
+            f'/api/v1/courses/-1/users/{student.id}/submissions/',
+            404,
+            result=error_template,
+        )
+
+    with describe('nonexisting user'), logged_in(teacher):
+        test_client.req(
+            'get',
+            f'/api/v1/courses/{course_id}/users/-1/submissions/',
+            404,
+            result=error_template,
+        )
+
+    with describe('user not in course'), logged_in(teacher):
+        test_client.req(
+            'get',
+            f'{base_url}/users/{student_user.id}/submissions/',
+            400,
+            result=error_template,
+        )
+
+    with describe('teacher should get all submissions'), logged_in(teacher):
+        test_client.req(
+            'get',
+            f'{base_url}/users/{student.id}/submissions/',
+            200,
+            result=all_subs,
+        )
+        test_client.req(
+            'get',
+            f'{base_url}/users/{other_student.id}/submissions/',
+            200,
+            result=no_subs,
+        )
+
+    with describe('student should not get submissions of other student'
+                  ), logged_in(student):
+        test_client.req(
+            'get',
+            f'{base_url}/users/{other_student.id}/submissions/',
+            403,
+            result=error_template,
+        )
+
+    with describe('student should get submissions to visible assignments'
+                  ), logged_in(student):
+        res = test_client.req(
+            'get',
+            f'{base_url}/users/{student.id}/submissions/',
+            200,
+            result=all_visible_subs,
+        )
+
+    with describe('student should not get other student submissions'
+                  ), logged_in(student):
+        test_client.req(
+            'get',
+            f'{base_url}/users/{other_student.id}/submissions/',
+            403,
+            result=error_template,
+        )
+
+    with describe('should not include deleted assignment'):
+        with logged_in(teacher):
+            res = test_client.req(
+                'get',
+                f'{base_url}/users/{student.id}/submissions/',
+                200,
+                result=all_subs,
+            )
+
+        with logged_in(student):
+            res = test_client.req(
+                'get',
+                f'{base_url}/users/{student.id}/submissions/',
+                200,
+                result=all_visible_subs,
+            )
+
+    with describe('should respect the latest_only query parameter'):
+        with logged_in(teacher):
+            res = test_client.req(
+                'get',
+                f'{base_url}/users/{student.id}/submissions/?latest_only',
+                200,
+                result=latest_subs,
+            )
+            res = test_client.req(
+                'get', (
+                    f'{base_url}/users/{other_student.id}/submissions'
+                    '/?latest_only'
+                ),
+                200,
+                result=no_subs
+            )
+
+        with logged_in(student):
+            res = test_client.req(
+                'get',
+                f'{base_url}/users/{student.id}/submissions/?latest_only',
+                200,
+                result=latest_visible_subs,
+            )
+
+
 @pytest.mark.parametrize(
     'course_n,users',
     [(

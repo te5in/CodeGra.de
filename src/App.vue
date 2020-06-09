@@ -225,14 +225,6 @@ export default {
     }
 }
 
-.ie-banner {
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
-    right: 1rem;
-    z-index: 100;
-}
-
 .frame-border {
     position: fixed;
     top: 0;
@@ -240,7 +232,9 @@ export default {
     right: 0;
     bottom: 0;
     pointer-events: none;
-    z-index: 1000;
+
+    // Must be greater than .sticky-top and .local-header
+    z-index: 1030;
 
     @{dark-mode} {
         display: none;
