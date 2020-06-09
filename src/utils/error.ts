@@ -1,6 +1,6 @@
 import { AxiosError } from 'axios';
 
-import { hasAttr, AssertionError } from '@/utils/typed';
+import { hasAttr, AssertionError, PartialRecord } from '@/utils/typed';
 
 function isAxiosError(err: Object): err is AxiosError<Object> {
     const attr = 'isAxiosError';
@@ -89,7 +89,7 @@ function statusPattern(status: number): HttpStatusPattern {
 // that status code occurs.
 // TODO: Maybe it should also be possible to filter on the error codes defined
 // in psef/exceptions.py::APICodes.
-type HttpErrorHandlers<T> = Record<
+type HttpErrorHandlers<T> = PartialRecord<
     number | HttpStatusPattern | 'default' | 'noResponse',
     HttpErrorHandler<T>
 >;
@@ -98,13 +98,14 @@ export function handleHttpError<T>(handlers: HttpErrorHandlers<T>, err: AxiosErr
     const status = err.response?.status;
 
     if (status != null) {
-        if (hasAttr(handlers, status.toString(10))) {
-            return handlers[status](err);
+        const exactHandler = handlers[status];
+        if (exactHandler != null) {
+            return exactHandler(err);
         }
 
-        const pat = statusPattern(status);
-        if (hasAttr(handlers, pat)) {
-            return handlers[pat](err);
+        const patternHandler = handlers[statusPattern(status)];
+        if (patternHandler != null) {
+            return patternHandler(err);
         }
 
         const defaultHandler = handlers?.default;

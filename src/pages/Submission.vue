@@ -149,6 +149,8 @@
                       allow-resize
                       :split-to="$root.$isLargeWindow ? 'columns' : 'rows'"
                       @update:size="splitRatio = $event"
+                      :on-drag-started="() => { resizingFileViewer = true; }"
+                      :on-drag-finished="() => { resizingFileViewer = false; }"
                       :size="splitRatio"
                       :step="50"
                       units="percents"
@@ -167,7 +169,8 @@
                     :show-whitespace="showWhitespace"
                     :show-inline-feedback="selectedCat === 'code' && showInlineFeedback && revision === 'student'"
                     :language="selectedLanguage"
-                    @language="languageChanged" />
+                    @language="languageChanged"
+                    :resizing="resizingFileViewer"/>
 
                 <div v-if="course.isStudent"
                      slot="secondPane"
@@ -305,6 +308,7 @@ export default {
             selectedLanguage: 'Default',
             showInlineFeedback: true,
             currentFile: null,
+            resizingFileViewer: false,
 
             error: null,
         };

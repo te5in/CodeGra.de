@@ -20,7 +20,7 @@
     button-position="bottom-right">
     <template v-slot:default="slotProps">
         <div class="p-relative d-flex flex-grow flex-column h-100">
-            <div class="resize-div" v-if="slotProps.resizing" />
+            <div class="resize-div" v-if="resizing || slotProps.resizing" />
             <object :data="pdfURL"
                     type="application/pdf"
                     width="100%"
@@ -73,6 +73,10 @@ export default {
         },
         fileContent: {
             required: true,
+        },
+        resizing: {
+            type: Boolean,
+            default: false,
         },
     },
 

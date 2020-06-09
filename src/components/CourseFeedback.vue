@@ -287,10 +287,10 @@ export default class CourseFeedback extends Vue {
         (args: { assignmentId: number, submissionId: number }) => Promise<Feedback>;
 
     loadRubric!:
-        (args: { assignmentId: number }) => Promise<Feedback>;
+        (args: { assignmentId: number }) => Promise<void>;
 
     loadRubricResult!:
-        (args: { assignmentId: number, submissionId: number }) => Promise<Feedback>;
+        (args: { assignmentId: number, submissionId: number }) => Promise<void>;
 
     @Prop({ required: true })
     course!: { id: number };
@@ -545,9 +545,9 @@ export default class CourseFeedback extends Vue {
                         }),
                         this.loadRubric({
                             assignmentId: sub.assignmentId,
-                        }).catch(this.$utils.makeHttpErrorHandler({
+                        }).catch(this.$utils.makeHttpErrorHandler<void>({
                             // Assignment may not have a rubric.
-                            404: () => ({}),
+                            404: () => {},
                         })),
                         this.loadRubricResult({
                             assignmentId: sub.assignmentId,
