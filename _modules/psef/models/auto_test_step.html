@@ -27,7 +27,7 @@
         <script src="../../../_static/underscore.js"></script>
         <script src="../../../_static/doctools.js"></script>
         <script src="../../../_static/language_data.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../../../_static/js/theme.js"></script>
 
@@ -279,17 +279,17 @@
     <span class="n">timed_out</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
     <span class="n">skipped</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
 
-    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="AutoTestStepResultState.get_not_finished_states"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test_step.AutoTestStepResultState.get_not_finished_states">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">get_not_finished_states</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="s1">&#39;AutoTestStepResultState&#39;</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Get all states that are not finished.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">not_started</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">running</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">not_started</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">running</span><span class="p">]</span></div>
 
-    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="AutoTestStepResultState.get_finished_states"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test_step.AutoTestStepResultState.get_finished_states">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">get_finished_states</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Collection</span><span class="p">[</span><span class="s1">&#39;AutoTestStepResultState&#39;</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Get all states that are considered finished.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">{</span><span class="bp">cls</span><span class="o">.</span><span class="n">skipped</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">timed_out</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">failed</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">passed</span><span class="p">}</span></div>
+        <span class="k">return</span> <span class="p">{</span><span class="bp">cls</span><span class="o">.</span><span class="n">skipped</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">timed_out</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">failed</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">passed</span><span class="p">}</span></div></div>
 
 
 <div class="viewcode-block" id="AutoTestStepBase"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test_step.AutoTestStepBase">[docs]</a><span class="k">class</span> <span class="nc">AutoTestStepBase</span><span class="p">(</span><span class="n">Base</span><span class="p">,</span> <span class="n">TimestampMixin</span><span class="p">,</span> <span class="n">IdMixin</span><span class="p">):</span>

@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Categories &mdash; CodeGrade v1.19.0 documentation</title>
+  <title>psef.lti &mdash; CodeGrade v1.19.0 documentation</title>
   
 
   
@@ -38,8 +38,6 @@
   <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="Tests" href="tests.html" />
-    <link rel="prev" title="Levels" href="levels.html" />
     <link href="../../_static/style.css" rel="stylesheet" type="text/css">
 
 </head>
@@ -115,31 +113,18 @@
 <li class="toctree-l1"><a class="reference internal" href="../../guides/use-codegrade-filesystem.html">Use the CodeGrade Filesystem to locally mount CodeGrade</a></li>
 </ul>
 <p class="caption"><span class="caption-text">User Documentation</span></p>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview of CodeGrade</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../codeviewer.html">Code Viewer</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../management.html">Course and Assignment Management</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../plagiarism.html">Plagiarism Detection</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../groups.html">Groups</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../permissions.html">Permissions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../preferences.html">Settings and Site Preferences</a></li>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user/overview.html">Overview of CodeGrade</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user/codeviewer.html">Code Viewer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user/management.html">Course and Assignment Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user/plagiarism.html">Plagiarism Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user/groups.html">Groups</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user/permissions.html">Permissions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user/preferences.html">Settings and Site Preferences</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://fs-docs.codegra.de">Filesystem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../lms.html">LMS Integration</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="overview.html">AutoTest</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="setup.html">Setup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="levels.html">Levels</a></li>
-<li class="toctree-l2 current"><a class="current reference internal" href="#">Categories</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#setup">Setup</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#running">Running</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="tests.html">Tests</a></li>
-<li class="toctree-l2"><a class="reference internal" href="continuous-feedback.html">Continuous Feedback</a></li>
-<li class="toctree-l2"><a class="reference internal" href="running-autotest.html">Running AutoTest</a></li>
-<li class="toctree-l2"><a class="reference internal" href="student-experience.html">Student Experience</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../analytics-dashboard.html">Analytics Dashboard</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user/lms.html">LMS Integration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user/autotest/overview.html">AutoTest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user/analytics-dashboard.html">Analytics Dashboard</a></li>
 </ul>
 <p class="caption"><span class="caption-text">About CodeGrade</span></p>
 <ul>
@@ -193,16 +178,14 @@
     
       <li><a href="../../index.html">Docs</a> &raquo;</li>
         
-          <li><a href="overview.html">AutoTest</a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
         
-      <li>Categories</li>
+          <li><a href="../psef.html">psef</a> &raquo;</li>
+        
+      <li>psef.lti</li>
     
     
       <li class="wy-breadcrumbs-aside">
-        
-            
-            <a href="../../_sources/user/autotest/categories.rst.txt" rel="nofollow"> View page source</a>
-          
         
       </li>
     
@@ -214,62 +197,45 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="categories">
-<span id="autotest-categories"></span><h1>Categories<a class="headerlink" href="#categories" title="Permalink to this headline">¶</a></h1>
-<p>Within a <a class="reference internal" href="levels.html#autotest-levels"><span class="std std-ref">level</span></a> you can create a Category. Each Category
-has to be connected to a Rubric Category (see <a class="reference internal" href="setup.html#autotest-setup-rubric-calculation"><span class="std std-ref">here</span></a> for information how this rubric will be
-filled in). By doing this, AutoTest is feedback oriented. We encourage teachers
-to create meaningful Rubric Categories and think about how to group their tests
-accordingly. By grouping tests into AutoTest Categories that are connected to a
-Rubric Category, this also means that students know where tests belong and how
-they got their grade for an assignment.</p>
-<div class="section" id="setup">
-<h2>Setup<a class="headerlink" href="#setup" title="Permalink to this headline">¶</a></h2>
-<p>Press the <strong>Add Category</strong> button inside a level to create a new Category within
-your AutoTest configuration.</p>
-<p>Firstly, select the Rubric Category you want to connect it to.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Make sure to create your Rubric Categories before creating your AutoTest
-Categories.</p>
-</div>
-<p>Next, you can add tests to this category. You have several different types of
-tests you can add to this.</p>
-<ul class="simple">
-<li><p><strong>IO Tests</strong> for simple input/output tests.</p></li>
-<li><p><strong>Run Program Tests</strong> to run a program and check if the program exited
-successfully.</p></li>
-<li><p><strong>Capture Points Tests</strong> to run a custom test program (such as a unit test)
-which captures a number between 0 and 1 and converts this to an amount of
-points.</p></li>
-<li><p><strong>Check Points</strong>, which check if the percentage of points gotten before this
-special test is high enough to continue with the tests after the Check Points
-test. This makes it possible to have certain tests only execute if tests
-before it were successful.</p></li>
-</ul>
-</div>
-<div class="section" id="running">
-<h2>Running<a class="headerlink" href="#running" title="Permalink to this headline">¶</a></h2>
-<p>When AutoTest is executed, each Category starts with a fresh snapshot of the
-environment setup. This means that Categories run independently of each other.
-Tests within the Category are executed in order.</p>
-</div>
-</div>
+  <h1>Source code for psef.lti</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module implements the handling of LTI messages.</span>
 
+<span class="sd">It contains two submodules for the supported LTI version: :mod:`.v1_1` for LTI</span>
+<span class="sd">version 1.1 and :mod:`.v1_3` for LTI version 1.3.</span>
+
+<span class="sd">SPDX-License-Identifier: AGPL-3.0-only</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">enum</span>
+<span class="kn">import</span> <span class="nn">typing</span> <span class="k">as</span> <span class="nn">t</span>
+
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">PsefFlask</span>
+
+<span class="n">__all__</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+
+<div class="viewcode-block" id="LTIVersion"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.LTIVersion">[docs]</a><span class="k">class</span> <span class="nc">LTIVersion</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The supported LTI version.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">v1_1</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
+    <span class="n">v1_3</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span></div>
+
+
+<div class="viewcode-block" id="init_app"><a class="viewcode-back" href="../../psef_api/psef.html#psef.lti.init_app">[docs]</a><span class="k">def</span> <span class="nf">init_app</span><span class="p">(</span><span class="n">app</span><span class="p">:</span> <span class="n">PsefFlask</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Initialize LTI for the given flask app.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># This import is here to break some cyclic imports.</span>
+    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">v1_1</span><span class="p">,</span> <span class="n">v1_3</span>  <span class="c1"># pylint: disable=import-outside-toplevel</span>
+    <span class="n">v1_1</span><span class="o">.</span><span class="n">init_app</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+    <span class="n">v1_3</span><span class="o">.</span><span class="n">init_app</span><span class="p">(</span><span class="n">app</span><span class="p">)</span></div>
+</pre></div>
 
            </div>
            
           </div>
           <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="tests.html" class="btn btn-neutral float-right" title="Tests" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="levels.html" class="btn btn-neutral float-left" title="Levels" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
-    </div>
   
 
   <hr/>
