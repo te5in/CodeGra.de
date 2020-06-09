@@ -20,6 +20,9 @@ perform.
 
 - **Groups**: Create and/or join groups.
 
+- **Course feedback**: Show an overview of the feedback you received to all
+  assignments of this course.
+
 .. note::
     Some of these are not available when they are not applicable, e.g. when an
     assignment is not set up as a group assignment, the groups button will be

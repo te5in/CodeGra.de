@@ -64,7 +64,8 @@
                        @load="onLoad"
                        @loading="onLoading"
                        @error="onError"
-                       @warning="onWarning" />
+                       @warning="onWarning"
+                       :resizing="resizing"/>
         </template>
     </div>
 </div>
@@ -124,6 +125,10 @@ export default {
         canUseSnippets: {
             type: Boolean,
             required: true,
+        },
+        resizing: {
+            type: Boolean,
+            default: false,
         },
     },
 

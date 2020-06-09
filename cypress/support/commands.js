@@ -665,6 +665,12 @@ Cypress.Commands.add('multiselect', { prevSubject: true }, (subject, items) => {
     });
 });
 
+Cypress.Commands.add('parentsUpto', { prevSubject: true }, (subject, selector) => {
+    // Similar to the builtin parentsUntil, but selects the parent that matches
+    // the selector instead of the last parent that doesn't.
+    return cy.wrap(subject).parentsUntil(selector).parent();
+});
+
 Cypress.Commands.add('shouldReload', fn => {
     // Check that executing the given function causes a page reload.
 

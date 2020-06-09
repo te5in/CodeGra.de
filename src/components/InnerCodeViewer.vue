@@ -78,7 +78,9 @@
                 :total-amount-lines="computedEndLine"
                 :can-use-snippets="canUseSnippets"
                 :submission="submission"
-                v-if="hasFeedback(i - 1)"/>
+                :non-editable="nonEditable"
+                :should-fade-reply="shouldFadeReply"
+                v-if="hasFeedback(i - 1) && shouldRenderThread(feedback[i - 1 + lineFeedbackOffset])"/>
         </li>
         <li class="empty-file"
             v-if="innerCodeLines.length === 1 && innerCodeLines[0] === ''">
@@ -195,6 +197,18 @@ export default {
             type: Number,
             default: UserConfig.maxLines,
         },
+        nonEditable: {
+            type: Boolean,
+            default: false,
+        },
+        shouldRenderThread: {
+            type: Function,
+            default: () => true,
+        },
+        shouldFadeReply: {
+            type: Function,
+            default: () => false,
+        },
     },
 
     data() {
@@ -261,6 +275,7 @@ export default {
 
         canGiveFeedback() {
             return (
+                !this.nonEditable &&
                 this.showInlineFeedback &&
                 this.submission &&
                 FeedbackLine.canAddReply(this.submission)
@@ -387,7 +402,13 @@ export default {
         },
 
         dragStop(event) {
-            if ((this.dragEvent != null || event.button === 0) && !this.movedTooFar(event)) {
+            // Only add a new comment if a) a drag event was started _inside_ the code viewer,
+            // b) the button used is the primary mouse button, and c) The mouse didn't move more
+            // than a few pixels. Expanding the file tree often leads to the mouse cursor being
+            // over the code viewer when the mouse button is released, triggering the creation of
+            // a new reply if any of these conditions weren't there.
+
+            if (this.dragEvent != null && event.button === 0 && !this.movedTooFar(event)) {
                 this.addFeedback(event);
             }
 

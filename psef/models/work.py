@@ -610,11 +610,8 @@ class Work(Base):
         if self.assignment.rubric_rows:
             res['rubric_result'] = self.__rubric_to_json__()
 
-        try:
-            auth.ensure_can_see_general_feedback(self)
-        except PermissionException:
-            pass
-        else:
+        if auth.WorkPermissions(self
+                                ).ensure_may_see_general_feedback.as_bool():
             res['comment'] = self.comment
             if psef.current_user.has_permission(
                 CoursePermission.can_view_feedback_author,

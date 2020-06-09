@@ -12,7 +12,13 @@ export * from 'purify-ts/Either';
 export * from 'purify-ts/EitherAsync';
 export * from 'purify-ts/Maybe';
 
+export * from './error';
+
 export type ValueOf<T> = T[keyof T];
+
+export type PartialRecord<K extends keyof any, T> = {
+    [P in K]?: T;
+};
 
 export function coerceToString(obj: Object | null | undefined): string {
     if (obj == null) return '';
