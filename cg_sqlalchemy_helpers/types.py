@@ -816,6 +816,20 @@ if t.TYPE_CHECKING and MYPY:
                   ) -> DbType[cg_dt_utils.DatetimeWithTimezone]:
         ...
 
+    class ARRAY(t.Generic[T], DbType[t.Tuple[T, ...]]):
+        # We restrict the usage of array to single dimension arrays that are
+        # immutable in Python. We do this because multi dimensional arrays and
+        # mutable arrays have some foot guns and are not necessary at current
+        # moment.
+        def __init__(
+            self,
+            item_type: DbType[T],
+            *,
+            dimensions: Literal[1],
+            as_tuple: Literal[True],
+        ) -> None:
+            ...
+
     class TypeDecorator:
         def __init__(self, *args: object, **kwargs: object) -> None:
             pass
@@ -827,7 +841,7 @@ else:
     from sqlalchemy.ext.hybrid import hybrid_property
     from sqlalchemy.ext.hybrid import Comparator as _Comparator
     from sqlalchemy import TypeDecorator, TIMESTAMP
-    from sqlalchemy.dialects.postgresql import JSONB
+    from sqlalchemy.dialects.postgresql import JSONB, ARRAY
     from citext import CIText as _CIText
 
     class CIText(_CIText):
