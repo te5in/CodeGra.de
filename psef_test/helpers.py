@@ -601,6 +601,7 @@ def create_auto_test(
                     ],
                     'rubric_row_id': rubric[rubric_index]['id'],
                     'network_disabled': bool(idx2),
+                    'submission_info': bool(idx2),
                 },
             )
 
@@ -718,6 +719,7 @@ def create_auto_test_from_dict(test_client, assig, at_dict):
                     'steps': prepare_steps(at_suite['steps']),
                     'rubric_row_id': get_id(rubric[rubric_index]),
                     'network_disabled': at_suite.get('network_disabled', True),
+                    'submission_info': at_suite.get('submission_info', False),
                 },
             )
             rubric_index += 1

@@ -64,6 +64,14 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
         server_default='FALSE',
     )
 
+    submission_info = db.Column(
+        'submission_info',
+        db.Boolean,
+        nullable=False,
+        default=False,
+        server_default='FALSE',
+    )
+
     auto_test_set_id = db.Column(
         'auto_test_set_id',
         db.Integer,
@@ -102,6 +110,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
             'id': self.id,
             'steps': [s.get_instructions() for s in steps],
             'network_disabled': self.network_disabled,
+            'submission_info': self.submission_info,
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:
@@ -110,6 +119,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
             'steps': self.steps,
             'rubric_row': self.rubric_row,
             'network_disabled': self.network_disabled,
+            'submission_info': self.submission_info,
             'command_time_limit': self.command_time_limit,
         }
 
@@ -167,6 +177,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
         return AutoTestSuite(
             rubric_row=self.rubric_row,
             network_disabled=self.network_disabled,
+            submission_info=self.submission_info,
             steps=[s.copy() for s in self.steps],
             command_time_limit=self.command_time_limit,
         )
@@ -1006,6 +1017,8 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             'auto_test_id': self.auto_test_id,
             'result_ids': [r.id for r in results],
             'student_ids': [r.work.user_id for r in results],
+            'student_infos': [self._get_student_info(r) for r in results],
+            'assignment_info': self._get_assignment_info(),
             'sets': [s.get_instructions(self) for s in self.auto_test.sets],
             'fixtures': [(f.name, f.id) for f in self.auto_test.fixtures],
             'setup_script': self.auto_test.setup_script,
@@ -1014,6 +1027,32 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             'run_setup_script': self.auto_test.run_setup_script,
             # TODO: Set this in a more intelligent way
             'poll_after_done': True,
+        }
+
+    def _get_assignment_info(self) -> auto_test_module.AssignmentInformation:
+        """Get information about the assignment that should be available in the
+        AutoTest environment.
+        """
+        deadline = self.auto_test.assignment.deadline
+
+        if deadline is None:
+            return {'deadline': None}
+        else:
+            return {'deadline': deadline.isoformat()}
+
+    @staticmethod
+    def _get_student_info(
+        result: AutoTestResult
+    ) -> auto_test_module.StudentInformation:
+        """Get information about the submission that should be available in the
+        AutoTest environment.
+
+        :param result: The result to get the information for.
+        """
+        return {
+            'result_id': result.id,
+            'student_id': result.work.user_id,
+            'created_at': result.work.created_at.isoformat(),
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:

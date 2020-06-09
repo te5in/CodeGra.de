@@ -376,6 +376,7 @@ def test_create_auto_test_suite(basic, test_client, logged_in, describe):
                 'steps': [],
                 'rubric_row_id': rubric[0]['id'],
                 'network_disabled': False,
+                'submission_info': False,
             }
         )
 
@@ -391,6 +392,7 @@ def test_create_auto_test_suite(basic, test_client, logged_in, describe):
                         'id': int,
                         'rubric_row': {**rubric[0], 'locked': 'auto_test'},
                         'network_disabled': False,
+                        'submission_info': False,
                         'steps': [],
                         # This is set in the conftest.py
                         'command_time_limit': 3,
@@ -409,6 +411,7 @@ def test_create_auto_test_suite(basic, test_client, logged_in, describe):
                 'steps': [],
                 'rubric_row_id': rubric[0]['id'],
                 'network_disabled': False,
+                'submission_info': False,
             }
         )
 
@@ -1118,13 +1121,21 @@ def test_update_auto_test_set(basic, test_client, logged_in, describe):
         update_set(stop_points=0.5)
         assert test['sets'][0]['stop_points'] == 0.5
 
-    with describe('Set internet can be enabled and disabled'
+    with describe('Suite internet can be enabled and disabled'
                   ), logged_in(teacher):
         update_suite(network_disabled=False)
         assert suite['network_disabled'] is False
 
         update_suite(network_disabled=True)
         assert suite['network_disabled'] is True
+
+    with describe('Suite submission info can be enabled and disabled'
+                  ), logged_in(teacher):
+        update_suite(submission_info=True)
+        assert suite['submission_info'] is True
+
+        update_suite(submission_info=False)
+        assert suite['submission_info'] is False
 
     with describe('Remove steps'), logged_in(teacher):
         assert suite['steps']
@@ -1281,6 +1292,7 @@ def test_update_locked_rubric(
                     'steps': [helpers.get_auto_test_io_step()],
                     'rubric_row_id': rubric[0]['id'],
                     'network_disabled': True,
+                    'submission_info': False,
                 },
                 include_response=True,
             )
@@ -2622,3 +2634,135 @@ def test_running_old_submission(
         assert session.query(
             m.AutoTestResult
         ).filter_by(work_id=res[-1]['work_id']).one().state.name == 'passed'
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('deadline', ['tomorrow', None])
+def test_submission_info_env_vars(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session, deadline,
+    stub_function_class, assert_similar, monkeypatch_for_run, admin_user
+):
+    with describe('setup'):
+        course, _, teacher, student = basic
+
+        with logged_in(admin_user):
+            assig = helpers.create_assignment(
+                test_client,
+                course,
+                deadline=deadline,
+            )
+
+        with logged_in(teacher):
+            # yapf: disable
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig['id'], {
+                    'sets': [{
+                        'suites': [{
+                            'submission_info': True,
+                            'steps': [{
+                                'run_p': 'echo "$CG_INFO"',
+                                'name': 'With info',
+                            }]
+                        }],
+                    }, {
+                        'suites': [{
+                            'submission_info': False,
+                            'steps': [{
+                                'run_p': 'echo "$CG_INFO"',
+                                'name': 'Without info',
+                            }]
+                        }],
+                    }],
+                }
+            )
+            # yapf: enable
+
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+    with describe('start_auto_test'):
+        t = m.AutoTest.query.get(test['id'])
+        with logged_in(teacher):
+            if deadline is None:
+                work = helpers.create_submission(
+                    test_client, assig['id'], is_test_submission=True
+                )
+            else:
+                work = helpers.create_submission(
+                    test_client, assig['id'], for_user=student.username
+                )
+
+        with logged_in(teacher):
+            run_id = test_client.req('post', f'{url}/runs/', 200)['id']
+            session.commit()
+
+        monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, )
+        )
+        thread.start()
+        thread.join()
+
+        res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
+                                                        ).one()
+
+    with describe('should contain expected data only when enabled'):
+        expected = {
+            'deadline': None if deadline is None else assig['deadline'],
+            'submitted_at': work['created_at'],
+            'result_id': res.id,
+            'student_id': work['user']['id'],
+        }
+
+        assert len(res.step_results) == 2
+
+        for step_result in res.step_results:
+            step = step_result.step
+            output = json.loads(step_result.log['stdout'])
+
+            if step.suite.submission_info:
+                assert output == expected
+            else:
+                assert output == {}
+
+
+def test_broker_extra_env_vars(describe):
+    cur_user = getpass.getuser()
+    cont = psef.auto_test.StartedContainer(None, '', {})
+
+    # Ensure initial conditions are as expected.
+    with describe('env vars "a" and "b" should not exist by default'):
+        env = cont._create_env(cur_user)
+        assert env.get('a') == None
+        assert env.get('b') == None
+
+    with describe('should include variables in the extra env'):
+        with cont.extra_env({'a': 'a'}):
+            env = cont._create_env(cur_user)
+            assert env.get('a') == 'a'
+
+    with describe('should support nesting'):
+        with cont.extra_env({'a': 'a'}):
+            with cont.extra_env({'b': 'b'}):
+                env = cont._create_env(cur_user)
+                assert env.get('a') == 'a'
+                assert env.get('b') == 'b'
+
+            env = cont._create_env(cur_user)
+            assert env.get('a') == 'a'
+            assert env.get('b') == None
+
+    with describe('inner envs should override outer envs'):
+        with cont.extra_env({'a': 'a'}):
+            with cont.extra_env({'a': 'b'}):
+                env = cont._create_env(cur_user)
+                assert env.get('a') == 'b'
+
+            env = cont._create_env(cur_user)
+            assert env.get('a') == 'a'
+
+    with describe('should not override standard env vars'):
+        with cont.extra_env({'PATH': ''}):
+            env = cont._create_env(cur_user)
+            assert env['PATH'] != ''

@@ -12,10 +12,12 @@
                :show="show"
                :target="compId"
                :boundary="boundary"
-               :title="title">
+               :title="title"
+               :custom-class="width == null ? 'description-popover-root' : 'description-popover-root-custom-width'">
         <div ref="description"
              tabindex="-1"
-             class="description-popover-content">
+             class="description-popover-content"
+             :style="{ width: width }">
             <slot name="description">{{ description }}</slot>
             <slot v-if="!!$slots.default"/>
         </div>
@@ -91,6 +93,10 @@ export default {
             type: Number,
             default: 0.75,
         },
+        width: {
+            type: String,
+            default: undefined,
+        },
     },
 
     components: {
@@ -112,6 +118,10 @@ export default {
 .description-popover {
     display: inline;
     cursor: help;
+}
+
+.description-popover-root-custom-width {
+    max-width: calc(100vw - 1rem);
 }
 
 .description-popover-content {

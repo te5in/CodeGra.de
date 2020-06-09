@@ -59,6 +59,9 @@ pytest --cov cg_worker_pool \
        "$(pwd)/cg_cache/tests/" \
        -vvvv
 res1="$?"
+if [[ "$res1" -ne 0 ]]; then
+    exit "$res1";
+fi
 
 timeout -k 600 600 \
         pytest --cov psef --cov cg_signals --cov cg_cache \
@@ -68,6 +71,9 @@ timeout -k 600 600 \
         "$(pwd)/psef_test/test_auto_test.py" \
         -vvvv
 res2="$?"
+if [[ "$res2" -ne 0 ]]; then
+    exit "$res2";
+fi
 
 rm "$(pwd)/psef_test/test_auto_test.py"
 
@@ -80,6 +86,9 @@ timeout -k 900 900 \
         -n 4 \
         -vvvv
 res3="$?"
+if [[ "$res3" -ne 0 ]]; then
+    exit "$res3";
+fi
 
 make doctest
 res4="$?"
