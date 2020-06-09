@@ -24,6 +24,11 @@ Version *Next*
   points based on the submission date and deadline, or to generate a unique
   input for each submission or student.
 
+**Updates**
+
+- Use Bootstrap-Vue toasts instead of vue-toasted
+  `(#1319) <https://github.com/CodeGra-de/CodeGra.de/pull/1319>`__,
+
 **Fixes**
 
 - Fix AutoTest result being in state "done" while it has steps that are in
