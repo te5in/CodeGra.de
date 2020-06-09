@@ -943,7 +943,7 @@ export default {
             // Only resize the first time, and only if the sidebar is less than
             // half of the width of the page.
             if (wasHidden && tab === 'feedback' && this.splitRatio > 50) {
-                this.splitRatio = Math.min(50, this.splitRatio);
+                this.splitRatio = 50;
             }
         },
     },
