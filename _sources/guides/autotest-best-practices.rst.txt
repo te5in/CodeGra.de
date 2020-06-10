@@ -280,7 +280,8 @@ object with the following keys:
     3. Add a "Capture points" step with an appropriate name and the following
        settings:
 
-       * Program to test: ``python3.7 $FIXTURES/deadline.py``
+       * Program to test: ``python3.7 $FIXTURES/deadline.py`` (Note the use
+         of ``python3.7`` instead of ``python3``)
        * Regex to match: ``\f``
 
     4. Upload the following script as a fixture with the name ``deadline.py``:
