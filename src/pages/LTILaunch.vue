@@ -219,7 +219,7 @@ export default {
 
             if (this.$route.query.redirect && this.$route.query.redirect.startsWith('/')) {
                 return this.$router.replace(this.$route.query.redirect);
-            } else if (this.$route.query.goto_latest_submission) {
+            } else if (this.$utils.parseBool(this.$route.query.goto_latest_submission, false)) {
                 const assignment = this.assignments[data.assignment.id];
                 if (!assignment || !assignment.course.isStudent) {
                     return this.doDefaultRedirect(data);

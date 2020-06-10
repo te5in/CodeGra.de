@@ -695,8 +695,8 @@ export function parseBool<T extends string | boolean>(
 ): IsA<T, boolean> extends true ? T : boolean;
 export function parseBool<T extends string | boolean>(value: T, dflt = true): boolean {
     if (typeof value === 'boolean') return value;
-    else if (value === 'false') return false;
-    else if (value === 'true') return true;
+    else if (typeof value === 'string' && value.toLocaleLowerCase() === 'false') return false;
+    else if (typeof value === 'string' && value.toLocaleLowerCase() === 'true') return true;
 
     return dflt;
 }
