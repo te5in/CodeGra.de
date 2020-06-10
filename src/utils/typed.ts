@@ -735,16 +735,43 @@ export const isValidHttpUrl: (input: string) => boolean = (() => {
     };
 })();
 
-export function sortBy<T>(xs: T[], key: (x: T) => any[]): T[] {
-    const keys = new Map(xs.map(x => [x, ensureArray(key(x))]));
-    return xs.sort((a, b) => {
-        const items = zip(<any[]>keys.get(a), <any[]>keys.get(b));
-        for (let i = 0; i < items.length; i++) {
-            const [elA, elB] = items[i];
-            if (elA !== elB) {
-                return elA < elB ? -1 : 1;
+// Sort by
+export function sortBy<T, Y extends Array<string | number | boolean | moment.Moment>>(
+    xs: readonly T[],
+    makeKey: (x: T) => Y,
+    reverse: boolean = false,
+): T[] {
+    return xs.map((x, idx) => {
+        const res: (T | string | number | boolean | moment.Moment)[] = makeKey(x);
+        // Add idx to make sure we have a unique item and to make sure the
+        // sorting is stable.
+        res.push(reverse ? -idx : idx);
+        res.push(x);
+        return res;
+    }).sort(
+        (a, b) => {
+            // We don't use zip2 here to prevent an extra allocation;
+            let res = 0;
+            for (let i = 0; res === 0 && i < Math.min(a.length, b.length) - 1; ++i) {
+                const keyA = a[i];
+                const keyB = b[i];
+                if (typeof keyA === 'number') {
+                    AssertionError.assert(typeof keyB === 'number');
+                    res = keyA - keyB;
+                } else if (typeof keyA === 'string') {
+                    AssertionError.assert(typeof keyB === 'string');
+                    res = keyA.localeCompare(keyB);
+                } else if (typeof keyA === 'boolean') {
+                    AssertionError.assert(typeof keyB === 'boolean');
+                    if (keyA !== keyB) {
+                        res = keyA ? 1 : 0;
+                    }
+                } else if (moment.isMoment(keyA)) {
+                    AssertionError.assert(moment.isMoment(keyB));
+                    res = keyA.valueOf() - keyB.valueOf();
+                }
             }
-        }
-        return 0;
-    });
+            return reverse ? -res : res;
+        },
+    ).map(x => <T>x[x.length - 1]);
 }

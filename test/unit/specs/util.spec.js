@@ -1222,11 +1222,14 @@ describe('utils.js', () => {
         const xs = [1, 7, 2, 9, 3, 4, 8, 0, 6, 5];
 
         it('should sort correctly', () => {
+            const oldXs = xs.slice();
             expect(
-                sortBy(xs.slice(), x => x),
+                sortBy(xs, x => [x]),
             ).toEqual(
                 xs.slice().sort(),
             );
+            // Should not mutate array in place
+            expect(oldXs).toEqual(xs);
         });
 
         it('should sort by later keys if former were equal', () => {
@@ -1237,7 +1240,47 @@ describe('utils.js', () => {
             );
         });
 
-        // TODO: More tests...
+        it('should be stable in sorting', () => {
+            expect(
+                sortBy(xs.slice(), x => [1]),
+            ).toEqual(xs);
+        });
+
+        it('should support sorting booleans with duplicated', () => {
+            expect(
+                sortBy(xs, x => [x % 2 != 0]),
+            ).toEqual(
+                [2, 4, 8, 0, 6, 1, 7, 9, 3, 5],
+            );
+        });
+
+        it('should support sorting strings', () => {
+            expect(
+                sortBy(['A', 'B', 'AA', 'BB'], x => [x]),
+            ).toEqual(
+                ['A', 'AA', 'B', 'BB'],
+            );
+        });
+
+        it('should support sorting moments', () => {
+            const today = moment();
+            const tomorrow = today.clone().add(1, 'd');
+            const yesterday = today.clone().add(-1, 'd');
+            expect(
+                sortBy([today, tomorrow, yesterday], x => [x]),
+            ).toEqual(
+                [yesterday, today, tomorrow],
+            );
+        });
+
+        it('should support reversing', () => {
+            expect(sortBy(xs, x => [x], true)).toEqual(xs.slice().sort().reverse());
+        });
+
+        it('reverse should also be stable', () => {
+            // Should keep same order, as the key was the same for every item.
+            expect(sortBy(xs, x => [1], true)).toEqual(xs);
+        });
     });
 });
 

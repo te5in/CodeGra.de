@@ -160,14 +160,15 @@ export default {
             // - Then any results waiting to be started.
             // - And finally the results that finished and didn't fail.
 
-            return this.$utils.sortBy(this.results.slice(), result => {
+            return this.$utils.sortBy(this.results, result => {
                 const { startedAt, state } = result.state;
 
                 return [
                     state === 'running' ? -1 : 1,
                     state === 'failed' ? -1 : 1,
                     state === 'passed' ? 1 : -1,
-                    startedAt ? startedAt.toISOString() : '',
+                    !!startedAt,
+                    startedAt,
                 ];
             });
         },
