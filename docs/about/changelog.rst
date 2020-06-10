@@ -11,10 +11,11 @@ Version *LowVoltage.1*
 
 **Released**: June 10th, 2020
 
-You can now view all the feedback a student received in the course, while
-writing feedback on a later assignment. It is also possible to get some
-submission metadata in your AutoTest scripts, and you can connect to CodeGrade
-with the new LTI Advantage protocol.
+With our new Feedback Sidebar, you can now view all previous feedback from
+a student in the course, while grading the current submission. It is now also
+possible to get submission metadata in AutoTest, for instance to automate late
+day penalties. Finally, we have upgraded CodeGrade to the newest version of
+LTI: LTI 1.3 Advantage!
 
 **Features**
 
