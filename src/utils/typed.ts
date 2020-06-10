@@ -690,10 +690,12 @@ export function nonenumerable(target: Object, propertyKey: string) {
  * that to its correct boolean value, otherwise return `dflt`.
  */
 type IsA<T, Y> = T extends Y ? true : false;
-export function parseBool<T extends string | boolean>(
-    value: T, dflt?: boolean
+export function parseBool<T extends string | boolean | null | undefined>(
+    value: T, dflt?: boolean,
 ): IsA<T, boolean> extends true ? T : boolean;
-export function parseBool<T extends string | boolean>(value: T, dflt = true): boolean {
+export function parseBool<T extends string | boolean | null | undefined>(
+    value: T, dflt = true,
+): boolean {
     if (typeof value === 'boolean') return value;
     else if (typeof value === 'string' && value.toLocaleLowerCase() === 'false') return false;
     else if (typeof value === 'string' && value.toLocaleLowerCase() === 'true') return true;
