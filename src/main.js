@@ -193,6 +193,17 @@ Promise.all([
         name: 'showWhitespaceStore',
         driver: DRIVERS,
     });
+    [Vue.prototype.$hlanguageStore, Vue.prototype.$whitespaceStore].forEach(forageStore => {
+        // `localForage` does some initialization on the first get, but when
+        // doing two first gets at the same time (in different promise chains
+        // for example) this creates a race condition that fails in Firefox in
+        // private mode. So we initialize the stores here.
+        try {
+            forageStore.getItem('test key');
+        } catch (_) {
+            // PASS
+        }
+    });
 
     Vue.prototype.$hasPermission = (permission, courseId, asMap) => {
         function makeResponse(map) {
