@@ -579,10 +579,16 @@ export class WorkspaceSubmissionSet {
         );
     }
 
-    binSubmissionsByGrade(binSize = 1) {
+    binSubmissionsByGrade(binSize = 1, maxGrade = 10) {
         return this.binSubmissionsBy(sub => {
             const { grade } = sub;
-            return grade == null ? null : Math.floor(grade / binSize);
+            if (grade == null) {
+                return null;
+            }
+            if (grade >= maxGrade) {
+                return Math.floor(maxGrade / binSize) - 1;
+            }
+            return Math.floor(grade / binSize);
         });
     }
 
