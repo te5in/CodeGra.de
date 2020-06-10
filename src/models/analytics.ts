@@ -594,7 +594,7 @@ export class WorkspaceSubmissionSet {
                 const frac = maxGrade / binSize;
                 const nbins = Math.ceil(frac);
                 const bin = Math.floor(frac);
-                return bin >= nbins ? nbins - 1 : bin;
+                return Math.min(bin, nbins - 1);
             }
 
             return Math.floor(grade / binSize);
