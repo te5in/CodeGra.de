@@ -122,7 +122,7 @@
                             </span>
                         </h6>
 
-                        <div v-if="rubricResultsBySub[sub.id] != null"
+                        <div v-if="filteredRubricResults[sub.id] != null"
                             class="px-3 pb-3">
                             <span v-for="{ result, row, item } in filteredRubricResults[sub.id]"
                                 :key="`${sub.id}-${item.id}`">
