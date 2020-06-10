@@ -6,16 +6,57 @@ Version *Next*
 
 **Released**: TBD
 
+Version *LowVoltage.1*
+----------------------
+
+**Released**: June 10th, 2020
+
+With our new Feedback Sidebar, you can now view all previous feedback from
+a student in the course, while grading the current submission. It is now also
+possible to get submission metadata in AutoTest, for instance to automate late
+day penalties. Finally, we have upgraded CodeGrade to the newest version of
+LTI: LTI 1.3 Advantage!
+
 **Features**
 
+- Course feedback `(#1342)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1335>`__. Adds an overview of
+  all the feedback a student received over an entire course. Teachers have
+  access to this overview on the submission page in the same location as the
+  file tree. For students there is an extra button on the submissions page.
 - Improve plagiarism document rendering `(#1335)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1335>`__. Matching blocks of
   code can now be rendered side by side, the amount of context lines before and
   after each match is configurable, and it is possible to export to a docx
   file.
+- Add LTI 1.3 implementation `(#1277)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1277>`__. This makes the
+  integration in the LMS even better, allowing better workflows for group
+  assignments and easier assignment creation.
+- Include submission information in AutoTest environment `(#1361)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1361>`__. Some information
+  about a submission is now available in AutoTest as a JSON object that is
+  stored in an environment variables. This is useful to automatically subtract
+  points based on the submission date and deadline, or to generate a unique
+  input for each submission or student.
+
+**Updates**
+
+- Use Bootstrap-Vue toasts instead of vue-toasted
+  `(#1319) <https://github.com/CodeGra-de/CodeGra.de/pull/1319>`__,
 
 **Fixes**
 
+- Fix AutoTest result being in state "done" while it has steps that are in
+  state "waiting to be started" `(#1349)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1349>`__
+- Remove "Add filter" button from analytics dashboard
+  `(#1351) <https://github.com/CodeGra-de/CodeGra.de/pull/1351>`__.
+  The button was confusing when splitting a filter, and since there already is
+  another button to add new filters we removed it.
+- Fix notification sorting order
+  `(#1354) <https://github.com/CodeGra-de/CodeGra.de/pull/1354>`__. Unread
+  notifications are now always sorted before read notifications.
 - Miscellaneous fixes:
   `(#1322) <https://github.com/CodeGra-de/CodeGra.de/pull/1322>`__,
   `(#1323) <https://github.com/CodeGra-de/CodeGra.de/pull/1323>`__,
@@ -26,7 +67,11 @@ Version *Next*
   `(#1328) <https://github.com/CodeGra-de/CodeGra.de/pull/1328>`__,
   `(#1331) <https://github.com/CodeGra-de/CodeGra.de/pull/1331>`__,
   `(#1332) <https://github.com/CodeGra-de/CodeGra.de/pull/1332>`__,
-  `(#1333) <https://github.com/CodeGra-de/CodeGra.de/pull/1333>`__.
+  `(#1333) <https://github.com/CodeGra-de/CodeGra.de/pull/1333>`__,
+  `(#1352) <https://github.com/CodeGra-de/CodeGra.de/pull/1352>`__,
+  `(#1355) <https://github.com/CodeGra-de/CodeGra.de/pull/1355>`__,
+  `(#1356) <https://github.com/CodeGra-de/CodeGra.de/pull/1356>`__,
+  `(#1360) <https://github.com/CodeGra-de/CodeGra.de/pull/1360>`__.
 
 Version LowVoltage
 -------------------

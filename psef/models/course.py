@@ -12,7 +12,7 @@ import psef
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import mixins
 
-from . import UUID_LENGTH, Base, DbColumn, db, _MyQuery
+from . import Base, MyQuery, DbColumn, db
 from .role import CourseRole
 from .user import User
 from .work import Work
@@ -20,7 +20,6 @@ from ..helpers import NotEqualMixin
 from .assignment import Assignment
 from .link_tables import user_course
 from ..permissions import CoursePermission
-from .lti_provider import LTIProvider
 
 logger = structlog.get_logger()
 
@@ -72,8 +71,6 @@ class CourseSnippet(Base):
     """Describes a mapping from a keyword to a replacement text that is shared
     amongst the teachers and TAs of the course.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['CourseSnippet']] = Base.query
     __tablename__ = 'CourseSnippet'
     id = db.Column('id', db.Integer, primary_key=True)
     key = db.Column('key', db.Unicode, nullable=False)
@@ -116,8 +113,6 @@ class Course(NotEqualMixin, Base):
     :param lti_course_id: The id of the course in LTI
     :param lti_provider: The LTI provider
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['Course']] = Base.query
     __tablename__ = "Course"
     id = db.Column('id', db.Integer, primary_key=True)
     name = db.Column('name', db.Unicode)
@@ -128,15 +123,21 @@ class Course(NotEqualMixin, Base):
         nullable=False,
     )
 
-    # All stuff for LTI
-    lti_course_id = db.Column(db.Unicode, unique=True)
+    course_lti_provider = db.relationship(
+        lambda: psef.models.CourseLTIProvider,
+        back_populates="course",
+        uselist=False,
+    )
 
-    lti_provider_id = db.Column(
-        db.String(UUID_LENGTH), db.ForeignKey('LTIProvider.id')
-    )
-    lti_provider = db.relationship(
-        lambda: LTIProvider, foreign_keys=lti_provider_id
-    )
+    @property
+    def lti_provider(self) -> t.Optional['psef.models.LTIProviderBase']:
+        """The LTI provider connected to this course.
+
+        If this is ``None`` the course is not an LTI course.
+        """
+        if self.course_lti_provider is None:
+            return None
+        return self.course_lti_provider.lti_provider
 
     virtual = db.Column('virtual', db.Boolean, default=False, nullable=False)
 
@@ -176,23 +177,16 @@ class Course(NotEqualMixin, Base):
     def create_and_add(
         cls,
         name: str = None,
-        lti_course_id: str = None,
-        lti_provider: 'LTIProvider' = None,
         virtual: bool = False,
     ) -> 'Course':
         """Create a new course and add it to the current database session.
 
         :param name: The name of the new course.
-        :param lti_course_id: The id of the course for the LMS.
-        :param lti_provider: The lti provider. Either both ``lti_course_id``
-            and ``lti_provider`` should be ``None``, or both should be a valid
-            value.
         :param virtual: Is this a virtual course.
         """
+
         self = cls(
             name=name,
-            lti_course_id=lti_course_id,
-            lti_provider=lti_provider,
             virtual=virtual,
         )
         if virtual:
@@ -258,6 +252,17 @@ class Course(NotEqualMixin, Base):
             return self.id == other.id
         return NotImplemented
 
+    @property
+    def is_lti(self) -> bool:
+        """Is this course a LTI course.
+
+        :returns: A boolean indicating if this is the case.
+        """
+        return self.course_lti_provider is not None
+
+    def __structlog__(self) -> t.Mapping[str, t.Union[str, int]]:
+        return {'type': self.__class__.__name__, 'id': self.id}
+
     def __to_json__(self) -> t.Mapping[str, t.Any]:
         """Creates a JSON serializable representation of this object.
 
@@ -279,8 +284,9 @@ class Course(NotEqualMixin, Base):
             'id': self.id,
             'name': self.name,
             'created_at': self.created_at.isoformat(),
-            'is_lti': self.lti_course_id is not None,
+            'is_lti': self.is_lti,
             'virtual': self.virtual,
+            'lti_provider': self.lti_provider,
         }
 
     def get_all_visible_assignments(self) -> t.Sequence['Assignment']:
@@ -294,7 +300,7 @@ class Course(NotEqualMixin, Base):
             return []
 
         assigs: t.Iterable[Assignment] = (
-            assig for assig in self.assignments if not assig.deleted
+            assig for assig in self.assignments if assig.is_visible
         )
         if not psef.current_user.has_permission(
             CoursePermission.can_see_hidden_assignments, self.id
@@ -304,9 +310,11 @@ class Course(NotEqualMixin, Base):
             assigs, key=lambda item: item.deadline or DatetimeWithTimezone.max
         )
 
-    def get_all_users_in_course(
-        self, *, include_test_students: bool
-    ) -> '_MyQuery[t.Tuple[User, CourseRole]]':
+    def get_assignments(self) -> MyQuery['Assignment']:
+        return Assignment.query.filter(Assignment.course == self)
+
+    def get_all_users_in_course(self, *, include_test_students: bool
+                                ) -> MyQuery['t.Tuple[User, CourseRole]']:
         """Get a query that returns all users in the current course and their
             role.
 
@@ -347,7 +355,9 @@ class Course(NotEqualMixin, Base):
             name=f'VIRTUAL_COURSE__{uuid.uuid4()}', virtual=True
         )
         assig = Assignment(
-            name=f'Virtual assignment - {tree.name}', course=self
+            name=f'Virtual assignment - {tree.name}',
+            course=self,
+            is_lti=False
         )
         self.assignments.append(assig)
         for child in copy.copy(tree.values):
@@ -385,7 +395,7 @@ class Course(NotEqualMixin, Base):
             role = CourseRole(
                 name=f'Test_Student_Role__{uuid.uuid4()}',
                 course=self,
-                hidden=True
+                hidden=True,
             )
             db.session.add(role)
             user = User.create_new_test_student()

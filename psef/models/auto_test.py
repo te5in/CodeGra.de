@@ -23,7 +23,7 @@ from cg_sqlalchemy_helpers.mixins import IdMixin, UUIDMixin, TimestampMixin
 from . import Base, MyQuery, DbColumn, db
 from . import work as work_models
 from . import auto_test_step as auto_test_step_models
-from .. import auth
+from .. import auth, signals
 from .. import auto_test as auto_test_module
 from ..helpers import NotEqualMixin
 from ..registry import auto_test_handlers, auto_test_grade_calculators
@@ -41,8 +41,6 @@ GradeCalculator = t.Callable[[t.Sequence['psef.models.RubricItem'], float],
 class AutoTestSuite(Base, TimestampMixin, IdMixin):
     """This class represents a Suite (also known as category) in an AutoTest.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[MyQuery['AutoTestSuite']]
     __tablename__ = 'AutoTestSuite'
     id = db.Column('id', db.Integer, primary_key=True)
 
@@ -63,6 +61,14 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
         db.Boolean,
         nullable=False,
         default=True,
+        server_default='FALSE',
+    )
+
+    submission_info = db.Column(
+        'submission_info',
+        db.Boolean,
+        nullable=False,
+        default=False,
         server_default='FALSE',
     )
 
@@ -104,6 +110,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
             'id': self.id,
             'steps': [s.get_instructions() for s in steps],
             'network_disabled': self.network_disabled,
+            'submission_info': self.submission_info,
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:
@@ -112,6 +119,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
             'steps': self.steps,
             'rubric_row': self.rubric_row,
             'network_disabled': self.network_disabled,
+            'submission_info': self.submission_info,
             'command_time_limit': self.command_time_limit,
         }
 
@@ -169,6 +177,7 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
         return AutoTestSuite(
             rubric_row=self.rubric_row,
             network_disabled=self.network_disabled,
+            submission_info=self.submission_info,
             steps=[s.copy() for s in self.steps],
             command_time_limit=self.command_time_limit,
         )
@@ -177,8 +186,6 @@ class AutoTestSuite(Base, TimestampMixin, IdMixin):
 class AutoTestSet(Base, TimestampMixin, IdMixin):
     """This class represents a set (also known as level) of an AutoTest.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[MyQuery['AutoTestSet']]
     __tablename__ = 'AutoTestSet'
 
     id = db.Column('id', db.Integer, primary_key=True)
@@ -236,9 +243,6 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
     :class:`.AutoTestRun`.
     """
     __tablename__ = 'AutoTestResult'
-
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[MyQuery['AutoTestResult']]
 
     auto_test_run_id = db.Column(
         'auto_test_run_id',
@@ -560,8 +564,6 @@ class AutoTestRunner(Base, TimestampMixin, UUIDMixin, NotEqualMixin):
     A single run might have multiple runners, as a runner might crash and in
     this case it is replaced by a new runner.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[MyQuery['AutoTestRunner']]
 
     __tablename__ = 'AutoTestRunner'
 
@@ -648,9 +650,6 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
     At the moment each AutoTest will always only have one AutoTestRun.
     """
     __tablename__ = 'AutoTestRun'
-
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[MyQuery['AutoTestRun']]
 
     auto_test_id = db.Column(
         'auto_test_id',
@@ -1018,6 +1017,8 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             'auto_test_id': self.auto_test_id,
             'result_ids': [r.id for r in results],
             'student_ids': [r.work.user_id for r in results],
+            'student_infos': [self._get_student_info(r) for r in results],
+            'assignment_info': self._get_assignment_info(),
             'sets': [s.get_instructions(self) for s in self.auto_test.sets],
             'fixtures': [(f.name, f.id) for f in self.auto_test.fixtures],
             'setup_script': self.auto_test.setup_script,
@@ -1026,6 +1027,32 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
             'run_setup_script': self.auto_test.run_setup_script,
             # TODO: Set this in a more intelligent way
             'poll_after_done': True,
+        }
+
+    def _get_assignment_info(self) -> auto_test_module.AssignmentInformation:
+        """Get information about the assignment that should be available in the
+        AutoTest environment.
+        """
+        deadline = self.auto_test.assignment.deadline
+
+        if deadline is None:
+            return {'deadline': None}
+        else:
+            return {'deadline': deadline.isoformat()}
+
+    @staticmethod
+    def _get_student_info(
+        result: AutoTestResult
+    ) -> auto_test_module.StudentInformation:
+        """Get information about the submission that should be available in the
+        AutoTest environment.
+
+        :param result: The result to get the information for.
+        """
+        return {
+            'result_id': result.id,
+            'student_id': result.work.user_id,
+            'created_at': result.work.created_at.isoformat(),
         }
 
     def __to_json__(self) -> t.Mapping[str, object]:
@@ -1186,8 +1213,6 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         can be used to submit a submission.
     :ivar maximum_size: The maximum amount of members a group can ever have.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[MyQuery['AutoTest']]
     __tablename__ = 'AutoTest'
 
     id = db.Column('id', db.Integer, primary_key=True)
@@ -1378,7 +1403,9 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         """
         return itertools.chain.from_iterable(s.suites for s in self.sets)
 
-    def add_to_run(self, work: 'work_models.Work') -> bool:
+    @staticmethod
+    @signals.WORK_CREATED.connect_immediate
+    def add_to_run(work: 'work_models.Work') -> bool:
         """Add the given work to the continuous feedback run.
 
         This function only does something if there is an continuous feedback
@@ -1393,9 +1420,11 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             This function changes the session if it returns ``True``, so a
             commit is necessary in that case.
         """
-        run = self.run
-        if run is None:
+        self = work.assignment.auto_test
+        if self is None or self.run is None:
             return False
+
+        run = self.run
 
         run_id = run.id
         AutoTestResult.get_results_by_user(work.user_id).filter(
@@ -1422,6 +1451,24 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         db.session.add(result)
         return True
 
+    @staticmethod
+    @signals.WORK_DELETED.connect(
+        'immediate',
+        pre_check=lambda wd: wd.was_latest,
+        converter=lambda x: x,
+    )
+    def _on_work_deletion(work_deletion: signals.WorkDeletedData) -> None:
+        self = work_deletion.deleted_work.assignment.auto_test
+        if self is None or self.run is None:
+            return
+
+        if work_deletion.new_latest:
+            self.reset_work(work_deletion.new_latest)
+
+        callback_after_this_request(
+            lambda: psef.tasks.update_latest_results_in_broker(self.run.id)
+        )
+
     def reset_work(self, work: 'work_models.Work') -> None:
         """Reset the result beloning to the given work.
 
@@ -1430,10 +1477,9 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         :param work: The work for which we should reset the work.
         :returns: Nothing.
         """
-        if self.run is None:
-            return
-
         run = self.run
+        assert run is not None, 'Cannot reset work on AutoTest without run'
+
         run_id = run.id
         result = AutoTestResult.get_results_by_user(work.user_id).filter_by(
             auto_test_run_id=run_id, work_id=work.id

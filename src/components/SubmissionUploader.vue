@@ -155,7 +155,7 @@
 
             <div class="group-modal-body">
                 <groups-management :assignment="assignment"
-                                   :course="assignment.course"
+                                   :course="course"
                                    :group-set="assignment.group_set"
                                    :filter="filterGroups"
                                    :show-lti-progress="currentGroup && assignment.is_lti ?
@@ -278,7 +278,7 @@
                                v-model="author"
                                select-label=""
                                :disabled="disabled || isTestSubmission"
-                               :base-url="`/api/v1/courses/${assignment.course.id}/users/`"
+                               :base-url="`/api/v1/courses/${course.id}/users/`"
                                :use-selector="canListUsers"
                                :placeholder="`${loggedInUser.name} (${loggedInUser.username})`"
                                no-border />
@@ -355,7 +355,6 @@ import * as utils from '@/utils';
 import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
 
-import ltiProviders from '@/lti_providers';
 import { CoursePermission as CPerm } from '@/permissions';
 
 import Loader from './Loader';
@@ -524,10 +523,6 @@ export default {
             }
         },
 
-        lmsName() {
-            return this.assignment.lms_name;
-        },
-
         oldIgnoreFormat() {
             return (
                 this.assignment.cgignore_version == null ||
@@ -568,17 +563,23 @@ export default {
 
         uploadUrlQueryArgs() {
             if (this.isTestSubmission) {
-                return 'is_test_submission';
+                return { is_test_submission: '' };
             } else if (this.differentAuthor) {
-                return `author=${this.author.username}`;
+                return { author: this.author.username };
             }
-            return '';
+            return {};
         },
 
         uploadUrl() {
-            return `/api/v1/assignments/${this.assignment.id}/submission?ignored_files=${
-                this.ignored
-            }&${this.uploadUrlQueryArgs}`;
+            return this.$utils.buildUrl(
+                ['api', 'v1', 'assignments', this.assignment.id, 'submission'],
+                {
+                    query: {
+                        ...this.uploadUrlQueryArgs,
+                        ignored_files: this.ignored,
+                    },
+                },
+            );
         },
 
         disabledPopover() {
@@ -685,8 +686,16 @@ export default {
                 this.ltiUploadDisabledMessage != null;
         },
 
+        ltiProvider() {
+            return this.$utils.getProps(this.course, null, 'ltiProvider');
+        },
+
+        lmsName() {
+            return this.$utils.getProps(this.ltiProvider, null, 'lms');
+        },
+
         deadlineEditable() {
-            return !this.$utils.getProps(ltiProviders, false, this.lmsName, 'supportsDeadline');
+            return !this.$utils.getProps(this.ltiProvider, false, 'supportsDeadline');
         },
 
         canEditDeadline() {
@@ -701,6 +710,10 @@ export default {
                     assignmentId: this.assignment.id,
                 },
             };
+        },
+
+        course() {
+            return this.$utils.getProps(this.assignment, null, 'course');
         },
     },
 
@@ -901,9 +914,15 @@ export default {
             this.loadingWebhookData = true;
             this.loadingWebhookError = null;
             const req = this.$http.post(
-                `/api/v1/assignments/${this.assignment.id}/webhook_settings?webhook_type=git&${
-                    this.uploadUrlQueryArgs
-                }`,
+                this.$utils.buildUrl(
+                    ['api', 'v1', 'assignments', this.assignment.id, 'webhook_settings'],
+                    {
+                        query: {
+                            ...this.uploadUrlQueryArgs,
+                            webhook_type: 'git',
+                        },
+                    },
+                ),
             );
 
             return this.$utils.waitAtLeast(250, req).then(

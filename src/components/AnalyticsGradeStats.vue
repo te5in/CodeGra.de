@@ -144,7 +144,7 @@ export default {
             });
 
             const datasets = this.submissionSources.map((source, i) => {
-                const data = source.binSubmissionsByGrade(binSize);
+                const data = source.binSubmissionsByGrade(binSize, maxGrade);
 
                 const absData = bins.map(bin => data[bin].length);
                 // We can't use source.submissionCount here, because some submissions

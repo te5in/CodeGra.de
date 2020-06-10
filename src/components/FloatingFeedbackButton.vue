@@ -9,13 +9,13 @@
            :min-size="20"
            :max-size="90"
            allow-resize
-           :on-drag-started="() => {resizing = true;}"
-           :on-drag-finished="() => {resizing = false;}"
+           :on-drag-started="() => {resizingFeedback = true;}"
+           :on-drag-finished="() => {resizingFeedback = false;}"
            split-to="rows">
     <div class="content" slot="firstPane"
          key="content">
         <div class="content-wrapper">
-            <slot v-bind:resizing="resizing"/>
+            <slot :resizing="resizingFeedback"/>
         </div>
 
         <submit-button class="feedback-button"
@@ -119,7 +119,6 @@ export default {
             type: String,
             default: 'top-right',
         },
-
         noResize: {
             type: Boolean,
             default: false,
@@ -154,7 +153,7 @@ export default {
 
     data() {
         return {
-            resizing: false,
+            resizingFeedback: false,
             initialSize: 65,
         };
     },

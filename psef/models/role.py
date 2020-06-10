@@ -11,9 +11,8 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 
 from cg_sqlalchemy_helpers.types import ColumnProxy
 
-from . import Base, db
+from . import Base, MyQuery, db
 from . import course as course_models
-from . import _MyQuery
 from .permission import Permission
 from .link_tables import roles_permissions, course_permissions
 from ..permissions import BasePermission, CoursePermission, GlobalPermission
@@ -166,8 +165,6 @@ class Role(AbstractRole[GlobalPermission], Base):
 
     :ivar ~.Role.name: The name of the global role.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['Role']] = Base.query
     __tablename__ = 'Role'
     id = db.Column('id', db.Integer, primary_key=True)
     name = db.Column('name', db.Unicode, unique=True, nullable=False)
@@ -193,8 +190,6 @@ class CourseRole(AbstractRole[CoursePermission], Base):
     :ivar ~.CourseRole.course_id: The :py:class:`.course_models.Course` this
         role belongs to.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query = Base.query  # type: t.ClassVar[_MyQuery['CourseRole']]
     __tablename__ = 'Course_Role'
     id = db.Column('id', db.Integer, primary_key=True)
     name = db.Column('name', db.Unicode, unique=False, nullable=False)
@@ -247,6 +242,8 @@ class CourseRole(AbstractRole[CoursePermission], Base):
 
         # Mypy doesn't get the sqlalchemy magic
         self.course = course
+        if course.id:
+            self.course_id = course.id
         self.hidden = hidden
 
     def __to_json__(self) -> t.MutableMapping[str, t.Any]:
@@ -320,4 +317,25 @@ class CourseRole(AbstractRole[CoursePermission], Base):
                     r_perms[perm.value] = perm
 
             res[name] = r_perms
+        return res
+
+    @classmethod
+    def get_by_name(
+        cls,
+        course: 'course_models.Course',
+        name: str,
+        *,
+        include_hidden: bool = False,
+    ) -> MyQuery['CourseRole']:
+        """Get a course role within the given course.
+
+        :param course: The course to get the role in.
+        :param name: The name of the role.
+        """
+        res = cls.query.filter(
+            cls.name == name,
+            cls.course == course,
+        )
+        if not include_hidden:
+            res = res.filter(~cls.hidden)
         return res

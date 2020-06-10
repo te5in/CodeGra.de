@@ -3,12 +3,15 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
+import warnings
 
 import flask
 import celery
+import structlog
 
 from cg_celery import TaskStatus
 
+logger = structlog.get_logger()
 T = t.TypeVar('T')  # pylint: disable=invalid-name
 
 
@@ -30,7 +33,7 @@ def callback_after_this_request(
 
         return after_task
 
-    else:
+    elif flask.has_request_context():
 
         @flask.after_this_request
         def after(res: flask.Response) -> flask.Response:
@@ -41,6 +44,17 @@ def callback_after_this_request(
             return res
 
         return after
+
+    else:
+
+        warnings.warn('Running callback now as we are not in flask or celery')
+        logger.error(
+            'Running callback directly as we are not in flask/celery',
+            report_to_sentry=True
+        )
+        fun()
+
+        return lambda x: x
 
 
 class EmptyResponse(flask.Response):  # pylint: disable=too-many-ancestors

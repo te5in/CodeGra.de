@@ -18,7 +18,7 @@ from mypy_extensions import TypedDict
 from typing_extensions import Protocol
 
 import psef.files
-from psef import app, tasks, current_user
+from psef import app, current_user
 from cg_sqlalchemy_helpers.types import ColumnProxy
 
 from . import api
@@ -30,7 +30,7 @@ from ..helpers import (
     ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
     make_empty_response
 )
-from ..exceptions import PermissionException
+from ..signals import WORK_DELETED, WorkDeletedData
 from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
@@ -44,7 +44,7 @@ LinterComments = t.Dict[int,
 class FeedbackBase(TypedDict, total=True):
     """The base JSON representation for feedback.
 
-    This representation is never send, see the two models below.
+    This representation is never sent, see the two models below.
 
     :ivar general: The general feedback given on this submission.
     :ivar linter: A mapping that is almost the same the user feedback mapping
@@ -146,31 +146,26 @@ def get_feedback(work: models.Work) -> t.Mapping[str, str]:
         which can be given to ``GET - /api/v1/files/<name>`` and
         ``output_name`` which is the resulting file should be named.
     """
+    perms = auth.WorkPermissions(work)
     comments: t.Iterable[str]
     linter_comments: t.Iterable[str]
 
-    try:
-        auth.ensure_can_see_grade(work)
-    except PermissionException:
-        grade = ''
-    else:
+    if perms.ensure_may_see_grade.as_bool():
         grade = str(work.grade or '')
-
-    try:
-        auth.ensure_can_see_general_feedback(work)
-    except PermissionException:
-        general_comment = ''
     else:
+        grade = ''
+
+    if perms.ensure_may_see_general_feedback.as_bool():
         general_comment = work.comment or ''
+    else:
+        general_comment = ''
 
     comments = work.get_user_feedback()
 
-    try:
-        auth.ensure_can_see_linter_feedback(work)
-    except PermissionException:
-        linter_comments = []
-    else:
+    if perms.ensure_may_see_linter_feedback.as_bool():
         linter_comments = work.get_linter_feedback()
+    else:
+        linter_comments = []
 
     filename = f'{work.assignment.name}-{work.user.name}-feedback.txt'.replace(
         '/', '_'
@@ -247,11 +242,14 @@ def delete_submission(submission_id: int) -> EmptyResponse:
         with_for_update=True
     )
     user = submission.user
-    was_latest = db.session.query(
-        assignment.get_from_latest_submissions(
-            models.Work.id
-        ).filter_by(id=submission.id).exists()
-    ).scalar()
+    was_latest = helpers.handle_none(
+        db.session.query(
+            assignment.get_from_latest_submissions(
+                models.Work.id
+            ).filter_by(id=submission.id).exists()
+        ).scalar(),
+        False,
+    )
 
     logger.info(
         'Deleting submission',
@@ -265,36 +263,17 @@ def delete_submission(submission_id: int) -> EmptyResponse:
     submission.deleted = True
     db.session.flush()
 
-    if was_latest:
-        new_latest = assignment.get_all_latest_submissions().filter_by(
-            user_id=user.id
-        ).one_or_none()
-
-        if (
-            assignment.auto_test is not None and
-            assignment.auto_test.run is not None
-        ):
-            at_run_id = assignment.auto_test.run.id
-            helpers.callback_after_this_request(
-                lambda: psef.tasks.update_latest_results_in_broker(at_run_id)
-            )
-
-        if new_latest:
-            if assignment.should_passback:
-                new_latest_id = new_latest.id
-                helpers.callback_after_this_request(
-                    lambda: tasks.passback_grades(
-                        [new_latest_id],
-                        assignment_id=assignment.id,
-                    )
-                )
-            if assignment.auto_test:
-                # This function also sets `final_result` if needed
-                assignment.auto_test.reset_work(new_latest)
-        else:
-            helpers.callback_after_this_request(
-                lambda: tasks.delete_submission(submission_id, assignment.id)
-            )
+    WORK_DELETED.send(
+        WorkDeletedData(
+            deleted_work=submission,
+            was_latest=was_latest,
+            new_latest=(
+                assignment.get_all_latest_submissions().filter_by(
+                    user_id=user.id
+                ).one_or_none() if was_latest else None
+            ),
+        )
+    )
 
     db.session.commit()
 
@@ -316,6 +295,7 @@ def _group_by_file_id(comms: t.List[TCom]
 def _get_feedback_without_replies(
     comments: t.List[models.CommentBase],
     linter_comments: LinterComments,
+    general: str,
 ) -> FeedbackWithoutReplies:
     user: t.Dict[int, t.Dict[int, str]] = defaultdict(dict)
     authors: t.Dict[int, t.Dict[int, models.User]] = defaultdict(dict)
@@ -332,7 +312,7 @@ def _get_feedback_without_replies(
                 authors[file_id][line] = reply.author
 
     return {
-        'general': '',
+        'general': general,
         'user': user,
         'authors': authors,
         'linter': linter_comments,
@@ -342,6 +322,7 @@ def _get_feedback_without_replies(
 def _get_feedback_with_replies(
     comments: t.List[models.CommentBase],
     linter_comments: LinterComments,
+    general: str,
 ) -> FeedbackWithReplies:
     user_comments = [c for c in comments if c.user_visible_replies]
     authors = sorted(
@@ -352,7 +333,7 @@ def _get_feedback_with_replies(
     )
 
     return {
-        'general': '',
+        'general': general,
         'user': user_comments,
         'authors': authors,
         'linter': linter_comments,
@@ -376,10 +357,9 @@ def get_feedback_from_submission(
     work = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
+    perms = auth.WorkPermissions(work)
 
-    try:
-        auth.ensure_can_see_linter_feedback(work)
-    except PermissionException:
+    if not perms.ensure_may_see_linter_feedback.as_bool():
         linter_comments = {}
     else:
         all_linter_comments = models.LinterComment.query.filter(
@@ -421,14 +401,19 @@ def get_feedback_from_submission(
         contains_eager(models.CommentBase.file),
     ).all()
 
-    fun: t.Callable[[t.List[models.CommentBase], LinterComments], t.
+    fun: t.Callable[[t.List[models.CommentBase], LinterComments, str], t.
                     Union[FeedbackWithoutReplies, FeedbackWithReplies]]
     if helpers.request_arg_true('with_replies'):
         fun = _get_feedback_with_replies
     else:
         fun = _get_feedback_without_replies
 
-    return jsonify(fun(comments, linter_comments))
+    if perms.ensure_may_see_general_feedback.as_bool():
+        general = helpers.handle_none(work.comment, '')
+    else:
+        general = ''
+
+    return jsonify(fun(comments, linter_comments, general))
 
 
 @api.route("/submissions/<int:submission_id>/rubrics/", methods=['GET'])
@@ -988,7 +973,7 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
 
         raise APIException(
             'Invalid filenames',
-            f'Some requested names are reserved',
+            'Some requested names are reserved',
             APICodes.INVALID_PARAM,
             400,
         )
@@ -1062,7 +1047,7 @@ def get_dir_contents(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
 
-    file_id: str = request.args.get('file_id', '')
+    file_id = request.args.get('file_id', None, type=int)
     path: str = request.args.get('path', '')
 
     exclude_owner = models.File.get_exclude_owner(
@@ -1072,7 +1057,7 @@ def get_dir_contents(
 
     auth.ensure_can_view_files(work, exclude_owner == FileOwner.student)
 
-    if file_id:
+    if file_id is not None:
         file = helpers.filter_single_or_404(
             models.File,
             models.File.id == file_id,

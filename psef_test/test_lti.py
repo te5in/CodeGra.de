@@ -11,7 +11,6 @@ import oauth2
 import pytest
 import dateutil.parser
 
-import psef.lti as lti
 import psef.auth as auth
 import psef.models as m
 import psef.features as feats
@@ -19,6 +18,7 @@ from helpers import (
     create_group, create_marker, create_group_set, create_submission,
     create_user_with_perms
 )
+from psef.lti import v1_1 as lti
 from cg_dt_utils import DatetimeWithTimezone
 from psef.permissions import CoursePermission as CPerm
 
@@ -204,7 +204,7 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
             else:
                 assert m.Assignment.query.get(
                     lti_res['assignment']['id']
-                ).state == m._AssignmentStateEnum.open
+                ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             if due is None:
                 assert lti_res['assignment']['deadline'] == due_at.isoformat()
@@ -259,7 +259,10 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
         out = get_user_info(False)
         assert out['name'] == ta_user.name
         assert out['username'] == ta_user.username
-        assert m.User.query.get(ta_user.id).lti_user_id == 'THOMAS_SCHAPER'
+        assert m.UserLTIProvider.user_is_linked(ta_user)
+        assert m.UserLTIProvider.query.filter_by(
+            user_id=ta_user.id
+        ).one().lti_user_id == 'THOMAS_SCHAPER'
 
         assert assig['id'] in ta_user.assignment_results
 
@@ -329,7 +332,7 @@ def test_lti_no_roles_found(test_client, app, logged_in, ta_user, monkeypatch):
             else:
                 assert m.Assignment.query.get(
                     lti_res['assignment']['id']
-                ).state == m._AssignmentStateEnum.open
+                ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             return lti_res['assignment'], lti_res.get(
                 'access_token', None
@@ -433,13 +436,12 @@ def test_invalid_lti_role(test_client, app, role, session):
         assert user.courses[assig['course']['id']].name == 'New LTI Role'
 
 
-@pytest.mark.parametrize('patch', [True, False])
 @pytest.mark.parametrize('filename', [
     ('correct.tar.gz'),
 ])
 def test_lti_grade_passback(
-    test_client, app, logged_in, ta_user, filename, monkeypatch, patch,
-    monkeypatch_celery, error_template, session
+    test_client, app, logged_in, ta_user, filename, monkeypatch,
+    monkeypatch_celery, error_template, session, describe
 ):
     due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
     assig_max_points = 8
@@ -463,21 +465,21 @@ def test_lti_grade_passback(
             assert isinstance(headers, dict)
             assert headers['Content-Type'] == 'application/xml'
             assert isinstance(body, bytes)
+            assert uri.startswith(source_url)
             last_xml = body.decode('utf-8')
             return '', SUCCESS_XML
 
-    if patch:
-        monkeypatch.setitem(app.config, '_USING_SQLITE', True)
-
     patch_request = Patch()
     monkeypatch.setattr(oauth2.Client, 'request', patch_request)
+    source_url = f'http://source_url-{uuid.uuid4()}.com'
+    source_id = 'NON_EXISTING2!'
 
     def do_lti_launch(
         username='A the A-er',
         lti_id='USER_ID',
-        source_id='NON_EXISTING2!',
         published='false',
         canvas_id='MY_COURSE_ID_100',
+        source_id=source_id,
     ):
         nonlocal last_xml
         with app.app_context():
@@ -498,7 +500,7 @@ def test_lti_grade_passback(
                 'context_id': 'NO_CONTEXT!!',
                 'context_title': 'WRONG_TITLE!!',
                 'oauth_consumer_key': 'my_lti',
-                'lis_outcome_service_url': source_id,
+                'lis_outcome_service_url': source_url,
                 'custom_canvas_points_possible': lti_max_points,
             }
             if source_id:
@@ -519,7 +521,7 @@ def test_lti_grade_passback(
             else:
                 assert m.Assignment.query.get(
                     lti_res['assignment']['id']
-                ).state == m._AssignmentStateEnum.open
+                ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             return lti_res['assignment'], lti_res.get('access_token', None)
 
@@ -554,37 +556,39 @@ def test_lti_grade_passback(
             headers={'Authorization': f'Bearer {token}'},
         )
 
-    assig, token = do_lti_launch()
-    work = get_upload_file(token, assig['id'])
-    assert patch_request.called
-    assert_initial_passback(last_xml, patch_request.source_id)
+    with describe('Submit should do an initial callback'):
+        # Test initial callback for
+        assig, token = do_lti_launch()
+        work = get_upload_file(token, assig['id'])
+        assert patch_request.called
+        assert_initial_passback(last_xml, source_id)
 
-    # Assignment is not done so it should not passback the grade
-    set_grade(token, 5.0, work['id'])
-    assert not patch_request.called
+    with describe('Setting grade when assig is not done should not passback'):
+        set_grade(token, 5.0, work['id'])
+        assert not patch_request.called
 
-    test_client.req(
-        'patch',
-        f'/api/v1/assignments/{assig["id"]}',
-        200,
-        data={
-            'state': 'done',
-        },
-        headers={'Authorization': f'Bearer {token}'},
-    )
+    with describe('Setting the assig to done should passback the grades'):
+        test_client.req(
+            'patch',
+            f'/api/v1/assignments/{assig["id"]}',
+            200,
+            data={
+                'state': 'done',
+            },
+            headers={'Authorization': f'Bearer {token}'},
+        )
 
-    # After setting assignment open it should passback the grades.
-    assert patch_request.called
-    assert_grade_set_to(
-        last_xml,
-        patch_request.source_id,
-        lti_max_points,
-        5.0,
-        raw=False,
-        created_at=work['created_at']
-    )
+        # After setting assignment open it should passback the grades.
+        assert patch_request.called
+        assert_grade_set_to(
+            last_xml,
+            source_id,
+            lti_max_points,
+            5.0,
+            raw=False,
+            created_at=work['created_at']
+        )
 
-    if patch:
         test_client.req(
             'get',
             f'/api/v1/submissions/{work["id"]}/grade_history/',
@@ -600,81 +604,82 @@ def test_lti_grade_passback(
             headers={'Authorization': f'Bearer {token}'},
         )
 
-    # Updating while open should passback straight away
-    set_grade(token, 6, work['id'])
-    assert patch_request.called
-    assert_grade_set_to(
-        last_xml,
-        patch_request.source_id,
-        lti_max_points,
-        6,
-        raw=False,
-        created_at=work['created_at']
-    )
-
-    # Setting grade to ``None`` should do a delete request
-    set_grade(token, None, work['id'])
-    assert patch_request.called
-    assert_grade_deleted(last_xml, patch_request.source_id)
-
-    with app.app_context():
-        test_client.req(
-            'patch',
-            f'/api/v1/assignments/{assig["id"]}',
-            200,
-            data={
-                'max_grade': 11,
-            },
-            headers={'Authorization': f'Bearer {token}'},
+    with describe('Updating while open should passback straight away'):
+        set_grade(token, 6, work['id'])
+        assert patch_request.called
+        assert_grade_set_to(
+            last_xml,
+            source_id,
+            lti_max_points,
+            6,
+            raw=False,
+            created_at=work['created_at']
         )
 
-    # When ``max_grade`` is set it should start to do raw passbacks, but only
-    # if the grade passeback is in fact > 10
-    set_grade(token, 6, work['id'])
-    assert patch_request.called
-    assert_grade_set_to(
-        last_xml,
-        patch_request.source_id,
-        lti_max_points,
-        6.0,
-        raw=False,
-        created_at=work['created_at']
-    )
+    with describe('Setting grade to `None` should do a delete request'):
+        set_grade(token, None, work['id'])
+        assert patch_request.called
+        assert_grade_deleted(last_xml, source_id)
 
-    # As this grade is >11 the ``raw`` option should be used
-    set_grade(token, 11, work['id'])
-    assert patch_request.called
-    assert_grade_set_to(
-        last_xml,
-        patch_request.source_id,
-        lti_max_points,
-        11.0,
-        raw=True,
-        created_at=work['created_at']
-    )
+    with describe('Setting max grade should work'):
+        with app.app_context():
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{assig["id"]}',
+                200,
+                data={
+                    'max_grade': 11,
+                },
+                headers={'Authorization': f'Bearer {token}'},
+            )
 
-    assig, token = do_lti_launch(
-        username='NEW_USERNAME',
-        lti_id='NEW_ID',
-        source_id=False,
-        canvas_id='NEW_CANVAS_ID',
-    )
-    full_filename = (
-        f'{os.path.dirname(__file__)}/'
-        f'../test_data/test_blackboard/{filename}'
-    )
-    with app.app_context():
-        test_client.req(
-            'post',
-            f'/api/v1/assignments/{assig["id"]}/submission',
-            400,
-            real_data={'file': (full_filename, 'bb.tar.gz')},
-            headers={'Authorization': f'Bearer {token}'},
-            result=error_template
+        # When ``max_grade`` is set it should start to do raw passbacks, but
+        # only if the grade passeback is in fact > 10
+        set_grade(token, 6, work['id'])
+        assert patch_request.called
+        assert_grade_set_to(
+            last_xml,
+            source_id,
+            lti_max_points,
+            6.0,
+            raw=False,
+            created_at=work['created_at']
         )
 
-    # When submitting fails no grades should be passed back
-    assert not patch_request.called
+        # As this grade is >11 the ``raw`` option should be used
+        set_grade(token, 11, work['id'])
+        assert patch_request.called
+        assert_grade_set_to(
+            last_xml,
+            source_id,
+            lti_max_points,
+            11.0,
+            raw=True,
+            created_at=work['created_at']
+        )
+
+    with describe('When submitting fails no grades should be passed back'):
+        assig, token = do_lti_launch(
+            username='NEW_USERNAME',
+            lti_id='NEW_ID',
+            source_id=False,
+            canvas_id='NEW_CANVAS_ID',
+        )
+        full_filename = (
+            f'{os.path.dirname(__file__)}/'
+            f'../test_data/test_blackboard/{filename}'
+        )
+        with app.app_context():
+            test_client.req(
+                'post',
+                f'/api/v1/assignments/{assig["id"]}/submission',
+                400,
+                real_data={'file': (full_filename, 'bb.tar.gz')},
+                headers={'Authorization': f'Bearer {token}'},
+                result=error_template
+            )
+
+        assert not patch_request.called
 
 
 @pytest.mark.parametrize('patch', [True, False])
@@ -767,7 +772,7 @@ def test_lti_grade_passback_blackboard(
             )
             assert m.Assignment.query.get(
                 lti_res['assignment']['id']
-            ).state == m._AssignmentStateEnum.open
+            ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             return lti_res['assignment'], token
 
@@ -950,7 +955,7 @@ def test_lti_assignment_create_and_delete(
             else:
                 assert m.Assignment.query.get(
                     lti_res['assignment']['id']
-                ).state == m._AssignmentStateEnum.open
+                ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == course_name
             return lti_res['assignment'], lti_res.get('access_token', None)
 
@@ -1068,7 +1073,7 @@ def test_lti_assignment_update(
             else:
                 assert m.Assignment.query.get(
                     lti_res['assignment']['id']
-                ).state == m._AssignmentStateEnum.open
+                ).state == m.AssignmentStateEnum.open
             return lti_res['assignment'], lti_res.get('access_token', None)
 
     with app.app_context():
@@ -1170,7 +1175,7 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
             else:
                 assert m.Assignment.query.get(
                     lti_res['assignment']['id']
-                ).state == m._AssignmentStateEnum.open
+                ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             if due is None:
                 assert lti_res['assignment']['deadline'] == due_at.isoformat()
@@ -1285,14 +1290,9 @@ def test_invalid_jwt(test_client, app, logged_in, session, error_template):
         )
 
 
-@pytest.mark.parametrize(
-    'oauth_key,err', [
-        ('no_secret', 500),
-        ('no_lms', 500),
-        ('no_colon', 500),
-        ('unknown_lms', 400),
-    ]
-)
+@pytest.mark.parametrize('oauth_key,err', [
+    ('unknown_lms', 400),
+])
 def test_invalid_lms(
     test_client, app, logged_in, session, error_template, oauth_key, err
 ):
@@ -1413,7 +1413,7 @@ def test_lti_grade_passback_with_groups(
             )
             assert m.Assignment.query.get(
                 lti_res['assignment']['id']
-            ).state == m._AssignmentStateEnum.open
+            ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             return lti_res['assignment'], lti_res.get('access_token', None)
 
@@ -1548,9 +1548,12 @@ def test_lti_grade_passback_with_groups(
 
 def test_lti_grade_passback_test_submission(
     test_client, app, logged_in, teacher_user, tomorrow, monkeypatch,
-    monkeypatch_celery
+    make_function_spy
 ):
     source_id = str(uuid.uuid4())
+    passback_spy = make_function_spy(
+        m.LTI1p1Provider, '_passback_grade', pass_self=True
+    )
 
     class Patch:
         def __init__(self):
@@ -1615,7 +1618,7 @@ def test_lti_grade_passback_test_submission(
             )
             assert m.Assignment.query.get(
                 lti_res['assignment']['id']
-            ).state == m._AssignmentStateEnum.open
+            ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             return lti_res['assignment'], lti_res.get('access_token', None)
 
@@ -1643,6 +1646,8 @@ def test_lti_grade_passback_test_submission(
                 'state': 'done',
             },
         )
+
+        assert passback_spy.called
 
         num, xmls = patch_request.get_and_reset()
         assert num == 0
@@ -1737,7 +1742,7 @@ def test_lti_grade_passback_moodle(
             )
             assert m.Assignment.query.get(
                 lti_res['assignment']['id']
-            ).state == m._AssignmentStateEnum.open
+            ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             return lti_res['assignment'], token
 
@@ -1910,7 +1915,7 @@ def test_lti_grade_passback_brightspace(
             )
             assert m.Assignment.query.get(
                 lti_res['assignment']['id']
-            ).state == m._AssignmentStateEnum.open
+            ).state == m.AssignmentStateEnum.open
             assert lti_res['assignment']['course']['name'] == 'NEW_COURSE'
             return lti_res['assignment'], token
 
@@ -2295,7 +2300,7 @@ def test_canvas_missing_required_params(
             'oauth_consumer_key': 'my_lti',
         }
         res = test_client.post('/api/v1/lti/launch/1', data=data)
-        assert res.status_code == 302
+        assert res.status_code in {302, 303}
         url = urllib.parse.urlparse(res.headers['Location'])
         blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
         test_client.req(
@@ -2308,3 +2313,76 @@ def test_canvas_missing_required_params(
                 'message': re.compile(r'.*not added correctly.*'),
             },
         )
+
+
+def test_lti_multiple_providers_same_user_id(
+    test_client, app, logged_in, session, tomorrow
+):
+    def do_launch(lti_id, **d):
+        data = {
+            'custom_canvas_course_name': 'NEW_COURSE',
+            'custom_canvas_course_id': 'MY_COURSE_ID',
+            'custom_canvas_assignment_id': 'MY_ASSIG_ID',
+            'custom_canvas_assignment_title': '15',
+            'ext_roles': 'urn:lti:role:ims/lis/Instructor',
+            'roles': 'urn:lti:role:ims/lis/Instructor',
+            'custom_canvas_user_login_id': 'a-the-a-er',
+            'custom_canvas_assignment_due_at': tomorrow.isoformat(),
+            'custom_canvas_assignment_published': 'false',
+            'user_id': lti_id,
+            'lis_person_contact_email_primary': 'thomas@example.com',
+            'lis_person_name_full': 'A the A-er',
+            'context_id': 'NO_CONTEXT',
+            'context_title': 'WRONG_TITLE',
+            'oauth_consumer_key': 'my_lti',
+            'resource_link_id': '',
+            'resource_link_title': '',
+            **d,
+        }
+        with app.app_context():
+            res = test_client.post('/api/v1/lti/launch/1', data=data)
+            assert res.status_code in {302, 303}
+            url = urllib.parse.urlparse(res.headers['Location'])
+            blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
+            lti_res = test_client.req(
+                'post',
+                '/api/v1/lti/launch/2',
+                200,
+                data={'blob_id': blob_id},
+            )
+
+            token = lti_res.get('access_token', None)
+
+            return test_client.req(
+                'get',
+                '/api/v1/login?extended',
+                200,
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+    user1 = do_launch('1')
+    user2 = do_launch('1')
+    user3 = do_launch('1', custom_canvas_user_login_id='new!')
+    user4 = do_launch('1', oauth_consumer_key='canvas2')
+    user5 = do_launch(
+        '1', oauth_consumer_key='canvas2', custom_canvas_user_login_id='new!'
+    )
+    user6 = do_launch(
+        '1',
+        oauth_consumer_key='blackboard_lti',
+        lis_person_name_full='a-the-a-er',
+        lis_person_sourcedid='a-the-a-er',
+    )
+
+    # All launches within the same LMS should have the same id
+    assert set(u['id'] for u in [user1, user2, user3]) == {user1['id']}
+    assert user4['id'] == user5['id']
+    # Different LMS should have a different id
+    assert len(set([user1['id'], user4['id'], user6['id']])) == 3
+
+    # Username change in the LMS should be ignored, and collisions should be
+    # detected.
+    assert user1['username'] == user2['username']
+    assert user1['username'] == user3['username']
+    assert user1['username'] + ' (1)' == user4['username']
+    assert user1['username'] + ' (2)' == user6['username']

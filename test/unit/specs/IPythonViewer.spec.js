@@ -4,7 +4,7 @@ import { shallowMount, createLocalVue } from '@vue/test-utils';
 import VueRouter from 'vue-router';
 import Vuex from 'vuex';
 import BootstrapVue from 'bootstrap-vue';
-import * as utils from '@/utils';
+import * as utils from '@/utils/typed';
 import * as decode from '@/utils/decode'
 import * as ipythonUtils from '@/utils/ipython'
 import axios from 'axios';
@@ -32,6 +32,7 @@ describe('IPythonViewer.vue', () => {
     let file;
     let fileId;
     let mockIPython = JSON.stringify({
+        nbformat: 4,
         metadata: {
             language_info: { name: 'python' },
         },
@@ -46,6 +47,7 @@ describe('IPythonViewer.vue', () => {
             str = data;
         } else {
             str = JSON.stringify({
+                nbformat: 4,
                 metadata: {
                     language_info: { name: 'python' },
                 },
@@ -56,6 +58,7 @@ describe('IPythonViewer.vue', () => {
         mockIPython = (new util.TextEncoder()).encode(str);
         wrapper.setProps({ fileContent: mockIPython });
 
+        await comp.$afterRerender();
         await comp.$afterRerender();
     };
 
@@ -230,6 +233,76 @@ describe('IPythonViewer.vue', () => {
                 },
             ]);
             expect(utils.highlightCode).toHaveBeenCalledTimes(1);
+        });
+
+        it('should work with nbformat version 3', async () => {
+            await setData(JSON.stringify({
+                nbformat: 3,
+                metadata: {
+                    language_info: { name: 'python' },
+                },
+                cells: [
+                    {
+                        cell_type: 'markdown',
+                        input: ['hello'],
+                    },
+                    {
+                        cell_type: 'code',
+                        input: ['import os\n\n\nprint(os.path.join(', 'a, b))'],
+                        outputs: [
+                            {
+                                output_type: 'stream',
+                                text: ['hello'],
+                            },
+                            {
+                                output_type: 'not stream',
+                                text: ['hello'],
+                            },
+                        ],
+                    },
+                ],
+            }));
+            expect(comp.data).not.toEqual({});
+            expect(comp.outputCells).toMatchObject([
+                {
+                    cell_type: 'markdown',
+                    source: 'hello',
+                    feedback_offset: 0,
+                },
+                {
+                    cell_type: 'code',
+                    source: ['import os', '', '', 'print(os.path.join(a, b))'],
+                    feedback_offset: 1,
+                    outputs: [
+                        {
+                            output_type: 'stream',
+                            text: 'hello',
+                            feedback_offset: 5
+                        },
+                        {
+                            output_type: 'not stream',
+                            text: ['hello'],
+                            feedback_offset: 6,
+                        },
+                    ],
+                },
+            ]);
+        });
+
+        it('should not work with nbformat versions < 3', async () => {
+            let err;
+            comp.$emit = jest.fn((_, e) => { err = e; });
+
+            await setData(JSON.stringify({
+                nbformat: 2,
+            }));
+
+            expect(comp.data).not.toEqual({});
+            expect(comp.outputCells).toEqual([]);
+            expect(comp.$emit).toBeCalledTimes(1);
+            expect(comp.$emit).lastCalledWith('error', err);
+            expect(err.error).toBeInstanceOf(Error);
+            expect(err.error.message).toMatch('Only Jupyter Notebook format v3 or greater is supported.');
         });
     });
 

@@ -47,6 +47,10 @@ if t.TYPE_CHECKING:  # pragma: no cover
             self.conf: t.MutableMapping[t.Any, t.Any] = {}
             self.control: t.Any
 
+        @property
+        def current_task(self) -> CeleryTask[t.Callable[[object], object]]:
+            ...
+
         def add_periodic_task(
             self, schedule: object,
             signature: CelerySignature[t.Callable[[], None]]
@@ -61,17 +65,16 @@ if t.TYPE_CHECKING:  # pragma: no cover
         def task(
             self,
             *,
-            autoretry_for: t.Iterable[t.Type[Exception]],
-            retry_kwargs: t.Dict[str, object],
-            retry_backoff: bool,
+            autoretry_for: t.Iterable[t.Type[Exception]] = ...,
+            retry_kwargs: t.Dict[str, object] = ...,
+            retry_backoff: bool = ...,
             retry_jitter: bool = True,
             retry_backoff_max: t.Optional[int] = None,
+            name: str = ...,
+            max_retries: int = ...,
+            reject_on_worker_lost: bool = False,
+            acks_late: bool = False,
         ) -> t.Callable[[T], CeleryTask[T]]:
-            ...
-
-        @t.overload
-        def task(self, **kwargs: t.Union[int, bool]
-                 ) -> t.Callable[[T], CeleryTask[T]]:
             ...
 
         def task(self, *args: object, **kwargs: object) -> t.Any:
@@ -222,6 +225,7 @@ class CGCelery(Celery):
             'timezone': 'UTC',
         })
         self._flask_app = app
+        app.celery = self
 
     def _call_callbacks(self, status: TaskStatus) -> None:
         for callback in self._after_task_callbacks:
@@ -253,6 +257,14 @@ class CGCelery(Celery):
             logger.info(
                 'Task finished',
                 result=kwargs['result'],
+            )
+
+        @self._signals.task_retry.connect(weak=False)
+        def __celery_retry(**_: object) -> None:  # pragma: no cover
+            self._call_callbacks(TaskStatus.failure)
+            logger.error(
+                'Task failed',
+                exc_info=True,
             )
 
         @self._signals.task_failure.connect(weak=False)

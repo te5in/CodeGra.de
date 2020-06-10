@@ -447,7 +447,7 @@ def test_get_feedback(
         )
 
     assig = session.query(m.Assignment).get(assig_id)
-    assig.state = m._AssignmentStateEnum.done
+    assig.state = m.AssignmentStateEnum.done
     session.commit()
 
     with logged_in(named_user):
@@ -506,7 +506,7 @@ def test_can_see_user_feedback_before_done_permission(
             data={'comment': 'for line - 1'},
         )
 
-    assignment.state = m._AssignmentStateEnum.open
+    assignment.state = m.AssignmentStateEnum.open
 
     course = assignment.course
     course_users = course.get_all_users_in_course(include_test_students=False
@@ -684,7 +684,15 @@ def test_get_all_feedback(
         m.File.name != '__init__',
     ).first()[0]
 
+    general_feedback = 'general feedback'
+
     with logged_in(teacher_user):
+        test_client.req(
+            'patch',
+            f'/api/v1/submissions/{work["id"]}',
+            200,
+            data={'feedback': general_feedback},
+        )
         test_client.req(
             'put',
             f'/api/v1/code/{code_id}/comments/0',
@@ -709,7 +717,7 @@ def test_get_all_feedback(
         r'Assignment: TEST COURSE\n'
         r'Grade: \n'
         r'General feedback:\n'
-        r'\n'
+        rf'{general_feedback}\n'
         r'\n'
         r'Comments:\n'
         r'test.py:1:1: for line 0\n'
@@ -747,7 +755,7 @@ def test_get_all_feedback(
             assert res.status_code == 404
 
     assig = session.query(m.Assignment).get(assig_id)
-    assig.state = m._AssignmentStateEnum.done
+    assig.state = m.AssignmentStateEnum.done
     session.commit()
 
     with logged_in(named_user):
@@ -779,7 +787,7 @@ def test_get_all_feedback(
         else:
             out = {
                 'user': dict,
-                'general': str,
+                'general': general_feedback,
                 'linter': dict,
                 'authors': {},
             }
@@ -907,7 +915,7 @@ def test_get_assignment_all_feedback(
             match_res(res)
 
     assig = session.query(m.Assignment).get(assig_id)
-    assig.state = m._AssignmentStateEnum.done
+    assig.state = m.AssignmentStateEnum.done
     session.commit()
 
     with logged_in(named_user):

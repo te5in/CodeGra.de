@@ -7,7 +7,11 @@ sudo chown -R "$USER":"$(id -gn)" /tmp/
 cat >config.ini <<EOF
 [Back-end]
 external_url = http://localhost:1234
+
+redis_cache_url = redis://localhost:6379/cg_cache
 EOF
+
+pip install -r test_requirements.txt
 
 create_db() {
     DBNAME="ci_test_gw${1}"
@@ -15,6 +19,7 @@ create_db() {
 
     PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -c "create database $DBNAME;" || exit 1
     PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres "$DBNAME" -c "create extension \"citext\";" || exit 1
+    PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres "$DBNAME" -c "create extension \"uuid-ossp\";" || exit 1
     ./manage.py db upgrade
 }
 
@@ -45,25 +50,35 @@ export BASE_DATABASE_URI='postgresql://postgres:postgres@localhost:5432/ci_test_
 
 pytest --cov cg_worker_pool \
        --cov cg_threading_utils \
+       --cov cg_signals \
+       --cov cg_cache \
        --cov-report term-missing \
        "$(pwd)/cg_worker_pool/tests/" \
        "$(pwd)/cg_threading_utils/tests/" \
+       "$(pwd)/cg_signals/tests/" \
+       "$(pwd)/cg_cache/tests/" \
        -vvvv
 res1="$?"
+if [[ "$res1" -ne 0 ]]; then
+    exit "$res1";
+fi
 
 timeout -k 600 600 \
-        pytest --cov psef \
+        pytest --cov psef --cov cg_signals --cov cg_cache \
         --cov-append \
         --postgresql="${BASE_DATABASE_URI}gw5" \
         --cov-report term-missing \
         "$(pwd)/psef_test/test_auto_test.py" \
         -vvvv
 res2="$?"
+if [[ "$res2" -ne 0 ]]; then
+    exit "$res2";
+fi
 
 rm "$(pwd)/psef_test/test_auto_test.py"
 
 timeout -k 900 900 \
-        pytest --cov psef \
+        pytest --cov psef --cov cg_signals --cov cg_cache \
         --cov-append \
         --postgresql="$BASE_DATABASE_URI" \
         --cov-report term-missing \
@@ -71,6 +86,9 @@ timeout -k 900 900 \
         -n 4 \
         -vvvv
 res3="$?"
+if [[ "$res3" -ne 0 ]]; then
+    exit "$res3";
+fi
 
 make doctest
 res4="$?"

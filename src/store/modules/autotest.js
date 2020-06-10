@@ -2,7 +2,7 @@
 import Vue from 'vue';
 import axios from 'axios';
 
-import { deepCopy, getProps } from '@/utils';
+import { deepCopy, getProps, makeHttpErrorHandler } from '@/utils';
 import { AutoTestSuiteData, AutoTestRun, FINISHED_STATES } from '@/models/auto_test';
 import * as types from '../mutation-types';
 
@@ -242,7 +242,6 @@ const actions = {
                     commit(types.SET_AUTO_TEST_RESULTS_BY_USER, {
                         autoTest,
                         autoTestRunId,
-                        userId,
                         results: getProps(result, [], 'data'),
                     });
                 }
@@ -301,8 +300,10 @@ const actions = {
         const resultId = result.id;
         result = state.results[resultId];
 
-        // Always reload when force is true.
-        if (result && result.finished && result.isFinal && !force) {
+        // If a result is finished and final, it cannot change anymore, so we
+        // do not request it again. But only if we do not have the extended
+        // result yet, i.e. setResults is set.
+        if (result && result.finished && result.isFinal && result.hasExtended && !force) {
             return Promise.resolve();
         }
 
@@ -369,17 +370,14 @@ const actions = {
 
         return axios.delete(`/api/v1/auto_tests/${autoTestId}/runs/${runId}`).then(
             () => c(),
-            err => {
-                switch (getProps(err, null, 'response', 'status')) {
-                    case 404:
-                        c();
-                        throw new Error(
-                            'AutoTest results were already deleted. Please reload the page.',
-                        );
-                    default:
-                        throw err;
-                }
-            },
+            makeHttpErrorHandler({
+                404: () => {
+                    c();
+                    throw new Error(
+                        'AutoTest results were already deleted. Please reload the page.',
+                    );
+                },
+            }),
         );
     },
 
@@ -508,11 +506,27 @@ const mutations = {
             return storeResult != null;
         });
 
+        // TODO: Why do we not just add the result to the store if it hasn't
+        // been added yet?
+        //
+        // Answer: We can't simply insert it as a new result in the run because
+        // AutoTestRun.setResultById only updates the results list with the
+        // results for the latest submissions if a result with the same id is
+        // already present. Specifically, it will not update the latest result
+        // if it is given a new latest result. And it can't, because it would
+        // need to know the user id to determine this, but we do not have this
+        // information present in the results list.
+        //
+        // Once we get to a point where we can insert results that are not yet
+        // present in the store yet, we also do not have to get the entire AT
+        // run from the backend on the initial request in the AT result viewer
+        // on the submission page or in the modal on the manage assignment
+        // page.
         if (run == null || storeResult == null) {
             return;
         }
 
-        storeResult.updateExtended(result, autoTest);
+        storeResult.update(result, autoTest);
 
         run.setResultById(storeResult);
         Vue.set(state.results, storeResult.id, storeResult);
@@ -528,13 +542,13 @@ const mutations = {
         });
     },
 
-    [types.SET_AUTO_TEST_RESULTS_BY_USER](state, { results, autoTest, autoTestRunId, userId }) {
+    [types.SET_AUTO_TEST_RESULTS_BY_USER](state, { results, autoTest, autoTestRunId }) {
         const runIndex = autoTest.runs.findIndex(r => r.id === autoTestRunId);
         if (runIndex === -1) {
             throw new Error('Could not find run');
         }
         const run = autoTest.runs[runIndex];
-        run.updateResultsByUser(userId, results, autoTest);
+        run.updateNonLatestResults(results, autoTest);
         Vue.set(autoTest.runs, runIndex, run);
     },
 

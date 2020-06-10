@@ -351,7 +351,7 @@ context('Rubric Viewer', () => {
 
                 cy.get('.rubric-viewer .rubric-viewer-row.normal:visible p')
                     .shouldNotOverflow();
-                cy.get('.nav-tabs .nav-item:nth(1)')
+                cy.get('.rubric-viewer .nav-tabs .nav-item:nth(1)')
                     .click();
                 cy.get('.rubric-viewer .rubric-viewer-row.continuous:visible p')
                     .shouldNotOverflow();

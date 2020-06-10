@@ -131,7 +131,7 @@ def parse_email_list(
             return addresses
 
     raise APIException(
-        f'The given string of emails contains invalid items',
+        'The given string of emails contains invalid items',
         f'The string "{to_parse}" contains invalid items.',
         APICodes.INVALID_PARAM, 400
     )

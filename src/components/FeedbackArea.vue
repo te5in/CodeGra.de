@@ -18,11 +18,13 @@
                 </a>
                 <template v-else>
                     <div v-if="idx !== 0"
-                        class="pr-1 reply-gutter">
+                        class="pr-1 reply-gutter"
+                        :class="{ faded: fadedReplies.has(reply.trackingId) }">
                         <icon name="caret-right" class="reply-icon" />
                     </div>
                     <feedback-reply
                         class="d-block"
+                        :class="{ faded: fadedReplies.has(reply.trackingId) }"
                         :can-use-snippets="canUseSnippets"
                         :reply="reply"
                         :feedback-line="feedback"
@@ -31,7 +33,8 @@
                         @updated="replyUpdated"
                         @deleted="replyDeleted"
                         @editing="onEditingEvent(reply, $event)"
-                        :submission="submission" />
+                        :submission="submission"
+                        :non-editable="nonEditable"/>
                 </template>
             </div>
         </transition-group>
@@ -95,6 +98,14 @@ export default class FeedbackArea extends Vue {
     @Prop({ required: true }) readonly submission!: Submission;
 
     @Prop({ required: true }) readonly totalAmountLines!: number;
+
+    @Prop({ default: false }) readonly nonEditable!: boolean;
+
+    // A function that receives a thread and a reply as arguments, and returns
+    // a boolean value indicating whether a reply within a thread should be
+    // faded.
+    @Prop({ default: () => false })
+    readonly shouldFadeReply!: (thread: FeedbackLine, reply: FeedbackReplyModel) => boolean;
 
     editingReplies: Record<string, boolean> = {};
 
@@ -165,6 +176,7 @@ export default class FeedbackArea extends Vue {
     get showReply(): boolean {
         const replies = this.nonDeletedReplies;
         return (
+            !this.nonEditable &&
             FeedbackLine.canAddReply(this.submission) &&
             replies.length > 0 && !replies[replies.length - 1].isEmpty
         );
@@ -176,6 +188,23 @@ export default class FeedbackArea extends Vue {
 
     get replies(): ReadonlyArray<FeedbackReplyModel> {
         return this.feedback.replies;
+    }
+
+    get fadedReplies() {
+        return new Set(
+            this.nonDeletedReplies.filter(reply =>
+                this.shouldFadeReply(this.feedback, reply),
+            ).map(reply => reply.trackingId),
+        );
+    }
+
+    @Watch('fadedReplies', { immediate: true })
+    onFadedReplies() {
+        const hasFaded = this.fadedReplies.size > 0;
+        const unfadedHidden = [...this.hiddenReplies].filter(r => !this.fadedReplies.has(r));
+        if (hasFaded && unfadedHidden.length > 0) {
+            this.showAllReplies();
+        }
     }
 
     isEditing(reply: FeedbackReplyModel): boolean {
@@ -231,6 +260,10 @@ export default class FeedbackArea extends Vue {
 
     &.editing .reply-gutter {
         opacity: 0;
+    }
+
+    .faded {
+        opacity: 50%;
     }
 }
 

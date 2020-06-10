@@ -28,7 +28,7 @@ function makeSource(name, data) {
 function makeFeedbackSource(...data) {
     return deepFreeze({
         name: 'inline_feedback',
-        data: Object.fromEntries(data.map((x, i) => [i, x])),
+        data: Object.fromEntries(data.map((x, i) => [i, { total_amount: x }])),
     });
 }
 
@@ -110,7 +110,7 @@ const rubric = deepFreeze([
     },
 ]);
 
-beforeEach(() => {
+beforeEach(async () => {
     const course = Object.assign({}, assignment.course || {});
     const assig = Object.assign({}, assignment);
     delete assig.course;
@@ -133,6 +133,15 @@ beforeEach(() => {
         assignmentId: assignment.id,
         rubric,
     });
+
+    for (let i = 0; i < 10; ++i) {
+        await store.dispatch('users/addOrUpdateUser', {
+            user: {
+                id: i,
+                name: `Assignee: ${i}`,
+            },
+        });
+    }
 });
 
 describe('Workspace', () => {
@@ -431,6 +440,8 @@ describe('WorkspaceFilter', () => {
             Object.entries(g).forEach(([k, v]) => {
                 if (k === 'onlyLatestSubs') {
                     expect(v).toBeFalse();
+                } else if (k === 'assignees') {
+                    expect(v).toEqual(f[k]);
                 } else {
                     expect(v).toBe(f[k]);
                 }
@@ -550,9 +561,9 @@ describe('WorkspaceFilter', () => {
                 const f = WorkspaceFilter.emptyFilter;
                 const s = f.split({ assignees: [0, 1, 2] });
 
-                expect(s[0].assignees).toEqual([0]);
-                expect(s[1].assignees).toEqual([1]);
-                expect(s[2].assignees).toEqual([2]);
+                expect(s[0].assignees.map(x => x.id)).toEqual([0]);
+                expect(s[1].assignees.map(x => x.id)).toEqual([1]);
+                expect(s[2].assignees.map(x => x.id)).toEqual([2]);
             });
         });
 
@@ -883,14 +894,14 @@ describe('WorkspaceSubmissionSet', () => {
             const wss = submissionSetWithGrades([1, 5, 10]);
             const bin = wss.binSubmissionsByGrade();
 
-            expect(getBins(bin)).toEqual([1, 5, 10]);
+            expect(getBins(bin)).toEqual([1, 5, 9]);
             expect(bin[0]).toHaveLength(0);
             expect(bin[1]).toHaveLength(1);
             expect(bin[5]).toHaveLength(1);
-            expect(bin[10]).toHaveLength(1);
+            expect(bin[9]).toHaveLength(1);
             expect(bin[1][0]).toEqual(wss.submissions[0][0]);
             expect(bin[5][0]).toEqual(wss.submissions[0][1]);
-            expect(bin[10][0]).toEqual(wss.submissions[0][2]);
+            expect(bin[9][0]).toEqual(wss.submissions[0][2]);
         });
 
         it('should accept a bin size', () => {
@@ -898,8 +909,8 @@ describe('WorkspaceSubmissionSet', () => {
             const bin1 = wss.binSubmissionsByGrade(2);
             const bin2 = wss.binSubmissionsByGrade(0.5);
 
-            expect(getBins(bin1)).toEqual([0, 2, 5]);
-            expect(getBins(bin2)).toEqual([2, 10, 20]);
+            expect(getBins(bin1)).toEqual([0, 2, 4]);
+            expect(getBins(bin2)).toEqual([2, 10, 19]);
         });
 
         it('should round down to a multiple of the bin size', () => {

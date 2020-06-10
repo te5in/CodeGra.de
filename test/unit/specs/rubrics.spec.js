@@ -341,9 +341,9 @@ describe('The rubric store', () => {
             it('should be unset initially and cache the result', () => {
                 const rubric = Rubric.fromServerData(mockRubric);
 
-                expect(rubric._cache.maxPoints).toBe(UNSET_SENTINEL);
+                expect(rubric._cache._cache.maxPoints).toBe(UNSET_SENTINEL);
                 expect(rubric.maxPoints).toBe(18);
-                expect(rubric._cache.maxPoints).toBe(18);
+                expect(rubric._cache._cache.maxPoints).toBe(18);
             });
         });
 
@@ -446,9 +446,9 @@ describe('The rubric store', () => {
             it('should be unset initially and cache the result', () => {
                 const row = new NormalRubricRow(mockRubric[0]);
 
-                expect(row._cache.maxPoints).toBe(UNSET_SENTINEL);
+                expect(row._cache._cache.maxPoints).toBe(UNSET_SENTINEL);
                 expect(row.maxPoints).toBe(2);
-                expect(row._cache.maxPoints).toBe(2);
+                expect(row._cache._cache.maxPoints).toBe(2);
             });
         });
 
@@ -616,7 +616,7 @@ describe('The rubric store', () => {
                     id: 5,
                     work_id: 6,
                 })
-                atResult.updateExtended({ final_result: true, state: 'working' });
+                atResult.update({ final_result: true, state: 'working' });
 
                 expect(row.lockMessage(
                     null, atResult, null
@@ -630,7 +630,7 @@ describe('The rubric store', () => {
                     id: 5,
                     work_id: 6,
                 })
-                atResult.updateExtended({ final_result: true, state: 'passed' });
+                atResult.update({ final_result: true, state: 'passed' });
 
                 expect(row.lockMessage(
                     null, atResult, null

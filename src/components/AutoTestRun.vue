@@ -154,26 +154,37 @@ export default {
         },
 
         sortedResults() {
-            return this.results.slice().sort((a, b) => {
-                if (a.finished) {
-                    return b.finished ? (b.startedAt || '').localeCompare(a.startedAt || '') : 1;
-                } else {
-                    if (b.finished) {
-                        return -1;
-                    }
+            // This method is tested in a wrong way in
+            // `test/unit/specs/util.spec.js`. So when this sorting changes make
+            // sure you also update the test.
 
-                    const aRunning = a.state === 'running';
-                    const bRunning = b.state === 'running';
+            // Sort the results by
+            // - First the running results.
+            // - Then any failed results (or something similar).
+            // - Then any results waiting to be started.
+            // - And finally the results that finished and didn't fail.
+            const stateMap = {
+                running: 1,
+                failed: 2,
+                skipped: 3,
+                timed_out: 4,
+                not_started: 5,
+                done: 10,
+            };
+            return this.$utils.sortBy(this.results, result => {
+                const { startedAt: startedAtAsString, state } = result;
+                const startedAt = this.$utils.toMoment(startedAtAsString);
 
-                    if (aRunning && bRunning) {
-                        return (a.startedAt || '').localeCompare(b.startedAt || '');
-                    } else if (!aRunning && !bRunning) {
-                        return a.createdAt.localeCompare(b.createdAt);
-                    } else {
-                        // a before b.
-                        return aRunning ? -1 : 1;
-                    }
-                }
+                return [
+                    stateMap[state] || 0,
+                    !!startedAt,
+                    // We want the done results to be sorted latest first, but
+                    // the running ones we want the oldest first. It is possible
+                    // that `startedAt` is `null` here, but because the previous
+                    // key already sorts on that the actual value used when
+                    // `startedAt` is `null` doesn't matter here.
+                    (startedAt ? startedAt.valueOf() : 0) * (state === 'done' ? -1 : 1),
+                ];
             });
         },
 

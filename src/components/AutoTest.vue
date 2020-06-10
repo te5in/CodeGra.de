@@ -664,7 +664,10 @@ export default {
 
     watch: {
         result() {
-            if (this.singleResult && this.result == null) {
+            if (!this.singleResult) {
+                return;
+            }
+            if (this.result == null || !this.result.hasExtended) {
                 this.loadSingleResult();
             }
         },
@@ -810,24 +813,21 @@ export default {
                         this.configCollapsed = !!this.currentRun && !this.singleResult;
                         return this.singleResult ? this.loadSingleResult() : this.loadAutoTestRun();
                     },
-                    err => {
-                        switch (this.$utils.getProps(err, null, 'response', 'status')) {
-                            case 403:
-                                this.message = {
-                                    text: 'The AutoTest results are not yet available.',
-                                    isError: false,
-                                };
-                                break;
-                            default:
-                                this.message = {
-                                    text: `Could not load AutoTest: ${this.$utils.getErrorMessage(
-                                        err,
-                                    )}`,
-                                    isError: true,
-                                };
-                                break;
-                        }
-                    },
+                    this.$utils.makeHttpErrorHandler({
+                        403: () => {
+                            this.message = {
+                                text: 'The AutoTest results are not yet available.',
+                                isError: false,
+                            };
+                        },
+                        default: err => {
+                            const msg = this.$utils.getErrorMessage(err);
+                            this.message = {
+                                text: `Could not load AutoTest: ${msg}`,
+                                isError: true,
+                            };
+                        },
+                    }),
                 ),
             ]).then(
                 () => {
@@ -849,18 +849,11 @@ export default {
                 () => {
                     this.setPollingTimer(this.loadAutoTestRun);
                 },
-                err => {
-                    switch (this.$utils.getProps(err, 500, 'response', 'status')) {
-                        case 500:
-                            this.setPollingTimer(this.loadAutoTestRun);
-                            break;
-                        case 404:
-                            this.onRun404();
-                            break;
-                        default:
-                            throw err;
-                    }
-                },
+                this.$utils.makeHttpErrorHandler({
+                    noResponse: () => this.setPollingTimer(this.loadAutoTestRun),
+                    500: () => this.setPollingTimer(this.loadAutoTestRun),
+                    404: () => this.onRun404(),
+                }),
             );
         },
 

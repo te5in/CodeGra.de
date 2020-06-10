@@ -41,12 +41,32 @@ const getters = {
         }
         return getSubmission(state, subId);
     },
-    getSubmissionsByUser: state => (assignmentId, userId) => {
+    getSubmissionsByUser: (state, otherGetters) => (
+        assignmentId,
+        userId,
+        { includeGroupSubmissions = false } = {},
+    ) => {
         const res = [];
         utils.getProps(state.submissionsByUser, [], assignmentId, userId).forEach(subId => {
             res.push(getSubmission(state, subId));
         });
         res.sort((a, b) => a.createdAt - b.createdAt);
+
+        // These are always seen as newer so insert these at the end of the
+        // array.
+        if (includeGroupSubmissions) {
+            const latestGroupSub = otherGetters.getGroupSubmissionOfUser(assignmentId, userId);
+            if (latestGroupSub) {
+                otherGetters
+                    .getSubmissionsByUser(assignmentId, latestGroupSub.userId, {
+                        includeGroupSubmissions: false,
+                    })
+                    .forEach(groupSub => {
+                        res.push(groupSub);
+                    });
+            }
+        }
+
         return res;
     },
 };
@@ -287,6 +307,23 @@ const actions = {
             submissionId,
             submissionProps,
         });
+    },
+
+    async loadLatestByUserInCourse(context, { courseId, userId }) {
+        return axios
+            .get(`/api/v1/courses/${courseId}/users/${userId}/submissions/?latest_only`)
+            .then(res =>
+                utils.mapObject(res.data, ([sub]) => {
+                    if (sub == null) {
+                        return null;
+                    }
+
+                    const assignmentId = sub.assignment_id;
+                    const submission = Submission.fromServerData(sub, assignmentId);
+                    context.commit(types.ADD_SINGLE_SUBMISSION, { submission });
+                    return submission;
+                }),
+            );
     },
 };
 

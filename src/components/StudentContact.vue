@@ -141,13 +141,20 @@ enum DefaultReceiver {
     },
 })
 export default class StudentContact extends Vue {
+    // When the user has no permission to search through the site users this
+    // will be a list of objects with only a `username` property. Otherwise
+    // it will be User models.
     @Prop({ required: true }) initialUsers!: ({ username: string } | models.User)[];
 
     @Prop({ required: true }) canUseSnippets!: boolean;
 
     @Prop({ required: true }) defaultSubject!: string;
 
-    @Prop({ required: true }) course!: { id: number, snippets: Snippet[] | null };
+    @Prop({ required: true }) course!: {
+        id: number,
+        snippets: Snippet[] | null,
+        permissions: Record<string, boolean>,
+    };
 
     @Prop({ default: false }) noCancel!: boolean;
 
@@ -267,8 +274,8 @@ export default class StudentContact extends Vue {
     }
 
     get canListUsers() {
-        const perms = this.$utils.getProps(this.course, {}, 'permissions');
-        return !!(perms.can_list_course_users);
+        // eslint-disable-next-line camelcase
+        return !!(this.course?.permissions.can_list_course_users);
     }
 
     afterEmail(): void {
@@ -278,7 +285,7 @@ export default class StudentContact extends Vue {
         }
     }
 
-    maybeSetDeliveryError(e: Error) {
+    maybeSetDeliveryError(e: Error & { response?: { data?: { code?: string } } }) {
         if (this.$utils.getProps(e, null, 'response', 'data', 'code') === 'MAILING_FAILED') {
             this.deliveryError = e;
         }

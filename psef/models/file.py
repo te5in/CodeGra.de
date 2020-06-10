@@ -18,12 +18,13 @@ from sqlalchemy_utils import UUIDType
 import psef
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import hybrid_property
-from cg_sqlalchemy_helpers.types import ColumnProxy, ImmutableColumnProxy
+from cg_sqlalchemy_helpers.types import (
+    MyQuery, ColumnProxy, ImmutableColumnProxy
+)
 from cg_sqlalchemy_helpers.mixins import TimestampMixin
 
 from . import Base, db
 from . import work as work_models
-from . import _MyQuery
 from .. import auth, helpers
 from ..exceptions import APICodes, APIException
 from ..permissions import CoursePermission
@@ -250,8 +251,6 @@ class File(NestedFileMixin[int], Base):
     single top level file. Each other file in a submission should be directly
     or indirectly connected to this file via the parent attribute.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['File']]
     __tablename__ = "File"
 
     id = db.Column('id', db.Integer, primary_key=True)
@@ -285,7 +284,7 @@ class File(NestedFileMixin[int], Base):
     parent_id = db.Column('parent_id', db.Integer, db.ForeignKey('File.id'))
 
     # This variable is generated from the backref from the parent
-    children: '_MyQuery["File"]'
+    children: MyQuery["File"]
 
     parent = db.relationship(
         lambda: File,
@@ -452,8 +451,6 @@ class File(NestedFileMixin[int], Base):
 class AutoTestFixture(Base, FileMixin[int], TimestampMixin):
     """This class represents a single fixture for an AutoTest configuration.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AutoTestFixture']]
     __tablename__ = 'AutoTestFixture'
 
     id = db.Column('id', db.Integer, primary_key=True)
@@ -532,8 +529,6 @@ class AutoTestOutputFile(Base, NestedFileMixin[uuid.UUID], TimestampMixin):
     :class:`.psef.models.AutoTestResult` and a
     :class:`.psef.models.AutoTestSuite`.
     """
-    if t.TYPE_CHECKING:  # pragma: no cover
-        query: t.ClassVar[_MyQuery['AutoTestOutputFile']]
 
     id = db.Column('id', UUIDType, primary_key=True, default=uuid.uuid4)
 
@@ -573,7 +568,7 @@ class AutoTestOutputFile(Base, NestedFileMixin[uuid.UUID], TimestampMixin):
     )
 
     # This variable is generated from the backref from the parent
-    children: '_MyQuery["AutoTestOutputFile"]'
+    children: MyQuery["AutoTestOutputFile"]
 
     parent = db.relationship(
         lambda: psef.models.AutoTestOutputFile,

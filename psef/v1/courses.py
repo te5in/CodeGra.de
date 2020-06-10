@@ -21,13 +21,14 @@ from psef import limiter, current_user
 from psef.errors import APICodes, APIWarnings, APIException
 from psef.models import db
 from psef.helpers import (
-    JSONResponse, EmptyResponse, jsonify, ensure_keys_in_dict,
-    make_empty_response, get_from_map_transaction, get_json_dict_from_request
+    JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
+    ensure_keys_in_dict, make_empty_response, get_from_map_transaction,
+    get_json_dict_from_request
 )
 
 from . import api
 from .. import limiter, parsers, features
-from ..lti import LTICourseRole
+from ..lti.v1_1 import LTICourseRole
 from ..permissions import CoursePermMap
 from ..permissions import CoursePermission as CPerm
 from ..permissions import GlobalPermission as GPerm
@@ -476,12 +477,11 @@ def create_new_assignment(course_id: int) -> JSONResponse[models.Assignment]:
             f'The course "{course_id}" is a LTI course',
             APICodes.INVALID_STATE, 400
         )
-    else:
-        assert course.lti_course_id is None
 
     assig = models.Assignment(
         name=name,
         course=course,
+        is_lti=False,
     )
     db.session.add(assig)
     db.session.commit()
@@ -1013,7 +1013,7 @@ def create_or_edit_registration_link(
     else:
         link = helpers.filter_single_or_404(
             models.CourseRegistrationLink,
-            models.CourseRegistrationLink.id == link_id,
+            models.CourseRegistrationLink.id == uuid.UUID(link_id),
             also_error=lambda l: l.course_id != course.id
         )
 
@@ -1155,6 +1155,15 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
                  ).with_entities(models.User).all()
     else:
         recipients = exceptions
+        # The test student cannot be a member of a group, so we do not need to
+        # run this on the expanded group members, and we also do not want to
+        # run it when `email_all_users` is true because in that case we let the
+        # DB handle it for us.
+        if any(r.is_test_student for r in recipients):
+            raise APIException(
+                'Cannot send an email to the test student',
+                'Test student was selected', APICodes.INVALID_PARAM, 400
+            )
 
     recipients = helpers.flatten(r.get_contained_users() for r in recipients)
 
@@ -1177,3 +1186,79 @@ def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
     )
 
     return JSONResponse.make(task_result)
+
+
+@api.route(
+    '/courses/<int:course_id>/users/<int:user_id>/submissions/',
+    methods=['GET']
+)
+@auth.login_required
+def get_user_submissions(
+    course_id: int, user_id: int
+) -> ExtendedJSONResponse[t.Mapping[int, t.Sequence[models.Work]]]:
+    """Get all :class:`.models.Work`s by the given :class:`.models.User` in the
+    given :class:`.models.Course`.
+
+    .. :quickref: Course; Get submissions by user in a course.
+
+    :qparam boolean latest_only: Only get the latest submission of a
+        user. Please use this option if at all possible, as students have a
+        tendency to submit many attempts and that can make this route quite
+        slow.
+
+    :param int course_id: The id of the course
+    :param int user_id: The id of the user
+    :returns: A response containing the JSON serialized submissions.
+
+    :raises NotFoundException: If the course does not exist.
+        (OBJECT_ID_NOT_FOUND)
+    :raises NotFoundException: If the user does not exist.
+        (OBJECT_ID_NOT_FOUND)
+    :raises APIException: If the given user is not member of the course.
+        (INVALID_PARAM)
+    :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
+    :raises PermissionException: If the given user is not the logged in user
+        and the logged in user does not have the permission to see others work.
+        (INCORRECT_PERMISSION)
+    """
+    course = helpers.get_or_404(models.Course, course_id)
+    auth.ensure_permission(CPerm.can_see_assignments, course.id)
+    assignments = course.get_all_visible_assignments()
+
+    user = helpers.get_or_404(models.User, user_id)
+    if any(not u.is_enrolled(course_id) for u in user.get_contained_users()):
+        raise APIException(
+            'User is not enrolled in this course',
+            f'User {user_id} not enrolled in course {course_id}',
+            APICodes.INVALID_PARAM, 400
+        )
+    elif not user.contains_user(current_user):
+        auth.ensure_permission(CPerm.can_see_others_work, course.id)
+
+    latest_only = helpers.request_arg_true('latest_only')
+
+    def get_subs(query: models.MyQuery[models.Work]) -> t.List[models.Work]:
+        return models.Work.update_query_for_extended_jsonify(
+            models.Work.limit_to_user_submissions(query, user),
+        ).all()
+
+    if latest_only:
+        subs = {}
+        for assignment in assignments:
+            subs[assignment.id] = get_subs(
+                assignment.get_all_latest_submissions(),
+            )
+    else:
+        query = models.Work.query.filter(
+            models.Work.assignment_id.in_([a.id for a in assignments]),
+            # Use _deleted because we already know the assignment exists.
+            ~models.Work._deleted,  # pylint: disable=protected-access
+        ).order_by(models.Work.created_at.asc())
+        subs = {assig.id: [] for assig in assignments}
+        for sub in get_subs(query):
+            subs[sub.assignment_id].append(sub)
+
+    return ExtendedJSONResponse.make(
+        subs,
+        use_extended=models.Work,
+    )

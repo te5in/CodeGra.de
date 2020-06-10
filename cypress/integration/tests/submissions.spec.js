@@ -119,6 +119,15 @@ context('Submissions page', () => {
             cy.url().should('not.contain', '/submissions');
         });
 
+        it('should show a message when the assignment does not exist', () => {
+            cy.visit(`/courses/${course.id}/assignments/1000000000/submissions`);
+            cy.get('.page.submissions').within(() => {
+                cy.get('.local-header .title').should('contain', 'Unknown assignment');
+                cy.get('.cat-container .alert-danger')
+                    .should('contain', 'The requested assignment does not exist or you do not have permission');
+            });
+        });
+
         it('should not show a grade by default', () => {
             cy.createSubmission(
                 assignments.withSubs.id,
@@ -395,15 +404,47 @@ context('Submissions page', () => {
                     .should('match', /[?&]sortAsc=true/);
 
                 getStudent('Student2').click();
+                cy.get('.file-viewer')
+                    .should('be.visible');
                 cy.url()
                     .should('match', /[?&]sortBy=grade/)
                     .should('match', /[?&]sortAsc=true/);
 
                 cy.get('.local-header .back-button').click();
+                cy.get('.submissions-table')
+                    .should('be.visible')
                 cy.url()
                     .should('match', /[?&]sortBy=grade/)
                     .should('match', /[?&]sortAsc=true/);
                 gradeOrder(['-', '0.00', '1.00', '5.00', '10.00']);
+            });
+
+            it('should be kept when going to a submission and back after a page reload', () => {
+                cy.get('.submissions-table thead').contains('Grade').click();
+                cy.url()
+                    .should('match', /[?&]sortBy=grade/)
+                    .should('match', /[?&]sortAsc=true/);
+
+                cy.reload();
+
+                cy.get('.submissions-table')
+                    .should('be.visible')
+                    .find('tbody tr')
+                    .first()
+                    .click();
+
+                cy.get('.file-viewer')
+                    .should('be.visible');
+                cy.url()
+                    .should('match', /[?&]sortBy=grade/)
+                    .should('match', /[?&]sortAsc=true/);
+
+                cy.get('.local-header .back-button').click();
+                cy.get('.submissions-table')
+                    .should('be.visible')
+                cy.url()
+                    .should('match', /[?&]sortBy=grade/)
+                    .should('match', /[?&]sortAsc=true/);
             });
 
             it('should be used in the navbar on the submission page', () => {
@@ -501,6 +542,26 @@ context('Submissions page', () => {
 
         it('should not have a button to go to the assignment management page', () => {
             cy.get('.manage-assignment-button').should('not.exist');
+        });
+
+        it('should show a message when the assignment does not exist', () => {
+            cy.visit(`/courses/${course.id}/assignments/1000000000/submissions`);
+            cy.get('.page.submissions').within(() => {
+                cy.get('.local-header .title').should('contain', 'Unknown assignment');
+                cy.get('.cat-container .alert-danger')
+                    .should('contain', 'The requested assignment does not exist or you do not have permission');
+            });
+        });
+
+        it('should show a message when the assignment is hidden', () => {
+            cy.tempPatchAssignment(assignments.withSubs, { state: 'hidden' }, () => {
+                visitSubmissions();
+                cy.get('.page.submissions').within(() => {
+                    cy.get('.local-header .title').should('contain', 'Unknown assignment');
+                    cy.get('.cat-container .alert-danger')
+                        .should('contain', 'The requested assignment does not exist or you do not have permission');
+                });
+            });
         });
 
         context('Action buttons', () => {

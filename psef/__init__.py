@@ -6,26 +6,41 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import os
 import typing as t
+import dataclasses
+from datetime import timedelta
 
+import redis
 import jinja2
 import structlog
 import flask_jwt_extended as flask_jwt
-from flask import Response
+from flask import Flask, Response
 from flask_limiter import Limiter, RateLimitExceeded
 from werkzeug.local import LocalProxy
 
 import cg_logger
+import cg_cache.inter_request
 from cg_json import jsonify
 
-if t.TYPE_CHECKING and getattr(
-    t, 'SPHINX', False
-) is not True:  # pragma: no cover
+if t.TYPE_CHECKING:  # pragma: no cover
+    # pylint: disable=unused-import
     from config import FlaskConfig
-    from flask import Flask
+    from pylti1p3.registration import _KeySet
 
     current_app: 'PsefFlask'
 else:
-    from flask import Flask, current_app  # type: ignore
+    from flask import current_app
+
+
+@dataclasses.dataclass(frozen=True)
+class _PsefInterProcessCache:
+    """All inter process cache stores used in psef.
+
+    There really only should be one instance of this class.
+    """
+    # Pylint bug: https://github.com/PyCQA/pylint/issues/2822
+    # pylint: disable=unsubscriptable-object
+    lti_access_tokens: cg_cache.inter_request.Backend[str]
+    lti_public_keys: cg_cache.inter_request.Backend['_KeySet']
 
 
 class PsefFlask(Flask):
@@ -65,6 +80,18 @@ class PsefFlask(Flask):
             )
         )
 
+        redis_conn = redis.from_url(self.config['REDIS_CACHE_URL'])
+        self._inter_request_cache = _PsefInterProcessCache(
+            lti_access_tokens=cg_cache.inter_request.RedisBackend(
+                'lti_access_tokens',
+                timedelta(seconds=600),
+                redis_conn,
+            ),
+            lti_public_keys=cg_cache.inter_request.RedisBackend(
+                'lti_public_keys', timedelta(seconds=3600), redis_conn
+            ),
+        )
+
     @property
     def max_single_file_size(self) -> 'psef.archive.FileSize':
         """The maximum allowed size for a single file.
@@ -95,6 +122,12 @@ class PsefFlask(Flask):
         """
         return getattr(self, 'debug', False) or getattr(self, 'testing', False)
 
+    @property
+    def inter_request_cache(self) -> _PsefInterProcessCache:
+        """Get all inter process cache stores.
+        """
+        return self._inter_request_cache
+
 
 logger = structlog.get_logger()
 
@@ -114,7 +147,7 @@ def enable_testing() -> None:
     _current_tester = True
 
 
-if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
+if t.TYPE_CHECKING:  # pragma: no cover
     import psef.models
     current_user: 'psef.models.User' = t.cast('psef.models.User', None)
 else:
@@ -153,19 +186,21 @@ def create_app(  # pylint: disable=too-many-statements
     if skip_all:  # pragma: no cover
         skip_celery = skip_perm_check = skip_secret_key_check = True
 
-    resulting_app = PsefFlask(__name__, global_config.CONFIG)
+    resulting_app = PsefFlask(
+        __name__,
+        {
+            **global_config.CONFIG,
+            **(config or {}),
+        },
+    )
 
     resulting_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'  # type: ignore
                          ] = False
+    resulting_app.config['SESSION_COOKIE_SECURE'] = True
+    resulting_app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 
     if not resulting_app.debug:
-        resulting_app.config['SESSION_COOKIE_SAMESITE'] = 'None'
-        resulting_app.config['SESSION_COOKIE_SECURE'] = True
-
         assert not resulting_app.config['AUTO_TEST_DISABLE_ORIGIN_CHECK']
-
-    if config is not None:  # pragma: no cover
-        resulting_app.config.update(config)  # type: ignore
 
     if (
         not skip_secret_key_check and not (
@@ -198,9 +233,6 @@ def create_app(  # pylint: disable=too-many-statements
     from . import permissions
     permissions.init_app(resulting_app, skip_perm_check)
 
-    from . import cache
-    cache.init_app(resulting_app)
-
     from . import features
     features.init_app(resulting_app)
 
@@ -210,6 +242,9 @@ def create_app(  # pylint: disable=too-many-statements
     from . import parsers
     parsers.init_app(resulting_app)
 
+    from . import tasks
+    tasks.init_app(resulting_app)
+
     from . import models
     models.init_app(resulting_app)
 
@@ -218,9 +253,6 @@ def create_app(  # pylint: disable=too-many-statements
 
     from . import errors
     errors.init_app(resulting_app)
-
-    from . import tasks
-    tasks.init_app(resulting_app)
 
     from . import files
     files.init_app(resulting_app)
@@ -247,17 +279,20 @@ def create_app(  # pylint: disable=too-many-statements
     from . import v_internal as api_v_internal
     api_v_internal.init_app(resulting_app)
 
+    from . import signals
+    signals.init_app(resulting_app)
+
     # Make sure celery is working
     if not skip_celery:  # pragma: no cover
         try:
             tasks.add(2, 3)
         except Exception:  # pragma: no cover
-            logger.error(
-                'Celery is not responding! Please check your config',
-            )
+            logger.error('Celery is not responding! Please check your config')
             raise
 
     import cg_timers
     cg_timers.init_app(resulting_app)
+
+    cg_cache.init_app(resulting_app)
 
     return resulting_app

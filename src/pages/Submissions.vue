@@ -13,6 +13,11 @@
             <small v-if="assignment.hasDeadline">- due {{ assignment.getFormattedDeadline() }}</small>
             <small v-else class="text-muted"><i>- No deadline</i></small>
         </template>
+        <small slot="title"
+              v-else
+              class="text-muted font-italic">
+            Unknown assignment
+        </small>
 
         <div slot="extra" v-show="!isStudent">
             <category-selector slot="extra"
@@ -22,11 +27,11 @@
                                :categories="categories"/>
         </div>
 
-        <b-input-group>
+        <b-input-group v-if="assignment != null">
             <b-button-group>
                 <b-button :to="manageAssignmentRoute"
                           variant="secondary"
-                          v-if="assignment.canManage"
+                          v-if="canManageAssignment"
                           v-b-popover.bottom.hover="'Manage assignment'"
                           class="manage-assignment-button">
                     <icon name="gear"/>
@@ -34,7 +39,8 @@
 
                 <b-button v-if="canEmailStudents"
                           v-b-popover.top.hover="`Email the authors of the visible submissions`"
-                          v-b-modal.submissions-page-email-students-modal>
+                          v-b-modal.submissions-page-email-students-modal
+                          id="submissions-page-email-students-button">
                     <icon name="envelope"/>
                 </b-button>
 
@@ -135,7 +141,7 @@
                         </div>
                     </div>
 
-                    <div v-if="assignment.webhook_upload_enabled"
+                    <div v-if="webhookUploadEnabled"
                          class="action-button git m-2 m-md-3 border-0 p-0 rounded text-center"
                          v-b-popover.top.hover="webhookDisabledMessage">
                         <submit-button variant="secondary"
@@ -177,6 +183,16 @@
                             <icon name="users" :scale="actionIconFactor * 6" />
                         </div>
                         <p class="mb-0">Groups</p>
+                    </div>
+                </div>
+
+                <div class="action-button m-2 m-md-3 rounded text-center"
+                     @click="openCategory('course-feedback')">
+                    <div class="content-wrapper border rounded p-3 pt-4">
+                        <div class="icon-wrapper mb-2">
+                            <icon name="comments-o" :scale="actionIconFactor * 6" />
+                        </div>
+                        <p class="mb-0">Course feedback</p>
                     </div>
                 </div>
             </div>
@@ -295,6 +311,13 @@
                     </template>
                 </cg-catch-error>
             </div>
+
+            <div v-if="selectedCat === 'course-feedback'"
+                 class="border rounded overflow-hidden"
+                 style="max-height: 100%;">
+                <course-feedback :course="assignment.course"
+                                 :user="loggedInUser" />
+            </div>
         </template>
     </div>
 </div>
@@ -315,8 +338,8 @@ import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/code-fork';
 import 'vue-awesome/icons/git';
 import 'vue-awesome/icons/envelope';
+import 'vue-awesome/icons/comments-o';
 
-import ltiProviders from '@/lti_providers';
 import { NONEXISTENT } from '@/constants';
 import GroupsManagement from '@/components/GroupsManagement';
 import {
@@ -327,6 +350,7 @@ import {
     CGIgnoreFile,
     RubricEditor,
     SubmitButton,
+    CourseFeedback,
     SubmissionList,
     CategorySelector,
     LateSubmissionIcon,
@@ -346,7 +370,6 @@ export default {
             loading: true,
             loadingInner: true,
             wrongFiles: [],
-            ltiProviders,
             selectedCat: '',
             filteredSubmissions: [],
             gitData: null,
@@ -360,10 +383,14 @@ export default {
             userPerms: 'permissions',
         }),
         ...mapGetters('pref', ['darkMode']),
-        ...mapGetters('courses', ['assignments']),
+        ...mapGetters('courses', ['courses', 'assignments']),
         ...mapGetters('rubrics', { allRubrics: 'rubrics' }),
         ...mapGetters('submissions', ['getLatestSubmissions']),
-        ...mapGetters('users', ['getGroupInGroupSetOfUser']),
+        ...mapGetters('users', ['getUser', 'getGroupInGroupSetOfUser']),
+
+        loggedInUser() {
+            return this.getUser(this.userId);
+        },
 
         categories() {
             return [
@@ -380,7 +407,7 @@ export default {
                 {
                     id: 'git',
                     name: 'Git instructions',
-                    enabled: this.isStudent && this.assignment.webhook_upload_enabled,
+                    enabled: this.isStudent && this.webhookUploadEnabled,
                 },
                 {
                     id: 'rubric',
@@ -406,7 +433,12 @@ export default {
                     id: 'analytics',
                     name: 'Analytics',
                     badge: { label: 'beta' },
-                    enabled: this.assignment.analytics_workspace_ids.length > 0,
+                    enabled: this.analyticsWorkspaceIds.length > 0,
+                },
+                {
+                    id: 'course-feedback',
+                    name: 'Course feedback',
+                    enabled: this.isStudent,
                 },
             ];
         },
@@ -450,7 +482,7 @@ export default {
         },
 
         graders() {
-            return (this.assignment && this.assignment.graders) || null;
+            return this.$utils.getProps(this.assignment, null, 'graders');
         },
 
         assignmentId() {
@@ -461,8 +493,24 @@ export default {
             return this.$route.params.courseId;
         },
 
+        ltiProvider() {
+            return this.$utils.getProps(this.assignment, null, 'course', 'ltiProvider');
+        },
+
         lmsName() {
-            return this.assignment.lms_name;
+            return this.$utils.getProps(this.ltiProvider, null, 'lms');
+        },
+
+        webhookUploadEnabled() {
+            return this.$utils.getProps(this.assignment, false, 'webhook_upload_enabled');
+        },
+
+        analyticsWorkspaceIds() {
+            return this.$utils.getProps(this.assignment, [], 'analytics_workspace_ids');
+        },
+
+        canManageAssignment() {
+            return this.$utils.getProps(this.assignment, false, 'canManage');
         },
 
         uploadDisabledMessage() {
@@ -609,7 +657,7 @@ export default {
             const seen = new Set();
             return this.filteredSubmissions.reduce((acc, s) => {
                 s.user.getContainedUsers().forEach(u => {
-                    if (seen.has(u.id)) {
+                    if (u.is_test_student || seen.has(u.id)) {
                         return;
                     }
 
@@ -681,6 +729,15 @@ export default {
             // Always set loading to false, otherwise you'd get an infinite
             // when the page/component is reloaded in dev mode.
             this.loading = false;
+
+            if (this.assignment == null) {
+                this.error = new ReferenceError(
+                    'The requested assignment does not exist or you do not have permission to' +
+                    ' view it. This is probably because the assignment is still hidden.',
+                );
+                return;
+            }
+
             this.loadingInner = true;
 
             const promises = [
@@ -708,7 +765,7 @@ export default {
         },
 
         loadGitData() {
-            if (!this.assignment.webhook_upload_enabled) {
+            if (!this.webhookUploadEnabled) {
                 return Promise.reject(new Error('Webhooks are not enabled for this assignment'));
             } else if (this.gitData != null) {
                 return Promise.resolve();
@@ -783,6 +840,7 @@ export default {
         CGIgnoreFile,
         RubricEditor,
         SubmitButton,
+        CourseFeedback,
         SubmissionList,
         CategorySelector,
         GroupsManagement,

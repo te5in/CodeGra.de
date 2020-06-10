@@ -4,7 +4,6 @@ import moment from 'moment';
 import {
     range,
     last,
-    isDecimalNumber,
     formatGrade,
     formatDate,
     cmpOneNull,
@@ -15,18 +14,9 @@ import {
     highlightCode,
     nameOfUser,
     groupMembers,
-    autoTestHasCheckpointAfterHiddenStep,
-    safeDivide,
-    WarningHeader,
-    setProps,
     coerceToString,
-    getNoNull,
-    numberToTimes,
     toMaxNDecimals,
-    deepCopy,
     deepEquals,
-    deepExtend,
-    deepExtendArray,
     hasAttr,
     setXor,
     ensureArray,
@@ -34,7 +24,23 @@ import {
     filterObject,
     isEmpty,
     zip,
+    buildUrl,
+    numberToTimes,
     readableJoin,
+    safeDivide,
+    sortBy,
+    toMoment,
+} from '@/utils/typed';
+
+import {
+    autoTestHasCheckpointAfterHiddenStep,
+    WarningHeader,
+    isDecimalNumber,
+    deepExtend,
+    setProps,
+    getNoNull,
+    deepExtendArray,
+    deepCopy,
 } from '@/utils';
 
 import { makeCache } from '@/utils/cache';
@@ -261,7 +267,7 @@ describe('utils.js', () => {
                 '\tprint(f.read())',
             ];
             const result = code.map(
-                (x, idx) => ['python', x, true, idx ? `STATE${idx}` : null],
+                (x, idx) => ['python', x, true, idx ? `STATE${idx}` : undefined],
             );
             expect(highlightCode(code, 'python')).toEqual(result);
             expect(mockVisul).toHaveBeenCalledTimes(code.length);
@@ -1160,6 +1166,182 @@ describe('utils.js', () => {
         it('should work for arrays with multiple items', () => {
             expect(readableJoin(['hello', 'by', 'whoo'])).toBe('hello, by, and whoo');
         });
+    });
+
+    describe('buildUrl', () => {
+        it('should be possible to give the path a raw string', () => {
+            expect(buildUrl('/a/b/c')).toBe('/a/b/c');
+            expect(buildUrl('a/b/')).toBe('a/b/');
+        }),
+
+        it('should give an absolute url if no host is given', () => {
+            expect(buildUrl(['a', 'b', 'c'])).toBe('/a/b/c');
+            expect(buildUrl(['a', 'b', ''])).toBe('/a/b/');
+            expect(buildUrl(['a', 'b'], {
+                addTrailingSlash: true,
+            })).toBe('/a/b/');
+        }),
+
+        it('should escape parts of the url', () => {
+            expect(buildUrl(['a', '%b%'])).toBe('/a/%25b%25');
+        });
+
+        it('should escape the query of the url', () => {
+            expect(buildUrl(
+                ['a', 'b'],
+                { query: { a: '%b%' }},
+            )).toBe('/a/b?a=%25b%25');
+        });
+
+        it('should escape the given hash', () => {
+            expect(buildUrl(
+                ['a', 'b', ''],
+                { hash: 'ah#ah'},
+            )).toBe('/a/b/#ah%23ah');
+        });
+
+        it('should use the host if given', () => {
+            expect(buildUrl(
+                ['a', 'b'],
+                {
+                    host: 'example.com',
+                    protocol: 'ftp:',
+                },
+            )).toBe('ftp://example.com/a/b');
+
+            expect(buildUrl(
+                'a/b',
+                {
+                    host: 'example.com',
+                    protocol: 'ftp:',
+                },
+            )).toBe('ftp://example.com/a/b');
+        });
+    });
+
+    describe('sortBy', () => {
+        const today = moment();
+        const tomorrow = today.clone().add(1, 'd');
+        const yesterday = today.clone().add(-1, 'd');
+        const xs = [1, 7, 2, 9, 3, 4, 8, 0, 6, 5];
+
+        it('should sort correctly', () => {
+            const oldXs = xs.slice();
+            expect(
+                sortBy(xs, x => [x]),
+            ).toEqual(
+                xs.slice().sort(),
+            );
+            // Should not mutate array in place
+            expect(oldXs).toEqual(xs);
+        });
+
+        it('should sort by later keys if former were equal', () => {
+            expect(
+                sortBy(xs.slice(), x => [x % 2, x]),
+            ).toEqual(
+                [0, 2, 4, 6, 8, 1, 3, 5, 7, 9],
+            );
+        });
+
+        it('should be stable in sorting', () => {
+            expect(
+                sortBy(xs.slice(), x => [1]),
+            ).toEqual(xs);
+        });
+
+        it('should support sorting booleans with duplicated', () => {
+            expect(
+                sortBy(xs, x => [x % 2 != 0]),
+            ).toEqual(
+                [2, 4, 8, 0, 6, 1, 7, 9, 3, 5],
+            );
+        });
+
+        it('should support sorting strings', () => {
+            expect(
+                sortBy(['A', 'B', 'AA', 'BB'], x => [x]),
+            ).toEqual(
+                ['A', 'AA', 'B', 'BB'],
+            );
+        });
+
+        it('should support sorting moments', () => {
+            expect(
+                sortBy([today, tomorrow, yesterday], x => [x]),
+            ).toEqual(
+                [yesterday, today, tomorrow],
+            );
+        });
+
+        it('should support reversing', () => {
+            expect(sortBy(xs, x => [x], true)).toEqual(xs.slice().sort().reverse());
+        });
+
+        it('reverse should also be stable', () => {
+            // Should keep same order, as the key was the same for every item.
+            expect(sortBy(xs, x => [1], true)).toEqual(xs);
+        });
+
+        it('Test sorting multiple keys', () => {
+            // Should keep same order, as the key was the same for every item.
+            expect(sortBy([0, 1, 2], x => [-x, x])).toEqual([2, 1, 0]);
+            expect(sortBy([0, 1, 2], x => [x, -x])).toEqual([0, 1, 2]);
+        });
+
+        it('should be possible to sort something complex', () => {
+            // This test also tests the sorting algorithm defined in
+            // `src/components/AutoTestRun.vue::sortedResults` So when this test
+            // fails and you need to update the `makeKey` function make sure you
+            // copy your changed.
+            const results = [{
+                idx: 0,
+                state: 'running',
+                startedAt: today.toISOString(),
+            }, {
+                idx: 1,
+                state: 'done',
+                startedAt: yesterday.toISOString(),
+            }, {
+                idx: 2,
+                state: 'failed',
+            }, {
+                idx: 3,
+                state: 'running',
+                startedAt: yesterday.toISOString(),
+            }, {
+                idx: 4,
+                state: 'not_started',
+            }, {
+                idx: 5,
+                state: 'done',
+                startedAt: tomorrow.toISOString(),
+            }]
+            const stateMap = {
+                running: 1,
+                failed: 2,
+                skipped: 3,
+                timed_out: 4,
+                not_started: 5,
+                done: 10,
+            };
+            const res = sortBy(results, result => {
+                const { startedAt: startedAtAsString, state } = result;
+                const startedAt = toMoment(startedAtAsString);
+
+                return [
+                    stateMap[state] || 0,
+                    !!startedAt,
+                    // We want the done results to be sorted latest first, but
+                    // the running ones we want the oldest first. It is possible
+                    // that `startedAt` is `null` here, but because the previous
+                    // key already sorts on that the actual value used when
+                    // `startedAt` is `null` doesn't matter here.
+                    (startedAt ? startedAt.valueOf() : 0) * (state === 'done' ? -1 : 1),
+                ];
+            });
+            expect(res.map(x => x.idx)).toEqual([3, 0, 2, 4, 5, 1]);
+        })
     });
 });
 

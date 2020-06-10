@@ -8,6 +8,14 @@ def session_maker():
         def status_code(self) -> None:
             return 200
 
+        @property
+        def headers(self):
+            return []
+
+        @property
+        def content(self):
+            return '{}'
+
         def json(self):
             raise json.decoder.JSONDecodeError('err', '', -1)
 

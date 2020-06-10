@@ -66,7 +66,7 @@ def _verify_and_get_runner(
     if run is None:
         raise PermissionException(
             'You cannot update runs which have finished',
-            f'The run does not exist (anymore)', APICodes.INCORRECT_PERMISSION,
+            'The run does not exist (anymore)', APICodes.INCORRECT_PERMISSION,
             403
         )
 
