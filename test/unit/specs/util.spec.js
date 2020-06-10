@@ -28,6 +28,7 @@ import {
     numberToTimes,
     readableJoin,
     safeDivide,
+    sortBy,
 } from '@/utils/typed';
 
 import {
@@ -1215,6 +1216,28 @@ describe('utils.js', () => {
                 },
             )).toBe('ftp://example.com/a/b');
         });
+    });
+
+    describe('sortBy', () => {
+        const xs = [1, 7, 2, 9, 3, 4, 8, 0, 6, 5];
+
+        it('should sort correctly', () => {
+            expect(
+                sortBy(xs.slice(), x => x),
+            ).toEqual(
+                xs.slice().sort(),
+            );
+        });
+
+        it('should sort by later keys if former were equal', () => {
+            expect(
+                sortBy(xs.slice(), x => [x % 2, x]),
+            ).toEqual(
+                [0, 2, 4, 6, 8, 1, 3, 5, 7, 9],
+            );
+        });
+
+        // TODO: More tests...
     });
 });
 

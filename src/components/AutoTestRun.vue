@@ -154,30 +154,21 @@ export default {
         },
 
         sortedResults() {
-            return this.results.slice().sort((a, b) => {
-                if (a.finished) {
-                    if (!b.finished) {
-                        return 1;
-                    } else {
-                        return (b.startedAt || '').localeCompare(a.startedAt || '');
-                    }
-                } else {
-                    if (b.finished) {
-                        return -1;
-                    }
+            // Sort the results by
+            // - First the running results.
+            // - Then any failed result.
+            // - Then any results waiting to be started.
+            // - And finally the results that finished and didn't fail.
 
-                    const aRunning = a.state === 'running';
-                    const bRunning = b.state === 'running';
+            return this.$utils.sortBy(this.results.slice(), result => {
+                const { startedAt, state } = result.state;
 
-                    if (aRunning && bRunning) {
-                        return (a.startedAt || '').localeCompare(b.startedAt || '');
-                    } else if (!aRunning && !bRunning) {
-                        return a.createdAt.localeCompare(b.createdAt);
-                    } else {
-                        // a before b.
-                        return aRunning ? -1 : 1;
-                    }
-                }
+                return [
+                    state === 'running' ? -1 : 1,
+                    state === 'failed' ? -1 : 1,
+                    state === 'passed' ? 1 : -1,
+                    startedAt ? startedAt.toISOString() : '',
+                ];
             });
         },
 

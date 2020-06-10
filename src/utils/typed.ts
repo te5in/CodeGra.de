@@ -732,3 +732,17 @@ export const isValidHttpUrl: (input: string) => boolean = (() => {
         return false;
     };
 })();
+
+export function sortBy<T>(xs: T[], key: (x: T) => [T, any[]]): T[] {
+    const keys = new Map(xs.map(x => [x, ensureArray(key(x))]));
+    return xs.sort((a, b) => {
+        const items = zip(<any[]>keys.get(a), <any[]>keys.get(b));
+        for (let i = 0; i < items.length; i++) {
+            const [elA, elB] = items[i];
+            if (elA !== elB) {
+                return elA < elB ? -1 : 1;
+            }
+        }
+        return 0;
+    });
+}
