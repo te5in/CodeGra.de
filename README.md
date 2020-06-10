@@ -44,10 +44,6 @@
     <img src="https://img.shields.io/badge/website-CodeGra.de-blue.svg"
       alt="Website: CodeGra.de" title="Website: CodeGra.de">
   </a>
-  <a href="https://github.com/CodeGra-de/CodeGra.de/tags">
-    <img src="https://img.shields.io/github/tag/CodeGra-de/CodeGra.de.svg"
-      alt="Latest git tag" title="Latest git tag">
-  </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de/releases">
     <img src="https://img.shields.io/github/release/CodeGra-de/CodeGra.de/all.svg"
       alt="Latest release" title="Latest release">
