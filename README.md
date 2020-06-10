@@ -4,6 +4,10 @@
   </a>
 </p>
 <p align="center">
+  <a href="https://codegrade.com">
+    <img src="https://img.shields.io/badge/code-graded-brightgreen"
+        alt="Code: Graded" title="Code: Graded">
+  </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de/actions">
     <img src="https://github.com/CodeGra-de/CodeGra.de/workflows/Back-end tests/badge.svg?branch=master"
         alt="Back-end tests status" title="Back-end tests status">
@@ -37,10 +41,6 @@
       alt="Python 3.7+ ready" title="Python 3.7+ ready">
   </a>
   <a href="https://codegra.de">
-    <img src="https://img.shields.io/badge/made%20with-%E2%9D%A4%EF%B8%8F%20&%20%F0%9F%8D%BB-ff69b4.svg"
-      alt="Made with ❤ & ️🍻" title="Made with ❤ & ️🍻">
-  </a>
-  <a href="https://codegra.de">
     <img src="https://img.shields.io/badge/website-CodeGra.de-blue.svg"
       alt="Website: CodeGra.de" title="Website: CodeGra.de">
   </a>
@@ -61,12 +61,16 @@
       alt="Closed GitHub Pull Requests" title="Open GitHub Pull Requests">
   </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de">
-    <img src="https://reposs.herokuapp.com/?path=CodeGra-de/CodeGra.de"
+    <img src="https://img.shields.io/github/repo-size/CodeGra-de/CodeGrade"
       alt="Repository size" title="Repository size">
   </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de/blob/master/LICENSE">
     <img src="https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg"
       alt="License AGPL-3.0-only" title="License AGPL-3.0-only">
+  </a>
+  <a href="https://codegra.de">
+    <img src="https://img.shields.io/badge/made%20with-%E2%9D%A4%EF%B8%8F%20&%20%F0%9F%8D%BB-ff69b4.svg"
+      alt="Made with ❤ & ️🍻" title="Made with ❤ & ️🍻">
   </a>
 </p>
 <p align="center">
