@@ -177,7 +177,12 @@ export default {
                 return [
                     stateMap[state] || 0,
                     !!startedAt,
-                    startedAt,
+                    // We want the done results to be sorted latest first, but
+                    // the running ones we want the oldest first. It is possible
+                    // that `startedAt` is `null` here, but because the previous
+                    // key already sorts on that the actual value used when
+                    // `startedAt` is `null` doesn't matter here.
+                    (startedAt ? startedAt.valueOf() : 0) * (state === 'done' ? -1 : 1),
                 ];
             });
         },
