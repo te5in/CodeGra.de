@@ -4,7 +4,8 @@
         <div class="p-3 sticky-top bg-light border-bottom">
             <b-input-group>
                 <input :value="filter"
-                       @change="filter = $event.target.value"
+                       v-debounce:300ms="newFilter => { filter = newFilter }"
+                       debounce-events="keyup"
                        class="filter form-control"
                        placeholder="Filter on comment or author"/>
 

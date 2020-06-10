@@ -36,6 +36,7 @@ import memoryStorageDriver from 'localforage-memoryStorageDriver';
 import VueMasonry from 'vue-masonry-css';
 import VueClipboard from 'vue-clipboard2';
 import moment from 'moment';
+import vueDebounce from 'vue-debounce';
 
 import App from '@/App';
 import router, { setRestoreRoute } from '@/router';
@@ -73,6 +74,7 @@ Vue.component('cg-wizard-wrapper', WizardWrapper);
 Vue.use(BootstrapVue);
 Vue.use(VueMasonry);
 Vue.use(VueClipboard);
+Vue.use(vueDebounce);
 
 Vue.config.productionTip = false;
 
