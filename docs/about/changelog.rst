@@ -6,6 +6,16 @@ Version *Next*
 
 **Released**: TBD
 
+Version *LowVoltage.1*
+----------------------
+
+**Released**: June 10th, 2020
+
+You can now view all the feedback a student received in the course, while
+writing feedback on a later assignment. It is also possible to get some
+submission metadata in your AutoTest scripts, and you can connect to CodeGrade
+with the new LTI Advantage protocol.
+
 **Features**
 
 - Course feedback `(#1342)
