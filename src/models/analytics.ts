@@ -585,9 +585,18 @@ export class WorkspaceSubmissionSet {
             if (grade == null) {
                 return null;
             }
+
+            // If the grade is greater than or equal to the max grade (it
+            // should only really be possible for it to be equal), we need to
+            // adjust it to be placed a bin earlier because there is no
+            // separate bin for the maximum grade only.
             if (grade >= maxGrade) {
-                return Math.floor(maxGrade / binSize) - 1;
+                const frac = maxGrade / binSize;
+                const nbins = Math.ceil(frac);
+                const bin = Math.floor(frac);
+                return bin >= nbins ? nbins - 1 : bin;
             }
+
             return Math.floor(grade / binSize);
         });
     }
