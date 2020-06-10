@@ -735,7 +735,7 @@ export const isValidHttpUrl: (input: string) => boolean = (() => {
     };
 })();
 
-export function sortBy<T>(xs: T[], key: (x: T) => [T, any[]]): T[] {
+export function sortBy<T>(xs: T[], key: (x: T) => any[]): T[] {
     const keys = new Map(xs.map(x => [x, ensureArray(key(x))]));
     return xs.sort((a, b) => {
         const items = zip(<any[]>keys.get(a), <any[]>keys.get(b));
