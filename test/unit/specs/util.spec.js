@@ -1299,7 +1299,7 @@ describe('utils.js', () => {
                 startedAt: today,
             }, {
                 idx: 1,
-                state: 'passed'
+                state: 'done'
             }, {
                 idx: 2,
                 state: 'failed'
@@ -1317,7 +1317,7 @@ describe('utils.js', () => {
                 skipped: 3,
                 timed_out: 4,
                 not_started: 5,
-                passed: 10,
+                done: 10,
             };
             const res = sortBy(results, result => {
                 const { startedAt, state } = result;

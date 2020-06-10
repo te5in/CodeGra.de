@@ -169,7 +169,7 @@ export default {
                 skipped: 3,
                 timed_out: 4,
                 not_started: 5,
-                passed: 10,
+                done: 10,
             };
             return this.$utils.sortBy(this.results, result => {
                 const { startedAt, state } = result;
