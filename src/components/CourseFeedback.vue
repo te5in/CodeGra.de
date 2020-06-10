@@ -5,7 +5,6 @@
             <b-input-group>
                 <input :value="filter"
                        v-debounce:300ms="newFilter => { filter = newFilter }"
-                       debounce-events="keyup"
                        class="filter form-control"
                        placeholder="Filter on comment or author"/>
 
