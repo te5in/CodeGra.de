@@ -174,7 +174,7 @@
 
                 <div v-if="course.isStudent"
                      slot="secondPane"
-                     class="h-100 overflow-hidden">
+                     class="h-100 w-100 overflow-hidden">
                     <div class="file-tree-container border rounded overflow-auto">
                         <file-tree
                             :assignment="assignment"

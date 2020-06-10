@@ -394,7 +394,7 @@ export function deepEquals(a: any, b: any): boolean {
     }
 }
 
-function toMoment(date: moment.Moment | string): moment.Moment {
+export function toMoment(date: moment.Moment | string): moment.Moment {
     if (moment.isMoment(date)) {
         return date.clone();
     } else {
@@ -690,13 +690,15 @@ export function nonenumerable(target: Object, propertyKey: string) {
  * that to its correct boolean value, otherwise return `dflt`.
  */
 type IsA<T, Y> = T extends Y ? true : false;
-export function parseBool<T extends string | boolean>(
-    value: T, dflt?: boolean
+export function parseBool<T extends string | boolean | null | undefined>(
+    value: T, dflt?: boolean,
 ): IsA<T, boolean> extends true ? T : boolean;
-export function parseBool<T extends string | boolean>(value: T, dflt = true): boolean {
+export function parseBool<T extends string | boolean | null | undefined>(
+    value: T, dflt = true,
+): boolean {
     if (typeof value === 'boolean') return value;
-    else if (value === 'false') return false;
-    else if (value === 'true') return true;
+    else if (typeof value === 'string' && value.toLocaleLowerCase() === 'false') return false;
+    else if (typeof value === 'string' && value.toLocaleLowerCase() === 'true') return true;
 
     return dflt;
 }
@@ -732,3 +734,46 @@ export const isValidHttpUrl: (input: string) => boolean = (() => {
         return false;
     };
 })();
+
+// Sort by
+export function sortBy<T, Y extends Array<string | number | boolean | moment.Moment>>(
+    xs: readonly T[],
+    makeKey: (x: T) => Y,
+    reverse: boolean = false,
+): T[] {
+    return xs.map((x, idx) => {
+        const res: (T | string | number | boolean | moment.Moment)[] = makeKey(x);
+        // Add idx to make sure we have a unique item and to make sure the
+        // sorting is stable.
+        res.push(reverse ? -idx : idx);
+        res.push(x);
+        return res;
+    }).sort(
+        (a, b) => {
+            // We don't use zip2 here to prevent an extra allocation;
+            let res = 0;
+            for (let i = 0; res === 0 && i < Math.min(a.length, b.length) - 1; ++i) {
+                const keyA = a[i];
+                const keyB = b[i];
+                if (typeof keyA === 'number') {
+                    AssertionError.assert(typeof keyB === 'number');
+                    res = keyA - keyB;
+                } else if (typeof keyA === 'string') {
+                    AssertionError.assert(typeof keyB === 'string');
+                    res = keyA.localeCompare(keyB);
+                } else if (typeof keyA === 'boolean') {
+                    AssertionError.assert(typeof keyB === 'boolean');
+                    if (keyA !== keyB) {
+                        res = keyA ? 1 : -1;
+                    }
+                } else if (moment.isMoment(keyA)) {
+                    AssertionError.assert(moment.isMoment(keyB));
+                    res = keyA.valueOf() - keyB.valueOf();
+                } else {
+                    AssertionError.typeAssert<T>(keyA);
+                }
+            }
+            return reverse ? -res : res;
+        },
+    ).map(x => <T>x[x.length - 1]);
+}
