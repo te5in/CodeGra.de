@@ -336,8 +336,19 @@ export default class CourseFeedback extends Vue {
     }
 
     get assignments(): ReadonlyArray<Assignment> {
-        let assigs = Object.keys(this.submissionsByAssignmentId).map(
-            (id: string) => this.allAssignments[id],
+        // It can happen that a new assignment was created between the moment
+        // the page was loaded and the feedback sidebar was opened. In that
+        // case, the assignment does not exist in `this.allAssignments`, which
+        // would cause an error. We ignore those newly created assignments for
+        // now, because we do not yet have a method in the store to load a
+        // single assignment.
+
+        let assigs = filterMap(
+            Object.keys(this.submissionsByAssignmentId),
+            (id: string) => {
+                const assig = this.allAssignments[id];
+                return assig == null ? Nothing : Just(assig);
+            },
         );
 
         if (this.excludeSubmission != null) {
