@@ -81,7 +81,7 @@ author = 'CodeGrade Team'
 #
 # The short X.Y version.
 version = subprocess.check_output(['git', 'describe', '--abbrev=0',
-                                   '--tags', 'stable']).decode('utf-8').strip()
+                                   '--tags', 'origin/stable']).decode('utf-8').strip()
 # The full version, including alpha/beta/rc tags.
 release = version
 
