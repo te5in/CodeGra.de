@@ -1219,6 +1219,9 @@ describe('utils.js', () => {
     });
 
     describe('sortBy', () => {
+        const today = moment();
+        const tomorrow = today.clone().add(1, 'd');
+        const yesterday = today.clone().add(-1, 'd');
         const xs = [1, 7, 2, 9, 3, 4, 8, 0, 6, 5];
 
         it('should sort correctly', () => {
@@ -1263,9 +1266,6 @@ describe('utils.js', () => {
         });
 
         it('should support sorting moments', () => {
-            const today = moment();
-            const tomorrow = today.clone().add(1, 'd');
-            const yesterday = today.clone().add(-1, 'd');
             expect(
                 sortBy([today, tomorrow, yesterday], x => [x]),
             ).toEqual(
@@ -1281,6 +1281,55 @@ describe('utils.js', () => {
             // Should keep same order, as the key was the same for every item.
             expect(sortBy(xs, x => [1], true)).toEqual(xs);
         });
+
+        it('Test sorting multiple keys', () => {
+            // Should keep same order, as the key was the same for every item.
+            expect(sortBy([0, 1, 2], x => [-x, x])).toEqual([2, 1, 0]);
+            expect(sortBy([0, 1, 2], x => [x, -x])).toEqual([0, 1, 2]);
+        });
+
+        it('should be possible to sort something complex', () => {
+            // This test also tests the sorting algorithm defined in
+            // `src/components/AutoTestRun.vue::sortedResults` So when this test
+            // fails and you need to update the `makeKey` function make sure you
+            // copy your changed.
+            const results = [{
+                idx: 0,
+                state: 'running',
+                startedAt: today,
+            }, {
+                idx: 1,
+                state: 'passed'
+            }, {
+                idx: 2,
+                state: 'failed'
+            }, {
+                idx: 3,
+                state: 'running',
+                startedAt: yesterday,
+            }, {
+                idx: 4,
+                state: 'not_started',
+            }]
+            const stateMap = {
+                running: 1,
+                failed: 2,
+                skipped: 3,
+                timed_out: 4,
+                not_started: 5,
+                passed: 10,
+            };
+            const res = sortBy(results, result => {
+                const { startedAt, state } = result;
+
+                return [
+                    stateMap[state] || 0,
+                    !!startedAt,
+                    startedAt,
+                ];
+            });
+            expect(res.map(x => x.idx)).toEqual([3, 0, 2, 4, 1]);
+        })
     });
 });
 

@@ -764,7 +764,7 @@ export function sortBy<T, Y extends Array<string | number | boolean | moment.Mom
                 } else if (typeof keyA === 'boolean') {
                     AssertionError.assert(typeof keyB === 'boolean');
                     if (keyA !== keyB) {
-                        res = keyA ? 1 : 0;
+                        res = keyA ? 1 : -1;
                     }
                 } else if (moment.isMoment(keyA)) {
                     AssertionError.assert(moment.isMoment(keyB));

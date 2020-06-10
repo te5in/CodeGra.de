@@ -154,19 +154,28 @@ export default {
         },
 
         sortedResults() {
+            // This method is tested in a wrong way in
+            // `test/unit/specs/util.spec.js`. So when this sorting changes make
+            // sure you also update the test.
+
             // Sort the results by
             // - First the running results.
-            // - Then any failed result.
+            // - Then any failed results (or something similar).
             // - Then any results waiting to be started.
             // - And finally the results that finished and didn't fail.
-
+            const stateMap = {
+                running: 1,
+                failed: 2,
+                skipped: 3,
+                timed_out: 4,
+                not_started: 5,
+                passed: 10,
+            };
             return this.$utils.sortBy(this.results, result => {
-                const { startedAt, state } = result.state;
+                const { startedAt, state } = result;
 
                 return [
-                    state === 'running' ? -1 : 1,
-                    state === 'failed' ? -1 : 1,
-                    state === 'passed' ? 1 : -1,
+                    stateMap[state] || 0,
                     !!startedAt,
                     startedAt,
                 ];
