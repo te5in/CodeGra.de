@@ -29,6 +29,7 @@ import {
     readableJoin,
     safeDivide,
     sortBy,
+    toMoment,
 } from '@/utils/typed';
 
 import {
@@ -1296,25 +1297,25 @@ describe('utils.js', () => {
             const results = [{
                 idx: 0,
                 state: 'running',
-                startedAt: today,
+                startedAt: today.toISOString(),
             }, {
                 idx: 1,
                 state: 'done',
-                startedAt: yesterday,
+                startedAt: yesterday.toISOString(),
             }, {
                 idx: 2,
                 state: 'failed',
             }, {
                 idx: 3,
                 state: 'running',
-                startedAt: yesterday,
+                startedAt: yesterday.toISOString(),
             }, {
                 idx: 4,
                 state: 'not_started',
             }, {
                 idx: 5,
                 state: 'done',
-                startedAt: tomorrow,
+                startedAt: tomorrow.toISOString(),
             }]
             const stateMap = {
                 running: 1,
@@ -1325,7 +1326,8 @@ describe('utils.js', () => {
                 done: 10,
             };
             const res = sortBy(results, result => {
-                const { startedAt, state } = result;
+                const { startedAt: startedAtAsString, state } = result;
+                const startedAt = toMoment(startedAtAsString);
 
                 return [
                     stateMap[state] || 0,

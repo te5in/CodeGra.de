@@ -394,7 +394,7 @@ export function deepEquals(a: any, b: any): boolean {
     }
 }
 
-function toMoment(date: moment.Moment | string): moment.Moment {
+export function toMoment(date: moment.Moment | string): moment.Moment {
     if (moment.isMoment(date)) {
         return date.clone();
     } else {

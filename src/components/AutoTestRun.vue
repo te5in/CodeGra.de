@@ -172,7 +172,8 @@ export default {
                 done: 10,
             };
             return this.$utils.sortBy(this.results, result => {
-                const { startedAt, state } = result;
+                const { startedAt: startedAtAsString, state } = result;
+                const startedAt = this.$utils.toMoment(startedAtAsString);
 
                 return [
                     stateMap[state] || 0,
