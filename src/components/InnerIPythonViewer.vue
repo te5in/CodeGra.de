@@ -73,14 +73,14 @@
                                                            :show-code-whitespace="showWhitespace"/>
                                 </span>
                                 <span v-else-if="outputData(out, ['text', 'text/plain'])">
-                                    <pre>{{ outputData(out, ["text", "text/plain"]).join('') }}</pre>
+                                    <pre>{{ outputData(out, ['text', 'text/plain']) }}</pre>
                                 </span>
                                 <span v-else>
                                     <b style="color: red;">Unsupported output</b>
                                 </span>
                             </span>
-                            <pre v-else-if="out.output_type === 'stream'">{{ out.text }}</pre>
-                            <pre v-else-if="out.output_type === 'error'">{{ out.traceback.join("\n") }}</pre>
+                            <pre v-else-if="out.output_type === 'stream'">{{ maybeJoinArray(out.text) }}</pre>
+                            <pre v-else-if="out.output_type === 'error'">{{ maybeJoinArray(out.traceback) }}</pre>
                             <span v-else style="color: red;">
                                 <b>Unknown output type:</b> {{ out.output_type }}
                             </span>
@@ -153,10 +153,17 @@ export default {
                 // but instead has those keys directly on the output object.
                 const data = this.$utils.getProps(output, output, 'data');
                 if (data[types[i]]) {
-                    return data[types[i]];
+                    return this.maybeJoinArray(data[types[i]]);
                 }
             }
             return null;
+        },
+
+        maybeJoinArray(txt) {
+            if (Array.isArray(txt)) {
+                return txt.join('');
+            }
+            return txt;
         },
     },
 

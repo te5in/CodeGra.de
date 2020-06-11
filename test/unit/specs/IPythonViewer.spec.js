@@ -226,7 +226,7 @@ describe('IPythonViewer.vue', () => {
                         },
                         {
                             output_type: 'not stream',
-                            text: ['hello'],
+                            text: 'hello',
                             feedback_offset: 6,
                         },
                     ],
@@ -247,8 +247,7 @@ describe('IPythonViewer.vue', () => {
                         input: ['hello'],
                     },
                     {
-                        cell_type: 'code',
-                        input: ['import os\n\n\nprint(os.path.join(', 'a, b))'],
+                        cell_type: 'code', input: ['import os\n\n\nprint(os.path.join(', 'a, b))'],
                         outputs: [
                             {
                                 output_type: 'stream',
@@ -281,7 +280,7 @@ describe('IPythonViewer.vue', () => {
                         },
                         {
                             output_type: 'not stream',
-                            text: ['hello'],
+                            text: 'hello',
                             feedback_offset: 6,
                         },
                     ],
@@ -303,6 +302,60 @@ describe('IPythonViewer.vue', () => {
             expect(comp.$emit).lastCalledWith('error', err);
             expect(err.error).toBeInstanceOf(Error);
             expect(err.error.message).toMatch('Only Jupyter Notebook format v3 or greater is supported.');
+        });
+
+        it('should accept strings and lists of strings as output text', async () => {
+            await setData(JSON.stringify({
+                nbformat: 4,
+                metadata: {
+                    language_info: { name: 'python' },
+                },
+                cells: [
+                    {
+                        cell_type: 'code',
+                        input: ['import os\n\n\nprint(os.path.join(', 'a, b))'],
+                        outputs: [
+                            {
+                                output_type: 'execute_result',
+                                text: ['line1\n', 'line2\n'],
+                            },
+                            {
+                                output_type: 'execute_result',
+                                text: 'line1\nline2\n',
+                            },
+                            {
+                                output_type: 'not stream',
+                                text: 'line1\nline2\n',
+                            },
+                        ],
+                    },
+                ],
+            }));
+            expect(comp.data).not.toEqual({});
+            expect(comp.outputCells).toMatchObject([
+                {
+                    cell_type: 'code',
+                    source: ['import os', '', '', 'print(os.path.join(a, b))'],
+                    feedback_offset: 0,
+                    outputs: [
+                        {
+                            output_type: 'execute_result',
+                            text: 'line1\nline2\n',
+                            feedback_offset: 4
+                        },
+                        {
+                            output_type: 'execute_result',
+                            text: 'line1\nline2\n',
+                            feedback_offset: 5,
+                        },
+                        {
+                            output_type: 'not stream',
+                            text: 'line1\nline2\n',
+                            feedback_offset: 6,
+                        },
+                    ],
+                },
+            ]);
         });
     });
 
