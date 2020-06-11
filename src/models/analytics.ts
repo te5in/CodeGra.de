@@ -579,10 +579,25 @@ export class WorkspaceSubmissionSet {
         );
     }
 
-    binSubmissionsByGrade(binSize = 1) {
+    binSubmissionsByGrade(binSize = 1, maxGrade = 10) {
         return this.binSubmissionsBy(sub => {
             const { grade } = sub;
-            return grade == null ? null : Math.floor(grade / binSize);
+            if (grade == null) {
+                return null;
+            }
+
+            // If the grade is greater than or equal to the max grade (it
+            // should only really be possible for it to be equal), we need to
+            // adjust it to be placed a bin earlier because there is no
+            // separate bin for the maximum grade only.
+            if (grade >= maxGrade) {
+                const frac = maxGrade / binSize;
+                const nbins = Math.ceil(frac);
+                const bin = Math.floor(frac);
+                return Math.min(bin, nbins - 1);
+            }
+
+            return Math.floor(grade / binSize);
         });
     }
 

@@ -1,6 +1,8 @@
 #!/bin/bash
 set -o xtrace
 
+git fetch --all
+
 cat >config.ini <<EOF
 [Back-end]
 external_url = http://localhost:1234

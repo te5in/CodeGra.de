@@ -249,8 +249,15 @@ export default {
     async mounted() {
         await Promise.all([this.$afterRerender(), this.loadCourses()]);
         this.loadingCourses = false;
-        await this.$afterRerender();
-        this.$refs.searchInput.focus();
+        for (let i = 0; i < 2; ++i) {
+            // eslint-disable-next-line no-await-in-loop
+            await this.$afterRerender();
+            const input = this.$refs.searchInput;
+            if (input) {
+                input.focus();
+                break;
+            }
+        }
     },
 
     methods: {

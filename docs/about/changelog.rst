@@ -6,6 +6,17 @@ Version *Next*
 
 **Released**: TBD
 
+Version *LowVoltage.1*
+----------------------
+
+**Released**: June 10th, 2020
+
+With our new Feedback Sidebar, you can now view all previous feedback from
+a student in the course, while grading the current submission. It is now also
+possible to get submission metadata in AutoTest, for instance to automate late
+day penalties. Finally, we have upgraded CodeGrade to the newest version of
+LTI: LTI 1.3 Advantage!
+
 **Features**
 
 - Course feedback `(#1342)

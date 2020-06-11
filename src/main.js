@@ -36,6 +36,7 @@ import memoryStorageDriver from 'localforage-memoryStorageDriver';
 import VueMasonry from 'vue-masonry-css';
 import VueClipboard from 'vue-clipboard2';
 import moment from 'moment';
+import vueDebounce from 'vue-debounce';
 
 import App from '@/App';
 import router, { setRestoreRoute } from '@/router';
@@ -73,6 +74,7 @@ Vue.component('cg-wizard-wrapper', WizardWrapper);
 Vue.use(BootstrapVue);
 Vue.use(VueMasonry);
 Vue.use(VueClipboard);
+Vue.use(vueDebounce);
 
 Vue.config.productionTip = false;
 
@@ -192,6 +194,17 @@ Promise.all([
     Vue.prototype.$whitespaceStore = localforage.createInstance({
         name: 'showWhitespaceStore',
         driver: DRIVERS,
+    });
+    [Vue.prototype.$hlanguageStore, Vue.prototype.$whitespaceStore].forEach(forageStore => {
+        // `localForage` does some initialization on the first get, but when
+        // doing two first gets at the same time (in different promise chains
+        // for example) this creates a race condition that fails in Firefox in
+        // private mode. So we initialize the stores here.
+        try {
+            forageStore.getItem('test key');
+        } catch (_) {
+            // PASS
+        }
     });
 
     Vue.prototype.$hasPermission = (permission, courseId, asMap) => {

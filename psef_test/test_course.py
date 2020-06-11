@@ -370,7 +370,7 @@ def test_get_latest_submissions_of_user(
 
     with describe('student should get submissions to visible assignments'
                   ), logged_in(student):
-        res = test_client.req(
+        test_client.req(
             'get',
             f'{base_url}/users/{student.id}/submissions/',
             200,
@@ -388,7 +388,7 @@ def test_get_latest_submissions_of_user(
 
     with describe('should not include deleted assignment'):
         with logged_in(teacher):
-            res = test_client.req(
+            test_client.req(
                 'get',
                 f'{base_url}/users/{student.id}/submissions/',
                 200,
@@ -396,7 +396,7 @@ def test_get_latest_submissions_of_user(
             )
 
         with logged_in(student):
-            res = test_client.req(
+            test_client.req(
                 'get',
                 f'{base_url}/users/{student.id}/submissions/',
                 200,
@@ -405,13 +405,13 @@ def test_get_latest_submissions_of_user(
 
     with describe('should respect the latest_only query parameter'):
         with logged_in(teacher):
-            res = test_client.req(
+            test_client.req(
                 'get',
                 f'{base_url}/users/{student.id}/submissions/?latest_only',
                 200,
                 result=latest_subs,
             )
-            res = test_client.req(
+            test_client.req(
                 'get', (
                     f'{base_url}/users/{other_student.id}/submissions'
                     '/?latest_only'
@@ -421,11 +421,58 @@ def test_get_latest_submissions_of_user(
             )
 
         with logged_in(student):
-            res = test_client.req(
+            test_client.req(
                 'get',
                 f'{base_url}/users/{student.id}/submissions/?latest_only',
                 200,
                 result=latest_visible_subs,
+            )
+
+    with describe('should work for groups'):
+        with logged_in(teacher):
+            group_assig_id = helpers.get_id(
+                helpers.create_assignment(
+                    test_client,
+                    course_id=course_id,
+                    state='done',
+                    deadline='tomorrow',
+                )
+            )
+            group_set = helpers.create_group_set(
+                test_client,
+                course_id,
+                min_size=1,
+                max_size=3,
+                assig_ids=[group_assig_id],
+            )
+            group = helpers.create_group(
+                test_client,
+                group_set['id'],
+                [student.id, other_student.id],
+            )
+            group_sub = helpers.create_submission(
+                test_client,
+                assignment_id=group_assig_id,
+                for_user=student,
+            )
+
+            test_client.req(
+                'get',
+                f'{base_url}/users/{student.id}/submissions/?latest_only',
+                200,
+                result={
+                    '__allow_extra__': True,
+                    str(group_assig_id): [group_sub],
+                },
+            )
+            test_client.req(
+                'get',
+                f'{base_url}/users/{group["virtual_user"]["id"]}/submissions/?latest_only',
+                200,
+                result={
+                    '__allow_extra__': True,
+                    str(group_assig_id): [group_sub],
+                },
             )
 
 

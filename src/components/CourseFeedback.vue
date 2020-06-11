@@ -4,7 +4,7 @@
         <div class="p-3 sticky-top bg-light border-bottom">
             <b-input-group>
                 <input :value="filter"
-                       @change="filter = $event.target.value"
+                       v-debounce:300ms="newFilter => { filter = newFilter }"
                        class="filter form-control"
                        placeholder="Filter on comment or author"/>
 
@@ -121,7 +121,7 @@
                             </span>
                         </h6>
 
-                        <div v-if="rubricResultsBySub[sub.id] != null"
+                        <div v-if="filteredRubricResults[sub.id] != null"
                             class="px-3 pb-3">
                             <span v-for="{ result, row, item } in filteredRubricResults[sub.id]"
                                 :key="`${sub.id}-${item.id}`">
@@ -336,8 +336,19 @@ export default class CourseFeedback extends Vue {
     }
 
     get assignments(): ReadonlyArray<Assignment> {
-        let assigs = Object.keys(this.submissionsByAssignmentId).map(
-            (id: string) => this.allAssignments[id],
+        // It can happen that a new assignment was created between the moment
+        // the page was loaded and the feedback sidebar was opened. In that
+        // case, the assignment does not exist in `this.allAssignments`, which
+        // would cause an error. We ignore those newly created assignments for
+        // now, because we do not yet have a method in the store to load a
+        // single assignment.
+
+        let assigs = filterMap(
+            Object.keys(this.submissionsByAssignmentId),
+            (id: string) => {
+                const assig = this.allAssignments[id];
+                return assig == null ? Nothing : Just(assig);
+            },
         );
 
         if (this.excludeSubmission != null) {

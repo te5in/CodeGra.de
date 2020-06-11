@@ -265,6 +265,10 @@ export default {
         },
 
         loadWorkspaceData() {
+            if (this.currentWorkspaceId == null) {
+                return Promise.resolve(null);
+            }
+
             this.loading = true;
             this.baseWorkspace = null;
             return this.loadWorkspace({

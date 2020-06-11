@@ -1226,7 +1226,7 @@ def get_user_submissions(
     assignments = course.get_all_visible_assignments()
 
     user = helpers.get_or_404(models.User, user_id)
-    if course_id not in user.courses:
+    if any(not u.is_enrolled(course_id) for u in user.get_contained_users()):
         raise APIException(
             'User is not enrolled in this course',
             f'User {user_id} not enrolled in course {course_id}',
