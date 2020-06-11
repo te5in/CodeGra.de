@@ -144,7 +144,8 @@ export function getOutputCells(
                             text: undefined,
                         };
                         if (out.text != null) {
-                            // The `?? ''` case can never happen...
+                            // The `?? ''` case can never happen but is
+                            // necessary for Typescript.
                             newOut.text = maybeJoinText(out.text ?? '');
                         }
                     }
