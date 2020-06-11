@@ -159,7 +159,7 @@ export default {
             return null;
         },
 
-        maybeJoinArray(inp) {
+        maybeJoinArray(txt) {
             if (Array.isArray(txt)) {
                 return txt.join('');
             }
