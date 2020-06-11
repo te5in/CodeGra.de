@@ -39,23 +39,21 @@ def upgrade():
     )
 
     conn = op.get_bind()
-    user_ids = conn.execute(
-        'select id, lti_user_id from "User" where lti_user_id is not NULL'
+    users_with_lti_id, = conn.execute('SELECT COUNT(*) FROM "User" WHERE lti_user_id IS NOT NULL').fetchone()
+    connections = conn.execute(
+        text(
+            'SELECT DISTINCT c.lti_provider_id, u.id, u.lti_user_id FROM "User" AS u'
+            ' LEFT JOIN "users-courses" AS uc ON uc.user_id = u.id'
+            ' LEFT JOIN "Course_Role" AS cr ON cr.id = uc.course_id '
+            ' LEFT JOIN "Course" AS c ON c.id = cr."Course_id"'
+            ' WHERE u.id in (select id from "User" where lti_user_id is not'
+            ' NULL) AND c.lti_provider_id IS NOT NULL'
+        )
     ).fetchall()
-    for user_id, lti_user_id in user_ids:
+    assert len(connections) >= users_with_lti_id
+    for lti_provider_id, user_id, lti_user_id in connections:
         now = cg_dt_utils.DatetimeWithTimezone.utcnow()
-        provider_id = conn.execute(
-            text(
-                'SELECT c.lti_provider_id FROM "User" AS u'
-                ' JOIN "users-courses" AS uc ON uc.user_id = u.id'
-                ' JOIN "Course" AS c ON c.id = uc.course_id'
-                ' JOIN "LTIProvider" AS lp ON c.lti_provider_id = lp.id'
-                ' WHERE u.id = :user_id AND c.lti_provider_id IS NOT NULL'
-            ),
-            user_id=user_id,
-        ).fetchone()
-        if provider_id is None:
-            continue
+        assert lti_provider_id is not None
         conn.execute(
             text(
                 'INSERT INTO "user_lti-provider"'
@@ -63,7 +61,7 @@ def upgrade():
                 ' VALUES (:user_id, :provider_id, :lti_user_id, :created_at, :updated_at)'
             ),
             user_id=user_id,
-            provider_id=provider_id[0],
+            provider_id=lti_provider_id,
             lti_user_id=lti_user_id,
             created_at=now,
             updated_at=now
