@@ -26,6 +26,7 @@ type IPythonCodeCell = IPythonBaseCell & {
     outputs: (
         | {
               output_type?: Exclude<'stream', string>;
+              text?: string | string[];
           }
         | {
               output_type: 'stream';
@@ -54,6 +55,7 @@ type CGIPythonCodeCellOutput =
     | {
           output_type?: Exclude<'stream', string>;
           feedback_offset: number;
+          text?: string;
       }
     | {
           feedback_offset: number;
@@ -139,7 +141,12 @@ export function getOutputCells(
                         newOut = {
                             ...out,
                             feedback_offset: curOffset,
+                            text: undefined,
                         };
+                        if (out.text != null) {
+                            // The `?? ''` case can never happen...
+                            newOut.text = maybeJoinText(out.text ?? '');
+                        }
                     }
                     curOffset += 1;
                     return processOther(newOut);

@@ -73,7 +73,7 @@
                                                            :show-code-whitespace="showWhitespace"/>
                                 </span>
                                 <span v-else-if="outputData(out, ['text', 'text/plain'])">
-                                    <pre>{{ outputData(out, ["text", "text/plain"]).join('') }}</pre>
+                                    <pre>{{ outputData(out, ['text', 'text/plain']) }}</pre>
                                 </span>
                                 <span v-else>
                                     <b style="color: red;">Unsupported output</b>
