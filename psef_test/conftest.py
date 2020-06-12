@@ -80,78 +80,89 @@ def pytest_addoption(parser):
 
 
 @pytest.fixture(scope='session')
-def app(request):
+def make_app_settings(request):
+    def inner(database=None):
+        auto_test_password = uuid.uuid4().hex
+        settings_override = {
+            'TESTING': True,
+            'DEBUG': True,
+            'UPLOAD_DIR': f'/tmp/psef/uploads',
+            'RATELIMIT_STRATEGY': 'moving-window',
+            'RATELIMIT_HEADERS_ENABLED': True,
+            'CELERY_CONFIG': {
+                'BROKER_URL': 'redis:///', 'BACKEND_URL': 'redis:///'
+            },
+            'MIRROR_UPLOAD_DIR': f'/tmp/psef/mirror_uploads',
+            'MAX_FILE_SIZE': 2 ** 20,  # 1mb
+            'MAX_NORMAL_UPLOAD_SIZE': 4 * 2 ** 20,  # 4 mb
+            'MAX_LARGE_UPLOAD_SIZE': 100 * 2 ** 20,  # 100mb
+            'LTI_CONSUMER_KEY_SECRETS': {
+                'my_lti': ('Canvas', ['12345678']),
+                'canvas2': ('Canvas', ['123456789']),
+                'unknown_lms': ('unknown', ['12345678']),
+                'blackboard_lti': ('Blackboard', ['12345678']),
+                'moodle_lti': ('Moodle', ['12345678']),
+                'brightspace_lti': ('BrightSpace', ['12345678']),
+            },
+            'LTI_SECRET_KEY': 'hunter123',
+            'SECRET_KEY': 'hunter321',
+            'HEALTH_KEY': 'uuyahdsdsdiufhaiwueyrriu2h3',
+            'CHECKSTYLE_PROGRAM': [
+                "java",
+                "-Dbasedir={files}",
+                "-jar",
+                os.path.join(os.path.dirname(__file__), '..', 'checkstyle.jar'),
+                "-f",
+                "xml",
+                "-c",
+                "{config}",
+                "{files}",
+            ],
+            'PMD_PROGRAM': [
+                os.path.join(os.path.dirname(__file__), '..', './pmd/bin/run.sh'),
+                'pmd',
+                '-dir',
+                '{files}',
+                '-failOnViolation',
+                'false',
+                '-format',
+                'csv',
+                '-shortnames',
+                '-rulesets',
+                '{config}',
+            ],
+            'MIN_PASSWORD_SCORE': 3,
+            'AUTO_TEST_PASSWORD': auto_test_password,
+            'AUTO_TEST_CF_EXTRA_AMOUNT': 2,
+            'AUTO_TEST_RUNNER_INSTANCE_PASS': auto_test_password,
+            'AUTO_TEST_DISABLE_ORIGIN_CHECK': True,
+            'AUTO_TEST_MAX_TIME_COMMAND': 3,
+            'ADMIN_USER': None,
+        }
+        if database is not None:
+            settings_override['SQLALCHEMY_DATABASE_URI'] = database
+        elif request.config.getoption('--postgresql'):
+            pdb, _ = get_database_name(request)
+
+            settings_override['SQLALCHEMY_DATABASE_URI'] = pdb
+            settings_override['_USING_SQLITE'] = False
+        else:
+            settings_override['SQLALCHEMY_DATABASE_URI'] = TEST_DATABASE_URI
+            settings_override['_USING_SQLITE'] = True
+
+        settings_override['CELERY_CONFIG'] = {
+            'CELERY_TASK_ALWAYS_EAGER': True,
+            'CELERY_TASK_EAGER_PROPAGATES': True,
+        }
+
+        return settings_override
+
+    yield inner
+
+@pytest.fixture(scope='session')
+def app(request, make_app_settings):
     """Session-wide test `Flask` application."""
-    auto_test_password = uuid.uuid4().hex
-    settings_override = {
-        'TESTING': True,
-        'DEBUG': True,
-        'UPLOAD_DIR': f'/tmp/psef/uploads',
-        'RATELIMIT_STRATEGY': 'moving-window',
-        'RATELIMIT_HEADERS_ENABLED': True,
-        'CELERY_CONFIG': {
-            'BROKER_URL': 'redis:///', 'BACKEND_URL': 'redis:///'
-        },
-        'MIRROR_UPLOAD_DIR': f'/tmp/psef/mirror_uploads',
-        'MAX_FILE_SIZE': 2 ** 20,  # 1mb
-        'MAX_NORMAL_UPLOAD_SIZE': 4 * 2 ** 20,  # 4 mb
-        'MAX_LARGE_UPLOAD_SIZE': 100 * 2 ** 20,  # 100mb
-        'LTI_CONSUMER_KEY_SECRETS': {
-            'my_lti': ('Canvas', ['12345678']),
-            'canvas2': ('Canvas', ['123456789']),
-            'unknown_lms': ('unknown', ['12345678']),
-            'blackboard_lti': ('Blackboard', ['12345678']),
-            'moodle_lti': ('Moodle', ['12345678']),
-            'brightspace_lti': ('BrightSpace', ['12345678']),
-        },
-        'LTI_SECRET_KEY': 'hunter123',
-        'SECRET_KEY': 'hunter321',
-        'HEALTH_KEY': 'uuyahdsdsdiufhaiwueyrriu2h3',
-        'CHECKSTYLE_PROGRAM': [
-            "java",
-            "-Dbasedir={files}",
-            "-jar",
-            os.path.join(os.path.dirname(__file__), '..', 'checkstyle.jar'),
-            "-f",
-            "xml",
-            "-c",
-            "{config}",
-            "{files}",
-        ],
-        'PMD_PROGRAM': [
-            os.path.join(os.path.dirname(__file__), '..', './pmd/bin/run.sh'),
-            'pmd',
-            '-dir',
-            '{files}',
-            '-failOnViolation',
-            'false',
-            '-format',
-            'csv',
-            '-shortnames',
-            '-rulesets',
-            '{config}',
-        ],
-        'MIN_PASSWORD_SCORE': 3,
-        'AUTO_TEST_PASSWORD': auto_test_password,
-        'AUTO_TEST_CF_EXTRA_AMOUNT': 2,
-        'AUTO_TEST_RUNNER_INSTANCE_PASS': auto_test_password,
-        'AUTO_TEST_DISABLE_ORIGIN_CHECK': True,
-        'AUTO_TEST_MAX_TIME_COMMAND': 3,
-        'ADMIN_USER': None,
-    }
-    if request.config.getoption('--postgresql'):
-        pdb, _ = get_database_name(request)
-
-        settings_override['SQLALCHEMY_DATABASE_URI'] = pdb
-        settings_override['_USING_SQLITE'] = False
-    else:
-        settings_override['SQLALCHEMY_DATABASE_URI'] = TEST_DATABASE_URI
-        settings_override['_USING_SQLITE'] = True
-
-    settings_override['CELERY_CONFIG'] = {
-        'CELERY_TASK_ALWAYS_EAGER': True,
-        'CELERY_TASK_EAGER_PROPAGATES': True,
-    }
+    settings_override = make_app_settings()
 
     app = psef.create_app(
         settings_override, skip_celery=True, skip_perm_check=True
