@@ -186,6 +186,17 @@ export default {
         },
     },
 
+    watch: {
+        active: {
+            immediate: true,
+            handler() {
+                if (this.active) {
+                    this.focusInput();
+                }
+            },
+        },
+    },
+
     methods: {
         setMultiplier(delay = 0) {
             if (!this.editable || this.locked) {
@@ -229,6 +240,16 @@ export default {
             } else {
                 this.$emit('input', Object.assign({}, this.onlyItem, { multiplier }));
             }
+        },
+
+        async focusInput() {
+            for (let i = 0; i < 10; i++) {
+                if (this.$refs.multiplierInput == null) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.$afterRerender();
+                }
+            }
+            this.$refs.multiplierInput.focus();
         },
     },
 
