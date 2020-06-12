@@ -40,6 +40,11 @@ class UpgradeTester:
         assert len(self.courses
                    ) == len(cur_courses), 'No courses should be deleted'
 
+        connections = self.db.engine.execute(
+            'SELECT * FROM course_lti_provider ORDER BY course_id'
+        ).fetchall()
+        assert len(set(c.course_id for c in connections)) == len(connections)
+        conn_by_id = {c.course_id: c for c in connections}
         test_connections(conn_by_id, cur_courses, self.courses)
 
 

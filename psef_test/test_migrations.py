@@ -59,7 +59,9 @@ assert not ALL_MIGRATION_TESTS, 'Found unknown migrations'
 assert ALL_TESTED_MIGRATIONS
 
 WHITESPACE_REGEX = re.compile(r'\s+')
-FreshDatabase = namedtuple('FreshDatabase', ['engine', 'name', 'db_name'])
+FreshDatabase = namedtuple(
+    'FreshDatabase', ['engine', 'name', 'db_name', 'run_psql']
+)
 
 
 @pytest.fixture
@@ -76,20 +78,41 @@ def migration_app(make_app_settings, fresh_database):
 @pytest.fixture
 def fresh_database():
     db_name = f'migration_test_db_{uuid.uuid4()}'.replace('-', '')
-    subprocess.check_output(['psql', '-c', f'create database "{db_name}"'])
+
+    host = os.getenv('POSTGRES_HOST')
+    password = os.getenv('PGPASSWORD')
+    port = os.getenv('POSTGRES_PORT')
+    username = os.getenv('POSTGRES_USERNAME')
+    assert bool(host) == bool(port) == bool(username) == bool(password)
+    psql_host_info = bool(host)
+
+    def run_psql(*args):
+        base = ['psql']
+        if psql_host_info:
+            base.extend(['-h', host, '-p', port, '-U', username])
+
+        return subprocess.check_call(
+            [*base, *args],
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+
+    run_psql('-c', f'create database "{db_name}"')
     try:
-        subprocess.check_output([
-            'psql', db_name, '-c', 'create extension "uuid-ossp"'
-        ])
-        subprocess.check_output([
-            'psql', db_name, '-c', 'create extension "citext"'
-        ])
-        db_string = f'postgresql:///{db_name}'
+        run_psql(db_name, '-c', 'create extension "uuid-ossp"')
+        run_psql(db_name, '-c', 'create extension "citext"')
+        if psql_host_info:
+            db_string = f'postgresql://{username}:{password}@{host}:{port}/{db_name}'
+        else:
+            db_string = f'postgresql:///{db_name}'
+
         engine = create_engine(db_string)
-        yield FreshDatabase(engine=engine, name=db_string, db_name=db_name)
+        yield FreshDatabase(
+            engine=engine, name=db_string, db_name=db_name, run_psql=run_psql
+        )
     finally:
         engine.dispose()
-        subprocess.check_output(['psql', '-c', f'drop database "{db_name}"'])
+        run_psql('-c', f'drop database "{db_name}"')
 
 
 @pytest.fixture
@@ -161,13 +184,9 @@ def test_upgrade_with_data(
         MIGRATIONS_TEST_DIR, f'migration_{migration}', 'setup_upgrade.sql'
     )
     if path.isfile(setup_sql) or path.islink(setup_sql):
-        subprocess.check_call(
-            [
-                'psql', '-d', fresh_database.db_name, '--set=ON_ERROR_STOP=1',
-                '--set=ECHO=queries', '-f', setup_sql
-            ],
-            stderr=subprocess.STDOUT,
-            text=True,
+        fresh_database.run_psql(
+            '-d', fresh_database.db_name, '--set=ON_ERROR_STOP=1',
+            '--set=ECHO=queries', '-f', setup_sql
         )
 
     upgrade_tester = mod.UpgradeTester(db=fresh_database)
@@ -198,13 +217,9 @@ def test_downgrade_with_data(
         MIGRATIONS_TEST_DIR, f'migration_{migration}', 'setup_downgrade.sql'
     )
     if path.isfile(setup_sql) or path.islink(setup_sql):
-        subprocess.check_call(
-            [
-                'psql', '-d', fresh_database.db_name, '--set=ON_ERROR_STOP=1',
-                '--set=ECHO=queries', '-f', setup_sql
-            ],
-            stderr=subprocess.STDOUT,
-            text=True,
+        fresh_database.run_psql(
+            '-d', fresh_database.db_name, '--set=ON_ERROR_STOP=1',
+            '--set=ECHO=queries', '-f', setup_sql
         )
 
     # Load the test data
