@@ -243,13 +243,10 @@ export default {
         },
 
         async focusInput() {
-            for (let i = 0; i < 10; i++) {
-                if (this.$refs.multiplierInput == null) {
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.$afterRerender();
-                }
+            const input = await this.$waitForRef('multiplierInput');
+            if (input != null) {
+                input.focus();
             }
-            this.$refs.multiplierInput.focus();
         },
     },
 
