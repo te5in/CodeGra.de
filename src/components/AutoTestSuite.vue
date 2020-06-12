@@ -230,11 +230,11 @@
             <span class="title">
                 <a v-if="result"
                    href="#"
-                   @click.capture.prevent.stop="$root.$emit('cg::rubric-viewer::open-category', value.rubricRow.id)">
-                    {{ value.rubricRow.header }}
+                   @click.capture.prevent.stop="$root.$emit('cg::rubric-viewer::open-category', rubricRow.id)">
+                    {{ rubricRow.header }}
                 </a>
                 <template v-else>
-                    {{ value.rubricRow.header }}
+                    {{ rubricRow.header }}
                 </template>
             </span>
 
@@ -453,7 +453,12 @@ export default {
         },
 
         rubricRow() {
-            return getProps(this, null, 'internalValue', 'rubricRow');
+            const value = this.internalValue || this.value;
+            const rowId = getProps(value, null, 'rubricRow', 'id');
+            if (rowId == null) {
+                return null;
+            }
+            return getProps(this.rubric, null, 'rowsById', rowId);
         },
 
         pointPercentage() {
