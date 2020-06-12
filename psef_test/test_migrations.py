@@ -1,3 +1,9 @@
+"""This files contains the code to make the testing of migrations work.
+
+This file does not contain the actual migration tests. The setup of these
+migration tests was largely inspired by this repository:
+https://github.com/freedomofpress/securedrop
+"""
 import os
 import re
 import uuid
@@ -129,69 +135,6 @@ def downgrade(migration_app):
             alembic.command.downgrade(config, migration, sql=False, tag=None)
 
     yield inner
-
-
-def get_schema(app, db):
-    with app.app_context():
-        result = list(
-            db.engine.execute(
-                text(
-                    '''
-            SELECT type, name, tbl_name, sql
-            FROM sqlite_master
-            ORDER BY type, name, tbl_name
-            '''
-                )
-            )
-        )
-
-    return {(x[0], x[1], x[2]): x[3] for x in result}
-
-
-def assert_schemas_equal(left, right):
-    for k, v in left.items():
-        if k not in right:
-            raise AssertionError(
-                'Left contained {} but right did not'.format(k)
-            )
-        if not ddl_equal(v, right[k]):
-            raise AssertionError(
-                'Schema for {} did not match:\nLeft:\n{}\nRight:\n{}'.format(
-                    k, v, right[k]
-                )
-            )
-        right.pop(k)
-
-    if right:
-        raise AssertionError(
-            'Right had additional tables: {}'.format(list(right.keys()))
-        )
-
-
-def ddl_equal(left, right):
-    '''Check the "tokenized" DDL is equivalent because, because sometimes
-        Alembic schemas append columns on the same line to the DDL comes out
-        like:
-
-        column1 TEXT NOT NULL, column2 TEXT NOT NULL
-
-        and SQLAlchemy comes out:
-
-        column1 TEXT NOT NULL,
-        column2 TEXT NOT NULL
-    '''
-    # ignore the autoindex cases
-    if left is None and right is None:
-        return True
-
-    left = [x for x in WHITESPACE_REGEX.split(left) if x]
-    right = [x for x in WHITESPACE_REGEX.split(right) if x]
-
-    # Strip commas and quotes
-    left = [x.replace("\"", "").replace(",", "") for x in left]
-    right = [x.replace("\"", "").replace(",", "") for x in right]
-
-    return sorted(left) == sorted(right)
 
 
 @pytest.mark.parametrize('migration', ALL_TESTED_MIGRATIONS)
