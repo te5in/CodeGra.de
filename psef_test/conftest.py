@@ -111,7 +111,9 @@ def make_app_settings(request):
                 "java",
                 "-Dbasedir={files}",
                 "-jar",
-                os.path.join(os.path.dirname(__file__), '..', 'checkstyle.jar'),
+                os.path.join(
+                    os.path.dirname(__file__), '..', 'checkstyle.jar'
+                ),
                 "-f",
                 "xml",
                 "-c",
@@ -119,7 +121,9 @@ def make_app_settings(request):
                 "{files}",
             ],
             'PMD_PROGRAM': [
-                os.path.join(os.path.dirname(__file__), '..', './pmd/bin/run.sh'),
+                os.path.join(
+                    os.path.dirname(__file__), '..', './pmd/bin/run.sh'
+                ),
                 'pmd',
                 '-dir',
                 '{files}',
@@ -158,6 +162,7 @@ def make_app_settings(request):
         return settings_override
 
     yield inner
+
 
 @pytest.fixture(scope='session')
 def app(request, make_app_settings):

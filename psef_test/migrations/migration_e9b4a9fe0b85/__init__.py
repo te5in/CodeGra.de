@@ -5,17 +5,17 @@ import pytest
 
 
 def test_connections(conn_by_id, new_style_courses, old_style_courses):
-   for cur_course, old_course in zip(new_style_courses, old_style_courses):
-       assert cur_course.id == old_course.id
-       if old_course.lti_provider_id is None:
-           assert cur_course.id not in conn_by_id
-       else:
-           assert cur_course.id in conn_by_id
-           conn = conn_by_id[cur_course.id]
-           assert conn.id is not None
-           assert conn.lti_provider_id == old_course.lti_provider_id
-           assert conn.lti_course_id == old_course.lti_course_id
-           assert conn.deployment_id == old_course.lti_course_id
+    for cur_course, old_course in zip(new_style_courses, old_style_courses):
+        assert cur_course.id == old_course.id
+        if old_course.lti_provider_id is None:
+            assert cur_course.id not in conn_by_id
+        else:
+            assert cur_course.id in conn_by_id
+            conn = conn_by_id[cur_course.id]
+            assert conn.id is not None
+            assert conn.lti_provider_id == old_course.lti_provider_id
+            assert conn.lti_course_id == old_course.lti_course_id
+            assert conn.deployment_id == old_course.lti_course_id
 
 
 class UpgradeTester:
