@@ -160,7 +160,7 @@ def test_upgrade_with_data(
     setup_sql = path.join(
         MIGRATIONS_TEST_DIR, f'migration_{migration}', 'setup_upgrade.sql'
     )
-    if path.isfile(setup_sql):
+    if path.isfile(setup_sql) or path.islink(setup_sql):
         subprocess.check_call(
             [
                 'psql', '-d', fresh_database.db_name, '--set=ON_ERROR_STOP=1',
@@ -195,9 +195,9 @@ def test_downgrade_with_data(
 
     # Load the test data
     setup_sql = path.join(
-        MIGRATIONS_TEST_DIR, f'migration_{migration}', 'setup_downgade.sql'
+        MIGRATIONS_TEST_DIR, f'migration_{migration}', 'setup_downgrade.sql'
     )
-    if path.isfile(setup_sql):
+    if path.isfile(setup_sql) or path.islink(setup_sql):
         subprocess.check_call(
             [
                 'psql', '-d', fresh_database.db_name, '--set=ON_ERROR_STOP=1',
