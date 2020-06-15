@@ -538,9 +538,9 @@ export default {
             return this.internalValue.save();
         },
 
-        cancelEdit() {
-            const modal = this.$refs.editModal;
-            if (modal) {
+        async cancelEdit() {
+            const modal = await this.$waitForRef('editModal');
+            if (modal != null) {
                 modal.hide();
                 this.$emit('save-cancelled');
             }
