@@ -4,7 +4,6 @@ import abc
 class Tester(abc.ABC):
     def __init__(self, db, **_):
         self.db = db
-        self.users = None
 
     @staticmethod
     def do_test():
