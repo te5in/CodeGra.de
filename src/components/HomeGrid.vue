@@ -249,14 +249,10 @@ export default {
     async mounted() {
         await Promise.all([this.$afterRerender(), this.loadCourses()]);
         this.loadingCourses = false;
-        for (let i = 0; i < 2; ++i) {
-            // eslint-disable-next-line no-await-in-loop
-            await this.$afterRerender();
-            const input = this.$refs.searchInput;
-            if (input) {
-                input.focus();
-                break;
-            }
+
+        const searchInput = await this.$waitForRef('searchInput');
+        if (searchInput != null) {
+            searchInput.focus();
         }
     },
 
