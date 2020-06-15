@@ -221,8 +221,7 @@ export default {
             this.valueCopy =
                 this.valueCopy.slice(0, start) + value + this.valueCopy.slice(end);
 
-            await this.$nextTick();
-            const el = this.$refs.field;
+            const el = await this.$waitForRef('field');
             if (el) {
                 el.focus();
                 el.setSelectionRange(start + value.length, start + value.length);
@@ -366,11 +365,7 @@ export default {
         },
 
         async focusInput() {
-            let el = this.$refs.field;
-            if (el == null) {
-                await this.$afterRerender();
-                el = this.$refs.field;
-            }
+            const el = await this.$waitForRef('field');
             if (el != null) {
                 el.focus();
                 await this.$afterRerender();
@@ -405,8 +400,7 @@ export default {
             const wantedCursor = start + selected.value.length;
             this.confirmSnippet();
 
-            await this.$nextTick();
-            const el = this.$refs.field;
+            const el = this.$waitForRef('field');
             if (el) {
                 el.focus();
                 el.setSelectionRange(wantedCursor, wantedCursor);
