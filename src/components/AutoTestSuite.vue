@@ -227,7 +227,8 @@
 
     <b-card no-body v-if="!value.isEmpty()">
         <b-card-header class="suite-header d-flex align-items-center">
-            <span class="title">
+            <span class="title"
+                  v-if="rubricRow != null">
                 <a v-if="result"
                    href="#"
                    @click.capture.prevent.stop="$root.$emit('cg::rubric-viewer::open-category', rubricRow.id)">
@@ -236,6 +237,10 @@
                 <template v-else>
                     {{ rubricRow.header }}
                 </template>
+            </span>
+            <span v-else
+                  class="text-muted">
+                No rubric category selected.
             </span>
 
             <a href="#"
