@@ -176,9 +176,13 @@ export default {
 
         globalPopover() {
             if (this.notLatest) {
-                return `This is not the latest submission by ${this.$utils.nameOfUser(
+                let msg = `This is not the latest submission by ${this.$utils.nameOfUser(
                     this.submission.user,
-                )} so you cannot edit the grade. This grade will not be passed back to your LMS`;
+                )} so you cannot edit the grade.`;
+                if (this.$ltiProvider != null) {
+                    msg += ` This grade will not be passed back to ${this.$ltiProvider.lms}.`;
+                }
+                return msg;
             } else if (this.groupOfUser) {
                 return `This user is member of the group "${
                     this.groupOfUser.group.name
