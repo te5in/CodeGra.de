@@ -303,7 +303,7 @@ describe('Submission.vue', () => {
             });
         });
 
-        describe('defaultCat', () => {
+        describe('setDefaultCat', () => {
             it('should be "Code" when the assignment is not done and there is no Continuous Feedback', async () => {
                 store.dispatch('courses/updateAssignment', {
                     assignmentId: comp.assignmentId,
@@ -312,8 +312,9 @@ describe('Submission.vue', () => {
                         auto_test_id: null,
                     },
                 });
-
                 await wait();
+                comp.setDefaultCat();
+
                 expect(comp.defaultCat).toBe('code');
             });
 
@@ -331,6 +332,7 @@ describe('Submission.vue', () => {
                     user: [],
                 });
                 await wait();
+                comp.setDefaultCat();
 
                 expect(comp.defaultCat).toBe('feedback-overview');
 
@@ -348,6 +350,7 @@ describe('Submission.vue', () => {
                     }],
                 })
                 await wait();
+                comp.setDefaultCat();
 
                 expect(comp.defaultCat).toBe('feedback-overview');
             });
@@ -365,6 +368,7 @@ describe('Submission.vue', () => {
                     user: {},
                 });
                 await wait();
+                comp.setDefaultCat();
 
                 expect(comp.defaultCat).toBe('feedback-overview');
             });
@@ -382,8 +386,9 @@ describe('Submission.vue', () => {
                     user: [],
                     linter: {},
                 });
-
                 await wait(100);
+                comp.setDefaultCat();
+
                 expect(comp.defaultCat).toBe('auto-test');
             });
 
@@ -397,6 +402,7 @@ describe('Submission.vue', () => {
                     },
                 });
                 await wait();
+                comp.setDefaultCat();
 
                 expect(comp.defaultCat).toBe('code');
 
@@ -421,6 +427,7 @@ describe('Submission.vue', () => {
                     },
                 });
                 await wait();
+                comp.setDefaultCat();
 
                 expect(comp.defaultCat).toBe('code');
             });
