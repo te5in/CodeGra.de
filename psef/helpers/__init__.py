@@ -132,7 +132,6 @@ def add_warning(warning: str, code: psef.exceptions.APIWarnings) -> None:
     g.request_warnings.append(psef.errors.make_warning(warning, code))
 
 
-
 def on_not_none(value: t.Optional[T],
                 callback: t.Callable[[T], K]) -> t.Optional[K]:
     """Call a given ``callback`` if the given ``value`` is not none.

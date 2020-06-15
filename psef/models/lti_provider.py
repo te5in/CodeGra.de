@@ -1496,7 +1496,6 @@ class UserLTIProvider(Base, TimestampMixin):
 
         return lti_user
 
-
     @t.overload
     @classmethod
     def get_or_create_user(
