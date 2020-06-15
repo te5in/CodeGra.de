@@ -352,8 +352,11 @@ export default {
             ]);
 
             this.loading = false;
-            await this.$afterRerender();
-            this.$refs.table.sortBy = 'User';
+
+            const tableRef = await this.$waitForRef('table');
+            if (tableRef != null) {
+                this.$refs.table.sortBy = 'User';
+            }
         },
 
         getRegistrationLinks() {
