@@ -918,13 +918,19 @@ export default {
     flex: 0 0 ~'calc(33.33% - 2rem)';
     height: 12rem;
 
+    @media @media-no-large {
+        flex-basis: ~'calc(40% - 2rem)';
+        min-width: 14rem;
+    }
+
     @media @media-small {
         flex-basis: ~'calc(50% - 1rem)';
         height: 10rem;
+        min-width: 10rem;
     }
 
-    @media (max-width: 17.5rem) {
-        flex-basis: ~'calc(100% - 1rem)';
+    @media (max-width: 24rem) {
+        flex-grow: 1;
     }
 
     &.variant-danger {
