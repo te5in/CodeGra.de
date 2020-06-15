@@ -1094,3 +1094,59 @@ def test_launch_redirect_to_given_page(
         assert response.headers['Location'].startswith(
             app.config['EXTERNAL_URL']
         )
+
+
+@pytest.mark.parametrize('connect', [True, False])
+def test_connecting_users_lti1p1_provider(
+    test_client, describe, logged_in, admin_user, stub_function,
+    monkeypatched_passback, session, connect, canvas_lti1p1_provider
+):
+    with describe('setup'), logged_in(admin_user):
+        original_user = helpers.create_user_with_role(session, 'Student', [])
+        session.commit()
+
+        old_lti_user_id = str(uuid.uuid4())
+        assert original_user
+        session.add(
+            m.UserLTIProvider(
+                user=original_user,
+                lti_provider=canvas_lti1p1_provider,
+                lti_user_id=old_lti_user_id
+            )
+        )
+        session.commit()
+
+        provider = helpers.create_lti1p3_provider(
+            test_client,
+            'Canvas',
+            iss='https://canvas.instructure.com',
+            client_id=str(uuid.uuid4()) + '_lms=' + 'Canvas'
+        )
+        provider = helpers.to_db_object(provider, m.LTI1p3Provider)
+        if connect:
+            provider._updates_lti1p1 = canvas_lti1p1_provider
+            session.commit()
+
+        lti_user_id = str(uuid.uuid4())
+        data = make_launch_data(
+            CANVAS_DATA,
+            provider,
+            {
+                'Assignment.id': 'assig id',
+                'Course.id': 'asdfs',
+                'User.id': lti_user_id,
+            },
+        )
+
+    with describe('should create a user with the given email'):
+        do_oidc_and_lti_launch(
+            test_client, provider, merge(data, {'user_id': old_lti_user_id}),
+            200
+        )
+        new_user = m.UserLTIProvider.query.filter_by(lti_user_id=lti_user_id
+                                                     ).one().user
+
+        if connect:
+            assert new_user.id == original_user.id
+        else:
+            assert new_user.id != original_user.id

@@ -263,6 +263,8 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
         assert m.UserLTIProvider.query.filter_by(
             user_id=ta_user.id
         ).one().lti_user_id == 'THOMAS_SCHAPER'
+        provider = m.LTI1p1Provider.query.filter_by(key='my_lti').one()
+        assert provider.find_user('THOMAS_SCHAPER') == ta_user
 
         assert assig['id'] in ta_user.assignment_results
 

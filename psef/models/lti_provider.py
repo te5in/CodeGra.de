@@ -96,6 +96,15 @@ class LTIProviderBase(Base, TimestampMixin):
     if not t.TYPE_CHECKING:
         client_id = db.Column('client_id', db.Unicode)
 
+    # The foreign key needs to be defined here for sqlalchemy, but the relation
+    # is defined in the ``LTI1p3Provider`` model.
+    _updates_lti1p1_id = db.Column(
+        'updates_lti1p1_id',
+        db.String(UUID_LENGTH),
+        db.ForeignKey(id),
+        nullable=True,
+    )
+
     _lti_provider_version = db.Column(
         'lti_provider_version',
         db.Enum(*_ALL_LTI_PROVIDERS, name='ltiproviderversion'),
@@ -634,19 +643,19 @@ class LTI1p3Provider(LTIProviderBase):
         nullable=False
     )
 
-    _updates_lti1p1_id = db.Column(
-        'updates_lti1p1_id',
-        db.String(UUID_LENGTH),
-        db.ForeignKey(LTIProviderBase.id),
-        nullable=True,
-    )
     _updates_lti1p1 = db.relationship(
         LTIProviderBase,
-        foreign_keys=_updates_lti1p1_id,
+        foreign_keys=LTIProviderBase._updates_lti1p1_id,
+        uselist=False,
     )
 
     @property
     def updates_lti1p1(self) -> t.Optional[LTI1p1Provider]:
+        """The LTI 1.1 provider this provider updates.
+
+        This allows us to reuse users from that provider, so we will not create
+        duplicate users.
+        """
         updates = self._updates_lti1p1
         # We cannot enforce this in the database, so we enforce it using
         # mypy. But as the database is an external system an ``assert`` here is
@@ -1395,6 +1404,7 @@ class UserLTIProvider(Base, TimestampMixin):
         lti_user_id: str
     ) -> None:
         super().__init__()
+        self.user_id = user.id
         self.user = user
         self.lti_provider = lti_provider
         self.lti_user_id = lti_user_id
