@@ -126,12 +126,7 @@ export default {
         disabled: {
             immediate: true,
             async handler() {
-                let drop = this.$refs.dropzone;
-                for (let i = 0; drop == null && i < 4; ++i) {
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.$afterRerender();
-                    drop = this.$refs.dropzone;
-                }
+                const drop = await this.$waitForRef('dropzone');
                 if (drop == null) {
                     return;
                 }

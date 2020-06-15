@@ -85,10 +85,12 @@ export default {
             }
         },
 
-        clearForm() {
+        async clearForm() {
             this.$emit('clear');
-            if (this.$refs.formFile) {
-                this.$refs.formFile.reset();
+
+            const formFile = await this.$waitForRef('formFile');
+            if (formFile != null) {
+                formFile.reset();
             }
         },
     },
