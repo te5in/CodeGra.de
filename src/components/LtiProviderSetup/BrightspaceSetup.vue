@@ -442,7 +442,7 @@ export default class BrightspaceSetup extends Vue {
     nextPageDisabled(currentPage: number): string | null {
         if (currentPage === 3 && !this.ltiProvider.client_id) {
             return 'Please fill in the required information';
-        } else if (currentPage === 5)
+        } else if (currentPage === 5) {
             return 'Please finalize the provider';
         }
         return null;
