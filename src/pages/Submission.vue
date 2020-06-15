@@ -133,9 +133,9 @@
 
         <template slot="extra" v-if="!loadingInner">
             <category-selector slot="extra"
-                                :default="defaultCat"
-                                v-model="selectedCat"
-                                :categories="categories"/>
+                               :default="defaultCat"
+                               v-model="selectedCat"
+                               :categories="categories"/>
         </template>
     </local-header>
 
@@ -296,6 +296,7 @@ export default {
         return {
             assignmentState,
 
+            defaultCat: '',
             selectedCat: '',
             hiddenCats: new Set(),
 
@@ -584,27 +585,6 @@ export default {
             }
         },
 
-        defaultCat() {
-            const editable = this.editable;
-            const done = this.assignmentDone;
-            const hasFb = this.hasFeedback;
-            const testRun = this.autoTestRun;
-
-            if (done) {
-                if (hasFb) {
-                    return 'feedback-overview';
-                } else if (testRun) {
-                    return 'auto-test';
-                } else {
-                    return 'feedback-overview';
-                }
-            } else if (!editable && testRun) {
-                return 'auto-test';
-            } else {
-                return 'code';
-            }
-        },
-
         rubricStartOpen() {
             const done = this.assignmentDone;
             const editable = this.editable;
@@ -773,7 +753,7 @@ export default {
             });
         },
 
-        async loadData() {
+        loadData() {
             if (this.submissionId == null || this.error != null) {
                 return;
             }
@@ -832,8 +812,11 @@ export default {
                 );
             }
 
-            await Promise.all(promises).then(
-                this.openFirstFile,
+            Promise.all(promises).then(
+                () => {
+                    this.setDefaultCat();
+                    this.openFirstFile();
+                },
                 err => {
                     this.error = this.$utils.getErrorMessage(err);
                 },
@@ -944,6 +927,27 @@ export default {
             // half of the width of the page.
             if (wasHidden && tab === 'feedback' && this.splitRatio > 50) {
                 this.splitRatio = 50;
+            }
+        },
+
+        setDefaultCat() {
+            const editable = this.editable;
+            const done = this.assignmentDone;
+            const hasFb = this.hasFeedback;
+            const testRun = this.autoTestRun;
+
+            if (done) {
+                if (hasFb) {
+                    this.defaultCat = 'feedback-overview';
+                } else if (testRun) {
+                    this.defaultCat = 'auto-test';
+                } else {
+                    this.defaultCat = 'feedback-overview';
+                }
+            } else if (!editable && testRun) {
+                this.defaultCat = 'auto-test';
+            } else {
+                this.defaultCat = 'code';
             }
         },
     },
