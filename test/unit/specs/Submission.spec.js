@@ -241,8 +241,6 @@ describe('Submission.vue', () => {
 
     describe('Computed', () => {
         it('ids should be numbers', () => {
-            console.log(comp.course);
-            console.log(comp.courseId);
             expect(comp.courseId).toBeNumber();
             expect(comp.assignmentId).toBeNumber();
             expect(comp.submissionId).toBeNumber();
@@ -300,6 +298,40 @@ describe('Submission.vue', () => {
             it.each(['student', 'teacher', 'diff'])('should take the value from the route', (rev) => {
                 $route.query.revision = rev;
                 expect(comp.revision).toBe(rev);
+            });
+        });
+
+        describe('getDefaultCat', () => {
+            it.each([
+                [false, false, false, null, 'code'],
+                [false, false, false, {},   'auto-test'],
+                [false, false, true,  null, 'code'],
+                [false, false, true,  {},   'code'],
+                [false, true,  false, null, 'code'],
+                [false, true,  false, {},   'auto-test'],
+                [false, true,  true,  null, 'code'],
+                [false, true,  true,  {},   'code'],
+                [true,  false, false, null, 'feedback-overview'],
+                [true,  false, false, {},   'auto-test'],
+                [true,  false, true,  null, 'feedback-overview'],
+                [true,  false, true,  {},   'auto-test'],
+                [true,  true,  false, null, 'feedback-overview'],
+                [true,  true,  false, {},   'feedback-overview'],
+                [true,  true,  true,  null, 'feedback-overview'],
+                [true,  true,  true,  {},   'feedback-overview'],
+            ])('should behave correctly', (
+                assignmentDone,
+                hasFeedback,
+                feedbackEditable,
+                autoTestRun,
+                expected = 'code',
+            ) => {
+                expect(comp.getDefaultCat(
+                    feedbackEditable,
+                    assignmentDone,
+                    hasFeedback,
+                    autoTestRun,
+                )).toBe(expected);
             });
         });
 

@@ -931,23 +931,27 @@ export default {
         },
 
         setDefaultCat() {
-            const editable = this.editable;
-            const done = this.assignmentDone;
-            const hasFb = this.hasFeedback;
-            const testRun = this.autoTestRun;
+            this.defaultCat = this.getDefaultCat(
+                this.editable,
+                this.assignmentDone,
+                this.hasFeedback,
+                this.autoTestRun,
+            );
+        },
 
-            if (done) {
-                if (hasFb) {
-                    this.defaultCat = 'feedback-overview';
-                } else if (testRun) {
-                    this.defaultCat = 'auto-test';
+        getDefaultCat(feedbackEditable, assignmentDone, hasFeedback, autoTestRun) {
+            if (assignmentDone) {
+                if (hasFeedback) {
+                    return 'feedback-overview';
+                } else if (autoTestRun) {
+                    return 'auto-test';
                 } else {
-                    this.defaultCat = 'feedback-overview';
+                    return 'feedback-overview';
                 }
-            } else if (!editable && testRun) {
-                this.defaultCat = 'auto-test';
+            } else if (!feedbackEditable && autoTestRun) {
+                return 'auto-test';
             } else {
-                this.defaultCat = 'code';
+                return 'code';
             }
         },
     },
