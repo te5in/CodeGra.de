@@ -38,6 +38,7 @@ from cg_json import (
     JSONResponse, ExtendedJSONResponse, jsonify, extended_jsonify
 )
 from cg_timers import timed_code
+from cg_helpers import handle_none
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import (
     EmptyResponse, make_empty_response, callback_after_this_request
@@ -130,18 +131,6 @@ def add_warning(warning: str, code: psef.exceptions.APIWarnings) -> None:
         g.request_warnings = []
     g.request_warnings.append(psef.errors.make_warning(warning, code))
 
-
-def handle_none(value: t.Optional[T], default: TT) -> t.Union[T, TT]:
-    """Get the given ``value`` or ``default`` if ``value`` is ``None``.
-
-    >>> handle_none(None, 5)
-    5
-    >>> handle_none(5, 6)
-    5
-    >>> handle_none(5.5, 6)
-    5.5
-    """
-    return default if value is None else value
 
 
 def on_not_none(value: t.Optional[T],

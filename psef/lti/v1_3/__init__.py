@@ -1256,6 +1256,7 @@ class FlaskMessageLaunch(
             wanted_username=custom_claims.username,
             full_name=full_name,
             email=email,
+            old_lti_user_id=launch_data.get('user_id'),
         )
 
         updated_email = None

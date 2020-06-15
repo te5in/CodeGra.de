@@ -27,6 +27,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 import psef
+from cg_helpers import handle_none
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import hybrid_property
 from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy
@@ -633,6 +634,26 @@ class LTI1p3Provider(LTIProviderBase):
         nullable=False
     )
 
+    _updates_lti1p1_id = db.Column(
+        'updates_lti1p1_id',
+        db.String(UUID_LENGTH),
+        db.ForeignKey(LTIProviderBase.id),
+        nullable=True,
+    )
+    _updates_lti1p1 = db.relationship(
+        LTIProviderBase,
+        foreign_keys=_updates_lti1p1_id,
+    )
+
+    @property
+    def updates_lti1p1(self) -> t.Optional[LTI1p1Provider]:
+        updates = self._updates_lti1p1
+        # We cannot enforce this in the database, so we enforce it using
+        # mypy. But as the database is an external system an ``assert`` here is
+        # simply for an extra check.
+        assert isinstance(updates, (type(None), LTI1p1Provider))
+        return updates
+
     @property
     def edit_secret(self) -> uuid.UUID:
         """The secret which you can use to edit this provider.
@@ -668,9 +689,7 @@ class LTI1p3Provider(LTIProviderBase):
     def auth_audience(self) -> t.Optional[str]:
         """The OAuth2 Audience for this provider.
         """
-        return psef.helpers.handle_none(
-            self._auth_audience, self._auth_token_url
-        )
+        return handle_none(self._auth_audience, self._auth_token_url)
 
     @property
     def auth_token_url(self) -> t.Optional[str]:
@@ -1151,6 +1170,7 @@ class LTI1p3Provider(LTIProviderBase):
                     ),
                     email=lti_v1_3.get_email_for_user(member, self),
                     full_name=member['name'],
+                    old_lti_user_id=member.get('lti11_legacy_user_id'),
                 )
             except:  # pylint: disable=bare-except
                 logger.info('Could not add new user', exc_info=True)
@@ -1455,6 +1475,55 @@ class UserLTIProvider(Base, TimestampMixin):
         return user, token
 
     @classmethod
+    def _maybe_migrate_lti1p1_user(
+        cls, lti_1p3_user_id: str, lti_1p1_user_id: str,
+        lti_provider: LTI1p3Provider
+    ) -> t.Optional['user_models.User']:
+        provider = lti_provider.updates_lti1p1
+        if provider is None:
+            return None
+
+        lti_user = provider.find_user(lti_1p1_user_id)
+        if lti_user is not None:
+            db.session.add(
+                cls(
+                    user=lti_user,
+                    lti_provider=lti_provider,
+                    lti_user_id=lti_1p3_user_id,
+                )
+            )
+            db.session.flush()
+
+        return lti_user
+
+
+    @t.overload
+    @classmethod
+    def get_or_create_user(
+        cls,
+        lti_user_id: str,
+        lti_provider: LTI1p1Provider,
+        wanted_username: t.Optional[str],
+        full_name: str,
+        email: str,
+    ) -> t.Tuple['user_models.User', t.Optional[str]]:
+        ...
+
+    @t.overload
+    @classmethod
+    def get_or_create_user(
+        cls,
+        lti_user_id: str,
+        lti_provider: LTI1p3Provider,
+        wanted_username: t.Optional[str],
+        full_name: str,
+        email: str,
+        *,
+        old_lti_user_id: t.Optional[str],
+    ) -> t.Tuple['user_models.User', t.Optional[str]]:
+        ...
+
+    @classmethod
     def get_or_create_user(
         cls,
         lti_user_id: str,
@@ -1462,6 +1531,8 @@ class UserLTIProvider(Base, TimestampMixin):
         wanted_username: t.Optional[str],
         full_name: str,
         email: str,
+        *,
+        old_lti_user_id: t.Optional[str] = None,
     ) -> t.Tuple['user_models.User', t.Optional[str]]:
         """Get or create a new user for the given LTI Provider
 
@@ -1484,6 +1555,15 @@ class UserLTIProvider(Base, TimestampMixin):
         user = None
 
         lti_user = lti_provider.find_user(lti_user_id=lti_user_id)
+
+        if lti_user is None and isinstance(lti_provider, LTI1p3Provider):
+            lti_user = cls._maybe_migrate_lti1p1_user(
+                lti_1p3_user_id=lti_user_id,
+                # According to the spec the lti 1.1 user id should **not** be
+                # specified if it is the same as the lti 1.3 user id.
+                lti_1p1_user_id=handle_none(old_lti_user_id, lti_user_id),
+                lti_provider=lti_provider,
+            )
 
         if is_logged_in and lti_user is not None and current_user == lti_user:
             logger.info('Currently logged in user is user doing launch')

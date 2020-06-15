@@ -4,7 +4,7 @@ SHELL=/bin/bash
 TEST_FLAGS?=
 PYTHON?=env/bin/python3
 export PYTHONPATH=$(CURDIR)
-PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger cg_worker_pool cg_threading_utils cg_flask_helpers cg_dt_utils cg_signals cg_cache
+PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger cg_worker_pool cg_threading_utils cg_flask_helpers cg_dt_utils cg_signals cg_cache cg_helpers
 PY_ALL_MODULES=$(PY_MODULES) psef_test
 
 .PHONY: test_setup
@@ -33,9 +33,11 @@ count:
 doctest: test_setup
 	pytest --cov psef \
 	       --cov cg_worker_pool \
+	       --cov cg_helpers \
 	       --cov-append \
 	       --cov-report term-missing \
 	       --doctest-modules psef --doctest-modules cg_cache \
+	       --doctest-modules cg_helpers \
 	       -vvvvv $(TEST_FLAGS)
 
 .PHONY: reset_db_broker
