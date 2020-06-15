@@ -10,6 +10,7 @@ class UpgradeTester(Tester):
     def get_users(self):
         return self.db.engine.execute('SELECT * FROM "User" ORDER BY id'
                                       ).fetchall()
+
     @staticmethod
     def do_test():
         return True
