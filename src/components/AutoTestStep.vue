@@ -263,14 +263,16 @@
                       v-b-popover.hover.top="hiddenPopover" />
             </td>
             <td class="shrink">{{ index }}</td>
-            <td colspan="2">
-                <b>{{ stepName }}</b>
+            <td class="overflowable" colspan="2">
+                <div class="overflow-auto">
+                    <b>{{ stepName }}</b>
 
-                <template v-if="canViewDetails">
-                    Stop when you achieve less than
-                    <code>{{ value.data.min_points }}%</code>
-                    of the points possible.
-                </template>
+                    <template v-if="canViewDetails">
+                        Stop when you achieve less than
+                        <code>{{ value.data.min_points }}%</code>
+                        of the points possible.
+                    </template>
+                </div>
             </td>
             <td class="shrink text-center" v-if="result">
                 <auto-test-state :result="stepResult" show-icon />
@@ -300,13 +302,15 @@
                       v-b-popover.hover.top="hiddenPopover" />
             </td>
             <td class="shrink">{{ index }}</td>
-            <td>
-                <b>{{ stepName }}</b>
+            <td class="overflowable">
+                <div class="overflow-auto">
+                    <b>{{ stepName }}</b>
 
-                <template v-if="canViewDetails">
-                    Run <code>{{ value.data.program }}</code>
-                    and check for successful completion.
-                </template>
+                    <template v-if="canViewDetails">
+                        Run <code>{{ value.data.program }}</code>
+                        and check for successful completion.
+                    </template>
+                </div>
             </td>
             <td class="shrink text-center">
                 <template v-if="result">
@@ -375,12 +379,14 @@
                       v-b-popover.hover.top="hiddenPopover" />
             </td>
             <td class="shrink">{{ index }}</td>
-            <td>
-                <b>{{ stepName }}</b>
+            <td class="overflowable">
+                <div class="overflow-auto">
+                    <b>{{ stepName }}</b>
 
-                <template v-if="canViewDetails">
-                    Run <code>{{ value.data.program }}</code> and parse its output.
-                </template>
+                    <template v-if="canViewDetails">
+                        Run <code>{{ value.data.program }}</code> and parse its output.
+                    </template>
+                </div>
             </td>
             <td class="shrink text-center">
                 <template v-if="result">
@@ -532,16 +538,18 @@
                           v-b-popover.hover.top="hiddenPopover" />
                 </td>
                 <td class="shrink">{{ index }}.{{ i + 1 }}</td>
-                <td>
-                    <template v-if="canViewDetails && result">
-                        <b>{{ input.name }}</b>
+                <td class="overflowable">
+                    <div class="overflow-auto">
+                        <template v-if="canViewDetails && result">
+                            <b>{{ input.name }}</b>
 
-                        Run <code>{{ value.data.program }} {{ input.args }}</code>
-                        and match its output to an expected value.
-                    </template>
-                    <template v-else>
-                        {{ input.name }}
-                    </template>
+                            Run <code>{{ value.data.program }} {{ input.args }}</code>
+                            and match its output to an expected value.
+                        </template>
+                        <template v-else>
+                            {{ input.name }}
+                        </template>
+                    </div>
                 </td>
                 <td class="shrink text-center">
                     <template v-if="result">
@@ -1313,6 +1321,12 @@ export default {
             transform: translateY(2px);
         }
 
+        // Makes a block with overflow: auto placed in this cell actually
+        // overflow.
+        td.overflowable {
+            max-width: 0;
+        }
+
         .expand .fa-icon {
             transition: transform 300ms;
         }
@@ -1326,7 +1340,7 @@ export default {
         }
 
         code {
-            word-break: break-word;
+            word-wrap: initial;
         }
     }
 }
