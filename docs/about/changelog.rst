@@ -9,12 +9,14 @@ Version *Next*
 **Updates**
 
 - Automatically focus the percentage input in continuous rubric rows
-  `(#1370) <https://github.com/CodeGra-de/CodeGra.de>`__.
+  `(#1370) <https://github.com/CodeGra-de/CodeGra.de/pull/1370>`__.
+- Make it easier to upgrade from LTI 1.1 to LTI 1.3
+  `(#1374) <https://github.com/CodeGra-de/CodeGra.de/pull/1374>`__.
 
 **Fixes**
 
 - Fix IPython ``execute_result`` cell outputs `(#1367)
-  <https://github.com/CodeGra-de/CodeGra.de>`__.
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1367>`__.
 
 Version *LowVoltage.1*
 ----------------------

@@ -209,7 +209,7 @@ class MyDb:  # pragma: no cover
 
     def ForeignKey(
         self,
-        _name: t.Union[str, 'DbColumn[T]'],
+        _name: t.Union[str, 'DbColumn[T]', 'ColumnProxy[T]'],
         *,
         ondelete: t.Union[None, Literal['SET NULL', 'CASCADE']] = None,
     ) -> _ForeignKey:
@@ -322,7 +322,9 @@ class MyDb:  # pragma: no cover
         self,
         name: Union[t.Callable[[], t.Type[T]], t.Type[T]],
         *args: t.Any,
-        foreign_keys: Union[_CP[Opt[int]], _CP[Opt[str]], _CP[Opt[UUID]]],
+        foreign_keys: Union[_CP[Opt[int]], _CP[Opt[str]], _CP[Opt[UUID]],
+                            DbColumn[Opt[int]], DbColumn[Opt[str]], DbColumn[
+                                Opt[UUID]]],
         **kwargs: t.Any,
     ) -> 'ColumnProxy[t.Optional[T]]':
         ...
