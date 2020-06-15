@@ -187,6 +187,8 @@ Vue.prototype.$waitForRef = async function waitForRef(refName, retries = 5) {
         if (this.$refs[refName] == null) {
             // eslint-disable-next-line no-await-in-loop
             await this.$afterRerender();
+        } else {
+            break;
         }
     }
     return this.$refs[refName];
