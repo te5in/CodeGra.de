@@ -3,6 +3,8 @@ from itertools import groupby
 
 import pytest
 
+from .. import Tester
+
 
 def test_connections(conn_by_id, new_style_courses, old_style_courses):
     for cur_course, old_course in zip(new_style_courses, old_style_courses):
@@ -18,23 +20,17 @@ def test_connections(conn_by_id, new_style_courses, old_style_courses):
             assert conn.deployment_id == old_course.lti_course_id
 
 
-class UpgradeTester:
-    def __init__(self, db, **_):
-        self.db = db
-        self.courses = None
+class UpgradeTester(Tester):
+    courses = None
 
     def get_courses(self):
         return self.db.engine.execute('SELECT * FROM "Course" ORDER BY id'
                                       ).fetchall()
 
-    @staticmethod
-    def do_test():
-        return True
-
     def load_data(self):
         self.courses = self.get_courses()
 
-    def check_upgrade(self):
+    def check(self):
         cur_courses = self.get_courses()
         assert len(cur_courses) > 0
         assert len(self.courses
@@ -48,19 +44,13 @@ class UpgradeTester:
         test_connections(conn_by_id, cur_courses, self.courses)
 
 
-class DowngradeTester:
-    def __init__(self, db, **_):
-        self.db = db
-        self.courses = None
-        self.conn_by_id = None
+class DowngradeTester(Tester):
+    courses = None
+    conn_by_id = None
 
     def get_courses(self):
         return self.db.engine.execute('SELECT * FROM "Course" ORDER BY id'
                                       ).fetchall()
-
-    @staticmethod
-    def do_test():
-        return True
 
     def load_data(self):
         self.courses = self.get_courses()
@@ -70,7 +60,7 @@ class DowngradeTester:
         assert len(set(c.course_id for c in connections)) == len(connections)
         self.conn_by_id = {c.course_id: c for c in connections}
 
-    def check_downgrade(self):
+    def check(self):
         cur_courses = self.get_courses()
         assert len(cur_courses) > 0
         assert len(self.courses

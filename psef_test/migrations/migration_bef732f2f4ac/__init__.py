@@ -3,16 +3,13 @@ from itertools import groupby
 
 import pytest
 
+from .. import Tester
 
-class UpgradeTester:
-    def __init__(self, db, **_):
-        self.db = db
-        self.users = None
 
+class UpgradeTester(Tester):
     def get_users(self):
         return self.db.engine.execute('SELECT * FROM "User" ORDER BY id'
                                       ).fetchall()
-
     @staticmethod
     def do_test():
         return True
@@ -20,7 +17,7 @@ class UpgradeTester:
     def load_data(self):
         self.users = self.get_users()
 
-    def check_upgrade(self):
+    def check(self):
         cur_users = self.get_users()
         assert len(cur_users) > 0
         assert len(self.users) == len(cur_users), 'No users should be deleted'
@@ -40,7 +37,6 @@ class UpgradeTester:
                 lambda el: el.user_id,
             )
         }
-        print(user_lti_provider_connections)
 
         # User 5 was not an LTI user
         assert set(user_lti_provider_connections.keys()) == {1, 2, 3, 4, 6}
@@ -65,10 +61,7 @@ class UpgradeTester:
         check_connections(6, ['lti_prov_2'], '66')
 
 
-class DowngradeTester:
-    def __init__(self, db, **_):
-        self.db = db
-
+class DowngradeTester(Tester):
     @staticmethod
     def do_test():
         return False
@@ -76,5 +69,5 @@ class DowngradeTester:
     def load_data(self):
         pass
 
-    def check_downgrade(self):
+    def check(self):
         pass

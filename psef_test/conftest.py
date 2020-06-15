@@ -142,6 +142,10 @@ def make_app_settings(request):
             'AUTO_TEST_DISABLE_ORIGIN_CHECK': True,
             'AUTO_TEST_MAX_TIME_COMMAND': 3,
             'ADMIN_USER': None,
+            'CELERY_CONFIG': {
+                'CELERY_TASK_ALWAYS_EAGER': True,
+                'CELERY_TASK_EAGER_PROPAGATES': True,
+            },
         }
         if database is not None:
             settings_override['SQLALCHEMY_DATABASE_URI'] = database
@@ -153,11 +157,6 @@ def make_app_settings(request):
         else:
             settings_override['SQLALCHEMY_DATABASE_URI'] = TEST_DATABASE_URI
             settings_override['_USING_SQLITE'] = True
-
-        settings_override['CELERY_CONFIG'] = {
-            'CELERY_TASK_ALWAYS_EAGER': True,
-            'CELERY_TASK_EAGER_PROPAGATES': True,
-        }
 
         return settings_override
 

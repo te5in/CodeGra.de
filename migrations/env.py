@@ -3,10 +3,6 @@ from __future__ import with_statement
 import logging
 from logging.config import fileConfig
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
 from flask import current_app
 from alembic import context
 from sqlalchemy import pool, engine_from_config
@@ -23,7 +19,6 @@ logger = logging.getLogger('alembic.env')
 if config.get_main_option('sqlalchemy.url', None) is None:
     config.set_main_option('sqlalchemy.url',
                            current_app.config.get('SQLALCHEMY_DATABASE_URI'))
-    assert current_app
 target_metadata = current_app.extensions['migrate'].db.metadata
 
 # other values from the config, defined by the needs of env.py,

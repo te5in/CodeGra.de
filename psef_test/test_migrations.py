@@ -33,8 +33,8 @@ ALL_MIGRATIONS = [
 
 MIGRATIONS_TEST_DIR = path.join(path.dirname(__file__), 'migrations')
 ALL_MIGRATION_TESTS = [
-    x.split('.', 1)[0].split('_')[1] for x in os.listdir(MIGRATIONS_TEST_DIR)
-    if (
+    re.match(r'migration_([0-9a-f]+)(\.py)?', x).group(1)
+    for x in os.listdir(MIGRATIONS_TEST_DIR) if (
         x not in ('__init__.py', '__pycache__') and
         (x.endswith('.py') or path.isdir(path.join(MIGRATIONS_TEST_DIR, x)))
     )
@@ -130,7 +130,6 @@ def alembic_config(fresh_database):
 
 
 def list_migrations(alembic_config, head):
-    print(alembic_config)
     config = AlembicConfig(alembic_config)
     script = ScriptDirectory.from_config(config)
     migrations = [
@@ -196,7 +195,7 @@ def test_upgrade_with_data(
     upgrade(alembic_config, migration)
 
     # Make sure it applied "cleanly" for some definition of clean
-    upgrade_tester.check_upgrade()
+    upgrade_tester.check()
 
 
 @pytest.mark.parametrize('migration', ALL_TESTED_MIGRATIONS)
@@ -230,4 +229,4 @@ def test_downgrade_with_data(
     downgrade(alembic_config, '-1')
 
     # Make sure it applied "cleanly" for some definition of clean
-    downgrade_tester.check_downgrade()
+    downgrade_tester.check()
