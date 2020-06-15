@@ -182,6 +182,18 @@ Vue.prototype.$afterRerender = function doubleRequestAnimationFrame(cb) {
     });
 };
 
+Vue.prototype.$waitForRef = async function waitForRef(refName, retries = 5) {
+    for (let i = 0; i < retries; i++) {
+        if (this.$refs[refName] == null) {
+            // eslint-disable-next-line no-await-in-loop
+            await this.$afterRerender();
+        } else {
+            break;
+        }
+    }
+    return this.$refs[refName];
+};
+
 // eslint-disable-next-line
 Promise.all([
     polyFilled,

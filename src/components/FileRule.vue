@@ -152,14 +152,12 @@ export default {
         };
     },
 
-    mounted() {
+    async mounted() {
         if (this.focus && this.editing) {
-            this.$nextTick(() => {
-                const ref = this.$refs.nameInput;
-                if (ref) {
-                    ref.focus();
-                }
-            });
+            const nameInput = await this.$waitForRef('nameInput');
+            if (nameInput != null) {
+                nameInput.focus();
+            }
         }
     },
 
@@ -189,13 +187,11 @@ export default {
             immediate: true,
         },
 
-        editing() {
-            this.$nextTick(() => {
-                const ref = this.$refs.nameInput;
-                if (ref) {
-                    ref.focus();
-                }
-            });
+        async editing() {
+            const nameInput = this.$waitForRef('nameInput');
+            if (nameInput != null) {
+                nameInput.focus();
+            }
         },
     },
 

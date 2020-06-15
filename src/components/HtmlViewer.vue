@@ -315,11 +315,13 @@ export default {
                 });
         },
 
-        afterGetIframeSrc({ data }) {
+        async afterGetIframeSrc({ data }) {
             this.proxyId = data.id;
-            this.$nextTick(() => {
-                this.$refs.hiddenForm.submit();
-            });
+
+            const hiddenForm = await this.$waitForRef('hiddenForm');
+            if (hiddenForm != null) {
+                hiddenForm.submit();
+            }
         },
 
         rejectWarning() {
