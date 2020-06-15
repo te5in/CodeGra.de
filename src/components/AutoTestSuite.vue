@@ -343,6 +343,7 @@ import 'vue-awesome/icons/minus-square';
 import 'vue-awesome/icons/plus-square';
 import 'vue-awesome/icons/caret-down';
 
+import { Assignment, AutoTestSuiteData, AutoTestResult } from '@/models';
 import { getProps } from '@/utils';
 
 import Collapse from './Collapse';
@@ -354,11 +355,11 @@ export default {
 
     props: {
         value: {
-            type: Object,
+            type: AutoTestSuiteData,
             required: true,
         },
         assignment: {
-            type: Object,
+            type: Assignment,
             required: true,
         },
         otherSuites: {
@@ -374,7 +375,7 @@ export default {
             default: false,
         },
         result: {
-            type: Object,
+            type: AutoTestResult,
             default: null,
         },
     },
@@ -458,8 +459,7 @@ export default {
         },
 
         rubricRow() {
-            const value = this.internalValue || this.value;
-            const rowId = getProps(value, null, 'rubricRow', 'id');
+            const rowId = getProps(this.value, null, 'rubricRow', 'id');
             if (rowId == null) {
                 return null;
             }
