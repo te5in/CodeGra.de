@@ -227,15 +227,20 @@
 
     <b-card no-body v-if="!value.isEmpty()">
         <b-card-header class="suite-header d-flex align-items-center">
-            <span class="title">
+            <span class="title"
+                  v-if="rubricRow != null">
                 <a v-if="result"
                    href="#"
-                   @click.capture.prevent.stop="$root.$emit('cg::rubric-viewer::open-category', value.rubricRow.id)">
-                    {{ value.rubricRow.header }}
+                   @click.capture.prevent.stop="$root.$emit('cg::rubric-viewer::open-category', rubricRow.id)">
+                    {{ rubricRow.header }}
                 </a>
                 <template v-else>
-                    {{ value.rubricRow.header }}
+                    {{ rubricRow.header }}
                 </template>
+            </span>
+            <span v-else
+                  class="text-muted">
+                No rubric category selected.
             </span>
 
             <a href="#"
@@ -338,6 +343,7 @@ import 'vue-awesome/icons/minus-square';
 import 'vue-awesome/icons/plus-square';
 import 'vue-awesome/icons/caret-down';
 
+import { Assignment, AutoTestSuiteData, AutoTestResult } from '@/models';
 import { getProps } from '@/utils';
 
 import Collapse from './Collapse';
@@ -349,11 +355,11 @@ export default {
 
     props: {
         value: {
-            type: Object,
+            type: AutoTestSuiteData,
             required: true,
         },
         assignment: {
-            type: Object,
+            type: Assignment,
             required: true,
         },
         otherSuites: {
@@ -369,7 +375,7 @@ export default {
             default: false,
         },
         result: {
-            type: Object,
+            type: AutoTestResult,
             default: null,
         },
     },
@@ -453,7 +459,11 @@ export default {
         },
 
         rubricRow() {
-            return getProps(this, null, 'internalValue', 'rubricRow');
+            const rowId = getProps(this.value, null, 'rubricRow', 'id');
+            if (rowId == null) {
+                return null;
+            }
+            return getProps(this.rubric, null, 'rowsById', rowId);
         },
 
         pointPercentage() {
