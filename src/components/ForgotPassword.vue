@@ -54,12 +54,11 @@ export default {
         ...mapGetters('user', ['loggedIn']),
     },
 
-    mounted() {
-        this.$nextTick(() => {
-            if (this.$refs.username) {
-                this.$refs.username.focus();
-            }
-        });
+    async mounted() {
+        const userInput = await this.$waitForRef('username');
+        if (userInput != null) {
+            userInput.focus();
+        }
     },
 
     methods: {

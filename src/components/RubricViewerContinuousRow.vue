@@ -186,6 +186,17 @@ export default {
         },
     },
 
+    watch: {
+        active: {
+            immediate: true,
+            handler() {
+                if (this.active) {
+                    this.focusInput();
+                }
+            },
+        },
+    },
+
     methods: {
         setMultiplier(delay = 0) {
             if (!this.editable || this.locked) {
@@ -228,6 +239,13 @@ export default {
                 this.$emit('input', null);
             } else {
                 this.$emit('input', Object.assign({}, this.onlyItem, { multiplier }));
+            }
+        },
+
+        async focusInput() {
+            const input = await this.$waitForRef('multiplierInput');
+            if (input != null) {
+                input.focus();
             }
         },
     },

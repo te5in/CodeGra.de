@@ -1127,9 +1127,13 @@ export default {
         },
     },
 
-    mounted() {
-        if (this.editable && this.$refs.nameInput && !this.value.name) {
-            this.$refs.nameInput.focus();
+    async mounted() {
+        if (!this.editable || this.value.name) {
+            return;
+        }
+        const nameInput = await this.$waitForRef('nameInput');
+        if (nameInput != null) {
+            nameInput.focus();
         }
     },
 
