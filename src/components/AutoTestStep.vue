@@ -278,7 +278,7 @@
         </tr>
 
         <tr v-if="canViewOutput" class="results-log-collapse-row">
-            <td colspan="5">
+            <td :colspan="result ? 5 : 4">
                 <collapse :id="resultsCollapseId" class="container-fluid" lazy-load>
                     <div class="col-12 mb-3" slot-scope="{}">
                         You {{ stepResult.state === 'passed' ? 'scored' : 'did not score' }}
@@ -320,7 +320,7 @@
         </tr>
 
         <tr v-if="canViewOutput" class="results-log-collapse-row">
-            <td colspan="5">
+            <td :colspan="result ? 5 : 4">
                 <collapse :id="resultsCollapseId" lazy-load>
                     <b-card no-body slot-scope="{}">
                         <b-tabs card no-fade>
@@ -394,7 +394,7 @@
         </tr>
 
         <tr v-if="canViewDetails" class="results-log-collapse-row">
-            <td colspan="5">
+            <td :colspan="result ? 5 : 4">
                 <collapse :id="resultsCollapseId" lazy-load>
                     <template slot-scope="{}">
                         <b-card no-body v-if="canViewOutput">
@@ -555,7 +555,7 @@
             </tr>
 
             <tr v-if="canViewDetails" class="results-log-collapse-row">
-                <td colspan="5">
+                <td :colspan="result ? 5 : 4">
                     <collapse :id="`${resultsCollapseId}-${i}`" lazy-load>
                         <template slot-scope="{}">
                             <b-card no-body v-if="canViewSubStepOutput(i)">
@@ -1323,6 +1323,10 @@ export default {
 
         .caret + .fa-icon {
             margin-left: 0.333rem;
+        }
+
+        code {
+            word-break: break-word;
         }
     }
 }
