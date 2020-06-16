@@ -17,7 +17,7 @@
 
         <template #page-1="{ nextPage }">
             <p>
-                To connect CodeGrade to brightspace first open Brightspace and
+                To connect CodeGrade to Brightspace first open Brightspace and
                 click on the gear icon on the top right of your screen. A
                 dropdown should appear, in which you should select the "Manage
                 Extensibility" option. A new page should load, in which you
@@ -442,6 +442,8 @@ export default class BrightspaceSetup extends Vue {
     nextPageDisabled(currentPage: number): string | null {
         if (currentPage === 3 && !this.ltiProvider.client_id) {
             return 'Please fill in the required information';
+        } else if (currentPage === 5) {
+            return 'Please finalize the provider';
         }
         return null;
     }
@@ -459,6 +461,9 @@ export default class BrightspaceSetup extends Vue {
             key_set_url: this.keySetUrl,
             auth_audience: this.authAudience,
             iss: this.iss,
+        }).then(response => {
+            this.$emit('update-provider', response.data);
+            return response;
         });
     }
 

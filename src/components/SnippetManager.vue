@@ -395,13 +395,17 @@ export default {
             }
         },
 
-        focusInput() {
+        async focusInput() {
             if (this.editingSnippet.id == null) {
-                if (this.$refs.keyInput) {
-                    this.$refs.keyInput.focus();
+                const keyInput = await this.$waitForRef('keyInput');
+                if (keyInput != null) {
+                    keyInput.focus();
                 }
-            } else if (this.$refs.valueInput) {
-                this.$refs.valueInput.focus();
+            } else {
+                const valueInput = await this.$waitForRef('valueInput');
+                if (valueInput != null) {
+                    valueInput.focus();
+                }
             }
         },
     },

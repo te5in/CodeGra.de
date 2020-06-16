@@ -47,6 +47,10 @@ sudo chown -R "$USER":"$(id -gn "$USER")" "$(npm root -g)"
 sudo chown -R "$USER":"$(id -gn "$USER")" ~/.config
 
 export BASE_DATABASE_URI='postgresql://postgres:postgres@localhost:5432/ci_test_'
+export POSTGRES_HOST=localhost
+export POSTGRES_PORT=5432
+export POSTGRES_USERNAME=postgres
+export PGPASSWORD=postgres
 
 pytest --cov cg_worker_pool \
        --cov cg_threading_utils \
