@@ -1187,12 +1187,21 @@ class LTI1p3Provider(LTIProviderBase):
             return furl.furl(current_app.config["EXTERNAL_URL"]
                              ).add(path=to_add).tostr()
 
+        target_link_uri = self.get_launch_url(False).tostr()
+        icon_url = get_url('/static/favicon/android-chrome-512x512.png')
+        placement = {
+            'text': 'Add CodeGrade assignment',
+            'enabled': True,
+            'placement': 'assignment_selection',
+            'message_type': 'LtiDeepLinkingRequest',
+            'target_link_uri': target_link_uri,
+            'icon_url': icon_url,
+        }
         return {
             'title': 'CodeGrade',
             'description': 'Deliver engaging feedback on code.',
-            'privacy_level': 'public',
             'oidc_initiation_url': get_url('api', 'v1', 'lti1.3', 'login'),
-            'target_link_uri': self.get_launch_url(False).tostr(),
+            'target_link_uri': target_link_uri,
             'scopes': psef.lti.v1_3.NEEDED_SCOPES,
             'extensions':
                 [
@@ -1200,24 +1209,12 @@ class LTI1p3Provider(LTIProviderBase):
                         'domain': get_url(),
                         'tool_id': str(self.id),
                         'platform': self.iss,
+                        'privacy_level': 'public',
                         'settings':
                             {
                                 'text': 'CodeGrade',
-                                'icon_url':
-                                    get_url(
-                                        '/static/favicon/'
-                                        'android-chrome-512x512.png'
-                                    ),
-                                'placements':
-                                    [
-                                        {
-                                            'text': 'Add CodeGrade assignment',
-                                            'enabled': True,
-                                            'placement': 'resource_selection',
-                                            'message_type':
-                                                'LtiDeepLinkingRequest',
-                                        }
-                                    ]
+                                'icon_url': icon_url,
+                                'placements': [placement],
                             }
                     }
                 ],
