@@ -376,6 +376,7 @@ class MyDb:  # pragma: no cover
         cascade: str = '',
         innerjoin: Literal[False] = False,
         lazy: Literal['select', 'join', 'selectin'] = 'select',
+        primaryjoin: t.Callable[[], 'DbColumn[bool]'] = None,
     ) -> 'ColumnProxy[Opt[T]]':
         ...
 
@@ -414,7 +415,7 @@ class MyDb:  # pragma: no cover
         order_by: t.Union[t.Callable[[], 'DbColumn'], t.
                           Callable[[], 'ColumnOrder']] = None,
         lazy: Literal['select', 'joined', 'selectin'] = 'select',
-        primaryjoin: object = None,
+        primaryjoin: t.Callable[[], 'DbColumn[bool]'] = None,
     ) -> '_MutableColumnProxy[t.List[T], t.List[T], DbColumn[T]]':
         ...
 
@@ -431,7 +432,7 @@ class MyDb:  # pragma: no cover
         order_by: t.Union[t.Callable[[], 'DbColumn'], t.
                           Callable[[], 'ColumnOrder']] = None,
         lazy: Literal['dynamic'],
-        primaryjoin: object = None,
+        primaryjoin: t.Callable[[], 'DbColumn[bool]'] = None,
     ) -> '_ImmutableColumnProxy[MyQuery[T], DbColumn[T]]':
         ...
 
@@ -849,11 +850,21 @@ if t.TYPE_CHECKING and MYPY:
         def result_processor(self, dialect: object,
                              coltype: object) -> t.Callable[[object], object]:
             return lambda x: x
+
+    class expression:
+        @staticmethod
+        def and_(*to_and: DbColumn[bool]) -> DbColumn[bool]:
+            ...
+
+        @staticmethod
+        def or_(*to_or: DbColumn[bool]) -> DbColumn[bool]:
+            ...
 else:
     from sqlalchemy.ext.hybrid import hybrid_property
     from sqlalchemy.ext.hybrid import Comparator as _Comparator
     from sqlalchemy import TypeDecorator, TIMESTAMP
     from sqlalchemy.dialects.postgresql import JSONB, ARRAY
+    from sqlalchemy.sql import expression
     from citext import CIText as _CIText
 
     class CIText(_CIText):

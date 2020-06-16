@@ -303,6 +303,14 @@ class LTI1p1Provider(LTIProviderBase):
         super().__init__()
         self.key = key
 
+    def find_course(self,
+                    lti_course_id: str) -> t.Optional['CourseLTIProvider']:
+        return CourseLTIProvider.query.filter(
+            CourseLTIProvider.lti_course_id == lti_course_id,
+            CourseLTIProvider.lti_provider == self,
+            ~CourseLTIProvider.old_connection,
+        ).one_or_none()
+
     @property
     def member_sourcedid_required(self) -> bool:
         """We do need sourcedids to passback grades in the LTI 1.1 protocol.
@@ -644,8 +652,9 @@ class LTI1p3Provider(LTIProviderBase):
     )
 
     _updates_lti1p1 = db.relationship(
-        LTIProviderBase,
+        LTI1p1Provider,
         foreign_keys=LTIProviderBase._updates_lti1p1_id,
+        remote_side=[LTIProviderBase.id],
         uselist=False,
     )
 
@@ -656,12 +665,7 @@ class LTI1p3Provider(LTIProviderBase):
         This allows us to reuse users from that provider, so we will not create
         duplicate users.
         """
-        updates = self._updates_lti1p1
-        # We cannot enforce this in the database, so we enforce it using
-        # mypy. But as the database is an external system an ``assert`` here is
-        # simply for an extra check.
-        assert isinstance(updates, (type(None), LTI1p1Provider))
-        return updates
+        return self._updates_lti1p1
 
     @property
     def edit_secret(self) -> uuid.UUID:
@@ -799,6 +803,34 @@ class LTI1p3Provider(LTIProviderBase):
                 encryption_algorithm=serialization.NoEncryption(),
             )
         )
+
+    def find_course(
+        self,
+        lti_course_id: str,
+        deployment_id: str,
+        old_lti_course_id: str,
+    ) -> t.Optional['CourseLTIProvider']:
+        res = CourseLTIProvider.query.filter(
+            CourseLTIProvider.deployment_id == deployment_id,
+            CourseLTIProvider.lti_course_id == lti_course_id,
+            CourseLTIProvider.lti_provider == self,
+            ~CourseLTIProvider.old_connection,
+        ).one_or_none()
+        if res is None and self.updates_lti1p1 is not None:
+            old_conn = self.updates_lti1p1.find_course(
+                lti_course_id=old_lti_course_id
+            )
+            if old_conn is not None:
+                old_conn.old_connection = True
+                res = CourseLTIProvider.create_and_add(
+                    course=old_conn.course,
+                    lti_provider=self,
+                    lti_context_id=lti_course_id,
+                    deployment_id=deployment_id,
+                )
+                db.session.flush()
+
+        return res
 
     @property
     def _private_key(self) -> rsa.RSAPrivateKeyWithSerialization:
@@ -1626,7 +1658,6 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
         db.Integer,
         db.ForeignKey('Course.id'),
         nullable=False,
-        unique=True,
     )
 
     lti_provider_id = db.Column(
@@ -1639,6 +1670,14 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
     lti_course_id = db.Column(
         'lti_course_id',
         db.Unicode,
+        nullable=False,
+    )
+
+    old_connection = db.Column(
+        'old_connection',
+        db.Boolean,
+        default=False,
+        server_default='false',
         nullable=False,
     )
 
@@ -1693,6 +1732,7 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
             course=course,
             lti_provider=lti_provider,
             deployment_id=deployment_id,
+            old_connection=False,
         )
 
     def can_poll_names_again(self) -> bool:

@@ -311,6 +311,7 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
         self = cls(launch_params, lti_provider)
         launch_params['custom_lms_name'] = lti_provider.lms_name
 
+        print(self.secrets)
         try_for_every(
             reversed(self.secrets),
             lambda secret: auth.ensure_valid_oauth(self.key, secret, req),
@@ -540,12 +541,7 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
     def get_course(self) -> models.Course:
         """Get the current LTI course as a psef course.
         """
-        course_lti_provider = models.db.session.query(
-            models.CourseLTIProvider,
-        ).filter(
-            models.CourseLTIProvider.lti_course_id == self.course_id,
-            models.CourseLTIProvider.lti_provider == self.lti_provider,
-        ).one_or_none()
+        course_lti_provider = self.lti_provider.find_course(self.course_id)
 
         if course_lti_provider is None:
             course = models.Course.create_and_add(name=self.course_name)

@@ -17,3 +17,4 @@ DEEP_LINK: Final = (
 )
 
 MESSAGE_TYPE: Final = 'https://purl.imsglobal.org/spec/lti/claim/message_type'
+MIGRATION: Final = 'https://purl.imsglobal.org/spec/lti/claim/lti1p1'

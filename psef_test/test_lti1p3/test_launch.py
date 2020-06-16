@@ -1097,9 +1097,11 @@ def test_launch_redirect_to_given_page(
 
 
 @pytest.mark.parametrize('connect', [True, False])
+@pytest.mark.parametrize('add_extra_data', [True, False])
 def test_connecting_users_lti1p1_provider(
     test_client, describe, logged_in, admin_user, stub_function,
-    monkeypatched_passback, session, connect, canvas_lti1p1_provider
+    monkeypatched_passback, session, connect, canvas_lti1p1_provider,
+    add_extra_data
 ):
     with describe('setup'), logged_in(admin_user):
         original_user = helpers.create_user_with_role(session, 'Student', [])
@@ -1137,16 +1139,23 @@ def test_connecting_users_lti1p1_provider(
                 'User.id': lti_user_id,
             },
         )
+        extra_data = {
+            "https://purl.imsglobal.org/spec/lti/claim/lti1p1": {
+                'user_id': old_lti_user_id,
+            },
+        }
 
     with describe('should create a user with the given email'):
-        do_oidc_and_lti_launch(
-            test_client, provider, merge(data, {'user_id': old_lti_user_id}),
-            200
-        )
+        if add_extra_data:
+            complete_data = merge(data, extra_data)
+        else:
+            complete_data = merge(data, {})
+
+        do_oidc_and_lti_launch(test_client, provider, complete_data, 200)
         new_user = m.UserLTIProvider.query.filter_by(lti_user_id=lti_user_id
                                                      ).one().user
 
-        if connect:
+        if connect and add_extra_data:
             assert new_user.id == original_user.id
         else:
             assert new_user.id != original_user.id

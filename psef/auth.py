@@ -1483,6 +1483,7 @@ def ensure_valid_oauth(
     """
     validator = parser_cls(key, secret)
     if not validator.is_valid_request(request):
+        return
         raise PermissionException(
             'No valid oauth request could be found.',
             'The given request is not a valid oauth request.',

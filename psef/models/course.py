@@ -10,7 +10,7 @@ import structlog
 
 import psef
 from cg_dt_utils import DatetimeWithTimezone
-from cg_sqlalchemy_helpers import mixins
+from cg_sqlalchemy_helpers import mixins, expression
 
 from . import Base, MyQuery, DbColumn, db
 from .role import CourseRole
@@ -127,6 +127,10 @@ class Course(NotEqualMixin, Base):
         lambda: psef.models.CourseLTIProvider,
         back_populates="course",
         uselist=False,
+        primaryjoin=lambda: expression.and_(
+            Course.id == psef.models.CourseLTIProvider.course_id,
+            ~psef.models.CourseLTIProvider.old_connection,
+        ),
     )
 
     @property
