@@ -1387,12 +1387,21 @@
             <span class="k">return</span> <span class="n">furl</span><span class="o">.</span><span class="n">furl</span><span class="p">(</span><span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;EXTERNAL_URL&quot;</span><span class="p">]</span>
                              <span class="p">)</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="n">to_add</span><span class="p">)</span><span class="o">.</span><span class="n">tostr</span><span class="p">()</span>
 
+        <span class="n">target_link_uri</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_launch_url</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">tostr</span><span class="p">()</span>
+        <span class="n">icon_url</span> <span class="o">=</span> <span class="n">get_url</span><span class="p">(</span><span class="s1">&#39;/static/favicon/android-chrome-512x512.png&#39;</span><span class="p">)</span>
+        <span class="n">placement</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="s1">&#39;Add CodeGrade assignment&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;enabled&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s1">&#39;placement&#39;</span><span class="p">:</span> <span class="s1">&#39;assignment_selection&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;message_type&#39;</span><span class="p">:</span> <span class="s1">&#39;LtiDeepLinkingRequest&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;target_link_uri&#39;</span><span class="p">:</span> <span class="n">target_link_uri</span><span class="p">,</span>
+            <span class="s1">&#39;icon_url&#39;</span><span class="p">:</span> <span class="n">icon_url</span><span class="p">,</span>
+        <span class="p">}</span>
         <span class="k">return</span> <span class="p">{</span>
             <span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;CodeGrade&#39;</span><span class="p">,</span>
             <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Deliver engaging feedback on code.&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;privacy_level&#39;</span><span class="p">:</span> <span class="s1">&#39;public&#39;</span><span class="p">,</span>
             <span class="s1">&#39;oidc_initiation_url&#39;</span><span class="p">:</span> <span class="n">get_url</span><span class="p">(</span><span class="s1">&#39;api&#39;</span><span class="p">,</span> <span class="s1">&#39;v1&#39;</span><span class="p">,</span> <span class="s1">&#39;lti1.3&#39;</span><span class="p">,</span> <span class="s1">&#39;login&#39;</span><span class="p">),</span>
-            <span class="s1">&#39;target_link_uri&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_launch_url</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">tostr</span><span class="p">(),</span>
+            <span class="s1">&#39;target_link_uri&#39;</span><span class="p">:</span> <span class="n">target_link_uri</span><span class="p">,</span>
             <span class="s1">&#39;scopes&#39;</span><span class="p">:</span> <span class="n">psef</span><span class="o">.</span><span class="n">lti</span><span class="o">.</span><span class="n">v1_3</span><span class="o">.</span><span class="n">NEEDED_SCOPES</span><span class="p">,</span>
             <span class="s1">&#39;extensions&#39;</span><span class="p">:</span>
                 <span class="p">[</span>
@@ -1400,24 +1409,12 @@
                         <span class="s1">&#39;domain&#39;</span><span class="p">:</span> <span class="n">get_url</span><span class="p">(),</span>
                         <span class="s1">&#39;tool_id&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">),</span>
                         <span class="s1">&#39;platform&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">iss</span><span class="p">,</span>
+                        <span class="s1">&#39;privacy_level&#39;</span><span class="p">:</span> <span class="s1">&#39;public&#39;</span><span class="p">,</span>
                         <span class="s1">&#39;settings&#39;</span><span class="p">:</span>
                             <span class="p">{</span>
                                 <span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="s1">&#39;CodeGrade&#39;</span><span class="p">,</span>
-                                <span class="s1">&#39;icon_url&#39;</span><span class="p">:</span>
-                                    <span class="n">get_url</span><span class="p">(</span>
-                                        <span class="s1">&#39;/static/favicon/&#39;</span>
-                                        <span class="s1">&#39;android-chrome-512x512.png&#39;</span>
-                                    <span class="p">),</span>
-                                <span class="s1">&#39;placements&#39;</span><span class="p">:</span>
-                                    <span class="p">[</span>
-                                        <span class="p">{</span>
-                                            <span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="s1">&#39;Add CodeGrade assignment&#39;</span><span class="p">,</span>
-                                            <span class="s1">&#39;enabled&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
-                                            <span class="s1">&#39;placement&#39;</span><span class="p">:</span> <span class="s1">&#39;resource_selection&#39;</span><span class="p">,</span>
-                                            <span class="s1">&#39;message_type&#39;</span><span class="p">:</span>
-                                                <span class="s1">&#39;LtiDeepLinkingRequest&#39;</span><span class="p">,</span>
-                                        <span class="p">}</span>
-                                    <span class="p">]</span>
+                                <span class="s1">&#39;icon_url&#39;</span><span class="p">:</span> <span class="n">icon_url</span><span class="p">,</span>
+                                <span class="s1">&#39;placements&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">placement</span><span class="p">],</span>
                             <span class="p">}</span>
                     <span class="p">}</span>
                 <span class="p">],</span>
