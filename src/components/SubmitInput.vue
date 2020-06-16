@@ -8,7 +8,8 @@
                    class="form-control"
                    :disabled="disabled"
                    :placeholder="placeholder"
-                   v-model="name"/>
+                   v-model="name"
+                   ref="nameInput"/>
             <b-button-group>
                 <b-button variant="danger"
                           @click="cancel">
@@ -75,6 +76,17 @@ export default {
         cancel() {
             this.$emit('cancel');
         },
+
+        async focusInput() {
+            const input = await this.$waitForRef('nameInput');
+            if (input != null) {
+                input.focus();
+            }
+        },
+    },
+
+    mounted() {
+        this.focusInput();
     },
 };
 </script>
