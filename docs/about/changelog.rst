@@ -12,6 +12,8 @@ Version *Next*
   `(#1370) <https://github.com/CodeGra-de/CodeGra.de/pull/1370>`__.
 - Make it easier to upgrade from LTI 1.1 to LTI 1.3
   `(#1374) <https://github.com/CodeGra-de/CodeGra.de/pull/1374>`__.
+- Add more rubric category information to the rubric analytics graphs
+  `(#1383) <https://github.com/CodeGra-de/CodeGra.de/pull/1383>`__.
 
 **Fixes**
 
