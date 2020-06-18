@@ -1103,7 +1103,7 @@ def test_launch_redirect_to_given_page(
 def test_connecting_users_and_courses_lti1p1_provider(
     test_client, describe, logged_in, admin_user, stub_function,
     monkeypatched_passback, session, connect, canvas_lti1p1_provider,
-        watch_signal, add_user_data, add_course_data, add_assig_data
+    watch_signal, add_user_data, add_course_data, add_assig_data
 ):
     with describe('setup'), logged_in(admin_user):
         watch_signal(signals.USER_ADDED_TO_COURSE, clear_all_but=[])

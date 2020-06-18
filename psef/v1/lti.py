@@ -231,7 +231,6 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
         else:  # pragma: no cover
             assert_never(version, LTIVersion)
 
-
         raise exceptions.APIException(
             data.get('exception_message'),
             'An error occured when processing the LTI1.3 launch',

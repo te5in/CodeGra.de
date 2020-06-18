@@ -1,4 +1,3 @@
-
 import enum
 
 import pytest
@@ -13,5 +12,5 @@ def test_assert_never_raises_assertion_error():
     with pytest.raises(AssertionError) as err:
         assert_never(None, MyEnum)
 
-    assert '"MyEnum"' in  err.value.args[0]
-    assert '"None"' in  err.value.args[0]
+    assert '"MyEnum"' in err.value.args[0]
+    assert '"None"' in err.value.args[0]
