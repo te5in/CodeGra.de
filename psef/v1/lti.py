@@ -25,6 +25,7 @@ from pylti1p3.deep_link import DeepLink
 
 from psef import app
 from cg_json import JSONResponse, jsonify
+from cg_helpers import assert_never
 from cg_dt_utils import DatetimeWithTimezone
 
 from . import api
@@ -114,7 +115,19 @@ def _make_blob_and_redirect(
 def launch_lti() -> t.Any:
     """Do a LTI launch.
     """
-    params = lti_v1_1.LTI.create_from_request(flask.request).launch_params
+    try:
+        params = lti_v1_1.LTI.create_from_request(flask.request).launch_params
+    except exceptions.APIException as exc:
+        return _make_blob_and_redirect(
+            {
+                'type': 'exception',
+                'exception_message': exc.message,
+                'original_exception': JSONResponse.dump_to_object(exc),
+            },
+            version=LTIVersion.v1_1,
+            goto_latest_submission=False,
+        )
+
     return _make_blob_and_redirect(
         params, LTIVersion.v1_1, goto_latest_submission=False
     )
@@ -210,19 +223,26 @@ def _get_second_phase_lti_launch_data(blob_id: str) -> _LTILaunchResult:
     data = launch_params['data']
     result: t.Union[LTILaunchData, LTIDeeplinkResult]
 
-    if version == LTIVersion.v1_1:
+    if data.get('type') == 'exception':
+        if version is LTIVersion.v1_1:
+            code = exceptions.APICodes.LTI1_1_ERROR
+        elif version is LTIVersion.v1_3:
+            code = exceptions.APICodes.LTI1_3_ERROR
+        else:  # pragma: no cover
+            assert_never(version, LTIVersion)
+
+
+        raise exceptions.APIException(
+            data.get('exception_message'),
+            'An error occured when processing the LTI1.3 launch',
+            code,
+            400,
+            original_exception=data.get('original_exception'),
+        )
+    elif version == LTIVersion.v1_1:
         inst = lti_v1_1.LTI.create_from_launch_params(data)
         result = inst.do_second_step_of_lti_launch()
     elif version == LTIVersion.v1_3:
-        if data.get('type') == 'exception':
-            raise exceptions.APIException(
-                data.get('exception_message'),
-                'An error occured when processing the LTI1.3 launch',
-                exceptions.APICodes.LTI1_3_ERROR,
-                400,
-                original_exception=data.get('original_exception'),
-            )
-
         lti_provider = helpers.get_or_404(
             models.LTI1p3Provider, data['lti_provider_id']
         )

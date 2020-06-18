@@ -1097,13 +1097,22 @@ def test_launch_redirect_to_given_page(
 
 
 @pytest.mark.parametrize('connect', [True, False])
-@pytest.mark.parametrize('add_extra_data', [True, False])
-def test_connecting_users_lti1p1_provider(
+@pytest.mark.parametrize('add_user_data', [True, False])
+@pytest.mark.parametrize('add_course_data', [True, False])
+@pytest.mark.parametrize('add_assig_data', [True, False])
+def test_connecting_users_and_courses_lti1p1_provider(
     test_client, describe, logged_in, admin_user, stub_function,
     monkeypatched_passback, session, connect, canvas_lti1p1_provider,
-    add_extra_data
+        watch_signal, add_user_data, add_course_data, add_assig_data
 ):
     with describe('setup'), logged_in(admin_user):
+        watch_signal(signals.USER_ADDED_TO_COURSE, clear_all_but=[])
+
+        old_lti_context_id = str(uuid.uuid4())
+        new_lti_context_id = str(uuid.uuid4())
+        old_resource_id = str(uuid.uuid4())
+        new_resource_id = str(uuid.uuid4())
+
         original_user = helpers.create_user_with_role(session, 'Student', [])
         session.commit()
 
@@ -1116,6 +1125,20 @@ def test_connecting_users_lti1p1_provider(
                 lti_user_id=old_lti_user_id
             )
         )
+        course = m.Course.create_and_add(name='LTI COURSE JEE')
+        m.CourseLTIProvider.create_and_add(
+            course=course,
+            lti_provider=canvas_lti1p1_provider,
+            lti_context_id=old_lti_context_id,
+            deployment_id=old_lti_context_id,
+        )
+        assig = m.Assignment(
+            course=course,
+            name='Name',
+            is_lti=True,
+            lti_assignment_id=old_resource_id
+        )
+        session.add(assig)
         session.commit()
 
         provider = helpers.create_lti1p3_provider(
@@ -1134,28 +1157,45 @@ def test_connecting_users_lti1p1_provider(
             CANVAS_DATA,
             provider,
             {
-                'Assignment.id': 'assig id',
-                'Course.id': 'asdfs',
+                'Assignment.id': new_resource_id,
+                'Course.id': new_lti_context_id,
                 'User.id': lti_user_id,
             },
         )
+        to_merge = {}
+        if add_course_data:
+            to_merge['context_id'] = old_lti_context_id
+        if add_user_data:
+            to_merge['user_id'] = old_lti_user_id
+        if add_assig_data:
+            to_merge['resource_link_id'] = old_resource_id
         extra_data = {
-            "https://purl.imsglobal.org/spec/lti/claim/lti1p1": {
-                'user_id': old_lti_user_id,
-            },
+            "https://purl.imsglobal.org/spec/lti/claim/lti1p1": to_merge,
         }
 
     with describe('should create a user with the given email'):
-        if add_extra_data:
-            complete_data = merge(data, extra_data)
-        else:
-            complete_data = merge(data, {})
+        complete_data = merge(data, extra_data)
 
-        do_oidc_and_lti_launch(test_client, provider, complete_data, 200)
+        _, launch = do_oidc_and_lti_launch(
+            test_client, provider, complete_data, 200
+        )
         new_user = m.UserLTIProvider.query.filter_by(lti_user_id=lti_user_id
                                                      ).one().user
 
-        if connect and add_extra_data:
+        if connect and add_user_data:
             assert new_user.id == original_user.id
         else:
             assert new_user.id != original_user.id
+
+        if connect and add_course_data:
+            assert launch['data']['course']['id'] == course.id
+        else:
+            assert launch['data']['course']['id'] != course.id
+
+        if connect and add_assig_data and add_course_data:
+            assert launch['data']['assignment']['id'] == assig.id
+            assert m.Assignment.query.get(
+                assig.id
+            ).lti_assignment_id == new_resource_id
+        else:
+            assert launch['data']['assignment']['id'] != assig.id

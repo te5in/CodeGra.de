@@ -271,6 +271,18 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
                 lti_id,
             )
 
+        if self.lti_provider.upgraded_to_lti1p3:
+            raise APIException(
+                'This provider has been upgraded to LTI 1.3',
+                (
+                    'This provider has been upgraded to a LTI 1.3 provider,'
+                    ' the old connection can no longer be used'
+                ),
+                APICodes.INVALID_STATE,
+                400,
+                upgraded_lti1p3_id=self.lti_provider.upgraded_to_lti1p3.id,
+            )
+
         self.key = self.lti_provider.key
         self.secrets = self.lti_provider.secrets
 

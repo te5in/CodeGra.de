@@ -299,6 +299,14 @@ class LTI1p1Provider(LTIProviderBase):
     """
     __mapper_args__ = {'polymorphic_identity': 'lti1.1'}
 
+    upgraded_to_lti1p3 = db.relationship(
+        lambda: LTI1p3Provider,
+        back_populates='_updates_lti1p1',
+        cascade='all,delete',
+        uselist=False,
+        lazy='select',
+    )
+
     def __init__(self, key: str) -> None:
         super().__init__()
         self.key = key
@@ -655,6 +663,7 @@ class LTI1p3Provider(LTIProviderBase):
         LTI1p1Provider,
         foreign_keys=LTIProviderBase._updates_lti1p1_id,
         remote_side=[LTIProviderBase.id],
+        back_populates='upgraded_to_lti1p3',
         uselist=False,
     )
 
@@ -831,6 +840,42 @@ class LTI1p3Provider(LTIProviderBase):
                 db.session.flush()
 
         return res
+
+    def find_assignment(
+        self,
+        course: 'course_models.Course',
+        resource_id: t.Optional[str],
+        old_resource_id: t.Optional[str],
+    ) -> t.Optional['assignment_models.Assignment']:
+        if resource_id is None:
+            return None
+
+        def find(lti_assid_id: t.Optional[str]
+                 ) -> t.Optional['assignment_models.Assignment']:
+            return course.get_assignments().filter(
+                assignment_models.Assignment.lti_assignment_id == lti_assid_id,
+                assignment_models.Assignment.lti_assignment_id.isnot(None),
+                assignment_models.Assignment.is_lti,
+            ).one_or_none()
+
+        found_assig = find(resource_id)
+
+        if found_assig is None and self.updates_lti1p1 is not None:
+            if db.session.query(
+                CourseLTIProvider.query.filter(
+                    CourseLTIProvider.course == course,
+                    CourseLTIProvider.lti_provider == self.updates_lti1p1,
+                    CourseLTIProvider.old_connection,
+                ).exists()
+            ).scalar():
+                found_assig = find(old_resource_id)
+
+        if found_assig is not None:
+            # Make sure we always upgrade this assignment to the latest lti 1.3
+            # resource id.
+            found_assig.lti_assignment_id = resource_id
+
+        return found_assig
 
     @property
     def _private_key(self) -> rsa.RSAPrivateKeyWithSerialization:

@@ -904,11 +904,15 @@ class FlaskMessageLaunch(
             this course for assignments.
         """
         resource_id = self._get_resource_id()
+        old_resource_id = self.get_launch_data().get(claims.MIGRATION, {}).get(
+            'resource_link_id', resource_id
+        )
 
-        return course.get_assignments().filter(
-            models.Assignment.lti_assignment_id == resource_id,
-            models.Assignment.lti_assignment_id.isnot(None),
-        ).one_or_none()
+        return self.get_lti_provider().find_assignment(
+            course=course,
+            resource_id=resource_id,
+            old_resource_id=old_resource_id
+        )
 
     # We don't use the @cg_override.override decorator here as this method
     # overrides one of our own classes, and I think it makes most sense if we
@@ -1290,7 +1294,6 @@ class FlaskMessageLaunch(
         )
 
         if course_lti_provider is None:
-            assert 0
             course = models.Course.create_and_add(name=course_name)
             course_lti_provider = models.CourseLTIProvider.create_and_add(
                 course=course,

@@ -1331,12 +1331,17 @@ def test_invalid_lms(
         }
         if source_id:
             data['lis_result_sourcedid'] = source_id
-        res = test_client.req(
+
+        res = test_client.post('/api/v1/lti/launch/1', data=data)
+        assert res.status_code == 303
+        url = urllib.parse.urlparse(res.headers['Location'])
+        blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
+        test_client.req(
             'post',
-            '/api/v1/lti/launch/1',
+            '/api/v1/lti/launch/2',
             err,
-            real_data=data,
-            result=error_template,
+            data={'blob_id': blob_id},
+            result={**error_template, 'original_exception': error_template},
         )
 
 
@@ -2388,3 +2393,77 @@ def test_lti_multiple_providers_same_user_id(
     assert user1['username'] == user3['username']
     assert user1['username'] + ' (1)' == user4['username']
     assert user1['username'] + ' (2)' == user6['username']
+
+
+def test_launch_upgraded_lti1p1_provider(
+    test_client, app, error_template, session, describe, lti1p3_provider
+):
+    with describe('setup'):
+        due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
+        assig_max_points = 8
+        lti_max_points = assig_max_points / 2
+        last_xml = None
+
+        source_url = f'http://source_url-{uuid.uuid4()}.com'
+        source_id = 'NON_EXISTING2!'
+
+        def do_lti_launch(
+            username='A the A-er',
+            lti_id='USER_ID',
+            canvas_id='MY_COURSE_ID_100',
+            source_id=source_id,
+            status_code=200,
+        ):
+            nonlocal last_xml
+            with app.app_context():
+                last_xml = None
+                data = {
+                    'custom_canvas_course_name': 'NEW_COURSE',
+                    'custom_canvas_course_id': canvas_id,
+                    'custom_canvas_assignment_id': f'{canvas_id}_ASSIG_1',
+                    'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
+                    'ext_roles':
+                        'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
+                    'custom_canvas_user_login_id': username,
+                    'custom_canvas_assignment_due_at': due_at.isoformat(),
+                    'custom_canvas_assignment_published': 'true',
+                    'user_id': lti_id,
+                    'lis_person_contact_email_primary': 'a@a.nl',
+                    'lis_person_name_full': username,
+                    'context_id': 'NO_CONTEXT!!',
+                    'context_title': 'WRONG_TITLE!!',
+                    'oauth_consumer_key': 'my_lti',
+                    'lis_outcome_service_url': source_url,
+                    'custom_canvas_points_possible': lti_max_points,
+                }
+                if source_id:
+                    data['lis_result_sourcedid'] = source_id
+                res = test_client.post('/api/v1/lti/launch/1', data=data)
+
+                url = urllib.parse.urlparse(res.headers['Location'])
+                blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
+                lti_res = test_client.req(
+                    'post',
+                    '/api/v1/lti/launch/2',
+                    status_code,
+                    data={'blob_id': blob_id},
+                )
+                if status_code == 200:
+                    assert lti_res['assignment']['course']
+                return lti_res
+
+    with describe('Can do initial launch'):
+        do_lti_launch()
+
+    with describe(
+        'Cannot do launch if a lti 1.3 provider upgrades this provider'
+    ):
+        lti1p3_provider._updates_lti1p1 = m.LTI1p1Provider.query.filter_by(
+            key='my_lti'
+        ).one()
+        session.commit()
+        res = do_lti_launch(status_code=400)
+        assert (
+            'This provider has been upgraded to LTI 1.3' ==
+            res['original_exception']['message']
+        )

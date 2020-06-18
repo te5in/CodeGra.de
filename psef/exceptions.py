@@ -86,6 +86,7 @@ class APICodes(IntEnum):
     MAILING_FAILED = 43
     LTI1_3_ERROR = 44
     LTI1_3_COOKIE_ERROR = 45
+    LTI1_1_ERROR = 46
 
 
 class APIException(Exception):
