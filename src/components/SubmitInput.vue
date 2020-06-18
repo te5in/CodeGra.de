@@ -39,7 +39,12 @@ export default {
 
     props: {
         placeholder: {
+            type: String,
             default: undefined,
+        },
+        autoFocus: {
+            type: Boolean,
+            default: true,
         },
     },
 
@@ -86,7 +91,9 @@ export default {
     },
 
     mounted() {
-        this.focusInput();
+        if (this.autoFocus) {
+            this.focusInput();
+        }
     },
 };
 </script>
