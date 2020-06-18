@@ -90,17 +90,18 @@ def test_git_submission_generated_files(
             if sub.user == student
         )
 
-
     with tempfile.TemporaryDirectory() as tmpdir:
         p.files.restore_directory_structure(sub, tmpdir)
         root = f'{tmpdir}/{os.listdir(tmpdir)[0]}'
 
-        with describe('cg-size-limit-exceeded'), open(f'{root}/cg-size-limit-exceeded') as f:
+        with describe('cg-size-limit-exceeded'
+                      ), open(f'{root}/cg-size-limit-exceeded') as f:
             content = f.read()
             assert content.endswith('\n')
             assert 'limit was exceeded' in content
 
-        with describe('symbolic link replacement files'), open(f'{root}/aaa.pdf.link') as f:
+        with describe('symbolic link replacement files'
+                      ), open(f'{root}/aaa.pdf.link') as f:
             assert not os.path.islink(f'{root}/aaa.pdf.link')
             content = f.read()
             assert content.endswith('\n')
@@ -108,9 +109,7 @@ def test_git_submission_generated_files(
             assert 'test.pdf' in content
 
 
-def test_archive_generated_files(
-    basic, test_client, describe, logged_in
-):
+def test_archive_generated_files(basic, test_client, describe, logged_in):
     with describe('setup'):
         course, assig, teacher, student = basic
 
@@ -135,7 +134,8 @@ def test_archive_generated_files(
         p.files.restore_directory_structure(sub, tmpdir)
         root = f'{tmpdir}/{os.listdir(tmpdir)[0]}'
 
-        with describe('symbolic link replacement files'), open(f'{root}/test_file') as f:
+        with describe('symbolic link replacement files'
+                      ), open(f'{root}/test_file') as f:
             assert not os.path.islink(f'{root}/test_file')
             content = f.read()
             assert content.endswith('\n')
