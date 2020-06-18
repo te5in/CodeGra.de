@@ -46,7 +46,7 @@ def basic(logged_in, admin_user, test_client, session):
     yield course, assig, teacher, student
 
 
-def test_git_submission_generated_files_end_in_newline(
+def test_git_submission_generated_files(
     basic, test_client, logged_in, describe, session, app, monkeypatch,
     private_key
 ):
@@ -95,16 +95,20 @@ def test_git_submission_generated_files_end_in_newline(
         p.files.restore_directory_structure(sub, tmpdir)
         root = f'{tmpdir}/{os.listdir(tmpdir)[0]}'
 
-        with describe('file cg-size-limit-exceeded should end in newline'):
-            with open(f'{root}/cg-size-limit-exceeded') as f:
-                assert f.read().endswith('\n')
+        with describe('cg-size-limit-exceeded'), open(f'{root}/cg-size-limit-exceeded') as f:
+            content = f.read()
+            assert content.endswith('\n')
+            assert 'limit was exceeded' in content
 
-        with describe('symbolic link replacement files should end in newline'):
-            with open(f'{root}/aaa.pdf.link') as f:
-                assert f.read().endswith('\n')
+        with describe('symbolic link replacement files'), open(f'{root}/aaa.pdf.link') as f:
+            assert not os.path.islink(f'{root}/aaa.pdf.link')
+            content = f.read()
+            assert content.endswith('\n')
+            assert 'symbolic link' in content
+            assert 'test.pdf' in content
 
 
-def test_archive_generated_files_end_in_newline(
+def test_archive_generated_files(
     basic, test_client, describe, logged_in
 ):
     with describe('setup'):
@@ -131,6 +135,9 @@ def test_archive_generated_files_end_in_newline(
         p.files.restore_directory_structure(sub, tmpdir)
         root = f'{tmpdir}/{os.listdir(tmpdir)[0]}'
 
-        with describe('symbolic link replacement files should end in newline'):
-            with open(f'{root}/test_file') as f:
-                assert f.read().endswith('\n')
+        with describe('symbolic link replacement files'), open(f'{root}/test_file') as f:
+            assert not os.path.islink(f'{root}/test_file')
+            content = f.read()
+            assert content.endswith('\n')
+            assert 'symbolic link' in content
+            assert 'non_existing' in content
