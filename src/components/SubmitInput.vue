@@ -42,9 +42,9 @@ export default {
             type: String,
             default: undefined,
         },
-        autoFocus: {
+        noAutoFocus: {
             type: Boolean,
-            default: true,
+            default: false,
         },
     },
 
@@ -91,7 +91,7 @@ export default {
     },
 
     mounted() {
-        if (this.autoFocus) {
+        if (!this.noAutoFocus) {
             this.focusInput();
         }
     },
