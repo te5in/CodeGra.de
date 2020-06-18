@@ -38,6 +38,7 @@ export default class LtiProviderSetup extends Vue {
             case 'Canvas':
                 return CanvasSetup;
             case 'Moodle':
+            case 'Sakai':
                 return MoodleSetup;
             case 'Blackboard':
                 return BlackboardSetup;

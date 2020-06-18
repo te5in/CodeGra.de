@@ -43,6 +43,7 @@ export const LTI1p3ProviderNames = Object.freeze(<const>[
     'Brightspace',
     'Canvas',
     'Moodle',
+    'Sakai',
 ]);
 export type LTI1p3ProviderName = typeof LTI1p3ProviderNames[number];
 

@@ -170,6 +170,7 @@ export default class LtiProviders extends Vue {
             case 'Brightspace':
             case 'Moodle':
             case 'Canvas':
+            case 'Sakai':
             case null:
                 return false;
             case 'Blackboard':
@@ -184,6 +185,7 @@ export default class LtiProviders extends Vue {
             case 'Brightspace':
             case 'Moodle':
             case 'Blackboard':
+            case 'Sakai':
                 return 'The ISS for the new provider, this is the url on which the LMS is hosted.';
             case null:
             case 'Canvas':
@@ -205,6 +207,7 @@ export default class LtiProviders extends Vue {
                 break;
             case null:
             case 'Moodle':
+            case 'Sakai':
             case 'Brightspace':
                 this.newIss = null;
                 break;

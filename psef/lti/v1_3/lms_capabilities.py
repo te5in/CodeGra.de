@@ -204,4 +204,16 @@ _LMSCapabilities(
     auth_audience_required=True,
 )
 
+_LMSCapabilities(
+    lms='Sakai',
+    set_deadline=False,
+    set_state=False,
+    test_student_name=None,
+    cookie_post_message=None,
+    supported_custom_replacement_groups=[],
+    use_id_in_urls=True,
+    actual_deep_linking_required=False,
+    auth_audience_required=False,
+)
+
 lti_1_3_lms_capabilities.freeze()
