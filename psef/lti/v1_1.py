@@ -323,7 +323,6 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
         self = cls(launch_params, lti_provider)
         launch_params['custom_lms_name'] = lti_provider.lms_name
 
-        print(self.secrets)
         try_for_every(
             reversed(self.secrets),
             lambda secret: auth.ensure_valid_oauth(self.key, secret, req),
