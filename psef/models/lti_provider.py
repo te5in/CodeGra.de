@@ -313,6 +313,15 @@ class LTI1p1Provider(LTIProviderBase):
 
     def find_course(self,
                     lti_course_id: str) -> t.Optional['CourseLTIProvider']:
+        """Find a course with the given ``lti_course_id`` in this LTI
+        connection.
+
+        :param lti_course_id: The course that was present in the LTI launch.
+
+        :returns: The connection object between the course and this LTI
+                  provider if the course was found. If it was not found
+                  ``None`` is returned.
+        """
         return CourseLTIProvider.query.filter(
             CourseLTIProvider.lti_course_id == lti_course_id,
             CourseLTIProvider.lti_provider == self,
@@ -814,17 +823,32 @@ class LTI1p3Provider(LTIProviderBase):
         )
 
     def find_course(
-        self,
-        lti_course_id: str,
-        deployment_id: str,
-        old_lti_course_id: str,
+        self, lti_course_id: str, deployment_id: str, old_lti_course_id: str
     ) -> t.Optional['CourseLTIProvider']:
+        """Find a course in this LTI connection.
+
+        This method will also upgrade an existing LTI 1.1 course to a LTI 1.3
+        course if possible. In this case the database will be mutated.
+
+        :param lti_course_id: The course id that was present in the LTI 1.3
+            launch.
+        :param deployment_id: The deployment id that was present in the LTI 1.3
+            launch.
+        :param old_lti_course_id: The old LTI 1.1 course id that we should use
+            to find old LTI 1.1 courses. This is only used if this provider
+            updates a LTI 1.1 provider.
+
+        :returns: The connection object between the course and this LTI
+                  provider if a course was found. If it was not found ``None``
+                  is returned.
+        """
         res = CourseLTIProvider.query.filter(
             CourseLTIProvider.deployment_id == deployment_id,
             CourseLTIProvider.lti_course_id == lti_course_id,
             CourseLTIProvider.lti_provider == self,
             ~CourseLTIProvider.old_connection,
         ).one_or_none()
+
         if res is None and self.updates_lti1p1 is not None:
             old_conn = self.updates_lti1p1.find_course(
                 lti_course_id=old_lti_course_id
@@ -847,6 +871,21 @@ class LTI1p3Provider(LTIProviderBase):
         resource_id: t.Optional[str],
         old_resource_id: t.Optional[str],
     ) -> t.Optional['assignment_models.Assignment']:
+        """Find an assignment in this LTI connection.
+
+        This method will also upgrade an existing LTI 1.1 assignment to a LTI
+        1.3 assignment if possible. In this case the database will be mutated.
+
+        :param course: The course in which we should find the assignment.
+        :param resource_id: The assignment id that was present in the LTI 1.3
+            launch.
+        :param old_resource_id: The old LTI 1.1 assignment id that we should
+            use to find old LTI 1.1 assignments. This is only used if this
+            provider updates a LTI 1.1 provider.
+
+        :returns: The found assignment or ``None`` if no assignment could be
+                  found.
+        """
         if resource_id is None:
             return None
 

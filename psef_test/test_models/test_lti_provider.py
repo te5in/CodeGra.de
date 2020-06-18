@@ -4,6 +4,7 @@ import uuid
 import furl
 import pytest
 import requests
+import flask_sqlalchemy
 import pylti1p3.names_roles
 import pylti1p3.service_connector
 import pylti1p3.assignments_grades
@@ -668,3 +669,21 @@ def test_delete_submission_of_group(
         # The grade passed back is that of their individual submission
         assert stub_passback.args[0][0].get_score_given() == 5.0
         assert stub_passback.args[1][0].get_score_given() == 5.0
+
+
+def test_find_assignment_without_resource_id(
+    lti1p3_provider, describe, make_function_spy, admin_user, logged_in,
+    session, app
+):
+    with describe('setup'), logged_in(admin_user):
+        lti_course = helpers.to_db_object(
+            helpers.create_lti_course(session, app, admin_user), m.Course
+        )
+        spy = make_function_spy(
+            flask_sqlalchemy.BaseQuery, 'filter', pass_self=True
+        )
+
+    with describe('find_assignment does not query without resource_id'):
+        res = lti1p3_provider.find_assignment(lti_course, None, None)
+        assert res is None
+        assert not spy.called
