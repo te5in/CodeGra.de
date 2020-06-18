@@ -10,6 +10,8 @@ Version *Next*
 
 - Automatically focus the percentage input in continuous rubric rows
   `(#1370) <https://github.com/CodeGra-de/CodeGra.de>`__.
+- Add more rubric category information to the rubric analytics graphs
+  `(#1383) <https://github.com/CodeGra-de/CodeGra.de/pull/1383>`__.
 
 **Fixes**
 
