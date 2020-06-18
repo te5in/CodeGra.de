@@ -109,7 +109,7 @@
     </b-table>
 
     <b-pagination
-        class="mt-3"
+        class="mt-3 mb-0"
         v-if="showPagination"
         v-model="currentPage"
         :limit="10"

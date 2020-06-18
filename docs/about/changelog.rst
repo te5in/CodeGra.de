@@ -18,7 +18,9 @@ Version *Next*
 - Fix IPython ``execute_result`` cell outputs `(#1367)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1367>`__.
 - Miscellaneous fixes:
-  `(#1373) <https://github.com/CodeGra-de/CodeGra.de/pull/1373>`__.
+  `(#1373) <https://github.com/CodeGra-de/CodeGra.de/pull/1373>`__,
+  `(#1375) <https://github.com/CodeGra-de/CodeGra.de/pull/1375>`__,
+  `(#1376) <https://github.com/CodeGra-de/CodeGra.de/pull/1376>`__.
 
 Version *LowVoltage.1*
 ----------------------
