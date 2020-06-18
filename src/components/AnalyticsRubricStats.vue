@@ -245,7 +245,6 @@ export default {
 
             const label = (tooltipItem, data) => {
                 const ds = getDataset(tooltipItem, data);
-
                 return ds.label;
             };
 
@@ -256,7 +255,7 @@ export default {
                 const stats = ds.stats[tooltipItem.index];
 
                 // Do not escape, chart.js does its own escaping.
-                const items = [
+                return [
                     `Max. points: ${stats.rubricRow.maxPoints}`,
                     `Times filled: ${stats.nTimesFilled}`,
                     `Mean: ${numOrDash(stats.mean)}`,
@@ -266,8 +265,6 @@ export default {
                     `Rit: ${numOrDash(stats.rit) || '-'}`,
                     `Rir: ${numOrDash(stats.rir) || '-'}`,
                 ];
-
-                return items;
             };
 
             const labelString = this.metricOptions.find(so => so.value === this.settings.metric)
@@ -362,11 +359,9 @@ export default {
                         rit: source.ritPerCat[row.id],
                         rir: source.rirPerCat[row.id],
                         nTimesFilled: source.nTimesFilledPerCat[row.id],
-                        rowMaxPoints: row.maxPoints,
                         rowId: row.id,
                         rubricRow: row,
                     };
-
                     stats.push(rowStats);
                     // Make sure we render at least a minimal bar for each
                     // datapoint, otherwise we will not get a popover.
