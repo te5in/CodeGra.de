@@ -907,7 +907,7 @@ class _JunitTest(AutoTestStepBase):
         xml_location = f'/tmp/.{uuid.uuid4()}'
         res = 0.0
 
-        with container.extra_env({'JUNIT_XML_LOCATION': xml_location}):
+        with container.extra_env({'CG_JUNIT_XML_LOCATION': xml_location}):
             command_res = container.run_student_command(
                 t.cast(str, data['program']),
                 opts.test_instructions['command_time_limit'],

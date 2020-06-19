@@ -57,7 +57,7 @@
 
         <b-card-body v-if="canViewDetails">
             <template v-if="!stepType.meta">
-                u               <label :for="programNameId">
+                <label :for="programNameId">
                     Program to test
 
                     <description-popover hug-text
