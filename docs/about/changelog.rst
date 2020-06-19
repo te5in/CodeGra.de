@@ -19,6 +19,8 @@ Version *Next*
 
 - Fix IPython ``execute_result`` cell outputs `(#1367)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1367>`__.
+- Add missing newline at the end of symbolic link replacement files
+  `(#1382) <https://github.com/CodeGra-de/CodeGra.de/pull/1382>`__.
 - Miscellaneous fixes:
   `(#1373) <https://github.com/CodeGra-de/CodeGra.de/pull/1373>`__,
   `(#1375) <https://github.com/CodeGra-de/CodeGra.de/pull/1375>`__,
