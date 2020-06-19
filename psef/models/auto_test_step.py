@@ -8,6 +8,7 @@ import os
 import abc
 import copy
 import enum
+import uuid
 import typing as t
 import numbers
 import tempfile
@@ -903,12 +904,14 @@ class _JunitTest(AutoTestStepBase):
         data = opts.test_instructions['data']
         assert isinstance(data, dict)
 
+        xml_location = f'/tmp/.{uuid.uuid4()}'
         res = 0.0
 
-        command_res = container.run_student_command(
-            t.cast(str, data['program']),
-            opts.test_instructions['command_time_limit'],
-        )
+        with container.extra_env({'JUNIT_XML_LOCATION': xml_location}):
+            command_res = container.run_student_command(
+                t.cast(str, data['program']),
+                opts.test_instructions['command_time_limit'],
+            )
 
         data = {
             'stdout': command_res.stdout,
@@ -923,15 +926,21 @@ class _JunitTest(AutoTestStepBase):
             return 0.0
 
         with tempfile.NamedTemporaryFile() as tfile:
-            os.chmod(tfile.name, 0o777)
-            container.run_command(['cat', '/tmp/junit.xml'], stdout=tfile.name)
+            os.chmod(tfile.name, 0o622)
+            copy_cmd = container.run_command(
+                ['cat', xml_location], stdout=tfile.name
+            )
+
+            if copy_cmd.exit_code != 0:
+                data['exit_code'] = -1
+                opts.update_test_result(AutoTestStepResultState.failed, data)
+                return 0.0
 
             tfile.seek(0, 0)
             points = cls._get_points_from_junit(tfile)
             data['points'] = points
 
             tfile.seek(0, 0)
-
             opts.update_test_result(
                 AutoTestStepResultState.passed, data, attachment=tfile
             )

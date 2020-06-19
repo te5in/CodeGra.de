@@ -1957,7 +1957,7 @@ class AutoTestRunner:
             return
 
         with tempfile.NamedTemporaryFile() as tfile:
-            os.chmod(tfile.name, 0o777)
+            os.chmod(tfile.name, 0o622)
             cont.run_command(
                 ['tar', 'cjf', '/dev/stdout', cont.output_dir],
                 user=CODEGRADE_USER,
