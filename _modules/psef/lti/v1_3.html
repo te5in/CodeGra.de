@@ -1106,11 +1106,15 @@
 <span class="sd">            this course for assignments.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">resource_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_resource_id</span><span class="p">()</span>
+        <span class="n">old_resource_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_launch_data</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">claims</span><span class="o">.</span><span class="n">MIGRATION</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="s1">&#39;resource_link_id&#39;</span><span class="p">,</span> <span class="n">resource_id</span>
+        <span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">course</span><span class="o">.</span><span class="n">get_assignments</span><span class="p">()</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-            <span class="n">models</span><span class="o">.</span><span class="n">Assignment</span><span class="o">.</span><span class="n">lti_assignment_id</span> <span class="o">==</span> <span class="n">resource_id</span><span class="p">,</span>
-            <span class="n">models</span><span class="o">.</span><span class="n">Assignment</span><span class="o">.</span><span class="n">lti_assignment_id</span><span class="o">.</span><span class="n">isnot</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">one_or_none</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_lti_provider</span><span class="p">()</span><span class="o">.</span><span class="n">find_assignment</span><span class="p">(</span>
+            <span class="n">course</span><span class="o">=</span><span class="n">course</span><span class="p">,</span>
+            <span class="n">resource_id</span><span class="o">=</span><span class="n">resource_id</span><span class="p">,</span>
+            <span class="n">old_resource_id</span><span class="o">=</span><span class="n">old_resource_id</span>
+        <span class="p">)</span>
 
     <span class="c1"># We don&#39;t use the @cg_override.override decorator here as this method</span>
     <span class="c1"># overrides one of our own classes, and I think it makes most sense if we</span>
@@ -1452,12 +1456,14 @@
         <span class="n">full_name</span> <span class="o">=</span> <span class="n">launch_data</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
         <span class="n">email</span> <span class="o">=</span> <span class="n">get_email_for_user</span><span class="p">(</span><span class="n">launch_data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_lti_provider</span><span class="p">())</span>
 
+        <span class="n">old_lti_user_id</span> <span class="o">=</span> <span class="n">launch_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">claims</span><span class="o">.</span><span class="n">MIGRATION</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;user_id&#39;</span><span class="p">)</span>
         <span class="n">user</span><span class="p">,</span> <span class="n">token</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">UserLTIProvider</span><span class="o">.</span><span class="n">get_or_create_user</span><span class="p">(</span>
             <span class="n">lti_user_id</span><span class="o">=</span><span class="n">launch_data</span><span class="p">[</span><span class="s1">&#39;sub&#39;</span><span class="p">],</span>
             <span class="n">lti_provider</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_lti_provider</span><span class="p">(),</span>
             <span class="n">wanted_username</span><span class="o">=</span><span class="n">custom_claims</span><span class="o">.</span><span class="n">username</span><span class="p">,</span>
             <span class="n">full_name</span><span class="o">=</span><span class="n">full_name</span><span class="p">,</span>
             <span class="n">email</span><span class="o">=</span><span class="n">email</span><span class="p">,</span>
+            <span class="n">old_lti_user_id</span><span class="o">=</span><span class="n">old_lti_user_id</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="n">updated_email</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1478,21 +1484,23 @@
         <span class="n">deployment_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_deployment_id</span><span class="p">()</span>
         <span class="n">context_claim</span> <span class="o">=</span> <span class="n">launch_data</span><span class="p">[</span><span class="n">claims</span><span class="o">.</span><span class="n">CONTEXT</span><span class="p">]</span>
         <span class="n">course_name</span> <span class="o">=</span> <span class="n">context_claim</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">]</span>
+        <span class="n">lti_course_id</span> <span class="o">=</span> <span class="n">context_claim</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+        <span class="n">old_lti_course_id</span> <span class="o">=</span> <span class="n">launch_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">claims</span><span class="o">.</span><span class="n">MIGRATION</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="s1">&#39;context_id&#39;</span><span class="p">,</span> <span class="n">lti_course_id</span>
+        <span class="p">)</span>
 
-        <span class="n">course_lti_provider</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
-            <span class="n">models</span><span class="o">.</span><span class="n">CourseLTIProvider</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-            <span class="n">models</span><span class="o">.</span><span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">deployment_id</span> <span class="o">==</span> <span class="n">deployment_id</span><span class="p">,</span>
-            <span class="n">models</span><span class="o">.</span><span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">lti_course_id</span> <span class="o">==</span> <span class="n">context_claim</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span>
-            <span class="n">models</span><span class="o">.</span><span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">lti_provider</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_lti_provider</span><span class="p">(),</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">one_or_none</span><span class="p">()</span>
+        <span class="n">course_lti_provider</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_lti_provider</span><span class="p">()</span><span class="o">.</span><span class="n">find_course</span><span class="p">(</span>
+            <span class="n">lti_course_id</span><span class="o">=</span><span class="n">lti_course_id</span><span class="p">,</span>
+            <span class="n">deployment_id</span><span class="o">=</span><span class="n">deployment_id</span><span class="p">,</span>
+            <span class="n">old_lti_course_id</span><span class="o">=</span><span class="n">old_lti_course_id</span><span class="p">,</span>
+        <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">course_lti_provider</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">course</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">Course</span><span class="o">.</span><span class="n">create_and_add</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">course_name</span><span class="p">)</span>
             <span class="n">course_lti_provider</span> <span class="o">=</span> <span class="n">models</span><span class="o">.</span><span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">create_and_add</span><span class="p">(</span>
                 <span class="n">course</span><span class="o">=</span><span class="n">course</span><span class="p">,</span>
                 <span class="n">lti_provider</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_lti_provider</span><span class="p">(),</span>
-                <span class="n">lti_context_id</span><span class="o">=</span><span class="n">context_claim</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span>
+                <span class="n">lti_context_id</span><span class="o">=</span><span class="n">lti_course_id</span><span class="p">,</span>
                 <span class="n">deployment_id</span><span class="o">=</span><span class="n">deployment_id</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">models</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>

@@ -227,6 +227,7 @@
 <span class="kn">from</span> <span class="nn">cryptography.hazmat.primitives.asymmetric</span> <span class="kn">import</span> <span class="n">rsa</span>
 
 <span class="kn">import</span> <span class="nn">psef</span>
+<span class="kn">from</span> <span class="nn">cg_helpers</span> <span class="kn">import</span> <span class="n">handle_none</span>
 <span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
 <span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers</span> <span class="kn">import</span> <span class="n">hybrid_property</span>
 <span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">ColumnProxy</span>
@@ -294,6 +295,15 @@
     <span class="c1"># here to be able to create a unique constraint.</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">t</span><span class="o">.</span><span class="n">TYPE_CHECKING</span><span class="p">:</span>
         <span class="n">client_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;client_id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">)</span>
+
+    <span class="c1"># The foreign key needs to be defined here for sqlalchemy, but the relation</span>
+    <span class="c1"># is defined in the ``LTI1p3Provider`` model.</span>
+    <span class="n">_updates_lti1p1_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;updates_lti1p1_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">String</span><span class="p">(</span><span class="n">UUID_LENGTH</span><span class="p">),</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="nb">id</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
 
     <span class="n">_lti_provider_version</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;lti_provider_version&#39;</span><span class="p">,</span>
@@ -489,9 +499,34 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">__mapper_args__</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;polymorphic_identity&#39;</span><span class="p">:</span> <span class="s1">&#39;lti1.1&#39;</span><span class="p">}</span>
 
+    <span class="n">upgraded_to_lti1p3</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">LTI1p3Provider</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;_updates_lti1p1&#39;</span><span class="p">,</span>
+        <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;all,delete&#39;</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;select&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">key</span>
+
+<div class="viewcode-block" id="LTI1p1Provider.find_course"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.lti_provider.LTI1p1Provider.find_course">[docs]</a>    <span class="k">def</span> <span class="nf">find_course</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                    <span class="n">lti_course_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;CourseLTIProvider&#39;</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Find a course with the given ``lti_course_id`` in this LTI</span>
+<span class="sd">        connection.</span>
+
+<span class="sd">        :param lti_course_id: The course that was present in the LTI launch.</span>
+
+<span class="sd">        :returns: The connection object between the course and this LTI</span>
+<span class="sd">                  provider if the course was found. If it was not found</span>
+<span class="sd">                  ``None`` is returned.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">lti_course_id</span> <span class="o">==</span> <span class="n">lti_course_id</span><span class="p">,</span>
+            <span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">lti_provider</span> <span class="o">==</span> <span class="bp">self</span><span class="p">,</span>
+            <span class="o">~</span><span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">old_connection</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">one_or_none</span><span class="p">()</span></div>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">member_sourcedid_required</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -833,6 +868,23 @@
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
 
+    <span class="n">_updates_lti1p1</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="n">LTI1p1Provider</span><span class="p">,</span>
+        <span class="n">foreign_keys</span><span class="o">=</span><span class="n">LTIProviderBase</span><span class="o">.</span><span class="n">_updates_lti1p1_id</span><span class="p">,</span>
+        <span class="n">remote_side</span><span class="o">=</span><span class="p">[</span><span class="n">LTIProviderBase</span><span class="o">.</span><span class="n">id</span><span class="p">],</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;upgraded_to_lti1p3&#39;</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">updates_lti1p1</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">LTI1p1Provider</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;The LTI 1.1 provider this provider updates.</span>
+
+<span class="sd">        This allows us to reuse users from that provider, so we will not create</span>
+<span class="sd">        duplicate users.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_updates_lti1p1</span>
+
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">edit_secret</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">uuid</span><span class="o">.</span><span class="n">UUID</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;The secret which you can use to edit this provider.</span>
@@ -868,9 +920,7 @@
     <span class="k">def</span> <span class="nf">auth_audience</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;The OAuth2 Audience for this provider.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">psef</span><span class="o">.</span><span class="n">helpers</span><span class="o">.</span><span class="n">handle_none</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_auth_audience</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth_token_url</span>
-        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">handle_none</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_auth_audience</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth_token_url</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">auth_token_url</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
@@ -971,6 +1021,100 @@
                 <span class="n">encryption_algorithm</span><span class="o">=</span><span class="n">serialization</span><span class="o">.</span><span class="n">NoEncryption</span><span class="p">(),</span>
             <span class="p">)</span>
         <span class="p">)</span></div>
+
+<div class="viewcode-block" id="LTI1p3Provider.find_course"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.lti_provider.LTI1p3Provider.find_course">[docs]</a>    <span class="k">def</span> <span class="nf">find_course</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">lti_course_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">deployment_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">old_lti_course_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;CourseLTIProvider&#39;</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Find a course in this LTI connection.</span>
+
+<span class="sd">        This method will also upgrade an existing LTI 1.1 course to a LTI 1.3</span>
+<span class="sd">        course if possible. In this case the database will be mutated.</span>
+
+<span class="sd">        :param lti_course_id: The course id that was present in the LTI 1.3</span>
+<span class="sd">            launch.</span>
+<span class="sd">        :param deployment_id: The deployment id that was present in the LTI 1.3</span>
+<span class="sd">            launch.</span>
+<span class="sd">        :param old_lti_course_id: The old LTI 1.1 course id that we should use</span>
+<span class="sd">            to find old LTI 1.1 courses. This is only used if this provider</span>
+<span class="sd">            updates a LTI 1.1 provider.</span>
+
+<span class="sd">        :returns: The connection object between the course and this LTI</span>
+<span class="sd">                  provider if a course was found. If it was not found ``None``</span>
+<span class="sd">                  is returned.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">deployment_id</span> <span class="o">==</span> <span class="n">deployment_id</span><span class="p">,</span>
+            <span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">lti_course_id</span> <span class="o">==</span> <span class="n">lti_course_id</span><span class="p">,</span>
+            <span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">lti_provider</span> <span class="o">==</span> <span class="bp">self</span><span class="p">,</span>
+            <span class="o">~</span><span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">old_connection</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">one_or_none</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">res</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">updates_lti1p1</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">old_conn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">updates_lti1p1</span><span class="o">.</span><span class="n">find_course</span><span class="p">(</span>
+                <span class="n">lti_course_id</span><span class="o">=</span><span class="n">old_lti_course_id</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">old_conn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">old_conn</span><span class="o">.</span><span class="n">old_connection</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">create_and_add</span><span class="p">(</span>
+                    <span class="n">course</span><span class="o">=</span><span class="n">old_conn</span><span class="o">.</span><span class="n">course</span><span class="p">,</span>
+                    <span class="n">lti_provider</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+                    <span class="n">lti_context_id</span><span class="o">=</span><span class="n">lti_course_id</span><span class="p">,</span>
+                    <span class="n">deployment_id</span><span class="o">=</span><span class="n">deployment_id</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">res</span></div>
+
+<div class="viewcode-block" id="LTI1p3Provider.find_assignment"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.lti_provider.LTI1p3Provider.find_assignment">[docs]</a>    <span class="k">def</span> <span class="nf">find_assignment</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">course</span><span class="p">:</span> <span class="s1">&#39;course_models.Course&#39;</span><span class="p">,</span>
+        <span class="n">resource_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">old_resource_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;assignment_models.Assignment&#39;</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Find an assignment in this LTI connection.</span>
+
+<span class="sd">        This method will also upgrade an existing LTI 1.1 assignment to a LTI</span>
+<span class="sd">        1.3 assignment if possible. In this case the database will be mutated.</span>
+
+<span class="sd">        :param course: The course in which we should find the assignment.</span>
+<span class="sd">        :param resource_id: The assignment id that was present in the LTI 1.3</span>
+<span class="sd">            launch.</span>
+<span class="sd">        :param old_resource_id: The old LTI 1.1 assignment id that we should</span>
+<span class="sd">            use to find old LTI 1.1 assignments. This is only used if this</span>
+<span class="sd">            provider updates a LTI 1.1 provider.</span>
+
+<span class="sd">        :returns: The found assignment or ``None`` if no assignment could be</span>
+<span class="sd">                  found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">resource_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">def</span> <span class="nf">find</span><span class="p">(</span><span class="n">lti_assid_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;assignment_models.Assignment&#39;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="n">course</span><span class="o">.</span><span class="n">get_assignments</span><span class="p">()</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+                <span class="n">assignment_models</span><span class="o">.</span><span class="n">Assignment</span><span class="o">.</span><span class="n">lti_assignment_id</span> <span class="o">==</span> <span class="n">lti_assid_id</span><span class="p">,</span>
+                <span class="n">assignment_models</span><span class="o">.</span><span class="n">Assignment</span><span class="o">.</span><span class="n">lti_assignment_id</span><span class="o">.</span><span class="n">isnot</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span>
+                <span class="n">assignment_models</span><span class="o">.</span><span class="n">Assignment</span><span class="o">.</span><span class="n">is_lti</span><span class="p">,</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">one_or_none</span><span class="p">()</span>
+
+        <span class="n">found_assig</span> <span class="o">=</span> <span class="n">find</span><span class="p">(</span><span class="n">resource_id</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">found_assig</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">updates_lti1p1</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+                <span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+                    <span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">course</span> <span class="o">==</span> <span class="n">course</span><span class="p">,</span>
+                    <span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">lti_provider</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">updates_lti1p1</span><span class="p">,</span>
+                    <span class="n">CourseLTIProvider</span><span class="o">.</span><span class="n">old_connection</span><span class="p">,</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">():</span>
+                <span class="n">found_assig</span> <span class="o">=</span> <span class="n">find</span><span class="p">(</span><span class="n">old_resource_id</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">found_assig</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Make sure we always upgrade this assignment to the latest lti 1.3</span>
+            <span class="c1"># resource id.</span>
+            <span class="n">found_assig</span><span class="o">.</span><span class="n">lti_assignment_id</span> <span class="o">=</span> <span class="n">resource_id</span>
+
+        <span class="k">return</span> <span class="n">found_assig</span></div>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">_private_key</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">rsa</span><span class="o">.</span><span class="n">RSAPrivateKeyWithSerialization</span><span class="p">:</span>
@@ -1351,6 +1495,7 @@
                     <span class="p">),</span>
                     <span class="n">email</span><span class="o">=</span><span class="n">lti_v1_3</span><span class="o">.</span><span class="n">get_email_for_user</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="bp">self</span><span class="p">),</span>
                     <span class="n">full_name</span><span class="o">=</span><span class="n">member</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span>
+                    <span class="n">old_lti_user_id</span><span class="o">=</span><span class="n">member</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;lti11_legacy_user_id&#39;</span><span class="p">),</span>
                 <span class="p">)</span>
             <span class="k">except</span><span class="p">:</span>  <span class="c1"># pylint: disable=bare-except</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Could not add new user&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -1572,6 +1717,7 @@
         <span class="n">lti_user_id</span><span class="p">:</span> <span class="nb">str</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user_id</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">id</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">user</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lti_provider</span> <span class="o">=</span> <span class="n">lti_provider</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lti_user_id</span> <span class="o">=</span> <span class="n">lti_user_id</span>
@@ -1651,6 +1797,54 @@
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">user</span><span class="p">,</span> <span class="n">token</span>
 
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_maybe_migrate_lti1p1_user</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">lti_1p3_user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">lti_1p1_user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">lti_provider</span><span class="p">:</span> <span class="n">LTI1p3Provider</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;user_models.User&#39;</span><span class="p">]:</span>
+        <span class="n">provider</span> <span class="o">=</span> <span class="n">lti_provider</span><span class="o">.</span><span class="n">updates_lti1p1</span>
+        <span class="k">if</span> <span class="n">provider</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">lti_user</span> <span class="o">=</span> <span class="n">provider</span><span class="o">.</span><span class="n">find_user</span><span class="p">(</span><span class="n">lti_1p1_user_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">lti_user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+                <span class="bp">cls</span><span class="p">(</span>
+                    <span class="n">user</span><span class="o">=</span><span class="n">lti_user</span><span class="p">,</span>
+                    <span class="n">lti_provider</span><span class="o">=</span><span class="n">lti_provider</span><span class="p">,</span>
+                    <span class="n">lti_user_id</span><span class="o">=</span><span class="n">lti_1p3_user_id</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">lti_user</span>
+
+    <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_or_create_user</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">lti_user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">lti_provider</span><span class="p">:</span> <span class="n">LTI1p1Provider</span><span class="p">,</span>
+        <span class="n">wanted_username</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">full_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">email</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+        <span class="o">...</span>
+
+    <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_or_create_user</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">lti_user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">lti_provider</span><span class="p">:</span> <span class="n">LTI1p3Provider</span><span class="p">,</span>
+        <span class="n">wanted_username</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">full_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">email</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">old_lti_user_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+        <span class="o">...</span>
+
 <div class="viewcode-block" id="UserLTIProvider.get_or_create_user"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.lti_provider.UserLTIProvider.get_or_create_user">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">get_or_create_user</span><span class="p">(</span>
         <span class="bp">cls</span><span class="p">,</span>
@@ -1659,6 +1853,8 @@
         <span class="n">wanted_username</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
         <span class="n">full_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">email</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">old_lti_user_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
         <span class="sd">&quot;&quot;&quot;Get or create a new user for the given LTI Provider</span>
 
@@ -1681,6 +1877,15 @@
         <span class="n">user</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="n">lti_user</span> <span class="o">=</span> <span class="n">lti_provider</span><span class="o">.</span><span class="n">find_user</span><span class="p">(</span><span class="n">lti_user_id</span><span class="o">=</span><span class="n">lti_user_id</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">lti_user</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">lti_provider</span><span class="p">,</span> <span class="n">LTI1p3Provider</span><span class="p">):</span>
+            <span class="n">lti_user</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_maybe_migrate_lti1p1_user</span><span class="p">(</span>
+                <span class="n">lti_1p3_user_id</span><span class="o">=</span><span class="n">lti_user_id</span><span class="p">,</span>
+                <span class="c1"># According to the spec the lti 1.1 user id should **not** be</span>
+                <span class="c1"># specified if it is the same as the lti 1.3 user id.</span>
+                <span class="n">lti_1p1_user_id</span><span class="o">=</span><span class="n">handle_none</span><span class="p">(</span><span class="n">old_lti_user_id</span><span class="p">,</span> <span class="n">lti_user_id</span><span class="p">),</span>
+                <span class="n">lti_provider</span><span class="o">=</span><span class="n">lti_provider</span><span class="p">,</span>
+            <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">is_logged_in</span> <span class="ow">and</span> <span class="n">lti_user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">current_user</span> <span class="o">==</span> <span class="n">lti_user</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Currently logged in user is user doing launch&#39;</span><span class="p">)</span>
@@ -1734,7 +1939,6 @@
         <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Course.id&#39;</span><span class="p">),</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="n">lti_provider_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
@@ -1747,6 +1951,14 @@
     <span class="n">lti_course_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;lti_course_id&#39;</span><span class="p">,</span>
         <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">old_connection</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;old_connection&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;false&#39;</span><span class="p">,</span>
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
 
@@ -1801,6 +2013,7 @@
             <span class="n">course</span><span class="o">=</span><span class="n">course</span><span class="p">,</span>
             <span class="n">lti_provider</span><span class="o">=</span><span class="n">lti_provider</span><span class="p">,</span>
             <span class="n">deployment_id</span><span class="o">=</span><span class="n">deployment_id</span><span class="p">,</span>
+            <span class="n">old_connection</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="p">)</span>
 
 <div class="viewcode-block" id="CourseLTIProvider.can_poll_names_again"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.lti_provider.CourseLTIProvider.can_poll_names_again">[docs]</a>    <span class="k">def</span> <span class="nf">can_poll_names_again</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
