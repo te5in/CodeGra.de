@@ -271,6 +271,18 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
                 lti_id,
             )
 
+        if self.lti_provider.upgraded_to_lti1p3:
+            raise APIException(
+                'This provider has been upgraded to LTI 1.3',
+                (
+                    'This provider has been upgraded to a LTI 1.3 provider,'
+                    ' the old connection can no longer be used'
+                ),
+                APICodes.INVALID_STATE,
+                400,
+                upgraded_lti1p3_id=self.lti_provider.upgraded_to_lti1p3.id,
+            )
+
         self.key = self.lti_provider.key
         self.secrets = self.lti_provider.secrets
 
@@ -540,12 +552,7 @@ class LTI(AbstractLTIConnector):  # pylint: disable=too-many-public-methods
     def get_course(self) -> models.Course:
         """Get the current LTI course as a psef course.
         """
-        course_lti_provider = models.db.session.query(
-            models.CourseLTIProvider,
-        ).filter(
-            models.CourseLTIProvider.lti_course_id == self.course_id,
-            models.CourseLTIProvider.lti_provider == self.lti_provider,
-        ).one_or_none()
+        course_lti_provider = self.lti_provider.find_course(self.course_id)
 
         if course_lti_provider is None:
             course = models.Course.create_and_add(name=self.course_name)
