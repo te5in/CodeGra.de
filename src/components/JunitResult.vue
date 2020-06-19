@@ -8,15 +8,21 @@
                  gutter="0.5rem">
             <div v-for="testCase in suite.cases" class="py-1">
                 <div class="border rounded p-2">
-                    <span v-b-popover.top.hover="`This test finished with a ${testCase.state} state.`">
-                        <icon :name="testCase.fontAwesomeIcon.icon"
-                              style="width: 1rem;"
-                              :class="testCase.fontAwesomeIcon.cls" />
-                    </span>
-                    <b-badge variant="light">
-                        <code>{{ testCase.classname }}</code>
-                    </b-badge>
-                    {{ testCase.name }}
+                    <div class="d-flex flex-row">
+                        <div class="flex-grow-1">
+                            <b-badge class="classname">
+                                <code>{{ testCase.classname }}</code>
+                            </b-badge>
+                            {{ testCase.name }}
+                        </div>
+
+                        <div v-b-popover.top.hover="`This test finished with a ${testCase.state} state.`"
+                             class="flex-grow-0 ml-2">
+                            <icon :name="testCase.fontAwesomeIcon.icon"
+                                style="width: 1rem;"
+                                :class="testCase.fontAwesomeIcon.cls" />
+                        </div>
+                    </div>
 
                     <div v-if="testCase.content != null" class="mt-2">
                         <h6 class="px-1">Output</h6>
@@ -75,6 +81,14 @@ export default {
 
 .junit-suite:not(:last-child) {
     border-bottom: 1px solid @border-color;
+}
+
+.badge.classname {
+    background: none !important;
+
+    code {
+        font-size: 100% !important;
+    }
 }
 
 </style>

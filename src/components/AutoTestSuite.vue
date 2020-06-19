@@ -458,7 +458,7 @@ export default {
                 {
                     name: 'junit_test',
                     title: 'Unit test',
-                    color: 'rgb(255, 000, 000)',
+                    color: 'rgb(247, 136, 123)',
                     help: 'A unit test',
                     meta: false,
                 },
