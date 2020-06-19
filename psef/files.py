@@ -688,6 +688,18 @@ def random_file_path(use_mirror_dir: bool = False) -> t.Tuple[str, str]:
     return candidate, name
 
 
+def save_stream(stream: FileStorage) -> str:
+    new_file_name, filename = random_file_path()
+    stream.save(new_file_name)
+    if get_file_size(new_file_name) > app.max_single_file_size:
+        os.unlink(new_file_name)
+        helpers.raise_file_too_big_exception(
+            app.max_single_file_size, single_file=True
+        )
+    return filename
+
+
+
 def process_files(
     files: t.MutableSequence[FileStorage],
     max_size: archive.FileSize,

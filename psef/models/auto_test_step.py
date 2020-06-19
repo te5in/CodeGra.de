@@ -4,24 +4,29 @@ This module also contains the code needed to execute each step.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import os
 import abc
 import copy
 import enum
 import typing as t
 import numbers
+import tempfile
 
 import regex as re
 import structlog
 from sqlalchemy.types import JSON
+from werkzeug.datastructures import FileStorage
 
 import psef
 import cg_logger
+from cg_junit import CGJunit
 from cg_dt_utils import DatetimeWithTimezone
+from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers.types import DbType, ColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import Base, db
-from .. import auth, helpers, exceptions
+from .. import auth, helpers, exceptions, current_app
 from ..helpers import (
     JSONType, between, ensure_json_dict, get_from_map_transaction
 )
@@ -40,7 +45,7 @@ if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     from .. import auto_test as auto_test_module
 
 _ALL_AUTO_TEST_HANDLERS = sorted(
-    ['io_test', 'run_program', 'custom_output', 'check_points']
+    ['io_test', 'run_program', 'custom_output', 'check_points', 'junit_test']
 )
 _registered_test_handlers: t.Set[str] = set()
 
@@ -98,6 +103,8 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
     This class provides represents a single step, and contains the code needed
     to execute it.
     """
+    SUPPORTS_ATTACHMENT: t.ClassVar[bool] = False
+
     __tablename__ = 'AutoTestStep'
 
     id = db.Column('id', db.Integer, primary_key=True)
@@ -867,6 +874,76 @@ class _CheckPoints(AutoTestStepBase):
         return 0
 
 
+@_register
+class _JunitTest(AutoTestStepBase):
+    SUPPORTS_ATTACHMENT = True
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'junit_test',
+    }
+
+    def validate_data(self, data: JSONType) -> None:
+        with get_from_map_transaction(
+            ensure_json_dict(data), ensure_empty=True
+        ) as [get, _]:
+            program = get('program', str)
+        _ensure_program(program)
+
+    @staticmethod
+    def _get_points_from_junit(attachment: t.BinaryIO) -> float:
+        junit = CGJunit.parse_file(attachment)
+        return junit.total_success / junit.total_tests
+
+    @classmethod
+    def _execute(
+        cls,
+        container: 'auto_test_module.StartedContainer',
+        opts: 'auto_test_module.ExecuteOptions',
+    ) -> float:
+        data = opts.test_instructions['data']
+        assert isinstance(data, dict)
+
+        res = 0.0
+
+        command_res = container.run_student_command(
+            t.cast(str, data['program']),
+            opts.test_instructions['command_time_limit'],
+        )
+
+        data = {
+            'stdout': command_res.stdout,
+            'stderr': command_res.stderr,
+            'exit_code': command_res.exit_code,
+            'time_spend': command_res.time_spend,
+            'points': 0.0,
+        }
+
+        if command_res.exit_code != 0:
+            opts.update_test_result(AutoTestStepResultState.failed, data)
+            return 0.0
+
+        with tempfile.NamedTemporaryFile() as tfile:
+            os.chmod(tfile.name, 0o777)
+            container.run_command(['cat', '/tmp/junit.xml'], stdout=tfile.name)
+
+            tfile.seek(0, 0)
+            points = cls._get_points_from_junit(tfile)
+            data['points'] = points
+
+            tfile.seek(0, 0)
+
+            opts.update_test_result(
+                AutoTestStepResultState.passed, data, attachment=tfile
+            )
+
+        return points
+
+    @staticmethod
+    def get_amount_achieved_points(result: 'AutoTestStepResult') -> float:
+        log: t.Dict = result.log if isinstance(result.log, dict) else {}
+        return t.cast(float, log.get('points', 0)) * result.step.weight
+
+
 class AutoTestStepResult(Base, TimestampMixin, IdMixin):
     """This class represents the result of a single AutoTest step.
     """
@@ -912,6 +989,10 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         'log', JSON, nullable=True, default=None
     )
 
+    attachment_filename = db.Column(
+        'attachment_filename', db.Unicode, nullable=True, default=None
+    )
+
     @property
     def state(self) -> AutoTestStepResultState:
         """The state of this result. Setting this might also change the
@@ -936,6 +1017,23 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         """
         return self.step.get_amount_achieved_points(self)
 
+    def update_attachment(self, stream: FileStorage) -> None:
+        assert self.step.SUPPORTS_ATTACHMENT
+
+        old_filename = self.attachment_filename
+        old_path = None
+        if old_filename is not None:
+            old_path = psef.files.safe_join(
+                current_app.config['UPLOAD_DIR'], old_filename
+            )
+
+        def after_req() -> None:
+            if old_path is not None:
+                os.unlink(old_path)
+
+        self.attachment_filename = psef.files.save_stream(stream)
+        callback_after_this_request(after_req)
+
     def __to_json__(self) -> t.Mapping[str, object]:
         res = {
             'id': self.id,
@@ -944,6 +1042,7 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
             'achieved_points': self.achieved_points,
             'log': self.log,
             'started_at': self.started_at and self.started_at.isoformat(),
+            'attachment_id': self.attachment_filename,
         }
         try:
             auth.ensure_can_view_autotest_step_details(self.step)

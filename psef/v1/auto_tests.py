@@ -3,12 +3,13 @@ APIs are used to create, start, and request information about AutoTests.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import os
 import json
 import typing as t
 
 import werkzeug
 import structlog
-from flask import request, make_response
+from flask import Response, request, make_response
 
 from . import api
 from .. import app, auth, files, tasks, models, helpers, registry, exceptions
@@ -891,3 +892,48 @@ def get_auto_test_result_proxy(
     db.session.add(proxy)
     db.session.commit()
     return jsonify(proxy)
+
+
+@api.route(
+    '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/step_results/<int:step_result_id>/attachment',
+    methods=['GET']
+)
+@feature_required(Feature.AUTO_TEST)
+def get_auto_test_step_result_attachment(
+    auto_test_id: int, run_id: int, step_result_id: int
+) -> Response:
+
+    # test = get_or_404(
+    #     models.AutoTest,
+    #     auto_test_id,
+    #     also_error=lambda at: not at.assignment.is_visible
+    # )
+    # auth.ensure_can_view_autotest(test)
+
+    # def also_error(obj: models.AutoTestStepResult) -> bool:
+    #     result = obj.result
+    #     if result.auto_test_run_id != run_id or result.run.auto_test_id != test.id:
+    #         return True
+    #     elif result.work.deleted:
+    #         return True
+    #     return False
+
+    step_result = get_or_404(
+        models.AutoTestStepResult,
+        step_result_id,
+        # also_error=also_error,
+    )
+
+    auth.ensure_can_view_autotest_result(step_result.result)
+    auth.ensure_can_view_autotest_step_details(step_result.step)
+    assert step_result.attachment_filename
+
+    res = Response(
+        open(
+            os.path.join(
+                app.config['UPLOAD_DIR'], step_result.attachment_filename
+            ), 'rb'
+        )
+    )
+    res.headers['Content-Type'] = 'application/octet-stream'
+    return res

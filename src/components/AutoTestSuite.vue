@@ -455,6 +455,13 @@ export default {
                         'Stop testing this category if the amount of points is below a certain threshold.',
                     meta: true,
                 },
+                {
+                    name: 'junit_test',
+                    title: 'Unit test',
+                    color: 'rgb(255, 000, 000)',
+                    help: 'A unit test',
+                    meta: false,
+                },
             ];
         },
 
@@ -520,6 +527,9 @@ export default {
                     res.data.min_points = 0;
                     break;
                 case 'run_program':
+                    res.data.program = '';
+                    break;
+                case 'junit_test':
                     res.data.program = '';
                     break;
                 default:

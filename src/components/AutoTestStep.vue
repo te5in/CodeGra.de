@@ -57,7 +57,7 @@
 
         <b-card-body v-if="canViewDetails">
             <template v-if="!stepType.meta">
-                <label :for="programNameId">
+                u               <label :for="programNameId">
                     Program to test
 
                     <description-popover hug-text
@@ -285,6 +285,92 @@
                     <div class="col-12 mb-3" slot-scope="{}">
                         You {{ stepResult.state === 'passed' ? 'scored' : 'did not score' }}
                         enough points.
+                    </div>
+                </collapse>
+            </td>
+        </tr>
+    </template>
+
+    <template v-else-if="value.type === 'junit_test'">
+        <tr class="step-summary"
+            :class="{ 'with-output': canViewOutput, 'text-muted': value.hidden }"
+            :key="resultsCollapseId"
+            v-cg-toggle="resultsCollapseId">
+            <td class="expand shrink">
+                <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" class="caret" />
+                <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
+                      v-b-popover.hover.top="hiddenPopover" />
+            </td>
+            <td class="shrink">{{ index }}</td>
+            <td class="overflowable">
+                <div class="overflow-auto">
+                    <b>{{ stepName }}</b>
+
+                    <template v-if="canViewDetails">
+                        Run the unit tests using <code>{{ value.data.program }}</code>.
+                    </template>
+                </div>
+            </td>
+            <td class="shrink text-center">
+                <template v-if="result">
+                    {{ achievedPoints }} /
+                </template>
+                {{ $utils.toMaxNDecimals(value.weight, 2) }}
+            </td>
+            <td class="shrink text-center" v-if="result">
+                <auto-test-state :result="stepResult" show-icon />
+            </td>
+        </tr>
+
+        <tr v-if="canViewOutput" class="results-log-collapse-row">
+            <td :colspan="result ? 5 : 4">
+                <collapse :id="resultsCollapseId" lazy-load
+                          v-model="junitCollapseClosed">
+                    <div slot-scope="{}">
+                        <b-card no-body v-if="$utils.getProps(stepResult.log, 1, 'exit_code') !== 0">
+                            <b-tabs card no-fade>
+                                <b-tab title="Result" class="mb-3 flex-wrap">
+                                    <p class="col-12 mb-1">
+                                        <label>Exit code</label>
+                                        <code>{{ $utils.getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
+                                    </p>
+
+                                    <div class="col-12">
+                                        <label>Output</label>
+                                        <inner-code-viewer class="rounded border"
+                                                           :assignment="assignment"
+                                                           :code-lines="stepStdout"
+                                                           file-id="-1"
+                                                           :feedback="{}"
+                                                           :start-line="0"
+                                                           :show-whitespace="true"
+                                                           :warn-no-newline="false"
+                                                           :empty-file-message="'No output.'" />
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label>Errors</label>
+                                        <inner-code-viewer class="rounded border"
+                                                           :assignment="assignment"
+                                                           :code-lines="stepStderr"
+                                                           file-id="-1"
+                                                           :feedback="{}"
+                                                           :start-line="0"
+                                                           :show-whitespace="true"
+                                                           :warn-no-newline="false"
+                                                           :empty-file-message="'No output.'" />
+                                    </div>
+                                </b-tab>
+                            </b-tabs>
+                        </b-card>
+                        <div v-else>
+                            <cg-loader v-if="junitAttachment == null"
+                                       class="pt-2"
+                                       :scale="1"/>
+                            <junit-result v-else
+                                          :junit="junitAttachment"
+                                          :assignment="assignment"/>
+                        </div>
                     </div>
                 </collapse>
             </td>
@@ -843,7 +929,10 @@ import 'vue-awesome/icons/ban';
 
 import { visualizeWhitespace } from '@/utils/visualize';
 import { getCapturePointsDiff } from '@/utils/diff';
-import { mapGetters } from 'vuex';
+import decodeBuffer from '@/utils/decode';
+import { CGJunit } from '@/utils/junit';
+import { mapGetters, mapActions } from 'vuex';
+
 
 import Collapse from './Collapse';
 import SubmitButton from './SubmitButton';
@@ -851,6 +940,7 @@ import DescriptionPopover from './DescriptionPopover';
 import AutoTestState from './AutoTestState';
 import InnerCodeViewer from './InnerCodeViewer';
 import Toggle from './Toggle';
+import JunitResult from './JunitResult';
 
 export default {
     name: 'auto-test-step',
@@ -896,6 +986,8 @@ export default {
             activeIoTab: {},
             hideIgnoredPartOfDiff: {},
             getDiff: getCapturePointsDiff,
+            junitCollapseClosed: false,
+            junitAttachment: null,
         };
     },
 
@@ -903,10 +995,32 @@ export default {
         editable() {
             this.collapseState = {};
         },
+
+        junitCollapseClosed: {
+            handler(newVal) {
+                if (!newVal && this.stepResultAttachment) {
+                    this.loadJunitAttachment();
+                }
+            },
+            immediate: true,
+
+        },
+
+        async stepResultAttachment(newVal) {
+            if (!this.junitCollapseClosed && newVal) {
+                this.loadJunitAttachment();
+            } else if (!newVal) {
+                this.junitAttachment = null;
+            }
+        },
     },
 
     computed: {
         ...mapGetters('pref', ['fontSize']),
+
+        stepResultAttachment() {
+            return this.$utils.getProps(this.stepResult, null, 'attachment_id');
+        },
 
         valueCopy() {
             return this.$utils.deepCopy(this.value);
@@ -1138,6 +1252,10 @@ export default {
     },
 
     methods: {
+        ...mapActions('code', {
+            storeLoadCodeFromRoute: 'loadCodeFromRoute',
+        }),
+
         updateInput(index, key, value) {
             const input = [...this.inputs];
             input[index] = {
@@ -1249,6 +1367,14 @@ export default {
                 this.$emit('input', this.$utils.deepCopy(this.valueCopy));
             }
         },
+
+        async loadJunitAttachment() {
+            const attachment = await this.storeLoadCodeFromRoute({
+                route: `/api/v1/auto_tests/0/runs/0/step_results/${this.stepResult.id}/attachment`,
+            });
+            const xmlDoc = new DOMParser().parseFromString(decodeBuffer(attachment), 'text/xml');
+            this.junitAttachment = CGJunit.fromXml(xmlDoc);
+        },
     },
 
     components: {
@@ -1258,6 +1384,7 @@ export default {
         DescriptionPopover,
         AutoTestState,
         InnerCodeViewer,
+        JunitResult,
         Toggle,
     },
 };
