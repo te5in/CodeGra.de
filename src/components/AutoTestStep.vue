@@ -327,9 +327,18 @@
                 <collapse :id="resultsCollapseId" lazy-load
                           v-model="junitCollapseClosed">
                     <div slot-scope="{}">
-                        <b-card no-body v-if="$utils.getProps(stepResult.log, 1, 'exit_code') !== 0">
+                        <b-card no-body>
                             <b-tabs card no-fade>
-                                <b-tab title="Result" class="mb-3 flex-wrap">
+                                <b-tab title="Test result"
+                                       v-if="$utils.getProps(stepResult, null, 'attachment_id') != null">
+                                    <cg-loader v-if="junitAttachment == null"
+                                               class="p-2"
+                                               :scale="1"/>
+                                    <junit-result v-else
+                                                  :junit="junitAttachment"
+                                                  :assignment="assignment"/>
+                                </b-tab>
+                                <b-tab title="Output" class="mb-3 flex-wrap">
                                     <p class="col-12 mb-1">
                                         <label>Exit code</label>
                                         <code>{{ $utils.getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
@@ -363,14 +372,6 @@
                                 </b-tab>
                             </b-tabs>
                         </b-card>
-                        <div v-else>
-                            <cg-loader v-if="junitAttachment == null"
-                                       class="pt-2"
-                                       :scale="1"/>
-                            <junit-result v-else
-                                          :junit="junitAttachment"
-                                          :assignment="assignment"/>
-                        </div>
                     </div>
                 </collapse>
             </td>

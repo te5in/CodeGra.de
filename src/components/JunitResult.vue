@@ -2,7 +2,7 @@
 <div class="junit-result">
     <div v-for="suite in junit.suites" class="junit-suite p-3">
         <h5>
-            {{ suite.name }} ({{ suite.successful }} / {{ suite.tests }})
+            {{ suite.name }} ({{ suite.successful }} / {{ suite.runTests }})
         </h5>
         <masonry :cols="{ default: 2 }"
                  gutter="0.5rem">

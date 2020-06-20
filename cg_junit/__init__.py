@@ -5,9 +5,9 @@ from typing_extensions import Literal, TypedDict
 from defusedxml.ElementTree import parse as defused_xml_parse
 
 ET = xml.etree.ElementTree
+ParseError = ET.ParseError
 
-
-class MalformedXmlData(ET.ParseError):
+class MalformedXmlData(ParseError):
     @classmethod
     @t.overload
     def ensure(cls, flag: Literal[False]) -> t.NoReturn:
@@ -75,6 +75,7 @@ class _CGJunitSuiteAttribs(TypedDict, total=True):
     errors: int
     failures: int
     tests: int
+    skipped: int
 
 
 class _CGJunitSuite:
@@ -106,6 +107,7 @@ class _CGJunitSuite:
                 errors=int(xml_el.attrib['errors']),
                 failures=int(xml_el.attrib['failures']),
                 tests=int(xml_el.attrib['tests']),
+                skipped=int(xml_el.attrib.get('skipped', '0')),
             ),
         )
 
@@ -115,7 +117,8 @@ class CGJunit:
         self.suites = suites
         self.total_failures = sum(s.attribs['failures'] for s in suites)
         self.total_errors = sum(s.attribs['errors'] for s in suites)
-        self.total_tests = sum(s.attribs['tests'] for s in suites)
+        self.total_skipped = sum(s.attribs['skipped'] for s in suites)
+        self.total_tests = sum(s.attribs['tests'] for s in suites) - self.total_skipped
 
     @property
     def total_success(self) -> int:

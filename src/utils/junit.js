@@ -1,3 +1,5 @@
+import { sortBy } from '@/utils';
+
 function mapHTMLCollection(collection, mapper) {
     const res = [];
     for (let i = 0, length = collection.length; i < length; ++i) {
@@ -37,6 +39,8 @@ class CGJunitCase {
                 return { icon: 'check', cls: 'text-success' };
             case 'failure':
                 return { icon: 'times', cls: 'text-danger' };
+            case 'skipped':
+                return { icon: 'ban', cls: 'text-muted' };
             case 'error':
             default:
                 return { icon: 'exclamation', cls: 'text-danger' };
@@ -45,20 +49,22 @@ class CGJunitCase {
 }
 
 class CGJunitSuite {
-    constructor(cases, name, errors, failures, tests) {
+    constructor(cases, name, errors, failures, skipped, tests) {
         this.cases = cases;
 
         this.name = name;
         this.errors = errors;
         this.failures = failures;
-        this.tests = tests;
+        this.skipped = skipped;
+        this.runTests = tests - skipped;
+        this.totalTests = tests;
 
         Object.freeze(this.cases);
         Object.freeze(this);
     }
 
     get successful() {
-        return this.tests - (this.errors + this.failures);
+        return this.runTests - (this.errors + this.failures);
     }
 
     static fromXml(node) {
@@ -70,13 +76,14 @@ class CGJunitSuite {
             suiteName,
             parseInt(attrs.errors.value, 10),
             parseInt(attrs.failures.value, 10),
+            parseInt(attrs.skipped ? attrs.skipped.value : 0, 10),
             parseInt(attrs.tests.value, 10),
         );
     }
 }
 export class CGJunit {
     constructor(suites) {
-        this.suites = suites;
+        this.suites = sortBy(suites, x => [x.failures <= 0]);
 
         Object.freeze(this.suites);
         Object.freeze(this);

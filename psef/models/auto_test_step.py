@@ -19,8 +19,8 @@ from sqlalchemy.types import JSON
 from werkzeug.datastructures import FileStorage
 
 import psef
+import cg_junit
 import cg_logger
-from cg_junit import CGJunit
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers.types import DbType, ColumnProxy
@@ -892,7 +892,10 @@ class _JunitTest(AutoTestStepBase):
 
     @staticmethod
     def _get_points_from_junit(attachment: t.BinaryIO) -> float:
-        junit = CGJunit.parse_file(attachment)
+        try:
+            junit = cg_junit.CGJunit.parse_file(attachment)
+        except cg_junit.ParseError:
+            return 0
         return junit.total_success / junit.total_tests
 
     @classmethod
@@ -905,7 +908,6 @@ class _JunitTest(AutoTestStepBase):
         assert isinstance(data, dict)
 
         xml_location = f'/tmp/.{uuid.uuid4()}'
-        res = 0.0
 
         with container.extra_env({'CG_JUNIT_XML_LOCATION': xml_location}):
             command_res = container.run_student_command(
@@ -921,17 +923,15 @@ class _JunitTest(AutoTestStepBase):
             'points': 0.0,
         }
 
-        if command_res.exit_code != 0:
-            opts.update_test_result(AutoTestStepResultState.failed, data)
-            return 0.0
-
         with tempfile.NamedTemporaryFile() as tfile:
             os.chmod(tfile.name, 0o622)
             copy_cmd = container.run_command(
-                ['cat', xml_location], stdout=tfile.name
+                ['cat', xml_location],
+                stdout=tfile.name,
+                check=False,
             )
 
-            if copy_cmd.exit_code != 0:
+            if copy_cmd != 0:
                 data['exit_code'] = -1
                 opts.update_test_result(AutoTestStepResultState.failed, data)
                 return 0.0
