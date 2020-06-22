@@ -9,12 +9,18 @@ Version *Next*
 **Updates**
 
 - Automatically focus the percentage input in continuous rubric rows
-  `(#1370) <https://github.com/CodeGra-de/CodeGra.de>`__.
+  `(#1370) <https://github.com/CodeGra-de/CodeGra.de/pull/1370>`__.
+- Make it easier to upgrade from LTI 1.1 to LTI 1.3
+  `(#1374) <https://github.com/CodeGra-de/CodeGra.de/pull/1374>`__.
+- Add more rubric category information to the rubric analytics graphs
+  `(#1383) <https://github.com/CodeGra-de/CodeGra.de/pull/1383>`__.
 
 **Fixes**
 
 - Fix IPython ``execute_result`` cell outputs `(#1367)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1367>`__.
+- Add missing newline at the end of symbolic link replacement files
+  `(#1382) <https://github.com/CodeGra-de/CodeGra.de/pull/1382>`__.
 - Miscellaneous fixes:
   `(#1373) <https://github.com/CodeGra-de/CodeGra.de/pull/1373>`__,
   `(#1375) <https://github.com/CodeGra-de/CodeGra.de/pull/1375>`__,

@@ -27,6 +27,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 import psef
+from cg_helpers import handle_none
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import hybrid_property
 from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy
@@ -94,6 +95,15 @@ class LTIProviderBase(Base, TimestampMixin):
     # here to be able to create a unique constraint.
     if not t.TYPE_CHECKING:
         client_id = db.Column('client_id', db.Unicode)
+
+    # The foreign key needs to be defined here for sqlalchemy, but the relation
+    # is defined in the ``LTI1p3Provider`` model.
+    _updates_lti1p1_id = db.Column(
+        'updates_lti1p1_id',
+        db.String(UUID_LENGTH),
+        db.ForeignKey(id),
+        nullable=True,
+    )
 
     _lti_provider_version = db.Column(
         'lti_provider_version',
@@ -289,9 +299,34 @@ class LTI1p1Provider(LTIProviderBase):
     """
     __mapper_args__ = {'polymorphic_identity': 'lti1.1'}
 
+    upgraded_to_lti1p3 = db.relationship(
+        lambda: LTI1p3Provider,
+        back_populates='_updates_lti1p1',
+        cascade='all,delete',
+        uselist=False,
+        lazy='select',
+    )
+
     def __init__(self, key: str) -> None:
         super().__init__()
         self.key = key
+
+    def find_course(self,
+                    lti_course_id: str) -> t.Optional['CourseLTIProvider']:
+        """Find a course with the given ``lti_course_id`` in this LTI
+        connection.
+
+        :param lti_course_id: The course that was present in the LTI launch.
+
+        :returns: The connection object between the course and this LTI
+                  provider if the course was found. If it was not found
+                  ``None`` is returned.
+        """
+        return CourseLTIProvider.query.filter(
+            CourseLTIProvider.lti_course_id == lti_course_id,
+            CourseLTIProvider.lti_provider == self,
+            ~CourseLTIProvider.old_connection,
+        ).one_or_none()
 
     @property
     def member_sourcedid_required(self) -> bool:
@@ -633,6 +668,23 @@ class LTI1p3Provider(LTIProviderBase):
         nullable=False
     )
 
+    _updates_lti1p1 = db.relationship(
+        LTI1p1Provider,
+        foreign_keys=LTIProviderBase._updates_lti1p1_id,
+        remote_side=[LTIProviderBase.id],
+        back_populates='upgraded_to_lti1p3',
+        uselist=False,
+    )
+
+    @property
+    def updates_lti1p1(self) -> t.Optional[LTI1p1Provider]:
+        """The LTI 1.1 provider this provider updates.
+
+        This allows us to reuse users from that provider, so we will not create
+        duplicate users.
+        """
+        return self._updates_lti1p1
+
     @property
     def edit_secret(self) -> uuid.UUID:
         """The secret which you can use to edit this provider.
@@ -668,9 +720,7 @@ class LTI1p3Provider(LTIProviderBase):
     def auth_audience(self) -> t.Optional[str]:
         """The OAuth2 Audience for this provider.
         """
-        return psef.helpers.handle_none(
-            self._auth_audience, self._auth_token_url
-        )
+        return handle_none(self._auth_audience, self._auth_token_url)
 
     @property
     def auth_token_url(self) -> t.Optional[str]:
@@ -771,6 +821,100 @@ class LTI1p3Provider(LTIProviderBase):
                 encryption_algorithm=serialization.NoEncryption(),
             )
         )
+
+    def find_course(
+        self, lti_course_id: str, deployment_id: str, old_lti_course_id: str
+    ) -> t.Optional['CourseLTIProvider']:
+        """Find a course in this LTI connection.
+
+        This method will also upgrade an existing LTI 1.1 course to a LTI 1.3
+        course if possible. In this case the database will be mutated.
+
+        :param lti_course_id: The course id that was present in the LTI 1.3
+            launch.
+        :param deployment_id: The deployment id that was present in the LTI 1.3
+            launch.
+        :param old_lti_course_id: The old LTI 1.1 course id that we should use
+            to find old LTI 1.1 courses. This is only used if this provider
+            updates a LTI 1.1 provider.
+
+        :returns: The connection object between the course and this LTI
+                  provider if a course was found. If it was not found ``None``
+                  is returned.
+        """
+        res = CourseLTIProvider.query.filter(
+            CourseLTIProvider.deployment_id == deployment_id,
+            CourseLTIProvider.lti_course_id == lti_course_id,
+            CourseLTIProvider.lti_provider == self,
+            ~CourseLTIProvider.old_connection,
+        ).one_or_none()
+
+        if res is None and self.updates_lti1p1 is not None:
+            old_conn = self.updates_lti1p1.find_course(
+                lti_course_id=old_lti_course_id
+            )
+            if old_conn is not None:
+                old_conn.old_connection = True
+                res = CourseLTIProvider.create_and_add(
+                    course=old_conn.course,
+                    lti_provider=self,
+                    lti_context_id=lti_course_id,
+                    deployment_id=deployment_id,
+                )
+                db.session.flush()
+
+        return res
+
+    def find_assignment(
+        self,
+        course: 'course_models.Course',
+        resource_id: t.Optional[str],
+        old_resource_id: t.Optional[str],
+    ) -> t.Optional['assignment_models.Assignment']:
+        """Find an assignment in this LTI connection.
+
+        This method will also upgrade an existing LTI 1.1 assignment to a LTI
+        1.3 assignment if possible. In this case the database will be mutated.
+
+        :param course: The course in which we should find the assignment.
+        :param resource_id: The assignment id that was present in the LTI 1.3
+            launch.
+        :param old_resource_id: The old LTI 1.1 assignment id that we should
+            use to find old LTI 1.1 assignments. This is only used if this
+            provider updates a LTI 1.1 provider.
+
+        :returns: The found assignment or ``None`` if no assignment could be
+                  found.
+        """
+        if resource_id is None:
+            return None
+
+        def find(lti_assid_id: t.Optional[str]
+                 ) -> t.Optional['assignment_models.Assignment']:
+            return course.get_assignments().filter(
+                assignment_models.Assignment.lti_assignment_id == lti_assid_id,
+                assignment_models.Assignment.lti_assignment_id.isnot(None),
+                assignment_models.Assignment.is_lti,
+            ).one_or_none()
+
+        found_assig = find(resource_id)
+
+        if found_assig is None and self.updates_lti1p1 is not None:
+            if db.session.query(
+                CourseLTIProvider.query.filter(
+                    CourseLTIProvider.course == course,
+                    CourseLTIProvider.lti_provider == self.updates_lti1p1,
+                    CourseLTIProvider.old_connection,
+                ).exists()
+            ).scalar():
+                found_assig = find(old_resource_id)
+
+        if found_assig is not None:
+            # Make sure we always upgrade this assignment to the latest lti 1.3
+            # resource id.
+            found_assig.lti_assignment_id = resource_id
+
+        return found_assig
 
     @property
     def _private_key(self) -> rsa.RSAPrivateKeyWithSerialization:
@@ -1151,6 +1295,7 @@ class LTI1p3Provider(LTIProviderBase):
                     ),
                     email=lti_v1_3.get_email_for_user(member, self),
                     full_name=member['name'],
+                    old_lti_user_id=member.get('lti11_legacy_user_id'),
                 )
             except:  # pylint: disable=bare-except
                 logger.info('Could not add new user', exc_info=True)
@@ -1372,6 +1517,7 @@ class UserLTIProvider(Base, TimestampMixin):
         lti_user_id: str
     ) -> None:
         super().__init__()
+        self.user_id = user.id
         self.user = user
         self.lti_provider = lti_provider
         self.lti_user_id = lti_user_id
@@ -1452,6 +1598,54 @@ class UserLTIProvider(Base, TimestampMixin):
         return user, token
 
     @classmethod
+    def _maybe_migrate_lti1p1_user(
+        cls, lti_1p3_user_id: str, lti_1p1_user_id: str,
+        lti_provider: LTI1p3Provider
+    ) -> t.Optional['user_models.User']:
+        provider = lti_provider.updates_lti1p1
+        if provider is None:
+            return None
+
+        lti_user = provider.find_user(lti_1p1_user_id)
+        if lti_user is not None:
+            db.session.add(
+                cls(
+                    user=lti_user,
+                    lti_provider=lti_provider,
+                    lti_user_id=lti_1p3_user_id,
+                )
+            )
+            db.session.flush()
+
+        return lti_user
+
+    @t.overload
+    @classmethod
+    def get_or_create_user(
+        cls,
+        lti_user_id: str,
+        lti_provider: LTI1p1Provider,
+        wanted_username: t.Optional[str],
+        full_name: str,
+        email: str,
+    ) -> t.Tuple['user_models.User', t.Optional[str]]:
+        ...
+
+    @t.overload
+    @classmethod
+    def get_or_create_user(
+        cls,
+        lti_user_id: str,
+        lti_provider: LTI1p3Provider,
+        wanted_username: t.Optional[str],
+        full_name: str,
+        email: str,
+        *,
+        old_lti_user_id: t.Optional[str],
+    ) -> t.Tuple['user_models.User', t.Optional[str]]:
+        ...
+
+    @classmethod
     def get_or_create_user(
         cls,
         lti_user_id: str,
@@ -1459,6 +1653,8 @@ class UserLTIProvider(Base, TimestampMixin):
         wanted_username: t.Optional[str],
         full_name: str,
         email: str,
+        *,
+        old_lti_user_id: t.Optional[str] = None,
     ) -> t.Tuple['user_models.User', t.Optional[str]]:
         """Get or create a new user for the given LTI Provider
 
@@ -1481,6 +1677,15 @@ class UserLTIProvider(Base, TimestampMixin):
         user = None
 
         lti_user = lti_provider.find_user(lti_user_id=lti_user_id)
+
+        if lti_user is None and isinstance(lti_provider, LTI1p3Provider):
+            lti_user = cls._maybe_migrate_lti1p1_user(
+                lti_1p3_user_id=lti_user_id,
+                # According to the spec the lti 1.1 user id should **not** be
+                # specified if it is the same as the lti 1.3 user id.
+                lti_1p1_user_id=handle_none(old_lti_user_id, lti_user_id),
+                lti_provider=lti_provider,
+            )
 
         if is_logged_in and lti_user is not None and current_user == lti_user:
             logger.info('Currently logged in user is user doing launch')
@@ -1534,7 +1739,6 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
         db.Integer,
         db.ForeignKey('Course.id'),
         nullable=False,
-        unique=True,
     )
 
     lti_provider_id = db.Column(
@@ -1547,6 +1751,14 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
     lti_course_id = db.Column(
         'lti_course_id',
         db.Unicode,
+        nullable=False,
+    )
+
+    old_connection = db.Column(
+        'old_connection',
+        db.Boolean,
+        default=False,
+        server_default='false',
         nullable=False,
     )
 
@@ -1601,6 +1813,7 @@ class CourseLTIProvider(UUIDMixin, TimestampMixin, Base):
             course=course,
             lti_provider=lti_provider,
             deployment_id=deployment_id,
+            old_connection=False,
         )
 
     def can_poll_names_again(self) -> bool:

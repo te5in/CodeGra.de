@@ -14,3 +14,4 @@ omit =
     cg_threading_utils/tests/*
     cg_signals/tests/*
     cg_cache/tests/*
+    cg_helpers/tests/*
