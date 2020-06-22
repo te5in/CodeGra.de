@@ -15,8 +15,8 @@ Version *Next*
 - Add more rubric category information to the rubric analytics graphs
   `(#1383) <https://github.com/CodeGra-de/CodeGra.de/pull/1383>`__.
 - Do not automatically hide the general feedback popover after saving the
-  general feedback or interacting with the page `(#1383)
-  <https://github.com/CodeGra-de/CodeGra.de/pull/1383>`__.
+  general feedback or interacting with the page `(#1386)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1386>`__.
 
 **Fixes**
 
