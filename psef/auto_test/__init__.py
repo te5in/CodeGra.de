@@ -81,7 +81,7 @@ class UpdateResultFunction(Protocol):
         state: 'models.AutoTestStepResultState',
         log: t.Dict[str, object],
         *,
-        attachment: t.Optional[t.BinaryIO] = None
+        attachment: t.Optional[t.IO[bytes]] = None
     ) -> None:
         ...
 
@@ -2004,7 +2004,7 @@ class AutoTestRunner:
             state: models.AutoTestStepResultState,
             log: t.Dict[str, object],
             test_step: StepInstructions,
-            attachment: t.Optional[t.BinaryIO],
+            attachment: t.Optional[t.IO[bytes]],
         ) -> None:
             nonlocal step_result_id
             data = {
@@ -2053,7 +2053,7 @@ class AutoTestRunner:
                     state: models.AutoTestStepResultState,
                     log: t.Dict[str, object],
                     *,
-                    attachment: t.Optional[t.BinaryIO] = None,
+                    attachment: t.Optional[t.IO[bytes]] = None,
                     test_step: StepInstructions = test_step,
                 ) -> None:
                     return outer_update_test_result(

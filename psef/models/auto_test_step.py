@@ -891,10 +891,11 @@ class _JunitTest(AutoTestStepBase):
         _ensure_program(program)
 
     @staticmethod
-    def _get_points_from_junit(attachment: t.BinaryIO) -> float:
+    def _get_points_from_junit(attachment: t.IO[bytes]) -> float:
         try:
             junit = cg_junit.CGJunit.parse_file(attachment)
         except cg_junit.ParseError:
+            logger.error('Could not parse Junit file', exc_info=True)
             return 0
         return junit.total_success / junit.total_tests
 
@@ -907,7 +908,21 @@ class _JunitTest(AutoTestStepBase):
         data = opts.test_instructions['data']
         assert isinstance(data, dict)
 
-        xml_location = f'/tmp/.{uuid.uuid4()}'
+        xml_dir = f'/tmp/.{uuid.uuid4()}'
+        xml_location = f'{xml_dir}/{uuid.uuid4()}'
+
+        at_user = psef.auto_test.CODEGRADE_USER
+        container.run_command(
+            [
+                '/bin/bash',
+                '-c',
+                (
+                    f'mkdir "{xml_dir}" && '
+                    f'chown -R {at_user}:"$(id -gn {at_user})" "{xml_dir}" && '
+                    f'chmod 310 "{xml_dir}"'
+                ),
+            ]
+        )
 
         with container.extra_env({'CG_JUNIT_XML_LOCATION': xml_location}):
             command_res = container.run_student_command(
@@ -926,9 +941,7 @@ class _JunitTest(AutoTestStepBase):
         with tempfile.NamedTemporaryFile() as tfile:
             os.chmod(tfile.name, 0o622)
             copy_cmd = container.run_command(
-                ['cat', xml_location],
-                stdout=tfile.name,
-                check=False,
+                ['cat', xml_location], stdout=tfile.name, check=False
             )
 
             if copy_cmd != 0:

@@ -332,7 +332,7 @@
                                 <b-tab title="Test result"
                                        v-if="$utils.getProps(stepResult, null, 'attachment_id') != null">
                                     <cg-loader v-if="junitAttachment == null"
-                                               class="p-2"
+                                               class="pb-2 w-100"
                                                :scale="1"/>
                                     <junit-result v-else
                                                   :junit="junitAttachment"

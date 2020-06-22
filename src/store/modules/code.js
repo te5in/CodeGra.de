@@ -5,7 +5,7 @@ import axios from 'axios';
 import Deque from '@/utils/deque';
 import * as types from '../mutation-types';
 
-const MAX_CACHE_SIZE = 2 ** 20;
+const MAX_CACHE_SIZE = 10 * 2 ** 20;
 
 const getters = {
     getCachedCode: state => route => {
