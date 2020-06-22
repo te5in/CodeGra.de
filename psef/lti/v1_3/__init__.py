@@ -904,11 +904,15 @@ class FlaskMessageLaunch(
             this course for assignments.
         """
         resource_id = self._get_resource_id()
+        old_resource_id = self.get_launch_data().get(claims.MIGRATION, {}).get(
+            'resource_link_id', resource_id
+        )
 
-        return course.get_assignments().filter(
-            models.Assignment.lti_assignment_id == resource_id,
-            models.Assignment.lti_assignment_id.isnot(None),
-        ).one_or_none()
+        return self.get_lti_provider().find_assignment(
+            course=course,
+            resource_id=resource_id,
+            old_resource_id=old_resource_id
+        )
 
     # We don't use the @cg_override.override decorator here as this method
     # overrides one of our own classes, and I think it makes most sense if we
@@ -1250,12 +1254,14 @@ class FlaskMessageLaunch(
         full_name = launch_data['name']
         email = get_email_for_user(launch_data, self.get_lti_provider())
 
+        old_lti_user_id = launch_data.get(claims.MIGRATION, {}).get('user_id')
         user, token = models.UserLTIProvider.get_or_create_user(
             lti_user_id=launch_data['sub'],
             lti_provider=self.get_lti_provider(),
             wanted_username=custom_claims.username,
             full_name=full_name,
             email=email,
+            old_lti_user_id=old_lti_user_id,
         )
 
         updated_email = None
@@ -1276,21 +1282,23 @@ class FlaskMessageLaunch(
         deployment_id = self._get_deployment_id()
         context_claim = launch_data[claims.CONTEXT]
         course_name = context_claim['title']
+        lti_course_id = context_claim['id']
+        old_lti_course_id = launch_data.get(claims.MIGRATION, {}).get(
+            'context_id', lti_course_id
+        )
 
-        course_lti_provider = db.session.query(
-            models.CourseLTIProvider
-        ).filter(
-            models.CourseLTIProvider.deployment_id == deployment_id,
-            models.CourseLTIProvider.lti_course_id == context_claim['id'],
-            models.CourseLTIProvider.lti_provider == self.get_lti_provider(),
-        ).one_or_none()
+        course_lti_provider = self.get_lti_provider().find_course(
+            lti_course_id=lti_course_id,
+            deployment_id=deployment_id,
+            old_lti_course_id=old_lti_course_id,
+        )
 
         if course_lti_provider is None:
             course = models.Course.create_and_add(name=course_name)
             course_lti_provider = models.CourseLTIProvider.create_and_add(
                 course=course,
                 lti_provider=self.get_lti_provider(),
-                lti_context_id=context_claim['id'],
+                lti_context_id=lti_course_id,
                 deployment_id=deployment_id,
             )
             models.db.session.flush()

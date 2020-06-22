@@ -56,11 +56,13 @@ pytest --cov cg_worker_pool \
        --cov cg_threading_utils \
        --cov cg_signals \
        --cov cg_cache \
+       --cov cg_helpers \
        --cov-report term-missing \
        "$(pwd)/cg_worker_pool/tests/" \
        "$(pwd)/cg_threading_utils/tests/" \
        "$(pwd)/cg_signals/tests/" \
        "$(pwd)/cg_cache/tests/" \
+       "$(pwd)/cg_helpers/tests/" \
        -vvvv
 res1="$?"
 if [[ "$res1" -ne 0 ]]; then

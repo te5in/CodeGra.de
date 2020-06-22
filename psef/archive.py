@@ -336,7 +336,7 @@ class Archive(t.Generic[TT]):  # pylint: disable=unsubscriptable-object
                         (
                             'This file was a symbolic link to "{}" when it '
                             'was submitted, but CodeGrade does not support '
-                            'symbolic links.'
+                            'symbolic links.\n'
                         ).format(link_target),
                     )
 
