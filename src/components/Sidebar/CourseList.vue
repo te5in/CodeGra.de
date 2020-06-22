@@ -30,6 +30,7 @@
                           :key="`sorted-course-${course.id}`"
                           :course="course"
                           :current-id="currentCourse && currentCourse.id"
+                          :extra-course-data="courseExtraDataToDisplay[course.id]"
                           @open-menu="$emit('open-menu', $event)"/>
     </ul>
     <span v-else class="sidebar-list no-items-text">
@@ -67,6 +68,7 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/plus';
 
 import { cmpNoCase } from '@/utils';
+import { Counter } from '@/utils/counter';
 
 import SubmitInput from '../SubmitInput';
 import CourseListItem from './CourseListItem';
@@ -150,6 +152,28 @@ export default {
 
         currentCourse() {
             return this.courses[this.$route.params.courseId];
+        },
+
+        courseExtraDataToDisplay() {
+            const courses = this.sortedCourses;
+
+            const getNameAndYear = c => `${c.name} (${c.created_at.slice(0, 4)})`;
+
+            const courseName = new Counter(courses.map(c => c.name));
+            const courseNameAndYear = new Counter(courses.map(getNameAndYear));
+
+            return courses.reduce((acc, course) => {
+                if (courseName.getCount(course.name) > 1) {
+                    if (courseNameAndYear.getCount(getNameAndYear(course)) > 1) {
+                        acc[course.id] = course.created_at.slice(0, 10);
+                    } else {
+                        acc[course.id] = course.created_at.slice(0, 4);
+                    }
+                } else {
+                    acc[course.id] = null;
+                }
+                return acc;
+            }, {});
         },
     },
 
