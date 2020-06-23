@@ -16,7 +16,7 @@
                             {{ testCase.name }}
                         </div>
 
-                        <div v-b-popover.top.hover="`This test finished with a ${testCase.state} state.`"
+                        <div v-b-popover.top.hover="statePopover(testCase.state)"
                              class="flex-grow-0 ml-2">
                             <fa-icon :name="testCase.fontAwesomeIcon.icon"
                                      style="width: 1rem;"
@@ -49,6 +49,7 @@ import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/exclamation';
 import { Vue, Component, Prop } from 'vue-property-decorator';
+import { AssertionError } from '@/utils';
 import { CGJunit } from '@/utils/junit';
 import { Assignment } from '@/models';
 
@@ -66,6 +67,26 @@ export default class JunitResult extends Vue {
 
     @Prop({ required: true })
     assignment!: Assignment;
+
+    // eslint-disable-next-line class-methods-use-this
+    statePopover(state: string) {
+        switch (state) {
+            case 'success':
+                return 'This test passed!';
+            case 'failure':
+                return 'This test failed.';
+            case 'error':
+                return 'An error occurred while running this test...';
+            case 'skipped':
+                return 'This test was skipped.';
+            default:
+                // TODO: Remove the ts-ignore when utils/junit.js is rewritten in
+                // typescript.
+                // @ts-ignore
+                AssertionError.assertNever(state, 'Unknown state...');
+                return '';
+        }
+    }
 }
 </script>
 

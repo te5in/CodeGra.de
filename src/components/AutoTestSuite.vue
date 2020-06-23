@@ -465,7 +465,7 @@ export default {
                     name: 'junit_test',
                     title: 'Unit test',
                     color: 'rgb(247, 136, 123)',
-                    help: 'A unit test',
+                    help: 'Run a JUnit-compatible testing framework and display the results in a nice overview.',
                     meta: false,
                 },
             ];
