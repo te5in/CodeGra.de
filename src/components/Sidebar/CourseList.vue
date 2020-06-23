@@ -154,6 +154,8 @@ export default {
             return this.courses[this.$route.params.courseId];
         },
 
+        // TODO: This is duplicated from HomeGrid.vue. We should factor it out into a Course or
+        // CourseCollection model or something.
         courseExtraDataToDisplay() {
             const courses = this.sortedCourses;
 
