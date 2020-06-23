@@ -90,11 +90,17 @@ export class CGJunit {
     }
 
     static fromXml(xmlDoc) {
-        const rootNodes = xmlDoc.children;
-        if (rootNodes.length === 1 && rootNodes[0].tagName === 'testsuites') {
-            return new CGJunit(mapHTMLCollection(rootNodes[0].children, CGJunitSuite.fromXml));
-        } else {
-            return new CGJunit(mapHTMLCollection(rootNodes, CGJunitSuite.fromXml));
+        try {
+            const rootNodes = xmlDoc.children;
+            if (rootNodes.length === 1 && rootNodes[0].tagName === 'testsuites') {
+                return new CGJunit(mapHTMLCollection(rootNodes[0].children, CGJunitSuite.fromXml));
+            } else {
+                return new CGJunit(mapHTMLCollection(rootNodes, CGJunitSuite.fromXml));
+            }
+        } catch (err) {
+            const wrappedErr = new Error('Could not parse JUnit XML.');
+            wrappedErr.error = err;
+            throw wrappedErr;
         }
     }
 }

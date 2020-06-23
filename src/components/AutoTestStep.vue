@@ -297,7 +297,11 @@
             :key="resultsCollapseId"
             v-cg-toggle="resultsCollapseId">
             <td class="expand shrink">
-                <icon v-if="canViewOutput" name="chevron-down" :scale="0.75" class="caret" />
+                <template v-if="canViewOutput">
+                    <cg-loader v-if="junitAttachmentLoading" :scale="0.75" :center="false" />
+                    <icon v-else name="chevron-down" :scale="0.75" class="caret" />
+                </template>
+
                 <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
                       v-b-popover.hover.top="hiddenPopover" />
             </td>
@@ -322,18 +326,22 @@
             </td>
         </tr>
 
-        <tr v-if="canViewOutput" class="results-log-collapse-row">
+        <tr v-if="canViewOutput && !junitAttachmentLoading" class="results-log-collapse-row">
             <td :colspan="result ? 5 : 4">
-                <collapse :id="resultsCollapseId" lazy-load
+                <collapse :id="resultsCollapseId"
+                          lazy-load
                           v-model="junitCollapseClosed">
                     <div slot-scope="{}">
                         <b-card no-body>
                             <b-tabs card no-fade>
                                 <b-tab title="Results"
                                        v-if="$utils.getProps(stepResult, null, 'attachment_id') != null">
-                                    <cg-loader v-if="junitAttachment == null"
-                                               class="pb-2 w-100"
-                                               :scale="1"/>
+                                    <b-alert v-if="junitError != ''"
+                                             show
+                                             variant="danger"
+                                             class="mx-3 w-100">
+                                        {{ $utils.getErrorMessage(junitError) }}
+                                    </b-alert>
                                     <junit-result v-else
                                                   :junit="junitAttachment"
                                                   :assignment="assignment"/>
@@ -344,7 +352,7 @@
                                         <code>{{ $utils.getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
                                     </p>
 
-                                    <div class="col-12">
+                                    <div class="col-12 mb-1">
                                         <label>Output</label>
                                         <inner-code-viewer class="rounded border"
                                                            :assignment="assignment"
@@ -951,6 +959,10 @@ export default {
             type: Object,
             required: true,
         },
+        autoTest: {
+            type: Object,
+            required: true,
+        },
         value: {
             type: Object,
             required: true,
@@ -987,8 +999,11 @@ export default {
             activeIoTab: {},
             hideIgnoredPartOfDiff: {},
             getDiff: getCapturePointsDiff,
+
             junitCollapseClosed: true,
             junitAttachment: null,
+            junitAttachmentLoading: false,
+            junitError: '',
         };
     },
 
@@ -1369,11 +1384,28 @@ export default {
         },
 
         async loadJunitAttachment() {
-            const attachment = await this.storeLoadCodeFromRoute({
-                route: `/api/v1/auto_tests/0/runs/0/step_results/${this.stepResult.id}/attachment`,
+            this.junitAttachmentLoading = true;
+            this.junitError = '';
+
+            const autoTestId = this.autoTest.id;
+            const runId = this.autoTest.runs[0].id;
+            const resultId = this.stepResult.id;
+
+            this.storeLoadCodeFromRoute({
+                route: `/api/v1/auto_tests/${autoTestId}/runs/${runId}/step_results/${resultId}/attachment`,
+            }).then(attachment => {
+                const xmlDoc = new DOMParser().parseFromString(
+                    decodeBuffer(attachment),
+                    'text/xml',
+                );
+                this.junitAttachment = CGJunit.fromXml(xmlDoc);
+            }).catch(err => {
+                // TODO: Do we want a custom error message when the attachment failed to load?
+                this.junitError = err;
+            }).then(() => {
+                // TODO: check if it is the correct attachment that has been loaded.
+                this.junitAttachmentLoading = false;
             });
-            const xmlDoc = new DOMParser().parseFromString(decodeBuffer(attachment), 'text/xml');
-            this.junitAttachment = CGJunit.fromXml(xmlDoc);
         },
     },
 

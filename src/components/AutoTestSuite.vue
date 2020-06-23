@@ -67,6 +67,7 @@
                                     :index="i + 1"
                                     :test-types="stepTypes"
                                     :assignment="assignment"
+                                    :auto-test="autoTest"
                                     @delete="internalValue.removeItem(i)"
                                     editable/>
                 </SlickItem>
@@ -326,7 +327,8 @@
                             :key="step.trackingId"
                             :index="i + 1"
                             :result="result"
-                            :assignment="assignment" />
+                            :assignment="assignment"
+                            :auto-test="autoTest" />
         </table>
     </b-card>
 </div>
@@ -360,6 +362,10 @@ export default {
         },
         assignment: {
             type: Assignment,
+            required: true,
+        },
+        autoTest: {
+            type: Object,
             required: true,
         },
         otherSuites: {

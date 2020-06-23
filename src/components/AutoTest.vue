@@ -465,6 +465,7 @@
                                            :key="set.id"
                                            :value="set"
                                            :assignment="assignment"
+                                           :auto-test="test"
                                            :editable="configEditable"
                                            :result="result"
                                            :other-suites="allNonDeletedSuites" />

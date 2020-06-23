@@ -32,6 +32,7 @@
                              :editing="suite.steps.length === 0"
                              :key="suite.id"
                              :assignment="assignment"
+                             :auto-test="autoTest"
                              :other-suites="otherSuites"
                              :value="value.suites[j]"
                              :result="result"
@@ -132,6 +133,10 @@ export default {
             required: true,
         },
         assignment: {
+            type: Object,
+            required: true,
+        },
+        autoTest: {
             type: Object,
             required: true,
         },
