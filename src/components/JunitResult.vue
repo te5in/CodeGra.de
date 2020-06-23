@@ -7,8 +7,8 @@
         <masonry :cols="{ default: 2 }"
                  gutter="0.5rem">
             <div v-for="testCase in suite.cases" class="py-1">
-                <div class="border rounded p-2">
-                    <div class="d-flex flex-row">
+                <div class="border rounded overflow-hidden">
+                    <div class="d-flex flex-row p-2">
                         <div class="flex-grow-1">
                             <b-badge class="classname">
                                 <code>{{ testCase.classname }}</code>
@@ -24,9 +24,8 @@
                         </div>
                     </div>
 
-                    <div v-if="testCase.content != null" class="mt-2">
-                        <h6 class="px-1">Output</h6>
-                        <inner-code-viewer class="rounded border"
+                    <div v-if="testCase.content != null">
+                        <inner-code-viewer class="border-top"
                                            v-if="testCase.content"
                                            :assignment="assignment"
                                            :code-lines="testCase.content"
