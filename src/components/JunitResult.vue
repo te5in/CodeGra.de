@@ -18,9 +18,9 @@
 
                         <div v-b-popover.top.hover="`This test finished with a ${testCase.state} state.`"
                              class="flex-grow-0 ml-2">
-                            <icon :name="testCase.fontAwesomeIcon.icon"
-                                style="width: 1rem;"
-                                :class="testCase.fontAwesomeIcon.cls" />
+                            <fa-icon :name="testCase.fontAwesomeIcon.icon"
+                                     style="width: 1rem;"
+                                     :class="testCase.fontAwesomeIcon.cls" />
                         </div>
                     </div>
 
@@ -44,36 +44,30 @@
 </div>
 </template>
 
-<script>
-import Icon from 'vue-awesome/components/Icon';
+<script lang="ts">
+import 'vue-awesome/icons/ban';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/exclamation';
+import { Vue, Component, Prop } from 'vue-property-decorator';
 import { CGJunit } from '@/utils/junit';
 import { Assignment } from '@/models';
 
+// @ts-ignore
 import InnerCodeViewer from './InnerCodeViewer';
 
-export default {
-    name: 'junit-result',
-
-    props: {
-        junit: {
-            type: CGJunit,
-            required: true,
-        },
-
-        assignment: {
-            type: Assignment,
-            required: true,
-        },
-    },
-
+@Component({
     components: {
-        Icon,
         InnerCodeViewer,
     },
-};
+})
+export default class JunitResult extends Vue {
+    @Prop({ required: true })
+    junit!: CGJunit;
+
+    @Prop({ required: true })
+    assignment!: Assignment;
+}
 </script>
 
 <style lang="less" scoped>

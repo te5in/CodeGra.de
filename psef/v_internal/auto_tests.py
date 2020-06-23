@@ -72,7 +72,6 @@ def _verify_and_get_runner(
         )
 
     for runner in run.runners:
-        print(runner, runner.id, password)
         if not password or not runner.id or password != str(runner.id):
             continue
         elif check_ip and runner.ipaddr != request.remote_addr:

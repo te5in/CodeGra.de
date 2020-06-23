@@ -1004,7 +1004,6 @@ export default {
                 }
             },
             immediate: true,
-
         },
 
         async stepResultAttachment(newVal) {

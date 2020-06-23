@@ -902,26 +902,9 @@ def get_auto_test_result_proxy(
 def get_auto_test_step_result_attachment(
     auto_test_id: int, run_id: int, step_result_id: int
 ) -> Response:
-
-    # test = get_or_404(
-    #     models.AutoTest,
-    #     auto_test_id,
-    #     also_error=lambda at: not at.assignment.is_visible
-    # )
-    # auth.ensure_can_view_autotest(test)
-
-    # def also_error(obj: models.AutoTestStepResult) -> bool:
-    #     result = obj.result
-    #     if result.auto_test_run_id != run_id or result.run.auto_test_id != test.id:
-    #         return True
-    #     elif result.work.deleted:
-    #         return True
-    #     return False
-
     step_result = get_or_404(
         models.AutoTestStepResult,
         step_result_id,
-        # also_error=also_error,
     )
 
     auth.ensure_can_view_autotest_result(step_result.result)
