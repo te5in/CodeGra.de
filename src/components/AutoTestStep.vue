@@ -329,7 +329,7 @@
                     <div slot-scope="{}">
                         <b-card no-body>
                             <b-tabs card no-fade>
-                                <b-tab title="Test result"
+                                <b-tab title="Results"
                                        v-if="$utils.getProps(stepResult, null, 'attachment_id') != null">
                                     <cg-loader v-if="junitAttachment == null"
                                                class="pb-2 w-100"
@@ -987,7 +987,7 @@ export default {
             activeIoTab: {},
             hideIgnoredPartOfDiff: {},
             getDiff: getCapturePointsDiff,
-            junitCollapseClosed: false,
+            junitCollapseClosed: true,
             junitAttachment: null,
         };
     },
