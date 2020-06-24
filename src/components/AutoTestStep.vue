@@ -334,7 +334,7 @@
             </td>
         </tr>
 
-        <tr v-if="canViewOutput && !junitAttachmentLoading" class="results-log-collapse-row">
+        <tr v-if="canViewOutput" class="results-log-collapse-row">
             <td :colspan="result ? 5 : 4">
                 <collapse :id="resultsCollapseId"
                           lazy-load
@@ -344,7 +344,8 @@
                             <b-tabs card no-fade>
                                 <b-tab title="Results"
                                        v-if="$utils.getProps(stepResult, null, 'attachment_id') != null">
-                                    <b-alert v-if="junitError != ''"
+                                    <cg-loader v-if="junitAttachmentLoading" />
+                                    <b-alert v-else-if="junitError != ''"
                                              show
                                              variant="danger"
                                              class="mx-3 w-100">

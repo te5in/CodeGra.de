@@ -135,17 +135,10 @@ export class CGJunit {
     static fromXml(xml: string): CGJunit {
         const rootNodes = CGJunit.parseXML(xml);
 
-        try {
-            return new CGJunit(mapHTMLCollection(rootNodes, CGJunitSuite.fromXml));
-        } catch (err) {
-            const wrappedErr = new Error('Could not parse JUnit XML.');
-            // @ts-ignore
-            wrappedErr.error = err;
-            throw wrappedErr;
-        }
+        return new CGJunit(mapHTMLCollection(rootNodes, CGJunitSuite.fromXml));
     }
 
-    static parseXML(xml: string): HTMLCollection {
+    private static parseXML(xml: string): HTMLCollection {
         const xmlDoc = new DOMParser().parseFromString(decodeBuffer(xml), 'text/xml');
 
         const parserError = CGJunit.getParserError(xmlDoc);

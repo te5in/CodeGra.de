@@ -200,9 +200,6 @@ export default {
                 await this.$afterRerender();
             }
 
-            // TODO: For some reason this throws an error when expanding a
-            // JUnit test result, although I would expect the ref to always
-            // be available.
             const wrapperEl = await this.$waitForRef('content');
             const contentEl = wrapperEl.firstChild;
             const wrapperHeight = this.getHeight(wrapperEl);
