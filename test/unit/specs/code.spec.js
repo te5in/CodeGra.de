@@ -18,8 +18,8 @@ describe('loading code', () => {
     let buf2;
 
     beforeEach(() => {
-        buf1 = fillBuf(new ArrayBuffer(10000));
-        buf2 = fillBuf(new ArrayBuffer(50000));
+        buf1 = fillBuf(new ArrayBuffer(100000));
+        buf2 = fillBuf(new ArrayBuffer(500000));
         mockAxiosGet.mockReset();
         store.commit(`code/${types.CLEAR_CODE_CACHE}`, null, { root: true });
     });
@@ -71,23 +71,27 @@ describe('loading code', () => {
     });
 
     it('should not cache very large objects', async () => {
-        mockAxiosGet.mockReturnValueOnce(Promise.resolve({ data: buf2 }));
+        mockAxiosGet.mockReturnValueOnce(Promise.resolve({ data: buf1 }));
         await store.dispatch('code/loadCode', -1);
-        mockAxiosGet.mockReturnValue(Promise.resolve({ data: fillBuf(new ArrayBuffer(2 ** 26)) }));
+        mockAxiosGet.mockReturnValue(Promise.resolve({ data: fillBuf(new ArrayBuffer(2 ** 30)) }));
         await store.dispatch('code/loadCode', 1);
+
+        console.log(store.state.code.cacheMap);
+        console.log(store.state.code.cacheMap[-1]);
+        console.log(store.state.code.cacheMap[1]);
 
         expect(mockAxiosGet).toBeCalledTimes(2);
 
         mockAxiosGet.mockClear();
 
-        expect(store.getters['code/getCachedCode'](1)).toBeNull();
+        expect(store.getters['code/getCachedCode']('/api/v1/code/1')).toBeNull();
         expect(mockAxiosGet).toBeCalledTimes(0);
         await store.dispatch('code/loadCode', 1);
         expect(mockAxiosGet).toBeCalledTimes(1);
 
         // The old one should still be in the cache
         mockAxiosGet.mockClear();
-        expect(store.getters['code/getCachedCode'](-1)).toEqual(buf2);
+        expect(store.getters['code/getCachedCode']('/api/v1/code/-1')).toEqual(buf1);
         await store.dispatch('code/loadCode', -1);
         expect(mockAxiosGet).toBeCalledTimes(0);
     });
@@ -97,7 +101,7 @@ describe('loading code', () => {
 
         mockAxiosGet.mockReturnValueOnce(Promise.resolve({ data: buf2 }));
         await store.dispatch('code/loadCode', -1);
-        mockAxiosGet.mockReturnValue(Promise.resolve({ data: fillBuf(new ArrayBuffer(2 ** 22)) }));
+        mockAxiosGet.mockReturnValue(Promise.resolve({ data: fillBuf(new ArrayBuffer(2 ** 26)) }));
 
         for (let i = 0; i < amount; ++i) {
             await store.dispatch('code/loadCode', i + 1);
@@ -108,11 +112,11 @@ describe('loading code', () => {
         mockAxiosGet.mockClear();
 
         // Oldest large one should not be in the cache anymore
-        expect(store.getters['code/getCachedCode'](1)).toBeNull();
+        expect(store.getters['code/getCachedCode']('/api/v1/code/1')).toBeNull();
         expect(mockAxiosGet).toBeCalledTimes(0);
 
         // The oldest very small one should
-        expect(store.getters['code/getCachedCode'](-1)).toEqual(buf2);
+        expect(store.getters['code/getCachedCode']('/api/v1/code/-1')).toEqual(buf2);
         await store.dispatch('code/loadCode', -1);
         expect(mockAxiosGet).toBeCalledTimes(0);
     });
