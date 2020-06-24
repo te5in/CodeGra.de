@@ -6,6 +6,14 @@ Version *Next*
 
 **Released**: TBD
 
+**Features**
+
+- Add "Unit Test" AutoTest step `(#1385)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1385>`__. This new AutoTest
+  step type supports all testing frameworks that can output their results the
+  JUnit XML format. The results are shown to the student  in an intuitive
+  overview.
+
 **Updates**
 
 - Automatically focus the percentage input in continuous rubric rows
