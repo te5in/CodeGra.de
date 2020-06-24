@@ -1040,6 +1040,10 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         return self.step.get_amount_achieved_points(self)
 
     def update_attachment(self, stream: FileStorage) -> None:
+        """Update the attachment of this step.
+
+        :param stream: Attachment data.
+        """
         assert self.step.SUPPORTS_ATTACHMENT
 
         old_filename = self.attachment_filename

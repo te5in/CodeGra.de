@@ -689,6 +689,12 @@ def random_file_path(use_mirror_dir: bool = False) -> t.Tuple[str, str]:
 
 
 def save_stream(stream: FileStorage) -> str:
+    """Save the data from a stream to a new random filepath in the upload
+    directory.
+
+    :param stream: The stream to be saved.
+    :returns: The path where the data is stored.
+    """
     new_file_name, filename = random_file_path()
     stream.save(new_file_name)
     if get_file_size(new_file_name) > app.max_single_file_size:

@@ -902,6 +902,13 @@ def get_auto_test_result_proxy(
 def get_auto_test_step_result_attachment(
     auto_test_id: int, run_id: int, step_result_id: int
 ) -> Response:
+    """Get the attachment of an AutoTest step.
+
+    :param auto_test_id: The id of the AutoTest in which the result is located.
+    :param run_id: The id of run in which the result is located.
+    :param step_result_id: The id of the step result of which you want the attachment.
+    :returns: The attachment data.
+    """
     test = get_or_404(
         models.AutoTest,
         auto_test_id,
