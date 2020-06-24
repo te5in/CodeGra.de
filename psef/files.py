@@ -705,7 +705,6 @@ def save_stream(stream: FileStorage) -> str:
     return filename
 
 
-
 def process_files(
     files: t.MutableSequence[FileStorage],
     max_size: archive.FileSize,
