@@ -348,7 +348,7 @@
                                              show
                                              variant="danger"
                                              class="mx-3 w-100">
-                                        {{ $utils.getErrorMessage(junitError) }}
+                                        Failed to parse JUnit XML.
                                     </b-alert>
                                     <junit-result v-else
                                                   :junit="junitAttachment"
@@ -946,10 +946,8 @@ import 'vue-awesome/icons/ban';
 
 import { visualizeWhitespace } from '@/utils/visualize';
 import { getCapturePointsDiff } from '@/utils/diff';
-import decodeBuffer from '@/utils/decode';
 import { CGJunit } from '@/utils/junit';
 import { mapGetters, mapActions } from 'vuex';
-
 
 import Collapse from './Collapse';
 import SubmitButton from './SubmitButton';
@@ -1402,13 +1400,8 @@ export default {
             this.storeLoadCodeFromRoute({
                 route: `/api/v1/auto_tests/${autoTestId}/runs/${runId}/step_results/${resultId}/attachment`,
             }).then(attachment => {
-                const xmlDoc = new DOMParser().parseFromString(
-                    decodeBuffer(attachment),
-                    'text/xml',
-                );
-                this.junitAttachment = CGJunit.fromXml(xmlDoc);
+                this.junitAttachment = CGJunit.fromXml(attachment);
             }).catch(err => {
-                // TODO: Do we want a custom error message when the attachment failed to load?
                 this.junitError = err;
             }).then(() => {
                 // TODO: check if it is the correct attachment that has been loaded.

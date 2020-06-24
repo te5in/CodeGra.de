@@ -48,8 +48,8 @@ import 'vue-awesome/icons/ban';
 import 'vue-awesome/icons/check';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/exclamation';
+import 'vue-awesome/icons/question';
 import { Vue, Component, Prop } from 'vue-property-decorator';
-import { AssertionError } from '@/utils';
 import { CGJunit } from '@/utils/junit';
 import { Assignment } from '@/models';
 
@@ -80,11 +80,7 @@ export default class JunitResult extends Vue {
             case 'skipped':
                 return 'This test was skipped.';
             default:
-                // TODO: Remove the ts-ignore when utils/junit.js is rewritten in
-                // typescript.
-                // @ts-ignore
-                AssertionError.assertNever(state, 'Unknown state...');
-                return '';
+                return 'The testing framework returned an unknown state.';
         }
     }
 }
