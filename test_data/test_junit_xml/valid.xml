@@ -1,0 +1,1237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="583" failures="3" time="40.728">
+  <testsuite name="PlagiarismRunner.vue" errors="0" failures="1" skipped="0" timestamp="2020-06-19T12:45:09" time="16.289" tests="13">
+    <testcase classname="PlagiarismRunner.vue canGoToOverview" name="should be a function" time="0.165">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue canGoToOverview" name="should work" time="0.06">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue setOption" name="should copy old selectedOptions" time="0.051">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue setOption" name="should work" time="0.054">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue translateOption" name="should be a function" time="0.076">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue translateOption" name="should work for special cases" time="0.074">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue translateOption" name="should work for normal options" time="0.084">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue translateOption" name="should work when provider is not found" time="0.064">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue runPlagiarismChecker" name="should be a function" time="0.056">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue runPlagiarismChecker" name="should work in the most simple case" time="0.2">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue runPlagiarismChecker" name="should work in with base code and old submissions" time="0.156">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue load providers" name="should work with multiple providers" time="0.059">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue load providers" name="should work with a single provider" time="0.133">
+    </testcase>
+  </testsuite>
+  <testsuite name="Workspace" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:08" time="17.982" tests="136">
+    <testcase classname="Workspace fromServerData" name="should throw an error when not passed the correct sources" time="0.095">
+    </testcase>
+    <testcase classname="Workspace fromServerData" name="should throw an error when an unknown data source name was given" time="0.006">
+    </testcase>
+    <testcase classname="Workspace fromServerData" name="should throw an error when the data source name does not match the data source" time="0.007">
+    </testcase>
+    <testcase classname="Workspace fromServerData" name="should create a WorkspaceSubmissionSet from the received submissions" time="0.009">
+    </testcase>
+    <testcase classname="Workspace fromServerData" name="should create a subclass of DataSource for each source" time="0.018">
+    </testcase>
+    <testcase classname="Workspace constructor" name="should return a frozen object" time="0.004">
+    </testcase>
+    <testcase classname="Workspace constructor" name="should create an unfrozen dataSources prop" time="0.006">
+    </testcase>
+    <testcase classname="Workspace _setSources" name="should copy the given props to the dataSources prop" time="0.008">
+    </testcase>
+    <testcase classname="Workspace _setSources" name="should freeze the dataSources prop" time="0.005">
+    </testcase>
+    <testcase classname="Workspace _setSources" name="should throw an error if called twice" time="0.007">
+    </testcase>
+    <testcase classname="Workspace hasSource" name="should return true if the requested source is available" time="0.004">
+    </testcase>
+    <testcase classname="Workspace hasSource" name="should return false if the requested source is not available" time="0.004">
+    </testcase>
+    <testcase classname="Workspace hasSource" name="should return false on invalid input" time="0.005">
+    </testcase>
+    <testcase classname="Workspace getSource" name="should return the source if the requested source is available" time="0.004">
+    </testcase>
+    <testcase classname="Workspace getSource" name="should return undefined if the requested source is not available" time="0.003">
+    </testcase>
+    <testcase classname="Workspace getSource" name="should return undefined on invalid input" time="0.005">
+    </testcase>
+    <testcase classname="Workspace filter" name="should return a WorkspaceFilterResult for each passed filter" time="0.007">
+    </testcase>
+    <testcase classname="WorkspaceFilter constructor" name="should return a frozen object" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter constructor" name="should throw when an invalid filter key is passed" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter constructor" name="should accept a subset of the valid filter keys" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter constructor" name="should use sensible defaults for omitted filter keys" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter constructor" name="should convert dates to moments" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter constructor" name="should use null if an invalid number is passed" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter constructor" name="should use null if an invalid date is passed" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter emptyFilter" name="should return the default filter" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter update" name="should return a new object" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter update" name="should update the given property" time="0.009">
+    </testcase>
+    <testcase classname="WorkspaceFilter split" name="should do nothing if splitting on nothing" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on latest" name="should return two new filters" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on latest" name="should put the latest submissions in the second group" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on grade" name="should return two new filters" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on grade" name="should put the lower grades in the first group" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on grade" name="should throw an error when the grade is greater than the filter minGrade" time="0.005">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on grade" name="should throw an error when the date is after the filter submittedBefore" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on date" name="should return two new filters" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on date" name="should put the earlier dates in the first group" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on date" name="should throw an error when the date is before the filter submittedAfter" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on date" name="should throw an error when the date is after the filter submittedBefore" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on assignees" name="should return a new filter for each given assignee" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on assignees" name="should order the filters in the order the assignees were given" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on multiple filters" name="should return the cartesian product of all possible splits" time="0.005">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on multiple filters latest" name="should apply onlySplitLatest to half of the filters if selected" time="0.005">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on multiple filters latest" name="should keep the filter latest if not selected" time="0.006">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on multiple filters grade" name="should apply maxGrade to half the filters and minGrade to the other half if selected" time="0.005">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on multiple filters grade" name="should keep the filter min and max grade if not selected" time="0.007">
+    </testcase>
+    <testcase classname="WorkspaceFilter serialize" name="should convert moments to strings" time="0.006">
+    </testcase>
+    <testcase classname="WorkspaceFilter serialize" name="should convert assignees to their ids" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter serialize" name="should not include default values" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilterResult constructor" name="should return a frozen object" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilterResult constructor" name="should keep a reference to the workspace" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilterResult constructor" name="should keep a reference to the filter" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilterResult constructor" name="should filter the workspace submissions" time="0.007">
+    </testcase>
+    <testcase classname="WorkspaceFilterResult constructor" name="should filter each data source" time="0.007">
+    </testcase>
+    <testcase classname="WorkspaceFilterResult getSource" name="should return the requested source if it is available" time="0.005">
+    </testcase>
+    <testcase classname="WorkspaceFilterResult getSource" name="should return undefined if the requested source is not available" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet fromServerData" name="should convert the given submissions to instances of WorkspaceSubmission" time="0.008">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet constructor" name="should return a frozen object" time="0.006">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet constructor" name="should freeze the submission data" time="0.011">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet allSubmissions" name="should return a list of all submissions" time="0.018">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet allSubmissions" name="should return the empty list if there are no submissions" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet firstSubmissionDate" name="should return the date of the first submission in the set" time="0.005">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet firstSubmissionDate" name="should return null if there are no submissions" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet lastSubmissionDate" name="should return the date of the last submission in the set" time="0.005">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet lastSubmissionDate" name="should return null if there are no submissions" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet binSubmissionsByGrade" name="should return a defaultdict with bin index as keys and lists of submissions as values" time="0.005">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet binSubmissionsByGrade" name="should accept a bin size" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet binSubmissionsByGrade" name="should round down to a multiple of the bin size" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet binSubmissionsByGrade" name="should return an empty dict if there are no submissions" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionCount" name="should return the total number of submissions" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionCount" name="should work even if there are no submissions" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionCount" name="should count submissions with grade null" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet studentCount" name="should return the total number of students" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet studentCount" name="should work even if there are no submissions" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet studentCount" name="should include students without submissions" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet gradeStats" name="should return the various averages over all grades" time="0.007">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet gradeStats" name="should return 0 stdev when there is just one submission" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet gradeStats" name="should return null when there are no submissions" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionStats" name="should return the various averages over number of submissions per student" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionStats" name="should return 0 stdev when there is just one submission" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionStats" name="should return null when there are no submissions" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionsPerStudent" name="should return the number of submissions per student" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionsPerStudent" name="should not count students without submissions" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet filter" name="should return a new WorkspaceSubmissionSet" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet filter" name="should only return submissions that satisfy the given filter" time="0.007">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet filter" name="should leave the empty set empty" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission fromServerData" name="should create a createdAt property which is a moment instance" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission constructor" name="should return a frozen object" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesGrade" name="should ignore arguments that are null" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesGrade" name="should return false for submissions without a grade if one of the arguments is not null" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesGrade" name="should return true if minGrade is less than the submission grade" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesGrade" name="should return false if minGrade is greater than the submission grade" time="0.005">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesGrade" name="should return true if maxGrade is greater than the submission grade" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesGrade" name="should return false if maxGrade is less than the submission grade" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesDate" name="should ignore arguments that are null" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesDate" name="should return true if submittedAfter is before the submission date" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesDate" name="should return false if submittedAfter is before the submission date" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesDate" name="should return true if submittedBefore is after the submission date" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesDate" name="should return false if submittedBefore is before the submission date" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesAssignees" name="should return true if no assignees are given" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesAssignees" name="should return true if any of the given assignees matches the submission assignee" time="0.003">
+    </testcase>
+    <testcase classname="DataSource fromServerData" name="should throw an error if the source name does not match the class name" time="0.004">
+    </testcase>
+    <testcase classname="DataSource fromServerData" name="should throw an error if the data source does not have a data prop" time="0.004">
+    </testcase>
+    <testcase classname="DataSource fromServerData" name="should return an instance of the correct subclass" time="0.003">
+    </testcase>
+    <testcase classname="DataSource constructor" name="should throw an error if called directly" time="0.003">
+    </testcase>
+    <testcase classname="DataSource constructor" name="should freeze the data it has been given" time="0.003">
+    </testcase>
+    <testcase classname="DataSource filter" name="should return a new instance of the data source with only the filtered data" time="0.003">
+    </testcase>
+    <testcase classname="RubricSource constructor" name="should return a frozen object" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource constructor" name="should throw if the assignment does not have a rubric" time="0.005">
+    </testcase>
+    <testcase classname="RubricSource constructor" name="should calculate per item the exact amount of achieved points" time="0.007">
+    </testcase>
+    <testcase classname="RubricSource rubricItems" name="should return a mapping from item id to item" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource rubricRowPerItem" name="should return a mapping from item id to rubric row" time="0.008">
+    </testcase>
+    <testcase classname="RubricSource itemsPerCat" name="should return a mapping from rubric row id to the achieved items in that row" time="0.006">
+    </testcase>
+    <testcase classname="RubricSource nTimesFilledPerCat" name="should return a mapping from rubric row id to the number of times that row was filled" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource meanPerCat" name="should return the mean per category" time="0.005">
+    </testcase>
+    <testcase classname="RubricSource meanPerCat" name="should return null if the row was never filled" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource stdevPerCat" name="should return the standard deviation per category" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource stdevPerCat" name="should return 0 if a row is filled only once" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource stdevPerCat" name="should return null if the row was never filled" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource medianPerCat" name="should return the median per category" time="0.005">
+    </testcase>
+    <testcase classname="RubricSource medianPerCat" name="should return null if the row was never filled" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource modePerCat" name="should return the mode per category" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource modePerCat" name="should return null if the row was never filled" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource scorePerCatPerSubmission" name="should return a list of mappings from row id to score per submission" time="0.005">
+    </testcase>
+    <testcase classname="RubricSource totalScorePerSubmission" name="should return a mapping from submission id to their total score on the rubric" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource ritItemsPerCat" name="should return a list of pairs (item score, total score) per category" time="0.005">
+    </testcase>
+    <testcase classname="RubricSource rirItemsPerCat" name="should return a list of pairs (item score, reduced score) per category" time="0.005">
+    </testcase>
+    <testcase classname="RubricSource ritPerCat" name="should return the rit value per category" time="0.005">
+    </testcase>
+    <testcase classname="RubricSource ritPerCat" name="should return null if the row was filled less than 2 times" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource ritPerCat" name="should return null if all students scored the same in a category" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource rirPerCat" name="should return the rir value per category" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource rirPerCat" name="should return null if the row was filled less than 2 times" time="0.008">
+    </testcase>
+    <testcase classname="RubricSource rirPerCat" name="should return null if all students scored the same in a category" time="0.006">
+    </testcase>
+    <testcase classname="InlineFeedbackSource constructor" name="should return a frozen object" time="0.006">
+    </testcase>
+    <testcase classname="InlineFeedbackSource entryStats" name="should return the various averages over the number of feedback entries per submission" time="0.006">
+    </testcase>
+    <testcase classname="InlineFeedbackSource entryStats" name="should return 0 stdev when there is just one submission" time="0.006">
+    </testcase>
+    <testcase classname="InlineFeedbackSource entryStats" name="should return null when there are no submissions" time="0.005">
+    </testcase>
+  </testsuite>
+  <testsuite name="assignment model" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:26" time="0.369" tests="29">
+    <testcase classname="assignment model canSeeGrade" name="should return false when the assignment state is hidden and you don&apos;t have permission can_see_grade_before_open" time="0.003">
+    </testcase>
+    <testcase classname="assignment model canSeeGrade" name="should return false when the assignment state is submitting and you don&apos;t have permission can_see_grade_before_open" time="0.002">
+    </testcase>
+    <testcase classname="assignment model canSeeGrade" name="should return false when the assignment state is grading and you don&apos;t have permission can_see_grade_before_open" time="0.003">
+    </testcase>
+    <testcase classname="assignment model canSeeGrade" name="should return false when the assignment state is open and you don&apos;t have permission can_see_grade_before_open" time="0.001">
+    </testcase>
+    <testcase classname="assignment model canSeeGrade" name="should return true when the assignment state is done" time="0.002">
+    </testcase>
+    <testcase classname="assignment model canSeeGrade" name="should return true when you have the permission can_see_grade_before_open for every state" time="0.002">
+    </testcase>
+    <testcase classname="assignment model canSeeGrade" name="should return true when you have the permission can_see_grade_before_open for every state" time="0.002">
+    </testcase>
+    <testcase classname="assignment model canSeeGrade" name="should return true when you have the permission can_see_grade_before_open for every state" time="0.002">
+    </testcase>
+    <testcase classname="assignment model canSeeGrade" name="should return true when you have the permission can_see_grade_before_open for every state" time="0.001">
+    </testcase>
+    <testcase classname="assignment model canSubmitWork" name="should return false when you cannot submit work" time="0.002">
+    </testcase>
+    <testcase classname="assignment model canSubmitWork" name="should return true when the assignment is hidden" time="0.008">
+    </testcase>
+    <testcase classname="assignment model canSubmitWork" name="should return true when the assignment is hidden" time="0.006">
+    </testcase>
+    <testcase classname="assignment model canSubmitWork" name="should return false when the deadline has passed and you do not have permission to submit after the deadline" time="0.006">
+    </testcase>
+    <testcase classname="assignment model canSubmitWork" name="should return true when you can submit work, the assignment is not hidden, and the deadline has not passed" time="0.001">
+    </testcase>
+    <testcase classname="assignment model deadlinePassed" name="should return true (false) when the deadline has (not) passed" time="0.002">
+    </testcase>
+    <testcase classname="assignment model deadlinePassed" name="should return true (false) when the deadline has (not) passed" time="0.002">
+    </testcase>
+    <testcase classname="assignment model deadlinePassed" name="should return true (false) when the deadline has (not) passed" time="0.001">
+    </testcase>
+    <testcase classname="assignment model deadlinePassed" name="should return true (false) when the deadline has (not) passed" time="0.001">
+    </testcase>
+    <testcase classname="assignment model deadlinePassed" name="should return true (false) when the deadline has (not) passed" time="0.002">
+    </testcase>
+    <testcase classname="assignment model deadlinePassed" name="should return true (false) when the deadline has (not) passed" time="0.002">
+    </testcase>
+    <testcase classname="assignment model deadlinePassed" name="should return true (false) when the deadline has (not) passed" time="0.001">
+    </testcase>
+    <testcase classname="assignment model deadlinePassed" name="should return true (false) when the deadline has (not) passed" time="0.001">
+    </testcase>
+    <testcase classname="assignment model deadlinePassed" name="should return true (false) when the deadline has (not) passed" time="0.002">
+    </testcase>
+    <testcase classname="assignment model deadlinePassed" name="should return true (false) when the deadline has (not) passed" time="0.001">
+    </testcase>
+    <testcase classname="assignment model maxGrade" name="should return the value if it is set" time="0.001">
+    </testcase>
+    <testcase classname="assignment model maxGrade" name="should default to 10" time="0.001">
+    </testcase>
+    <testcase classname="assignment model getFormattedDeadline" name="should return the value if it is set" time="0.003">
+    </testcase>
+    <testcase classname="assignment model getFormattedDeadline" name="should default to null" time="0.001">
+    </testcase>
+    <testcase classname="assignment model getFormattedCreatedAt" name="should return always return a value" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="SnippetManager.vue" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:27" time="1.078" tests="10">
+    <testcase classname="SnippetManager.vue" name="should not be null" time="0.08">
+    </testcase>
+    <testcase classname="SnippetManager.vue saveSnippets" name="should add the snippet to the store snippets and to the end of filteredSnippets" time="0.077">
+    </testcase>
+    <testcase classname="SnippetManager.vue saveSnippets" name="should not do a request if the snippet has not changed" time="0.055">
+    </testcase>
+    <testcase classname="SnippetManager.vue saveSnippets" name="should fail when the key is empty" time="0.062">
+    </testcase>
+    <testcase classname="SnippetManager.vue saveSnippets" name="should fail when the key contains whitespace" time="0.049">
+    </testcase>
+    <testcase classname="SnippetManager.vue saveSnippets" name="should fail when the value is empty" time="0.052">
+    </testcase>
+    <testcase classname="SnippetManager.vue deleteSnippet" name="it should remove the snippet from the store and from filteredSnippets" time="0.057">
+    </testcase>
+    <testcase classname="SnippetManager.vue filteredSnippets" name="should be sorted and contain all snippets in the store" time="0.036">
+    </testcase>
+    <testcase classname="SnippetManager.vue filter" name="should filter by key" time="0.038">
+    </testcase>
+    <testcase classname="SnippetManager.vue filter" name="should filter by key" time="0.033">
+    </testcase>
+  </testsuite>
+  <testsuite name="SubmitButton.vue" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:25" time="3.394" tests="8">
+    <testcase classname="SubmitButton.vue the button state" name="should be &quot;default&quot; by default" time="0.051">
+    </testcase>
+    <testcase classname="SubmitButton.vue the button state" name="should be &quot;pending&quot; right after starting a request" time="0.09">
+    </testcase>
+    <testcase classname="SubmitButton.vue the button state" name="should be &quot;success&quot; after a successful request" time="1.286">
+    </testcase>
+    <testcase classname="SubmitButton.vue the button state" name="should be &quot;warning&quot; after a request returns a warning" time="0.257">
+    </testcase>
+    <testcase classname="SubmitButton.vue the button state" name="should be &quot;error&quot; after a failed request" time="0.251">
+    </testcase>
+    <testcase classname="SubmitButton.vue the confirm popover" name="should delay triggering of the submit action" time="0.781">
+    </testcase>
+    <testcase classname="SubmitButton.vue the confirm popover" name="should trigger submission after it has been confirmed" time="0.098">
+    </testcase>
+    <testcase classname="SubmitButton.vue the confirm popover" name="should reset when it has been cancelled" time="0.19">
+    </testcase>
+  </testsuite>
+  <testsuite name="diffCode in DiffViewer.vue" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:28" time="0.879" tests="10">
+    <testcase classname="diffCode in DiffViewer.vue" name="should be a function" time="0.001">
+    </testcase>
+    <testcase classname="diffCode in DiffViewer.vue" name="should work with equal text" time="0.02">
+    </testcase>
+    <testcase classname="diffCode in DiffViewer.vue" name="should work with only deleted code" time="0.006">
+    </testcase>
+    <testcase classname="diffCode in DiffViewer.vue" name="should work with only added code" time="0.003">
+    </testcase>
+    <testcase classname="diffCode in DiffViewer.vue" name="should work with more edits" time="0.006">
+    </testcase>
+    <testcase classname="diffCode in DiffViewer.vue" name="should work with trailing whitespace" time="0.005">
+    </testcase>
+    <testcase classname="diffCode in DiffViewer.vue" name="should work with only whitespace" time="0.005">
+    </testcase>
+    <testcase classname="changedParts in DiffViewer.vue" name="should work for empty files" time="0.002">
+    </testcase>
+    <testcase classname="changedParts in DiffViewer.vue" name="should work for multiple diffs" time="0.018">
+    </testcase>
+    <testcase classname="changedParts in DiffViewer.vue" name="should have computed property" time="0.003">
+    </testcase>
+  </testsuite>
+  <testsuite name="utils.js" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:28" time="0.991" tests="153">
+    <testcase classname="utils.js range" name="should work for zero length" time="0.002">
+    </testcase>
+    <testcase classname="utils.js range" name="should work for non zero length" time="0.002">
+    </testcase>
+    <testcase classname="utils.js range" name="should work for without begin" time="0.001">
+    </testcase>
+    <testcase classname="utils.js range" name="should return an empty list when end is less than start" time="0.001">
+    </testcase>
+    <testcase classname="utils.js last" name="should return a reference to the last item of the array" time="0.002">
+    </testcase>
+    <testcase classname="utils.js isDecimalNumber" name="should accept numbers" time="0.003">
+    </testcase>
+    <testcase classname="utils.js isDecimalNumber" name="should only accept numbers and strings" time="0.006">
+    </testcase>
+    <testcase classname="utils.js isDecimalNumber" name="should work for some strings" time="0.007">
+    </testcase>
+    <testcase classname="utils.js formatGrade" name="should work with normal numbers" time="0.002">
+    </testcase>
+    <testcase classname="utils.js formatGrade" name="should work with string numbers" time="0.001">
+    </testcase>
+    <testcase classname="utils.js formatGrade" name="zero should return a string" time="0">
+    </testcase>
+    <testcase classname="utils.js formatGrade" name="non floats should return null" time="0">
+    </testcase>
+    <testcase classname="utils.js cmpOneNull" name="should work with all permutations" time="0.002">
+    </testcase>
+    <testcase classname="utils.js hashString" name="should be a number" time="0.001">
+    </testcase>
+    <testcase classname="utils.js hashString" name="should be different for different strings" time="0">
+    </testcase>
+    <testcase classname="utils.js hashString" name="should work for empty strings" time="0.001">
+    </testcase>
+    <testcase classname="utils.js getExtension" name="should work" time="0.001">
+    </testcase>
+    <testcase classname="utils.js waitAtLeast" name="should work with one Promise" time="0.002">
+    </testcase>
+    <testcase classname="utils.js waitAtLeast" name="should work with multiple Promises" time="0.001">
+    </testcase>
+    <testcase classname="utils.js waitAtLeast" name="longest time should be used" time="0.001">
+    </testcase>
+    <testcase classname="utils.js highlightCode" name="should work without a language" time="0.003">
+    </testcase>
+    <testcase classname="utils.js highlightCode" name="should work for very large arrays" time="0.002">
+    </testcase>
+    <testcase classname="utils.js highlightCode" name="should work with a language" time="0.002">
+    </testcase>
+    <testcase classname="utils.js nameOfUser" name="should work for normal users" time="0">
+    </testcase>
+    <testcase classname="utils.js nameOfUser" name="should work for groups" time="0.001">
+    </testcase>
+    <testcase classname="utils.js nameOfUser" name="should work for empty objects" time="0.001">
+    </testcase>
+    <testcase classname="utils.js nameOfUser" name="should the `readableName` property if available" time="0">
+    </testcase>
+    <testcase classname="utils.js groupMembers" name="should work for normal users" time="0.001">
+    </testcase>
+    <testcase classname="utils.js groupMembers" name="should work for groups" time="0">
+    </testcase>
+    <testcase classname="utils.js groupMembers" name="should work for empty objects" time="0.001">
+    </testcase>
+    <testcase classname="utils.js autoTestHasCheckpointAfterHiddenStep" name="should return false when the test has no checkpoints" time="0.001">
+    </testcase>
+    <testcase classname="utils.js autoTestHasCheckpointAfterHiddenStep" name="should return false when the test has no hidden steps but does contain check_points steps" time="0.001">
+    </testcase>
+    <testcase classname="utils.js autoTestHasCheckpointAfterHiddenStep" name="should return false when the test has no hidden steps but does contain set checkpoints" time="0.006">
+    </testcase>
+    <testcase classname="utils.js autoTestHasCheckpointAfterHiddenStep" name="should return false when all check_points steps occur before the first hidden step in the same suite" time="0.001">
+    </testcase>
+    <testcase classname="utils.js autoTestHasCheckpointAfterHiddenStep" name="should return false when a check_points step occurs after a suite with hidden steps" time="0">
+    </testcase>
+    <testcase classname="utils.js autoTestHasCheckpointAfterHiddenStep" name="should return false when all set checkpoints occur before the first hidden step" time="0.001">
+    </testcase>
+    <testcase classname="utils.js autoTestHasCheckpointAfterHiddenStep" name="should return false when a set checkpoint of the only set happens after hidden steps" time="0">
+    </testcase>
+    <testcase classname="utils.js autoTestHasCheckpointAfterHiddenStep" name="should return false when a set checkpoint of the last set happens after hidden steps in a previous set" time="0.001">
+    </testcase>
+    <testcase classname="utils.js autoTestHasCheckpointAfterHiddenStep" name="should return false when a set checkpoint of the last set happens after hidden steps in the same set" time="0.001">
+    </testcase>
+    <testcase classname="utils.js autoTestHasCheckpointAfterHiddenStep" name="should return true when a check_points step happens after hidden steps in the same suite" time="0">
+    </testcase>
+    <testcase classname="utils.js autoTestHasCheckpointAfterHiddenStep" name="should return true when a set checkpoint happens after hidden steps" time="0.001">
+    </testcase>
+    <testcase classname="utils.js safeDivide" name="should work when both are not 0" time="0.001">
+    </testcase>
+    <testcase classname="utils.js safeDivide" name="should work when both are 0" time="0">
+    </testcase>
+    <testcase classname="utils.js safeDivide" name="should work when one is 0" time="0.001">
+    </testcase>
+    <testcase classname="utils.js WarningHeader .fromWarningStr" name="should work for simple single warnings" time="0.001">
+    </testcase>
+    <testcase classname="utils.js WarningHeader .fromWarningStr" name="should work for multiple simple warnings" time="0.001">
+    </testcase>
+    <testcase classname="utils.js WarningHeader .fromWarningStr" name="should work for difficult warnings" time="0">
+    </testcase>
+    <testcase classname="utils.js WarningHeader .fromWarningStr" name="should return the same if passed a WarningHeader" time="0">
+    </testcase>
+    <testcase classname="utils.js WarningHeader .fromResponse" name="should work when passed null" time="0.001">
+    </testcase>
+    <testcase classname="utils.js WarningHeader .fromResponse" name="should work when a response" time="0">
+    </testcase>
+    <testcase classname="utils.js WarningHeader .merge" name="should work when passed a string" time="0.001">
+    </testcase>
+    <testcase classname="utils.js WarningHeader .merge" name="should work when passed a WarningHeader" time="0.001">
+    </testcase>
+    <testcase classname="utils.js WarningHeader .merge" name="should work when passed a response" time="0">
+    </testcase>
+    <testcase classname="utils.js WarningHeader .merge" name="should create a new object every time" time="0.001">
+    </testcase>
+    <testcase classname="utils.js setProps" name="should work when the key is not there yet" time="0.001">
+    </testcase>
+    <testcase classname="utils.js setProps" name="should work when a part of the path is there" time="0.001">
+    </testcase>
+    <testcase classname="utils.js setProps" name="should throw when the given object is null" time="0.036">
+    </testcase>
+    <testcase classname="utils.js coerceToString" name="should work for strings" time="0.001">
+    </testcase>
+    <testcase classname="utils.js coerceToString" name="should work for null" time="0">
+    </testcase>
+    <testcase classname="utils.js coerceToString" name="should work for objects" time="0.001">
+    </testcase>
+    <testcase classname="utils.js coerceToString" name="should work for numbers" time="0.002">
+    </testcase>
+    <testcase classname="utils.js getNoNull" name="should work when it is in the first obj" time="0">
+    </testcase>
+    <testcase classname="utils.js getNoNull" name="should work when it is not the first obj" time="0.001">
+    </testcase>
+    <testcase classname="utils.js getNoNull" name="should return null if it is not found" time="0">
+    </testcase>
+    <testcase classname="utils.js numberToTimes" name="should work with 1" time="0.001">
+    </testcase>
+    <testcase classname="utils.js numberToTimes" name="should work with 2" time="0">
+    </testcase>
+    <testcase classname="utils.js numberToTimes" name="should work with other numbers" time="0.001">
+    </testcase>
+    <testcase classname="utils.js numberToTimes" name="should throw for non numbers" time="0.026">
+    </testcase>
+    <testcase classname="utils.js toMaxNDecimals" name="should work" time="0.002">
+    </testcase>
+    <testcase classname="utils.js cmpNoCaseMany" name="should work when the first option is different" time="0.006">
+    </testcase>
+    <testcase classname="utils.js cmpNoCaseMany" name="should work when the second option is different" time="0">
+    </testcase>
+    <testcase classname="utils.js cmpNoCaseMany" name="should work when the all options are the same" time="0.001">
+    </testcase>
+    <testcase classname="utils.js setXor" name="should return all elements that are in A or in B but not in both" time="0.001">
+    </testcase>
+    <testcase classname="utils.js setXor" name="should return a copy of B if A is empty" time="0">
+    </testcase>
+    <testcase classname="utils.js setXor" name="should return a copy of A if B is empty" time="0.001">
+    </testcase>
+    <testcase classname="utils.js ensureArray" name="should return an array untouched" time="0.001">
+    </testcase>
+    <testcase classname="utils.js ensureArray" name="should wrap anything other than an array" time="0.001">
+    </testcase>
+    <testcase classname="utils.js deepEquals" name="should return true if the contents of two objects are equal" time="0.001">
+    </testcase>
+    <testcase classname="utils.js deepEquals" name="should return false if the contents of two objects are equal" time="0.001">
+    </testcase>
+    <testcase classname="utils.js deepEquals" name="should not throw when it encounters a null" time="0.001">
+    </testcase>
+    <testcase classname="utils.js deepEquals" name="should also work for arrays" time="0.005">
+    </testcase>
+    <testcase classname="utils.js deepEquals" name="should also work for primitive values" time="0.001">
+    </testcase>
+    <testcase classname="utils.js deepExtend" name="should recursively extend objects" time="0.002">
+    </testcase>
+    <testcase classname="utils.js deepExtend" name="should overwrite keys in earlier arguments with keys in later arguments" time="0.002">
+    </testcase>
+    <testcase classname="utils.js deepExtend" name="should throw when the target is not an object" time="0.003">
+    </testcase>
+    <testcase classname="utils.js deepExtend" name="should throw if any of the sources is null" time="0.001">
+    </testcase>
+    <testcase classname="utils.js deepExtend" name="should not throw if any of the sources is a primitive value" time="0.001">
+    </testcase>
+    <testcase classname="utils.js deepExtend" name="should not throw when it encounters a null" time="0.001">
+    </testcase>
+    <testcase classname="utils.js deepExtend" name="should treat arrays as standard values and not recurse into them" time="0.001">
+    </testcase>
+    <testcase classname="utils.js deepExtendArray" name="should recursively extend objects" time="0.002">
+    </testcase>
+    <testcase classname="utils.js deepExtendArray" name="should overwrite keys in earlier arguments with keys in later arguments" time="0.002">
+    </testcase>
+    <testcase classname="utils.js deepExtendArray" name="should throw when the target is not an object" time="0.003">
+    </testcase>
+    <testcase classname="utils.js deepExtendArray" name="should throw if any of the sources is null" time="0.001">
+    </testcase>
+    <testcase classname="utils.js deepExtendArray" name="should not throw if any of the sources is a primitive value" time="0.001">
+    </testcase>
+    <testcase classname="utils.js deepExtendArray" name="should not throw when it encounters a null" time="0.001">
+    </testcase>
+    <testcase classname="utils.js deepExtendArray" name="should recurse into arrays" time="0.001">
+    </testcase>
+    <testcase classname="utils.js hasAttr" name="should return true if the given key is in the object" time="0">
+    </testcase>
+    <testcase classname="utils.js hasAttr" name="should return true even if the key is not enumerable" time="0.001">
+    </testcase>
+    <testcase classname="utils.js hasAttr" name="should return false if the object does not have the property" time="0">
+    </testcase>
+    <testcase classname="utils.js hasAttr" name="should throw an error if the target is null" time="0.001">
+    </testcase>
+    <testcase classname="utils.js hasAttr" name="should not throw an error if the target is not an object" time="0.001">
+    </testcase>
+    <testcase classname="utils.js mapObject" name="should return a new object" time="0.001">
+    </testcase>
+    <testcase classname="utils.js mapObject" name="should return an equal object when mapping the identity function" time="0.001">
+    </testcase>
+    <testcase classname="utils.js mapObject" name="should map over the values of the object" time="0.002">
+    </testcase>
+    <testcase classname="utils.js mapObject" name="should pass the key as the second argument" time="0.001">
+    </testcase>
+    <testcase classname="utils.js mapObject" name="should throw an error when mapping over null" time="0.001">
+    </testcase>
+    <testcase classname="utils.js filterObject" name="should return a new object" time="0.001">
+    </testcase>
+    <testcase classname="utils.js filterObject" name="should filter over the values in the object" time="0.001">
+    </testcase>
+    <testcase classname="utils.js filterObject" name="should pass the key as the second argument" time="0.001">
+    </testcase>
+    <testcase classname="utils.js filterObject" name="should throw an error when filtering null" time="0.001">
+    </testcase>
+    <testcase classname="utils.js zip" name="should zip lists" time="0.001">
+    </testcase>
+    <testcase classname="utils.js zip" name="should zip up to the end of the shortest list" time="0.001">
+    </testcase>
+    <testcase classname="utils.js zip" name="should accept an arbitrary number of lists" time="0">
+    </testcase>
+    <testcase classname="utils.js zip" name="should not throw or loop forever when given an empty list" time="0.001">
+    </testcase>
+    <testcase classname="utils.js zip" name="should not throw when given a single list" time="0.011">
+    </testcase>
+    <testcase classname="utils.js isEmpty" name="should return true for objects without keys" time="0">
+    </testcase>
+    <testcase classname="utils.js isEmpty" name="should return true for arrays without elements" time="0.001">
+    </testcase>
+    <testcase classname="utils.js isEmpty" name="should return true for null and undefined" time="0">
+    </testcase>
+    <testcase classname="utils.js isEmpty" name="should return true for falsey primitives" time="0">
+    </testcase>
+    <testcase classname="utils.js isEmpty" name="should return false otherwise" time="0.002">
+    </testcase>
+    <testcase classname="utils.js readableJoin" name="should work for empty arrays" time="0">
+    </testcase>
+    <testcase classname="utils.js readableJoin" name="should work for arrays with 1 item" time="0.001">
+    </testcase>
+    <testcase classname="utils.js readableJoin" name="should work for arrays with multiple items" time="0">
+    </testcase>
+    <testcase classname="utils.js buildUrl" name="should be possible to give the path a raw string" time="0.001">
+    </testcase>
+    <testcase classname="utils.js buildUrl" name="should give an absolute url if no host is given" time="0.001">
+    </testcase>
+    <testcase classname="utils.js buildUrl" name="should escape parts of the url" time="0.001">
+    </testcase>
+    <testcase classname="utils.js buildUrl" name="should escape the query of the url" time="0.015">
+    </testcase>
+    <testcase classname="utils.js buildUrl" name="should escape the given hash" time="0">
+    </testcase>
+    <testcase classname="utils.js buildUrl" name="should use the host if given" time="0.001">
+    </testcase>
+    <testcase classname="utils.js sortBy" name="should sort correctly" time="0.003">
+    </testcase>
+    <testcase classname="utils.js sortBy" name="should sort by later keys if former were equal" time="0.001">
+    </testcase>
+    <testcase classname="utils.js sortBy" name="should be stable in sorting" time="0">
+    </testcase>
+    <testcase classname="utils.js sortBy" name="should support sorting booleans with duplicated" time="0.001">
+    </testcase>
+    <testcase classname="utils.js sortBy" name="should support sorting strings" time="0.001">
+    </testcase>
+    <testcase classname="utils.js sortBy" name="should support sorting moments" time="0">
+    </testcase>
+    <testcase classname="utils.js sortBy" name="should support reversing" time="0.009">
+    </testcase>
+    <testcase classname="utils.js sortBy" name="reverse should also be stable" time="0.001">
+    </testcase>
+    <testcase classname="utils.js sortBy" name="Test sorting multiple keys" time="0.001">
+    </testcase>
+    <testcase classname="utils.js sortBy" name="should be possible to sort something complex" time="0.006">
+    </testcase>
+    <testcase classname="cache.js makeCache" name="should return a frozen object" time="0.01">
+    </testcase>
+    <testcase classname="cache.js makeCache _cache" name="should be sealed" time="0.001">
+    </testcase>
+    <testcase classname="cache.js makeCache _cache" name="should include the given keys in its inner store" time="0.001">
+    </testcase>
+    <testcase classname="cache.js makeCache _cache" name="should initialize each key with UNSET_SENTINEL" time="0">
+    </testcase>
+    <testcase classname="cache.js makeCache get" name="should call its second argument if the key is not present" time="0.001">
+    </testcase>
+    <testcase classname="cache.js makeCache get" name="should not call the function more than once" time="0.001">
+    </testcase>
+    <testcase classname="cache.js makeCache get" name="should keep returning the cached value" time="0.001">
+    </testcase>
+    <testcase classname="counter.js Counter" name="should work for simple keys" time="0.002">
+    </testcase>
+    <testcase classname="counter.js Counter" name="should work for object keys" time="0">
+    </testcase>
+    <testcase classname="counter.js Counter" name="should work missing keys" time="0.001">
+    </testcase>
+    <testcase classname="defaultdict.js defaultdict" name="should return the default value if a key does not exist" time="0.002">
+    </testcase>
+    <testcase classname="defaultdict.js defaultdict" name="should be possible to set values" time="0.001">
+    </testcase>
+    <testcase classname="defaultdict.js defaultdict" name="should be possible to increment missing values" time="0.001">
+    </testcase>
+    <testcase classname="defaultdict.js defaultdict" name="should throw on the first missing key when the argument is not a function" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="The rubric store" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:29" time="0.604" tests="46">
+    <testcase classname="The rubric store actions loadRubric" name="should load the rubric if it is not already available" time="0.009">
+    </testcase>
+    <testcase classname="The rubric store actions loadRubric" name="should not send a request if the rubric is already available" time="0.005">
+    </testcase>
+    <testcase classname="The rubric store actions loadRubric" name="should send a request if the rubric is already available and &quot;force&quot; is true" time="0.004">
+    </testcase>
+    <testcase classname="The rubric store actions loadRubric" name="should set the rubric to NONEXISTENT on error during loading" time="0.006">
+    </testcase>
+    <testcase classname="The rubric store actions copyRubric" name="should send a request to the server" time="0.007">
+    </testcase>
+    <testcase classname="The rubric store actions updateRubric" name="should send a request to the server and update the store" time="0.009">
+    </testcase>
+    <testcase classname="The rubric store actions deleteRubric" name="should send a request to the server and delete the rubric from the store" time="0.005">
+    </testcase>
+    <testcase classname="The rubric store actions clearRubric" name="should not send a request to the server and delete the rubric from the store" time="0.003">
+    </testcase>
+    <testcase classname="The rubric store mutations SET_RUBRIC" name="should store a new Rubric model" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store mutations SET_RUBRIC" name="should not try to convert NONEXISTENT to a Rubric model" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store mutations CLEAR_RUBRIC" name="should delete the rubric from the store" time="0">
+    </testcase>
+    <testcase classname="The rubric store mutations CLEAR_RUBRICS" name="should delete all rubrics from the store" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store mutations SET_RUBRIC_RESULT" name="should store a new RubricResult model" time="0.003">
+    </testcase>
+    <testcase classname="The rubric store mutations SET_RUBRIC_RESULT" name="should store null as points if no items are selected" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store mutations CLEAR_RUBRIC_RESULT" name="should delete the rubric from the store" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store mutations CLEAR_RUBRIC_RESULTS" name="should delete all rubric results from the store" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The Rubric model fromServerData" name="should return an immutable object" time="0.002">
+    </testcase>
+    <testcase classname="The rubric store The Rubric model fromServerData" name="should sort items in a row by points, ascendingly" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The Rubric model fromServerData" name="should instantiate a NormalRubricRow model for each row" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The Rubric model maxPoints" name="should be unset initially and cache the result" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The Rubric model createRow" name="should return a new copy" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The Rubric model createRow" name="should insert a row" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The Rubric model deleteRow" name="should return a new copy" time="0.013">
+    </testcase>
+    <testcase classname="The rubric store The Rubric model deleteRow" name="should delete the given row" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The Rubric model deleteRow" name="should throw an error when an invalid index is given" time="0.073">
+    </testcase>
+    <testcase classname="The rubric store The Rubric model updateRow" name="should throw an error when the argument is not of type NormalRubricRow" time="0.006">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model constructor" name="should return an immutable object" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model maxPoints" name="should be unset initially and cache the result" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model update" name="should return a new copy" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model update" name="should update the given props" time="0">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model setType" name="should return a new copy" time="0.002">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model setType" name="should throw an error if the type was already set" time="0.002">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model setType" name="should set the correct type" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model setType" name="should not insert a single item if the new type is &quot;normal&quot;" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model setType" name="should insert a single item if the new type is &quot;continuous&quot;" time="0">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model createItem" name="should return a new copy" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model createItem" name="should insert an item in the items list" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model createItem" name="should insert an empty item" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model deleteItem" name="should return a new copy" time="0">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model deleteItem" name="should throw an error when the index is invalid" time="0.003">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model deleteItem" name="should delete the item at the given index" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model lockMessagge" name="should be empty when the row is not an AutoTest row" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model lockMessagge" name="should return a message when the row is an AutoTest row" time="0.001">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model lockMessagge" name="should get the correct message for a not filled in rubric with a result" time="0.002">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model lockMessagge" name="should get the correct message for a final finished result" time="0">
+    </testcase>
+    <testcase classname="The rubric store The NormalRubricRow model lockMessagge" name="should get the correct message for passed and final results" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="CgMarkdownIt" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:29" time="0.555" tests="16">
+    <testcase classname="CgMarkdownIt" name="should work without any math" time="0.027">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="should render simple math" time="0.006">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="should work with multiple math things" time="0.002">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="should work with at signs" time="0.003">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="should work with begin" time="0.001">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="should work with \\(\\)" time="0.002">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="should work with \\[\\]" time="0.013">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="\(\) should not render math" time="0.002">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="should work as expected with inline code" time="0.003">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="should not render math with multiple newlines" time="0.002">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="nested blocks work" time="0.002">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="should work with braces" time="0.015">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="should be possible to disable math" time="0.002">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="should work with code containing dollar signs" time="0.002">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="should work with unbalanced braces" time="0.002">
+    </testcase>
+    <testcase classname="CgMarkdownIt" name="should escape correctly with \b" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="mutations" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:30" time="0.599" tests="11">
+    <testcase classname="mutations set submissions promise" name="should set the state prop with correct key" time="0.01">
+    </testcase>
+    <testcase classname="mutations add submission" name="should work and have correct order" time="0.015">
+    </testcase>
+    <testcase classname="mutations add submission" name="should work when assignment has no submissions" time="0.009">
+    </testcase>
+    <testcase classname="mutations update submission" name="should work for normal props" time="0.009">
+    </testcase>
+    <testcase classname="mutations update submission" name="should work for not unknown submissions" time="0.033">
+    </testcase>
+    <testcase classname="mutations update submission" name="should work for not work for id" time="0.033">
+    </testcase>
+    <testcase classname="mutations update submission" name="grade prop should be formatted" time="0.008">
+    </testcase>
+    <testcase classname="actions load submissions" name="should reload submissions" time="0.005">
+    </testcase>
+    <testcase classname="actions load submissions" name="should return submissions promise" time="0.004">
+    </testcase>
+    <testcase classname="actions update submission" name="should simply work" time="0.003">
+    </testcase>
+    <testcase classname="actions add submission" name="should simply work" time="0.006">
+    </testcase>
+  </testsuite>
+  <testsuite name="The submission file tree" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:30" time="0.409" tests="19">
+    <testcase classname="The submission file tree constructor" name="should calculate the diff tree between the student and the teacher" time="0.008">
+    </testcase>
+    <testcase classname="The submission file tree constructor" name="should calculate a mapping between file id and name" time="0.003">
+    </testcase>
+    <testcase classname="The submission file tree constructor" name="should accept null for the teacher tree" time="0.007">
+    </testcase>
+    <testcase classname="The submission file tree hasRevision" name="should return true if the given file has a revision" time="0.01">
+    </testcase>
+    <testcase classname="The submission file tree hasRevision" name="should return false if the given file has no revision" time="0.001">
+    </testcase>
+    <testcase classname="The submission file tree hasRevision" name="should return true if the given file is a directory and any of its children has a revision" time="0">
+    </testcase>
+    <testcase classname="The submission file tree hasRevision" name="should return false if the given file is a directory and none of its children has a revision" time="0.001">
+    </testcase>
+    <testcase classname="The submission file tree findFirstFile" name="should not return a directory" time="0.001">
+    </testcase>
+    <testcase classname="The submission file tree findFirstFile" name="should not return a hidden file starting with &quot;.&quot;" time="0.001">
+    </testcase>
+    <testcase classname="The submission file tree search" name="should not be able to find the top level directory" time="0.002">
+    </testcase>
+    <testcase classname="The submission file tree search" name="should find the item with the requested id if it is in the tree" time="0.012">
+    </testcase>
+    <testcase classname="The submission file tree search" name="should find the item whose revision&apos;s id is equal to the requested id" time="0.002">
+    </testcase>
+    <testcase classname="The submission file tree matchFiles" name="should work with two identical trees" time="0.002">
+    </testcase>
+    <testcase classname="The submission file tree matchFiles" name="should work with a modified tree" time="0.002">
+    </testcase>
+    <testcase classname="The submission file tree matchFiles" name="should work with a inserted directory" time="0.001">
+    </testcase>
+    <testcase classname="The submission file tree matchFiles" name="should work when replacing a directory with a file" time="0.002">
+    </testcase>
+    <testcase classname="The submission file tree matchFiles" name="should have a revision when only adding a single file" time="0.002">
+    </testcase>
+    <testcase classname="The submission file tree matchFiles" name="should not have any revision when teacher tree is null" time="0.001">
+    </testcase>
+    <testcase classname="The submission file tree matchFiles" name="should work when replacing a file with a directory" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="getters" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:30" time="0.758" tests="25">
+    <testcase classname="getters courses" name="should return the state object" time="0.009">
+    </testcase>
+    <testcase classname="getters assignments" name="should work without courses" time="0.002">
+    </testcase>
+    <testcase classname="getters assignments" name="should work with courses" time="0.004">
+    </testcase>
+    <testcase classname="mutations clear courses" name="should clear all the things" time="0.004">
+    </testcase>
+    <testcase classname="mutations update course" name="should not work for id" time="0.027">
+    </testcase>
+    <testcase classname="mutations update course" name="should not work for new props" time="0.003">
+    </testcase>
+    <testcase classname="mutations update course" name="should not work for unknown courses" time="0.003">
+    </testcase>
+    <testcase classname="mutations update course" name="should work for known props" time="0.004">
+    </testcase>
+    <testcase classname="mutations update assignment" name="should not work for id" time="0.011">
+    </testcase>
+    <testcase classname="mutations update assignment" name="should not work for new props" time="0.006">
+    </testcase>
+    <testcase classname="mutations update assignment" name="should work for some unknown props" time="0.004">
+    </testcase>
+    <testcase classname="mutations update assignment" name="should not work for unknown assignments" time="0.002">
+    </testcase>
+    <testcase classname="mutations update assignment" name="should work for known props" time="0.003">
+    </testcase>
+    <testcase classname="mutations set course promise" name="should set the state prop" time="0.002">
+    </testcase>
+    <testcase classname="actions load courses" name="should reload courses" time="0.004">
+    </testcase>
+    <testcase classname="actions load courses" name="should return currentCourseLoader" time="0.013">
+    </testcase>
+    <testcase classname="actions update course" name="should simply work" time="0.002">
+    </testcase>
+    <testcase classname="actions update assignment" name="should simply work" time="0.003">
+    </testcase>
+    <testcase classname="updatePermissions" name="should copy over the permissions in its second argument to each course in the first argument" time="0.001">
+    </testcase>
+    <testcase classname="updatePermissions" name="should return 3 mappings" time="0.002">
+    </testcase>
+    <testcase classname="updatePermissions" name="should return a mapping from course id to a special &quot;can manage course&quot; permission" time="0.001">
+    </testcase>
+    <testcase classname="updatePermissions" name="should return a mapping from assignment id to a special &quot;can manage assignment&quot; permission" time="0.001">
+    </testcase>
+    <testcase classname="updatePermissions" name="should return a mapping from course id to a special &quot;can create assignment&quot; permission" time="0">
+    </testcase>
+    <testcase classname="updatePermissions" name="should not throw when there are more courses than permission mappings" time="0.001">
+    </testcase>
+    <testcase classname="updatePermissions" name="should not throw when there are more permission mappings than courses" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="loading code" errors="0" failures="2" skipped="0" timestamp="2020-06-19T12:45:08" time="22.64" tests="5">
+    <testcase classname="loading code" name="should work for new code" time="0.029">
+    </testcase>
+    <testcase classname="loading code" name="loading twice should only use api once" time="0.028">
+    </testcase>
+    <testcase classname="loading code" name="should clear old items when cache becomes too large" time="3.71">
+    </testcase>
+    <testcase classname="loading code" name="should not cache very large objects" time="1.26">
+      <failure>Error: expect(received).toEqual(expected) // deep equality
+
+Expected: []
+Received: null
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/code.spec.js:90:57)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="loading code" name="should not reinsert old small items" time="0.296">
+      <failure>Error: expect(received).toEqual(expected) // deep equality
+
+Expected: []
+Received: null
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/code.spec.js:115:57)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="getCoolOffPeriodText" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:31" time="0.657" tests="8">
+    <testcase classname="getCoolOffPeriodText" name="should only show period when you have no/too few submissions" time="0.025">
+    </testcase>
+    <testcase classname="getCoolOffPeriodText" name="should use &quot;you&quot; if the logged in user is the author user" time="0.018">
+    </testcase>
+    <testcase classname="getCoolOffPeriodText" name="should use &apos;your group&apos; if the logged in user&apos;s group is the author" time="0.017">
+    </testcase>
+    <testcase classname="getCoolOffPeriodText" name="should use the author name if the logged in user is NOT the author" time="0.024">
+    </testcase>
+    <testcase classname="getCoolOffPeriodText" name="should use &quot;the group&quot; if the author is a group and the logged in user is NOT part of that group" time="0.035">
+    </testcase>
+    <testcase classname="getCoolOffPeriodText" name="should use latest and `numberToTimes` correctly" time="0.024">
+    </testcase>
+    <testcase classname="getCoolOffPeriodText" name="should show the correct wait time" time="0.034">
+    </testcase>
+    <testcase classname="getCoolOffPeriodText" name="should not show that you cannot submit again, if last submission was old" time="0.007">
+    </testcase>
+  </testsuite>
+  <testsuite name="MaximumGrade.vue" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:31" time="0.684" tests="5">
+    <testcase classname="MaximumGrade.vue submit" name="should be a function" time="0.044">
+    </testcase>
+    <testcase classname="MaximumGrade.vue submit" name="should work when deleting max grade" time="0.031">
+    </testcase>
+    <testcase classname="MaximumGrade.vue submit" name="should work when setting a max grade" time="0.029">
+    </testcase>
+    <testcase classname="MaximumGrade.vue submit" name="should work when api throws" time="0.042">
+    </testcase>
+    <testcase classname="MaximumGrade.vue reset" name="should call submit" time="0.023">
+    </testcase>
+  </testsuite>
+  <testsuite name="User model" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:31" time="0.314" tests="6">
+    <testcase classname="User model" name="should be possible to compare two users" time="0.008">
+    </testcase>
+    <testcase classname="User model" name="should be possible to update a user" time="0.003">
+    </testcase>
+    <testcase classname="User model" name="should not be possible to change an attribute" time="0.003">
+    </testcase>
+    <testcase classname="User model" name="should have an attribute indicating if it is a group" time="0.006">
+    </testcase>
+    <testcase classname="User model" name="should have an attribute indicating if it is a test student" time="0.002">
+    </testcase>
+    <testcase classname="User model" name="should be possible to get the members of a group" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="SubmissionList.vue" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:31" time="1.058" tests="1">
+    <testcase classname="SubmissionList.vue" name="should display the correct number even if some students have the same name" time="0.079">
+    </testcase>
+  </testsuite>
+  <testsuite name="decoder.js" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:32" time="0.466" tests="6">
+    <testcase classname="decoder.js decodeBuffer" name="should be a function" time="0.003">
+    </testcase>
+    <testcase classname="decoder.js decodeBuffer" name="should work with a utf8 file" time="0.004">
+    </testcase>
+    <testcase classname="decoder.js decodeBuffer" name="should work with a latin1 file" time="0.002">
+    </testcase>
+    <testcase classname="decoder.js decodeBuffer" name="should work with force" time="0.003">
+    </testcase>
+    <testcase classname="decoder.js decodeBuffer" name="should throw on a binary file" time="0.013">
+    </testcase>
+    <testcase classname="decoder.js decodeBuffer" name="should work reusing a utf-8 buffer" time="0.003">
+    </testcase>
+  </testsuite>
+  <testsuite name="getCapturePointsDiff" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:32" time="0.669" tests="7">
+    <testcase classname="getCapturePointsDiff" name="should work for equal strings" time="0.007">
+    </testcase>
+    <testcase classname="getCapturePointsDiff" name="should work for simple additions" time="0.005">
+    </testcase>
+    <testcase classname="getCapturePointsDiff" name="should be possible to ignore trailing whitespace" time="0.005">
+    </testcase>
+    <testcase classname="getCapturePointsDiff" name="should be possible to ignore all case" time="0.002">
+    </testcase>
+    <testcase classname="getCapturePointsDiff" name="should be possible to use substring" time="0.004">
+    </testcase>
+    <testcase classname="getCapturePointsDiff" name="should work to ignore all whitespace" time="0.004">
+    </testcase>
+    <testcase classname="getCapturePointsDiff" name="should work with substring and missing leading newlines" time="0.01">
+    </testcase>
+  </testsuite>
+  <testsuite name="visualizeWhitespace" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:32" time="0.342" tests="7">
+    <testcase classname="visualizeWhitespace" name="should be a function" time="0.008">
+    </testcase>
+    <testcase classname="visualizeWhitespace" name="should work with an empty line" time="0.003">
+    </testcase>
+    <testcase classname="visualizeWhitespace" name="should work without spaces" time="0.003">
+    </testcase>
+    <testcase classname="visualizeWhitespace" name="should work with a single space" time="0.005">
+    </testcase>
+    <testcase classname="visualizeWhitespace" name="should work with a large amount of spaces" time="0.003">
+    </testcase>
+    <testcase classname="visualizeWhitespace" name="should work with a single tab" time="0.002">
+    </testcase>
+    <testcase classname="visualizeWhitespace" name="should work with a large amount of tabs" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="setAt function of deque" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:32" time="0.311" tests="3">
+    <testcase classname="setAt function of deque" name="should be possible to set a value" time="0.004">
+    </testcase>
+    <testcase classname="setAt function of deque" name="should be possible to use a negative index" time="0.001">
+    </testcase>
+    <testcase classname="setAt function of deque" name="should return undefined for out of bounds" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="Search" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:31" time="1.504" tests="14">
+    <testcase classname="Search search" name="should only accept items having all required keys" time="0.002">
+    </testcase>
+    <testcase classname="Search search" name="should only accept items where all required keys are strings" time="0">
+    </testcase>
+    <testcase classname="Search search" name="should accept items with keys other than the required keys of any type" time="0.002">
+    </testcase>
+    <testcase classname="Search search" name="should accept classes with the required properties" time="0.002">
+    </testcase>
+    <testcase classname="Search search" name="should find matching items" time="0.002">
+    </testcase>
+    <testcase classname="Search search" name="should discard items that do not match" time="0.001">
+    </testcase>
+    <testcase classname="Search search" name="should preserve the relative order of matching items" time="0.011">
+    </testcase>
+    <testcase classname="Search search" name="should search through all keys" time="0">
+    </testcase>
+    <testcase classname="Search search" name="should only search through keys passed to the constructor" time="0.001">
+    </testcase>
+    <testcase classname="Search search" name="should only select items that match each term in the query" time="0.001">
+    </testcase>
+    <testcase classname="Search search" name="should only match on a specific key for terms written &lt;key&gt;:&lt;term&gt;" time="0.001">
+    </testcase>
+    <testcase classname="Search search" name="should only match on a specific key if it is one of the keys passed to the constructor" time="0.001">
+    </testcase>
+    <testcase classname="Search options caseInsensitive" name="should match case-sensitively when unset" time="0.001">
+    </testcase>
+    <testcase classname="Search options caseInsensitive" name="should match case-insensitively when set" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="IPythonViewer.vue" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:34" time="2.053" tests="12">
+    <testcase classname="IPythonViewer.vue outputCells" name="should be an array" time="0.025">
+    </testcase>
+    <testcase classname="IPythonViewer.vue outputCells" name="should be an empty array when the data is invalid" time="0.017">
+    </testcase>
+    <testcase classname="IPythonViewer.vue outputCells" name="should join test in sources" time="0.022">
+    </testcase>
+    <testcase classname="IPythonViewer.vue outputCells" name="should work with code" time="0.021">
+    </testcase>
+    <testcase classname="IPythonViewer.vue outputCells" name="should work with nbformat version 3" time="0.015">
+    </testcase>
+    <testcase classname="IPythonViewer.vue outputCells" name="should not work with nbformat versions &lt; 3" time="0.021">
+    </testcase>
+    <testcase classname="IPythonViewer.vue outputCells" name="should accept strings and lists of strings as output text" time="0.01">
+    </testcase>
+    <testcase classname="IPythonViewer.vue loadCode" name="should work when the api returns invalid JSON" time="0.008">
+    </testcase>
+    <testcase classname="IPythonViewer.vue loadCode" name="should work when the buffer cannot be decoded" time="0.007">
+    </testcase>
+    <testcase classname="IPythonViewer.vue loadCode" name="should work when getOutputCells errors" time="0.025">
+    </testcase>
+    <testcase classname="IPythonViewer.vue outputData" name="should return the value if the value was found" time="0.006">
+    </testcase>
+    <testcase classname="IPythonViewer.vue outputData" name="should return null if the value was not found" time="0.006">
+    </testcase>
+  </testsuite>
+  <testsuite name="Submission.vue" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:37" time="10.223" tests="33">
+    <testcase classname="Submission.vue Computed" name="ids should be numbers" time="0.071">
+    </testcase>
+    <testcase classname="Submission.vue Computed" name="objects should be retrieved from the store or default" time="0.052">
+    </testcase>
+    <testcase classname="Submission.vue Computed prefFileId" name="should equal fileId if the selected category is &quot;Code&quot;" time="0.038">
+    </testcase>
+    <testcase classname="Submission.vue Computed prefFileId" name="should be a number if the selected category is &quot;Feedback Overview&quot;" time="0.042">
+    </testcase>
+    <testcase classname="Submission.vue Computed prefFileId" name="should be a number if the selected category is &quot;AutoTest&quot;" time="0.039">
+    </testcase>
+    <testcase classname="Submission.vue Computed prefFileId" name="should be a number if the selected category is &quot;Teacher Diff&quot;" time="0.043">
+    </testcase>
+    <testcase classname="Submission.vue Computed revision" name="should default to &quot;student&quot;" time="0.035">
+    </testcase>
+    <testcase classname="Submission.vue Computed revision" name="should take the value from the route" time="0.039">
+    </testcase>
+    <testcase classname="Submission.vue Computed revision" name="should take the value from the route" time="0.044">
+    </testcase>
+    <testcase classname="Submission.vue Computed revision" name="should take the value from the route" time="0.042">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.04">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.032">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.039">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.034">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.033">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.032">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.034">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.03">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.028">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.031">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.035">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.034">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.029">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.03">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.035">
+    </testcase>
+    <testcase classname="Submission.vue Computed getDefaultCat" name="should behave correctly" time="0.027">
+    </testcase>
+    <testcase classname="Submission.vue Computed setDefaultCat" name="should be &quot;Code&quot; when the assignment is not done and there is no Continuous Feedback" time="0.033">
+    </testcase>
+    <testcase classname="Submission.vue Computed setDefaultCat" name="should be &quot;Feedback Overview&quot; when the assignment is done and the submission has feedback" time="0.051">
+    </testcase>
+    <testcase classname="Submission.vue Computed setDefaultCat" name="should be &quot;Feedback Overview&quot; when the assignment is done and there is no feedback and no AutoTest" time="0.046">
+    </testcase>
+    <testcase classname="Submission.vue Computed setDefaultCat" name="should be &quot;AutoTest&quot; when the assignment is done and has an AutoTest but the submission does not have feedback" time="0.05">
+    </testcase>
+    <testcase classname="Submission.vue Computed setDefaultCat" name="should be &quot;Code&quot; when a submission is not graded or the user cannot view the feedback" time="0.068">
+    </testcase>
+    <testcase classname="Submission.vue Watchers" name="should reload submissions when assignmentId changes" time="0.048">
+    </testcase>
+    <testcase classname="Submission.vue Watchers" name="should reload submission data when submissionId changes" time="0.036">
+    </testcase>
+  </testsuite>
+</testsuites>

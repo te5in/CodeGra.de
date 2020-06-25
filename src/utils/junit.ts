@@ -12,10 +12,14 @@ function mapHTMLCollection<T>(
     return res;
 }
 
-function getAttribute(node: Element, name: string): string {
+function getAttribute<Y>(node: Element, name: string, dflt: Y | null = null): string | Y {
     const attr = node.getAttribute(name);
-    AssertionError.assert(attr != null, `Attribute ${name} not found in ${node.outerHTML}`);
-    return attr;
+    if (dflt == null) {
+        AssertionError.assert(attr != null, `Attribute ${name} not found in ${node.outerHTML}`);
+        return attr;
+    } else {
+        return dflt;
+    }
 }
 
 const fontAwesomeIconMap = <const>{
@@ -37,7 +41,7 @@ class CGJunitCase {
 
     constructor(
         content: string | null,
-        public readonly contentType: CGJunitCaseState,
+        public readonly state: CGJunitCaseState,
         public readonly name: string,
         public readonly classname: string,
         public readonly time: number,
@@ -67,10 +71,6 @@ class CGJunitCase {
             getAttribute(node, 'classname'),
             parseFloat(getAttribute(node, 'time')),
         );
-    }
-
-    get state(): CGJunitCaseState {
-        return this.contentType;
     }
 
     get fontAwesomeIcon() {
@@ -109,14 +109,14 @@ class CGJunitSuite {
     }
 
     static fromXml(node: Element) {
-        const suiteName = getAttribute(node, 'name');
+        const suiteName: string = getAttribute(node, 'name');
 
         return new CGJunitSuite(
             mapHTMLCollection(node.children, CGJunitCase.fromXml),
             suiteName,
             parseInt(getAttribute(node, 'errors'), 10),
             parseInt(getAttribute(node, 'failures'), 10),
-            parseInt(getAttribute(node, 'skipped') ?? 0, 10),
+            parseInt(getAttribute(node, 'skipped', '0'), 10),
             parseInt(getAttribute(node, 'tests'), 10),
         );
     }
@@ -158,14 +158,12 @@ export class CGJunit {
     }
 
     private static getParserError(xmlDoc: Document): string | null {
-        const html = xmlDoc.firstElementChild;
-        const body = html?.firstElementChild;
-        const perr = body?.firstElementChild;
+        const perr = xmlDoc.querySelector('parsererror');
 
-        if (perr && perr.tagName === 'parsererror') {
-            return perr.textContent;
-        } else {
+        if (perr == null) {
             return null;
+        } else {
+            return perr.textContent;
         }
     }
 }
