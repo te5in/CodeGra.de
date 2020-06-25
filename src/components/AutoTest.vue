@@ -180,7 +180,7 @@
                                         <b-radio-group stacked
                                                        class="p-0 border rounded-left flex-grow-1"
                                                        :class="{
-                                                               'rounded-left': configEditable,
+                                                               'rounded-right': !configEditable,
                                                                'readably-disabled': !configEditable,
                                                                }"
                                                        v-model="internalTest.results_always_visible"
@@ -218,7 +218,7 @@
                                         <b-radio-group stacked
                                                        class="p-0 border rounded-left flex-grow-1"
                                                        :class="{
-                                                           'rounded-left': configEditable,
+                                                           'rounded-right': !configEditable,
                                                            'readably-disabled': !configEditable,
                                                        }"
                                                        v-model="internalTest.grade_calculation"
