@@ -673,7 +673,7 @@ def random_file_path(use_mirror_dir: bool = False) -> t.Tuple[str, str]:
 
     :param use_mirror_dir: Use the mirror directory as the basedir of the
         random file path.
-    :returns: The name of the new file and a path to that file
+    :returns: The path to the new file and the name of the file.
     """
     if use_mirror_dir:
         root = app.config['MIRROR_UPLOAD_DIR']
@@ -693,7 +693,8 @@ def save_stream(stream: FileStorage) -> str:
     directory.
 
     :param stream: The stream to be saved.
-    :returns: The path where the data is stored.
+    :returns: The filename where the data is stored relative to the UPLOADS
+        directory..
     """
     new_file_name, filename = random_file_path()
     stream.save(new_file_name)

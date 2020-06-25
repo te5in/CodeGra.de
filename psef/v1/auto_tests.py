@@ -904,10 +904,12 @@ def get_auto_test_step_result_attachment(
 ) -> Response:
     """Get the attachment of an AutoTest step.
 
+    .. :quickref: AutoTest; Get AutoTest step result attachment.
+
     :param auto_test_id: The id of the AutoTest in which the result is located.
     :param run_id: The id of run in which the result is located.
     :param step_result_id: The id of the step result of which you want the attachment.
-    :returns: The attachment data.
+    :returns: The attachment data, as an application/octet-stream.
     """
     test = get_or_404(
         models.AutoTest,
