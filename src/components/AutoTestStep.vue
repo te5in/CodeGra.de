@@ -1032,6 +1032,7 @@ export default {
         },
 
         async stepResultAttachment(newVal) {
+            this.junitError = '';
             if (!this.junitCollapseClosed && newVal) {
                 this.loadJunitAttachment();
             } else if (!newVal) {
@@ -1394,8 +1395,11 @@ export default {
         },
 
         async loadJunitAttachment() {
+            if (this.junitError) {
+                return;
+            }
+
             this.junitAttachmentLoading = true;
-            this.junitError = '';
 
             await this.$afterRerender();
 
