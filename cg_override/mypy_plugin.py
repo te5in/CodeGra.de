@@ -22,7 +22,8 @@ def override_callback(ctx: FunctionContext, no_override: bool) -> Type:
         return ret
 
     fun = args[0]
-    if not isinstance(fun, CallableType) or fun.arg_names[0] not in ('self', 'cls'):
+    if not isinstance(fun, CallableType
+                      ) or fun.arg_names[0] not in ('self', 'cls'):
         ctx.api.fail('@override should be applied to method', ctx.context)
         return ret
 
@@ -34,7 +35,9 @@ def override_callback(ctx: FunctionContext, no_override: bool) -> Type:
 
     assert isinstance(cls_type, TypeInfo)
 
-    overrides = any(_has_method(ret.definition.name, base.type) for base in cls_type.bases)
+    overrides = any(
+        _has_method(ret.definition.name, base.type) for base in cls_type.bases
+    )
     if no_override and overrides:
         msg = f'The method {fun.name} is defined in a base class of {cls_type.name}'
         ctx.api.fail(msg, ctx.context)

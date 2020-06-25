@@ -23,10 +23,12 @@ __all__ = ['timed_code', 'timed_function']
 def init_app(app: flask.Flask) -> None:
     @app.before_request
     def __setup_timers() -> None:
-        flask.g.cg_timers_collection = defaultdict(lambda: {
-            'amount': 0,
-            'total_time': 0,
-        })
+        flask.g.cg_timers_collection = defaultdict(
+            lambda: {
+                'amount': 0,
+                'total_time': 0,
+            }
+        )
 
     @app.after_request
     def __after_req(res: flask.Response) -> flask.Response:

@@ -25,8 +25,7 @@ class MalformedXmlData(ParseError):
         ...
 
     @classmethod
-    def ensure(cls, flag: bool, msg: str,
-               *formatters: object) -> None:
+    def ensure(cls, flag: bool, msg: str, *formatters: object) -> None:
         if not flag:
             raise cls(msg % formatters)
 

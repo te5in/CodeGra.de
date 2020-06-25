@@ -14,10 +14,10 @@ from psef import helpers
 from psef.auto_test import OutputTail, ExecuteOptions, StudentCommandResult
 from psef.exceptions import APIException
 from psef.models.auto_test_step import _IoTest as IoTest
+from psef.models.auto_test_step import _JunitTest as JunitTest
 from psef.models.auto_test_step import _RunProgram as RunProgram
 from psef.models.auto_test_step import _CheckPoints as CheckPoints
 from psef.models.auto_test_step import _CustomOutput as CustomOutput
-from psef.models.auto_test_step import _JunitTest as JunitTest
 
 
 @contextlib.contextmanager
@@ -262,7 +262,7 @@ def test_execute_junit_test_step(
 
     with describe('setup'):
         j = JunitTest(suite=stub_suite)
-        j.update_data_from_json({ 'program': 'junit' })
+        j.update_data_from_json({'program': 'junit'})
         stub_ensure = stub_function_class()
         monkeypatch.setattr(helpers, 'ensure_on_test_server', stub_ensure)
 
