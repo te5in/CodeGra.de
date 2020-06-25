@@ -76,10 +76,6 @@ describe('loading code', () => {
         mockAxiosGet.mockReturnValue(Promise.resolve({ data: fillBuf(new ArrayBuffer(2 ** 30)) }));
         await store.dispatch('code/loadCode', 1);
 
-        console.log(store.state.code.cacheMap);
-        console.log(store.state.code.cacheMap[-1]);
-        console.log(store.state.code.cacheMap[1]);
-
         expect(mockAxiosGet).toBeCalledTimes(2);
 
         mockAxiosGet.mockClear();
