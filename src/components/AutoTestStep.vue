@@ -1411,7 +1411,7 @@ export default {
                 this.junitError = err;
             }).then(() => {
                 const cur = this.$utils.getProps(this.junitAttachment, null, 'id');
-                if (cur === this.stepResultAttachment) {
+                if (cur == null || cur === this.stepResultAttachment) {
                     this.junitAttachmentLoading = false;
                 }
             });
