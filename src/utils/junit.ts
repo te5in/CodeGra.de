@@ -125,17 +125,17 @@ class CGJunitSuite {
 export class CGJunit {
     suites: ReadonlyArray<CGJunitSuite>;
 
-    constructor(suites: CGJunitSuite[]) {
+    constructor(public id: string, suites: CGJunitSuite[]) {
         this.suites = sortBy(suites, x => [x.failures <= 0]);
 
         Object.freeze(this.suites);
         Object.freeze(this);
     }
 
-    static fromXml(xml: string): CGJunit {
+    static fromXml(id: string, xml: string): CGJunit {
         const rootNodes = CGJunit.parseXML(xml);
 
-        return new CGJunit(mapHTMLCollection(rootNodes, CGJunitSuite.fromXml));
+        return new CGJunit(id, mapHTMLCollection(rootNodes, CGJunitSuite.fromXml));
     }
 
     private static parseXML(xml: string): HTMLCollection {

@@ -14,7 +14,7 @@
                class="content-wrapper"
                ref="content"
                :style="contentStyle">
-        <div class="content" v-if="loaded">
+        <div class="content" v-if="shouldRenderContent">
             <slot/>
         </div>
     </component>
@@ -33,7 +33,7 @@ Vue.directive('cg-toggle', {
         const target = binding.value;
         if (!target) {
             // eslint-disable-next-line
-            console.warning('Target not given found!');
+            console.warning('Target given not found!');
         }
         vnode.elm.addEventListener('click', () => {
             vnode.context.$root.$emit(EVENT_TOGGLE, target);
@@ -138,6 +138,14 @@ export default {
             type: Boolean,
             default: false,
         },
+        lazyLoadAlways: {
+            type: Boolean,
+            default: false,
+        },
+        noAnimation: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     data() {
@@ -146,9 +154,21 @@ export default {
             contentStyle: {
                 height: this.collapsed ? '0px' : 'auto',
             },
-            loaded: !this.lazyLoad || !this.collapsed,
+            loaded: (!this.lazyLoadAlways && !this.lazyLoad) || !this.collapsed,
             show: !this.collapsed,
         };
+    },
+
+    computed: {
+        shouldRenderContent() {
+            if (this.loaded) {
+                return true;
+            }
+            if (this.lazyLoadAlways && !this.collapsed) {
+                return true;
+            }
+            return false;
+        },
     },
 
     watch: {
@@ -195,9 +215,14 @@ export default {
         },
 
         async toggle() {
-            if (!this.loaded) {
+            if (!this.loaded && !this.lazyLoadAlways) {
                 this.loaded = true;
                 await this.$afterRerender();
+            }
+
+            if (this.noAnimation) {
+                this.toggleWithoutAnimation();
+                return;
             }
 
             const wrapperEl = await this.$waitForRef('content');
@@ -210,7 +235,7 @@ export default {
 
             if (contentHeight === 0) {
                 // Collapse is not visible, so don't bother animating.
-                this.contentStyle = { height: this.collapsed ? 0 : 'auto' };
+                this.toggleWithoutAnimation();
                 return;
             }
 
@@ -243,6 +268,11 @@ export default {
             };
 
             wrapperEl.addEventListener('transitionend', onTransitionEnd);
+        },
+
+        toggleWithoutAnimation() {
+            this.setState(this.show ? 'expanded' : 'collapsed');
+            this.contentStyle = { height: this.show ? 'auto' : 0 };
         },
 
         expand() {

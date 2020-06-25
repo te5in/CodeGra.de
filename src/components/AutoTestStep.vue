@@ -306,8 +306,7 @@
             v-cg-toggle="resultsCollapseId">
             <td class="expand shrink">
                 <template v-if="canViewOutput">
-                    <cg-loader v-if="junitAttachmentLoading" :scale="0.75" :center="false" />
-                    <icon v-else name="chevron-down" :scale="0.75" class="caret" />
+                    <icon name="chevron-down" :scale="0.75" class="caret" />
                 </template>
 
                 <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
@@ -337,14 +336,17 @@
         <tr v-if="canViewOutput" class="results-log-collapse-row">
             <td :colspan="result ? 5 : 4">
                 <collapse :id="resultsCollapseId"
-                          lazy-load
+                          lazy-load-always
+                          no-animation
                           v-model="junitCollapseClosed">
                     <div slot-scope="{}">
                         <b-card no-body>
                             <b-tabs card no-fade>
                                 <b-tab title="Results"
                                        v-if="$utils.getProps(stepResult, null, 'attachment_id') != null">
-                                    <cg-loader v-if="junitAttachmentLoading" />
+                                    <cg-loader v-if="junitAttachmentLoading"
+                                               page-loader
+                                               class="mb-2"/>
                                     <b-alert v-else-if="junitError != ''"
                                              show
                                              variant="danger"
@@ -1401,12 +1403,13 @@ export default {
             this.storeLoadCodeFromRoute({
                 route: `/api/v1/auto_tests/${autoTestId}/runs/${runId}/step_results/${resultId}/attachment`,
             }).then(attachment => {
-                this.junitAttachment = CGJunit.fromXml(attachment);
+                this.junitAttachment = CGJunit.fromXml(this.stepResultAttachment, attachment);
             }).catch(err => {
                 this.junitError = err;
             }).then(() => {
-                // TODO: check if it is the correct attachment that has been loaded.
-                this.junitAttachmentLoading = false;
+                if (this.junitAttachment.id === this.stepResultAttachment) {
+                    this.junitAttachmentLoading = false;
+                }
             });
         },
     },
