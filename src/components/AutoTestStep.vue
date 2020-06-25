@@ -346,7 +346,8 @@
                                        v-if="$utils.getProps(stepResult, null, 'attachment_id') != null">
                                     <cg-loader v-if="junitAttachmentLoading"
                                                page-loader
-                                               class="mb-3"/>
+                                               class="mb-3"
+                                               :scale="2" />
                                     <b-alert v-else-if="junitError != ''"
                                              show
                                              variant="danger"
