@@ -14,13 +14,13 @@
                 <div class="border rounded overflow-hidden">
                     <div class="d-flex flex-row p-2">
                         <div class="flex-grow-1">
-                            <b-badge class="classname">
+                            <div class="badge classname">
                                 <code>{{ testCase.classname }}</code>
-                            </b-badge>
+                            </div>
                             {{ testCase.name }}
                         </div>
 
-                        <div v-b-popover.top.hover="statePopover(testCase.state)"
+                        <div :title="statePopover(testCase.state)"
                              class="flex-grow-0 ml-2">
                             <fa-icon :name="testCase.fontAwesomeIcon.icon"
                                      style="width: 1rem;"
