@@ -4,8 +4,12 @@
         <h5>
             {{ suite.name }} ({{ suite.successful }} / {{ suite.runTests }})
         </h5>
-        <masonry :cols="{ default: 2 }"
-                 gutter="0.5rem">
+
+        <!-- The masonry would not change the number of columns when resizing
+            the window for some unknown reason, but doing the comparison
+            ourselves does the trick. -->
+        <masonry :cols="{ default: $root.$windowWidth <= $root.mediumWidth ? 1 : 2 }"
+                 gutter="1rem">
             <div v-for="testCase in suite.cases" class="py-1">
                 <div class="border rounded overflow-hidden">
                     <div class="d-flex flex-row p-2">
