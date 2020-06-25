@@ -1493,5 +1493,11 @@ export default {
     max-width: calc(100vw - 8rem);
     width: calc(100vw - 8rem);
     margin-top: 2rem;
+
+    @media @media-no-large {
+        max-width: calc(100vw - 2rem);
+        width: calc(100vw - 2rem);
+        margin-top: 1rem;
+    }
 }
 </style>
