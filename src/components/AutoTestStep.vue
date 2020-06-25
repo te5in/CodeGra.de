@@ -1410,7 +1410,8 @@ export default {
             }).catch(err => {
                 this.junitError = err;
             }).then(() => {
-                if (this.junitAttachment.id === this.stepResultAttachment) {
+                const cur = this.$utils.getProps(this.junitAttachment, null, 'id');
+                if (cur === this.stepResultAttachment) {
                     this.junitAttachmentLoading = false;
                 }
             });
