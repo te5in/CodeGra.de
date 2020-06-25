@@ -346,7 +346,7 @@
                                        v-if="$utils.getProps(stepResult, null, 'attachment_id') != null">
                                     <cg-loader v-if="junitAttachmentLoading"
                                                page-loader
-                                               class="mb-2"/>
+                                               class="mb-3"/>
                                     <b-alert v-else-if="junitError != ''"
                                              show
                                              variant="danger"
@@ -1395,6 +1395,8 @@ export default {
         async loadJunitAttachment() {
             this.junitAttachmentLoading = true;
             this.junitError = '';
+
+            await this.$afterRerender();
 
             const autoTestId = this.autoTest.id;
             const runId = this.autoTest.runs[0].id;
