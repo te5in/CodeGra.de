@@ -12,3 +12,6 @@ class CGEnum(enum.Enum):
                 pass
 
         raise AttributeError
+
+    def __to_json__(self) -> str:
+        return self.name

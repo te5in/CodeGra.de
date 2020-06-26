@@ -11,14 +11,13 @@ import sqlalchemy
 from sqlalchemy.orm import column_property
 from werkzeug.utils import invalidate_cached_property  # type: ignore
 from werkzeug.utils import cached_property
-from typing_extensions import Literal
+from typing_extensions import Literal, TypedDict
 
 import psef
 from cg_enum import CGEnum
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
-from cg_sqlalchemy_helpers import hybrid_property, hybrid_expression
-from cg_sqlalchemy_helpers.types import DbColumn, ImmutableColumnProxy
+from cg_sqlalchemy_helpers.types import ImmutableColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import Base, db
@@ -36,11 +35,28 @@ class CommentType(CGEnum):
 
 
 @enum.unique
-class CommentReplyType(enum.Enum):
+class CommentReplyType(CGEnum):
     """The type of formatting used for the contents of the reply.
     """
     plain_text = enum.auto()
     markdown = enum.auto()
+
+
+class CommentReplyJSON(TypedDict, total=True):
+    id: str
+    comment: str
+    author_id: t.Optional[int]
+    in_reply_to_id: t.Optional[int]
+    last_edit: t.Optional[DatetimeWithTimezone]
+    created_at: DatetimeWithTimezone
+    reply_type: CommentReplyType
+    comment_type: CommentType
+    approved: bool
+
+
+class CommentReplyExtendedJSON(CommentReplyJSON, total=True):
+    author: t.Optional['user_models.User']
+    comment_base_id: int
 
 
 class CommentReply(IdMixin, TimestampMixin, Base):
@@ -86,13 +102,6 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         nullable=True,
         default=True,
         server_default='true'
-    )
-
-    peer_feedback_score = db.Column(
-        'peer_feedback_score',
-        db.Integer,
-        nullable=True,
-        default=None,
     )
 
     in_reply_to_id = db.Column(
@@ -277,39 +286,33 @@ class CommentReply(IdMixin, TimestampMixin, Base):
             res['author'] = self.author
         return res
 
-    def __to_json__(self) -> t.Mapping[str, t.Union[str, int, None]]:
+    def __to_json__(self) -> CommentReplyJSON:
         last_edit = self.last_edit
-        res: t.Dict[str, t.Union[str, int, None, dict]] = {
+        res = {
             'id': self.id,
             'comment': self.comment,
             'author_id': None,
             'in_reply_to_id': self.in_reply_to_id,
-            'last_edit': None if last_edit is None else last_edit.isoformat(),
-            'created_at': self.created_at.isoformat(),
-            'reply_type': self.reply_type.name,
-            'peer_feedback': None,
+            'last_edit': last_edit,
+            'created_at': self.created_at,
+            'reply_type': self.reply_type,
+            'comment_type': self.comment_type,
             'approved': self.is_approved,
         }
-
-        if self.comment_type.is_peer_feedback:
-            res['peer_feedback'] = {
-                'score': self.peer_feedback_score,
-            }
 
         if self.can_see_author:
             res['author_id'] = self.author_id
 
         return res
 
-    def __extended_to_json__(
-        self
-    ) -> t.Mapping[str, t.Union[str, int, None, 'user_models.User']]:
+    def __extended_to_json__(self) -> CommentReplyExtendedJSON:
         author = self.author if self.can_see_author else None
-        return {
-            **self.__to_json__(),
+        # Tracking mypy issue: https://github.com/python/mypy/issues/4122
+        return CommentReplyExtendedJSON({
+            **self.__to_json__(),  # type: ignore[misc]
             'author': author,
             'comment_base_id': self.comment_base_id,
-        }
+        })
 
 
 class CommentReplyEdit(IdMixin, TimestampMixin, Base):

@@ -245,7 +245,8 @@ class MyDb:  # pragma: no cover
         unique: bool = False,
         nullable: Literal[True] = True,
         default: t.Union[T, t.Callable[[], T], None] = None,
-        index: bool = False
+        index: bool = False,
+        server_default: t.Any = ...,
     ) -> 'ColumnProxy[t.Optional[T]]':
         ...
 
@@ -588,7 +589,6 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
         ...
 
 
-
 class IndexedJSONColumn(DbColumn[Never]):
     def __getitem__(self, key: str) -> 'IndexedJSONColumn':
         ...
@@ -603,6 +603,7 @@ class IndexedJSONColumn(DbColumn[Never]):
 class ExistsColumn:
     def __invert__(self) -> 'ExistsColumn':
         ...
+
 
 FilterColumn = t.Union[DbColumn[bool], DbColumn[Literal[True]], DbColumn[
     Literal[False]], ExistsColumn]

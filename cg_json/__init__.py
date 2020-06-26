@@ -6,6 +6,7 @@ import enum
 import json as system_json
 import uuid
 import typing as t
+import datetime
 import contextlib
 from json import JSONEncoder
 
@@ -60,6 +61,10 @@ class CustomJSONEncoder(JSONEncoder):
         """
         if isinstance(o, uuid.UUID):
             return str(o)
+        elif isinstance(o, datetime.datetime):
+            return o.isoformat()
+        elif isinstance(o, datetime.timedelta):
+            return o.total_seconds()
         elif hasattr(o, '__to_json__'):
             return o.__to_json__()
         else:
