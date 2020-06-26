@@ -14,13 +14,18 @@ from typing_extensions import Literal
 
 logger = structlog.get_logger()
 
-T_CAL = t.TypeVar('T_CAL', bound=t.Callable)
-Y_CAL = t.TypeVar('Y_CAL', bound=t.Callable)
+T_CAL = t.TypeVar('T_CAL', bound=t.Callable)  # pylint: disable=invalid-name
+Y_CAL = t.TypeVar('Y_CAL', bound=t.Callable)  # pylint: disable=invalid-name
 
 __all__ = ['timed_code', 'timed_function']
 
 
 def init_app(app: flask.Flask) -> None:
+    """Initialize the app.
+
+    :param app: The flask app to initialize.
+    """
+
     @app.before_request
     def __setup_timers() -> None:
         flask.g.cg_timers_collection = defaultdict(
@@ -55,6 +60,12 @@ def init_app(app: flask.Flask) -> None:
 @contextlib.contextmanager
 def timed_code(code_block_name: str, **other_keys: object
                ) -> t.Generator[t.Callable[[], float], None, None]:
+    """Measure the time it takes for the code in this context to run.
+
+    :param code_block_name: Name of the measured block, for logging purposes.
+    :param **other_keys: Keys to log along with the timing information.
+    :returns: A context manager that measures its lifetime.
+    """
     start_time = time.time()
     logger.info(
         'Starting timed code block',
@@ -95,6 +106,14 @@ def timed_function(*, collect_in_request: Literal[True]
 
 def timed_function(fun: T_CAL = None, *, collect_in_request: bool = False
                    ) -> t.Union[T_CAL, t.Callable[[Y_CAL], Y_CAL]]:
+    """Measure the time it takes for a function to run.
+
+    :param fun: Function to measure the performance of.
+    :param collect_in_request: Include the timings in the timing information of
+        this request.
+    :returns: A function that calls the given function and performs the
+        measurement.
+    """
     if collect_in_request:
 
         def __outer(fun: Y_CAL) -> Y_CAL:
@@ -110,7 +129,7 @@ def timed_function(fun: T_CAL = None, *, collect_in_request: bool = False
                         timer_dict = flask.g.cg_timers_collection[key]
                         timer_dict['amount'] += 1
                         timer_dict['total_time'] += time.time() - start
-                    except:  # pragma: no cover
+                    except:  # pragma: no cover # pylint: disable=bare-except
                         pass
 
             return t.cast(Y_CAL, _wrapper)
