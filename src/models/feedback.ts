@@ -28,10 +28,6 @@ interface FeedbackReplyEditServerData {
     created_at: string;
 }
 
-type PeerFeedbackServerData = {
-    score: null | number;
-};
-
 export interface FeedbackReplyServerData {
     id: number;
     comment: string;
@@ -41,7 +37,7 @@ export interface FeedbackReplyServerData {
     created_at: string;
     updated_at: string;
     reply_type: ReplyTypes;
-    peer_feedback: PeerFeedbackServerData | null;
+    comment_type: 'normal' | 'peer_feedback';
     approved: boolean;
 
     author?: UserServerData;
@@ -136,7 +132,7 @@ export class FeedbackReply {
         public readonly replyType: ReplyTypes,
         public readonly createdAt: moment.Moment,
         private readonly feedbackLineId: number,
-        public readonly peerFeedback: PeerFeedbackServerData | null,
+        public readonly commentType: 'normal' | 'peer_feedback',
         public readonly approved: boolean,
         public readonly deleted = false,
     ) {
@@ -171,7 +167,7 @@ export class FeedbackReply {
             serverData.reply_type,
             moment.utc(serverData.created_at, moment.ISO_8601),
             feedbackLineId,
-            serverData.peer_feedback,
+            serverData.comment_type,
             serverData.approved,
         );
     }
@@ -187,7 +183,7 @@ export class FeedbackReply {
     }
 
     get isPeerFeedback() {
-        return this.peerFeedback != null;
+        return this.commentType === 'peer_feedback';
     }
 
     canSeeEdits(assignment: Assignment): boolean {
@@ -207,7 +203,7 @@ export class FeedbackReply {
     }
 
     canApprove(assignment: Assignment): boolean {
-        if (this.peerFeedback == null) {
+        if (this.commentType === 'normal') {
             return false;
         }
         return assignment.hasPermission(CPerm.canApproveInlineComments);
@@ -236,7 +232,7 @@ export class FeedbackReply {
             this.replyType,
             this.createdAt,
             this.feedbackLineId,
-            this.peerFeedback,
+            this.commentType,
             props?.approved ?? this.approved,
             props?.deleted ?? this.deleted,
         );
@@ -244,19 +240,6 @@ export class FeedbackReply {
 
     update(message: string): FeedbackReply {
         return this._update({ message });
-    }
-
-    updateScoreAndSave(score: number): Promise<SubmitButtonResult<FeedbackReply>> {
-        return axios
-            .patch(`/api/v1/comments/${this.feedbackLineId}/replies/${this.id}/score`, { score })
-            .then(response => ({
-                ...response,
-                cgResult: FeedbackReply.fromServerData(
-                    response.data,
-                    this.feedbackLineId,
-                    this.trackingId,
-                ),
-            }));
     }
 
     approveAndSave(approved: boolean): Promise<SubmitButtonResult<FeedbackReply>> {
@@ -316,7 +299,7 @@ export class FeedbackReply {
             'markdown',
             moment(),
             feedbackLineId,
-            isPeerFeedback ? { score: null } : null,
+            isPeerFeedback ? 'peer_feedback' : 'normal',
             isPeerFeedback,
         );
     }

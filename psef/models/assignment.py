@@ -18,7 +18,7 @@ import sqlalchemy
 from sqlalchemy.orm import validates
 from mypy_extensions import DefaultArg
 from sqlalchemy.types import JSON
-from typing_extensions import TypedDict
+from typing_extensions import Literal, TypedDict
 from sqlalchemy.sql.expression import and_, func
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
@@ -488,10 +488,6 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         nullable=False,
     )
 
-    auto_approved_score = db.Column(
-        'auto_approved_score', db.Integer, nullable=False
-    )
-
     assignment = db.relationship(
         lambda: Assignment,
         foreign_keys=assignment_id,
@@ -501,24 +497,19 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
     )
 
     def __init__(
-        self, amount: int, time: datetime.timedelta, auto_approved_score: int,
+        self, amount: int, time: datetime.timedelta,
         assignment: 'Assignment'
     ) -> None:
         super().__init__(
             amount=amount,
             time=time,
             assignment=assignment,
-            auto_approved_score=auto_approved_score,
         )
-
-    def should_auto_approve(self, score: int) -> bool:
-        return score >= self.auto_approved_score
 
     def __to_json__(self) -> PeerFeedbackSettingJSON:
         return {
             'id': self.id,
             'amount': self.amount,
-            'auto_approved_score': self.auto_approved_score,
             'time': on_not_none(self.time, lambda x: x.total_seconds()),
         }
 

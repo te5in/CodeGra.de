@@ -20,14 +20,6 @@
 
     <template v-if="enabled">
         <b-form-fieldset>
-            <b-input-group prepend="Auto approved score">
-                <cg-number-input v-model="autoApprovedScore" />
-            </b-input-group>
-        </b-form-fieldset>
-    </template>
-
-    <template v-if="enabled">
-        <b-form-fieldset>
             <b-input-group prepend="Time (seconds)">
                 <cg-number-input v-model="time" />
             </b-input-group>
@@ -65,13 +57,10 @@ export default class PeerFeedbackSettings extends Vue {
 
     time: number | null = this.peerFeedbackSettings?.amount ?? 0;
 
-    autoApprovedScore: number | null = this.peerFeedbackSettings?.autoApprovedScore ?? 0;
-
     submit() {
         return this.$http.put(`/api/v1/assignments/${this.assignment.id}/peer_feedback_settings`, {
             time: this.time,
             amount: this.amount,
-            auto_approved_score: this.autoApprovedScore,
         });
     }
 }

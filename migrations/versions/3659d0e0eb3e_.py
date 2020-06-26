@@ -26,7 +26,6 @@ def upgrade():
         sa.Column('updated_at', sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column('amount', sa.Integer(), nullable=False),
         sa.Column('time', sa.Interval(), nullable=True),
-        sa.Column('auto_approved_score', sa.Integer(), nullable=False),
         sa.Column('assignment_id', sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint('id')
     )

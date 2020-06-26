@@ -1305,6 +1305,7 @@ def get_all_works_for_assignment(
     else:
         return jsonify(obj.all())
 
+
 @api.route("/assignments/<int:assignment_id>/submissions/", methods=['POST'])
 @features.feature_required(features.Feature.BLACKBOARD_ZIP_UPLOAD)
 def post_submissions(assignment_id: int) -> EmptyResponse:
@@ -1925,8 +1926,7 @@ def update_peer_feedback_settings(
     )
 
     with helpers.get_from_request_transaction() as [get, _]:
-        amount = get('amount', int)
-        auto_approved_score = get('auto_approved_score', int)
+        new_amount = get('amount', int)
         time = get(
             'time',
             (float, int),
@@ -1935,26 +1935,26 @@ def update_peer_feedback_settings(
 
     peer_feedback_settings = assignment.peer_feedback_settings
 
-    db.session.query(
-        models.AssignmentPeerFeedbackConnection
-    ).filter(models.AssignmentPeerFeedbackConnection.assignment == assignment
-             ).delete()
-
     if peer_feedback_settings is None:
         peer_feedback_settings = models.AssignmentPeerFeedbackSettings(
             assignment=assignment,
             time=time,
-            amount=amount,
-            auto_approved_score=auto_approved_score,
+            amount=new_amount,
         )
+        old_amount = None
     else:
+        old_amount = peer_feedback_settings.amount
         peer_feedback_settings.time = time
-        peer_feedback_settings.amount = amount
-        peer_feedback_settings.auto_approved_score=auto_approved_score
+        peer_feedback_settings.amount = new_amount
 
-    if assignment.get_amount_not_deleted_submissions(
-    ) >= peer_feedback_settings.amount:
-        peer_feedback_settings.do_initial_division()
+    if old_amount is None or old_amount != new_amount:
+        db.session.query(models.AssignmentPeerFeedbackConnection).filter(
+            models.AssignmentPeerFeedbackConnection.assignment == assignment
+        ).delete()
+
+        amount_subs = assignment.get_amount_not_deleted_submissions()
+        if amount_subs >= new_amount:
+            peer_feedback_settings.do_initial_division()
 
     db.session.commit()
     return JSONResponse.make(peer_feedback_settings)
