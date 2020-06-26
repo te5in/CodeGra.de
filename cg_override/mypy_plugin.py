@@ -8,7 +8,9 @@ from functools import partial
 # disabling this pylint error, but haven't found an explanation why...
 from mypy.nodes import TypeInfo  # pylint: disable=no-name-in-module
 from mypy.types import Type, CallableType  # pylint: disable=no-name-in-module
-from mypy.plugin import Plugin, FunctionContext  # pylint: disable=no-name-in-module
+from mypy.plugin import (  # pylint: disable=no-name-in-module
+    Plugin, FunctionContext
+)
 
 
 def _has_method(name: str, cls: TypeInfo) -> bool:
