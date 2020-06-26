@@ -28,6 +28,10 @@ interface FeedbackReplyEditServerData {
     created_at: string;
 }
 
+type PeerFeedbackServerData = {
+    score: null | number;
+};
+
 export interface FeedbackReplyServerData {
     id: number;
     comment: string;
@@ -37,6 +41,8 @@ export interface FeedbackReplyServerData {
     created_at: string;
     updated_at: string;
     reply_type: ReplyTypes;
+    peer_feedback: PeerFeedbackServerData | null;
+    approved: boolean;
 
     author?: UserServerData;
 }
@@ -130,6 +136,8 @@ export class FeedbackReply {
         public readonly replyType: ReplyTypes,
         public readonly createdAt: moment.Moment,
         private readonly feedbackLineId: number,
+        public readonly peerFeedback: PeerFeedbackServerData | null,
+        public readonly approved: boolean,
         public readonly deleted = false,
     ) {
         const foundTrackingId = trackingIdLookup.get(id ?? -1);
@@ -163,6 +171,8 @@ export class FeedbackReply {
             serverData.reply_type,
             moment.utc(serverData.created_at, moment.ISO_8601),
             feedbackLineId,
+            serverData.peer_feedback,
+            serverData.approved,
         );
     }
 
@@ -174,6 +184,10 @@ export class FeedbackReply {
             ...response,
             cgResult: response.data.map(d => FeedbackReplyEdit.fromServerData(d)),
         };
+    }
+
+    get isPeerFeedback() {
+        return this.peerFeedback != null;
     }
 
     canSeeEdits(assignment: Assignment): boolean {
@@ -192,6 +206,13 @@ export class FeedbackReply {
         return assignment.hasPermission(CPerm.canEditOthersComments);
     }
 
+    canApprove(assignment: Assignment): boolean {
+        if (this.peerFeedback == null) {
+            return false;
+        }
+        return assignment.hasPermission(CPerm.canApproveInlineComments);
+    }
+
     updateFromServerData(serverData: FeedbackReplyServerData): FeedbackReply {
         return FeedbackReply.fromServerData(serverData, this.feedbackLineId, this.trackingId);
     }
@@ -204,33 +225,59 @@ export class FeedbackReply {
         return !this.message;
     }
 
-    update(message: string): FeedbackReply {
+    _update(props: { message?: string; deleted?: boolean; approved?: boolean }): FeedbackReply {
         return new FeedbackReply(
             this.trackingId,
             this.id,
             this.inReplyToId,
-            message,
+            props?.message ?? this.message,
             this.authorId,
             this.lastEdit,
             this.replyType,
             this.createdAt,
             this.feedbackLineId,
+            this.peerFeedback,
+            props?.approved ?? this.approved,
+            props?.deleted ?? this.deleted,
+        );
+    }
+
+    update(message: string): FeedbackReply {
+        return this._update({ message });
+    }
+
+    updateScoreAndSave(score: number): Promise<SubmitButtonResult<FeedbackReply>> {
+        return axios
+            .patch(`/api/v1/comments/${this.feedbackLineId}/replies/${this.id}/score`, { score })
+            .then(response => ({
+                ...response,
+                cgResult: FeedbackReply.fromServerData(
+                    response.data,
+                    this.feedbackLineId,
+                    this.trackingId,
+                ),
+            }));
+    }
+
+    approveAndSave(approved: boolean): Promise<SubmitButtonResult<FeedbackReply>> {
+        let meth = axios.post;
+        if (!approved) {
+            meth = axios.delete;
+        }
+        return meth(`/api/v1/comments/${this.feedbackLineId}/replies/${this.id}/approval`).then(
+            response => ({
+                ...response,
+                cgResult: FeedbackReply.fromServerData(
+                    response.data,
+                    this.feedbackLineId,
+                    this.trackingId,
+                ),
+            }),
         );
     }
 
     markAsDeleted() {
-        return new FeedbackReply(
-            this.trackingId,
-            this.id,
-            this.inReplyToId,
-            this.message,
-            this.authorId,
-            this.lastEdit,
-            this.replyType,
-            this.createdAt,
-            this.feedbackLineId,
-            true, // Deleted
-        );
+        return this._update({ deleted: true });
     }
 
     delete(): Promise<object> {
@@ -254,7 +301,11 @@ export class FeedbackReply {
         }
     }
 
-    static createEmpty(userId: number, feedbackLineId: number): FeedbackReply {
+    static createEmpty(
+        userId: number,
+        feedbackLineId: number,
+        isPeerFeedback: boolean = false,
+    ): FeedbackReply {
         return new FeedbackReply(
             getUniqueId(),
             null,
@@ -265,6 +316,8 @@ export class FeedbackReply {
             'markdown',
             moment(),
             feedbackLineId,
+            isPeerFeedback ? { score: null } : null,
+            isPeerFeedback,
         );
     }
 }
@@ -323,6 +376,9 @@ export class FeedbackLine {
 
         if (author.isEqualOrMemberOf(NormalUser.getCurrentUser())) {
             perms.push(CPerm.canAddOwnInlineComments);
+        }
+        if (assignment.peer_feedback_settings) {
+            return true;
         }
         return perms.some(x => assignment.hasPermission(x));
     }

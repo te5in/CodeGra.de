@@ -38,7 +38,7 @@ from cg_json import (
     JSONResponse, ExtendedJSONResponse, jsonify, extended_jsonify
 )
 from cg_timers import timed_code
-from cg_helpers import handle_none
+from cg_helpers import handle_none, on_not_none
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import (
     EmptyResponse, make_empty_response, callback_after_this_request
@@ -130,21 +130,6 @@ def add_warning(warning: str, code: psef.exceptions.APIWarnings) -> None:
     if not hasattr(g, 'request_warnings'):
         g.request_warnings = []
     g.request_warnings.append(psef.errors.make_warning(warning, code))
-
-
-def on_not_none(value: t.Optional[T],
-                callback: t.Callable[[T], K]) -> t.Optional[K]:
-    """Call a given ``callback`` if the given ``value`` is not none.
-
-    :param value: The value to operate on if not ``None``.
-    :param callback: The callback to call with ``value`` if the ``value`` is
-        not ``None``.
-
-    :returns: The return of the ``callback`` or ``None``.
-    """
-    if value is not None:
-        return callback(value)
-    return None
 
 
 def add_deprecate_warning(warning: str) -> None:
@@ -847,6 +832,16 @@ class TransactionGet(Protocol[K]):
         *,
         transform: t.Callable[[T], TT],
     ) -> TT:
+        ...
+
+    @t.overload
+    def __call__(
+        self,
+        to_get: K,
+        typ: t.Tuple[t.Type[T], t.Type[TT]],
+        *,
+        transform: t.Callable[[t.Union[T, TT]], ZZ],
+    ) -> ZZ:
         ...
 
     @t.overload

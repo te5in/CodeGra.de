@@ -150,6 +150,12 @@
                 </b-card>
             </div>
 
+            <div class="col-lg-12">
+                <b-card header="Peer feedback">
+                    <peer-feedback-settings :assignment="assignment" />
+                </b-card>
+            </div>
+
             <div :class="canSubmitBbZip ? 'col-xl-6' : 'col-xl-12'">
                 <b-card v-if="canSubmitWork" no-body>
                     <span slot="header">
@@ -350,6 +356,7 @@ import {
     AutoTest,
     AssignmentSubmitTypes,
     SubmissionLimits,
+    PeerFeedbackSettings,
 } from '@/components';
 
 export default {
@@ -746,6 +753,7 @@ export default {
         AutoTest,
         AssignmentSubmitTypes,
         SubmissionLimits,
+        PeerFeedbackSettings,
     },
 };
 </script>

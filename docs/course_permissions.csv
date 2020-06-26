@@ -55,3 +55,5 @@ Name,Description
 **View others comment edits**,Users with this permission may see the edit history of comments placed by others
 **View feedback author** \*,Users with this permission can view the author of inline and general feedback
 **Can email students**,Users with this permission can email students using the contact student button.
+**View peer feedback before approved**,"Users with this permission can view unapproved inline comments, comments that need approval include peer feedback comments. Users still need to have the permission to see the feedback, so this permission alone is not enough to see peer feedback."
+**Approve inline comments**,"Users with this permission can approve inline comments, comments that need approval include peer feedback comments."

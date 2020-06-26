@@ -40,6 +40,7 @@ interface AssignmentServerProps {
     amount_in_cool_off_period: number;
     lms_name: string | null;
     analytics_workspace_ids: number[];
+    peer_feedback_settings: any;
 
     deadline: string;
     created_at: string;
@@ -138,6 +139,8 @@ abstract class AssignmentData {
     readonly graderIds?: number[] | null;
 
     readonly analytics_workspace_ids!: number[];
+
+    readonly peer_feedback_settings!: any;
 }
 /* eslint-enable camelcase */
 

@@ -27,6 +27,7 @@ DbSelf = t.TypeVar('DbSelf', bound='MyDb')
 QuerySelf = t.TypeVar('QuerySelf', bound='MyNonOrderableQuery')
 _T_BASE = t.TypeVar('_T_BASE', bound='Base')
 _Y_BASE = t.TypeVar('_Y_BASE', bound='Base')
+T_DB_COLUMN = t.TypeVar('T_DB_COLUMN', bound='DbColumn')
 
 Never = t.NewType('Never', object)
 
@@ -39,7 +40,7 @@ class MySession:  # pragma: no cover
         ...
 
     @t.overload
-    def query(self, __x: '_ExistsColumn') -> '_MyExistsQuery':
+    def query(self, __x: 'ExistsColumn') -> '_MyExistsQuery':
         ...
 
     @t.overload
@@ -587,6 +588,7 @@ class DbColumn(t.Generic[T]):  # pragma: no cover
         ...
 
 
+
 class IndexedJSONColumn(DbColumn[Never]):
     def __getitem__(self, key: str) -> 'IndexedJSONColumn':
         ...
@@ -598,9 +600,12 @@ class IndexedJSONColumn(DbColumn[Never]):
         ...
 
 
-class _ExistsColumn:
-    def __invert__(self) -> '_ExistsColumn':
+class ExistsColumn:
+    def __invert__(self) -> 'ExistsColumn':
         ...
+
+FilterColumn = t.Union[DbColumn[bool], DbColumn[Literal[True]], DbColumn[
+    Literal[False]], ExistsColumn]
 
 
 class Mapper(t.Generic[_T_BASE]):
@@ -630,7 +635,7 @@ class MyNonOrderableQuery(t.Generic[T]):  # pragma: no cover
     subquery: t.Callable[[QuerySelf, str], RawTable]
     limit: t.Callable[[QuerySelf, int], QuerySelf]
     first: t.Callable[[QuerySelf], t.Optional[T]]
-    exists: t.Callable[[QuerySelf], _ExistsColumn]
+    exists: t.Callable[[QuerySelf], ExistsColumn]
     count: t.Callable[[QuerySelf], int]
     one: t.Callable[[QuerySelf], T]
     yield_per: t.Callable[[QuerySelf, int], QuerySelf]
@@ -683,9 +688,7 @@ class MyNonOrderableQuery(t.Generic[T]):  # pragma: no cover
     ) -> QuerySelf:
         ...
 
-    def filter(
-        self: QuerySelf, *args: t.Union[DbColumn[bool], _ExistsColumn]
-    ) -> QuerySelf:
+    def filter(self: QuerySelf, *args: FilterColumn) -> QuerySelf:
         ...
 
     def filter_by(
@@ -851,13 +854,34 @@ if t.TYPE_CHECKING and MYPY:
                              coltype: object) -> t.Callable[[object], object]:
             return lambda x: x
 
+    class _func:
+        def count(self, _to_count: DbColumn[t.Any]) -> DbColumn[int]:
+            ...
+
+    def distinct(_distinct: T_DB_COLUMN) -> T_DB_COLUMN:
+        ...
+
     class expression:
+        func: _func
+
         @staticmethod
-        def and_(*to_and: DbColumn[bool]) -> DbColumn[bool]:
+        def and_(*to_and: FilterColumn) -> DbColumn[bool]:
             ...
 
         @staticmethod
-        def or_(*to_or: DbColumn[bool]) -> DbColumn[bool]:
+        def or_(*to_or: FilterColumn) -> DbColumn[bool]:
+            ...
+
+        @staticmethod
+        def null() -> DbColumn[None]:
+            ...
+
+        @staticmethod
+        def false() -> DbColumn[Literal[False]]:
+            ...
+
+        @staticmethod
+        def literal(value: T) -> DbColumn[T]:
             ...
 else:
     from sqlalchemy.ext.hybrid import hybrid_property
@@ -866,6 +890,7 @@ else:
     from sqlalchemy.dialects.postgresql import JSONB, ARRAY
     from sqlalchemy.sql import expression
     from citext import CIText as _CIText
+    from sqlalchemy import distinct
 
     class CIText(_CIText):
         # This is not defined in citext.CIText for whatever reason. This is

@@ -89,7 +89,9 @@ export type CoursePermissionOptions =
     | 'can_add_own_inline_comments'
     | 'can_view_others_comment_edits'
     | 'can_view_feedback_author'
-    | 'can_email_students';
+    | 'can_email_students'
+    | 'can_view_inline_feedback_before_approved'
+    | 'can_approve_inline_comments';
 const makeCPerm = (value: CoursePermissionOptions, name: string, description: string, warning: string | null) => ({ value, name, description, warning });
 export const CoursePermission = {
     canSubmitOthersWork: makeCPerm('can_submit_others_work', 'Submit others work', 'Users with this permission can submit work to an assignment for other users. This means they can submit work that will have another user as the author.', null),
@@ -148,6 +150,8 @@ export const CoursePermission = {
     canViewOthersCommentEdits: makeCPerm('can_view_others_comment_edits', 'View others comment edits', 'Users with this permission may see the edit history of comments placed by others', null),
     canViewFeedbackAuthor: makeCPerm('can_view_feedback_author', 'View feedback author', 'Users with this permission can view the author of inline and general feedback', null),
     canEmailStudents: makeCPerm('can_email_students', 'Can email students', 'Users with this permission can email students using the contact student button.', null),
+    canViewInlineFeedbackBeforeApproved: makeCPerm('can_view_inline_feedback_before_approved', 'View peer feedback before approved', 'Users with this permission can view unapproved inline comments, comments that need approval include peer feedback comments. Users still need to have the permission to see the feedback, so this permission alone is not enough to see peer feedback.', null),
+    canApproveInlineComments: makeCPerm('can_approve_inline_comments', 'Approve inline comments', 'Users with this permission can approve inline comments, comments that need approval include peer feedback comments.', null),
 };
 export type CoursePermission = typeof CoursePermission[keyof typeof CoursePermission];
 /* eslint-enable */

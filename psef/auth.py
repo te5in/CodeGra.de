@@ -159,6 +159,29 @@ class CoursePermissionChecker(PermissionChecker):
     def _ensure(self, perm: CPerm) -> None:
         ensure_permission(perm, self.course_id, user=self.user)
 
+    def _ensure_if(self, checker: t.Callable[[], bool], perm: CPerm) -> None:
+        """Ensure the given permission if the checker returns ``True``.
+
+        This method flips the permission check around: it first checks if a
+        user has the given permission (which is fast), and if that is **not**
+        the case it calls the given ``checker``.
+
+        :param checker: A function that should check if the given permission is
+            required.
+        :param perm: The permission the user should have if ``checker`` returns
+            ``True``.
+        """
+        self._ensure_any_if((checker, perm))
+
+    def _ensure_any_if(
+        self, *checker_perm: t.Tuple[t.Callable[[], bool], CPerm]
+    ) -> None:
+        try:
+            self._ensure_any([perm for _, perm in checker_perm])
+        except PermissionException:
+            if all(checker() for checker, _ in checker_perm):
+                raise
+
     def _ensure_any(self, perms: t.List[CPerm]) -> None:
         ensure_any_of_permissions(perms, self.course_id, user=self.user)
 
@@ -829,13 +852,13 @@ def ensure_can_view_files(
     try:
         if not work.has_as_author(cur_user):
             try:
-                ensure_permission(
-                    CPerm.can_see_others_work, work.assignment.course_id
+                ensure_any_of_permissions(
+                    [CPerm.can_see_others_work, CPerm.can_view_plagiarism],
+                    work.assignment.course_id,
                 )
             except PermissionException:
-                ensure_permission(
-                    CPerm.can_view_plagiarism, work.assignment.course_id
-                )
+                if not work.is_peer_reviewed_by(cur_user):
+                    raise
 
         if teacher_files:
             if work.has_as_author(cur_user) and work.assignment.is_done:
@@ -981,7 +1004,12 @@ class FeedbackBasePermissions(CoursePermissionChecker):
         perms = [CPerm.can_grade_work]
         if self.base.work.has_as_author(self.user):
             perms.append(CPerm.can_add_own_inline_comments)
-        self._ensure_any(perms)
+
+        try:
+            self._ensure_any(perms)
+        except PermissionException:
+            if not self.base.work.is_peer_reviewed_by(self.user):
+                raise
 
 
 class FeedbackReplyPermissions(CoursePermissionChecker):
@@ -1031,7 +1059,32 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
     def ensure_may_add(self) -> None:
         """Ensure that the current user may add this feedback reply.
         """
-        FeedbackBasePermissions(self.reply.comment_base).ensure_may_add()
+        perms = [CPerm.can_grade_work]
+        if self.reply.comment_base.work.has_as_author(self.user):
+            perms.append(CPerm.can_add_own_inline_comments)
+        self._ensure_any(perms)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_add_approved(self) -> None:
+        """Ensure that the current user may add this feedback reply.
+        """
+        self.ensure_may_add()
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_add_as_peer(self) -> None:
+        if not self.reply.comment_base.work.is_peer_reviewed_by(self.user):
+            raise
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_change_score(self) -> None:
+        self.ensure_may_see()
+        # TODO: Improve permission here
+        self._ensure(CPerm.can_approve_inline_comments)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_change_approval(self) -> None:
+        self.ensure_may_see()
+        self._ensure(CPerm.can_approve_inline_comments)
 
     @PermissionChecker.as_ensure_function
     def ensure_may_delete(self) -> None:
@@ -1065,13 +1118,6 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
                 403,
             )
 
-        # Don't check for any state if we simply have all required permissions.
-        if (
-            self._has_permission(CPerm.can_see_others_work) and
-            self._has_permission(CPerm.can_see_user_feedback_before_done)
-        ):
-            return
-
         if self._is_own_reply:
             self._ensure_enrolled()
             return
@@ -1081,8 +1127,20 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
         if not work.assignment.is_done:
             self._ensure(CPerm.can_see_user_feedback_before_done)
 
-        if not work.has_as_author(self.user):
-            self._ensure(CPerm.can_see_others_work)
+        if self.reply.in_reply_to is not None:
+            # You can only see the reply if you can see the base
+            type(self)(self.reply.in_reply_to).ensure_may_see()
+
+        self._ensure_if(
+            lambda: (
+                (not work.has_as_author(self.user)) and
+                (not work.is_peer_reviewed_by(self.user))
+            ),
+            CPerm.can_see_others_work,
+        )
+
+        if not self.reply.is_approved:
+            self._ensure(CPerm.can_view_inline_feedback_before_approved)
 
 
 class NotificationPermissions(CoursePermissionChecker):

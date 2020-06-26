@@ -14,8 +14,8 @@
             <small v-else class="text-muted"><i>- No deadline</i></small>
         </template>
         <small slot="title"
-              v-else
-              class="text-muted font-italic">
+               v-else
+               class="text-muted font-italic">
             Unknown assignment
         </small>
 
@@ -195,6 +195,18 @@
                         <p class="mb-0">Course feedback</p>
                     </div>
                 </div>
+
+
+                <div class="action-button m-2 m-md-3 rounded text-center"
+                     v-if="assignment.peer_feedback_settings != null"
+                     @click="openCategory('peer-feedback')">
+                    <div class="content-wrapper border rounded p-3 pt-4">
+                        <div class="icon-wrapper mb-2">
+                            <icon name="beer" class="fa-flip-horizontal" :scale="actionIconFactor * 6" />
+                        </div>
+                        <p class="mb-0">Peer feedback</p>
+                    </div>
+                </div>
             </div>
 
             <!-- We can't use v-if here because the <submission-list> MUST
@@ -318,6 +330,15 @@
                 <course-feedback :course="assignment.course"
                                  :user="loggedInUser" />
             </div>
+
+            <div v-if="selectedCat === 'peer-feedback'"
+                 class="overflow-hidden"
+                 style="max-height: 100%;">
+                <peer-feedback-overview :assignment="assignment"
+                                        :rubric="rubric"
+                                        :graders="graders"
+                                        class="mb-3" />
+            </div>
         </template>
     </div>
 </div>
@@ -339,6 +360,7 @@ import 'vue-awesome/icons/code-fork';
 import 'vue-awesome/icons/git';
 import 'vue-awesome/icons/envelope';
 import 'vue-awesome/icons/comments-o';
+import 'vue-awesome/icons/beer';
 
 import { NONEXISTENT } from '@/constants';
 import GroupsManagement from '@/components/GroupsManagement';
@@ -357,6 +379,7 @@ import {
     SubmissionUploader,
     SubmissionsExporter,
     WebhookInstructions,
+    PeerFeedbackOverview,
 } from '@/components';
 import StudentContact from '@/components/StudentContact';
 
@@ -385,7 +408,7 @@ export default {
         ...mapGetters('pref', ['darkMode']),
         ...mapGetters('courses', ['courses', 'assignments']),
         ...mapGetters('rubrics', { allRubrics: 'rubrics' }),
-        ...mapGetters('submissions', ['getLatestSubmissions']),
+        ...mapGetters('submissions', ['getSubmissionsByUser']),
         ...mapGetters('users', ['getUser', 'getGroupInGroupSetOfUser']),
 
         loggedInUser() {
@@ -440,6 +463,11 @@ export default {
                     name: 'Course feedback',
                     enabled: this.isStudent,
                 },
+                {
+                    id: 'peer-feedback',
+                    name: 'Peer feedback',
+                    enabled: this.isStudent,
+                },
             ];
         },
 
@@ -473,7 +501,9 @@ export default {
         },
 
         submissions() {
-            return this.getLatestSubmissions(this.assignmentId);
+            return this.getSubmissionsByUser(this.assignmentId, this.userId, {
+                includeGroupSubmissions: true,
+            });
         },
 
         rubric() {
@@ -579,11 +609,10 @@ export default {
         },
 
         latestSubmission() {
-            if (this.submissions.length > 1) {
-                return this.submissions.find(s => s.user.group != null);
-            } else {
-                return this.submissions[0];
+            if (this.submissions.length === 0) {
+                return null;
             }
+            return this.$utils.last(this.submissions);
         },
 
         latestSubmissionGrade() {
@@ -849,6 +878,7 @@ export default {
         WebhookInstructions,
         LateSubmissionIcon,
         StudentContact,
+        PeerFeedbackOverview,
         AnalyticsDashboard: () => ({
             component: import('@/components/AnalyticsDashboard'),
             loading: Loader,

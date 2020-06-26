@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="toggle-container"
-     :class="{ disabled, colors, inline }"
+     :class="{ disabled, colors, inline, 'has-no-value': hasNoValue }"
      :checked="current">
     <div :id="toggleId"
          class="toggle-div">
@@ -17,7 +17,7 @@
         </div>
     </div>
     <b-popover placement="top"
-               v-if="disabled"
+               v-if="disabled && !noDisabledPopover"
                triggers="hover"
                :target="toggleId">
         {{ disabledText }}
@@ -64,6 +64,14 @@ export default {
             default: false,
             type: Boolean,
         },
+        noDisabledPopover: {
+            default: false,
+            type: Boolean,
+        },
+        hasNoValue: {
+            default: false,
+            type: Boolean,
+        },
     },
 
     data() {
@@ -76,6 +84,10 @@ export default {
     watch: {
         value(to) {
             this.current = to === this.valueOn;
+        },
+
+        hasNoValue() {
+            this.current = this.value === this.valueOn;
         },
     },
 
@@ -174,6 +186,20 @@ export default {
 
     .label-on {
         opacity: 1;
+    }
+
+    .label-off {
+        opacity: @unchecked-opacity;
+    }
+}
+
+.has-no-value {
+    .toggle::before {
+        transform: translate(50%, 0.1rem);
+    }
+
+    .label-on {
+        opacity: @unchecked-opacity;
     }
 
     .label-off {

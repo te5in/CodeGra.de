@@ -11,7 +11,6 @@ from collections import defaultdict
 
 import structlog
 import sqlalchemy
-import sqlalchemy.sql as sql
 from sqlalchemy import orm, select
 from sqlalchemy.orm import undefer, selectinload
 from sqlalchemy.types import JSON
@@ -20,8 +19,12 @@ from typing_extensions import Literal
 import psef
 import cg_timers
 from cg_dt_utils import DatetimeWithTimezone
+from cg_sqlalchemy_helpers import expression as sql_expression
 from cg_sqlalchemy_helpers import hybrid_property, hybrid_expression
-from cg_sqlalchemy_helpers.types import DbColumn, ColumnProxy, cast_as_non_null
+from cg_sqlalchemy_helpers.types import (
+    DbColumn, ColumnProxy, FilterColumn, cast_as_non_null
+)
+from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 
 from . import Base, DbColumn, db
 from . import file as file_models
@@ -237,7 +240,11 @@ class Work(Base):
         """
         # pylint: disable=no-self-argument
         return select(
-            [sql.or_(cls._deleted, ~assignment_models.Assignment.is_visible)]
+            [
+                sql_expression.or_(
+                    cls._deleted, ~assignment_models.Assignment.is_visible
+                )
+            ]
         ).where(
             cls.assignment_id == assignment_models.Assignment.id,
         ).label('deleted')
@@ -344,8 +351,8 @@ class Work(Base):
             # The assignment doesn't have a rubric, so simply return an empty
             # query result. We filter it with `false` so it will never return
             # rows.
-            return db.session.query(cls.id, sqlalchemy.sql.null()).filter(
-                sqlalchemy.sql.false()
+            return db.session.query(cls.id, sql_expression.literal(-1.0)).filter(
+                sql_expression.false()
             )
 
         max_rubric_points = assignment.max_rubric_points
@@ -846,7 +853,9 @@ class Work(Base):
 
     @staticmethod
     def limit_to_user_submissions(
-        query: _MyQuery['Work'], user: 'user_models.User'
+        query: _MyQuery['Work'],
+        user: 'user_models.User',
+        include_peer_feedback: bool = False
     ) -> _MyQuery['Work']:
         """Limit the given query of submissions to only submission submitted by
             the given user.
@@ -864,15 +873,35 @@ class Work(Base):
         # every group of a user. This could be narrowed down probably.
         groups_of_user = group_models.Group.contains_users(
             [user]
-        ).with_entities(
-            t.cast(DbColumn[int], group_models.Group.virtual_user_id)
-        )
-        return query.filter(
-            sql.or_(
-                Work.user_id == user.id,
-                t.cast(DbColumn[int], Work.user_id).in_(groups_of_user)
+        ).with_entities(group_models.Group.virtual_user_id)
+        filters: t.List[FilterColumn] = [
+            Work.user_id == user.id,
+            Work.user_id.in_(groups_of_user),
+        ]
+        if include_peer_feedback:
+            pf_conn = assignment_models.AssignmentPeerFeedbackConnection
+            filters.append(
+                db.session.query(pf_conn).filter(
+                    pf_conn.assignment_id == Work.assignment_id,
+                    pf_conn.user_id == Work.user_id,
+                    pf_conn.peer_user_id == user.id,
+                ).exists()
             )
-        )
+
+        return query.filter(sql_expression.or_(*filters))
+
+    def is_peer_reviewed_by(self, user: 'user_models.User') -> bool:
+        if self.assignment.peer_feedback_settings is None:
+            return False
+
+        pf_conn = assignment_models.AssignmentPeerFeedbackConnection
+        return psef.models.db.session.query(
+            pf_conn.query.filter(
+                pf_conn.assignment == self.assignment,
+                pf_conn.user == self.user,
+                pf_conn.peer_user == user,
+            ).exists()
+        ).scalar()
 
     def get_all_authors(self) -> t.List['user_models.User']:
         """Get all the authors of this submission.

@@ -33,8 +33,8 @@ from psef.exceptions import APICodes, APIWarnings, APIException
 
 from . import api
 from .. import (
-    auth, tasks, ignore, models, archive, helpers, linters, parsers, features,
-    registry, plagiarism
+    auth, tasks, ignore, models, archive, helpers, linters, parsers, db_locks,
+    features, registry, plagiarism
 )
 from ..permissions import CoursePermission as CPerm
 
@@ -1295,7 +1295,7 @@ def get_all_works_for_assignment(
     if not current_user.has_permission(
         CPerm.can_see_others_work, course_id=assignment.course_id
     ):
-        obj = models.Work.limit_to_user_submissions(obj, current_user)
+        obj = models.Work.limit_to_user_submissions(obj, current_user, True)
 
     if helpers.extended_requested():
         return extended_jsonify(
@@ -1304,7 +1304,6 @@ def get_all_works_for_assignment(
         )
     else:
         return jsonify(obj.all())
-
 
 @api.route("/assignments/<int:assignment_id>/submissions/", methods=['POST'])
 @features.feature_required(features.Feature.BLACKBOARD_ZIP_UPLOAD)
@@ -1902,3 +1901,60 @@ def get_git_settings(assignment_id: int) -> JSONResponse[models.WebhookBase]:
     db.session.commit()
 
     return jsonify(webhook)
+
+
+@api.route(
+    '/assignments/<int:assignment_id>/peer_feedback_settings', methods=['PUT']
+)
+@features.feature_required(features.Feature.PEER_FEEDBACK)
+@auth.login_required
+def update_peer_feedback_settings(
+    assignment_id: int
+) -> JSONResponse[models.AssignmentPeerFeedbackSettings]:
+    """Get the LTI states for the members of a group for the given assignment.
+    """
+    assignment = helpers.filter_single_or_404(
+        models.Assignment,
+        models.Assignment.id == assignment_id,
+        also_error=lambda a: not a.is_visible,
+        with_for_update=True,
+        with_for_update_of=models.Assignment,
+    )
+    db_locks.acquire_lock(
+        db_locks.LockNamespaces.peer_feedback_division, assignment.id
+    )
+
+    with helpers.get_from_request_transaction() as [get, _]:
+        amount = get('amount', int)
+        auto_approved_score = get('auto_approved_score', int)
+        time = get(
+            'time',
+            (float, int),
+            transform=lambda t: datetime.timedelta(seconds=t),
+        )
+
+    peer_feedback_settings = assignment.peer_feedback_settings
+
+    db.session.query(
+        models.AssignmentPeerFeedbackConnection
+    ).filter(models.AssignmentPeerFeedbackConnection.assignment == assignment
+             ).delete()
+
+    if peer_feedback_settings is None:
+        peer_feedback_settings = models.AssignmentPeerFeedbackSettings(
+            assignment=assignment,
+            time=time,
+            amount=amount,
+            auto_approved_score=auto_approved_score,
+        )
+    else:
+        peer_feedback_settings.time = time
+        peer_feedback_settings.amount = amount
+        peer_feedback_settings.auto_approved_score=auto_approved_score
+
+    if assignment.get_amount_not_deleted_submissions(
+    ) >= peer_feedback_settings.amount:
+        peer_feedback_settings.do_initial_division()
+
+    db.session.commit()
+    return JSONResponse.make(peer_feedback_settings)

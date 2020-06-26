@@ -14,9 +14,11 @@ from werkzeug.utils import cached_property
 from typing_extensions import Literal
 
 import psef
+from cg_enum import CGEnum
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
-from cg_sqlalchemy_helpers.types import ImmutableColumnProxy
+from cg_sqlalchemy_helpers import hybrid_property, hybrid_expression
+from cg_sqlalchemy_helpers.types import DbColumn, ImmutableColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import Base, db
@@ -24,6 +26,13 @@ from . import file as file_models
 from . import user as user_models
 from . import notification as n_models
 from .. import auth, db_locks, current_app, current_user
+
+
+@enum.unique
+class CommentType(CGEnum):
+    """The type of formatting used for the contents of the reply."""
+    normal = enum.auto()
+    peer_feedback = enum.auto()
 
 
 @enum.unique
@@ -61,6 +70,29 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         nullable=False,
         default=False,
         server_default='f'
+    )
+
+    comment_type = db.Column(
+        'comment_type',
+        db.Enum(CommentType),
+        nullable=False,
+        default=CommentType.normal,
+        server_default='normal',
+    )
+
+    is_approved = db.Column(
+        'is_approved',
+        db.Boolean,
+        nullable=True,
+        default=True,
+        server_default='true'
+    )
+
+    peer_feedback_score = db.Column(
+        'peer_feedback_score',
+        db.Integer,
+        nullable=True,
+        default=None,
     )
 
     in_reply_to_id = db.Column(
@@ -146,6 +178,10 @@ class CommentReply(IdMixin, TimestampMixin, Base):
             base.append(self.in_reply_to)
             return base
 
+    @property
+    def perm_checker(self) -> 'auth.FeedbackReplyPermissions':
+        return auth.FeedbackReplyPermissions(self)
+
     def __init__(
         self,
         author: 'user_models.User',
@@ -164,6 +200,8 @@ class CommentReply(IdMixin, TimestampMixin, Base):
             in_reply_to_id=None if in_reply_to is None else in_reply_to.id,
             comment_base=comment_base,
         )
+
+        self.is_approved = self.perm_checker.ensure_may_add_approved.as_bool()
 
         work = self.comment_base.work
         user_reasons: t.Dict[user_models.User, t.Set[n_models.
@@ -241,7 +279,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
 
     def __to_json__(self) -> t.Mapping[str, t.Union[str, int, None]]:
         last_edit = self.last_edit
-        res: t.Dict[str, t.Union[str, int, None]] = {
+        res: t.Dict[str, t.Union[str, int, None, dict]] = {
             'id': self.id,
             'comment': self.comment,
             'author_id': None,
@@ -249,7 +287,14 @@ class CommentReply(IdMixin, TimestampMixin, Base):
             'last_edit': None if last_edit is None else last_edit.isoformat(),
             'created_at': self.created_at.isoformat(),
             'reply_type': self.reply_type.name,
+            'peer_feedback': None,
+            'approved': self.is_approved,
         }
+
+        if self.comment_type.is_peer_feedback:
+            res['peer_feedback'] = {
+                'score': self.peer_feedback_score,
+            }
 
         if self.can_see_author:
             res['author_id'] = self.author_id

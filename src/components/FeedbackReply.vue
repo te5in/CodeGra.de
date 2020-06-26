@@ -150,6 +150,15 @@
         <div class="d-flex justify-content-between header-line">
             <div class="info-text-wrapper">
                 <span>
+                    <b-badge v-if="reply.isPeerFeedback"
+                             class="text-small-uppercase align-middle mt-n1">
+                        peer feedback
+                    </b-badge>
+                    <b-badge v-if="!reply.approved"
+                             class="text-small-uppercase align-middle mt-n1">
+                        unapproved
+                    </b-badge>
+
                     <cg-user :user="reply.author" :show-you="true"
                              v-if="reply.author"/>
                     <i v-else
@@ -167,7 +176,7 @@
                     </span>
                 </span>
             </div>
-            <div v-if="editable || canSeeEdits || hasExternalImages" class="d-flex edit-buttons-wrapper">
+            <div v-if="canApprove | editable || canSeeEdits || hasExternalImages" class="d-flex edit-buttons-wrapper">
                 <b-btn v-if="canSeeEdits && reply.lastEdit"
                        class="state-default"
                        :id="`${componentId}-history-btn`">
@@ -185,6 +194,21 @@
                 </b-popover>
 
                 <template v-if="!nonEditable">
+                    <b-btn v-if="canApprove"
+                           :id="`${componentId}-peer-feedback-btn`"
+                           v-b-popover.top.hover="'Grade beer feedback'">
+                        <icon name="beer"  />
+                    </b-btn>
+                    <b-popover
+                        :target="`${componentId}-peer-feedback-btn`"
+                        placement="leftbottom"
+                        title="Grade Peer feedback"
+                        triggers="click"
+                        :container="componentId">
+                        <peer-feedback-assessment :reply="reply"
+                                                  @updated="emitUpdated"/>
+                    </b-popover>
+
                     <b-btn @click="showExternalImages = !showExternalImages"
                            class="state-default"
                            v-b-popover.top.hover="externalImagesTogglePopover"
@@ -271,6 +295,7 @@ import InnerMarkdownViewer from './InnerMarkdownViewer';
 import SnippetableInput from './SnippetableInput';
 
 import FeedbackReplyHistory from './FeedbackReplyHistory';
+import PeerFeedbackAssessment from './PeerFeedbackAssessment';
 
 @Component({
     computed: {
@@ -290,6 +315,7 @@ import FeedbackReplyHistory from './FeedbackReplyHistory';
         SnippetableInput,
         InnerMarkdownViewer,
         FeedbackReplyHistory,
+        PeerFeedbackAssessment,
     },
 })
 export default class FeedbackReply extends Vue {
@@ -377,6 +403,10 @@ export default class FeedbackReply extends Vue {
 
     get editable(): boolean {
         return this.reply.canEdit(this.assignment);
+    }
+
+    get canApprove(): boolean {
+        return this.reply.canApprove(this.assignment);
     }
 
     get editing(): boolean {
@@ -502,11 +532,15 @@ Do you want to overwrite it?`;
         return this.internalReply.save();
     }
 
+    emitUpdated(reply: FeedbackReplyModel) {
+        this.$emit('updated', reply);
+    }
+
     afterSubmitFeedback(response: any): void {
         if (this.internalReply.isEmpty) {
             this.$emit('deleted', this.internalReply);
         } else {
-            this.$emit('updated', this.internalReply.updateFromServerData(response.data));
+            this.emitUpdated(this.internalReply.updateFromServerData(response.data));
         }
         this.inputDisabled = false;
         this.wasClicked = false;
