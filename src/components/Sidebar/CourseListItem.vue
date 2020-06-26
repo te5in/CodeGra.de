@@ -1,19 +1,22 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <li :class="{
-            'selected': selected && !manageSelected,
-            'light-selected': selected,
-            }"
+        'selected': selected && !manageSelected,
+        'light-selected': selected,
+    }"
     class="sidebar-list-item course-list-item">
     <a class="sidebar-item course-name flex-grow-1 text-truncate"
        @click="openAssignmentsList"
-       :title="course.name">
+       :title="course.name + courseNameExtra">
         {{ course.name }}
+        <i v-if="extraCourseData != null">
+            {{ courseNameExtra }}
+        </i>
     </a>
     <router-link class="sidebar-item manage-link"
-                    v-if="course.canManage"
-                    :class="{ selected: manageSelected }"
-                    :to="manageRoute">
+                 v-if="course.canManage"
+                 :class="{ selected: manageSelected }"
+                 :to="manageRoute">
         <icon name="gear"/>
     </router-link>
 </li>
@@ -31,9 +34,12 @@ export default {
             type: Object,
             required: true,
         },
-
         currentId: {
             type: Number,
+            default: null,
+        },
+        extraCourseData: {
+            type: String,
             default: null,
         },
     },
@@ -57,6 +63,14 @@ export default {
                     sbloc: 'c',
                 },
             };
+        },
+
+        courseNameExtra() {
+            if (this.extraCourseData) {
+                return ` (${this.extraCourseData})`;
+            } else {
+                return '';
+            }
         },
     },
 

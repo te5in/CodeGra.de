@@ -198,6 +198,8 @@ export default {
             );
         },
 
+        // TODO: This is duplicated in Sidebar/CourseList.vue. We should factor
+        // it out into a Course or CourseCollection model or something.
         courseExtraDataToDisplay() {
             const getNameAndYear = c => `${c.name} (${c.created_at.slice(0, 4)})`;
 
