@@ -1031,7 +1031,9 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
     def ensure_may_edit(self) -> None:
         """Ensure that the current user may edit this reply.
         """
-        if self._is_own_reply:
+        if self._is_own_reply and self.reply.comment_type.is_peer_feedback:
+            self.ensure_may_add_as_peer()
+        elif self._is_own_reply:
             self._ensure_enrolled()
         else:
             self._ensure(CPerm.can_edit_others_comments)
@@ -1072,14 +1074,40 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_add_as_peer(self) -> None:
-        if not self.reply.comment_base.work.is_peer_reviewed_by(self.user):
-            raise
+        work = self.reply.comment_base.work
+        assig = work.assignment
+        pf_setting = assig.peer_feedback_settings
+        now = helpers.get_request_start_time()
 
-    @PermissionChecker.as_ensure_function
-    def ensure_may_change_score(self) -> None:
-        self.ensure_may_see()
-        # TODO: Improve permission here
-        self._ensure(CPerm.can_approve_inline_comments)
+        if pf_setting is None or not work.is_peer_reviewed_by(self.user):
+            raise PermissionException(
+                (
+                    'You are not the peer reviewer of this submission so you'
+                    ' may not add a peer review comment'
+                ),
+                'The user is not a peer reviewer of this submission',
+                APICodes.INCORRECT_PERMISSION,
+                403,
+            )
+        elif assig.deadline is None or not assig.deadline_expired:
+            raise PermissionException(
+                (
+                    'The assignments deadline has not yet expired, so you'
+                    ' cannot place peer feedback'
+                ), 'The assignment is before the peer review window',
+                APICodes.INCORRECT_PERMISSION, 403
+            )
+        elif (
+            pf_setting.time is not None and
+            (assig.deadline + pf_setting.time) < now
+        ):
+            raise PermissionException(
+                (
+                    'You cannot place peer feedback as the deadline for this'
+                    ' has expired.'
+                ), 'The assignment is after the peer review window',
+                APICodes.INCORRECT_PERMISSION, 403
+            )
 
     @PermissionChecker.as_ensure_function
     def ensure_may_change_approval(self) -> None:
