@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 TEST_MODULES ?= $(wildcard cg_*/tests/)
-TEST_FILE ?= psef_test/ $(TEST_MODULES)
+TEST_FILE ?= $(TEST_MODULES) psef_test/
 TEST_FLAGS ?=
 DOCTEST_MODULES ?= psef cg_cache cg_helpers
 SHELL := $(shell which bash)
