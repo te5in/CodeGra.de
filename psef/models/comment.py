@@ -17,6 +17,7 @@ import psef
 from cg_enum import CGEnum
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
+from cg_typing_extensions import make_typed_dict_extender
 from cg_sqlalchemy_helpers.types import ImmutableColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
@@ -43,7 +44,7 @@ class CommentReplyType(CGEnum):
 
 
 class CommentReplyJSON(TypedDict, total=True):
-    id: str
+    id: int
     comment: str
     author_id: t.Optional[int]
     in_reply_to_id: t.Optional[int]
@@ -99,7 +100,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
     is_approved = db.Column(
         'is_approved',
         db.Boolean,
-        nullable=True,
+        nullable=False,
         default=True,
         server_default='true'
     )
@@ -288,7 +289,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
 
     def __to_json__(self) -> CommentReplyJSON:
         last_edit = self.last_edit
-        res = {
+        res: CommentReplyJSON = {
             'id': self.id,
             'comment': self.comment,
             'author_id': None,
@@ -308,11 +309,9 @@ class CommentReply(IdMixin, TimestampMixin, Base):
     def __extended_to_json__(self) -> CommentReplyExtendedJSON:
         author = self.author if self.can_see_author else None
         # Tracking mypy issue: https://github.com/python/mypy/issues/4122
-        return CommentReplyExtendedJSON({
-            **self.__to_json__(),  # type: ignore[misc]
-            'author': author,
-            'comment_base_id': self.comment_base_id,
-        })
+        return make_typed_dict_extender(
+            self.__to_json__(), CommentReplyExtendedJSON
+        )(author=author, comment_base_id=self.comment_base_id)
 
 
 class CommentReplyEdit(IdMixin, TimestampMixin, Base):
