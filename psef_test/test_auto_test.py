@@ -942,7 +942,7 @@ def test_run_auto_test(
             # A student cannot see the results of another student
             test_client.req('get', f'{url}/runs/{run.id}/results/{res2}', 403)
 
-            # You should be able too see your own results
+            # You should be able to see your own results
             res = test_client.req(
                 'get',
                 f'{url}/runs/{run.id}/results/{res1}',
@@ -979,7 +979,7 @@ def test_run_auto_test(
                 }
             )
 
-            # You should be able too see your own results
+            # You should be able to see your own results
             res = test_client.req(
                 'get',
                 f'{url}/runs/{run.id}/results/{res2}',
@@ -2766,3 +2766,78 @@ def test_broker_extra_env_vars(describe):
         with cont.extra_env({'PATH': ''}):
             env = cont._create_env(cur_user)
             assert env['PATH'] != ''
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+def test_update_step_attachment(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session,
+    stub_function_class, assert_similar, monkeypatch_for_run, admin_user
+):
+    with describe('setup'):
+        course, _, teacher, student = basic
+
+        with logged_in(admin_user):
+            assig = helpers.create_assignment(
+                test_client,
+                course,
+                deadline='tomorrow',
+            )
+
+        with logged_in(teacher):
+            xml_path = f'{os.path.dirname(__file__)}/../test_data/test_junit_xml/valid.xml'
+            # yapf: disable
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig['id'], {
+                    'sets': [{
+                        'suites': [{
+                            'submission_info': True,
+                            'steps': [{
+                                'type': 'junit_test',
+                                'data': {'program': f'cp "{xml_path}" "$CG_JUNIT_XML_LOCATION"'},
+                                'name': 'junit test',
+                            }],
+                        }],
+                    }],
+                }
+            )
+            # yapf: enable
+
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+    with describe('start_auto_test'):
+        t = m.AutoTest.query.get(test['id'])
+        with logged_in(teacher):
+            work = helpers.create_submission(
+                test_client, assig['id'], for_user=student.username
+            )
+
+            run_id = test_client.req('post', f'{url}/runs/', 200)['id']
+            session.commit()
+
+        monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, )
+        )
+        thread.start()
+        thread.join()
+
+        res = session.query(m.AutoTestResult).filter_by(
+            work_id=work['id'],
+        ).one()
+
+    with describe('should receive points according to the XML'):
+        pts = res.__to_json__()['points_achieved']
+        assert 0.99 <= pts < 1.0
+
+    with describe('attachment should be uploaded to the server'):
+        attachment = test_client.req(
+            'get',
+            f'{url}/runs/{run_id}/step_results/{res.id}/attachment',
+            200,
+            result=bytes,
+        ).decode('utf8')
+
+        with open(xml_path, 'r') as f:
+            assert attachment == f.read()
