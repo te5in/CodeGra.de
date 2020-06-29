@@ -2769,10 +2769,19 @@ def test_broker_extra_env_vars(describe):
 
 
 @pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize(
+    'junit_xml',
+    [
+        'test_junit_xml/valid.xml',
+        'test_junit_xml/invalid_xml.xml',
+        'test_submissions/hello.py',
+        None,
+    ],
+)
 def test_update_step_attachment(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
-    describe, live_server, lxc_stub, monkeypatch, app, session,
-    stub_function_class, assert_similar, monkeypatch_for_run, admin_user
+    describe, live_server, lxc_stub, monkeypatch, app, session, admin_user
+    stub_function_class, assert_similar, monkeypatch_for_run, junit_xml
 ):
     with describe('setup'):
         course, _, teacher, student = basic
@@ -2785,7 +2794,13 @@ def test_update_step_attachment(
             )
 
         with logged_in(teacher):
-            xml_path = f'{os.path.dirname(__file__)}/../test_data/test_junit_xml/valid.xml'
+            if junit_xml is None:
+                xml_path = None
+                program = 'echo hello world'
+            else:
+                xml_path = f'{os.path.dirname(__file__)}/../test_data/test_junit_xml/valid.xml'
+                program = 'cp "{xml_path}" "$CG_JUNIT_XML_LOCATION"'
+
             # yapf: disable
             test = helpers.create_auto_test_from_dict(
                 test_client, assig['id'], {
@@ -2794,7 +2809,7 @@ def test_update_step_attachment(
                             'submission_info': True,
                             'steps': [{
                                 'type': 'junit_test',
-                                'data': {'program': f'cp "{xml_path}" "$CG_JUNIT_XML_LOCATION"'},
+                                'data': {'program': program},
                                 'name': 'junit test',
                             }],
                         }],
@@ -2827,17 +2842,23 @@ def test_update_step_attachment(
             work_id=work['id'],
         ).one()
 
+    with describe('attachment should be uploaded to the server'):
+        with logged_in(teacher);
+            attachment = test_client.req(
+                'get',
+                f'{url}/runs/{run_id}/step_results/{res.id}/attachment',
+                200 if xml_path is not None else 404,
+                result=bytes,
+            ).decode('utf8')
+
+        if xml_path is not None:
+            with open(xml_path, 'r') as f:
+                assert attachment == f.read()
+
     with describe('should receive points according to the XML'):
         pts = res.__to_json__()['points_achieved']
-        assert 0.99 <= pts < 1.0
 
-    with describe('attachment should be uploaded to the server'):
-        attachment = test_client.req(
-            'get',
-            f'{url}/runs/{run_id}/step_results/{res.id}/attachment',
-            200,
-            result=bytes,
-        ).decode('utf8')
-
-        with open(xml_path, 'r') as f:
-            assert attachment == f.read()
+        if xml_path is None:
+            assert pts == 0
+        else:
+            assert 0.99 <= pts < 1.0
