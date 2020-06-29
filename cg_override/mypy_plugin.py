@@ -2,6 +2,7 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import typing as t
 from functools import partial
 
 # For some reason pylint cannot find these... I've found a lot of people also
@@ -62,7 +63,10 @@ class CgOverridePlugin(Plugin):
     """Mypy plugin definition.
     """
 
-    def get_function_hook(self, fullname: str):  # pylint: disable=no-self-use
+    def get_function_hook(  # pylint: disable=no-self-use
+        self,
+        fullname: str,
+    ) -> t.Optional[t.Callable[[FunctionContext], Type]]:
         """Get the function to be called by mypy.
         """
         if fullname == 'cg_override.override':
@@ -70,9 +74,10 @@ class CgOverridePlugin(Plugin):
             return partial(override_callback, no_override=False)
         if fullname == 'cg_override.no_override':
             return partial(override_callback, no_override=True)
+        return None
 
 
-def plugin(_: str):
+def plugin(_: str) -> t.Type[CgOverridePlugin]:
     """Get the mypy plugin definition.
     """
     # ignore version argument if the plugin works with all mypy versions.
