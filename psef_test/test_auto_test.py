@@ -88,6 +88,7 @@ def monkeypatch_for_run(
         ['python', '-c', 'import random; exit(random.randint(0, 1))']
     )
 
+    monkeypatch.setattr(psef.auto_test, 'BASH_PATH', 'bash')
     monkeypatch.setattr(psef.auto_test, 'FIXTURES_ROOT', '/tmp')
     monkeypatch.setattr(psef.auto_test, 'OUTPUT_DIR', f'/tmp/{uuid.uuid4()}')
     monkeypatch.setattr(os, 'setgroups', stub_function_class())
@@ -95,14 +96,18 @@ def monkeypatch_for_run(
     def new_run_command(self, cmd_user):
         signal_start = psef.auto_test.StartedContainer._signal_start
         cmd, user = cmd_user
+
+        if cmd[0] == '/bin/bash':
+            cmd[0] = 'bash'
+
         if cmd[0] in {'adduser', 'usermod', 'deluser', 'sudo', 'apt'}:
             signal_start()
             return 0
-        elif cmd[0] == '/bin/bash' and cmd[2].startswith('adduser'):
+        elif cmd[0] == 'bash' and cmd[2].startswith('adduser'):
             # Don't make the user, as we cannot do that locally
             cmd[2] = '&&'.join(['whoami'] + cmd[2].split('&&')[1:-2])
             cmd_user = (cmd, user)
-        elif cmd[0] == '/bin/bash' and cmd[2].startswith('mv'):
+        elif cmd[0] == 'bash' and cmd[2].startswith('mv'):
             # Don't mv as this is not automatically restored as it is in the
             # actual LXC container.
             cmd[2] = cmd[2].replace('mv', 'cp -R')
