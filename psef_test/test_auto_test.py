@@ -2780,7 +2780,7 @@ def test_broker_extra_env_vars(describe):
 )
 def test_update_step_attachment(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
-    describe, live_server, lxc_stub, monkeypatch, app, session, admin_user
+    describe, live_server, lxc_stub, monkeypatch, app, session, admin_user,
     stub_function_class, assert_similar, monkeypatch_for_run, junit_xml
 ):
     with describe('setup'):
@@ -2798,7 +2798,7 @@ def test_update_step_attachment(
                 xml_path = None
                 program = 'echo hello world'
             else:
-                xml_path = f'{os.path.dirname(__file__)}/../test_data/test_junit_xml/valid.xml'
+                xml_path = f'{os.path.dirname(__file__)}/../test_data/{junit_xml}'
                 program = 'cp "{xml_path}" "$CG_JUNIT_XML_LOCATION"'
 
             # yapf: disable
@@ -2843,7 +2843,7 @@ def test_update_step_attachment(
         ).one()
 
     with describe('attachment should be uploaded to the server'):
-        with logged_in(teacher);
+        with logged_in(teacher):
             attachment = test_client.req(
                 'get',
                 f'{url}/runs/{run_id}/step_results/{res.id}/attachment',
