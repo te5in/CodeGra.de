@@ -2770,18 +2770,18 @@ def test_broker_extra_env_vars(describe):
 
 @pytest.mark.parametrize('use_transaction', [False], indirect=True)
 @pytest.mark.parametrize(
-    'junit_xml',
+    'valid,junit_xml',
     [
-        'test_junit_xml/valid.xml',
-        'test_junit_xml/invalid_xml.xml',
-        'test_submissions/hello.py',
-        None,
+        (False, None),
+        (True, 'test_junit_xml/valid.xml'),
+        (False, 'test_junit_xml/invalid_xml.xml'),
+        (False, 'test_submissions/hello.py'),
     ],
 )
 def test_update_step_attachment(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
     describe, live_server, lxc_stub, monkeypatch, app, session, admin_user,
-    stub_function_class, assert_similar, monkeypatch_for_run, junit_xml
+    stub_function_class, assert_similar, monkeypatch_for_run, junit_xml, valid
 ):
     with describe('setup'):
         course, _, teacher, student = basic
@@ -2799,7 +2799,7 @@ def test_update_step_attachment(
                 program = 'echo hello world'
             else:
                 xml_path = f'{os.path.dirname(__file__)}/../test_data/{junit_xml}'
-                program = 'cp "{xml_path}" "$CG_JUNIT_XML_LOCATION"'
+                program = f'cp "{xml_path}" "$CG_JUNIT_XML_LOCATION"'
 
             # yapf: disable
             test = helpers.create_auto_test_from_dict(
@@ -2841,24 +2841,24 @@ def test_update_step_attachment(
         res = session.query(m.AutoTestResult).filter_by(
             work_id=work['id'],
         ).one()
+        step_result = res.step_results[0]
 
     with describe('attachment should be uploaded to the server'):
         with logged_in(teacher):
-            attachment = test_client.req(
-                'get',
-                f'{url}/runs/{run_id}/step_results/{res.id}/attachment',
-                200 if xml_path is not None else 404,
-                result=bytes,
-            ).decode('utf8')
-
-        if xml_path is not None:
-            with open(xml_path, 'r') as f:
-                assert attachment == f.read()
-
-    with describe('should receive points according to the XML'):
-        pts = res.__to_json__()['points_achieved']
+            attachment = test_client.get(
+                f'{url}/runs/{run_id}/step_results/{step_result.id}/attachment',
+            )
 
         if xml_path is None:
-            assert pts == 0
+            assert attachment.status_code == 404
         else:
+            assert attachment.status_code == 200
+            with open(xml_path, 'r') as f:
+                assert attachment.get_data(as_text=True) == f.read()
+
+    with describe('should not get points if XML is not created or invalid'):
+        pts = res.__to_json__()['points_achieved']
+        if valid:
             assert 0.99 <= pts < 1.0
+        else:
+            assert pts == 0

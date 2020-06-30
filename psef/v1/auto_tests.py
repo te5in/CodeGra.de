@@ -934,7 +934,13 @@ def get_auto_test_step_result_attachment(
 
     auth.ensure_can_view_autotest_result(step_result.result)
     auth.ensure_can_view_autotest_step_details(step_result.step)
-    assert step_result.attachment_filename
+
+    if step_result.attachment_filename is None:
+        raise APIException(
+            'This step did not produce an attachment',
+            f'The step result {step_result.id} does not contain an attachment',
+            APICodes.OBJECT_NOT_FOUND, 404
+        )
 
     res = Response(
         open(
