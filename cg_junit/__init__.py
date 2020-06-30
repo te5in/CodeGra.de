@@ -79,18 +79,14 @@ class _CGJunitCase:
         case was skipped.
     :ivar attribs: Attributes of this test case.
     """
-    __slots__ = ('failure', 'error', 'skipped', 'attribs')
+    __slots__ = ('content', 'attribs')
 
     def __init__(
         self,
-        failure: t.Optional[ET.Element],
-        error: t.Optional[ET.Element],
-        skipped: t.Optional[ET.Element],
+        content: t.Optional[ET.Element],
         attribs: _CGJunitCaseAttribs,
     ) -> None:
-        self.failure = failure
-        self.error = error
-        self.skipped = skipped
+        self.content = content
         self.attribs = attribs
 
     @property
@@ -99,7 +95,7 @@ class _CGJunitCase:
 
         :returns: Boolean indicating whether this is an error case.
         """
-        return self.error is not None
+        return self.content is not None and self.content.tag == 'error'
 
     @property
     def is_failure(self) -> bool:
@@ -107,7 +103,7 @@ class _CGJunitCase:
 
         :returns: Boolean indicating whether this is a failure case.
         """
-        return self.failure is not None
+        return self.content is not None and self.content.tag == 'failure'
 
     @property
     def is_skipped(self) -> bool:
@@ -115,7 +111,15 @@ class _CGJunitCase:
 
         :returns: Boolean indicating whether this is a skipped case.
         """
-        return self.skipped is not None
+        return self.content is not None and self.content.tag == 'skipped'
+
+    @property
+    def is_success(self) -> bool:
+        """Is this a success case.
+
+        :returns: Boolean indicating whether this is a success case.
+        """
+        return self.content is None
 
     @classmethod
     def from_xml(cls, xml_el: ET.Element) -> '_CGJunitCase':
@@ -134,10 +138,10 @@ class _CGJunitCase:
             all(attr in xml_el.attrib for attr in ['name']),
             'Not all required attributes were found found for this testcase'
         )
+
+        children = list(xml_el)
         return cls(
-            failure=xml_el.find('failure'),
-            error=xml_el.find('error'),
-            skipped=xml_el.find('skipped'),
+            content=children[0] if children else None,
             attribs=_CGJunitCaseAttribs(
                 name=xml_el.attrib['name'],
                 time=float(xml_el.attrib['time']),
@@ -155,13 +159,14 @@ class _CGJunitSuiteAttribs:
     :ivar tests: The total number of test cases.
     :ivar skipped: The number of skipped test cases.
     """
-    __slots__ = ('name', 'errors', 'failures', 'tests', 'skipped')
+    __slots__ = ('name', 'errors', 'failures', 'tests', 'skipped', 'success')
 
     name: str
     errors: int
     failures: int
     tests: int
     skipped: int
+    success: int
 
 
 class _CGJunitSuite:
@@ -186,6 +191,18 @@ class _CGJunitSuite:
         MalformedXmlData.ensure(
             sum(c.is_error for c in cases) == attribs.errors, (
                 'Got a different amount of error cases compared to the found'
+                ' attribute'
+            )
+        )
+        MalformedXmlData.ensure(
+            sum(c.is_skipped for c in cases) == attribs.skipped, (
+                'Got a different amount of skipped cases compared to the found'
+                ' attribute'
+            )
+        )
+        MalformedXmlData.ensure(
+            sum(c.is_success for c in cases) == attribs.success, (
+                'Got a different amount of skipped cases compared to the found'
                 ' attribute'
             )
         )
@@ -214,14 +231,16 @@ class _CGJunitSuite:
             ),
             list(xml_el.attrib.keys()),
         )
+        cases = [_CGJunitCase.from_xml(child) for child in xml_el]
         return cls(
-            [_CGJunitCase.from_xml(child) for child in xml_el],
+            cases,
             _CGJunitSuiteAttribs(
                 name=xml_el.attrib['name'],
                 errors=int(xml_el.attrib['errors']),
                 failures=int(xml_el.attrib['failures']),
                 tests=int(xml_el.attrib['tests']),
                 skipped=int(xml_el.attrib.get('skipped', '0')),
+                success=sum(c.is_success for c in cases),
             ),
         )
 
@@ -243,15 +262,10 @@ class CGJunit:
         self.total_failures = sum(s.attribs.failures for s in suites)
         self.total_errors = sum(s.attribs.errors for s in suites)
         self.total_skipped = sum(s.attribs.skipped for s in suites)
+        self.total_success = sum(s.attribs.success for s in suites)
         self.total_tests = sum(
             s.attribs.tests for s in suites
         ) - self.total_skipped
-
-    @property
-    def total_success(self) -> int:
-        """The total number of successful test cases in this test run.
-        """
-        return self.total_tests - (self.total_failures + self.total_errors)
 
     @classmethod
     def parse_file(cls, xml_file: t.IO[bytes]) -> 'CGJunit':
@@ -265,6 +279,7 @@ class CGJunit:
         xml_data: ET.ElementTree = defused_xml_parse(xml_file)
 
         root_node = xml_data.getroot()
+        print(root_node, root_node.tag)
         if root_node.tag == 'testsuites':
             return cls([_CGJunitSuite.from_xml(node) for node in root_node])
         elif root_node.tag == 'testsuite':
