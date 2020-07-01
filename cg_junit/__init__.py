@@ -71,12 +71,8 @@ class _CGJunitCaseAttribs:
 class _CGJunitCase:
     """Test case data.
 
-    :ivar failure: XML <failure> node containing the failure message, if this
-        case failed.
-    :ivar error: XML <error> node containing the error message, if an error
-        occurred while executing this test case.
-    :ivar skipped: XML <skipped> node containing the skipped message, if this
-        case was skipped.
+    :ivar content: XML node containing the output of the test case to be shown,
+        if the case was not successful.
     :ivar attribs: Attributes of this test case.
     """
     __slots__ = ('content', 'attribs')
@@ -254,6 +250,7 @@ class CGJunit:
         run.
     :ivar total_errors: The total number of error cases in this test run.
     :ivar total_skipped: The total number of skipped cases in this test run.
+    :ivar total_success: The total number of successful cases in this test run.
     :ivar total_tests: The total number of test cases in this test run.
     """
 
@@ -271,7 +268,7 @@ class CGJunit:
     def parse_file(cls, xml_file: t.IO[bytes]) -> 'CGJunit':
         """Parse a :class:`CGJunit` from an XML bytestream.
 
-        :param xml_file: The XML data to parse a test run from.
+        :param xml_file: Path to the XML file with test run data to be parsed.
         :returns: The parsed test run data.
         :raises ParseError: When the XML could not be parsed, or does not
             follow the JUnit specification.
