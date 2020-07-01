@@ -2777,20 +2777,19 @@ def test_broker_extra_env_vars(describe):
 
 
 @pytest.mark.parametrize('use_transaction', [False], indirect=True)
-@pytest.mark.parametrize(
-    'valid,junit_xml',
-    [
-        (False, None),
-        (True, 'test_junit_xml/valid.xml'),
-        (False, 'test_junit_xml/invalid_xml.xml'),
-        (False, 'test_submissions/hello.py'),
-    ],
-)
 def test_update_step_attachment(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
     describe, live_server, lxc_stub, monkeypatch, app, session, admin_user,
-    stub_function_class, assert_similar, monkeypatch_for_run, junit_xml, valid
+    stub_function_class, assert_similar, monkeypatch_for_run
 ):
+    fixtures_dir = f'{os.path.dirname(__file__)}/../test_data'
+    junit_xml_files = [
+        None,
+        f'{fixtures_dir}/test_junit_xml/valid.xml',
+        f'{fixtures_dir}/test_junit_xml/invalid_xml.xml',
+        f'{fixtures_dir}/test_submissions/hello.py',
+    ]
+
     with describe('setup'):
         course, _, teacher, student = basic
 
@@ -2802,12 +2801,18 @@ def test_update_step_attachment(
             )
 
         with logged_in(teacher):
-            if junit_xml is None:
-                xml_path = None
-                program = 'echo hello world'
-            else:
-                xml_path = f'{os.path.dirname(__file__)}/../test_data/{junit_xml}'
-                program = f'cp "{xml_path}" "$CG_JUNIT_XML_LOCATION"'
+            steps = []
+            for i, junit_xml in enumerate(junit_xml_files):
+                if junit_xml is None:
+                    program = 'echo hello world'
+                else:
+                    program = f'cp "{junit_xml}" "$CG_JUNIT_XML_LOCATION"'
+
+                steps.append({
+                    'type': 'junit_test',
+                    'data': {'program': program},
+                    'name': f'junit test {i}',
+                })
 
             # yapf: disable
             test = helpers.create_auto_test_from_dict(
@@ -2815,11 +2820,7 @@ def test_update_step_attachment(
                     'sets': [{
                         'suites': [{
                             'submission_info': True,
-                            'steps': [{
-                                'type': 'junit_test',
-                                'data': {'program': program},
-                                'name': 'junit test',
-                            }],
+                            'steps': steps,
                         }],
                     }],
                 }
@@ -2849,24 +2850,26 @@ def test_update_step_attachment(
         res = session.query(m.AutoTestResult).filter_by(
             work_id=work['id'],
         ).one()
-        step_result = res.step_results[0]
 
     with describe('attachment should be uploaded to the server'):
-        with logged_in(teacher):
-            attachment = test_client.get(
-                f'{url}/runs/{run_id}/step_results/{step_result.id}/attachment',
-            )
+        for i, step_result in enumerate(res.step_results):
+            with logged_in(teacher):
+                attachment = test_client.get(
+                    f'{url}/runs/{run_id}/step_results/{step_result.id}/attachment',
+                )
 
-        if xml_path is None:
-            assert attachment.status_code == 404
-        else:
-            assert attachment.status_code == 200
-            with open(xml_path, 'r') as f:
-                assert attachment.get_data(as_text=True) == f.read()
+            if junit_xml_files[i] is None:
+                assert attachment.status_code == 404
+            else:
+                assert attachment.status_code == 200
+                with open(junit_xml_files[i], 'r') as f:
+                    assert attachment.get_data(as_text=True) == f.read()
 
     with describe('should not get points if XML is not created or invalid'):
-        pts = res.__to_json__()['points_achieved']
-        if valid:
-            assert 0.99 <= pts < 1.0
-        else:
-            assert pts == 0
+        for i, step_result in enumerate(res.step_results):
+            pts = step_result.log['points']
+            path = junit_xml_files[i]
+            if path is not None and path.endswith('/valid.xml'):
+                assert 0.99 <= pts < 1.0
+            else:
+                assert pts == 0
