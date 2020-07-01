@@ -1,4 +1,4 @@
-import { sortBy, withSentry, AssertionError } from '@/utils';
+import { getProps, sortBy, withSentry, AssertionError } from '@/utils';
 import decodeBuffer from '@/utils/decode';
 
 function mapHTMLCollection<T>(
@@ -141,13 +141,7 @@ export class CGJunit {
     private static parseXML(xml: string): HTMLCollection {
         const xmlDoc = new DOMParser().parseFromString(decodeBuffer(xml), 'text/xml');
 
-        const parserError = CGJunit.getParserError(xmlDoc);
-        if (parserError != null) {
-            withSentry(Sentry => {
-                Sentry.captureMessage(`Could not parse as XML: ${xmlDoc}`);
-            });
-            throw new Error(parserError);
-        }
+        CGJunit.maybeRaiseParserError(xmlDoc);
 
         let rootNodes = xmlDoc.children;
         if (rootNodes.length === 1 && rootNodes[0].tagName === 'testsuites') {
@@ -157,13 +151,16 @@ export class CGJunit {
         return rootNodes;
     }
 
-    private static getParserError(xmlDoc: Document): string | null {
+    private static maybeRaiseParserError(xmlDoc: Document): void {
+        // The <parsererror> element might be nested in some other elements, so
+        // use querySelector to find it.
         const perr = xmlDoc.querySelector('parsererror');
 
-        if (perr == null) {
-            return null;
-        } else {
-            return perr.textContent;
+        if (perr != null) {
+            withSentry(Sentry => {
+                Sentry.captureMessage('Could not parse as XML');
+            });
+            throw new Error(getProps(perr, undefined, 'textContent'));
         }
     }
 }
