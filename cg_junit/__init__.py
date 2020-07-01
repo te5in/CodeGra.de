@@ -136,7 +136,7 @@ class _CGJunitCase:
         )
         MalformedXmlData.ensure(
             all(attr in xml_el.attrib for attr in ['name']),
-            'Not all required attributes were found found for this testcase'
+            'Not all required attributes were found for this testcase'
         )
 
         children = list(xml_el)

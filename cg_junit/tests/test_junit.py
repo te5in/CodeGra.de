@@ -30,6 +30,7 @@ def test_valid_xml_unknown_state():
     assert res.total_failures == 0
     assert res.total_skipped == 0
     assert res.total_success == 0
+    assert res.total_tests == 1
 
 
 def test_valid_xml_without_skipped_attr():
@@ -46,15 +47,36 @@ def test_valid_xml_no_toplevel_testsuites():
     assert len(res.suites) == 1
 
 
-def test_invalid_xml_missing_attrs():
+@pytest.mark.parametrize(
+    'junit_xml', [
+        'test_junit_xml/invalid_missing_name_attr.xml',
+        'test_junit_xml/invalid_missing_failures_attr.xml',
+        'test_junit_xml/invalid_missing_errors_attr.xml',
+        'test_junit_xml/invalid_missing_name_attr.xml',
+    ],
+)
+def test_invalid_xml_missing_suite_attrs(junit_xml):
     with pytest.raises(MalformedXmlData) as err:
-        parse_fixture('test_junit_xml/invalid_missing_attrs.xml')
+        parse_fixture(junit_xml)
 
     assert 'Did not find all required attributes' in str(err.value)
 
-def test_invalid_xml_invalid_toplevel_tag():
+
+def test_invalid_xml_missing_case_attrs():
     with pytest.raises(MalformedXmlData) as err:
-        parse_fixture('test_junit_xml/invalid_top_level_tag.xml')
+        parse_fixture('test_junit_xml/invalid_missing_case_name_attr.xml')
+
+    assert 'Not all required attributes were found' in str(err.value)
+
+@pytest.mark.parametrize(
+    'junit_xml', [
+        'test_junit_xml/invalid_top_level_tag.xml',
+        'test_junit_xml/invalid_xml_but_not_junit.xml',
+    ],
+)
+def test_invalid_xml_invalid_toplevel_tag(junit_xml):
+    with pytest.raises(MalformedXmlData) as err:
+        parse_fixture(junit_xml)
 
     assert 'Unknown root tag' in str(err.value)
 
@@ -73,11 +95,11 @@ def test_invalid_xml_mismatch_number_of_errors():
     assert 'Got a different amount of error cases' in str(err.value)
 
 
-def test_invalid_xml_but_not_junit():
+def test_invalid_xml_mismatch_number_of_skipped():
     with pytest.raises(MalformedXmlData) as err:
-        parse_fixture('test_junit_xml/invalid_xml_but_not_junit.xml')
+        parse_fixture('test_junit_xml/invalid_mismatch_skipped.xml')
 
-    assert 'Unknown root tag' in str(err.value)
+    assert 'Got a different amount of skipped cases' in str(err.value)
 
 
 @pytest.mark.parametrize(
