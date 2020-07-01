@@ -88,7 +88,9 @@ def monkeypatch_for_run(
         ['python', '-c', 'import random; exit(random.randint(0, 1))']
     )
 
-    monkeypatch.setattr(psef.auto_test, 'BASH_PATH', 'bash')
+    import shutil
+    monkeypatch.setattr(psef.auto_test, 'BASH_PATH', shutil.which('bash'))
+
     monkeypatch.setattr(psef.auto_test, 'FIXTURES_ROOT', '/tmp')
     monkeypatch.setattr(psef.auto_test, 'OUTPUT_DIR', f'/tmp/{uuid.uuid4()}')
     monkeypatch.setattr(os, 'setgroups', stub_function_class())
