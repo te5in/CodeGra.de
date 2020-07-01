@@ -66,9 +66,16 @@ def test_invalid_xml_missing_suite_attrs(junit_xml):
     assert 'Did not find all required attributes' in str(err.value)
 
 
-def test_invalid_xml_missing_case_attrs():
+@pytest.mark.parametrize(
+    'junit_xml',
+    [
+        'test_junit_xml/invalid_missing_case_name_attr.xml',
+        'test_junit_xml/invalid_missing_case_classname_attr.xml',
+    ],
+)
+def test_invalid_xml_missing_case_attrs(junit_xml):
     with pytest.raises(MalformedXmlData) as err:
-        parse_fixture('test_junit_xml/invalid_missing_case_name_attr.xml')
+        parse_fixture(junit_xml)
 
     assert 'Not all required attributes were found' in str(err.value)
 

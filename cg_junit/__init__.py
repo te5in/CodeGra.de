@@ -60,11 +60,13 @@ class _CGJunitCaseAttribs:
     """Attributes of a test case.
 
     :ivar name: Name of the test case.
+    :ivar classname: Name of the class containing this test case.
     :ivar time: Time it took for the test case to run.
     """
     __slots__ = ('name', 'time')
 
     name: str
+    classname: str
     time: float
 
 
@@ -131,7 +133,7 @@ class _CGJunitCase:
             'Unknown tag encountered, got %s, expected "testcase"', xml_el.tag
         )
         MalformedXmlData.ensure(
-            all(attr in xml_el.attrib for attr in ['name']),
+            all(attr in xml_el.attrib for attr in ['name', 'classname']),
             'Not all required attributes were found for this testcase'
         )
 
@@ -140,6 +142,7 @@ class _CGJunitCase:
             content=children[0] if children else None,
             attribs=_CGJunitCaseAttribs(
                 name=xml_el.attrib['name'],
+                classname=xml_el.attrib['classname'],
                 time=float(xml_el.attrib['time']),
             ),
         )
