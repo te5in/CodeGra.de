@@ -72,7 +72,7 @@ describe('CGJunit', () => {
     });
 
     it('should not work when some attributes are missing', () => {
-        const xml = fixture('invalid_missing_attrs.xml');
+        const xml = fixture('invalid_missing_failures_attr.xml');
 
         expect(() => {
             CGJunit.fromXml('1', xml);
