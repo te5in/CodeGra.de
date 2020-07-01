@@ -14,7 +14,8 @@ def parse_fixture(name):
 
 
 @pytest.mark.parametrize(
-    'junit_xml', [
+    'junit_xml',
+    [
         'test_junit_xml/valid.xml',
         'test_junit_xml/valid_many_errors.xml',
     ],
@@ -38,7 +39,9 @@ def test_valid_xml_without_skipped_attr():
 
     assert res.total_skipped == 0
     assert all(suite.attribs.skipped == 0 for suite in res.suites)
-    assert all(not case.is_skipped for suite in res.suites for case in suite.cases)
+    assert all(
+        not case.is_skipped for suite in res.suites for case in suite.cases
+    )
 
 
 def test_valid_xml_no_toplevel_testsuites():
@@ -48,7 +51,8 @@ def test_valid_xml_no_toplevel_testsuites():
 
 
 @pytest.mark.parametrize(
-    'junit_xml', [
+    'junit_xml',
+    [
         'test_junit_xml/invalid_missing_name_attr.xml',
         'test_junit_xml/invalid_missing_failures_attr.xml',
         'test_junit_xml/invalid_missing_errors_attr.xml',
@@ -68,8 +72,10 @@ def test_invalid_xml_missing_case_attrs():
 
     assert 'Not all required attributes were found' in str(err.value)
 
+
 @pytest.mark.parametrize(
-    'junit_xml', [
+    'junit_xml',
+    [
         'test_junit_xml/invalid_top_level_tag.xml',
         'test_junit_xml/invalid_xml_but_not_junit.xml',
     ],
@@ -103,7 +109,8 @@ def test_invalid_xml_mismatch_number_of_skipped():
 
 
 @pytest.mark.parametrize(
-    'junit_xml', [
+    'junit_xml',
+    [
         'test_submissions/hello.py',
         'test_junit_xml/invalid_xml.xml',
     ],
