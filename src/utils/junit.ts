@@ -53,7 +53,7 @@ class CGJunitCase {
     static fromXml(node: Element) {
         const firstChild = node.firstElementChild;
 
-        let contentType: CGJunitCaseState | null;
+        let contentType: CGJunitCaseState;
         const maybeContentType = firstChild?.tagName;
 
         if (isValidState(maybeContentType)) {
