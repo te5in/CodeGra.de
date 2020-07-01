@@ -72,6 +72,14 @@ def test_invalid_xml_mismatch_number_of_errors():
 
     assert 'Got a different amount of error cases' in str(err.value)
 
+
+def test_invalid_xml_but_not_junit():
+    with pytest.raises(MalformedXmlData) as err:
+        parse_fixture('test_junit_xml/invalid_xml_but_not_junit.xml')
+
+    assert 'Unknown root tag' in str(err.value)
+
+
 @pytest.mark.parametrize(
     'junit_xml', [
         'test_submissions/hello.py',
