@@ -1247,7 +1247,7 @@ class StartedContainer:
         os.chdir(cwd)
 
         self._signal_start()
-        os.execvpe(cmd_list[0], cmd_list, env)
+        os.execve(cmd_list[0], cmd_list, env)
 
     @staticmethod
     def _make_restricted_append(
