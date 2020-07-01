@@ -89,7 +89,8 @@ def monkeypatch_for_run(
     )
 
     import shutil
-    monkeypatch.setattr(psef.auto_test, 'BASH_PATH', shutil.which('bash'))
+    bash = shutil.which('bash')
+    monkeypatch.setattr(psef.auto_test, 'BASH_PATH', bash)
 
     monkeypatch.setattr(psef.auto_test, 'FIXTURES_ROOT', '/tmp')
     monkeypatch.setattr(psef.auto_test, 'OUTPUT_DIR', f'/tmp/{uuid.uuid4()}')
@@ -99,7 +100,7 @@ def monkeypatch_for_run(
         signal_start = psef.auto_test.StartedContainer._signal_start
         cmd, user = cmd_user
 
-        if cmd[0] == '/bin/bash':
+        if cmd[0] in {'/bin/bash', bash}:
             cmd[0] = 'bash'
 
         if cmd[0] in {'adduser', 'usermod', 'deluser', 'sudo', 'apt'}:
