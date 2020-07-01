@@ -279,7 +279,6 @@ class CGJunit:
         xml_data: ET.ElementTree = defused_xml_parse(xml_file)
 
         root_node = xml_data.getroot()
-        print(root_node, root_node.tag)
         if root_node.tag == 'testsuites':
             return cls([_CGJunitSuite.from_xml(node) for node in root_node])
         elif root_node.tag == 'testsuite':
