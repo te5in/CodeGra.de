@@ -84,7 +84,7 @@ def test_invalid_xml_missing_case_attrs(junit_xml):
     'junit_xml',
     [
         'test_junit_xml/invalid_top_level_tag.xml',
-        'test_junit_xml/invalid_xml_but_not_junit.xml',
+        'test_junit_xml/invalid_valid_xml_but_not_junit.xml',
     ],
 )
 def test_invalid_xml_invalid_toplevel_tag(junit_xml):

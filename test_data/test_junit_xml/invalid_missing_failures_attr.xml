@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <testsuites name="jest tests" tests="1" failures="0" time="40.728">
-  <testsuite errors="0" skipped="0" timestamp="2020-06-19T12:45:09" time="16.289" tests="1">
+  <testsuite name="PlagiarismRunner.vue" errors="0" skipped="0" timestamp="2020-06-19T12:45:09" time="16.289" tests="1">
     <testcase classname="PlagiarismRunner.vue canGoToOverview" name="should be a function" time="0.165">
     </testcase>
   </testsuite>

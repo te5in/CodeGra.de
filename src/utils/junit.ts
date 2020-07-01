@@ -18,7 +18,7 @@ function getAttribute<Y>(node: Element, name: string, dflt: Y | null = null): st
         AssertionError.assert(attr != null, `Attribute ${name} not found in ${node.outerHTML}`);
         return attr;
     } else {
-        return dflt;
+        return attr ?? dflt;
     }
 }
 
@@ -79,6 +79,8 @@ class CGJunitCase {
 }
 
 class CGJunitSuite {
+    successful: number;
+
     runTests: number;
 
     totalTests: number;
@@ -97,15 +99,29 @@ class CGJunitSuite {
         this.errors = errors;
         this.failures = failures;
         this.skipped = skipped;
+        this.successful = this.filterCases('success').length;
         this.runTests = tests - skipped;
         this.totalTests = tests;
+
+        AssertionError.assert(
+            errors === this.filterCases('error').length,
+            'Amount of errors does not match the found "errors" attribute',
+        );
+        AssertionError.assert(
+            failures === this.filterCases('failure').length,
+            'Amount of failures does not match the found "failures" attribute',
+        );
+        AssertionError.assert(
+            skipped === this.filterCases('skipped').length,
+            'Amount of skipped cases does not match the found "skipped" attribute',
+        );
 
         Object.freeze(this.cases);
         Object.freeze(this);
     }
 
-    get successful() {
-        return this.runTests - (this.errors + this.failures);
+    private filterCases(state: CGJunitCaseState): CGJunitCase[] {
+        return this.cases.filter(c => c.state === state);
     }
 
     static fromXml(node: Element) {
