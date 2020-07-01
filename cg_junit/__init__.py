@@ -63,7 +63,7 @@ class _CGJunitCaseAttribs:
     :ivar classname: Name of the class containing this test case.
     :ivar time: Time it took for the test case to run.
     """
-    __slots__ = ('name', 'time')
+    __slots__ = ('name', 'classname', 'time')
 
     name: str
     classname: str
