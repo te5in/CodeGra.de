@@ -208,8 +208,15 @@ def get_result_data(auto_test_id: int, result_id: int
     res = make_empty_response()
 
     if request.args.get('type', None) == 'submission_files':
+        auto_test = result.run.auto_test
+
+        if auto_test.prefer_teacher_revision:
+            excluded_user = models.FileOwner.student
+        else:
+            excluded_user = models.FileOwner.teacher
+
         file_name = result.work.create_zip(
-            models.FileOwner.teacher,
+            excluded_user,
             create_leading_directory=False,
         )
         directory = app.config['MIRROR_UPLOAD_DIR']

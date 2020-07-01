@@ -166,7 +166,7 @@
 
                             <b-card-body slot-scope="{}">
                                 <b-form-fieldset class="results-visible-option">
-                                    <label :for="alwaysVisibleId">
+                                    <label>
                                         Make results visible to students
 
                                         <description-popover hug-text>
@@ -195,7 +195,7 @@
                                 </b-form-fieldset>
 
                                 <b-form-fieldset class="rubric-calculation-option">
-                                    <label :for="gradeCalculationId">
+                                    <label>
                                         Rubric calculation
 
                                         <description-popover hug-text>
@@ -229,6 +229,39 @@
                                                        class="rounded-right"
                                                        :disabled="internalTest.grade_calculation == null"
                                                        :submit="() => submitProp('grade_calculation')" />
+                                    </b-input-group>
+                                </b-form-fieldset>
+
+                                <b-form-fieldset class="teacher-revision-option">
+                                    <label>
+                                        Preferred revision
+
+                                        <description-popover hug-text>
+                                            The revision to run AutoTest on. If
+                                            this is <b>Student</b> then the student
+                                            submission will be tested, even when a
+                                            teacher revision is available. If set to
+                                            <b>Teacher</b> the teacher's revision is
+                                            used if it is available.
+                                        </description-popover>
+                                    </label>
+                                    <br>
+
+                                    <b-input-group>
+                                        <b-radio-group stacked
+                                                       class="p-0 border rounded-left flex-grow-1"
+                                                       :class="{
+                                                           'rounded-left': configEditable,
+                                                           'readably-disabled': !configEditable,
+                                                       }"
+                                                       v-model="internalTest.prefer_teacher_revision"
+                                                       :disabled="!configEditable"
+                                                       :options="preferredRevisionOptions" />
+
+                                        <submit-button v-if="configEditable"
+                                                       class="rounded-right"
+                                                       :disabled="internalTest.prefer_teacher_revision == null"
+                                                       :submit="() => submitProp('prefer_teacher_revision')" />
                                     </b-input-group>
                                 </b-form-fieldset>
 
@@ -635,8 +668,6 @@ export default {
             preStartScriptId: `auto-test-base-pre-start-script-${id}`,
             globalPreStartScriptId: `auto-test-global-pre-start-script-${id}`,
             resultsModalId: `auto-test-results-modal-${id}`,
-            gradeCalculationId: `auto-test-grade-mode-${id}`,
-            alwaysVisibleId: `auto-test-always-visible-${id}`,
 
             gradeCalculationOptions: [
                 { text: 'Minimum percentage needed to reach item', value: 'partial' },
@@ -645,6 +676,10 @@ export default {
             alwaysVisibleOptions: [
                 { text: 'Immediately (Continuous Feedback)', value: true },
                 { text: 'When assignment is "done"', value: false },
+            ],
+            preferredRevisionOptions: [
+                { text: 'Student', value: false },
+                { text: 'Teacher', value: true },
             ],
 
             resultSubmissionLoading: true,
@@ -718,6 +753,7 @@ export default {
                     this.internalTest = {
                         grade_calculation: this.test.grade_calculation,
                         results_always_visible: this.test.results_always_visible,
+                        prefer_teacher_revision: this.test.prefer_teacher_revision,
                         setup_script: this.test.setup_script,
                         run_setup_script: this.test.run_setup_script,
                         set_stop_points: this.test.sets.reduce(
@@ -1226,6 +1262,9 @@ export default {
             }
             if (this.test && this.test.results_always_visible == null) {
                 msgs.push('You have not selected when the results will be available.');
+            }
+            if (this.test && this.test.prefer_teacher_revision == null) {
+                msgs.push('You have not set the preferred revision to be tested.');
             }
             if (this.test && this.test.grade_calculation == null) {
                 msgs.push('No rubric calculation mode has been selected.');
