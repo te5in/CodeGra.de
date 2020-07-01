@@ -180,21 +180,21 @@ def test_execute_run_program_step(
 
 
 @pytest.mark.parametrize(
-    'valid,junit_xml',
+    'junit_xml',
     [
-        (True, 'test_junit_xml/valid_many_errors.xml'),
-        (True, 'test_junit_xml/valid_no_skipped.xml'),
-        (True, 'test_junit_xml/valid_unknown_state.xml'),
-        (True, 'test_junit_xml/valid.xml'),
-        (False, 'test_junit_xml/invalid_missing_attrs.xml'),
-        (False, 'test_junit_xml/invalid_top_level_tag.xml'),
-        (False, 'test_junit_xml/invalid_xml.xml'),
-        (False, 'test_submissions/hello.py'),
+        'test_junit_xml/valid_many_errors.xml',
+        'test_junit_xml/valid_no_skipped.xml',
+        'test_junit_xml/valid_unknown_state.xml',
+        'test_junit_xml/valid.xml',
+        'test_junit_xml/invalid_missing_failures_attr.xml',
+        'test_junit_xml/invalid_top_level_tag.xml',
+        'test_junit_xml/invalid_xml.xml',
+        'test_submissions/hello.py',
     ],
 )
 def test_execute_junit_test_step(
     stub_suite, describe, monkeypatch, stub_function_class,
-    stub_container_class, valid, junit_xml
+    stub_container_class, junit_xml
 ):
     with open(f'{os.path.dirname(__file__)}/../test_data/{junit_xml}') as f:
         xml_data = f.read()
@@ -299,7 +299,7 @@ def test_execute_junit_test_step(
         assert 'attachment' in next_kwargs
 
         points = next_args[1]['points']
-        if valid:
+        if junit_xml.startswith('test_junit_xml/valid'):
             assert 0 <= points <= 1
         else:
             assert points == 0
