@@ -165,8 +165,8 @@
                             </b-card-header>
 
                             <b-card-body slot-scope="{}">
-                                <b-form-fieldset class="results-visible-option">
-                                    <label>
+                                <div class="d-flex flex-row results-visible-option">
+                                    <label class="flex-grow-1">
                                         Make results visible to students
 
                                         <description-popover hug-text>
@@ -176,26 +176,27 @@
                                         </description-popover>
                                     </label>
 
-                                    <b-input-group>
-                                        <b-radio-group stacked
-                                                       class="p-0 border rounded-left flex-grow-1"
-                                                       :class="{
-                                                               'rounded-left': configEditable,
-                                                               'readably-disabled': !configEditable,
-                                                               }"
-                                                       v-model="internalTest.results_always_visible"
-                                                       :disabled="!configEditable"
-                                                       :options="alwaysVisibleOptions" />
+                                    <div class="flex-grow-0">
+                                        <cg-promise-loader
+                                            class="mr-2"
+                                            :promise="toggleLoaders.resultsAlwaysVisible"
+                                            duration="5000" />
 
-                                        <submit-button v-if="configEditable"
-                                                       class="rounded-right"
-                                                       :disabled="internalTest.results_always_visible == null"
-                                                       :submit="() => submitProp('results_always_visible')" />
-                                    </b-input-group>
-                                </b-form-fieldset>
+                                        <cg-toggle v-model="internalTest.results_always_visible"
+                                                   @input="toggleLoaders.resultsAlwaysVisible = submitProp('results_always_visible', $event)"
+                                                   inline
+                                                   class="auto-test-option-toggle"
+                                                   label-off="Immediately (Continuous Feedback)"
+                                                   label-on="When assignment is &quot;done&quot;"
+                                                   :value-off="true"
+                                                   :value-on="false"
+                                                   :disabled="!configEditable"
+                                                   :has-no-value="internalTest.results_always_visible == null"/>
+                                    </div>
+                                </div>
 
-                                <b-form-fieldset class="rubric-calculation-option">
-                                    <label>
+                                <div class="d-flex flex-row rubric-calculation-option">
+                                    <label class="flex-grow-1">
                                         Rubric calculation
 
                                         <description-popover hug-text>
@@ -212,28 +213,28 @@
                                             item is reached.
                                         </description-popover>
                                     </label>
-                                    <br>
 
-                                    <b-input-group>
-                                        <b-radio-group stacked
-                                                       class="p-0 border rounded-left flex-grow-1"
-                                                       :class="{
-                                                           'rounded-left': configEditable,
-                                                           'readably-disabled': !configEditable,
-                                                       }"
-                                                       v-model="internalTest.grade_calculation"
-                                                       :disabled="!configEditable"
-                                                       :options="gradeCalculationOptions" />
+                                    <div class="flex-grow-0">
+                                        <cg-promise-loader
+                                            class="mr-2"
+                                            :promise="toggleLoaders.gradeCalculation"
+                                            duration="5000" />
 
-                                        <submit-button v-if="configEditable"
-                                                       class="rounded-right"
-                                                       :disabled="internalTest.grade_calculation == null"
-                                                       :submit="() => submitProp('grade_calculation')" />
-                                    </b-input-group>
-                                </b-form-fieldset>
+                                        <cg-toggle v-model="internalTest.grade_calculation"
+                                                   @input="toggleLoaders.gradeCalculation = submitProp('grade_calculation', $event)"
+                                                   inline
+                                                   class="auto-test-option-toggle"
+                                                   label-off="Minimum percentage"
+                                                   label-on="Maximum percentage"
+                                                   value-off="partial"
+                                                   value-on="full"
+                                                   :disabled="!configEditable"
+                                                   :has-no-value="internalTest.grade_calculation == null"/>
+                                    </div>
+                                </div>
 
-                                <b-form-fieldset class="teacher-revision-option">
-                                    <label>
+                                <div class="d-flex flex-row teacher-revision-option">
+                                    <label class="flex-grow-1">
                                         Preferred revision
 
                                         <description-popover hug-text>
@@ -245,25 +246,25 @@
                                             used if it is available.
                                         </description-popover>
                                     </label>
-                                    <br>
 
-                                    <b-input-group>
-                                        <b-radio-group stacked
-                                                       class="p-0 border rounded-left flex-grow-1"
-                                                       :class="{
-                                                           'rounded-left': configEditable,
-                                                           'readably-disabled': !configEditable,
-                                                       }"
-                                                       v-model="internalTest.prefer_teacher_revision"
-                                                       :disabled="!configEditable"
-                                                       :options="preferredRevisionOptions" />
+                                    <div class="flex-grow-0">
+                                        <cg-promise-loader
+                                            class="mr-2"
+                                            :promise="toggleLoaders.preferTeacherRevision"
+                                            duration="5000" />
 
-                                        <submit-button v-if="configEditable"
-                                                       class="rounded-right"
-                                                       :disabled="internalTest.prefer_teacher_revision == null"
-                                                       :submit="() => submitProp('prefer_teacher_revision')" />
-                                    </b-input-group>
-                                </b-form-fieldset>
+                                        <cg-toggle v-model="internalTest.prefer_teacher_revision"
+                                                   @input="toggleLoaders.preferTeacherRevision = submitProp('prefer_teacher_revision', $event)"
+                                                   class="auto-test-option-toggle"
+                                                   inline
+                                                   label-off="Student"
+                                                   label-on="Teacher"
+                                                   :value-off="false"
+                                                   :value-on="true"
+                                                   :disabled="!configEditable"
+                                                   :has-no-value="internalTest.prefer_teacher_revision == null"/>
+                                    </div>
+                                </div>
 
                                 <p v-if="!configEditable && !hasEnvironmentSetup"
                                    class="mb-0 text-muted font-italic">
@@ -669,18 +670,7 @@ export default {
             globalPreStartScriptId: `auto-test-global-pre-start-script-${id}`,
             resultsModalId: `auto-test-results-modal-${id}`,
 
-            gradeCalculationOptions: [
-                { text: 'Minimum percentage needed to reach item', value: 'partial' },
-                { text: 'Maximum percentage needed to reach item', value: 'full' },
-            ],
-            alwaysVisibleOptions: [
-                { text: 'Immediately (Continuous Feedback)', value: true },
-                { text: 'When assignment is "done"', value: false },
-            ],
-            preferredRevisionOptions: [
-                { text: 'Student', value: false },
-                { text: 'Teacher', value: true },
-            ],
+            toggleLoaders: {},
 
             resultSubmissionLoading: true,
             resultSubmission: null,
@@ -763,6 +753,13 @@ export default {
                     };
                 }
             },
+        },
+
+        autoTestId: {
+            handler() {
+                this.resetLoaders();
+            },
+            immediate: true,
         },
     },
 
@@ -1143,6 +1140,14 @@ export default {
                 force: true,
             });
             this.afterCreateAutoTest(payload);
+        },
+
+        resetLoaders() {
+            this.toggleLoaders = {
+                resultsAlwaysVisible: null,
+                gradeCalculation: null,
+                preferTeacherRevision: null,
+            };
         },
     },
 
@@ -1531,5 +1536,9 @@ export default {
     max-width: calc(100vw - 8rem);
     width: calc(100vw - 8rem);
     margin-top: 2rem;
+}
+
+.auto-test-option-toggle .label-on {
+    width: 11.5rem;
 }
 </style>

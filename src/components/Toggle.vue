@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="toggle-container"
-     :class="{ disabled, colors, inline }"
+     :class="{ disabled, colors, inline, 'has-no-value': hasNoValue }"
      :checked="current">
     <div :id="toggleId"
          class="toggle-div">
@@ -17,7 +17,7 @@
         </div>
     </div>
     <b-popover placement="top"
-               v-if="disabled"
+               v-if="disabled && !noDisabledPopover"
                triggers="hover"
                :target="toggleId">
         {{ disabledText }}
@@ -64,6 +64,14 @@ export default {
             default: false,
             type: Boolean,
         },
+        noDisabledPopover: {
+            type: Boolean,
+            default: false,
+        },
+        hasNoValue: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     data() {
@@ -77,15 +85,23 @@ export default {
         value(to) {
             this.current = to === this.valueOn;
         },
+
+        hasNoValue() {
+            this.current = this.value === this.valueOn;
+        },
     },
 
     methods: {
         toggle(to) {
             if (this.disabled) return;
 
+            // Do not toggle when the value is not set and the user clicks the toggle button
+            // instead of the labels.
+            if (to == null && this.hasNoValue) return;
+
             const newState = to == null ? !this.current : to;
 
-            if (newState !== this.current) {
+            if (newState !== this.current || this.hasNoValue) {
                 this.current = newState;
                 this.$emit('input', this.current ? this.valueOn : this.valueOff);
             }
@@ -168,6 +184,7 @@ export default {
             background-color: @color-primary-darkest;
         }
     }
+
     .toggle::before {
         transform: translate(100%, 0.1rem);
     }
@@ -176,6 +193,18 @@ export default {
         opacity: 1;
     }
 
+    .label-off {
+        opacity: @unchecked-opacity;
+    }
+}
+
+.has-no-value {
+    .toggle::before {
+        transform: scale(0.75) translate(0.75rem, 0.15rem);
+        transform-origin: center;
+    }
+
+    .label-on,
     .label-off {
         opacity: @unchecked-opacity;
     }
