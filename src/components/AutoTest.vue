@@ -180,7 +180,7 @@
                                         <cg-promise-loader
                                             class="mr-2"
                                             :promise="toggleLoaders.resultsAlwaysVisible"
-                                            duration="5000" />
+                                            :duration="5000" />
 
                                         <cg-toggle v-model="internalTest.results_always_visible"
                                                    @input="toggleLoaders.resultsAlwaysVisible = submitProp('results_always_visible', $event)"
@@ -218,7 +218,7 @@
                                         <cg-promise-loader
                                             class="mr-2"
                                             :promise="toggleLoaders.gradeCalculation"
-                                            duration="5000" />
+                                            :duration="5000" />
 
                                         <cg-toggle v-model="internalTest.grade_calculation"
                                                    @input="toggleLoaders.gradeCalculation = submitProp('grade_calculation', $event)"
@@ -251,7 +251,7 @@
                                         <cg-promise-loader
                                             class="mr-2"
                                             :promise="toggleLoaders.preferTeacherRevision"
-                                            duration="5000" />
+                                            :duration="5000" />
 
                                         <cg-toggle v-model="internalTest.prefer_teacher_revision"
                                                    @input="toggleLoaders.preferTeacherRevision = submitProp('prefer_teacher_revision', $event)"
@@ -265,6 +265,8 @@
                                                    :has-no-value="internalTest.prefer_teacher_revision == null"/>
                                     </div>
                                 </div>
+
+                                <hr class="mt-0 mb-2">
 
                                 <p v-if="!configEditable && !hasEnvironmentSetup"
                                    class="mb-0 text-muted font-italic">
