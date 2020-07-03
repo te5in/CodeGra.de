@@ -294,6 +294,7 @@ def test_create_auto_test(test_client, basic, logged_in, describe):
                 'grade_calculation': None,
                 'runs': [],
                 'results_always_visible': None,
+                'prefer_teacher_revision': None,
             }
         )
 
@@ -534,6 +535,11 @@ def test_start_auto_test_before_complete(
         assert 'a results_always_visible set' in err['message']
         update_test(results_always_visible=True)
 
+    with describe('no preferred revision'), logged_in(teacher):
+        err = start_run(409)
+        assert 'not have prefer_teacher_revision set' in err['message']
+        update_test(prefer_teacher_revision=False)
+
     with describe('already has a run'), logged_in(teacher):
         start_run(200)
         err = start_run(409)
@@ -669,6 +675,7 @@ def test_update_auto_test(
             assert res.status_code == 403
 
         update_test(results_always_visible=True)
+        update_test(prefer_teacher_revision=False)
         t = m.AutoTest.query.get(test['id'])
         with app.test_request_context('/'):
             t.start_test_run()
