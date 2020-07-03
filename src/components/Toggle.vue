@@ -5,13 +5,13 @@
      :checked="current">
     <div :id="toggleId"
          class="toggle-div">
-        <div class="label-off"
+        <div class="label label-off"
             @click="toggle(false)">
             {{ labelOff }}
         </div>
         <div class="toggle"
              @click="toggle()"/>
-        <div class="label-on"
+        <div class="label label-on"
              @click="toggle(true)">
             {{ labelOn }}
         </div>
