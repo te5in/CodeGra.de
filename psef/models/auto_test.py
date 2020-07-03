@@ -1559,6 +1559,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             finalize_script=self.finalize_script,
             results_always_visible=self.results_always_visible,
             _grade_calculation=self._grade_calculation,
+            prefer_teacher_revision=self.prefer_teacher_revision,
         )
         for suite in res.all_suites:
             suite.rubric_row = rubric_mapping[suite.rubric_row]
