@@ -49,8 +49,8 @@
       alt="Latest release" title="Latest release">
   </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de/releases">
-    <img src="https://img.shields.io/badge/semVer-✓-brightgreen.svg"
-      alt="Semantic Version: ✓" title="Semantic Version">
+    <img src="https://img.shields.io/github/release-date/CodeGra-de/CodeGra.de.svg"
+      alt="Latest release" title="Latest release">
   </a>
   <a href="https://github.com/CodeGra-de/CodeGra.de/pulls">
     <img src="https://img.shields.io/github/issues-pr-raw/CodeGra-de/CodeGra.de.svg"
