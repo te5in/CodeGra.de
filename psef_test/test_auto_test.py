@@ -2565,6 +2565,85 @@ def test_failing_container_shutdown(
 
 
 @pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('prefer_teacher_revision', [True, False])
+@pytest.mark.parametrize('with_teacher_revision', [True, False])
+def test_prefer_teacher_revision_option(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session,
+    stub_function_class, assert_similar, monkeypatch_for_run, admin_user,
+    prefer_teacher_revision, with_teacher_revision
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+
+        with logged_in(teacher):
+            # yapf: disable
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig_id, {
+                    'prefer_teacher_revision': prefer_teacher_revision,
+                    'sets': [{
+                        'suites': [{
+                            'submission_info': True,
+                            'steps': [{
+                                'run_p': 'bash script.sh',
+                                'name': 'Run script',
+                            }]
+                        }],
+                    }],
+                }
+            )
+            # yapf: enable
+
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+    with describe('start_auto_test'):
+        t = m.AutoTest.query.get(test['id'])
+        with logged_in(teacher), tempfile.NamedTemporaryFile() as f:
+            f.write(b'echo student\n')
+            f.flush()
+
+            work = helpers.create_submission(
+                test_client,
+                assig_id,
+                for_user=student.username,
+                submission_data=(f.name, 'script.sh'),
+            )
+
+            if with_teacher_revision:
+                file_id = test_client.get(
+                    f'/api/v1/submissions/{work["id"]}/files/',
+                ).json['entries'][0]['id']
+                test_client.req(
+                    'patch',
+                    f'/api/v1/code/{file_id}',
+                    200,
+                    real_data='echo teacher\n',
+                )
+
+            run_id = test_client.req('post', f'{url}/runs/', 200)['id']
+            session.commit()
+
+        monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, )
+        )
+        thread.start()
+        thread.join()
+
+        res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
+                                                        ).one()
+
+    with describe('should run the correct code'):
+        step_result = res.step_results[0]
+
+        if prefer_teacher_revision and with_teacher_revision:
+            assert step_result.log['stdout'] == 'teacher\n'
+        else:
+            assert step_result.log['stdout'] == 'student\n'
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
 def test_running_old_submission(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
     describe, live_server, lxc_stub, monkeypatch, app, session,
@@ -2781,82 +2860,3 @@ def test_broker_extra_env_vars(describe):
         with cont.extra_env({'PATH': ''}):
             env = cont._create_env(cur_user)
             assert env['PATH'] != ''
-
-
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
-@pytest.mark.parametrize('prefer_teacher_revision', [True, False])
-@pytest.mark.parametrize('with_teacher_revision', [True, False])
-def test_prefer_teacher_revision_option(
-    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
-    describe, live_server, lxc_stub, monkeypatch, app, session,
-    stub_function_class, assert_similar, monkeypatch_for_run, admin_user,
-    prefer_teacher_revision, with_teacher_revision
-):
-    with describe('setup'):
-        course, assig_id, teacher, student = basic
-
-        with logged_in(teacher):
-            # yapf: disable
-            test = helpers.create_auto_test_from_dict(
-                test_client, assig_id, {
-                    'prefer_teacher_revision': prefer_teacher_revision,
-                    'sets': [{
-                        'suites': [{
-                            'submission_info': True,
-                            'steps': [{
-                                'run_p': 'bash script.sh',
-                                'name': 'Run script',
-                            }]
-                        }],
-                    }],
-                }
-            )
-            # yapf: enable
-
-        url = f'/api/v1/auto_tests/{test["id"]}'
-
-    with describe('start_auto_test without teacher revision'):
-        t = m.AutoTest.query.get(test['id'])
-        with logged_in(teacher), tempfile.NamedTemporaryFile() as f:
-            f.write(b'echo student\n')
-            f.flush()
-
-            work = helpers.create_submission(
-                test_client,
-                assig_id,
-                for_user=student.username,
-                submission_data=(f.name, 'script.sh'),
-            )
-
-            if with_teacher_revision:
-                file_id = test_client.get(
-                    f'/api/v1/submissions/{work["id"]}/files/',
-                ).json['entries'][0]['id']
-                test_client.req(
-                    'patch',
-                    f'/api/v1/code/{file_id}',
-                    200,
-                    real_data='echo teacher\n',
-                )
-
-            run_id = test_client.req('post', f'{url}/runs/', 200)['id']
-            session.commit()
-
-        monkeypatch_broker()
-        live_server_url, stop_server = live_server(get_stop=True)
-        thread = threading.Thread(
-            target=psef.auto_test.start_polling, args=(app.config, )
-        )
-        thread.start()
-        thread.join()
-
-        res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
-                                                        ).one()
-
-    with describe('should run on student code'):
-        step_result = res.step_results[0]
-
-        if prefer_teacher_revision and with_teacher_revision:
-            assert step_result.log['stdout'] == 'teacher\n'
-        else:
-            assert step_result.log['stdout'] == 'student\n'
