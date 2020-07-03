@@ -52,10 +52,10 @@ def _update_auto_test(
         run_setup_script = optional_get('run_setup_script', str, None)
         has_new_fixtures = optional_get('has_new_fixtures', bool, False)
         grade_calculation = optional_get('grade_calculation', str, None)
-        results_always_visible: t.Optional[bool] = optional_get(
+        results_always_visible = optional_get(
             'results_always_visible', (bool, type(None)), None
         )
-        prefer_teacher_revision: t.Optional[bool] = optional_get(
+        prefer_teacher_revision = optional_get(
             'prefer_teacher_revision', (bool, type(None)), None
         )
 
