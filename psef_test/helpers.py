@@ -636,6 +636,8 @@ def create_auto_test_from_dict(test_client, assig, at_dict):
             'setup_script': at_dict.get('setup_script', ''),
             'run_setup_script': at_dict.get('run_setup_script', ''),
             'grade_calculation': at_dict.get('grade_calculation', 'full'),
+            'prefer_teacher_revision':
+                at_dict.get('prefer_teacher_revision', False),
             'results_always_visible':
                 at_dict.get('results_always_visible', True),
         },
