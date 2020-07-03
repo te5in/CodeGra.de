@@ -2774,6 +2774,7 @@ def test_broker_extra_env_vars(describe):
             env = cont._create_env(cur_user)
             assert env['PATH'] != ''
 
+
 @pytest.mark.parametrize('use_transaction', [False], indirect=True)
 @pytest.mark.parametrize('prefer_teacher_revision', [True, False])
 @pytest.mark.parametrize('with_teacher_revision', [True, False])

@@ -2,8 +2,7 @@ from .. import Tester
 
 
 def get_auto_tests(db):
-    return db.engine.execute('SELECT * from "AutoTest" ORDER BY id'
-                             ).fetchall()
+    return db.engine.execute('SELECT * from "AutoTest" ORDER BY id').fetchall()
 
 
 class UpgradeTester(Tester):
