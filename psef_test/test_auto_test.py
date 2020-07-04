@@ -2573,6 +2573,8 @@ def test_prefer_teacher_revision_option(
     stub_function_class, assert_similar, monkeypatch_for_run, admin_user,
     prefer_teacher_revision, with_teacher_revision
 ):
+    # TODO: This test fails if it is run _after_ test_running_old_submission,
+    # although it is unclear why.
     with describe('setup'):
         course, assig_id, teacher, student = basic
 
