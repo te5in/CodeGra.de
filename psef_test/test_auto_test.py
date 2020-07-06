@@ -23,6 +23,7 @@ import requests
 import freezegun
 import pytest_cov
 from werkzeug.local import LocalProxy
+from werkzeug.datastructures import FileStorage
 
 import psef
 import helpers
@@ -2784,10 +2785,10 @@ def test_update_step_attachment(
 ):
     fixtures_dir = f'{os.path.dirname(__file__)}/../test_data'
     junit_xml_files = [
-        None,
         f'{fixtures_dir}/test_junit_xml/valid.xml',
         f'{fixtures_dir}/test_junit_xml/invalid_xml.xml',
         f'{fixtures_dir}/test_submissions/hello.py',
+        None,
     ]
 
     with describe('setup'):
@@ -2873,3 +2874,45 @@ def test_update_step_attachment(
                 assert 0.99 <= pts < 1.0
             else:
                 assert pts == 0
+
+    with describe('previous attachment should be deleted from disk'):
+        step_result = res.step_results[0]
+        old_attachment = step_result.attachment_filename
+        assert old_attachment
+        assert os.path.exists(f'{app.config["UPLOAD_DIR"]}/{old_attachment}')
+
+        with tempfile.NamedTemporaryFile() as f:
+            step_result.update_attachment(FileStorage(f))
+        session.commit()
+
+        res = session.query(m.AutoTestResult).filter_by(
+            work_id=work['id'],
+        ).one()
+        step_result = res.step_results[0]
+        new_attachment = step_result.attachment_filename
+
+        assert new_attachment != old_attachment
+        assert os.path.exists(f'{app.config["UPLOAD_DIR"]}/{new_attachment}')
+        assert not os.path.exists(f'{app.config["UPLOAD_DIR"]}/{old_attachment}')
+
+    with describe('should fail when step is not in the requested run'):
+        with logged_in(teacher):
+            attachment = test_client.get(
+                f'{url}/runs/0/step_results/{step_result.id}/attachment',
+            )
+
+        assert attachment.status_code == 404
+        assert 'The requested "AutoTestStepResult" was not found' in attachment.json['message']
+
+    with describe('should fail when work is deleted'):
+        work = session.query(m.Work).filter_by(id=work['id']).one()
+        work.deleted = True
+        session.commit()
+
+        with logged_in(teacher):
+            attachment = test_client.get(
+                f'{url}/runs/{run_id}/step_results/{step_result.id}/attachment',
+            )
+
+        assert attachment.status_code == 404
+        assert 'The requested "AutoTestStepResult" was not found' in attachment.json['message']
