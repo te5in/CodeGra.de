@@ -2893,7 +2893,9 @@ def test_update_step_attachment(
 
         assert new_attachment != old_attachment
         assert os.path.exists(f'{app.config["UPLOAD_DIR"]}/{new_attachment}')
-        assert not os.path.exists(f'{app.config["UPLOAD_DIR"]}/{old_attachment}')
+        assert not os.path.exists(
+            f'{app.config["UPLOAD_DIR"]}/{old_attachment}'
+        )
 
     with describe('should fail when step is not in the requested run'):
         with logged_in(teacher):
@@ -2902,7 +2904,8 @@ def test_update_step_attachment(
             )
 
         assert attachment.status_code == 404
-        assert 'The requested "AutoTestStepResult" was not found' in attachment.json['message']
+        assert 'The requested "AutoTestStepResult" was not found' in attachment.json[
+            'message']
 
     with describe('should fail when work is deleted'):
         work = session.query(m.Work).filter_by(id=work['id']).one()
@@ -2915,4 +2918,5 @@ def test_update_step_attachment(
             )
 
         assert attachment.status_code == 404
-        assert 'The requested "AutoTestStepResult" was not found' in attachment.json['message']
+        assert 'The requested "AutoTestStepResult" was not found' in attachment.json[
+            'message']
