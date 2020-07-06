@@ -294,6 +294,7 @@ Promise.all([
             }, 1000);
 
             this._loadNotifications();
+            this._checkForUpdates();
         },
 
         computed: {
@@ -433,6 +434,23 @@ Promise.all([
                         'There was an error connecting to the server... Please try again later.',
                     variant: 'danger',
                 });
+            },
+
+            async _checkForUpdates() {
+                const res = await this.$http.get('/api/v1/about');
+                if (res.data.commit !== UserConfig.release.commitHash) {
+                    this.$emit('cg::app::toast', {
+                        tag: 'UpdateAvailable',
+                        title: 'CodeGrade update available!',
+                        message:
+                            'An updated version of CodeGrade is available. Please click here to reload the page and start using the latest version!',
+                        variant: 'success',
+                        // eslint-disable-next-line no-script-url
+                        href: 'javascript:window.location.reload()',
+                    });
+                } else {
+                    setTimeout(this._checkForUpdates, 10 * 60 * 1000);
+                }
             },
         },
 

@@ -25,6 +25,7 @@
              toaster="b-toaster-top-right"
              :variant="toast.variant"
              :title="toast.title"
+             :href="toast.href"
              visible
              no-auto-hide
              solid
