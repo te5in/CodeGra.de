@@ -2587,7 +2587,7 @@ def test_prefer_teacher_revision_option(
                         'suites': [{
                             'submission_info': True,
                             'steps': [{
-                                'run_p': 'bash script.sh',
+                                'run_p': f'{psef.auto_test.BASH_PATH} script.sh',
                                 'name': 'Run script',
                             }]
                         }],
