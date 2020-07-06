@@ -197,7 +197,7 @@
 
                                 <div class="d-flex flex-row rubric-calculation-option">
                                     <label class="flex-grow-1">
-                                        Rubric calculation
+                                        Percentage to get rubric item
 
                                         <description-popover hug-text>
                                             Determines how each category in a
@@ -239,10 +239,10 @@
 
                                         <description-popover hug-text>
                                             The revision to run AutoTest on. If
-                                            this is <b>Student</b> then the student
+                                            this is <b>student</b> then the student
                                             submission will be tested, even when a
                                             teacher revision is available. If set to
-                                            <b>Teacher</b> the teacher's revision is
+                                            <b>teacher</b> the teacher's revision is
                                             used if it is available.
                                         </description-popover>
                                     </label>
@@ -269,7 +269,7 @@
                                 <hr class="mt-0 mb-2">
 
                                 <p v-if="!configEditable && !hasEnvironmentSetup"
-                                   class="mb-0 text-muted font-italic">
+                                   class="mt-3 mb-0 text-muted font-italic">
                                     Uploaded fixtures or setup scripts and their output would normally
                                     be shown here. However, none were uploaded, so there is nothing to
                                     show.
