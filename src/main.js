@@ -444,7 +444,7 @@ Promise.all([
                         title: 'CodeGrade update available!',
                         message:
                             'An updated version of CodeGrade is available. Please click here to reload the page and start using the latest version!',
-                        variant: 'success',
+                        variant: '',
                         // eslint-disable-next-line no-script-url
                         href: 'javascript:window.location.reload()',
                     });
