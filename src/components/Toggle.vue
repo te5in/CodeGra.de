@@ -17,7 +17,7 @@
         </div>
     </div>
     <b-popover placement="top"
-               v-if="disabled && !noDisabledPopover"
+               v-if="disabled && disabledText"
                triggers="hover"
                :target="toggleId">
         {{ disabledText }}
@@ -63,10 +63,6 @@ export default {
         inline: {
             default: false,
             type: Boolean,
-        },
-        noDisabledPopover: {
-            type: Boolean,
-            default: false,
         },
         hasNoValue: {
             type: Boolean,
@@ -120,6 +116,7 @@ export default {
 
     &.disabled {
         cursor: not-allowed;
+        opacity: 0.75;
     }
 
     &.inline,
@@ -132,14 +129,14 @@ export default {
 .label-on,
 .toggle {
     display: inline-block;
+
     vertical-align: top;
     .toggle-container:not(.inline) & {
         vertical-align: middle;
     }
-    cursor: pointer;
 
+    cursor: pointer;
     .disabled & {
-        opacity: @unchecked-opacity;
         cursor: not-allowed;
     }
 }
@@ -174,6 +171,10 @@ export default {
 
 .label-on {
     opacity: @unchecked-opacity;
+}
+
+.label-off {
+    opacity: 1;
 }
 
 [checked] {
