@@ -100,8 +100,7 @@ def monkeypatch_for_run(
         signal_start = psef.auto_test.StartedContainer._signal_start
         cmd, user = cmd_user
 
-        if cmd[0].startswith('/bin/bash'):
-            cmd[0] = bash_path + cmd[len('/bin/bash'):]
+        cmd[0] = re.sub('(/bin/)?bash', bash_path, cmd[0])
 
         if cmd[0] in {'adduser', 'usermod', 'deluser', 'sudo', 'apt'}:
             signal_start()
