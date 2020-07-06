@@ -14,7 +14,7 @@ class UpgradeTester(Tester):
     def check(self):
         auto_tests = get_auto_tests(self.db)
         assert auto_tests
-        assert all(not at['prefer_teacher_revision'] for at in auto_tests)
+        assert all(at['prefer_teacher_revision'] is False for at in auto_tests)
 
 
 class DowngradeTester(Tester):
