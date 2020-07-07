@@ -1395,7 +1395,7 @@ export default {
         },
 
         async loadJunitAttachment() {
-            if (this.junitError) {
+            if (this.junitError || this.$utils.getProps(this.junitAttachment, 'NOT_EQUAL', 'id') === this.stepResultAttachment) {
                 return;
             }
 
@@ -1414,7 +1414,7 @@ export default {
             }).catch(err => {
                 this.junitError = err;
             }).then(() => {
-                const cur = this.$utils.getProps(this.junitAttachment, null, 'id');
+                const cur = this.$utils.getProps(this.junitAttachment, 'NOT_EQUAL', 'id');
                 if (cur == null || cur === this.stepResultAttachment) {
                     this.junitAttachmentLoading = false;
                 }
