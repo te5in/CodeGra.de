@@ -16,7 +16,7 @@ import werkzeug
 import structlog
 import sqlalchemy.sql as sql
 from flask import request
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload, selectinload, contains_eager
 
 import psef
 import psef.files
@@ -1226,11 +1226,7 @@ def get_all_works_by_user_for_assignment(
         )
 
     user = helpers.get_or_404(models.User, user_id)
-    if (
-        user.id != current_user.id and
-        not (user.group and current_user in user.group.members)
-    ):
-        auth.ensure_permission(CPerm.can_see_others_work, assignment.course_id)
+    auth.WorksByUserPermissions(assignment, user).ensure_may_see()
 
     return extended_jsonify(
         models.Work.update_query_for_extended_jsonify(
@@ -1924,6 +1920,7 @@ def update_peer_feedback_settings(
     db_locks.acquire_lock(
         db_locks.LockNamespaces.peer_feedback_division, assignment.id
     )
+    # TODO: Permission check
 
     with helpers.get_from_request_transaction() as [get, _]:
         new_amount = get('amount', int)
@@ -1958,3 +1955,56 @@ def update_peer_feedback_settings(
 
     db.session.commit()
     return JSONResponse.make(peer_feedback_settings)
+
+
+@api.route(
+    '/assignments/<int:assignment_id>/users/<int:user_id>/comments/',
+    methods=['GET']
+)
+@features.feature_required(features.Feature.PEER_FEEDBACK)
+def get_comments_by_user(assignment_id: int, user_id: int
+                         ) -> JSONResponse[t.Sequence[models.CommentBase]]:
+    assignment = helpers.filter_single_or_404(
+        models.Assignment,
+        models.Assignment.id == assignment_id,
+        also_error=lambda a: not a.is_visible,
+    )
+    user = helpers.get_or_404(models.User, user_id)
+
+    comments = models.CommentBase.get_base_comments_query().filter(
+        models.Work.query.filter(
+            models.File.work_id == models.Work.id,
+            models.Work.assignment == assignment,
+        ).exists(),
+        models.CommentReply.author == user,
+    )
+
+    return jsonify(
+        [
+            c for c in comments
+            if auth.WorkPermissions(c.file.work).ensure_may_see.as_bool()
+        ]
+    )
+
+
+@api.route(
+    '/assignments/<int:assignment_id>/users/<int:user_id>/peer_feedback_subjects/',
+    methods=['GET']
+)
+@features.feature_required(features.Feature.PEER_FEEDBACK)
+def get_peer_feedback_subjects(
+    assignment_id: int, user_id: int
+) -> JSONResponse[t.Sequence[models.AssignmentPeerFeedbackConnection]]:
+    assignment = helpers.filter_single_or_404(
+        models.Assignment,
+        models.Assignment.id == assignment_id,
+        also_error=lambda a: not a.is_visible,
+    )
+    user = helpers.get_or_404(models.User, user_id)
+    # TODO: Permission check
+    return jsonify(
+        models.AssignmentPeerFeedbackConnection.query.filter(
+            models.AssignmentPeerFeedbackConnection.peer_user == user,
+            models.AssignmentPeerFeedbackConnection.assignment == assignment,
+        ).all()
+    )

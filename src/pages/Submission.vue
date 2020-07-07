@@ -23,7 +23,7 @@
             <preference-manager in-popover
                                 container="#submission-page"
                                 :file-id="prefFileId"
-                                :show-context-amount="selectedCat === 'feedback-overview' || selectedCat === 'teacher-diff'"
+                                :show-context-amount="selectedCat === 'feedback-overview' || selectedCat === 'teacher-diff' || selectedCat === 'peer-feedback'"
                                 :show-language="selectedCat === 'code'"
                                 @whitespace="whitespaceChanged"
                                 @language="languageChanged"
@@ -152,7 +152,7 @@
                       :on-drag-started="() => { resizingFileViewer = true; }"
                       :on-drag-finished="() => { resizingFileViewer = false; }"
                       :size="splitRatio"
-                      :step="50"
+                      :step="25"
                       units="percents"
                       class="code-wrapper"
                       id="submission-page-inner"
@@ -235,6 +235,18 @@
                            :submission-id="submissionId" />
             </div>
         </div>
+
+        <div class="cat-wrapper"
+             :class="{ hidden: selectedCat !== 'peer-feedback'}"
+             v-if="showPeerFeedback">
+            <peer-feedback-by-user
+                v-if="!hiddenCats.has('peer-feedback')"
+                :assignment="assignment"
+                :context-lines="contextAmount"
+                :show-whitespace="showWhitespace"
+                :show-inline-feedback="selectedCat === 'peer-feedback'"
+                :user="submission.user"/>
+        </div>
     </template>
 
     <grade-viewer :assignment="assignment"
@@ -284,6 +296,7 @@ import {
     SubmitButton,
     Toggle,
     User,
+    PeerFeedbackByUser,
 } from '@/components';
 
 import FileViewer from '@/components/FileViewer';
@@ -539,6 +552,11 @@ export default {
                     name: 'Teacher diff',
                     enabled: this.showTeacherDiff,
                 },
+                {
+                    id: 'peer-feedback',
+                    name: 'Peer Feedback',
+                    enabled: this.showPeerFeedback,
+                },
             ];
         },
 
@@ -634,6 +652,10 @@ export default {
 
         defaultEmailSubject() {
             return `[CodeGrade - ${this.assignment.course.name}/${this.assignment.name}] …`;
+        },
+
+        showPeerFeedback() {
+            return this.$utils.getProps(this.assignment, null, 'peer_feedback_settings') != null;
         },
     },
 
@@ -977,6 +999,7 @@ export default {
         User,
         StudentContact,
         'rs-panes': ResSplitPane,
+        PeerFeedbackByUser,
     },
 };
 </script>

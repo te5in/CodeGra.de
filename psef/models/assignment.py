@@ -23,6 +23,7 @@ from sqlalchemy.sql.expression import and_, func
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 import psef
+import cg_cache
 import cg_sqlalchemy_helpers
 from cg_helpers import (
     handle_none, on_not_none, remove_duplicates, zip_times_with_offset
@@ -73,6 +74,11 @@ class PeerFeedbackSettingJSON(TypedDict, total=True):
     id: int
     amount: int
     time: t.Optional[float]
+
+
+class AssignmentPeerFeedbackConnectionJSON(TypedDict, total=True):
+    subject: 'user_models.User'
+    peer: 'user_models.User'
 
 
 class AssignmentJSON(TypedDict, total=True):
@@ -471,6 +477,12 @@ class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
         db.PrimaryKeyConstraint(assignment_id, user_id, peer_user_id),
     )
 
+    def __to_json__(self) -> t.Any:
+        return {
+            'subject': self.user,
+            'peer': self.peer_user,
+        }
+
 
 class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
     #: The amount of students a single student should review. If this is 0 peer
@@ -497,8 +509,7 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
     )
 
     def __init__(
-        self, amount: int, time: datetime.timedelta,
-        assignment: 'Assignment'
+        self, amount: int, time: datetime.timedelta, assignment: 'Assignment'
     ) -> None:
         super().__init__(
             amount=amount,
@@ -512,6 +523,21 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
             'amount': self.amount,
             'time': on_not_none(self.time, lambda x: x.total_seconds()),
         }
+
+    def __hash__(self) -> int:
+        return hash(self.id)
+
+    @cg_cache.intra_request.cache_within_request
+    def get_subjects_for_user(self,
+                              user: 'user_models.User') -> t.Container[int]:
+        result = set(
+            user_id for user_id, in
+            db.session.query(AssignmentPeerFeedbackConnection.user_id).filter(
+                AssignmentPeerFeedbackConnection.assignment == self.assignment,
+                AssignmentPeerFeedbackConnection.peer_user == user,
+            )
+        )
+        return result
 
     def do_initial_division(self) -> None:
         assig = self.assignment

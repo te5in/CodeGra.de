@@ -38,7 +38,7 @@ from cg_json import (
     JSONResponse, ExtendedJSONResponse, jsonify, extended_jsonify
 )
 from cg_timers import timed_code
-from cg_helpers import handle_none, on_not_none
+from cg_helpers import flatten, handle_none, on_not_none
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import (
     EmptyResponse, make_empty_response, callback_after_this_request
@@ -1790,25 +1790,6 @@ def chunkify(iterable: t.Iterable[T],
 
     if cur:
         yield cur
-
-
-def flatten(it_to_flatten: t.Iterable[t.Iterable[T]]) -> t.List[T]:
-    """Flatten a given iterable of iterables to a list.
-
-    >>> flatten((range(2) for _ in range(4)))
-    [0, 1, 0, 1, 0, 1, 0, 1]
-    >>> flatten((range(i) for i in range(5)))
-    [0, 0, 1, 0, 1, 2, 0, 1, 2, 3]
-    >>> flatten((range(2) for _ in range(0)))
-    []
-    >>> flatten([[[1, 2]], [[1, 2]]])
-    [[1, 2], [1, 2]]
-
-    :param it_to_flatten: The iterable to flatten, which will be iterated
-        completely.
-    :returns: A fresh flattened list.
-    """
-    return [x for wrap in it_to_flatten for x in wrap]
 
 
 def maybe_unwrap_proxy(

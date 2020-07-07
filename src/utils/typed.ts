@@ -2,11 +2,13 @@ import moment from 'moment';
 // eslint-disable-next-line
 import type { ICompiledMode } from 'highlightjs';
 import { getLanguage, highlight } from 'highlightjs';
+import Vue from 'vue';
 
 import { Maybe } from 'purify-ts/Maybe';
 
 import { User } from '@/models';
 import { visualizeWhitespace } from './visualize';
+import { defaultdict } from './defaultdict';
 
 export * from 'purify-ts/Either';
 export * from 'purify-ts/EitherAsync';
@@ -19,6 +21,10 @@ export type ValueOf<T> = T[keyof T];
 export type PartialRecord<K extends keyof any, T> = {
     [P in K]?: T;
 };
+
+export function epoch(): moment.Moment {
+    return moment(0);
+}
 
 export function coerceToString(obj: Object | null | undefined): string {
     if (obj == null) return '';
@@ -735,26 +741,45 @@ export const isValidHttpUrl: (input: string) => boolean = (() => {
     };
 })();
 
+type ArrayLengthMutationKeys = 'splice' | 'push' | 'pop' | 'shift' | 'unshift'
+type FixedLengthArray<T, L extends number, TObj = [T, ...Array<T>]> =
+    Pick<TObj, Exclude<keyof TObj, ArrayLengthMutationKeys>>
+    & {
+        readonly length: L
+        [I: number]: T
+        [Symbol.iterator]: () => IterableIterator<T>
+    }
+
 // Sort by
-export function sortBy<T, Y extends Array<string | number | boolean | moment.Moment>>(
-    xs: readonly T[],
-    makeKey: (x: T) => Y,
-    reverse: boolean = false,
+export function sortBy<
+    T,
+    Len extends number,
+    Y extends FixedLengthArray<string | number | boolean | moment.Moment, Len>,
+    >(
+        xs: readonly T[],
+        makeKey: (x: T) => Y,
+        opts: {
+            reverse?: boolean,
+            reversePerKey?: FixedLengthArray<boolean, Len>,
+        } = {},
 ): T[] {
     return xs.map((x, idx) => {
+        // @ts-ignore
         const res: (T | string | number | boolean | moment.Moment)[] = makeKey(x);
         // Add idx to make sure we have a unique item and to make sure the
         // sorting is stable.
-        res.push(reverse ? -idx : idx);
+        res.push(opts?.reverse ? -idx : idx);
         res.push(x);
         return res;
     }).sort(
         (a, b) => {
             // We don't use zip2 here to prevent an extra allocation;
             let res = 0;
-            for (let i = 0; res === 0 && i < Math.min(a.length, b.length) - 1; ++i) {
-                const keyA = a[i];
-                const keyB = b[i];
+            let i;
+            for (i = 0; res === 0 && i < Math.min(a.length, b.length) - 1; ++i) {
+                const keyA: (T | string | number | boolean | moment.Moment) = a[i];
+                const keyB: typeof keyA = b[i];
+
                 if (typeof keyA === 'number') {
                     AssertionError.assert(typeof keyB === 'number');
                     res = keyA - keyB;
@@ -773,7 +798,54 @@ export function sortBy<T, Y extends Array<string | number | boolean | moment.Mom
                     AssertionError.typeAssert<T>(keyA);
                 }
             }
-            return reverse ? -res : res;
+            let rev: boolean | null | undefined;
+
+            if (opts?.reversePerKey) {
+                rev = opts.reversePerKey[i - 1];
+            }
+            if (rev == null) {
+                rev = opts?.reverse ?? false;
+            }
+            return rev ? -res : res;
         },
     ).map(x => <T>x[x.length - 1]);
+}
+
+export function groupBy<Y, KK extends KeyLike>(
+    arr: ReadonlyArray<Y>,
+    mapper: (el: Y, index: number) => KK,
+): Record<KK, Y[]> {
+    return arr.reduce((acc, el, index) => {
+        const key = mapper(el, index);
+        acc[key].push(el);
+        return acc;
+    }, defaultdict(() => <Y[]>[]));
+}
+
+export function vueSet<T extends object, K extends keyof T>(obj: T, key: K, value: T[K]): unknown {
+    // @ts-ignore
+    return Vue.set(obj, key, value);
+}
+
+export function vueDelete<T extends object, K extends keyof T>(obj: T, key: K): unknown {
+    // @ts-ignore
+    return Vue.delete(obj, key);
+}
+
+
+export function findMax<T>(arr: ReadonlyArray<T>, key: (item: T) => number): T | null {
+    const max: { item: null | T, value: null | number } = {
+        item: null,
+        value: null,
+    };
+
+    arr.forEach(item => {
+        const value = key(item);
+        if (max.value == null || value > max.value) {
+            max.item = item;
+            max.value = value;
+        }
+    });
+
+    return max.item;
 }

@@ -55,7 +55,7 @@ export default class PeerFeedbackSettings extends Vue {
 
     amount: number | null = this.peerFeedbackSettings?.amount ?? 0;
 
-    time: number | null = this.peerFeedbackSettings?.amount ?? 0;
+    time: number | null = this.peerFeedbackSettings?.time ?? 0;
 
     submit() {
         return this.$http.put(`/api/v1/assignments/${this.assignment.id}/peer_feedback_settings`, {

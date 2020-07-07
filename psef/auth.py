@@ -954,6 +954,30 @@ def ensure_can_edit_members_of_group(
         )
 
 
+class WorksByUserPermissions(CoursePermissionChecker):
+    __slots__ = ('assignment', 'author')
+
+    def __init__(
+        self, assignment: 'psef.models.Assignment', author: 'psef.models.User'
+    ):
+        super().__init__(course_id=assignment.course_id)
+        self.assignment = assignment
+        self.author = author
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        if self.author.contains_user(self.user):
+            return
+        pf_settings = self.assignment.peer_feedback_settings
+        if (
+            pf_settings is not None and
+            self.user.id in pf_settings.get_subjects_for_user(self.author)
+        ):
+            return
+
+        self._ensure(CPerm.can_see_others_work)
+
+
 class WorkPermissions(CoursePermissionChecker):
     """The permission checker for :class:`psef.models.Work`.
     """
@@ -962,6 +986,11 @@ class WorkPermissions(CoursePermissionChecker):
     def __init__(self, work: 'psef.models.Work'):
         super().__init__(course_id=work.assignment.course_id)
         self.work = work
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        WorksByUserPermissions(self.work.assignment,
+                               self.work.user).ensure_may_see()
 
     # TODO: We should move the functions `ensure_can_see_grade`,
     # `ensure_can_see_general_feedback`, and `ensure_can_see_linter_feedback`
@@ -1130,7 +1159,7 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
             see the reply itself.
         """
         self.ensure_may_see()
-        if not self.reply.author.contains_user(psef.current_user):
+        if not self.reply.author.contains_user(self.user):
             self._ensure(CPerm.can_view_feedback_author)
 
     @PermissionChecker.as_ensure_function

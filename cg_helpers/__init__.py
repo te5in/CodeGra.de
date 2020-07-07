@@ -18,6 +18,7 @@ __all__ = [
     'zip_times_with_offset',
     'remove_duplicates',
     'on_not_none',
+    'flatten',
 ]
 
 
@@ -151,3 +152,22 @@ def on_not_none(value: t.Optional[T],
     if value is not None:
         return callback(value)
     return None
+
+
+def flatten(it_to_flatten: t.Iterable[t.Iterable[T]]) -> t.List[T]:
+    """Flatten a given iterable of iterables to a list.
+
+    >>> flatten((range(2) for _ in range(4)))
+    [0, 1, 0, 1, 0, 1, 0, 1]
+    >>> flatten((range(i) for i in range(5)))
+    [0, 0, 1, 0, 1, 2, 0, 1, 2, 3]
+    >>> flatten((range(2) for _ in range(0)))
+    []
+    >>> flatten([[[1, 2]], [[1, 2]]])
+    [[1, 2], [1, 2]]
+
+    :param it_to_flatten: The iterable to flatten, which will be iterated
+        completely.
+    :returns: A fresh flattened list.
+    """
+    return [x for wrap in it_to_flatten for x in wrap]

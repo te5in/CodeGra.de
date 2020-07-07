@@ -176,7 +176,7 @@
                     </span>
                 </span>
             </div>
-            <div v-if="canApprove | editable || canSeeEdits || hasExternalImages" class="d-flex edit-buttons-wrapper">
+            <div v-if="canApprove || editable || canSeeEdits || hasExternalImages" class="d-flex edit-buttons-wrapper">
                 <b-btn v-if="canSeeEdits && reply.lastEdit"
                        class="state-default"
                        :id="`${componentId}-history-btn`">
@@ -193,6 +193,18 @@
                     <feedback-reply-history :reply="reply"/>
                 </b-popover>
 
+                    <b-btn @click="showExternalImages = !showExternalImages"
+                           class="state-default"
+                           v-b-popover.top.hover="externalImagesTogglePopover"
+                           v-if="hasExternalImages">
+                        <icon name="picture-o"
+                              v-if="showExternalImages"
+                              class="enabled"/>
+                        <span v-else class="strikethrough disabled">
+                            <icon name="picture-o" />
+                        </span>
+                    </b-btn>
+
                 <template v-if="!nonEditable">
                     <b-btn v-if="canApprove"
                            :id="`${componentId}-peer-feedback-btn`"
@@ -208,18 +220,6 @@
                         <peer-feedback-assessment :reply="reply"
                                                   @updated="emitUpdated"/>
                     </b-popover>
-
-                    <b-btn @click="showExternalImages = !showExternalImages"
-                           class="state-default"
-                           v-b-popover.top.hover="externalImagesTogglePopover"
-                           v-if="hasExternalImages">
-                        <icon name="picture-o"
-                              v-if="showExternalImages"
-                              class="enabled"/>
-                        <span v-else class="strikethrough disabled">
-                            <icon name="picture-o" />
-                        </span>
-                    </b-btn>
 
                     <cg-submit-button
                         v-if="editable"

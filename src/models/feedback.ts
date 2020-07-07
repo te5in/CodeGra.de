@@ -43,16 +43,17 @@ export interface FeedbackReplyServerData {
     author?: UserServerData;
 }
 
-interface FeedbackLineServerData {
+export interface FeedbackLineServerData {
     id: number;
-    file_id: number;
+    file_id: string;
+    work_id: number;
     line: number;
     replies: FeedbackReplyServerData[];
 }
 
 type LinterFeedbackServerData = Record<string, Record<string, [string, Record<string, any>][]>>;
 
-interface FeedbackServerData {
+export interface FeedbackServerData {
     general: string | null;
     linter: LinterFeedbackServerData;
     user: Array<FeedbackLine | FeedbackLineServerData>;
@@ -311,6 +312,7 @@ export class FeedbackLine {
         public readonly fileId: string,
         public readonly line: number,
         public readonly replies: ReadonlyArray<FeedbackReply>,
+        public readonly workId: number,
     ) {
         Object.freeze(this);
     }
@@ -327,7 +329,13 @@ export class FeedbackLine {
         const replies = Object.freeze(
             data.replies.map(r => FeedbackReply.fromServerData(r, data.id)),
         );
-        return new FeedbackLine(data.id, coerceToString(data.file_id), data.line, replies);
+        return new FeedbackLine(
+            data.id,
+            coerceToString(data.file_id),
+            data.line,
+            replies,
+            data.work_id,
+        );
     }
 
     deleteReply(updatedReply: FeedbackReply): FeedbackLine {
@@ -337,7 +345,13 @@ export class FeedbackLine {
             }
             return r;
         });
-        return new FeedbackLine(this.id, this.fileId, this.line, Object.freeze(replies));
+        return new FeedbackLine(
+            this.id,
+            this.fileId,
+            this.line,
+            Object.freeze(replies),
+            this.workId,
+        );
     }
 
     updateReply(updatedReply: FeedbackReply): FeedbackLine {
@@ -347,7 +361,13 @@ export class FeedbackLine {
             }
             return r;
         });
-        return new FeedbackLine(this.id, this.fileId, this.line, Object.freeze(replies));
+        return new FeedbackLine(
+            this.id,
+            this.fileId,
+            this.line,
+            Object.freeze(replies),
+            this.workId,
+        );
     }
 
     static canAddReply(submission: Submission) {
@@ -372,6 +392,7 @@ export class FeedbackLine {
             this.fileId,
             this.line,
             Object.freeze(this.replies.concat(newReply)),
+            this.workId,
         );
     }
 

@@ -755,6 +755,15 @@ class Work(Base):
         if rubricitem is not None:
             self.selected_items.remove(rubricitem)
 
+    def get_root_file(self, exclude_owner: 'file_models.FileOwner') -> 'file_models.File':
+        return psef.helpers.filter_single_or_404(
+            file_models.File,
+            file_models.File.work == self,
+            file_models.File.parent_id.is_(None),
+            file_models.File.fileowner != exclude_owner,
+            ~file_models.File.self_deleted,
+        )
+
     def search_file_filters(
         self,
         pathname: str,
@@ -891,17 +900,11 @@ class Work(Base):
         return query.filter(sql_expression.or_(*filters))
 
     def is_peer_reviewed_by(self, user: 'user_models.User') -> bool:
-        if self.assignment.peer_feedback_settings is None:
+        pf_settings = self.assignment.peer_feedback_settings
+        if pf_settings is None:
             return False
 
-        pf_conn = assignment_models.AssignmentPeerFeedbackConnection
-        return psef.models.db.session.query(
-            pf_conn.query.filter(
-                pf_conn.assignment == self.assignment,
-                pf_conn.user == self.user,
-                pf_conn.peer_user == user,
-            ).exists()
-        ).scalar()
+        return self.user_id in pf_settings.get_subjects_for_user(user)
 
     def get_all_authors(self) -> t.List['user_models.User']:
         """Get all the authors of this submission.

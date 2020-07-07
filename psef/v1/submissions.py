@@ -14,8 +14,7 @@ import structlog
 import sqlalchemy.sql as sql
 from flask import request
 from sqlalchemy.orm import selectinload, contains_eager
-from mypy_extensions import TypedDict
-from typing_extensions import Protocol
+from typing_extensions import Protocol, TypedDict
 
 import psef.files
 from psef import app, current_user
@@ -23,7 +22,6 @@ from cg_sqlalchemy_helpers.types import ColumnProxy
 
 from . import api
 from .. import auth, models, helpers, features
-from ..errors import APICodes, APIException
 from ..models import DbColumn, FileOwner, db
 from ..helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
@@ -31,6 +29,7 @@ from ..helpers import (
     make_empty_response
 )
 from ..signals import WORK_DELETED, WorkDeletedData
+from ..exceptions import APICodes, APIException, PermissionException
 from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
@@ -121,11 +120,7 @@ def get_submission(
     work = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
-
-    if not work.has_as_author(current_user):
-        auth.ensure_permission(
-            CPerm.can_see_others_work, work.assignment.course_id
-        )
+    auth.WorkPermissions(work).ensure_may_see()
 
     if request.args.get('type') == 'zip':
         exclude_owner = models.File.get_exclude_owner(
@@ -382,23 +377,8 @@ def get_feedback_from_submission(
             for file_id, lcomms in _group_by_file_id(all_linter_comments)
         }
 
-    comments = models.CommentBase.query.filter(
-        models.File.work == work,
-        ~models.File.self_deleted,
-        # We join the replies using an innerload to make sure we only get
-        # commentbases that have at least one reply.
-    ).join(
-        models.CommentBase.replies, isouter=False
-    ).join(
-        models.CommentBase.file, isouter=False
-    ).order_by(
-        # This order is really important for the `itertools.groupby` call.
-        models.CommentBase.file_id.asc(),
-        models.CommentBase.line.asc(),
-        models.CommentReply.created_at.asc(),
-    ).options(
-        contains_eager(models.CommentBase.replies),
-        contains_eager(models.CommentBase.file),
+    comments = models.CommentBase.get_base_comments_query().filter(
+        models.File.work == work
     ).all()
 
     fun: t.Callable[[t.List[models.CommentBase], LinterComments, str], t.
@@ -1002,6 +982,36 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
     return jsonify(psef.files.get_stat_information(code))
 
 
+class RootFileTreesJSON(TypedDict, total=True):
+    teacher: t.Optional[psef.files.FileTree[int]]
+    student: psef.files.FileTree[int]
+
+
+@api.route(
+    "/submissions/<int:submission_id>/root_file_trees/", methods=['GET']
+)
+@auth.login_required
+def get_root_file_trees(submission_id: int) -> JSONResponse[RootFileTreesJSON]:
+    work = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
+    auth.ensure_can_view_files(work, teacher_files=False)
+    student_files = work.get_root_file(FileOwner.teacher).list_contents(
+        FileOwner.teacher
+    )
+
+    try:
+        auth.ensure_can_view_files(work, teacher_files=True)
+    except PermissionException:
+        teacher_files = None
+    else:
+        teacher_files = work.get_root_file(FileOwner.student).list_contents(
+            FileOwner.student
+        )
+
+    return jsonify({'teacher': teacher_files, 'student': student_files})
+
+
 @api.route("/submissions/<int:submission_id>/files/", methods=['GET'])
 @auth.login_required
 def get_dir_contents(
@@ -1068,13 +1078,7 @@ def get_dir_contents(
         found_file = work.search_file(path, exclude_owner)
         return jsonify(psef.files.get_stat_information(found_file))
     else:
-        file = helpers.filter_single_or_404(
-            models.File,
-            models.File.work_id == submission_id,
-            models.File.parent_id.is_(None),
-            models.File.fileowner != exclude_owner,
-            ~models.File.self_deleted,
-        )
+        file = work.get_root_file(exclude_owner)
 
     if not file.is_directory:
         raise APIException(

@@ -14,8 +14,11 @@ declare module 'vue/types/vue' {
         $http: AxiosStatic;
         $utils: typeof typedUtils;
         $now: Moment;
+        $epoch: Moment;
 
         $loadFullNotifications: boolean;
         $userConfig: typeof UserConfig;
+
+        $hlanguageStore: LocalForage;
     }
 }

@@ -17,10 +17,11 @@ import submissions from './modules/submissions';
 import code from './modules/code';
 import users from './modules/users';
 import fileTrees from './modules/file_trees';
-import feedback from './modules/feedback';
 
 // We import this for the side effect only.
 import './modules/notification';
+import './modules/feedback';
+import './modules/peer_feedback';
 
 import { RootState } from './state';
 
@@ -71,7 +72,6 @@ Object.entries({
     code,
     users,
     fileTrees,
-    feedback,
 }).forEach(([key, value]) => {
     const builder = rootBuilder.module(key);
     builder.vuexModule = () => value;

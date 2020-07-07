@@ -8,7 +8,7 @@ import typing as t
 from collections import defaultdict
 
 import sqlalchemy
-from sqlalchemy.orm import column_property
+from sqlalchemy.orm import contains_eager, column_property
 from werkzeug.utils import invalidate_cached_property  # type: ignore
 from werkzeug.utils import cached_property
 from typing_extensions import Literal, TypedDict
@@ -18,7 +18,7 @@ from cg_enum import CGEnum
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
 from cg_typing_extensions import make_typed_dict_extender
-from cg_sqlalchemy_helpers.types import ImmutableColumnProxy
+from cg_sqlalchemy_helpers.types import MyQuery, ImmutableColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import Base, db
@@ -58,6 +58,14 @@ class CommentReplyJSON(TypedDict, total=True):
 class CommentReplyExtendedJSON(CommentReplyJSON, total=True):
     author: t.Optional['user_models.User']
     comment_base_id: int
+
+
+class CommentBaseJSON(TypedDict, total=True):
+    id: int
+    line: int
+    file_id: str
+    work_id: int
+    replies: t.Sequence['CommentReply']
 
 
 class CommentReply(IdMixin, TimestampMixin, Base):
@@ -533,7 +541,26 @@ class CommentBase(IdMixin, Base):
             if auth.FeedbackReplyPermissions(r).ensure_may_see.as_bool()
         ]
 
-    def __to_json__(self) -> t.Mapping[str, t.Any]:
+    @classmethod
+    def get_base_comments_query(cls) -> MyQuery['CommentBase']:
+        return cls.query.filter(
+            ~file_models.File.self_deleted,
+            # We join the replies using an innerload to make sure we only get
+            # ``CommentBase``s that have at least one reply.
+        ).join(
+            cls.replies, isouter=False
+        ).join(
+            cls.file, isouter=False
+        ).order_by(
+            cls.file_id.asc(),
+            cls.line.asc(),
+            CommentReply.created_at.asc(),
+        ).options(
+            contains_eager(cls.replies).selectinload(CommentReply.author),
+            contains_eager(cls.file).selectinload(file_models.File.work),
+        )
+
+    def __to_json__(self) -> CommentBaseJSON:
         """Creates a JSON serializable representation of this object.
 
 
@@ -554,5 +581,6 @@ class CommentBase(IdMixin, Base):
             'id': self.id,
             'line': self.line,
             'file_id': str(self.file_id),
+            'work_id': self.file.work_id,
             'replies': self.user_visible_replies,
         }
