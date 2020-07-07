@@ -1,5 +1,5 @@
 <template>
-<div class="junit-result">
+<div class="junit-result w-100">
     <div v-for="suite in junit.suites" class="junit-suite p-3">
         <h5>
             {{ suite.name }} ({{ suite.successful }} / {{ suite.runTests }})
