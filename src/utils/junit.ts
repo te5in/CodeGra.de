@@ -5,11 +5,7 @@ function mapHTMLCollection<T>(
     collection: HTMLCollection,
     mapper: (node: Element, index: number) => T,
 ): T[] {
-    const res = [];
-    for (let i = 0, length = collection.length; i < length; ++i) {
-        res.push(mapper(collection[i], i));
-    }
-    return res;
+    return Array.from(collection, mapper);
 }
 
 function getAttribute<Y>(node: Element, name: string, dflt: Y | null = null): string | Y {

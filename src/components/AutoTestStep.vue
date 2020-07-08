@@ -68,14 +68,6 @@
                             Additional arguments may be defined per input case if needed, which
                             will be appended to this string.
                         </template>
-
-                        <template v-else-if="value.type === 'junit_test'">
-                            <!-- TODO: Do we want to keep this description? Or do
-                                 we want teachers to just use the scripts we
-                                 provide to them? -->
-                            The command should generate a JUnit compatible XML file at the location
-                            in the <code>$CG_JUNIT_XML_LOCATION</code> environment variable.
-                        </template>
                     </description-popover>
                 </label>
 

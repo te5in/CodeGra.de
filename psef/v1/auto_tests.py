@@ -7,6 +7,7 @@ import os
 import json
 import typing as t
 
+import flask
 import werkzeug
 import structlog
 from flask import Response, request, make_response
@@ -942,12 +943,9 @@ def get_auto_test_step_result_attachment(
             APICodes.OBJECT_NOT_FOUND, 404
         )
 
-    res = Response(
-        open(
-            os.path.join(
-                app.config['UPLOAD_DIR'], step_result.attachment_filename
-            ), 'rb'
-        )
+    res = flask.send_from_directory(
+        app.config['UPLOAD_DIR'],
+        step_result.attachment_filename,
     )
     res.headers['Content-Type'] = 'application/octet-stream'
     return res

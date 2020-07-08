@@ -2920,3 +2920,19 @@ def test_update_step_attachment(
         assert attachment.status_code == 404
         assert 'The requested "AutoTestStepResult" was not found' in attachment.json[
             'message']
+
+    with describe('should be deleted when the run is deleted'):
+        step_result_id = step_result.id
+        with logged_in(teacher):
+            test_client.req(
+                'delete',
+                f'{url}/runs/{run_id}',
+                204,
+            )
+            attachment = test_client.get(
+                f'{url}/runs/{run_id}/step_results/{step_result_id}/attachment',
+            )
+
+        assert attachment.status_code == 404
+        assert 'The requested "AutoTestStepResult" was not found' in attachment.json[
+            'message']

@@ -897,6 +897,8 @@ class _JunitTest(AutoTestStepBase):
         except cg_junit.ParseError:
             logger.error('Could not parse Junit file', exc_info=True)
             return 0
+        if junit.total_tests == 0:
+            return 0
         return junit.total_success / junit.total_tests
 
     @classmethod
