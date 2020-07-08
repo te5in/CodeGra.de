@@ -255,11 +255,11 @@ context('Manage assignment page', () => {
             // no way to trigger a hover in cypress.
 
             cy.get('.auto-test .results-visible-option')
-                .contains('label', 'Immediately')
+                .contains('.label', 'Immediately')
                 .click();
-            cy.get('.auto-test .results-visible-option')
-                .contains('.submit-button', 'Submit')
-                .submit('success');
+            cy.get('.auto-test .results-visible-option .promise-loader .fa-icon')
+                .should('have.class', 'text-success')
+                .should('have.css', 'opacity', '1');
 
             // TODO: Check that the popover on the start button does not
             // mention the "results visible" option.
@@ -275,11 +275,31 @@ context('Manage assignment page', () => {
             // "results visible" option.
 
             cy.get('.auto-test .rubric-calculation-option')
-                .contains('label', 'Minimum percentage')
+                .contains('.label', 'Minimum percentage')
                 .click();
-            cy.get('.auto-test .rubric-calculation-option')
-                .contains('.submit-button', 'Submit')
-                .submit('success');
+            cy.get('.auto-test .rubric-calculation-option .promise-loader .fa-icon')
+                .should('have.class', 'text-success')
+                .should('have.css', 'opacity', '1');
+
+            // TODO: Check that the popover on the start button does not
+            // mention the "results visible" option.
+        });
+
+        it('should not be possible if no "preferred revision" option is selected', () => {
+            cy.get('.auto-test')
+                .contains('.card-header', 'Configuration')
+                .contains('.submit-button', 'Start')
+                .should('be.disabled');
+
+            // TODO: Check that the popover on the start button mentions the
+            // "results visible" option.
+
+            cy.get('.auto-test .teacher-revision-option')
+                .contains('.label', 'Student')
+                .click();
+            cy.get('.auto-test .teacher-revision-option .promise-loader .fa-icon')
+                .should('have.class', 'text-success')
+                .should('have.css', 'opacity', '1');
 
             // TODO: Check that the popover on the start button does not
             // mention the "results visible" option.

@@ -1,23 +1,23 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="toggle-container"
-     :class="{ disabled, colors, inline }"
+     :class="{ disabled, colors, inline, 'has-no-value': hasNoValue }"
      :checked="current">
     <div :id="toggleId"
          class="toggle-div">
-        <div class="label-off"
+        <div class="label label-off"
             @click="toggle(false)">
             {{ labelOff }}
         </div>
         <div class="toggle"
              @click="toggle()"/>
-        <div class="label-on"
+        <div class="label label-on"
              @click="toggle(true)">
             {{ labelOn }}
         </div>
     </div>
     <b-popover placement="top"
-               v-if="disabled"
+               v-if="disabled && disabledText"
                triggers="hover"
                :target="toggleId">
         {{ disabledText }}
@@ -64,6 +64,10 @@ export default {
             default: false,
             type: Boolean,
         },
+        hasNoValue: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     data() {
@@ -77,15 +81,23 @@ export default {
         value(to) {
             this.current = to === this.valueOn;
         },
+
+        hasNoValue() {
+            this.current = this.value === this.valueOn;
+        },
     },
 
     methods: {
         toggle(to) {
             if (this.disabled) return;
 
+            // Do not toggle when the value is not set and the user clicks the toggle button
+            // instead of the labels.
+            if (to == null && this.hasNoValue) return;
+
             const newState = to == null ? !this.current : to;
 
-            if (newState !== this.current) {
+            if (newState !== this.current || this.hasNoValue) {
                 this.current = newState;
                 this.$emit('input', this.current ? this.valueOn : this.valueOff);
             }
@@ -104,6 +116,7 @@ export default {
 
     &.disabled {
         cursor: not-allowed;
+        opacity: 0.75;
     }
 
     &.inline,
@@ -116,14 +129,14 @@ export default {
 .label-on,
 .toggle {
     display: inline-block;
+
     vertical-align: top;
     .toggle-container:not(.inline) & {
         vertical-align: middle;
     }
-    cursor: pointer;
 
+    cursor: pointer;
     .disabled & {
-        opacity: @unchecked-opacity;
         cursor: not-allowed;
     }
 }
@@ -160,6 +173,10 @@ export default {
     opacity: @unchecked-opacity;
 }
 
+.label-off {
+    opacity: 1;
+}
+
 [checked] {
     &.colors .toggle {
         background-color: @color-primary;
@@ -168,6 +185,7 @@ export default {
             background-color: @color-primary-darkest;
         }
     }
+
     .toggle::before {
         transform: translate(100%, 0.1rem);
     }
@@ -176,6 +194,18 @@ export default {
         opacity: 1;
     }
 
+    .label-off {
+        opacity: @unchecked-opacity;
+    }
+}
+
+.has-no-value {
+    .toggle::before {
+        transform: scale(0.75) translate(0.75rem, 0.15rem);
+        transform-origin: center;
+    }
+
+    .label-on,
     .label-off {
         opacity: @unchecked-opacity;
     }

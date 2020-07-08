@@ -69,7 +69,7 @@ if [[ "$res1" -ne 0 ]]; then
     exit "$res1";
 fi
 
-timeout -k 600 600 \
+timeout -k 900 900 \
         pytest --cov psef --cov cg_signals --cov cg_cache \
         --cov-append \
         --postgresql="${BASE_DATABASE_URI}gw5" \

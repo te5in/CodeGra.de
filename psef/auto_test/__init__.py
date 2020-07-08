@@ -70,6 +70,8 @@ PRE_STUDENT_FIXTURES_DIR = f'{uuid.uuid4().hex}/'
 
 OUTPUT_DIR = f'/.{uuid.uuid4().hex}/{uuid.uuid4().hex}'
 
+BASH_PATH = '/bin/bash'
+
 
 class UpdateResultFunction(Protocol):
     """A protocol for a function that can update the state of a step.
@@ -911,7 +913,7 @@ class StartedContainer:
         new_path = f'{FIXTURES_ROOT}/{new_dir}'
         self.run_command(
             [
-                '/bin/bash',
+                BASH_PATH,
                 '-c',
                 (
                     'mv "{old_path}" "{new_path}" && '
@@ -1238,7 +1240,7 @@ class StartedContainer:
         env['PATH'] += f'{home_dir}/student/:{self.fixtures_dir}'
 
         self._change_user(user)
-        cmd_list = ['/bin/bash', '-c', cmd]
+        cmd_list = [BASH_PATH, '-c', cmd]
         os.chdir(cwd)
 
         self._signal_start()
@@ -2156,7 +2158,7 @@ class AutoTestRunner:
 
             cont.run_command(
                 [
-                    '/bin/bash',
+                    BASH_PATH,
                     '-c',
                     (
                         'mkdir -p "{output_dir}" && '
@@ -2431,10 +2433,10 @@ class AutoTestRunner:
         with timed_code('run_setup_commands'):
             cont.run_command(
                 [
-                    '/bin/bash',
+                    BASH_PATH,
                     '-c',
                     (
-                        'adduser --shell /bin/bash --disabled-password --gecos'
+                        'adduser --shell {bash_path} --disabled-password --gecos'
                         ' "" {user} && '
                         'mkdir -p "{home_dir}/student/" && '
                         'mkdir -p "{fixtures_root}/{fixtures}" && '
@@ -2446,6 +2448,7 @@ class AutoTestRunner:
                         home_dir=_get_home_dir(CODEGRADE_USER),
                         fixtures=PRE_STUDENT_FIXTURES_DIR,
                         fixtures_root=FIXTURES_ROOT,
+                        bash_path=BASH_PATH,
                     ),
                 ],
             )

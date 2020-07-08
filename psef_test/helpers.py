@@ -511,6 +511,7 @@ def create_auto_test(
     grade_calculation=None,
     amount_fixtures=0,
     results_always_visible=False,
+    prefer_teacher_revision=False,
     has_hidden_steps=False,
 ):
     a_id = get_id(assignment)
@@ -535,6 +536,7 @@ def create_auto_test(
             'runs': [],
             'grade_calculation': None,
             'results_always_visible': None,
+            'prefer_teacher_revision': None,
         },
     )
 
@@ -546,11 +548,13 @@ def create_auto_test(
             data={
                 'grade_calculation': grade_calculation,
                 'results_always_visible': results_always_visible,
+                'prefer_teacher_revision': prefer_teacher_revision,
             },
             result={
                 'grade_calculation': grade_calculation,
                 '__allow_extra__': True,
                 'results_always_visible': results_always_visible,
+                'prefer_teacher_revision': prefer_teacher_revision,
             }
         )
 
@@ -636,6 +640,8 @@ def create_auto_test_from_dict(test_client, assig, at_dict):
             'setup_script': at_dict.get('setup_script', ''),
             'run_setup_script': at_dict.get('run_setup_script', ''),
             'grade_calculation': at_dict.get('grade_calculation', 'full'),
+            'prefer_teacher_revision':
+                at_dict.get('prefer_teacher_revision', False),
             'results_always_visible':
                 at_dict.get('results_always_visible', True),
         },

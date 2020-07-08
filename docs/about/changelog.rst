@@ -6,6 +6,12 @@ Version *Next*
 
 **Released**: TBD
 
+**Features**
+
+- Make it possible to run AutoTest on the teacher revision instead of the
+  student submission, if it is available. `(#1390)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1390>`__.
+
 **Updates**
 
 - Automatically focus the percentage input in continuous rubric rows
