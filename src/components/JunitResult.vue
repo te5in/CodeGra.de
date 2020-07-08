@@ -29,7 +29,7 @@
                     </div>
 
                     <pre v-if="testCase.message"
-                         class="px-3"
+                         class="px-3 mb-0"
                          :class="testCase.content == null ? '' : 'pb-3'"
                          style="white-space: pre-wrap;"
                          >{{ testCase.message }}</pre>

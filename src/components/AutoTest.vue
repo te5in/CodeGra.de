@@ -1548,6 +1548,6 @@ export default {
 }
 
 .auto-test-option-toggle .label-on {
-    width: 11.5rem;
+    width: 12.5rem;
 }
 </style>
