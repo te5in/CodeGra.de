@@ -30,7 +30,7 @@
 
                     <pre v-if="testCase.message"
                          class="px-3"
-                         :class="testCase.content == null ? '' : 'pb-3 border-bottom'"
+                         :class="testCase.content == null ? '' : 'pb-3'"
                          style="white-space: pre-wrap;"
                          >{{ testCase.message }}</pre>
                     <div v-if="testCase.content != null">
