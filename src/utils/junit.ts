@@ -8,7 +8,10 @@ function mapHTMLCollection<T>(
     return Array.from(collection, mapper);
 }
 
-function getAttribute<Y extends string | number>(node: Element, name: string, dflt: Y | null = null): string | Y {
+function getAttribute<Y extends string | number>(
+    node: Element,
+    name: string, dflt: Y | null = null,
+): string | Y {
     const attr = node.getAttribute(name);
     if (dflt == null) {
         AssertionError.assert(attr != null, `Attribute ${name} not found in ${node.outerHTML}`);
@@ -60,8 +63,8 @@ class CGJunitCase {
         } else {
             contentType = 'unknown';
         }
-        let content: string | null = firstChild ? firstChild.textContent : null;
-        let message = firstChild ? firstChild.getAttribute('message') : null;
+        const content: string | null = firstChild ? firstChild.textContent : null;
+        const message = firstChild ? firstChild.getAttribute('message') : null;
 
         return new CGJunitCase(
             content,
