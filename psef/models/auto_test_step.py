@@ -29,7 +29,7 @@ from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 from . import Base, db
 from .. import auth, helpers, exceptions, current_app
 from ..helpers import (
-    JSONType, between, ensure_json_dict, get_from_map_transaction
+    JSONType, between, safe_div, ensure_json_dict, get_from_map_transaction
 )
 from ..registry import auto_test_handlers
 from ..exceptions import (
@@ -897,9 +897,7 @@ class _JunitTest(AutoTestStepBase):
         except cg_junit.ParseError:
             logger.error('Could not parse Junit file', exc_info=True)
             return 0
-        if junit.total_tests == 0:
-            return 0
-        return junit.total_success / junit.total_tests
+        return safe_div(junit.total_success, junit.total_tests, default=0)
 
     @classmethod
     def _execute(
