@@ -8,7 +8,7 @@ function mapHTMLCollection<T>(
     return Array.from(collection, mapper);
 }
 
-function getAttribute<Y>(node: Element, name: string, dflt: Y | null = null): string | Y {
+function getAttribute<Y extends string | number>(node: Element, name: string, dflt: Y | null = null): string | Y {
     const attr = node.getAttribute(name);
     if (dflt == null) {
         AssertionError.assert(attr != null, `Attribute ${name} not found in ${node.outerHTML}`);
@@ -33,10 +33,11 @@ function isValidState(state: unknown): state is CGJunitCaseState {
 }
 
 class CGJunitCase {
-    public content: string[] | null;
+    public readonly content: string[] | null;
 
     constructor(
         content: string | null,
+        public readonly message: string | null,
         public readonly state: CGJunitCaseState,
         public readonly name: string,
         public readonly classname: string,
@@ -59,9 +60,12 @@ class CGJunitCase {
         } else {
             contentType = 'unknown';
         }
+        let content: string | null = firstChild ? firstChild.textContent : null;
+        let message = firstChild ? firstChild.getAttribute('message') : null;
 
         return new CGJunitCase(
-            firstChild && firstChild.textContent,
+            content,
+            message,
             contentType,
             getAttribute(node, 'name'),
             getAttribute(node, 'classname'),
