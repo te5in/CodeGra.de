@@ -3023,3 +3023,6 @@ def test_update_step_attachment(
         assert attachment.status_code == 404
         assert 'The requested "AutoTestStepResult" was not found' in attachment.json[
             'message']
+        assert not os.path.exists(
+            f'{app.config["UPLOAD_DIR"]}/{new_attachment}'
+        )
