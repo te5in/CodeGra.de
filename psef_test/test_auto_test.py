@@ -88,6 +88,10 @@ def monkeypatch_for_run(
         ['python', '-c', 'import random; exit(random.randint(0, 1))']
     )
 
+    import shutil
+    bash_path = shutil.which('bash')
+    monkeypatch.setattr(psef.auto_test, 'BASH_PATH', bash_path)
+
     monkeypatch.setattr(psef.auto_test, 'FIXTURES_ROOT', '/tmp')
     monkeypatch.setattr(psef.auto_test, 'OUTPUT_DIR', f'/tmp/{uuid.uuid4()}')
     monkeypatch.setattr(os, 'setgroups', stub_function_class())
@@ -95,14 +99,17 @@ def monkeypatch_for_run(
     def new_run_command(self, cmd_user):
         signal_start = psef.auto_test.StartedContainer._signal_start
         cmd, user = cmd_user
+
+        cmd[0] = re.sub('(/bin/)?bash', bash_path, cmd[0])
+
         if cmd[0] in {'adduser', 'usermod', 'deluser', 'sudo', 'apt'}:
             signal_start()
             return 0
-        elif cmd[0] == '/bin/bash' and cmd[2].startswith('adduser'):
+        elif cmd[0] == bash_path and cmd[2].startswith('adduser'):
             # Don't make the user, as we cannot do that locally
             cmd[2] = '&&'.join(['whoami'] + cmd[2].split('&&')[1:-2])
             cmd_user = (cmd, user)
-        elif cmd[0] == '/bin/bash' and cmd[2].startswith('mv'):
+        elif cmd[0] == bash_path and cmd[2].startswith('mv'):
             # Don't mv as this is not automatically restored as it is in the
             # actual LXC container.
             cmd[2] = cmd[2].replace('mv', 'cp -R')
@@ -294,6 +301,7 @@ def test_create_auto_test(test_client, basic, logged_in, describe):
                 'grade_calculation': None,
                 'runs': [],
                 'results_always_visible': None,
+                'prefer_teacher_revision': None,
             }
         )
 
@@ -534,6 +542,11 @@ def test_start_auto_test_before_complete(
         assert 'a results_always_visible set' in err['message']
         update_test(results_always_visible=True)
 
+    with describe('no preferred revision'), logged_in(teacher):
+        err = start_run(409)
+        assert 'not have prefer_teacher_revision set' in err['message']
+        update_test(prefer_teacher_revision=False)
+
     with describe('already has a run'), logged_in(teacher):
         start_run(200)
         err = start_run(409)
@@ -669,6 +682,7 @@ def test_update_auto_test(
             assert res.status_code == 403
 
         update_test(results_always_visible=True)
+        update_test(prefer_teacher_revision=False)
         t = m.AutoTest.query.get(test['id'])
         with app.test_request_context('/'):
             t.start_test_run()
@@ -2547,6 +2561,87 @@ def test_failing_container_shutdown(
 
         # Make sure starting failed at least once
         assert failed_at_least_once
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('prefer_teacher_revision', [True, False])
+@pytest.mark.parametrize('with_teacher_revision', [True, False])
+def test_prefer_teacher_revision_option(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session,
+    stub_function_class, assert_similar, monkeypatch_for_run, admin_user,
+    prefer_teacher_revision, with_teacher_revision
+):
+    # TODO: This test fails if it is run _after_ test_running_old_submission,
+    # although it is unclear why.
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+
+        with logged_in(teacher):
+            # yapf: disable
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig_id, {
+                    'prefer_teacher_revision': prefer_teacher_revision,
+                    'sets': [{
+                        'suites': [{
+                            'submission_info': True,
+                            'steps': [{
+                                'run_p': f'{psef.auto_test.BASH_PATH} script.sh',
+                                'name': 'Run script',
+                            }]
+                        }],
+                    }],
+                }
+            )
+            # yapf: enable
+
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+    with describe('start_auto_test'):
+        t = m.AutoTest.query.get(test['id'])
+        with logged_in(teacher), tempfile.NamedTemporaryFile() as f:
+            f.write(b'echo student\n')
+            f.flush()
+
+            work = helpers.create_submission(
+                test_client,
+                assig_id,
+                for_user=student.username,
+                submission_data=(f.name, 'script.sh'),
+            )
+
+            if with_teacher_revision:
+                file_id = test_client.get(
+                    f'/api/v1/submissions/{work["id"]}/files/',
+                ).json['entries'][0]['id']
+                test_client.req(
+                    'patch',
+                    f'/api/v1/code/{file_id}',
+                    200,
+                    real_data='echo teacher\n',
+                )
+
+            run_id = test_client.req('post', f'{url}/runs/', 200)['id']
+            session.commit()
+
+        monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, )
+        )
+        thread.start()
+        thread.join()
+
+        res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
+                                                        ).one()
+
+    with describe('should run the correct code'):
+        step_result = res.step_results[0]
+
+        if prefer_teacher_revision and with_teacher_revision:
+            assert step_result.log['stdout'] == 'teacher\n'
+        else:
+            assert step_result.log['stdout'] == 'student\n'
 
 
 @pytest.mark.parametrize('use_transaction', [False], indirect=True)

@@ -1285,6 +1285,13 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         default=None,
     )
 
+    prefer_teacher_revision = db.Column(
+        'prefer_teacher_revision',
+        db.Boolean,
+        nullable=True,
+        default=None,
+    )
+
     def ensure_no_runs(self) -> None:
         """Ensure that this AutoTest has no runs.
 
@@ -1323,12 +1330,17 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     def _ensure_can_start_run(self) -> None:
         if self.grade_calculator is None:
             raise InvalidStateException(
-                'This AutoTest has no grade_calculation set, but this options'
+                'This AutoTest has no grade_calculation set, but this option'
                 ' is required.'
             )
         elif self.results_always_visible is None:
             raise InvalidStateException(
                 'This AutoTest does not have a results_always_visible set, but'
+                ' this option is required'
+            )
+        elif self.prefer_teacher_revision is None:
+            raise InvalidStateException(
+                'This AutoTest does not have prefer_teacher_revision set, but'
                 ' this option is required'
             )
         elif not self.sets:
@@ -1518,6 +1530,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             'assignment_id': self.assignment.id,
             'runs': self._runs,
             'results_always_visible': self.results_always_visible,
+            'prefer_teacher_revision': self.prefer_teacher_revision,
         }
 
     def copy(
@@ -1546,6 +1559,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             finalize_script=self.finalize_script,
             results_always_visible=self.results_always_visible,
             _grade_calculation=self._grade_calculation,
+            prefer_teacher_revision=self.prefer_teacher_revision,
         )
         for suite in res.all_suites:
             suite.rubric_row = rubric_mapping[suite.rubric_row]

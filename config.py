@@ -23,7 +23,7 @@ CONFIG['BASE_DIR'] = cur_dir
 
 os.environ['BASE_DIR'] = str(CONFIG['BASE_DIR'])
 
-parser = ConfigParser(os.environ)
+parser = ConfigParser({ k: v for k, v in os.environ.items() if k.isupper() })
 parser.read(config_file)
 
 if 'Back-end' not in parser:
