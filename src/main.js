@@ -427,7 +427,6 @@ Promise.all([
                         message:
                             'An updated version of CodeGrade is available. Please click here to reload the page and start using the latest version!',
                         variant: '',
-                        // eslint-disable-next-line no-script-url
                         href: '#',
                         onClick() {
                             window.location.reload();
