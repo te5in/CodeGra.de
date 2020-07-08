@@ -3,7 +3,6 @@ APIs are used to create, start, and request information about AutoTests.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-import os
 import json
 import typing as t
 
