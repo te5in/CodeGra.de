@@ -10,7 +10,8 @@ function mapHTMLCollection<T>(
 
 function getAttribute<Y extends string | number>(
     node: Element,
-    name: string, dflt: Y | null = null,
+    name: string,
+    dflt: Y | null = null,
 ): string | Y {
     const attr = node.getAttribute(name);
     if (dflt == null) {
