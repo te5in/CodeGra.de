@@ -13,6 +13,9 @@ Version *Next*
   step type supports all testing frameworks that can output their results the
   JUnit XML format. The results are shown to the student  in an intuitive
   overview.
+- Make it possible to run AutoTest on the teacher revision instead of the
+  student submission, if it is available. `(#1390)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1390>`__.
 
 **Updates**
 

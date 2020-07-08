@@ -54,8 +54,11 @@ def _update_auto_test(
         run_setup_script = optional_get('run_setup_script', str, None)
         has_new_fixtures = optional_get('has_new_fixtures', bool, False)
         grade_calculation = optional_get('grade_calculation', str, None)
-        results_always_visible: t.Optional[bool] = optional_get(
+        results_always_visible = optional_get(
             'results_always_visible', (bool, type(None)), None
+        )
+        prefer_teacher_revision = optional_get(
+            'prefer_teacher_revision', (bool, type(None)), None
         )
 
     if old_fixtures is not None:
@@ -105,6 +108,8 @@ def _update_auto_test(
                 ), APICodes.OBJECT_NOT_FOUND, 404
             )
         auto_test.grade_calculator = calc
+    if prefer_teacher_revision is not None:
+        auto_test.prefer_teacher_revision = prefer_teacher_revision
     if results_always_visible is not None:
         auto_test.results_always_visible = results_always_visible
 

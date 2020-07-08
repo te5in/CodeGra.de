@@ -165,8 +165,8 @@
                             </b-card-header>
 
                             <b-card-body slot-scope="{}">
-                                <b-form-fieldset class="results-visible-option">
-                                    <label :for="alwaysVisibleId">
+                                <div class="d-flex flex-row results-visible-option">
+                                    <label class="flex-grow-1">
                                         Make results visible to students
 
                                         <description-popover hug-text>
@@ -176,27 +176,28 @@
                                         </description-popover>
                                     </label>
 
-                                    <b-input-group>
-                                        <b-radio-group stacked
-                                                       class="p-0 border rounded-left flex-grow-1"
-                                                       :class="{
-                                                               'rounded-right': !configEditable,
-                                                               'readably-disabled': !configEditable,
-                                                               }"
-                                                       v-model="internalTest.results_always_visible"
-                                                       :disabled="!configEditable"
-                                                       :options="alwaysVisibleOptions" />
+                                    <div class="flex-grow-0">
+                                        <cg-promise-loader
+                                            class="mr-2"
+                                            :promise="toggleLoaders.resultsAlwaysVisible"
+                                            :duration="5000" />
 
-                                        <submit-button v-if="configEditable"
-                                                       class="rounded-right"
-                                                       :disabled="internalTest.results_always_visible == null"
-                                                       :submit="() => submitProp('results_always_visible')" />
-                                    </b-input-group>
-                                </b-form-fieldset>
+                                        <cg-toggle v-model="internalTest.results_always_visible"
+                                                   @input="toggleLoaders.resultsAlwaysVisible = submitProp('results_always_visible', $event)"
+                                                   inline
+                                                   class="auto-test-option-toggle"
+                                                   label-off="Immediately (Continuous Feedback)"
+                                                   label-on="When assignment is &quot;done&quot;"
+                                                   :value-off="true"
+                                                   :value-on="false"
+                                                   :disabled="!configEditable"
+                                                   :has-no-value="internalTest.results_always_visible == null"/>
+                                    </div>
+                                </div>
 
-                                <b-form-fieldset class="rubric-calculation-option">
-                                    <label :for="gradeCalculationId">
-                                        Rubric calculation
+                                <div class="d-flex flex-row rubric-calculation-option">
+                                    <label class="flex-grow-1">
+                                        Percentage to get rubric item
 
                                         <description-popover hug-text>
                                             Determines how each category in a
@@ -212,28 +213,63 @@
                                             item is reached.
                                         </description-popover>
                                     </label>
-                                    <br>
 
-                                    <b-input-group>
-                                        <b-radio-group stacked
-                                                       class="p-0 border rounded-left flex-grow-1"
-                                                       :class="{
-                                                           'rounded-right': !configEditable,
-                                                           'readably-disabled': !configEditable,
-                                                       }"
-                                                       v-model="internalTest.grade_calculation"
-                                                       :disabled="!configEditable"
-                                                       :options="gradeCalculationOptions" />
+                                    <div class="flex-grow-0">
+                                        <cg-promise-loader
+                                            class="mr-2"
+                                            :promise="toggleLoaders.gradeCalculation"
+                                            :duration="5000" />
 
-                                        <submit-button v-if="configEditable"
-                                                       class="rounded-right"
-                                                       :disabled="internalTest.grade_calculation == null"
-                                                       :submit="() => submitProp('grade_calculation')" />
-                                    </b-input-group>
-                                </b-form-fieldset>
+                                        <cg-toggle v-model="internalTest.grade_calculation"
+                                                   @input="toggleLoaders.gradeCalculation = submitProp('grade_calculation', $event)"
+                                                   inline
+                                                   class="auto-test-option-toggle"
+                                                   label-off="Minimum percentage"
+                                                   label-on="Maximum percentage"
+                                                   value-off="partial"
+                                                   value-on="full"
+                                                   :disabled="!configEditable"
+                                                   :has-no-value="internalTest.grade_calculation == null"/>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex flex-row teacher-revision-option">
+                                    <label class="flex-grow-1">
+                                        Preferred revision
+
+                                        <description-popover hug-text>
+                                            The revision to run AutoTest on. If
+                                            this is <b>student</b> then the student
+                                            submission will be tested, even when a
+                                            teacher revision is available. If set to
+                                            <b>teacher</b> the teacher's revision is
+                                            used if it is available.
+                                        </description-popover>
+                                    </label>
+
+                                    <div class="flex-grow-0">
+                                        <cg-promise-loader
+                                            class="mr-2"
+                                            :promise="toggleLoaders.preferTeacherRevision"
+                                            :duration="5000" />
+
+                                        <cg-toggle v-model="internalTest.prefer_teacher_revision"
+                                                   @input="toggleLoaders.preferTeacherRevision = submitProp('prefer_teacher_revision', $event)"
+                                                   class="auto-test-option-toggle"
+                                                   inline
+                                                   label-off="Student"
+                                                   label-on="Teacher"
+                                                   :value-off="false"
+                                                   :value-on="true"
+                                                   :disabled="!configEditable"
+                                                   :has-no-value="internalTest.prefer_teacher_revision == null"/>
+                                    </div>
+                                </div>
+
+                                <hr class="mt-0 mb-2">
 
                                 <p v-if="!configEditable && !hasEnvironmentSetup"
-                                   class="mb-0 text-muted font-italic">
+                                   class="mt-3 mb-0 text-muted font-italic">
                                     Uploaded fixtures or setup scripts and their output would normally
                                     be shown here. However, none were uploaded, so there is nothing to
                                     show.
@@ -636,17 +672,8 @@ export default {
             preStartScriptId: `auto-test-base-pre-start-script-${id}`,
             globalPreStartScriptId: `auto-test-global-pre-start-script-${id}`,
             resultsModalId: `auto-test-results-modal-${id}`,
-            gradeCalculationId: `auto-test-grade-mode-${id}`,
-            alwaysVisibleId: `auto-test-always-visible-${id}`,
 
-            gradeCalculationOptions: [
-                { text: 'Minimum percentage needed to reach item', value: 'partial' },
-                { text: 'Maximum percentage needed to reach item', value: 'full' },
-            ],
-            alwaysVisibleOptions: [
-                { text: 'Immediately (Continuous Feedback)', value: true },
-                { text: 'When assignment is "done"', value: false },
-            ],
+            toggleLoaders: {},
 
             resultSubmissionLoading: true,
             resultSubmission: null,
@@ -719,6 +746,7 @@ export default {
                     this.internalTest = {
                         grade_calculation: this.test.grade_calculation,
                         results_always_visible: this.test.results_always_visible,
+                        prefer_teacher_revision: this.test.prefer_teacher_revision,
                         setup_script: this.test.setup_script,
                         run_setup_script: this.test.run_setup_script,
                         set_stop_points: this.test.sets.reduce(
@@ -728,6 +756,13 @@ export default {
                     };
                 }
             },
+        },
+
+        autoTestId: {
+            handler() {
+                this.resetLoaders();
+            },
+            immediate: true,
         },
     },
 
@@ -1109,6 +1144,14 @@ export default {
             });
             this.afterCreateAutoTest(payload);
         },
+
+        resetLoaders() {
+            this.toggleLoaders = {
+                resultsAlwaysVisible: null,
+                gradeCalculation: null,
+                preferTeacherRevision: null,
+            };
+        },
     },
 
     computed: {
@@ -1227,6 +1270,9 @@ export default {
             }
             if (this.test && this.test.results_always_visible == null) {
                 msgs.push('You have not selected when the results will be available.');
+            }
+            if (this.test && this.test.prefer_teacher_revision == null) {
+                msgs.push('You have not set the preferred revision to be tested.');
             }
             if (this.test && this.test.grade_calculation == null) {
                 msgs.push('No rubric calculation mode has been selected.');
@@ -1499,5 +1545,9 @@ export default {
         width: calc(100vw - 2rem);
         margin-top: 1rem;
     }
+}
+
+.auto-test-option-toggle .label-on {
+    width: 11.5rem;
 }
 </style>
