@@ -28,10 +28,11 @@
                         </div>
                     </div>
 
-                    <h6 v-if="testCase.message"
-                        style="white-space: pre-wrap;">
-                        {{ testCase.message }}
-                    </h6>
+                    <pre v-if="testCase.message"
+                         class="px-3"
+                         :class="testCase.content == null ? '' : 'pb-3 border-bottom'"
+                         style="white-space: pre-wrap;"
+                         >{{ testCase.message }}</pre>
                     <div v-if="testCase.content != null">
                         <inner-code-viewer class="border-top"
                                            v-if="testCase.content"
