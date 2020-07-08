@@ -1392,6 +1392,7 @@ export default {
             }
 
             this.junitAttachmentLoading = true;
+            const attachmentId = this.stepResultAttachment;
 
             await this.$afterRerender();
 
@@ -1399,18 +1400,21 @@ export default {
             const runId = this.autoTest.runs[0].id;
             const resultId = this.stepResult.id;
 
-            this.storeLoadCodeFromRoute({
+            const attachment = await this.storeLoadCodeFromRoute({
                 route: `/api/v1/auto_tests/${autoTestId}/runs/${runId}/step_results/${resultId}/attachment`,
-            }).then(attachment => {
-                this.junitAttachment = CGJunit.fromXml(this.stepResultAttachment, attachment);
-            }).catch(err => {
-                this.junitError = err;
-            }).then(() => {
-                const cur = this.$utils.getProps(this.junitAttachment, 'NOT_EQUAL', 'id');
-                if (cur == null || cur === this.stepResultAttachment) {
-                    this.junitAttachmentLoading = false;
-                }
             });
+
+            if (attachmentId !== this.stepResultAttachment) {
+                return;
+            }
+
+            try {
+                this.junitAttachment = CGJunit.fromXml(attachmentId, attachment);
+            } catch (err) {
+                this.junitError = err;
+            }
+
+            this.junitAttachmentLoading = false;
         },
     },
 
