@@ -6,8 +6,8 @@
         </h5>
 
         <!-- The masonry would not change the number of columns when resizing
-            the window for some unknown reason, but doing the comparison
-            ourselves does the trick. -->
+             the window for some unknown reason, but doing the comparison
+             ourselves does the trick. -->
         <masonry :cols="{ default: $root.$windowWidth <= $root.mediumWidth ? 1 : 2 }"
                  gutter="1rem">
             <div v-for="testCase in suite.cases" class="py-1">
@@ -33,16 +33,17 @@
                          style="white-space: pre-wrap;"
                          >{{ testCase.message }}</pre>
                     <div v-if="testCase.content != null">
-                        <inner-code-viewer class="border-top"
-                                           v-if="testCase.content"
-                                           :assignment="assignment"
-                                           :code-lines="testCase.content"
-                                           file-id="-1"
-                                           :feedback="{}"
-                                           :start-line="0"
-                                           :show-whitespace="true"
-                                           :warn-no-newline="false"
-                                           :empty-file-message="'No output.'" />
+                        <inner-code-viewer
+                            class="border-top"
+                            v-if="testCase.content"
+                            :assignment="assignment"
+                            :code-lines="testCase.content.map($utils.htmlEscape)"
+                            file-id="-1"
+                            :feedback="{}"
+                            :start-line="0"
+                            :show-whitespace="true"
+                            :warn-no-newline="false"
+                            :empty-file-message="'No output.'" />
                     </div>
                 </div>
             </div>
