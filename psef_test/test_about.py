@@ -26,6 +26,7 @@ def test_about_health_status(
         query={'health': None},
         result={
             'version': object,
+            'commit': str,
             'features': dict,
         },
     )
@@ -38,6 +39,7 @@ def test_about_health_status(
         query={'health': 'not key'},
         result={
             'version': object,
+            'commit': str,
             'features': dict,
         },
     )
@@ -67,6 +69,7 @@ def test_about_health_status(
         query={'health': 'good key'},
         result={
             'version': object,
+            'commit': str,
             'features': dict,
             'health': {
                 'application': True,
@@ -91,6 +94,7 @@ def test_about_health_status(
         query={'health': 'good key'},
         result={
             'version': object,
+            'commit': str,
             'features': dict,
             'health': {
                 'application': True,
@@ -121,6 +125,7 @@ def test_about_health_status(
         query={'health': 'good key'},
         result={
             'version': object,
+            'commit': str,
             'features': dict,
             'health': {
                 'application': True,
@@ -145,6 +150,7 @@ def test_about_health_status(
         query={'health': 'good key'},
         result={
             'version': object,
+            'commit': str,
             'features': dict,
             'health': {
                 'application': True,

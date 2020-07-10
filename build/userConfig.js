@@ -47,6 +47,7 @@ let version = execFileSync('git', ['describe', '--abbrev=0', '--tags']).toString
 const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD']).toString().trim();
 const tagMsg = execFileSync('git', ['tag', '-l', '-n400', version]).toString().split('\n');
 const gitCommit = execFileSync('git', ['rev-parse', '--short', 'HEAD']).toString().trim();
+const gitCommitLong = execFileSync('git', ['rev-parse', 'HEAD']).toString().trim();
 let inCorrectPart = false;
 let done = false;
 let skip = false;
@@ -63,6 +64,7 @@ if (version.match(/^[^A-Z]/) && branch.indexOf('stable') < 0) {
 config.release = {
     version,
     commit: gitCommit,
+    commitHash: gitCommitLong,
     date: process.env.CG_FORCE_BUILD_DATE || moment.utc().toISOString(),
     message: tagMsg.reduce((res, cur) => {
         if (done || skip) {
