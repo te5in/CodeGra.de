@@ -1074,7 +1074,6 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
                 ), APICodes.INVALID_STATE, 400
             )
 
-
         self.schedule_attachment_deletion()
         self.attachment_filename = psef.files.save_stream(stream)
 
