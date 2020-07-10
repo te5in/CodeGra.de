@@ -2880,6 +2880,7 @@ def test_update_step_attachment(
 
     with describe('setup'):
         course, _, teacher, student = basic
+        student2 = helpers.create_user_with_role(session, 'Student', course)
 
         with logged_in(admin_user):
             assig = helpers.create_assignment(
@@ -2923,6 +2924,9 @@ def test_update_step_attachment(
             work = helpers.create_submission(
                 test_client, assig['id'], for_user=student.username
             )
+            work2 = helpers.create_submission(
+                test_client, assig['id'], for_user=student2.username
+            )
 
             run_id = test_client.req('post', f'{url}/runs/', 200)['id']
             session.commit()
@@ -2943,7 +2947,8 @@ def test_update_step_attachment(
         for i, step_result in enumerate(res.step_results):
             with logged_in(teacher):
                 attachment = test_client.get(
-                    f'{url}/runs/{run_id}/step_results/{step_result.id}/attachment',
+                    f'{url}/runs/{run_id}/step_results/{step_result.id}'
+                    '/attachment',
                 )
 
             if junit_xml_files[i] is None:
@@ -2991,8 +2996,8 @@ def test_update_step_attachment(
             )
 
         assert attachment.status_code == 404
-        assert 'The requested "AutoTestStepResult" was not found' in attachment.json[
-            'message']
+        assert ('The requested "AutoTestStepResult" was not found'
+                ) in attachment.json['message']
 
     with describe('should fail when work is deleted'):
         work = session.query(m.Work).filter_by(id=work['id']).one()
@@ -3005,24 +3010,32 @@ def test_update_step_attachment(
             )
 
         assert attachment.status_code == 404
-        assert 'The requested "AutoTestStepResult" was not found' in attachment.json[
-            'message']
+        assert ('The requested "AutoTestStepResult" was not found'
+                ) in attachment.json['message']
+
+    with describe('should be deleted when the result is reset'):
+        work2 = session.query(m.Work).filter_by(id=work2['id']).one()
+        res2 = m.AutoTestResult.query.filter_by(work=work2).one()
+        attachment2 = os.path.join(
+            app.config["UPLOAD_DIR"],
+            res2.step_results[0].attachment_filename)
+        assert os.path.isfile(attachment2)
+        work2.assignment.auto_test.reset_work(work2)
+        session.commit()
+        assert not os.path.isfile(attachment2)
 
     with describe('should be deleted when the run is deleted'):
         step_result_id = step_result.id
         with logged_in(teacher):
-            test_client.req(
-                'delete',
-                f'{url}/runs/{run_id}',
-                204,
-            )
+            test_client.req('delete', f'{url}/runs/{run_id}', 204)
             attachment = test_client.get(
-                f'{url}/runs/{run_id}/step_results/{step_result_id}/attachment',
+                f'{url}/runs/{run_id}/step_results/{step_result_id}'
+                '/attachment'
             )
 
         assert attachment.status_code == 404
-        assert 'The requested "AutoTestStepResult" was not found' in attachment.json[
-            'message']
+        assert ('The requested "AutoTestStepResult" was not found'
+                ) in attachment.json['message']
         assert not os.path.exists(
             f'{app.config["UPLOAD_DIR"]}/{new_attachment}'
         )

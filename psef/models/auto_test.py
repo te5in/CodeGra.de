@@ -2,6 +2,7 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import os
 import math
 import uuid
 import typing as t
@@ -1090,9 +1091,39 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
 
     def delete_and_clear_rubric(self) -> None:
         """Delete this AutoTestRun and clear all the results and rubrics.
+
+        This method will also delete all the existing attachments for step
+        results.
         """
         for result in self.results:
             result.clear_rubric()
+
+        ATResult = auto_test_step_models.AutoTestStepResult  # pylint: disable=invalid-name
+
+        attachments = db.session.query(ATResult.attachment_filename).filter(
+            ATResult.attachment_filename.isnot(None),
+            ATResult.auto_test_result_id.in_(
+                [result.id for result in self.results]
+            )
+        ).all()
+
+        if attachments:
+
+            def after_req() -> None:
+                for attachment, in attachments:
+                    # This is never the case as we filter the attachments in
+                    # the query, but mypy doesn't understand that.
+                    if attachment is None: # pragma: no cover
+                        continue
+
+                    path = psef.files.safe_join(
+                        psef.app.config['UPLOAD_DIR'], attachment
+                    )
+                    if os.path.isfile(path):
+                        os.unlink(path)
+
+            callback_after_this_request(after_req)
+
         db.session.delete(self)
 
     @property

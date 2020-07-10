@@ -15,6 +15,7 @@ import tempfile
 
 import regex as re
 import structlog
+from sqlalchemy import event
 from sqlalchemy.types import JSON
 from werkzeug.datastructures import FileStorage
 
@@ -1039,6 +1040,26 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         """
         return self.step.get_amount_achieved_points(self)
 
+    def schedule_attachment_deletion(self) -> None:
+        """Delete the attachment of this result after the current request.
+
+        The attachment, if present, will be deleted, if not attachment is
+        present this function does nothing.
+
+        :returns: Nothing.
+        """
+        old_filename = self.attachment_filename
+        if old_filename is not None:
+            old_path = psef.files.safe_join(
+                current_app.config['UPLOAD_DIR'], old_filename
+            )
+
+            def after_req() -> None:
+                if os.path.isfile(old_path):
+                    os.unlink(old_path)
+
+            callback_after_this_request(after_req)
+
     def update_attachment(self, stream: FileStorage) -> None:
         """Update the attachment of this step.
 
@@ -1046,19 +1067,8 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         """
         assert self.step.SUPPORTS_ATTACHMENT
 
-        old_filename = self.attachment_filename
-        old_path = None
-        if old_filename is not None:
-            old_path = psef.files.safe_join(
-                current_app.config['UPLOAD_DIR'], old_filename
-            )
-
-        def after_req() -> None:
-            if old_path is not None:
-                os.unlink(old_path)
-
+        self.schedule_attachment_deletion()
         self.attachment_filename = psef.files.save_stream(stream)
-        callback_after_this_request(after_req)
 
     def __to_json__(self) -> t.Mapping[str, object]:
         res = {
@@ -1076,3 +1086,11 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
             res['log'] = self.step.remove_step_details(self.log)
 
         return res
+
+
+@event.listens_for(AutoTestStepResult, 'after_delete')
+def _receive_after_delete(
+    _: object, __: object, target: AutoTestStepResult
+) -> None:
+    """Listen for the 'after_delete' event"""
+    target.schedule_attachment_deletion()
