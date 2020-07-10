@@ -296,6 +296,7 @@ Promise.all([
             }, 1000);
 
             this._loadNotifications();
+            this._checkForUpdates();
         },
 
         computed: {
@@ -370,14 +371,6 @@ Promise.all([
                         }
                         throw err;
                     },
-                    '5xx': err => {
-                        const { request } = err;
-
-                        if (request) {
-                            this.backendError();
-                        }
-                        throw err;
-                    },
                     noResponse: err => {
                         this.connectionError();
                         throw err;
@@ -417,16 +410,6 @@ Promise.all([
                 });
             },
 
-            backendError() {
-                this.$emit('cg::app::toast', {
-                    tag: 'BackendError',
-                    title: 'Unknown error',
-                    message:
-                        'An unexpected error occurred. Please try again in a moment or contact support if this persists.',
-                    variant: 'danger',
-                });
-            },
-
             connectionError() {
                 this.$emit('cg::app::toast', {
                     tag: 'ConnectionError',
@@ -435,6 +418,25 @@ Promise.all([
                         'There was an error connecting to the server... Please try again later.',
                     variant: 'danger',
                 });
+            },
+
+            async _checkForUpdates() {
+                const res = await this.$http.get('/api/v1/about').catch(() => ({ data: {} }));
+                if (res.data.commit !== UserConfig.release.commitHash) {
+                    this.$emit('cg::app::toast', {
+                        tag: 'UpdateAvailable',
+                        title: 'CodeGrade update available!',
+                        message:
+                            'An updated version of CodeGrade is available. Please click here to reload the page and start using the latest version!',
+                        variant: '',
+                        href: '#',
+                        onClick() {
+                            window.location.reload();
+                        },
+                    });
+                } else {
+                    setTimeout(this._checkForUpdates, 10 * 60 * 1000);
+                }
             },
         },
 

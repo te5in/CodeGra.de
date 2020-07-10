@@ -12,6 +12,7 @@ def test_about_features(test_client, app, monkeypatch):
         200,
         result={
             'version': app.config['VERSION'],
+            'commit': str,
             'features': {
                 k.name: bool(v)
                 for k, v in app.config['FEATURES'].items()
