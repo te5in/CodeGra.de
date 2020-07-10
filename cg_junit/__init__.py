@@ -157,13 +157,17 @@ class _CGJunitSuite:
     :ivar attribs: Attributes of this test suite.
     """
     __slots__ = (
-        'cases', 'name', 'tests', 'failures', 'errors', 'skipped', 'success'
+        'cases', 'name', 'weight', 'tests', 'failures', 'errors', 'skipped',
+        'success'
     )
 
-    def __init__(self, cases: t.Sequence[_CGJunitCase], name: str) -> None:
+    def __init__(
+        self, cases: t.Sequence[_CGJunitCase], name: str, weight: float
+    ) -> None:
         self.name = name
         self.cases = cases
         self.tests = sum(c.attribs.weight for c in cases)
+        self.weight = weight
 
         self.failures = 0.0
         self.errors = 0.0
@@ -238,6 +242,7 @@ class _CGJunitSuite:
         return cls(
             cases,
             name=xml_el.attrib['name'],
+            weight=float(xml_el.attrib.get('weight', 1.0))
         )
 
 
@@ -256,11 +261,13 @@ class CGJunit:
 
     def __init__(self, suites: t.Sequence[_CGJunitSuite]) -> None:
         self.suites = suites
-        self.total_failures = sum(s.failures for s in suites)
-        self.total_errors = sum(s.errors for s in suites)
-        self.total_skipped = sum(s.skipped for s in suites)
-        self.total_success = sum(s.success for s in suites)
-        self.total_tests = sum(s.tests for s in suites) - self.total_skipped
+        self.total_failures = sum(s.failures * s.weight for s in suites)
+        self.total_errors = sum(s.errors * s.weight for s in suites)
+        self.total_skipped = sum(s.skipped * s.weight for s in suites)
+        self.total_success = sum(s.success * s.weight for s in suites)
+        self.total_tests = sum(
+            s.tests * s.weight for s in suites
+        ) - self.total_skipped
 
     @classmethod
     def parse_file(cls, xml_file: t.IO[bytes]) -> 'CGJunit':

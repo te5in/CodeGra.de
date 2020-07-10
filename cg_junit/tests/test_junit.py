@@ -37,11 +37,11 @@ def test_valid_xml_unknown_state():
 def test_valid_with_weight():
     res = parse_fixture('test_junit_xml/valid_with_weight.xml')
 
-    assert res.total_errors == 0
-    assert res.total_failures == 1
-    assert res.total_skipped == 0
-    assert res.total_success == 4
-    assert res.total_tests == 5
+    assert res.total_errors == 0 + 0
+    assert res.total_failures == 1 + 0
+    assert res.total_skipped == 0 + 0
+    assert res.total_success == 4 + 9
+    assert res.total_tests == 5 + 9
 
 
 def test_valid_xml_without_skipped_attr():

@@ -1,15 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="PlagiarismRunner.vue" errors="0" failures="1" skipped="0" timestamp="2020-06-19T12:45:09" time="16.289" tests="2">
-  <testcase classname="PlagiarismRunner.vue canGoToOverview" name="should be a function" time="0.165" weight="4">
-  </testcase>
-  <testcase classname="PlagiarismRunner.vue runPlagiarismChecker" name="should work in with base code and old submissions" time="0.156">
-    <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+<testsuites name="jest tests">
+  <testsuite name="PlagiarismRunner.vue" errors="0" failures="0" skipped="0" timestamp="2020-06-19T12:45:09" time="16.289" tests="2" weight="3">
+    <testcase classname="PlagiarismRunner.vue canGoToOverview" name="should be a function" time="0.165" weight="2">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue runPlagiarismChecker" name="should work in with base code and old submissions" time="0.156" weight="1">
+    </testcase>
+  </testsuite>
+  <testsuite name="PlagiarismRunner.vue" errors="0" failures="1" skipped="0" timestamp="2020-06-19T12:45:09" time="16.289" tests="2">
+    <testcase classname="PlagiarismRunner.vue canGoToOverview" name="should be a function" time="0.165" weight="4">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue runPlagiarismChecker" name="should work in with base code and old submissions" time="0.156">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
 
-Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
-Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+      Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+      Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
 
-Number of calls: 1
-  at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
-  at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
-  </testcase>
-</testsuite>
+      Number of calls: 1
+      at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+      at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+  </testsuite>
+</testsuites>
