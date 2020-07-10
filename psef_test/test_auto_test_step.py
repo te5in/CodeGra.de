@@ -742,3 +742,16 @@ def test_execute_check_points(
             r = step(0.4)
         last_update = stub_update_result.all_args[-1]
         assert last_update[0].name == 'failed'
+
+
+def test_update_attachment_non_supporting_step(describe, stub_suite):
+    with describe('setup'):
+        c = CheckPoints(suite=stub_suite)
+        result = m.AutoTestStepResult(step=c)
+
+    with describe('throws error when trying to update the attachment'):
+        with pytest.raises(APIException) as err:
+            result.update_attachment(None)
+        assert (
+            err.value.message == 'This step type does not support attachment'
+        )

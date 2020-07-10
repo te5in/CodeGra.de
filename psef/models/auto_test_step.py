@@ -1065,7 +1065,15 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
 
         :param stream: Attachment data.
         """
-        assert self.step.SUPPORTS_ATTACHMENT
+        if not self.step.SUPPORTS_ATTACHMENT:
+            raise APIException(
+                'This step type does not support attachment', (
+                    f'The step {self.step.id} does not support'
+                    ' attachments but step result {self.id}'
+                    ' generated one anyway'
+                ), APICodes.INVALID_STATE, 400
+            )
+
 
         self.schedule_attachment_deletion()
         self.attachment_filename = psef.files.save_stream(stream)

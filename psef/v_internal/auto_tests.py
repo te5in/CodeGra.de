@@ -429,15 +429,6 @@ def update_step_result(auto_test_id: int, result_id: int
     step_result.log = log
 
     if has_attachment:
-        if not step_result.step.SUPPORTS_ATTACHMENT:
-            raise APIException(
-                'This step type does not support attachment', (
-                    f'The step {step_result.step.id} does not support'
-                    ' attachments but step result {step_result.id}'
-                    ' generated one anyway'
-                ), APICodes.NOT_NEWEST_SUBMSSION, 400
-            )
-
         step_result.update_attachment(request.files['attachment'])
 
     db.session.commit()
