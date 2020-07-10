@@ -11,6 +11,7 @@ declare module 'vue/types/vue' {
     // 3. Declare augmentation for Vue
     interface Vue {
         $afterRerender(): Promise<void>;
+        $waitForRef(ref: string, retries?: number): Promise<any>;
         $http: AxiosStatic;
         $utils: typeof typedUtils;
         $now: Moment;

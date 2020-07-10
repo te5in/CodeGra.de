@@ -40,7 +40,7 @@ interface AssignmentServerProps {
     amount_in_cool_off_period: number;
     lms_name: string | null;
     analytics_workspace_ids: number[];
-    peer_feedback_settings: any;
+    peer_feedback_settings: AssignmentPeerFeedbackSettings;
 
     deadline: string;
     created_at: string;
@@ -48,7 +48,7 @@ interface AssignmentServerProps {
     cool_off_period: string;
 }
 
-interface AssignmentUpdateableProps {
+export interface AssignmentUpdateableProps {
     state?: assignmentState.AssignmentStates;
     description?: string | null;
     name?: string | null;
@@ -71,11 +71,17 @@ interface AssignmentUpdateableProps {
     // Special properties that also may be set.
     reminderTime?: moment.Moment;
     deadline?: moment.Moment;
-    graders: NormalUserServerData[] | null;
+    graders?: NormalUserServerData[] | null;
     cool_off_period?: number;
+    peer_feedback_settings?: AssignmentPeerFeedbackSettings | null;
 }
 
 const ALLOWED_UPDATE_PROPS = new Set(keys<AssignmentUpdateableProps>());
+
+export interface AssignmentPeerFeedbackSettings {
+    time: number;
+    amount: number;
+}
 
 type Mutable<T extends { [x: string]: any }, K extends string> = { [P in K]: T[P] };
 
@@ -140,7 +146,7 @@ abstract class AssignmentData {
 
     readonly analytics_workspace_ids!: number[];
 
-    readonly peer_feedback_settings!: any;
+    readonly peer_feedback_settings!: AssignmentPeerFeedbackSettings;
 }
 /* eslint-enable camelcase */
 

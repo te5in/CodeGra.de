@@ -1958,6 +1958,38 @@ def update_peer_feedback_settings(
 
 
 @api.route(
+    '/assignments/<int:assignment_id>/peer_feedback_settings', methods=['DELETE'],
+)
+@features.feature_required(features.Feature.PEER_FEEDBACK)
+@auth.login_required
+def delete_peer_feedback_settings(assignment_id: int) -> EmptyResponse:
+    assignment = helpers.filter_single_or_404(
+        models.Assignment,
+        models.Assignment.id == assignment_id,
+        also_error=lambda a: not a.is_visible,
+        with_for_update=True,
+        with_for_update_of=models.Assignment,
+    )
+    db_locks.acquire_lock(
+        db_locks.LockNamespaces.peer_feedback_division, assignment.id
+    )
+    # TODO: Permission check
+
+    if assignment.peer_feedback_settings is None:
+        return make_empty_response()
+
+    db.session.query(models.AssignmentPeerFeedbackSettings).filter(
+        models.AssignmentPeerFeedbackSettings.assignment == assignment
+    ).delete()
+    db.session.query(models.AssignmentPeerFeedbackConnection).filter(
+        models.AssignmentPeerFeedbackConnection.assignment == assignment
+    ).delete()
+
+    db.session.commit()
+    return make_empty_response()
+
+
+@api.route(
     '/assignments/<int:assignment_id>/users/<int:user_id>/comments/',
     methods=['GET']
 )
