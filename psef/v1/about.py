@@ -45,6 +45,7 @@ def about(
 
     res = {
         'version': current_app.config['VERSION'],
+        'commit': current_app.config['CUR_COMMIT'],
         'features': features,
     }
 

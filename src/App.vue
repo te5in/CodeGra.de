@@ -25,11 +25,17 @@
              toaster="b-toaster-top-right"
              :variant="toast.variant"
              :title="toast.title"
+             :href="toast.href"
              visible
              no-auto-hide
              solid
              @hide="deleteToast(toast)">
-        {{ toast.message }}
+        <div v-if="toast.onClick" @click="toast.onClick">
+            {{ toast.message }}
+        </div>
+        <template v-else>
+            {{ toast.message }}
+        </template>
     </b-toast>
 </div>
 </template>

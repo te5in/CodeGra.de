@@ -25,27 +25,31 @@ context('General messages', () => {
             .should('be.visible');
     });
 
-    it('should show a toast if the response code is a 5xx', () => {
+    it('should not show a toast with the same tag twice', () => {
         cy.visit('/');
         cy.login('admin', 'admin');
 
-        cy.server();
-        cy.route({
-            method: 'GET',
-            url: '/api/v1/**',
-            response: '',
-            status: 500,
+        const toastData = {
+            tag: 'TestToast',
+            title: 'Test Toast',
+            message: 'Test Toast',
+        };
+
+        cy.window().then($window => {
+            $window.__app__.$emit('cg::app::toast', toastData);
         });
 
-        // A request must be sent to the server, so just reload the courses.
-        cy.get('.sidebar').within(() => {
-            cy.get('.sidebar-entry-courses').click();
-            cy.get('.submenu:last .refresh-button').click();
-        });
-
-        cy.wait(10000);
         cy.get('.toast')
-            .should('contain', 'Unknown error')
+            .should('contain', 'Test Toast')
+            .should('be.visible');
+
+        cy.window().then($window => {
+            $window.__app__.$emit('cg::app::toast', toastData);
+        });
+
+        cy.get('.toast')
+            .should('have.length', 1)
+            .should('contain', 'Test Toast')
             .should('be.visible');
     });
 
@@ -53,37 +57,31 @@ context('General messages', () => {
         cy.visit('/');
         cy.login('admin', 'admin');
 
-        cy.server();
-        cy.route({
-            method: 'GET',
-            url: '/api/v1/**',
-            response: '',
-            status: 500,
+        const toastData = {
+            tag: 'TestToast',
+            title: 'Test Toast',
+            message: 'Test Toast',
+        };
+
+        cy.window().then($window => {
+            $window.__app__.$emit('cg::app::toast', toastData);
         });
 
-        // A request must be sent to the server, so just reload the courses.
-        cy.get('.sidebar').within(() => {
-            cy.get('.sidebar-entry-courses').click();
-            cy.get('.submenu:last .refresh-button').click();
-        });
-
-        cy.wait(10000);
         cy.get('.toast')
-            .should('contain', 'Unknown error')
+            .should('contain', 'Test Toast')
             .should('be.visible')
             .find('.close')
             .click();
 
-        // A request must be sent to the server, so just reload the courses.
-        cy.get('.sidebar').within(() => {
-            cy.get('.sidebar-entry-courses').click();
-            cy.get('.submenu:last .refresh-button').click();
+        cy.get('.toast').should('not.exist');
+
+        cy.window().then($window => {
+            $window.__app__.$emit('cg::app::toast', toastData);
         });
 
-        cy.wait(10000);
         cy.get('.toast')
-            .should('contain', 'Unknown error')
-            .should('be.visible');
+            .should('contain', 'Test Toast')
+            .should('be.visible')
     });
 
     it('Should show a toast if the session has expired', () => {
