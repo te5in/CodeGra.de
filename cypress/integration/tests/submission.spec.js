@@ -42,6 +42,7 @@ context('Submission page', () => {
     function giveGeneralFeedback(feedback) {
         showGeneralFeedbackArea()
             .as('gfArea')
+            .invoke('focus')
             .find('textarea')
             .setText(feedback)
         cy.get('@gfArea')
@@ -50,7 +51,7 @@ context('Submission page', () => {
     }
 
     function checkGeneralFeedbackArea(feedback) {
-        showGeneralFeedbackArea()
+        cy.get('[id^="general-feedback-popover"]')
             .find('textarea')
             .should('have.value', feedback);
         reload();

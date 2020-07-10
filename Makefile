@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 TEST_FILE?=cg_worker_pool/tests/ cg_threading_utils/tests/ cg_signals/tests cg_cache/tests/ psef_test/
-SHELL=/bin/bash
 TEST_FLAGS?=
+SHELL:=$(shell which bash)
 PYTHON?=env/bin/python3
 export PYTHONPATH=$(CURDIR)
 PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger cg_worker_pool cg_threading_utils cg_flask_helpers cg_dt_utils cg_signals cg_cache cg_helpers

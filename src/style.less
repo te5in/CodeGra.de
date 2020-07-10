@@ -285,9 +285,11 @@ body {
         color: @color-secondary-text;
     }
 
+    tab-size: 4;
+    -moz-tab-size: 4;
+
     .show-whitespace & {
         position: relative;
-        tab-size: 4;
 
         &::before {
             content: attr(data-whitespace);

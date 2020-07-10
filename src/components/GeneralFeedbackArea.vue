@@ -9,7 +9,7 @@
     <component :is="inPopover ? 'b-popover' : 'div'"
                :id="popoverId"
                ref="popover"
-               triggers="click blur"
+               :triggers="feedbackChanged ? 'click' : 'click blur'"
                :target="btnId"
                :placement="placement"
                :boundary="boundary"

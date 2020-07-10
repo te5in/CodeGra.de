@@ -1,5 +1,5 @@
 <template>
-<div class="promise-loader">
+<div class="promise-loader d-inline">
     <template v-if="error">
         <fa-icon :id="`${compId}-icon`"
                  name="times"
@@ -14,8 +14,11 @@
             {{ $utils.getErrorMessage(error) }}
         </b-popover>
     </template>
-    <cg-loader :scale="1" v-else-if="state === 'loading'" />
-    <fa-icon name="check" class="text-success"
+    <cg-loader :center="false"
+               :scale="1"
+               v-else-if="state === 'loading'" />
+    <fa-icon name="check"
+             class="text-success"
              v-else
              :style="{ opacity: state === 'success' ? 1 : 0}" />
 </div>

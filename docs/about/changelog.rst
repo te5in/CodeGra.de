@@ -6,6 +6,12 @@ Version *Next*
 
 **Released**: TBD
 
+**Features**
+
+- Make it possible to run AutoTest on the teacher revision instead of the
+  student submission, if it is available. `(#1390)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1390>`__.
+
 **Updates**
 
 - Automatically focus the percentage input in continuous rubric rows
@@ -14,6 +20,12 @@ Version *Next*
   `(#1374) <https://github.com/CodeGra-de/CodeGra.de/pull/1374>`__.
 - Add more rubric category information to the rubric analytics graphs
   `(#1383) <https://github.com/CodeGra-de/CodeGra.de/pull/1383>`__.
+- Do not automatically hide the general feedback popover after saving the
+  general feedback or interacting with the page `(#1386)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1386>`__.
+- Add the year to course names in the sidebar if there are other courses with
+  the same name `(#1387)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1387>`__.
 
 **Fixes**
 
