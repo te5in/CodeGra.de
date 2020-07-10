@@ -110,7 +110,7 @@ export default class JunitResult extends Vue {
     get hasCaseWeights(): boolean {
         return this.junit.suites.some(
             suite => suite.cases.some(
-                step => step.weight !== 1.0,
+                testCase => testCase.weight !== 1.0,
             ),
         );
     }
