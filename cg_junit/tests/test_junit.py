@@ -34,11 +34,21 @@ def test_valid_xml_unknown_state():
     assert res.total_tests == 1
 
 
+def test_valid_with_weight():
+    res = parse_fixture('test_junit_xml/valid_with_weight.xml')
+
+    assert res.total_errors == 0
+    assert res.total_failures == 1
+    assert res.total_skipped == 0
+    assert res.total_success == 4
+    assert res.total_tests == 5
+
+
 def test_valid_xml_without_skipped_attr():
     res = parse_fixture('test_junit_xml/valid_no_skipped.xml')
 
     assert res.total_skipped == 0
-    assert all(suite.attribs.skipped == 0 for suite in res.suites)
+    assert all(suite.skipped == 0 for suite in res.suites)
     assert all(
         not case.is_skipped for suite in res.suites for case in suite.cases
     )

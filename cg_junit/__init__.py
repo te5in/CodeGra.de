@@ -63,11 +63,12 @@ class _CGJunitCaseAttribs:
     :ivar classname: Name of the class containing this test case.
     :ivar time: Time it took for the test case to run.
     """
-    __slots__ = ('name', 'classname', 'time')
+    __slots__ = ('name', 'classname', 'time', 'weight')
 
     name: str
     classname: str
     time: float
+    weight: float
 
 
 class _CGJunitCase:
@@ -144,28 +145,9 @@ class _CGJunitCase:
                 name=xml_el.attrib['name'],
                 classname=xml_el.attrib['classname'],
                 time=float(xml_el.attrib['time']),
+                weight=float(xml_el.attrib.get('weight', 1.0))
             ),
         )
-
-
-@dataclasses.dataclass(frozen=True)
-class _CGJunitSuiteAttribs:
-    """Attributes of a test suite.
-
-    :ivar name: Name of the test suite.
-    :ivar errors: The number of error test cases.
-    :ivar failures: The number of failure test cases.
-    :ivar tests: The total number of test cases.
-    :ivar skipped: The number of skipped test cases.
-    """
-    __slots__ = ('name', 'errors', 'failures', 'tests', 'skipped', 'success')
-
-    name: str
-    errors: int
-    failures: int
-    tests: int
-    skipped: int
-    success: int
 
 
 class _CGJunitSuite:
@@ -174,37 +156,30 @@ class _CGJunitSuite:
     :ivar cases: The test cases contained in this suite.
     :ivar attribs: Attributes of this test suite.
     """
-    __slots__ = ('attribs', 'cases')
+    __slots__ = (
+        'cases', 'name', 'tests', 'failures', 'errors', 'skipped', 'success'
+    )
 
-    def __init__(
-        self, cases: t.Sequence[_CGJunitCase], attribs: _CGJunitSuiteAttribs
-    ) -> None:
-        self.attribs = attribs
+    def __init__(self, cases: t.Sequence[_CGJunitCase], name: str) -> None:
+        self.name = name
         self.cases = cases
-        MalformedXmlData.ensure(
-            sum(c.is_failure for c in cases) == attribs.failures, (
-                'Got a different amount of failed cases compared to the found'
-                ' attribute'
-            )
-        )
-        MalformedXmlData.ensure(
-            sum(c.is_error for c in cases) == attribs.errors, (
-                'Got a different amount of error cases compared to the found'
-                ' attribute'
-            )
-        )
-        MalformedXmlData.ensure(
-            sum(c.is_skipped for c in cases) == attribs.skipped, (
-                'Got a different amount of skipped cases compared to the found'
-                ' attribute'
-            )
-        )
-        MalformedXmlData.ensure(
-            sum(c.is_success for c in cases) == attribs.success, (
-                'Got a different amount of skipped cases compared to the found'
-                ' attribute'
-            )
-        )
+        self.tests = sum(c.attribs.weight for c in cases)
+
+        self.failures = 0.0
+        self.errors = 0.0
+        self.skipped = 0.0
+        self.success = 0.0
+
+        for case in cases:
+            weight = case.attribs.weight
+            if case.is_failure:
+                self.failures += weight
+            elif case.is_error:
+                self.errors += weight
+            elif case.is_skipped:
+                self.skipped += weight
+            elif case.is_success:
+                self.success += weight
 
     @classmethod
     def from_xml(cls, xml_el: ET.Element) -> '_CGJunitSuite':
@@ -231,16 +206,38 @@ class _CGJunitSuite:
             list(xml_el.attrib.keys()),
         )
         cases = [_CGJunitCase.from_xml(child) for child in xml_el]
+
+        MalformedXmlData.ensure(
+            sum(c.is_failure for c in cases) == int(xml_el.attrib['failures']),
+            (
+                'Got a different amount of failed cases compared to the found'
+                ' attribute'
+            )
+        )
+        MalformedXmlData.ensure(
+            sum(c.is_error for c in cases) == int(xml_el.attrib['errors']), (
+                'Got a different amount of error cases compared to the found'
+                ' attribute'
+            )
+        )
+        MalformedXmlData.ensure(
+            sum(c.is_skipped
+                for c in cases) == int(xml_el.attrib.get('skipped', 0)),
+            (
+                'Got a different amount of skipped cases compared to the found'
+                ' attribute'
+            )
+        )
+        MalformedXmlData.ensure(
+            len(cases) == int(xml_el.attrib['tests']), (
+                'Got a different amount of skipped cases compared to the found'
+                ' attribute'
+            )
+        )
+
         return cls(
             cases,
-            _CGJunitSuiteAttribs(
-                name=xml_el.attrib['name'],
-                errors=int(xml_el.attrib['errors']),
-                failures=int(xml_el.attrib['failures']),
-                tests=int(xml_el.attrib['tests']),
-                skipped=int(xml_el.attrib.get('skipped', '0')),
-                success=sum(c.is_success for c in cases),
-            ),
+            name=xml_el.attrib['name'],
         )
 
 
@@ -259,13 +256,11 @@ class CGJunit:
 
     def __init__(self, suites: t.Sequence[_CGJunitSuite]) -> None:
         self.suites = suites
-        self.total_failures = sum(s.attribs.failures for s in suites)
-        self.total_errors = sum(s.attribs.errors for s in suites)
-        self.total_skipped = sum(s.attribs.skipped for s in suites)
-        self.total_success = sum(s.attribs.success for s in suites)
-        self.total_tests = sum(
-            s.attribs.tests for s in suites
-        ) - self.total_skipped
+        self.total_failures = sum(s.failures for s in suites)
+        self.total_errors = sum(s.errors for s in suites)
+        self.total_skipped = sum(s.skipped for s in suites)
+        self.total_success = sum(s.success for s in suites)
+        self.total_tests = sum(s.tests for s in suites) - self.total_skipped
 
     @classmethod
     def parse_file(cls, xml_file: t.IO[bytes]) -> 'CGJunit':
