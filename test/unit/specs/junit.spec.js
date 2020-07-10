@@ -23,6 +23,10 @@ describe('CGJunit', () => {
         for (let suite of res.suites) {
             expect(suite.cases).toBeArray();
             expect(suite.cases).not.toHaveLength(0);
+            expect(suite.successful).toBeNumber();
+            expect(suite.failures).toBeNumber();
+            expect(suite.errors).toBeNumber();
+            expect(suite.totalTests).toBeNumber();
             expect(suite.successful + suite.failures + suite.errors).toBe(suite.totalTests);
 
             for (let c of suite.cases) {
@@ -43,6 +47,23 @@ describe('CGJunit', () => {
                 );
             }
         }
+    });
+
+    it('should work with weights', () => {
+        const xml = fixture('valid_with_weight.xml');
+        const res = CGJunit.fromXml('1', xml);
+        expect(res.suites[0].weight).toBe(1);
+        expect(res.suites[1].weight).toBe(3);
+
+        expect(res.suites[0].successful).toBe(4);
+        expect(res.suites[0].totalTests).toBe(5);
+        expect(res.suites[0].runTests).toBe(5);
+        expect(res.suites[0].failures).toBe(1);
+
+        expect(res.suites[1].successful).toBe(3);
+        expect(res.suites[1].runTests).toBe(3);
+        expect(res.suites[1].totalTests).toBe(3);
+        expect(res.suites[1].failures).toBe(0);
     });
 
     it('should work when the state of a case is invalid', () => {

@@ -1,9 +1,13 @@
 <template>
 <div class="junit-result w-100">
     <div v-for="suite in junit.suites" class="junit-suite p-3">
-        <h5>
-            {{ suite.name }} ({{ suite.successful }} / {{ suite.runTests }})
-        </h5>
+        <div class="d-flex align-items-center mb-1">
+            <b-badge v-if="hasSuiteWeights"
+                     class="mr-2 text-small-uppercase">
+                weight: {{ suite.weight }}
+            </b-badge>
+            <h5 class="mb-0">{{ suite.name }} ({{ suite.successful }} / {{ suite.runTests }})</h5>
+        </div>
 
         <!-- The masonry would not change the number of columns when resizing
              the window for some unknown reason, but doing the comparison
@@ -14,6 +18,10 @@
                 <div class="border rounded overflow-hidden">
                     <div class="d-flex flex-row p-2">
                         <div class="flex-grow-1">
+                            <b-badge v-if="hasCaseWeights"
+                                     class="text-small-uppercase">
+                                weight: {{ testCase.weight }}
+                            </b-badge>
                             <div class="badge classname">
                                 <code>{{ testCase.classname }}</code>
                             </div>
@@ -91,6 +99,20 @@ export default class JunitResult extends Vue {
             default:
                 return 'The testing framework returned an unknown state.';
         }
+    }
+
+    get hasSuiteWeights(): boolean {
+        return this.junit.suites.some(
+            suite => suite.weight !== 1.0,
+        );
+    }
+
+    get hasCaseWeights(): boolean {
+        return this.junit.suites.some(
+            suite => suite.cases.some(
+                step => step.weight !== 1.0,
+            ),
+        );
     }
 }
 </script>

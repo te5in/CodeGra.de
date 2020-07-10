@@ -46,6 +46,7 @@ class CGJunitCase {
         public readonly name: string,
         public readonly classname: string,
         public readonly time: number,
+        public readonly weight: number,
     ) {
         this.content = content ? content.split('\n') : null;
         Object.freeze(this);
@@ -74,6 +75,7 @@ class CGJunitCase {
             getAttribute(node, 'name'),
             getAttribute(node, 'classname'),
             parseFloat(getAttribute(node, 'time')),
+            parseFloat(getAttribute(node, 'weight', '1.0')),
         );
     }
 
@@ -83,62 +85,80 @@ class CGJunitCase {
 }
 
 class CGJunitSuite {
-    successful: number;
+    public failures: number;
 
-    runTests: number;
+    public errors: number;
 
-    totalTests: number;
+    public skipped: number;
 
-    constructor(
-        public cases: CGJunitCase[],
-        public name: string,
-        public errors: number,
-        public failures: number,
-        public skipped: number,
-        tests: number,
-    ) {
-        this.cases = cases;
+    public successful: number;
 
-        this.name = name;
-        this.errors = errors;
-        this.failures = failures;
-        this.skipped = skipped;
-        this.successful = this.filterCases('success').length;
-        this.runTests = tests - skipped;
-        this.totalTests = tests;
+    public runTests: number;
 
-        AssertionError.assert(
-            errors === this.filterCases('error').length,
-            'Amount of errors does not match the found "errors" attribute',
-        );
-        AssertionError.assert(
-            failures === this.filterCases('failure').length,
-            'Amount of failures does not match the found "failures" attribute',
-        );
-        AssertionError.assert(
-            skipped === this.filterCases('skipped').length,
-            'Amount of skipped cases does not match the found "skipped" attribute',
-        );
+    public totalTests: number;
+
+    constructor(public cases: CGJunitCase[], public name: string, public weight: number) {
+        this.totalTests = cases.reduce((acc, c) => acc + c.weight, 0);
+        this.failures = 0.0;
+        this.errors = 0.0;
+        this.skipped = 0.0;
+        this.successful = 0.0;
+
+        cases.forEach(c => {
+            const caseWeight = c.weight;
+            switch (c.state) {
+                case 'failure':
+                    this.failures += caseWeight;
+                    break;
+                case 'error':
+                    this.errors += caseWeight;
+                    break;
+                case 'skipped':
+                    this.errors += caseWeight;
+                    break;
+                case 'success':
+                    this.successful += caseWeight;
+                    break;
+                default:
+                    AssertionError.typeAssert<'unknown'>(c.state);
+            }
+        });
+        this.runTests = this.totalTests - this.skipped;
 
         Object.freeze(this.cases);
         Object.freeze(this);
     }
 
-    private filterCases(state: CGJunitCaseState): CGJunitCase[] {
-        return this.cases.filter(c => c.state === state);
-    }
-
     static fromXml(node: Element) {
         const suiteName: string = getAttribute(node, 'name');
+        const cases = mapHTMLCollection(node.children, CGJunitCase.fromXml);
+        const errors = parseInt(getAttribute(node, 'errors'), 10);
+        const failures = parseInt(getAttribute(node, 'failures'), 10);
+        const skipped = parseInt(getAttribute(node, 'skipped', '0'), 10);
+        const tests = parseInt(getAttribute(node, 'tests'), 10);
 
-        return new CGJunitSuite(
-            mapHTMLCollection(node.children, CGJunitCase.fromXml),
-            suiteName,
-            parseInt(getAttribute(node, 'errors'), 10),
-            parseInt(getAttribute(node, 'failures'), 10),
-            parseInt(getAttribute(node, 'skipped', '0'), 10),
-            parseInt(getAttribute(node, 'tests'), 10),
+        function countCases(state: CGJunitCaseState): number {
+            return cases.reduce((acc, c) => acc + (c.state === state ? 1 : 0), 0);
+        }
+
+        AssertionError.assert(
+            tests === cases.length,
+            'The amount of cases does not match the found "tests" attributes',
         );
+        AssertionError.assert(
+            errors === countCases('error'),
+            'Amount of errors does not match the found "errors" attribute',
+        );
+        AssertionError.assert(
+            failures === countCases('failure'),
+            'Amount of failures does not match the found "failures" attribute',
+        );
+        AssertionError.assert(
+            skipped === countCases('skipped'),
+            'Amount of skipped cases does not match the found "skipped" attribute',
+        );
+
+        return new CGJunitSuite(cases, suiteName, parseFloat(getAttribute(node, 'weight', '1.0')));
     }
 }
 
