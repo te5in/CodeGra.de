@@ -3017,8 +3017,8 @@ def test_update_step_attachment(
         work2 = session.query(m.Work).filter_by(id=work2['id']).one()
         res2 = m.AutoTestResult.query.filter_by(work=work2).one()
         attachment2 = os.path.join(
-            app.config["UPLOAD_DIR"],
-            res2.step_results[0].attachment_filename)
+            app.config["UPLOAD_DIR"], res2.step_results[0].attachment_filename
+        )
         assert os.path.isfile(attachment2)
         work2.assignment.auto_test.reset_work(work2)
         session.commit()

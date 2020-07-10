@@ -1113,7 +1113,7 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
                 for attachment, in attachments:
                     # This is never the case as we filter the attachments in
                     # the query, but mypy doesn't understand that.
-                    if attachment is None: # pragma: no cover
+                    if attachment is None:  # pragma: no cover
                         continue
 
                     path = psef.files.safe_join(
