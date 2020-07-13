@@ -46,11 +46,13 @@
         <b-button-toolbar class="justify-content-end">
             <cg-submit-button :submit="disable"
                               @after-success="afterDisable"
+                              confirm="Are you sure you want to disable peer feedback?"
                               variant="danger"
                               label="Disable"
                               class="mr-2"/>
             <cg-submit-button :submit="submit"
                               @after-success="afterSubmit"
+                              :confirm="submitConfirmationMessage"
                               ref="submitButton"/>
         </b-button-toolbar>
     </template>
@@ -61,6 +63,7 @@
 import { Vue, Component, Prop } from 'vue-property-decorator';
 import { mapActions } from 'vuex';
 
+import * as utils from '@/utils';
 import * as models from '@/models';
 
 // @ts-ignore
@@ -126,6 +129,7 @@ export default class PeerFeedbackSettings extends Vue {
     }
 
     submit() {
+        this.validateSettings();
         return this.$http.put(this.url, {
             time: daysToSeconds(this.time),
             amount: this.amount,
@@ -149,6 +153,47 @@ export default class PeerFeedbackSettings extends Vue {
         if (btn != null) {
             btn.onClick();
         }
+    }
+
+    get submitConfirmationMessage() {
+        if (this.amount != null && this.peerFeedbackSettings?.amount !== this.amount) {
+            return `Changing the amount of students will redistribute all
+                students. If some students have already given peer feedback to
+                other students they will not be able to see their own given
+                feedback again, although it is not deleted from the server
+                either. Are you sure you want to change it?`;
+        } else {
+            return '';
+        }
+    }
+
+    validateSettings(): void {
+        const errs = utils.mapFilterObject({
+            amount: this.ensurePositive(this.amount),
+            time: this.ensurePositive(this.time),
+        }, (v: string, k: string) => {
+            if (!v) {
+                return utils.Nothing;
+            } else {
+                return utils.Just(`${k} ${v}`);
+            }
+        });
+
+        if (!utils.isEmpty(errs)) {
+            const msgs = Object.values(errs).join(', ');
+            throw new Error(`The peer feedback settings are not valid because: ${msgs}.`);
+        }
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    ensurePositive(value: number | null): string {
+        if (typeof value !== 'number') {
+            return 'is not a number';
+        }
+        if (value < 0) {
+            return 'is not positive';
+        }
+        return '';
     }
 }
 </script>
