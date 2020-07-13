@@ -291,6 +291,105 @@
         </tr>
     </template>
 
+    <template v-else-if="value.type === 'junit_test'">
+        <tr class="step-summary"
+            :class="{ 'with-output': canViewOutput, 'text-muted': value.hidden }"
+            :key="resultsCollapseId"
+            v-cg-toggle="resultsCollapseId">
+            <td class="expand shrink">
+                <template v-if="canViewOutput">
+                    <icon name="chevron-down" :scale="0.75" class="caret" />
+                </template>
+
+                <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
+                      v-b-popover.hover.top="hiddenPopover" />
+            </td>
+            <td class="shrink">{{ index }}</td>
+            <td class="overflowable">
+                <div class="overflow-auto">
+                    <b>{{ stepName }}</b>
+
+                    <template v-if="canViewDetails">
+                        Run the unit tests using <code>{{ value.data.program }}</code>.
+                    </template>
+                </div>
+            </td>
+            <td class="shrink text-center">
+                <template v-if="result">
+                    {{ achievedPoints }} /
+                </template>
+                {{ $utils.toMaxNDecimals(value.weight, 2) }}
+            </td>
+            <td class="shrink text-center" v-if="result">
+                <auto-test-state :result="stepResult" show-icon />
+            </td>
+        </tr>
+
+        <tr v-if="canViewOutput" class="results-log-collapse-row">
+            <td :colspan="result ? 5 : 4">
+                <collapse :id="resultsCollapseId"
+                          lazy-load-always
+                          no-animation
+                          v-model="junitCollapseClosed">
+                    <div slot-scope="{}">
+                        <b-card no-body>
+                            <b-tabs card no-fade>
+                                <b-tab title="Results"
+                                       v-if="$utils.getProps(stepResult, null, 'attachment_id') != null">
+                                    <cg-loader v-if="junitAttachmentLoading"
+                                               page-loader
+                                               class="mb-3"
+                                               :scale="2" />
+                                    <b-alert v-else-if="junitError != ''"
+                                             show
+                                             variant="danger"
+                                             class="mx-3 w-100">
+                                        Failed to parse JUnit XML.
+                                    </b-alert>
+                                    <junit-result v-else
+                                                  :junit="junitAttachment"
+                                                  :assignment="assignment"/>
+                                </b-tab>
+                                <b-tab title="Output" class="mb-3 flex-wrap">
+                                    <p class="col-12 mb-1">
+                                        <label>Exit code</label>
+                                        <code>{{ $utils.getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
+                                    </p>
+
+                                    <div class="col-12 mb-1">
+                                        <label>Output</label>
+                                        <inner-code-viewer class="rounded border"
+                                                           :assignment="assignment"
+                                                           :code-lines="stepStdout"
+                                                           file-id="-1"
+                                                           :feedback="{}"
+                                                           :start-line="0"
+                                                           :show-whitespace="true"
+                                                           :warn-no-newline="false"
+                                                           :empty-file-message="'No output.'" />
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label>Errors</label>
+                                        <inner-code-viewer class="rounded border"
+                                                           :assignment="assignment"
+                                                           :code-lines="stepStderr"
+                                                           file-id="-1"
+                                                           :feedback="{}"
+                                                           :start-line="0"
+                                                           :show-whitespace="true"
+                                                           :warn-no-newline="false"
+                                                           :empty-file-message="'No output.'" />
+                                    </div>
+                                </b-tab>
+                            </b-tabs>
+                        </b-card>
+                    </div>
+                </collapse>
+            </td>
+        </tr>
+    </template>
+
     <template v-else-if="value.type === 'run_program'">
         <tr class="step-summary"
             :class="{ 'with-output': canViewOutput, 'text-muted': value.hidden }"
@@ -843,7 +942,8 @@ import 'vue-awesome/icons/ban';
 
 import { visualizeWhitespace } from '@/utils/visualize';
 import { getCapturePointsDiff } from '@/utils/diff';
-import { mapGetters } from 'vuex';
+import { CGJunit } from '@/utils/junit';
+import { mapGetters, mapActions } from 'vuex';
 
 import Collapse from './Collapse';
 import SubmitButton from './SubmitButton';
@@ -851,12 +951,17 @@ import DescriptionPopover from './DescriptionPopover';
 import AutoTestState from './AutoTestState';
 import InnerCodeViewer from './InnerCodeViewer';
 import Toggle from './Toggle';
+import JunitResult from './JunitResult';
 
 export default {
     name: 'auto-test-step',
 
     props: {
         assignment: {
+            type: Object,
+            required: true,
+        },
+        autoTest: {
             type: Object,
             required: true,
         },
@@ -896,6 +1001,11 @@ export default {
             activeIoTab: {},
             hideIgnoredPartOfDiff: {},
             getDiff: getCapturePointsDiff,
+
+            junitCollapseClosed: true,
+            junitAttachment: null,
+            junitAttachmentLoading: false,
+            junitError: '',
         };
     },
 
@@ -903,10 +1013,32 @@ export default {
         editable() {
             this.collapseState = {};
         },
+
+        junitCollapseClosed: {
+            handler(newVal) {
+                if (!newVal && this.stepResultAttachment) {
+                    this.loadJunitAttachment();
+                }
+            },
+            immediate: true,
+        },
+
+        async stepResultAttachment(newVal) {
+            this.junitError = '';
+            if (!this.junitCollapseClosed && newVal) {
+                this.loadJunitAttachment();
+            } else if (!newVal) {
+                this.junitAttachment = null;
+            }
+        },
     },
 
     computed: {
         ...mapGetters('pref', ['fontSize']),
+
+        stepResultAttachment() {
+            return this.$utils.getProps(this.stepResult, null, 'attachment_id');
+        },
 
         valueCopy() {
             return this.$utils.deepCopy(this.value);
@@ -1138,6 +1270,10 @@ export default {
     },
 
     methods: {
+        ...mapActions('code', {
+            storeLoadCodeFromRoute: 'loadCodeFromRoute',
+        }),
+
         updateInput(index, key, value) {
             const input = [...this.inputs];
             input[index] = {
@@ -1249,6 +1385,37 @@ export default {
                 this.$emit('input', this.$utils.deepCopy(this.valueCopy));
             }
         },
+
+        async loadJunitAttachment() {
+            if (this.junitError || this.$utils.getProps(this.junitAttachment, 'NOT_EQUAL', 'id') === this.stepResultAttachment) {
+                return;
+            }
+
+            this.junitAttachmentLoading = true;
+            const attachmentId = this.stepResultAttachment;
+
+            await this.$afterRerender();
+
+            const autoTestId = this.autoTest.id;
+            const runId = this.autoTest.runs[0].id;
+            const resultId = this.stepResult.id;
+
+            const attachment = await this.storeLoadCodeFromRoute({
+                route: `/api/v1/auto_tests/${autoTestId}/runs/${runId}/step_results/${resultId}/attachment`,
+            });
+
+            if (attachmentId !== this.stepResultAttachment) {
+                return;
+            }
+
+            try {
+                this.junitAttachment = CGJunit.fromXml(attachmentId, attachment);
+            } catch (err) {
+                this.junitError = err;
+            }
+
+            this.junitAttachmentLoading = false;
+        },
     },
 
     components: {
@@ -1258,6 +1425,7 @@ export default {
         DescriptionPopover,
         AutoTestState,
         InnerCodeViewer,
+        JunitResult,
         Toggle,
     },
 };

@@ -218,7 +218,7 @@
       "<rootDir>/test/unit/setup.js"
     ],
     "collectCoverageFrom": [
-      "**/src/**/*.{vue,js}",
+      "**/src/**/*.{vue,js,ts}",
       "!**/node_modules/**",
       "!**/docs/**",
       "!**/unknown"

@@ -6,9 +6,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 import json
 import typing as t
 
+import flask
 import werkzeug
 import structlog
-from flask import request, make_response
+from flask import Response, request, make_response
 
 from . import api
 from .. import app, auth, files, tasks, models, helpers, registry, exceptions
@@ -896,3 +897,59 @@ def get_auto_test_result_proxy(
     db.session.add(proxy)
     db.session.commit()
     return jsonify(proxy)
+
+
+@api.route(
+    '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/step_results/<int:step_result_id>/attachment',
+    methods=['GET']
+)
+@feature_required(Feature.AUTO_TEST)
+def get_auto_test_step_result_attachment(
+    auto_test_id: int, run_id: int, step_result_id: int
+) -> Response:
+    """Get the attachment of an AutoTest step.
+
+    .. :quickref: AutoTest; Get AutoTest step result attachment.
+
+    :param auto_test_id: The id of the AutoTest in which the result is located.
+    :param run_id: The id of run in which the result is located.
+    :param step_result_id: The id of the step result of which you want the attachment.
+    :returns: The attachment data, as an application/octet-stream.
+    """
+    test = get_or_404(
+        models.AutoTest,
+        auto_test_id,
+        also_error=lambda at: not at.assignment.is_visible
+    )
+    auth.ensure_can_view_autotest(test)
+
+    def also_error(obj: models.AutoTestStepResult) -> bool:
+        result = obj.result
+        if result.auto_test_run_id != run_id or result.run.auto_test_id != test.id:
+            return True
+        elif result.work.deleted:
+            return True
+        return False
+
+    step_result = get_or_404(
+        models.AutoTestStepResult,
+        step_result_id,
+        also_error=also_error,
+    )
+
+    auth.ensure_can_view_autotest_result(step_result.result)
+    auth.ensure_can_view_autotest_step_details(step_result.step)
+
+    if step_result.attachment_filename is None:
+        raise APIException(
+            'This step did not produce an attachment',
+            f'The step result {step_result.id} does not contain an attachment',
+            APICodes.OBJECT_NOT_FOUND, 404
+        )
+
+    res = flask.send_from_directory(
+        app.config['UPLOAD_DIR'],
+        step_result.attachment_filename,
+    )
+    res.headers['Content-Type'] = 'application/octet-stream'
+    return res

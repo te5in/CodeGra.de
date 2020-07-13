@@ -67,6 +67,7 @@
                                     :index="i + 1"
                                     :test-types="stepTypes"
                                     :assignment="assignment"
+                                    :auto-test="autoTest"
                                     @delete="internalValue.removeItem(i)"
                                     editable/>
                 </SlickItem>
@@ -326,7 +327,8 @@
                             :key="step.trackingId"
                             :index="i + 1"
                             :result="result"
-                            :assignment="assignment" />
+                            :assignment="assignment"
+                            :auto-test="autoTest" />
         </table>
     </b-card>
 </div>
@@ -360,6 +362,10 @@ export default {
         },
         assignment: {
             type: Assignment,
+            required: true,
+        },
+        autoTest: {
+            type: Object,
             required: true,
         },
         otherSuites: {
@@ -455,6 +461,13 @@ export default {
                         'Stop testing this category if the amount of points is below a certain threshold.',
                     meta: true,
                 },
+                {
+                    name: 'junit_test',
+                    title: 'Unit test',
+                    color: 'rgb(247, 136, 123)',
+                    help: 'Run a JUnit-compatible testing framework and display the results in a nice overview.',
+                    meta: false,
+                },
             ];
         },
 
@@ -520,6 +533,9 @@ export default {
                     res.data.min_points = 0;
                     break;
                 case 'run_program':
+                    res.data.program = '';
+                    break;
+                case 'junit_test':
                     res.data.program = '';
                     break;
                 default:

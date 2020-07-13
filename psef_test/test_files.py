@@ -5,6 +5,7 @@ import datetime
 
 import pytest
 from freezegun import freeze_time
+from werkzeug.datastructures import FileStorage
 
 import psef
 from helpers import create_marker
@@ -155,3 +156,25 @@ def test_code_gets_deleted_automatically(
         orig_file_at_time(**new_file_args)
         assert not os.path.isfile(path)
         assert not apply_async.called
+
+
+def test_save_stream(describe, monkeypatch, app):
+    upload_dir = app.config["UPLOAD_DIR"]
+
+    with describe('not too large file'), open(__file__, 'rb') as f:
+        filename = psef.files.save_stream(FileStorage(f))
+        filepath = f'{upload_dir}/{filename}'
+        f.seek(0, 0)
+
+        assert os.path.exists(filepath)
+        assert f.read() == open(filepath, 'rb').read()
+
+    with describe('too large file'), open(__file__, 'rb') as f:
+        monkeypatch.setitem(app.config, 'MAX_FILE_SIZE', 10)
+
+        old_files = os.listdir(upload_dir)
+
+        with pytest.raises(psef.errors.APIException):
+            psef.files.save_stream(FileStorage(f))
+
+        assert os.listdir(upload_dir) == old_files

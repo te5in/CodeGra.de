@@ -13,7 +13,7 @@
             <b-input-group-append is-text
                                   class="assigned-to-me-option"
                                   v-if="canSeeOthersWork && !assigneeCheckboxDisabled"
-                                  v-b-popover.bottom.hover="'Show only subbmissions assigned to me.'">
+                                  v-b-popover.bottom.hover="'Show only submissions assigned to me.'">
                 <b-form-checkbox v-model="mineOnly"
                                  @change="submit">
                     Assigned to me

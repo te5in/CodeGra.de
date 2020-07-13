@@ -71,6 +71,7 @@ PRE_STUDENT_FIXTURES_DIR = f'{uuid.uuid4().hex}/'
 
 OUTPUT_DIR = f'/.{uuid.uuid4().hex}/{uuid.uuid4().hex}'
 
+# _Absolute_ path to the bash executable.
 BASH_PATH = '/bin/bash'
 
 

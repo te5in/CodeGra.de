@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="1" failures="1" time="40.728">
+  <testsuite name="PlagiarismRunner.vue" errors="0" failures="1" timestamp="2020-06-19T12:45:09" time="16.289" tests="1">
+    <testcase classname="PlagiarismRunner.vue runPlagiarismChecker" name="should work in with base code and old submissions" time="0.156">
+    </testcase>
+  </testsuite>
+</testsuites>

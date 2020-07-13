@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="1" failures="1" time="40.728">
+  <testsuite name="PlagiarismRunner.vue" errors="0" failures="1" skipped="0" timestamp="2020-06-19T12:45:09" time="16.289" tests="1">
+    <testcase classname="PlagiarismRunner.vue runPlagiarismChecker" name="should work in with base code and old submissions" time="0.156">
+      <invalid-state>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</invalid-state>
+    </testcase>
+  </testsuite>
+</testsuites>

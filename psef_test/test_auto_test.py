@@ -23,6 +23,7 @@ import requests
 import freezegun
 import pytest_cov
 from werkzeug.local import LocalProxy
+from werkzeug.datastructures import FileStorage
 
 import psef
 import helpers
@@ -956,7 +957,7 @@ def test_run_auto_test(
             # A student cannot see the results of another student
             test_client.req('get', f'{url}/runs/{run.id}/results/{res2}', 403)
 
-            # You should be able too see your own results
+            # You should be able to see your own results
             res = test_client.req(
                 'get',
                 f'{url}/runs/{run.id}/results/{res1}',
@@ -993,7 +994,7 @@ def test_run_auto_test(
                 }
             )
 
-            # You should be able too see your own results
+            # You should be able to see your own results
             res = test_client.req(
                 'get',
                 f'{url}/runs/{run.id}/results/{res2}',
@@ -2861,3 +2862,180 @@ def test_broker_extra_env_vars(describe):
         with cont.extra_env({'PATH': ''}):
             env = cont._create_env(cur_user)
             assert env['PATH'] != ''
+
+
+@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+def test_update_step_attachment(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session, admin_user,
+    stub_function_class, assert_similar, monkeypatch_for_run
+):
+    fixtures_dir = f'{os.path.dirname(__file__)}/../test_data'
+    junit_xml_files = [
+        f'{fixtures_dir}/test_junit_xml/valid.xml',
+        f'{fixtures_dir}/test_junit_xml/invalid_xml.xml',
+        f'{fixtures_dir}/test_submissions/hello.py',
+        None,
+    ]
+
+    with describe('setup'):
+        course, _, teacher, student = basic
+        student2 = helpers.create_user_with_role(session, 'Student', course)
+
+        with logged_in(admin_user):
+            assig = helpers.create_assignment(
+                test_client,
+                course,
+                deadline='tomorrow',
+            )
+
+        with logged_in(teacher):
+            steps = []
+            for i, junit_xml in enumerate(junit_xml_files):
+                if junit_xml is None:
+                    program = 'echo hello world'
+                else:
+                    program = f'cp "{junit_xml}" "$CG_JUNIT_XML_LOCATION"'
+
+                steps.append({
+                    'type': 'junit_test',
+                    'data': {'program': program},
+                    'name': f'junit test {i}',
+                })
+
+            # yapf: disable
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig['id'], {
+                    'sets': [{
+                        'suites': [{
+                            'submission_info': True,
+                            'steps': steps,
+                        }],
+                    }],
+                }
+            )
+            # yapf: enable
+
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+    with describe('start_auto_test'):
+        t = m.AutoTest.query.get(test['id'])
+        with logged_in(teacher):
+            work = helpers.create_submission(
+                test_client, assig['id'], for_user=student.username
+            )
+            work2 = helpers.create_submission(
+                test_client, assig['id'], for_user=student2.username
+            )
+
+            run_id = test_client.req('post', f'{url}/runs/', 200)['id']
+            session.commit()
+
+        monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, )
+        )
+        thread.start()
+        thread.join()
+
+        res = session.query(m.AutoTestResult).filter_by(
+            work_id=work['id'],
+        ).one()
+
+    with describe('attachment should be uploaded to the server'):
+        for i, step_result in enumerate(res.step_results):
+            with logged_in(teacher):
+                attachment = test_client.get(
+                    f'{url}/runs/{run_id}/step_results/{step_result.id}'
+                    '/attachment',
+                )
+
+            if junit_xml_files[i] is None:
+                assert attachment.status_code == 404
+            else:
+                assert attachment.status_code == 200
+                with open(junit_xml_files[i], 'r') as f:
+                    assert attachment.get_data(as_text=True) == f.read()
+
+    with describe('should not get points if XML is not created or invalid'):
+        for i, step_result in enumerate(res.step_results):
+            pts = step_result.log['points']
+            path = junit_xml_files[i]
+            if path is not None and path.endswith('/valid.xml'):
+                assert 0.99 <= pts < 1.0
+            else:
+                assert pts == 0
+
+    with describe('previous attachment should be deleted from disk'):
+        step_result = res.step_results[0]
+        old_attachment = step_result.attachment_filename
+        assert old_attachment
+        assert os.path.exists(f'{app.config["UPLOAD_DIR"]}/{old_attachment}')
+
+        with tempfile.NamedTemporaryFile() as f:
+            step_result.update_attachment(FileStorage(f))
+        session.commit()
+
+        res = session.query(m.AutoTestResult).filter_by(
+            work_id=work['id'],
+        ).one()
+        step_result = res.step_results[0]
+        new_attachment = step_result.attachment_filename
+
+        assert new_attachment != old_attachment
+        assert os.path.exists(f'{app.config["UPLOAD_DIR"]}/{new_attachment}')
+        assert not os.path.exists(
+            f'{app.config["UPLOAD_DIR"]}/{old_attachment}'
+        )
+
+    with describe('should fail when step is not in the requested run'):
+        with logged_in(teacher):
+            attachment = test_client.get(
+                f'{url}/runs/0/step_results/{step_result.id}/attachment',
+            )
+
+        assert attachment.status_code == 404
+        assert ('The requested "AutoTestStepResult" was not found'
+                ) in attachment.json['message']
+
+    with describe('should fail when work is deleted'):
+        work = session.query(m.Work).filter_by(id=work['id']).one()
+        work.deleted = True
+        session.commit()
+
+        with logged_in(teacher):
+            attachment = test_client.get(
+                f'{url}/runs/{run_id}/step_results/{step_result.id}/attachment',
+            )
+
+        assert attachment.status_code == 404
+        assert ('The requested "AutoTestStepResult" was not found'
+                ) in attachment.json['message']
+
+    with describe('should be deleted when the result is reset'):
+        work2 = session.query(m.Work).filter_by(id=work2['id']).one()
+        res2 = m.AutoTestResult.query.filter_by(work=work2).one()
+        attachment2 = os.path.join(
+            app.config["UPLOAD_DIR"], res2.step_results[0].attachment_filename
+        )
+        assert os.path.isfile(attachment2)
+        work2.assignment.auto_test.reset_work(work2)
+        session.commit()
+        assert not os.path.isfile(attachment2)
+
+    with describe('should be deleted when the run is deleted'):
+        step_result_id = step_result.id
+        with logged_in(teacher):
+            test_client.req('delete', f'{url}/runs/{run_id}', 204)
+            attachment = test_client.get(
+                f'{url}/runs/{run_id}/step_results/{step_result_id}'
+                '/attachment'
+            )
+
+        assert attachment.status_code == 404
+        assert ('The requested "AutoTestStepResult" was not found'
+                ) in attachment.json['message']
+        assert not os.path.exists(
+            f'{app.config["UPLOAD_DIR"]}/{new_attachment}'
+        )

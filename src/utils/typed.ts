@@ -6,6 +6,7 @@ import Vue from 'vue';
 
 import { Maybe } from 'purify-ts/Maybe';
 
+import * as Sentry from '@sentry/browser';
 import { User } from '@/models';
 import { visualizeWhitespace } from './visualize';
 import { defaultdict } from './defaultdict';
@@ -848,4 +849,11 @@ export function findMax<T>(arr: ReadonlyArray<T>, key: (item: T) => number): T |
     });
 
     return max.item;
+}
+
+// Some users might want to block sentry which should be just fine.
+export function withSentry(cb: (sentry: typeof Sentry) => void): void {
+    if (Sentry != null) {
+        cb(Sentry);
+    }
 }

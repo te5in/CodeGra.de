@@ -1,3 +1,4 @@
+import os
 import pprint
 import random
 import contextlib
@@ -13,6 +14,7 @@ from psef import helpers
 from psef.auto_test import OutputTail, ExecuteOptions, StudentCommandResult
 from psef.exceptions import APIException
 from psef.models.auto_test_step import _IoTest as IoTest
+from psef.models.auto_test_step import _JunitTest as JunitTest
 from psef.models.auto_test_step import _RunProgram as RunProgram
 from psef.models.auto_test_step import _CheckPoints as CheckPoints
 from psef.models.auto_test_step import _CustomOutput as CustomOutput
@@ -175,6 +177,147 @@ def test_execute_run_program_step(
         next_args = stub_update_result.args[1]
         assert next_args[0].name == 'failed'
         assert next_args[1]['exit_code'] == stub_container.code
+
+
+@pytest.mark.parametrize(
+    'junit_xml,expected_points',
+    [
+        ('test_junit_xml/valid_many_errors.xml', (149 - 71) / 149),
+        ('test_junit_xml/valid_no_skipped.xml', 1),
+        ('test_junit_xml/valid_unknown_state.xml', 0),
+        ('test_junit_xml/valid.xml', (583 - 3) / 583),
+        ('test_junit_xml/valid_empty.xml', 0),
+        ('test_junit_xml/invalid_missing_failures_attr.xml', 0),
+        ('test_junit_xml/invalid_top_level_tag.xml', 0),
+        ('test_junit_xml/invalid_xml.xml', 0),
+        ('test_submissions/hello.py', 0),
+    ],
+)
+def test_execute_junit_test_step(
+    stub_suite, describe, monkeypatch, stub_function_class,
+    stub_container_class, junit_xml, expected_points
+):
+    with open(f'{os.path.dirname(__file__)}/../test_data/{junit_xml}') as f:
+        xml_data = f.read()
+
+    class ContainerStub(stub_function_class):
+        env = {}
+
+        def __init__(self, code, stdout, stderr, time_spend, tail=None):
+            def maybe_call(a):
+                return a(self) if callable(a) else a
+
+            def fun():
+                code = maybe_call(self.code)
+                stdout = maybe_call(self.stdout)
+                stderr = maybe_call(self.stderr)
+                time_spend = maybe_call(self.time_spend)
+                tail = maybe_call(self.tail)
+                if tail is None:
+                    tail = stdout
+
+                return StudentCommandResult(
+                    exit_code=code,
+                    stdout=stdout,
+                    stderr=stderr,
+                    time_spend=time_spend,
+                    stdout_tail=OutputTail(
+                        data=list(tail.encode()), overflowed=False
+                    )
+                )
+
+            super().__init__(fun)
+            self.code = code
+            self.stdout = stdout
+            self.stderr = stderr
+            self.time_spend = time_spend
+            self.tail = tail
+
+        def run_student_command(self, *args, **kwargs):
+            assert 'CG_JUNIT_XML_LOCATION' in self.env
+
+            res = super().__call__(*args, **kwargs)
+            if isinstance(self.code, Exception):
+                raise self.code
+            return res
+
+        def run_command(self, *args, **kwargs):
+            assert args and args[0]
+            cmd = args[0][0]
+
+            if cmd == '/bin/bash':
+                return 0
+            elif cmd == 'cat':
+                if self.code == 0:
+                    open(kwargs['stdout'], 'w').write(xml_data)
+                return self.code
+            else:
+                assert False
+
+        @contextlib.contextmanager
+        def extra_env(self, env):
+            old_env = self.env.copy()
+            self.env.update(env)
+            yield
+            self.env = old_env
+
+    with describe('setup'):
+        j = JunitTest(suite=stub_suite)
+        j.update_data_from_json({'program': 'junit'})
+        stub_ensure = stub_function_class()
+        monkeypatch.setattr(helpers, 'ensure_on_test_server', stub_ensure)
+
+        stub_update_result = stub_function_class()
+        stub_container = ContainerStub(0, '', '', 1)
+
+        def jexec():
+            return j.execute_step(
+                stub_container,
+                ExecuteOptions(
+                    stub_update_result, j.get_instructions(), 1, None
+                )
+            )
+
+    with describe('Non crashing program'):
+        jexec()
+        # Make sure correct program is called
+        assert stub_container.args[0][0] == 'junit'
+        assert len(stub_container.args) == 1
+
+        # Should be called exactly twice
+        first_args, next_args = stub_update_result.args
+        first_kwargs, next_kwargs = stub_update_result.kwargs
+
+        # First should be called with running and no data
+        assert first_args[0].name == 'running'
+        assert first_args[1] == {}
+        assert 'attachment' not in first_kwargs
+
+        assert next_args[1]['stdout'] == stub_container.stdout
+        assert next_args[1]['stderr'] == stub_container.stderr
+        assert next_args[1]['exit_code'] == 0
+        assert 'attachment' in next_kwargs
+
+        points = next_args[1]['points']
+        assert points == expected_points
+        if junit_xml.startswith('test_junit_xml/valid'):
+            assert next_args[0].name == 'passed'
+        else:
+            assert points == 0
+            assert next_args[0].name == 'failed'
+
+    with describe('Crashing program'):
+        stub_container.code = random.randint(1, 100)
+        jexec()
+        # First should be called with running even if it crashes
+        assert stub_update_result.args[0][0].name == 'running'
+        assert stub_update_result.args[0][1] == {}
+
+        next_args = stub_update_result.args[1]
+        next_kwargs = stub_update_result.kwargs[1]
+        assert next_args[0].name == 'failed'
+        assert next_args[1]['exit_code'] == -1
+        assert 'attachment' not in next_kwargs
 
 
 def test_validate_setting_weight(describe):
@@ -601,3 +744,16 @@ def test_execute_check_points(
             r = step(0.4)
         last_update = stub_update_result.all_args[-1]
         assert last_update[0].name == 'failed'
+
+
+def test_update_attachment_non_supporting_step(describe, stub_suite):
+    with describe('setup'):
+        c = CheckPoints(suite=stub_suite)
+        result = m.AutoTestStepResult(step=c)
+
+    with describe('throws error when trying to update the attachment'):
+        with pytest.raises(APIException) as err:
+            result.update_attachment(None)
+        assert (
+            err.value.message == 'This step type does not support attachment'
+        )

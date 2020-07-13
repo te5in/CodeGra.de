@@ -1,18 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import Vue from 'vue';
 import axios from 'axios';
-import * as Sentry from '@sentry/browser';
 
+import * as utils from '@/utils';
 import * as types from '../mutation-types';
 
 const UNLOADED_SNIPPETS = {};
 let snippetsLastReloaded;
 
 function setUser(user) {
-    // Some users might want to block sentry which should be just fine.
-    if (Sentry) {
+    utils.withSentry(Sentry => {
         Sentry.setUser(user);
-    }
+    });
 }
 
 const getters = {

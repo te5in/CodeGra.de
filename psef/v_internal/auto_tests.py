@@ -5,6 +5,7 @@ which are registered as active runners.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import json
 import typing as t
 
 import requests
@@ -16,9 +17,9 @@ from . import api
 from .. import app, files, tasks, models, helpers, auto_test
 from ..models import DbColumn, db
 from ..helpers import (
-    JSONResponse, EmptyResponse, jsonify, get_or_404, request_arg_true,
-    make_empty_response, filter_single_or_404, get_from_map_transaction,
-    get_json_dict_from_request
+    JSONResponse, EmptyResponse, jsonify, get_or_404, ensure_json_dict,
+    request_arg_true, make_empty_response, filter_single_or_404,
+    get_from_map_transaction, get_json_dict_from_request
 )
 from ..parsers import parse_enum
 from ..features import Feature, feature_required
@@ -387,13 +388,17 @@ def update_step_result(auto_test_id: int, result_id: int
     """
     password = _verify_global_header_password()
 
-    with get_from_map_transaction(get_json_dict_from_request()) as [
-        get, opt_get
-    ]:
+    content = ensure_json_dict(
+        ('json' in request.files and json.load(request.files['json'])) or
+        request.get_json()
+    )
+
+    with get_from_map_transaction(content) as [get, opt_get]:
         state = get('state', str)
         log = get('log', dict)
         auto_test_step_id = get('auto_test_step_id', int)
         res_id = opt_get('id', int, None)
+        has_attachment = opt_get('has_attachment', bool, False)
 
     result = get_or_404(
         models.AutoTestResult,
@@ -422,6 +427,9 @@ def update_step_result(auto_test_id: int, result_id: int
     step_result.state = new_state
 
     step_result.log = log
+
+    if has_attachment:
+        step_result.update_attachment(request.files['attachment'])
 
     db.session.commit()
 
