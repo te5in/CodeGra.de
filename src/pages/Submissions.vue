@@ -28,6 +28,12 @@
         </div>
 
         <b-input-group v-if="assignment != null">
+            <b-button class="mr-2"
+                      variant="secondary"
+                      @click="openCategory('course-feedback')">
+                Course feedback
+            </b-button>
+
             <b-button-group>
                 <b-button :to="manageAssignmentRoute"
                           variant="secondary"
@@ -187,20 +193,7 @@
                 </div>
 
                 <div class="action-button m-2 m-md-3 rounded text-center"
-                     @click="openCategory('course-feedback')">
-                    <div class="content-wrapper border rounded p-3 pt-4">
-                        <div class="icon-wrapper mb-2">
-                            <icon name="comment-o" :scale="actionIconFactor * 6" />
-                            <icon name="thumbs-up" :scale="actionIconFactor * 2" class="center" />
-                        </div>
-                        <p class="mb-0">Course feedback</p>
-                    </div>
-                </div>
-
-
-                <div class="action-button m-2 m-md-3 rounded text-center"
-                     v-if="assignment.peer_feedback_settings != null"
-                     @click="openCategory('peer-feedback')">
+                     @click="openCategory('epeer-feedback')">
                     <div class="content-wrapper border rounded p-3 pt-4">
                         <div class="icon-wrapper mb-2">
                             <icon name="comments-o" :scale="actionIconFactor * 6" />
@@ -356,13 +349,9 @@ import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/refresh';
 import 'vue-awesome/icons/th';
 import 'vue-awesome/icons/users';
-import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/code-fork';
-import 'vue-awesome/icons/git';
 import 'vue-awesome/icons/envelope';
 import 'vue-awesome/icons/comments-o';
-import 'vue-awesome/icons/comment-o';
-import 'vue-awesome/icons/thumbs-up';
 
 import { NONEXISTENT } from '@/constants';
 import GroupsManagement from '@/components/GroupsManagement';
@@ -915,17 +904,6 @@ export default {
 .cat-wrapper,
 .submission-list {
     flex: 1 1 auto;
-}
-
-.chevron {
-    margin-right: 0.5rem;
-    transform: rotate(0);
-    transition: transform @transition-duration;
-
-    .x-collapsing &,
-    .x-collapsed & {
-        transform: rotate(-90deg);
-    }
 }
 
 .action-buttons {
