@@ -876,7 +876,7 @@
 
 <span class="sd">    :param use_mirror_dir: Use the mirror directory as the basedir of the</span>
 <span class="sd">        random file path.</span>
-<span class="sd">    :returns: The name of the new file and a path to that file</span>
+<span class="sd">    :returns: The path to the new file and the name of the file.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">use_mirror_dir</span><span class="p">:</span>
         <span class="n">root</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;MIRROR_UPLOAD_DIR&#39;</span><span class="p">]</span>
@@ -889,6 +889,24 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">candidate</span><span class="p">):</span>  <span class="c1"># pragma: no cover</span>
             <span class="k">break</span>
     <span class="k">return</span> <span class="n">candidate</span><span class="p">,</span> <span class="n">name</span></div>
+
+
+<div class="viewcode-block" id="save_stream"><a class="viewcode-back" href="../../psef_api/psef.html#psef.files.save_stream">[docs]</a><span class="k">def</span> <span class="nf">save_stream</span><span class="p">(</span><span class="n">stream</span><span class="p">:</span> <span class="n">FileStorage</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Save the data from a stream to a new random filepath in the upload</span>
+<span class="sd">    directory.</span>
+
+<span class="sd">    :param stream: The stream to be saved.</span>
+<span class="sd">    :returns: The filename where the data is stored relative to the UPLOADS</span>
+<span class="sd">        directory..</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">new_file_name</span><span class="p">,</span> <span class="n">filename</span> <span class="o">=</span> <span class="n">random_file_path</span><span class="p">()</span>
+    <span class="n">stream</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">new_file_name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">get_file_size</span><span class="p">(</span><span class="n">new_file_name</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">app</span><span class="o">.</span><span class="n">max_single_file_size</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">new_file_name</span><span class="p">)</span>
+        <span class="n">helpers</span><span class="o">.</span><span class="n">raise_file_too_big_exception</span><span class="p">(</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">max_single_file_size</span><span class="p">,</span> <span class="n">single_file</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">filename</span></div>
 
 
 <div class="viewcode-block" id="process_files"><a class="viewcode-back" href="../../psef_api/psef.html#psef.files.process_files">[docs]</a><span class="k">def</span> <span class="nf">process_files</span><span class="p">(</span>

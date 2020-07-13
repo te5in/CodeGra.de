@@ -205,6 +205,7 @@
 
 <span class="sd">SPDX-License-Identifier: AGPL-3.0-only</span>
 <span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">io</span>
 <span class="kn">import</span> <span class="nn">os</span>  <span class="c1"># typing: ignore</span>
 <span class="kn">import</span> <span class="nn">abc</span>
 <span class="kn">import</span> <span class="nn">grp</span>
@@ -273,6 +274,7 @@
 
 <span class="n">OUTPUT_DIR</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;/.</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="si">}</span><span class="s1">&#39;</span>
 
+<span class="c1"># _Absolute_ path to the bash executable.</span>
 <span class="n">BASH_PATH</span> <span class="o">=</span> <span class="s1">&#39;/bin/bash&#39;</span>
 
 
@@ -284,6 +286,8 @@
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">state</span><span class="p">:</span> <span class="s1">&#39;models.AutoTestStepResultState&#39;</span><span class="p">,</span>
         <span class="n">log</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">attachment</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">IO</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="o">...</span></div>
 
@@ -2159,7 +2163,7 @@
             <span class="k">return</span>
 
         <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">()</span> <span class="k">as</span> <span class="n">tfile</span><span class="p">:</span>
-            <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="n">tfile</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="mo">0o777</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="n">tfile</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="mo">0o622</span><span class="p">)</span>
             <span class="n">cont</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
                 <span class="p">[</span><span class="s1">&#39;tar&#39;</span><span class="p">,</span> <span class="s1">&#39;cjf&#39;</span><span class="p">,</span> <span class="s1">&#39;/dev/stdout&#39;</span><span class="p">,</span> <span class="n">cont</span><span class="o">.</span><span class="n">output_dir</span><span class="p">],</span>
                 <span class="n">user</span><span class="o">=</span><span class="n">CODEGRADE_USER</span><span class="p">,</span>
@@ -2200,6 +2204,48 @@
             <span class="n">submission_info</span><span class="o">=</span><span class="n">test_suite</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;submission_info&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
         <span class="p">)</span>
 
+        <span class="n">step_result_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">def</span> <span class="nf">outer_update_test_result</span><span class="p">(</span>
+            <span class="n">state</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">AutoTestStepResultState</span><span class="p">,</span>
+            <span class="n">log</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span>
+            <span class="n">test_step</span><span class="p">:</span> <span class="n">StepInstructions</span><span class="p">,</span>
+            <span class="n">attachment</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">IO</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]],</span>
+        <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">nonlocal</span> <span class="n">step_result_id</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;log&#39;</span><span class="p">:</span> <span class="n">log</span><span class="p">,</span>
+                <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="s1">&#39;auto_test_step_id&#39;</span><span class="p">:</span> <span class="n">test_step</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;has_attachment&#39;</span><span class="p">:</span> <span class="n">attachment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">}</span>
+            <span class="k">if</span> <span class="n">step_result_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">step_result_id</span>
+
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Posting result data&#39;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">attachment</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">json_data</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+                <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">json_data</span><span class="p">)</span>
+                <span class="n">json_data</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+                <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">req</span><span class="o">.</span><span class="n">put</span><span class="p">(</span>
+                    <span class="n">url</span><span class="p">,</span>
+                    <span class="n">files</span><span class="o">=</span><span class="p">{</span>
+                        <span class="s1">&#39;attachment&#39;</span><span class="p">:</span> <span class="n">attachment</span><span class="p">,</span>
+                        <span class="s1">&#39;json&#39;</span><span class="p">:</span> <span class="n">json_data</span><span class="p">,</span>
+                    <span class="p">},</span>
+                    <span class="n">timeout</span><span class="o">=</span><span class="n">_REQUEST_TIMEOUT</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">req</span><span class="o">.</span><span class="n">put</span><span class="p">(</span>
+                    <span class="n">url</span><span class="p">,</span>
+                    <span class="n">json</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
+                    <span class="n">timeout</span><span class="o">=</span><span class="n">_REQUEST_TIMEOUT</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Posted result data&#39;</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">)</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="n">step_result_id</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+
         <span class="k">with</span> <span class="n">student_container</span><span class="o">.</span><span class="n">as_snapshot</span><span class="p">(</span>
             <span class="n">test_suite</span><span class="p">[</span><span class="s1">&#39;network_disabled&#39;</span><span class="p">]</span>
         <span class="p">)</span> <span class="k">as</span> <span class="n">snap</span><span class="p">,</span> <span class="n">snap</span><span class="o">.</span><span class="n">extra_env</span><span class="p">(</span><span class="n">extra_env</span><span class="p">):</span>
@@ -2207,31 +2253,18 @@
 
             <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">test_step</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">test_suite</span><span class="p">[</span><span class="s1">&#39;steps&#39;</span><span class="p">]):</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Running step&#39;</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="n">test_step</span><span class="p">)</span>
-                <span class="n">step_result_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">step_result_id</span> <span class="o">=</span> <span class="kc">None</span>
 
                 <span class="k">def</span> <span class="nf">update_test_result</span><span class="p">(</span>
                     <span class="n">state</span><span class="p">:</span> <span class="n">models</span><span class="o">.</span><span class="n">AutoTestStepResultState</span><span class="p">,</span>
                     <span class="n">log</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span>
+                    <span class="o">*</span><span class="p">,</span>
+                    <span class="n">attachment</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">IO</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                     <span class="n">test_step</span><span class="p">:</span> <span class="n">StepInstructions</span> <span class="o">=</span> <span class="n">test_step</span><span class="p">,</span>
                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="k">nonlocal</span> <span class="n">step_result_id</span>
-                    <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
-                        <span class="s1">&#39;log&#39;</span><span class="p">:</span> <span class="n">log</span><span class="p">,</span>
-                        <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-                        <span class="s1">&#39;auto_test_step_id&#39;</span><span class="p">:</span> <span class="n">test_step</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span>
-                    <span class="p">}</span>
-                    <span class="k">if</span> <span class="n">step_result_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">step_result_id</span>
-
-                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Posting result data&#39;</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span>
-                    <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">req</span><span class="o">.</span><span class="n">put</span><span class="p">(</span>
-                        <span class="n">url</span><span class="p">,</span>
-                        <span class="n">json</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
-                        <span class="n">timeout</span><span class="o">=</span><span class="n">_REQUEST_TIMEOUT</span><span class="p">,</span>
+                    <span class="k">return</span> <span class="n">outer_update_test_result</span><span class="p">(</span>
+                        <span class="n">state</span><span class="p">,</span> <span class="n">log</span><span class="p">,</span> <span class="n">test_step</span><span class="o">=</span><span class="n">test_step</span><span class="p">,</span> <span class="n">attachment</span><span class="o">=</span><span class="n">attachment</span>
                     <span class="p">)</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Posted result data&#39;</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">)</span>
-                    <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
-                    <span class="n">step_result_id</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
 
                 <span class="n">typ</span> <span class="o">=</span> <span class="n">auto_test_handlers</span><span class="p">[</span><span class="n">test_step</span><span class="p">[</span><span class="s1">&#39;test_type_name&#39;</span><span class="p">]]</span>
 

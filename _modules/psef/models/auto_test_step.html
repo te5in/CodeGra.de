@@ -207,26 +207,33 @@
 
 <span class="sd">SPDX-License-Identifier: AGPL-3.0-only</span>
 <span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">abc</span>
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">enum</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
 <span class="kn">import</span> <span class="nn">typing</span> <span class="k">as</span> <span class="nn">t</span>
 <span class="kn">import</span> <span class="nn">numbers</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
 
 <span class="kn">import</span> <span class="nn">regex</span> <span class="k">as</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">structlog</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">event</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.types</span> <span class="kn">import</span> <span class="n">JSON</span>
+<span class="kn">from</span> <span class="nn">werkzeug.datastructures</span> <span class="kn">import</span> <span class="n">FileStorage</span>
 
 <span class="kn">import</span> <span class="nn">psef</span>
+<span class="kn">import</span> <span class="nn">cg_junit</span>
 <span class="kn">import</span> <span class="nn">cg_logger</span>
 <span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
+<span class="kn">from</span> <span class="nn">cg_flask_helpers</span> <span class="kn">import</span> <span class="n">callback_after_this_request</span>
 <span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">DbType</span><span class="p">,</span> <span class="n">ColumnProxy</span>
 <span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.mixins</span> <span class="kn">import</span> <span class="n">IdMixin</span><span class="p">,</span> <span class="n">TimestampMixin</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">db</span>
-<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span><span class="p">,</span> <span class="n">helpers</span><span class="p">,</span> <span class="n">exceptions</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span><span class="p">,</span> <span class="n">helpers</span><span class="p">,</span> <span class="n">exceptions</span><span class="p">,</span> <span class="n">current_app</span>
 <span class="kn">from</span> <span class="nn">..helpers</span> <span class="kn">import</span> <span class="p">(</span>
-    <span class="n">JSONType</span><span class="p">,</span> <span class="n">between</span><span class="p">,</span> <span class="n">ensure_json_dict</span><span class="p">,</span> <span class="n">get_from_map_transaction</span>
+    <span class="n">JSONType</span><span class="p">,</span> <span class="n">between</span><span class="p">,</span> <span class="n">safe_div</span><span class="p">,</span> <span class="n">ensure_json_dict</span><span class="p">,</span> <span class="n">get_from_map_transaction</span>
 <span class="p">)</span>
 <span class="kn">from</span> <span class="nn">..registry</span> <span class="kn">import</span> <span class="n">auto_test_handlers</span>
 <span class="kn">from</span> <span class="nn">..exceptions</span> <span class="kn">import</span> <span class="p">(</span>
@@ -243,7 +250,7 @@
     <span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auto_test</span> <span class="k">as</span> <span class="n">auto_test_module</span>
 
 <span class="n">_ALL_AUTO_TEST_HANDLERS</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
-    <span class="p">[</span><span class="s1">&#39;io_test&#39;</span><span class="p">,</span> <span class="s1">&#39;run_program&#39;</span><span class="p">,</span> <span class="s1">&#39;custom_output&#39;</span><span class="p">,</span> <span class="s1">&#39;check_points&#39;</span><span class="p">]</span>
+    <span class="p">[</span><span class="s1">&#39;io_test&#39;</span><span class="p">,</span> <span class="s1">&#39;run_program&#39;</span><span class="p">,</span> <span class="s1">&#39;custom_output&#39;</span><span class="p">,</span> <span class="s1">&#39;check_points&#39;</span><span class="p">,</span> <span class="s1">&#39;junit_test&#39;</span><span class="p">]</span>
 <span class="p">)</span>
 <span class="n">_registered_test_handlers</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
 
@@ -301,6 +308,8 @@
 <span class="sd">    This class provides represents a single step, and contains the code needed</span>
 <span class="sd">    to execute it.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">SUPPORTS_ATTACHMENT</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">ClassVar</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s1">&#39;AutoTestStep&#39;</span>
 
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -1070,6 +1079,98 @@
         <span class="k">return</span> <span class="mi">0</span>
 
 
+<span class="nd">@_register</span>
+<span class="k">class</span> <span class="nc">_JunitTest</span><span class="p">(</span><span class="n">AutoTestStepBase</span><span class="p">):</span>
+    <span class="n">SUPPORTS_ATTACHMENT</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="n">__mapper_args__</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;polymorphic_identity&#39;</span><span class="p">:</span> <span class="s1">&#39;junit_test&#39;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">validate_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">JSONType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">get_from_map_transaction</span><span class="p">(</span>
+            <span class="n">ensure_json_dict</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="n">ensure_empty</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span> <span class="k">as</span> <span class="p">[</span><span class="n">get</span><span class="p">,</span> <span class="n">_</span><span class="p">]:</span>
+            <span class="n">program</span> <span class="o">=</span> <span class="n">get</span><span class="p">(</span><span class="s1">&#39;program&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="n">_ensure_program</span><span class="p">(</span><span class="n">program</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_get_points_from_junit</span><span class="p">(</span><span class="n">attachment</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">IO</span><span class="p">[</span><span class="nb">bytes</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="n">junit</span> <span class="o">=</span> <span class="n">cg_junit</span><span class="o">.</span><span class="n">CGJunit</span><span class="o">.</span><span class="n">parse_file</span><span class="p">(</span><span class="n">attachment</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">safe_div</span><span class="p">(</span><span class="n">junit</span><span class="o">.</span><span class="n">total_success</span><span class="p">,</span> <span class="n">junit</span><span class="o">.</span><span class="n">total_tests</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_execute</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">container</span><span class="p">:</span> <span class="s1">&#39;auto_test_module.StartedContainer&#39;</span><span class="p">,</span>
+        <span class="n">opts</span><span class="p">:</span> <span class="s1">&#39;auto_test_module.ExecuteOptions&#39;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">opts</span><span class="o">.</span><span class="n">test_instructions</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
+
+        <span class="n">xml_dir</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;/tmp/.</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">xml_location</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">xml_dir</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}</span><span class="s1">&#39;</span>
+
+        <span class="n">at_user</span> <span class="o">=</span> <span class="n">psef</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">CODEGRADE_USER</span>
+        <span class="n">container</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="s1">&#39;/bin/bash&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;-c&#39;</span><span class="p">,</span>
+                <span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;mkdir &quot;</span><span class="si">{</span><span class="n">xml_dir</span><span class="si">}</span><span class="s1">&quot; &amp;&amp; &#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;chown -R </span><span class="si">{</span><span class="n">at_user</span><span class="si">}</span><span class="s1">:&quot;$(id -gn </span><span class="si">{</span><span class="n">at_user</span><span class="si">}</span><span class="s1">)&quot; &quot;</span><span class="si">{</span><span class="n">xml_dir</span><span class="si">}</span><span class="s1">&quot; &amp;&amp; &#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;chmod 310 &quot;</span><span class="si">{</span><span class="n">xml_dir</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
+                <span class="p">),</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">container</span><span class="o">.</span><span class="n">extra_env</span><span class="p">({</span><span class="s1">&#39;CG_JUNIT_XML_LOCATION&#39;</span><span class="p">:</span> <span class="n">xml_location</span><span class="p">}):</span>
+            <span class="n">command_res</span> <span class="o">=</span> <span class="n">container</span><span class="o">.</span><span class="n">run_student_command</span><span class="p">(</span>
+                <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;program&#39;</span><span class="p">]),</span>
+                <span class="n">opts</span><span class="o">.</span><span class="n">test_instructions</span><span class="p">[</span><span class="s1">&#39;command_time_limit&#39;</span><span class="p">],</span>
+            <span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;stdout&#39;</span><span class="p">:</span> <span class="n">command_res</span><span class="o">.</span><span class="n">stdout</span><span class="p">,</span>
+            <span class="s1">&#39;stderr&#39;</span><span class="p">:</span> <span class="n">command_res</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span>
+            <span class="s1">&#39;exit_code&#39;</span><span class="p">:</span> <span class="n">command_res</span><span class="o">.</span><span class="n">exit_code</span><span class="p">,</span>
+            <span class="s1">&#39;time_spend&#39;</span><span class="p">:</span> <span class="n">command_res</span><span class="o">.</span><span class="n">time_spend</span><span class="p">,</span>
+            <span class="s1">&#39;points&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">()</span> <span class="k">as</span> <span class="n">tfile</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="n">tfile</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="mo">0o622</span><span class="p">)</span>
+            <span class="n">copy_cmd</span> <span class="o">=</span> <span class="n">container</span><span class="o">.</span><span class="n">run_command</span><span class="p">(</span>
+                <span class="p">[</span><span class="s1">&#39;cat&#39;</span><span class="p">,</span> <span class="n">xml_location</span><span class="p">],</span> <span class="n">stdout</span><span class="o">=</span><span class="n">tfile</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">copy_cmd</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="s1">&#39;exit_code&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                <span class="n">opts</span><span class="o">.</span><span class="n">update_test_result</span><span class="p">(</span><span class="n">AutoTestStepResultState</span><span class="o">.</span><span class="n">failed</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+                <span class="k">return</span> <span class="mf">0.0</span>
+
+            <span class="n">tfile</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">points</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_points_from_junit</span><span class="p">(</span><span class="n">tfile</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">cg_junit</span><span class="o">.</span><span class="n">ParseError</span><span class="p">:</span>
+                <span class="n">points</span> <span class="o">=</span> <span class="mf">0.0</span>
+                <span class="n">result_state</span> <span class="o">=</span> <span class="n">AutoTestStepResultState</span><span class="o">.</span><span class="n">failed</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result_state</span> <span class="o">=</span> <span class="n">AutoTestStepResultState</span><span class="o">.</span><span class="n">passed</span>
+
+            <span class="n">data</span><span class="p">[</span><span class="s1">&#39;points&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">points</span>
+
+            <span class="n">tfile</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">opts</span><span class="o">.</span><span class="n">update_test_result</span><span class="p">(</span><span class="n">result_state</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">attachment</span><span class="o">=</span><span class="n">tfile</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">points</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_amount_achieved_points</span><span class="p">(</span><span class="n">result</span><span class="p">:</span> <span class="s1">&#39;AutoTestStepResult&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="n">log</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">log</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">log</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">log</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;points&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">*</span> <span class="n">result</span><span class="o">.</span><span class="n">step</span><span class="o">.</span><span class="n">weight</span>
+
+
 <div class="viewcode-block" id="AutoTestStepResult"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test_step.AutoTestStepResult">[docs]</a><span class="k">class</span> <span class="nc">AutoTestStepResult</span><span class="p">(</span><span class="n">Base</span><span class="p">,</span> <span class="n">TimestampMixin</span><span class="p">,</span> <span class="n">IdMixin</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;This class represents the result of a single AutoTest step.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -1115,6 +1216,10 @@
         <span class="s1">&#39;log&#39;</span><span class="p">,</span> <span class="n">JSON</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span>
     <span class="p">)</span>
 
+    <span class="n">attachment_filename</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;attachment_filename&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span>
+    <span class="p">)</span>
+
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">state</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AutoTestStepResultState</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;The state of this result. Setting this might also change the</span>
@@ -1139,6 +1244,43 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="o">.</span><span class="n">get_amount_achieved_points</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
+<div class="viewcode-block" id="AutoTestStepResult.schedule_attachment_deletion"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test_step.AutoTestStepResult.schedule_attachment_deletion">[docs]</a>    <span class="k">def</span> <span class="nf">schedule_attachment_deletion</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Delete the attachment of this result after the current request.</span>
+
+<span class="sd">        The attachment, if present, will be deleted, if not attachment is</span>
+<span class="sd">        present this function does nothing.</span>
+
+<span class="sd">        :returns: Nothing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">old_filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attachment_filename</span>
+        <span class="k">if</span> <span class="n">old_filename</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">old_path</span> <span class="o">=</span> <span class="n">psef</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">safe_join</span><span class="p">(</span>
+                <span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;UPLOAD_DIR&#39;</span><span class="p">],</span> <span class="n">old_filename</span>
+            <span class="p">)</span>
+
+            <span class="k">def</span> <span class="nf">after_req</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">old_path</span><span class="p">):</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">old_path</span><span class="p">)</span>
+
+            <span class="n">callback_after_this_request</span><span class="p">(</span><span class="n">after_req</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AutoTestStepResult.update_attachment"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.auto_test_step.AutoTestStepResult.update_attachment">[docs]</a>    <span class="k">def</span> <span class="nf">update_attachment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="p">:</span> <span class="n">FileStorage</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Update the attachment of this step.</span>
+
+<span class="sd">        :param stream: Attachment data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="o">.</span><span class="n">SUPPORTS_ATTACHMENT</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
+                <span class="s1">&#39;This step type does not support attachment&#39;</span><span class="p">,</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;The step </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s1"> does not support&#39;</span>
+                    <span class="s1">&#39; attachments but step result </span><span class="si">{self.id}</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39; generated one anyway&#39;</span>
+                <span class="p">),</span> <span class="n">APICodes</span><span class="o">.</span><span class="n">INVALID_STATE</span><span class="p">,</span> <span class="mi">400</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">schedule_attachment_deletion</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attachment_filename</span> <span class="o">=</span> <span class="n">psef</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">save_stream</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span></div>
+
     <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
         <span class="n">res</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
@@ -1147,6 +1289,7 @@
             <span class="s1">&#39;achieved_points&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">achieved_points</span><span class="p">,</span>
             <span class="s1">&#39;log&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">,</span>
             <span class="s1">&#39;started_at&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">started_at</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">started_at</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+            <span class="s1">&#39;attachment_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">attachment_filename</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">auth</span><span class="o">.</span><span class="n">ensure_can_view_autotest_step_details</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">)</span>
@@ -1154,6 +1297,14 @@
             <span class="n">res</span><span class="p">[</span><span class="s1">&#39;log&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="o">.</span><span class="n">remove_step_details</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">res</span></div>
+
+
+<span class="nd">@event</span><span class="o">.</span><span class="n">listens_for</span><span class="p">(</span><span class="n">AutoTestStepResult</span><span class="p">,</span> <span class="s1">&#39;after_delete&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">_receive_after_delete</span><span class="p">(</span>
+    <span class="n">_</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">__</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">AutoTestStepResult</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Listen for the &#39;after_delete&#39; event&quot;&quot;&quot;</span>
+    <span class="n">target</span><span class="o">.</span><span class="n">schedule_attachment_deletion</span><span class="p">()</span>
 </pre></div>
 
            </div>

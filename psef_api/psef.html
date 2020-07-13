@@ -2531,7 +2531,7 @@ random file path.</p>
 <dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]</p>
 </dd>
 <dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>The name of the new file and a path to that file</p>
+<dd class="field-odd"><p>The path to the new file and the name of the file.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -2648,6 +2648,25 @@ subdirectory of the parent.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="psef.files.save_stream">
+<code class="sig-prename descclassname">psef.files.</code><code class="sig-name descname">save_stream</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">stream</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://werkzeug.palletsprojects.com/en/1.0.x/datastructures/#werkzeug.datastructures.FileStorage" title="(in Werkzeug v1.0.x)">werkzeug.datastructures.FileStorage</a></span></em><span class="sig-paren">)</span> &#x2192; <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)">str</a><a class="reference internal" href="../_modules/psef/files.html#save_stream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.files.save_stream" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save the data from a stream to a new random filepath in the upload
+directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>stream</strong> (<a class="reference external" href="https://werkzeug.palletsprojects.com/en/1.0.x/datastructures/#werkzeug.datastructures.FileStorage" title="(in Werkzeug v1.0.x)"><code class="xref py py-class docutils literal notranslate"><span class="pre">FileStorage</span></code></a>) – The stream to be saved.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></p>
+</dd>
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The filename where the data is stored relative to the UPLOADS
+directory..</p>
 </dd>
 </dl>
 </dd></dl>
@@ -12852,6 +12871,8 @@ this run. This is used for authentication purposes.</p>
 <dt id="psef.models.auto_test.AutoTestRun.delete_and_clear_rubric">
 <code class="sig-name descname">delete_and_clear_rubric</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em><span class="sig-paren">)</span> &#x2192; <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.8)">None</a><a class="reference internal" href="../_modules/psef/models/auto_test.html#AutoTestRun.delete_and_clear_rubric"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test.AutoTestRun.delete_and_clear_rubric" title="Permalink to this definition">¶</a></dt>
 <dd><p>Delete this AutoTestRun and clear all the results and rubrics.</p>
+<p>This method will also delete all the existing attachments for step
+results.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">None</span></code></p>
@@ -13305,6 +13326,22 @@ psef.exceptions.APIException
 </dd></dl>
 
 <dl class="py method">
+<dt id="psef.models.auto_test_step.AutoTestStepResult.schedule_attachment_deletion">
+<code class="sig-name descname">schedule_attachment_deletion</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em><span class="sig-paren">)</span> &#x2192; <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.8)">None</a><a class="reference internal" href="../_modules/psef/models/auto_test_step.html#AutoTestStepResult.schedule_attachment_deletion"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test_step.AutoTestStepResult.schedule_attachment_deletion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete the attachment of this result after the current request.</p>
+<p>The attachment, if present, will be deleted, if not attachment is
+present this function does nothing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">None</span></code></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Nothing.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt id="psef.models.auto_test_step.AutoTestStepResult.state">
 <em class="property">property </em><code class="sig-name descname">state</code><a class="headerlink" href="#psef.models.auto_test_step.AutoTestStepResult.state" title="Permalink to this definition">¶</a></dt>
 <dd><p>The state of this result. Setting this might also change the
@@ -13312,6 +13349,20 @@ psef.exceptions.APIException
 <dl class="field-list simple">
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><a class="reference internal" href="#psef.models.auto_test_step.AutoTestStepResultState" title="psef.models.auto_test_step.AutoTestStepResultState"><code class="xref py py-class docutils literal notranslate"><span class="pre">AutoTestStepResultState</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="psef.models.auto_test_step.AutoTestStepResult.update_attachment">
+<code class="sig-name descname">update_attachment</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em>, <em class="sig-param"><span class="n">stream</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://werkzeug.palletsprojects.com/en/1.0.x/datastructures/#werkzeug.datastructures.FileStorage" title="(in Werkzeug v1.0.x)">werkzeug.datastructures.FileStorage</a></span></em><span class="sig-paren">)</span> &#x2192; <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.8)">None</a><a class="reference internal" href="../_modules/psef/models/auto_test_step.html#AutoTestStepResult.update_attachment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.models.auto_test_step.AutoTestStepResult.update_attachment" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update the attachment of this step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>stream</strong> (<a class="reference external" href="https://werkzeug.palletsprojects.com/en/1.0.x/datastructures/#werkzeug.datastructures.FileStorage" title="(in Werkzeug v1.0.x)"><code class="xref py py-class docutils literal notranslate"><span class="pre">FileStorage</span></code></a>) – Attachment data.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code></p>
 </dd>
 </dl>
 </dd></dl>
