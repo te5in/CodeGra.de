@@ -507,6 +507,7 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         db.Integer,
         db.ForeignKey('Assignment.id', ondelete='CASCADE'),
         nullable=False,
+        unique=True,
     )
 
     assignment = db.relationship(

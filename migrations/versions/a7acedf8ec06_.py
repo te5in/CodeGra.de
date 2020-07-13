@@ -57,7 +57,7 @@ def upgrade():
     op.add_column(
         'comment_reply',
         sa.Column(
-            'is_approved', sa.Boolean(), nullable=True, server_default='true'
+            'is_approved', sa.Boolean(), nullable=False, server_default='true'
         )
     )
     # ### end Alembic commands ###

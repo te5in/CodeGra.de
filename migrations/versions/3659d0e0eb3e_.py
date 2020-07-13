@@ -27,7 +27,10 @@ def upgrade():
         sa.Column('amount', sa.Integer(), nullable=False),
         sa.Column('time', sa.Interval(), nullable=True),
         sa.Column('assignment_id', sa.Integer(), nullable=False),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
+        sa.ForeignKeyConstraint(['assignment_id'],
+                                ['Assignment.id'],
+                                ondelete='CASCADE'),
     )
     op.create_table(
         'assignment_peer_feedback_connection',
