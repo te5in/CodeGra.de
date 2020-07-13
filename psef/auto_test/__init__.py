@@ -2,6 +2,7 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import io
 import os  # typing: ignore
 import abc
 import grp
@@ -70,6 +71,7 @@ PRE_STUDENT_FIXTURES_DIR = f'{uuid.uuid4().hex}/'
 
 OUTPUT_DIR = f'/.{uuid.uuid4().hex}/{uuid.uuid4().hex}'
 
+# _Absolute_ path to the bash executable.
 BASH_PATH = '/bin/bash'
 
 
@@ -81,6 +83,8 @@ class UpdateResultFunction(Protocol):
         self,
         state: 'models.AutoTestStepResultState',
         log: t.Dict[str, object],
+        *,
+        attachment: t.Optional[t.IO[bytes]] = None
     ) -> None:
         ...
 
@@ -1956,7 +1960,7 @@ class AutoTestRunner:
             return
 
         with tempfile.NamedTemporaryFile() as tfile:
-            os.chmod(tfile.name, 0o777)
+            os.chmod(tfile.name, 0o622)
             cont.run_command(
                 ['tar', 'cjf', '/dev/stdout', cont.output_dir],
                 user=CODEGRADE_USER,
@@ -1997,6 +2001,48 @@ class AutoTestRunner:
             submission_info=test_suite.get('submission_info', False),
         )
 
+        step_result_id: t.Optional[int] = None
+
+        def outer_update_test_result(
+            state: models.AutoTestStepResultState,
+            log: t.Dict[str, object],
+            test_step: StepInstructions,
+            attachment: t.Optional[t.IO[bytes]],
+        ) -> None:
+            nonlocal step_result_id
+            data = {
+                'log': log,
+                'state': state.name,
+                'auto_test_step_id': test_step['id'],
+                'has_attachment': attachment is not None,
+            }
+            if step_result_id is not None:
+                data['id'] = step_result_id
+
+            logger.info('Posting result data', json=data, url=url)
+            if attachment is not None:
+                json_data = io.StringIO()
+                json.dump(data, json_data)
+                json_data.seek(0, 0)
+
+                response = self.req.put(
+                    url,
+                    files={
+                        'attachment': attachment,
+                        'json': json_data,
+                    },
+                    timeout=_REQUEST_TIMEOUT,
+                )
+            else:
+                response = self.req.put(
+                    url,
+                    json=data,
+                    timeout=_REQUEST_TIMEOUT,
+                )
+            logger.info('Posted result data', response=response)
+            response.raise_for_status()
+            step_result_id = response.json()['id']
+
         with student_container.as_snapshot(
             test_suite['network_disabled']
         ) as snap, snap.extra_env(extra_env):
@@ -2004,31 +2050,18 @@ class AutoTestRunner:
 
             for idx, test_step in enumerate(test_suite['steps']):
                 logger.info('Running step', step=test_step)
-                step_result_id: t.Optional[int] = None
+                step_result_id = None
 
                 def update_test_result(
                     state: models.AutoTestStepResultState,
                     log: t.Dict[str, object],
+                    *,
+                    attachment: t.Optional[t.IO[bytes]] = None,
                     test_step: StepInstructions = test_step,
                 ) -> None:
-                    nonlocal step_result_id
-                    data = {
-                        'log': log,
-                        'state': state.name,
-                        'auto_test_step_id': test_step['id'],
-                    }
-                    if step_result_id is not None:
-                        data['id'] = step_result_id
-
-                    logger.info('Posting result data', json=data, url=url)
-                    response = self.req.put(
-                        url,
-                        json=data,
-                        timeout=_REQUEST_TIMEOUT,
+                    return outer_update_test_result(
+                        state, log, test_step=test_step, attachment=attachment
                     )
-                    logger.info('Posted result data', response=response)
-                    response.raise_for_status()
-                    step_result_id = response.json()['id']
 
                 typ = auto_test_handlers[test_step['test_type_name']]
 

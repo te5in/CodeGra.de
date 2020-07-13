@@ -463,10 +463,10 @@ li {
 
     background-color: lighten(@linum-bg, 1%);
     border-left: 1px solid darken(@linum-bg, 5%);
+    padding-left: 0.75em;
+    padding-right: 0.75em;
 
     code, &.empty-file, &.missing-newline {
-        padding-left: 0.75em;
-        padding-right: 0.75em;
         font-family: monospace;
     }
 

@@ -5,6 +5,7 @@ import { getLanguage, highlight } from 'highlightjs';
 
 import { Maybe } from 'purify-ts/Maybe';
 
+import * as Sentry from '@sentry/browser';
 import { User } from '@/models';
 import { visualizeWhitespace } from './visualize';
 
@@ -776,4 +777,11 @@ export function sortBy<T, Y extends Array<string | number | boolean | moment.Mom
             return reverse ? -res : res;
         },
     ).map(x => <T>x[x.length - 1]);
+}
+
+// Some users might want to block sentry which should be just fine.
+export function withSentry(cb: (sentry: typeof Sentry) => void): void {
+    if (Sentry != null) {
+        cb(Sentry);
+    }
 }

@@ -4,26 +4,33 @@ This module also contains the code needed to execute each step.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import os
 import abc
 import copy
 import enum
+import uuid
 import typing as t
 import numbers
+import tempfile
 
 import regex as re
 import structlog
+from sqlalchemy import event
 from sqlalchemy.types import JSON
+from werkzeug.datastructures import FileStorage
 
 import psef
+import cg_junit
 import cg_logger
 from cg_dt_utils import DatetimeWithTimezone
+from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers.types import DbType, ColumnProxy
 from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import Base, db
-from .. import auth, helpers, exceptions
+from .. import auth, helpers, exceptions, current_app
 from ..helpers import (
-    JSONType, between, ensure_json_dict, get_from_map_transaction
+    JSONType, between, safe_div, ensure_json_dict, get_from_map_transaction
 )
 from ..registry import auto_test_handlers
 from ..exceptions import (
@@ -40,7 +47,7 @@ if t.TYPE_CHECKING and not getattr(t, 'SPHINX', False):  # pragma: no cover
     from .. import auto_test as auto_test_module
 
 _ALL_AUTO_TEST_HANDLERS = sorted(
-    ['io_test', 'run_program', 'custom_output', 'check_points']
+    ['io_test', 'run_program', 'custom_output', 'check_points', 'junit_test']
 )
 _registered_test_handlers: t.Set[str] = set()
 
@@ -98,6 +105,8 @@ class AutoTestStepBase(Base, TimestampMixin, IdMixin):
     This class provides represents a single step, and contains the code needed
     to execute it.
     """
+    SUPPORTS_ATTACHMENT: t.ClassVar[bool] = False
+
     __tablename__ = 'AutoTestStep'
 
     id = db.Column('id', db.Integer, primary_key=True)
@@ -867,6 +876,98 @@ class _CheckPoints(AutoTestStepBase):
         return 0
 
 
+@_register
+class _JunitTest(AutoTestStepBase):
+    SUPPORTS_ATTACHMENT = True
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'junit_test',
+    }
+
+    def validate_data(self, data: JSONType) -> None:
+        with get_from_map_transaction(
+            ensure_json_dict(data), ensure_empty=True
+        ) as [get, _]:
+            program = get('program', str)
+        _ensure_program(program)
+
+    @staticmethod
+    def _get_points_from_junit(attachment: t.IO[bytes]) -> float:
+        junit = cg_junit.CGJunit.parse_file(attachment)
+        return safe_div(junit.total_success, junit.total_tests, default=0)
+
+    @classmethod
+    def _execute(
+        cls,
+        container: 'auto_test_module.StartedContainer',
+        opts: 'auto_test_module.ExecuteOptions',
+    ) -> float:
+        data = opts.test_instructions['data']
+        assert isinstance(data, dict)
+
+        xml_dir = f'/tmp/.{uuid.uuid4()}'
+        xml_location = f'{xml_dir}/{uuid.uuid4()}'
+
+        at_user = psef.auto_test.CODEGRADE_USER
+        container.run_command(
+            [
+                '/bin/bash',
+                '-c',
+                (
+                    f'mkdir "{xml_dir}" && '
+                    f'chown -R {at_user}:"$(id -gn {at_user})" "{xml_dir}" && '
+                    f'chmod 310 "{xml_dir}"'
+                ),
+            ]
+        )
+
+        with container.extra_env({'CG_JUNIT_XML_LOCATION': xml_location}):
+            command_res = container.run_student_command(
+                t.cast(str, data['program']),
+                opts.test_instructions['command_time_limit'],
+            )
+
+        data = {
+            'stdout': command_res.stdout,
+            'stderr': command_res.stderr,
+            'exit_code': command_res.exit_code,
+            'time_spend': command_res.time_spend,
+            'points': 0.0,
+        }
+
+        with tempfile.NamedTemporaryFile() as tfile:
+            os.chmod(tfile.name, 0o622)
+            copy_cmd = container.run_command(
+                ['cat', xml_location], stdout=tfile.name, check=False
+            )
+
+            if copy_cmd != 0:
+                data['exit_code'] = -1
+                opts.update_test_result(AutoTestStepResultState.failed, data)
+                return 0.0
+
+            tfile.seek(0, 0)
+            try:
+                points = cls._get_points_from_junit(tfile)
+            except cg_junit.ParseError:
+                points = 0.0
+                result_state = AutoTestStepResultState.failed
+            else:
+                result_state = AutoTestStepResultState.passed
+
+            data['points'] = points
+
+            tfile.seek(0, 0)
+            opts.update_test_result(result_state, data, attachment=tfile)
+
+        return points
+
+    @staticmethod
+    def get_amount_achieved_points(result: 'AutoTestStepResult') -> float:
+        log: t.Dict = result.log if isinstance(result.log, dict) else {}
+        return t.cast(float, log.get('points', 0)) * result.step.weight
+
+
 class AutoTestStepResult(Base, TimestampMixin, IdMixin):
     """This class represents the result of a single AutoTest step.
     """
@@ -912,6 +1013,10 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         'log', JSON, nullable=True, default=None
     )
 
+    attachment_filename = db.Column(
+        'attachment_filename', db.Unicode, nullable=True, default=None
+    )
+
     @property
     def state(self) -> AutoTestStepResultState:
         """The state of this result. Setting this might also change the
@@ -936,6 +1041,43 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
         """
         return self.step.get_amount_achieved_points(self)
 
+    def schedule_attachment_deletion(self) -> None:
+        """Delete the attachment of this result after the current request.
+
+        The attachment, if present, will be deleted, if not attachment is
+        present this function does nothing.
+
+        :returns: Nothing.
+        """
+        old_filename = self.attachment_filename
+        if old_filename is not None:
+            old_path = psef.files.safe_join(
+                current_app.config['UPLOAD_DIR'], old_filename
+            )
+
+            def after_req() -> None:
+                if os.path.isfile(old_path):
+                    os.unlink(old_path)
+
+            callback_after_this_request(after_req)
+
+    def update_attachment(self, stream: FileStorage) -> None:
+        """Update the attachment of this step.
+
+        :param stream: Attachment data.
+        """
+        if not self.step.SUPPORTS_ATTACHMENT:
+            raise APIException(
+                'This step type does not support attachment', (
+                    f'The step {self.step.id} does not support'
+                    ' attachments but step result {self.id}'
+                    ' generated one anyway'
+                ), APICodes.INVALID_STATE, 400
+            )
+
+        self.schedule_attachment_deletion()
+        self.attachment_filename = psef.files.save_stream(stream)
+
     def __to_json__(self) -> t.Mapping[str, object]:
         res = {
             'id': self.id,
@@ -944,6 +1086,7 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
             'achieved_points': self.achieved_points,
             'log': self.log,
             'started_at': self.started_at and self.started_at.isoformat(),
+            'attachment_id': self.attachment_filename,
         }
         try:
             auth.ensure_can_view_autotest_step_details(self.step)
@@ -951,3 +1094,11 @@ class AutoTestStepResult(Base, TimestampMixin, IdMixin):
             res['log'] = self.step.remove_step_details(self.log)
 
         return res
+
+
+@event.listens_for(AutoTestStepResult, 'after_delete')
+def _receive_after_delete(
+    _: object, __: object, target: AutoTestStepResult
+) -> None:
+    """Listen for the 'after_delete' event"""
+    target.schedule_attachment_deletion()

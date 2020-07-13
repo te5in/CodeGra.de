@@ -8,6 +8,11 @@ Version *Next*
 
 **Features**
 
+- Add "Unit Test" AutoTest step `(#1385)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1385>`__. This new AutoTest
+  step type supports all testing frameworks that can output their results the
+  JUnit XML format. The results are shown to the student  in an intuitive
+  overview.
 - Make it possible to run AutoTest on the teacher revision instead of the
   student submission, if it is available. `(#1390)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1390>`__.
