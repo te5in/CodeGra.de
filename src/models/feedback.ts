@@ -6,7 +6,7 @@ import axios, { AxiosResponse } from 'axios';
 import DiffMatchPatch from 'diff-match-patch';
 
 // @ts-ignore
-import { Maybe, setProps, coerceToString, getUniqueId, htmlEscape } from '@/utils';
+import { setProps, coerceToString, getUniqueId, htmlEscape, withSentry } from '@/utils';
 import { NEWLINE_CHAR } from '@/utils/diff';
 import { Assignment, Submission } from '@/models';
 
@@ -386,26 +386,43 @@ export class FeedbackLine {
             return true;
         }
 
-        const peerFeedbackConnection = PeerFeedbackStore.getConnectionsForUser()(
-            assignment.id,
-            store.getters['user/id'],
-        )
-            .map(conns => Maybe.fromNullable(conns.find(user => user.id === author.id)))
-            .join();
-
         if (assignment.peer_feedback_settings) {
-            if (peerFeedbackConnection.isNothing()) {
+            const userId = store.getters['user/id'];
+            const connections = PeerFeedbackStore.getConnectionsForUser()(assignment.id, userId);
+
+            connections.ifNothing(() => {
+                withSentry(sentry => {
+                    sentry.captureMessage('Peer feedback connections were not yet loaded');
+                });
+                PeerFeedbackStore.loadConnectionsForUser({
+                    userId,
+                    assignmentId: assignment.id,
+                });
+            });
+
+            const hasConnection = connections
+                .map(conns => conns.some(user => user.id === author.id))
+                .orDefault(true);
+
+            if (!hasConnection) {
                 return false;
             }
-            if (!assignment.deadlinePassed() || assignment.peerFeedbackDeadlinePassed()) {
+
+            if (!assignment.deadlinePassed()) {
                 return false;
             }
+            if (assignment.peerFeedbackDeadlinePassed()) {
+                return false;
+            }
+
             if (assignment.state === assignmentState.DONE) {
                 return false;
             }
+
+            return true;
         }
 
-        return true;
+        return false;
     }
 
     addReply(newReply: FeedbackReply): FeedbackLine {
