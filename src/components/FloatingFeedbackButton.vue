@@ -24,7 +24,7 @@
                        @success="afterAddFeedback"
                        variant="secondary"
                        v-b-popover.window.top.hover="`Edit feedback for this ${slotDescription}`"
-                       v-if="editable && !disabled && !hasFeedback">
+                       v-if="canEditFeedback && !hasFeedback">
             <icon name="edit"/>
         </submit-button>
     </div>
@@ -36,7 +36,6 @@
                 @updated="updateSize"
                 @editing="updateSize"
                 ref="feedbackArea"
-                :editable="editable"
                 :feedback="feedback"
                 :total-amount-lines="1"
                 :forceSnippetsAbove="forceSnippetsAbove"
@@ -74,10 +73,6 @@ export default {
         feedback: {
             type: FeedbackLine,
             default: null,
-        },
-        editable: {
-            type: Boolean,
-            default: false,
         },
         canUseSnippets: {
             type: Boolean,
@@ -136,6 +131,10 @@ export default {
 
         showFeedback() {
             return this.hasFeedback && !this.disabled;
+        },
+
+        canEditFeedback() {
+            return !this.disabled && FeedbackLine.canAddReply(this.submission);
         },
 
         buttonClasses() {

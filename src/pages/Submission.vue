@@ -34,7 +34,7 @@
                                    container="#submission-page"
                                    :assignment="assignment"
                                    :submission="submission"
-                                   :editable="true" />
+                                   editable/>
 
             <b-button v-if="canSeeGradeHistory"
                       id="codeviewer-grade-history"
