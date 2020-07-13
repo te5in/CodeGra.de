@@ -29,12 +29,12 @@ function addOrUpdateUser(
 
 export namespace PeerFeedbackStore {
     const loaders = {
-        peerFeebackConnections: <Record<number, Record<number, Promise<unknown>>>>{},
+        peerFeedbackConnections: <Record<number, Record<number, Promise<unknown>>>>{},
     };
 
     export const commitClearConnections = moduleBuilder.commit((state, _: void) => {
         state.connections = {};
-        loaders.peerFeebackConnections = {};
+        loaders.peerFeedbackConnections = {};
     }, 'commitClearConnections');
 
     export const commitSetConnectionsForUser = moduleBuilder.commit(
@@ -88,11 +88,11 @@ export namespace PeerFeedbackStore {
                 return null;
             }
 
-            if (force || !loaders.peerFeebackConnections?.[assignmentId]?.[userId]) {
+            if (force || !loaders.peerFeedbackConnections?.[assignmentId]?.[userId]) {
                 const loader = api.assignments
-                    .getPeerFeebackSubjects(assignmentId, userId)
+                    .getPeerFeedbackSubjects(assignmentId, userId)
                     .then(async ({ data }) => {
-                        utils.vueDelete(loaders.peerFeebackConnections[assignmentId], userId);
+                        utils.vueDelete(loaders.peerFeedbackConnections[assignmentId], userId);
                         const users = data.map(d => d.subject);
                         await Promise.all(users.map(user => addOrUpdateUser(context, user)));
                         if (data.length > 0) {
@@ -104,10 +104,10 @@ export namespace PeerFeedbackStore {
                             subjects: users,
                         });
                     });
-                utils.setProps(loaders.peerFeebackConnections, loader, assignmentId, userId);
+                utils.setProps(loaders.peerFeedbackConnections, loader, assignmentId, userId);
             }
 
-            return loaders.peerFeebackConnections[assignmentId][userId];
+            return loaders.peerFeedbackConnections[assignmentId][userId];
         },
         'loadConnectionsForUser',
     );

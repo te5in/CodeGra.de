@@ -6,13 +6,14 @@ import axios, { AxiosResponse } from 'axios';
 import DiffMatchPatch from 'diff-match-patch';
 
 // @ts-ignore
-import { setProps, coerceToString, getUniqueId, htmlEscape } from '@/utils';
+import { Maybe, setProps, coerceToString, getUniqueId, htmlEscape } from '@/utils';
 import { NEWLINE_CHAR } from '@/utils/diff';
 import { Assignment, Submission } from '@/models';
 
 import { CoursePermission as CPerm } from '@/permissions';
 
 import { store } from '@/store';
+import { PeerFeedbackStore } from '@/store/modules/peer_feedback';
 import * as assignmentState from '@/store/assignment-states';
 import { SubmitButtonResult } from '../interfaces';
 
@@ -385,15 +386,26 @@ export class FeedbackLine {
             return true;
         }
 
+        const peerFeedbackConnection = PeerFeedbackStore.getConnectionsForUser()(
+            assignment.id,
+            store.getters['user/id'],
+        )
+            .map(conns => Maybe.fromNullable(conns.find(user => user.id === author.id)))
+            .join();
+
         if (assignment.peer_feedback_settings) {
-            return (
-                assignment.deadlinePassed() &&
-                !assignment.peerFeedbackDeadlinePassed() &&
-                assignment.state !== assignmentState.DONE
-            );
+            if (peerFeedbackConnection.isNothing()) {
+                return false;
+            }
+            if (!assignment.deadlinePassed() || assignment.peerFeedbackDeadlinePassed()) {
+                return false;
+            }
+            if (assignment.state === assignmentState.DONE) {
+                return false;
+            }
         }
 
-        return false;
+        return true;
     }
 
     addReply(newReply: FeedbackReply): FeedbackLine {

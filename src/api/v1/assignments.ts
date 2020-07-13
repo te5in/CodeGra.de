@@ -1,15 +1,15 @@
 import * as models from '@/models';
 import axios, { AxiosResponse } from 'axios';
 
-interface PeerFeebackConnection {
+interface PeerFeedbackConnection {
     subject: models.UserServerData;
     peer: models.UserServerData;
 }
 
-export function getPeerFeebackSubjects(
+export function getPeerFeedbackSubjects(
     assignmentId: number,
     userId: number,
-): Promise<AxiosResponse<PeerFeebackConnection[]>> {
+): Promise<AxiosResponse<PeerFeedbackConnection[]>> {
     return axios.get(`/api/v1/assignments/${assignmentId}/users/${userId}/peer_feedback_subjects/`);
 }
 
