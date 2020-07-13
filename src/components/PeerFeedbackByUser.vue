@@ -60,7 +60,7 @@
                  v-b-visible="visible => onVisible(getDivIdForOption(null, 'missing-wrapper'), visible)"
                  class="border-top-not-first"
                  :id="getDivIdForOption(null, 'missing-wrapper')">
-                <div class="font-weight-bold p-3 text-center">
+                <div class="font-weight-bold p-3 mb-3 text-center border-bottom">
                     Missing students
                 </div>
                 <div class="px-3">

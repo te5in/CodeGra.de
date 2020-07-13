@@ -245,6 +245,21 @@ export class Assignment extends AssignmentData {
         return now.isAfter(this.deadline);
     }
 
+    get peerFeedbackDeadline() {
+        if (this.deadline == null || this.peer_feedback_settings == null) {
+            return null;
+        }
+        return this.deadline.clone().add(this.peer_feedback_settings.time, 'seconds');
+    }
+
+    peerFeedbackDeadlinePassed(now: moment.Moment = moment(), dflt: boolean = true): boolean {
+        const deadline = this.peerFeedbackDeadline;
+        if (deadline == null) {
+            return dflt;
+        }
+        return now.isAfter(deadline);
+    }
+
     getSubmitDisabledReasons(now: moment.Moment = moment()): string[] {
         const res = [];
 

@@ -7,13 +7,13 @@
          class="toggle-div">
         <div class="label label-off"
             @click="toggle(false)">
-            {{ labelOff }}
+            <slot name="label-off">{{ labelOff }}</slot>
         </div>
         <div class="toggle"
              @click="toggle()"/>
         <div class="label label-on"
              @click="toggle(true)">
-            {{ labelOn }}
+            <slot name="label-on">{{ labelOn }}</slot>
         </div>
     </div>
     <b-popover placement="top"

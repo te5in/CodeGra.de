@@ -1,37 +1,34 @@
 <template>
-<div class="peer-feedback-assessment w-40">
-    <table>
-        <tbody>
-            <tr>
-                <td>
-                    <div class="d-flex justify-content-between">
-                        Approved
-                        <promise-loader :promise="approvedPromise"
-                                        class="ml-3"
-                                        @success="afterApproval"
-                                        @after-error="approvalError" />
-                    </div>
-                </td>
-                <td>
-                    <cg-toggle :value="approved"
-                               @input="updateApproval"
-                               :disabled="approvedPromise != null"
-                               :has-no-value="approvedPromise != null"
-                               no-disabled-popover
-                               label-on="Yes"
-                               label-off="No"/>
-                </td>
-            </tr>
-        </tbody>
-    </table>
+<div class="peer-feedback-assessment">
+    <promise-loader :promise="approvedPromise"
+                    class="mr-2"
+                    :scale="0.75"
+                    @success="afterApproval"
+                    @after-error="approvalError" />
+    <cg-toggle :value="approved"
+               @input="updateApproval"
+               :disabled="approvedPromise != null"
+               :has-no-value="approvedPromise != null"
+               class="d-inline-block"
+               v-b-popover.top.hover="'Approve peer feedback'">
+        <template #label-off>
+            <fa-icon :name="approved ? 'thumbs-o-down' : 'thumbs-down'"
+                     class="text-danger" />
+        </template>
+        <template #label-on>
+            <fa-icon :name="approved ? 'thumbs-up' : 'thumbs-o-up'"
+                     class="text-success" />
+        </template>
+    </cg-toggle>
 </div>
 </template>
 
 <script lang="ts">
 import { Vue, Component, Prop } from 'vue-property-decorator';
 import 'vue-awesome/icons/thumbs-up';
+import 'vue-awesome/icons/thumbs-o-up';
 import 'vue-awesome/icons/thumbs-down';
-import 'vue-awesome/icons/meh-o';
+import 'vue-awesome/icons/thumbs-o-down';
 
 import { SubmitButtonResult } from '@/interfaces';
 import * as models from '@/models';
@@ -50,6 +47,7 @@ export default class PeerFeedbackAssessment extends Vue {
 
     updateApproval(approved: boolean) {
         this.approvedPromise = this.reply.approveAndSave(approved);
+        return this.approvedPromise;
     }
 
     afterApproval(response: SubmitButtonResult<models.FeedbackReply>) {
@@ -62,3 +60,10 @@ export default class PeerFeedbackAssessment extends Vue {
     }
 }
 </script>
+
+<style lang="less">
+.peer-feedback-assessment .toggle {
+    margin: 0 !important;
+    transform: scale(0.75);
+}
+</style>

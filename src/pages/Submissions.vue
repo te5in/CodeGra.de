@@ -190,7 +190,8 @@
                      @click="openCategory('course-feedback')">
                     <div class="content-wrapper border rounded p-3 pt-4">
                         <div class="icon-wrapper mb-2">
-                            <icon name="comments-o" :scale="actionIconFactor * 6" />
+                            <icon name="comment-o" :scale="actionIconFactor * 6" />
+                            <icon name="thumbs-up" :scale="actionIconFactor * 2" class="center" />
                         </div>
                         <p class="mb-0">Course feedback</p>
                     </div>
@@ -202,7 +203,7 @@
                      @click="openCategory('peer-feedback')">
                     <div class="content-wrapper border rounded p-3 pt-4">
                         <div class="icon-wrapper mb-2">
-                            <icon name="beer" class="fa-flip-horizontal" :scale="actionIconFactor * 6" />
+                            <icon name="comments-o" :scale="actionIconFactor * 6" />
                         </div>
                         <p class="mb-0">Peer feedback</p>
                     </div>
@@ -360,7 +361,8 @@ import 'vue-awesome/icons/code-fork';
 import 'vue-awesome/icons/git';
 import 'vue-awesome/icons/envelope';
 import 'vue-awesome/icons/comments-o';
-import 'vue-awesome/icons/beer';
+import 'vue-awesome/icons/comment-o';
+import 'vue-awesome/icons/thumbs-up';
 
 import { NONEXISTENT } from '@/constants';
 import GroupsManagement from '@/components/GroupsManagement';

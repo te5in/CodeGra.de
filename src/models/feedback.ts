@@ -13,6 +13,7 @@ import { Assignment, Submission } from '@/models';
 import { CoursePermission as CPerm } from '@/permissions';
 
 import { store } from '@/store';
+import * as assignmentState from '@/store/assignment-states';
 import { SubmitButtonResult } from '../interfaces';
 
 import { User, AnyUser, UserServerData, NormalUser } from './user';
@@ -380,10 +381,19 @@ export class FeedbackLine {
         if (author.isEqualOrMemberOf(NormalUser.getCurrentUser())) {
             perms.push(CPerm.canAddOwnInlineComments);
         }
-        if (assignment.peer_feedback_settings) {
+        if (perms.some(x => assignment.hasPermission(x))) {
             return true;
         }
-        return perms.some(x => assignment.hasPermission(x));
+
+        if (assignment.peer_feedback_settings) {
+            return (
+                assignment.deadlinePassed() &&
+                !assignment.peerFeedbackDeadlinePassed() &&
+                assignment.state !== assignmentState.DONE
+            );
+        }
+
+        return false;
     }
 
     addReply(newReply: FeedbackReply): FeedbackLine {

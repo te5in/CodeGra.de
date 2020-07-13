@@ -154,12 +154,9 @@
                              class="text-small-uppercase align-middle mt-n1">
                         peer feedback
                     </b-badge>
-                    <b-badge v-if="!reply.approved"
-                             class="text-small-uppercase align-middle mt-n1">
-                        unapproved
-                    </b-badge>
 
-                    <cg-user :user="reply.author" :show-you="true"
+                    <cg-user :user="reply.author"
+                             :show-you="true"
                              v-if="reply.author"/>
                     <i v-else
                        title="You do not have the permission to see the authors of feedback">
@@ -206,20 +203,11 @@
                     </b-btn>
 
                 <template v-if="!nonEditable">
-                    <b-btn v-if="canApprove"
-                           :id="`${componentId}-peer-feedback-btn`"
-                           v-b-popover.top.hover="'Grade beer feedback'">
-                        <icon name="beer"  />
-                    </b-btn>
-                    <b-popover
-                        :target="`${componentId}-peer-feedback-btn`"
-                        placement="leftbottom"
-                        title="Grade Peer feedback"
-                        triggers="click"
-                        :container="componentId">
-                        <peer-feedback-assessment :reply="reply"
-                                                  @updated="emitUpdated"/>
-                    </b-popover>
+                    <peer-feedback-assessment v-if="canApprove"
+                                              :reply="reply"
+                                              @updated="emitUpdated"
+                                              />
+                                              <!-- class="mr-1 mt-n1"/> -->
 
                     <cg-submit-button
                         v-if="editable"
@@ -763,78 +751,6 @@ Do you want to overwrite it?`;
         }
     }
 }
-
-.edit-buttons-wrapper .btn {
-    display: inline-block;
-    padding: 0 0.75rem;
-    margin: -0.25rem;
-    margin-top: -0.5rem;
-    border: none;
-    margin-left: 0;
-    box-shadow: none !important;
-    transition: color @transition-duration ease-out;
-    &.state-pending,
-    &.state-default {
-        background-color: transparent !important;
-    }
-
-
-    .strikethrough {
-        padding-left: 4px;
-        margin-left: -4px;
-        padding-right: 4px;
-        margin-right: -4px;
-        position: relative;
-        opacity: 0.65;
-    }
-
-    .strikethrough:before {
-        position: absolute;
-        content: "";
-        left: 0;
-        top: 40%;
-        right: 0;
-        z-index: 100;
-        border-top: 2px solid;
-        border-color: inherit;
-        border-color: @color-secondary-text-lighter;
-
-        transform:rotate(-30deg);
-    }
-
-    &:hover .strikethrough:before {
-        border-color: @color-primary;
-        @{dark-mode} {
-            border-color: @color-secondary;
-        }
-    }
-
-    .fa-icon {
-        color: @color-secondary-text-lighter;
-    }
-
-    .fa-icon.enabled {
-        color: @color-primary;
-        @{dark-mode} {
-            color: @text-color-dark;
-        }
-    }
-
-    &:hover {
-        background-color: transparent !important;
-        .fa-icon {
-            color: @color-primary;
-            @{dark-mode} {
-                color: @color-secondary;
-            }
-        }
-
-        @{dark-mode} .delete-icon,
-        .delete-icon {
-            color: @color-danger;
-        }
-    }
-}
 </style>
 
 <style lang="less">
@@ -941,6 +857,78 @@ Do you want to overwrite it?`;
 
         .popover {
             max-width: 80% !important;
+        }
+    }
+}
+
+.feedback-reply .edit-buttons-wrapper .btn {
+    display: inline-block;
+    padding: 0 0.5rem;
+    /* margin: -0.25rem; */
+    /* margin-top: -0.5rem; */
+    border: none;
+    margin-left: 0;
+    box-shadow: none !important;
+    transition: color @transition-duration ease-out;
+
+    &.state-pending,
+    &.state-default {
+        background-color: transparent !important;
+    }
+
+    .strikethrough {
+        padding-left: 4px;
+        margin-left: -4px;
+        padding-right: 4px;
+        margin-right: -4px;
+        position: relative;
+        opacity: 0.65;
+    }
+
+    .strikethrough:before {
+        position: absolute;
+        content: "";
+        left: 0;
+        top: 40%;
+        right: 0;
+        z-index: 100;
+        border-top: 2px solid;
+        border-color: inherit;
+        border-color: @color-secondary-text-lighter;
+
+        transform:rotate(-30deg);
+    }
+
+    &:hover .strikethrough:before {
+        border-color: @color-primary;
+        @{dark-mode} {
+            border-color: @color-secondary;
+        }
+    }
+
+    .fa-icon {
+        color: @color-secondary-text-lighter;
+    }
+
+    .fa-icon.enabled {
+        color: @color-primary;
+        @{dark-mode} {
+            color: @text-color-dark;
+        }
+    }
+
+    &:hover {
+        background-color: transparent !important;
+        .fa-icon {
+            color: @color-primary;
+            @{dark-mode} {
+                color: @color-secondary;
+            }
+        }
+
+        @{dark-mode} .delete-icon,
+        .delete-icon {
+            color: @color-danger;
         }
     }
 }
