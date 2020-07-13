@@ -22,6 +22,7 @@
                    class="parts-wrapper">
             <slot name="disabled-file"
                   :file="getFileProp(id)"
+                  :fileType="disabledFileType(id)"
                   :userFeedback="feedback.user[id]"
                   v-if="disabledFileType(id)" />
 

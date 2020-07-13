@@ -58,12 +58,12 @@
                 </b-card-header>
             </template>
 
-            <template #disabled-file="{ file, userFeedback }">
+            <template #disabled-file="{ file, fileType, userFeedback }">
                 Overview mode is not available for {{ file.disabled.name }}. Click
                 <router-link class="inline-link" :to="file.link">here</router-link>
                 to see the entire file.
 
-                <feedback-area v-if="disabledFileType(id).singleLine && showInlineFeedback"
+                <feedback-area v-if="fileType.singleLine && showInlineFeedback"
                                class="pt-2"
                                :can-use-snippets="false"
                                :line="0"
