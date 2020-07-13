@@ -405,5 +405,11 @@
     "course_permission": true,
     "short_description": "Approve inline comments",
     "long_description": "Users with this permission can approve inline comments, comments that need approval include peer feedback comments."
+  },
+  "can_edit_peer_feedback_settings": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Edit peer feedback settings",
+    "long_description": "Users with this permission can edit the peer feedback status of an assignment."
   }
 }

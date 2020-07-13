@@ -159,7 +159,9 @@ class CoursePermissionChecker(PermissionChecker):
     def _ensure(self, perm: CPerm) -> None:
         ensure_permission(perm, self.course_id, user=self.user)
 
-    def _ensure_if(self, checker: t.Callable[[], bool], perm: CPerm) -> None:
+    def _ensure_if_not(
+        self, checker: t.Callable[[], bool], perm: CPerm
+    ) -> None:
         """Ensure the given permission if the checker returns ``True``.
 
         This method flips the permission check around: it first checks if a
@@ -171,7 +173,7 @@ class CoursePermissionChecker(PermissionChecker):
         :param perm: The permission the user should have if ``checker`` returns
             ``True``.
         """
-        self._ensure_any_if((checker, perm))
+        self._ensure_any_if((lambda: not checker(), perm))
 
     def _ensure_any_if(
         self, *checker_perm: t.Tuple[t.Callable[[], bool], CPerm]
@@ -1181,17 +1183,18 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
 
         # This check is faster than the other one, and more common to fail, so
         # lets check this one first.
-        if not work.assignment.is_done:
+        assignment = work.assignment
+        if not assignment.is_done:
             self._ensure(CPerm.can_see_user_feedback_before_done)
 
         if self.reply.in_reply_to is not None:
             # You can only see the reply if you can see the base
             type(self)(self.reply.in_reply_to).ensure_may_see()
 
-        self._ensure_if(
+        self._ensure_if_not(
             lambda: (
-                (not work.has_as_author(self.user)) and
-                (not work.is_peer_reviewed_by(self.user))
+                work.has_as_author(self.user) or
+                (work.is_peer_reviewed_by(self.user) and assignment.is_done)
             ),
             CPerm.can_see_others_work,
         )
@@ -1254,6 +1257,16 @@ class AnalyticsWorkspacePermissions(CoursePermissionChecker):
         """
         self._ensure(CPerm.can_view_analytics)
 
+class AssignmentPermissions(CoursePermissionChecker):
+    __slots__ = ('assignment', )
+
+    def __init__(self, assignment: 'psef.models.Assignment') -> None:
+        super().__init__(assignment.course_id)
+        self.assignment: Final = assignment
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_edit_peer_feedback(self) -> None:
+        self._ensure(CPerm.can_edit_peer_feedback_settings)
 
 class TaskResultPermissions(PermissionChecker):
     """The permission checker for :class:`psef.models.TaskResult`
@@ -1274,7 +1287,6 @@ class TaskResultPermissions(PermissionChecker):
                     f' {self.user}.'
                 ), APICodes.INCORRECT_PERMISSION, 403
             )
-
 
 class LTI1p3ProviderPermissions(GlobalPermissionChecker):
     """The permission checker for :class:`psef.models.LTI1p3Provider`.

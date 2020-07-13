@@ -424,7 +424,7 @@ Promise.all([
 
             async _checkForUpdates() {
                 const res = await this.$http.get('/api/v1/about').catch(() => ({ data: {} }));
-                if (res.data.commit !== UserConfig.release.commitHash) {
+                if (UserConfig.isProduction && res.data.commit !== UserConfig.release.commitHash) {
                     this.$emit('cg::app::toast', {
                         tag: 'UpdateAvailable',
                         title: 'CodeGrade update available!',
