@@ -893,11 +893,7 @@ class _JunitTest(AutoTestStepBase):
 
     @staticmethod
     def _get_points_from_junit(attachment: t.IO[bytes]) -> float:
-        try:
-            junit = cg_junit.CGJunit.parse_file(attachment)
-        except cg_junit.ParseError:
-            logger.error('Could not parse Junit file', exc_info=True)
-            return 0
+        junit = cg_junit.CGJunit.parse_file(attachment)
         return safe_div(junit.total_success, junit.total_tests, default=0)
 
     @classmethod
@@ -951,13 +947,18 @@ class _JunitTest(AutoTestStepBase):
                 return 0.0
 
             tfile.seek(0, 0)
-            points = cls._get_points_from_junit(tfile)
+            try:
+                points = cls._get_points_from_junit(tfile)
+            except cg_junit.ParseError:
+                points = 0.0
+                result_state = AutoTestStepResultState.failed
+            else:
+                result_state = AutoTestStepResultState.passed
+
             data['points'] = points
 
             tfile.seek(0, 0)
-            opts.update_test_result(
-                AutoTestStepResultState.passed, data, attachment=tfile
-            )
+            opts.update_test_result(result_state, data, attachment=tfile)
 
         return points
 

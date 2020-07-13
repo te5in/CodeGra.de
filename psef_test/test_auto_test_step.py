@@ -180,21 +180,22 @@ def test_execute_run_program_step(
 
 
 @pytest.mark.parametrize(
-    'junit_xml',
+    'junit_xml,expected_points',
     [
-        'test_junit_xml/valid_many_errors.xml',
-        'test_junit_xml/valid_no_skipped.xml',
-        'test_junit_xml/valid_unknown_state.xml',
-        'test_junit_xml/valid.xml',
-        'test_junit_xml/invalid_missing_failures_attr.xml',
-        'test_junit_xml/invalid_top_level_tag.xml',
-        'test_junit_xml/invalid_xml.xml',
-        'test_submissions/hello.py',
+        ('test_junit_xml/valid_many_errors.xml', (149 - 71) / 149),
+        ('test_junit_xml/valid_no_skipped.xml', 1),
+        ('test_junit_xml/valid_unknown_state.xml', 0),
+        ('test_junit_xml/valid.xml', (583 - 3) / 583),
+        ('test_junit_xml/valid_empty.xml', 0),
+        ('test_junit_xml/invalid_missing_failures_attr.xml', 0),
+        ('test_junit_xml/invalid_top_level_tag.xml', 0),
+        ('test_junit_xml/invalid_xml.xml', 0),
+        ('test_submissions/hello.py', 0),
     ],
 )
 def test_execute_junit_test_step(
     stub_suite, describe, monkeypatch, stub_function_class,
-    stub_container_class, junit_xml
+    stub_container_class, junit_xml, expected_points
 ):
     with open(f'{os.path.dirname(__file__)}/../test_data/{junit_xml}') as f:
         xml_data = f.read()
@@ -292,17 +293,18 @@ def test_execute_junit_test_step(
         assert first_args[1] == {}
         assert 'attachment' not in first_kwargs
 
-        assert next_args[0].name == 'passed'
         assert next_args[1]['stdout'] == stub_container.stdout
         assert next_args[1]['stderr'] == stub_container.stderr
         assert next_args[1]['exit_code'] == 0
         assert 'attachment' in next_kwargs
 
         points = next_args[1]['points']
+        assert points == expected_points
         if junit_xml.startswith('test_junit_xml/valid'):
-            assert 0 <= points <= 1
+            assert next_args[0].name == 'passed'
         else:
             assert points == 0
+            assert next_args[0].name == 'failed'
 
     with describe('Crashing program'):
         stub_container.code = random.randint(1, 100)
