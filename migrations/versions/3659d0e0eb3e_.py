@@ -33,15 +33,18 @@ def upgrade():
         'assignment_peer_feedback_connection',
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column('updated_at', sa.TIMESTAMP(timezone=True), nullable=False),
-        sa.Column('assignment_id', sa.Integer(), nullable=False),
+        sa.Column('peer_feedback_settings_id', sa.Integer(), nullable=False),
         sa.Column('user_id', sa.Integer(), nullable=False),
         sa.Column('peer_user_id', sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(['assignment_id'], ['Assignment.id'],
+        sa.ForeignKeyConstraint(['peer_feedback_settings_id'],
+                                ['assignment_peer_feedback_settings.id'],
                                 ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['peer_user_id'], ['User.id'],
                                 ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['user_id'], ['User.id'], ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('assignment_id', 'user_id', 'peer_user_id')
+        sa.PrimaryKeyConstraint(
+            'peer_feedback_settings_id', 'user_id', 'peer_user_id'
+        )
     )
     # ### end Alembic commands ###
 

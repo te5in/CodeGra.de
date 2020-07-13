@@ -416,23 +416,25 @@ class AssignmentLinter(Base):
 class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
     def __init__(
         self,
-        assignment: 'Assignment',
+        peer_feedback_settings: 'AssignmentPeerFeedbackSettings',
         user: 'user_models.User',
         peer_user: 'user_models.User',
     ) -> None:
         super().__init__(
-            assignment=assignment,
+            peer_feedback_settings=peer_feedback_settings,
             user=user,
             peer_user=peer_user,
-            assignment_id=assignment.id,
+            peer_feedback_settings_id=peer_feedback_settings.id,
             user_id=user.id,
             peer_user_id=peer_user.id,
         )
 
-    assignment_id = db.Column(
-        'assignment_id',
+    peer_feedback_settings_id = db.Column(
+        'peer_feedback_settings_id',
         db.Integer,
-        db.ForeignKey('Assignment.id', ondelete='CASCADE'),
+        db.ForeignKey(
+            'assignment_peer_feedback_settings.id', ondelete='CASCADE'
+        ),
         nullable=False,
     )
 
@@ -452,11 +454,12 @@ class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
         nullable=False,
     )
 
-    assignment = db.relationship(
-        lambda: Assignment,
-        foreign_keys=assignment_id,
+    peer_feedback_settings = db.relationship(
+        lambda: AssignmentPeerFeedbackSettings,
+        foreign_keys=peer_feedback_settings_id,
         lazy='joined',
         innerjoin=True,
+        back_populates='connections',
     )
 
     user = db.relationship(
@@ -474,8 +477,14 @@ class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
     )
 
     __table_args__ = (
-        db.PrimaryKeyConstraint(assignment_id, user_id, peer_user_id),
+        db.PrimaryKeyConstraint(
+            peer_feedback_settings_id, user_id, peer_user_id
+        ),
     )
+
+    @property
+    def assignment(self) -> 'Assignment':
+        return self.peer_feedback_settings.assignment
 
     def __to_json__(self) -> t.Any:
         return {
@@ -508,6 +517,13 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         back_populates="peer_feedback_settings",
     )
 
+    connections = db.relationship(
+        lambda: AssignmentPeerFeedbackConnection,
+        back_populates='peer_feedback_settings',
+        cascade='delete-orphan,delete,save-update',
+        uselist=True,
+    )
+
     def __init__(
         self, amount: int, time: datetime.timedelta, assignment: 'Assignment'
     ) -> None:
@@ -530,11 +546,11 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
     @cg_cache.intra_request.cache_within_request
     def get_subjects_for_user(self,
                               user: 'user_models.User') -> t.Container[int]:
+        PFConn = AssignmentPeerFeedbackConnection
         result = set(
-            user_id for user_id, in
-            db.session.query(AssignmentPeerFeedbackConnection.user_id).filter(
-                AssignmentPeerFeedbackConnection.assignment == self.assignment,
-                AssignmentPeerFeedbackConnection.peer_user == user,
+            user_id for user_id, in db.session.query(PFConn.user_id).filter(
+                PFConn.peer_feedback_settings == self,
+                PFConn.peer_user == user,
             )
         )
         return result
@@ -548,7 +564,7 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         ).all()
         shuffle(all_users)
 
-        connections = []
+        self.connections = []
         can_do_better_division = len(all_users) > self.amount ** 2
 
         def get_offset_per_item(cur_depth: int) -> int:
@@ -561,13 +577,13 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         ):
             peer_user, *other_users = users
             for user in other_users:
-                connections.append(
+                self.connections.append(
                     AssignmentPeerFeedbackConnection(
-                        assignment=assig, peer_user=peer_user, user=user
+                        peer_feedback_settings=self,
+                        peer_user=peer_user,
+                        user=user,
                     )
                 )
-
-        db.session.bulk_save_objects(connections)
 
     @classmethod
     def divide_work(cls, work: 'work_models.Work') -> None:
@@ -602,9 +618,10 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         elif existing_submissions == self.amount:
             self.do_initial_division()
 
-        connections = AssignmentPeerFeedbackConnection.query.filter(
-            AssignmentPeerFeedbackConnection.assignment == assig,
-            AssignmentPeerFeedbackConnection.user_id.in_(
+        PFConn = AssignmentPeerFeedbackConnection
+        connections = PFConn.query.filter(
+            PFConn.peer_feedback_settings == self,
+            PFConn.user_id.in_(
                 assig.get_from_latest_submissions(
                     work_models.Work.user_id
                 ).order_by(func.random()).limit(self.amount)
@@ -612,15 +629,15 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         ).all()
 
         shuffle(connections)
-        for connection in remove_duplicates(connections, lambda c: c.user_id):
-            db.session.add(
-                AssignmentPeerFeedbackConnection(
-                    assignment=assig,
-                    user=work.user,
-                    peer_user=connection.peer_user,
-                )
+        for old_connection in remove_duplicates(
+            connections, lambda c: c.user_id
+        ):
+            AssignmentPeerFeedbackConnection(
+                peer_feedback_settings=self,
+                user=work.user,
+                peer_user=old_connection.peer_user,
             )
-            connection.peer_user_id = work.user_id
+            old_connection.peer_user_id = work.user_id
 
 
 signals.WORK_CREATED.connect_immediate(
@@ -890,6 +907,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         AssignmentPeerFeedbackSettings,
         back_populates="assignment",
         uselist=False,
+        cascade='delete-orphan,delete,save-update',
     )
 
     __table_args__ = (

@@ -14,7 +14,6 @@ from collections import defaultdict
 
 import werkzeug
 import structlog
-import sqlalchemy.sql as sql
 from flask import request
 from sqlalchemy.orm import joinedload, selectinload, contains_eager
 
@@ -30,6 +29,7 @@ from psef.helpers import (
     ensure_keys_in_dict, make_empty_response, get_from_map_transaction
 )
 from psef.exceptions import APICodes, APIWarnings, APIException
+from cg_sqlalchemy_helpers import expression as sql_expression
 
 from . import api
 from .. import (
@@ -74,7 +74,7 @@ def get_all_assignments() -> JSONResponse[t.Sequence[models.Assignment]]:
         ).in_(courses)
     ).join(
         models.AssignmentLinter,
-        sql.expression.and_(
+        sql_expression.and_(
             models.Assignment.id == models.AssignmentLinter.assignment_id,
             models.AssignmentLinter.name == 'MixedWhitespace'
         ),
@@ -180,8 +180,8 @@ def get_assignments_feedback(assignment_id: int) -> JSONResponse[
     try:
         auth.ensure_permission(CPerm.can_see_others_work, assignment.course_id)
     except auth.PermissionException:
-        latest_subs = models.Work.limit_to_user_submissions(
-            latest_subs, current_user
+        latest_subs = latest_subs.filter(
+            models.Work.user_submissions_filter(current_user),
         )
 
     res = {}
@@ -1291,7 +1291,14 @@ def get_all_works_for_assignment(
     if not current_user.has_permission(
         CPerm.can_see_others_work, course_id=assignment.course_id
     ):
-        obj = models.Work.limit_to_user_submissions(obj, current_user, True)
+        obj = obj.filter(
+            sql_expression.or_(
+                models.Work.user_submissions_filter(current_user),
+                models.Work.peer_feedback_submissions_filter(
+                    current_user, assignment
+                )
+            )
+        )
 
     if helpers.extended_requested():
         return extended_jsonify(
@@ -1917,10 +1924,10 @@ def update_peer_feedback_settings(
         with_for_update=True,
         with_for_update_of=models.Assignment,
     )
+    auth.AssignmentPermissions(assignment).ensure_may_edit_peer_feedback()
     db_locks.acquire_lock(
         db_locks.LockNamespaces.peer_feedback_division, assignment.id
     )
-    # TODO: Permission check
 
     with helpers.get_from_request_transaction() as [get, _]:
         new_amount = get('amount', int)
@@ -1945,9 +1952,7 @@ def update_peer_feedback_settings(
         peer_feedback_settings.amount = new_amount
 
     if old_amount is None or old_amount != new_amount:
-        db.session.query(models.AssignmentPeerFeedbackConnection).filter(
-            models.AssignmentPeerFeedbackConnection.assignment == assignment
-        ).delete()
+        peer_feedback_settings.connections = []
 
         amount_subs = assignment.get_amount_not_deleted_submissions()
         if amount_subs >= new_amount:
@@ -1958,7 +1963,8 @@ def update_peer_feedback_settings(
 
 
 @api.route(
-    '/assignments/<int:assignment_id>/peer_feedback_settings', methods=['DELETE'],
+    '/assignments/<int:assignment_id>/peer_feedback_settings',
+    methods=['DELETE'],
 )
 @features.feature_required(features.Feature.PEER_FEEDBACK)
 @auth.login_required
@@ -1970,20 +1976,16 @@ def delete_peer_feedback_settings(assignment_id: int) -> EmptyResponse:
         with_for_update=True,
         with_for_update_of=models.Assignment,
     )
+    auth.AssignmentPermissions(assignment).ensure_may_edit_peer_feedback()
+
     db_locks.acquire_lock(
         db_locks.LockNamespaces.peer_feedback_division, assignment.id
     )
-    # TODO: Permission check
 
     if assignment.peer_feedback_settings is None:
         return make_empty_response()
 
-    db.session.query(models.AssignmentPeerFeedbackSettings).filter(
-        models.AssignmentPeerFeedbackSettings.assignment == assignment
-    ).delete()
-    db.session.query(models.AssignmentPeerFeedbackConnection).filter(
-        models.AssignmentPeerFeedbackConnection.assignment == assignment
-    ).delete()
+    assignment.peer_feedback_settings = None
 
     db.session.commit()
     return make_empty_response()
@@ -2034,9 +2036,14 @@ def get_peer_feedback_subjects(
     )
     user = helpers.get_or_404(models.User, user_id)
     # TODO: Permission check
+    peer_feedback = assignment.peer_feedback_settings
+    if peer_feedback is None:
+        return jsonify([])
+
+    PFConn = models.AssignmentPeerFeedbackConnection
     return jsonify(
-        models.AssignmentPeerFeedbackConnection.query.filter(
-            models.AssignmentPeerFeedbackConnection.peer_user == user,
-            models.AssignmentPeerFeedbackConnection.assignment == assignment,
+        PFConn.query.filter(
+            PFConn.peer_user == user,
+            PFConn.peer_feedback_settings == peer_feedback,
         ).all()
     )

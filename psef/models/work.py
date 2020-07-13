@@ -12,7 +12,7 @@ from collections import defaultdict
 import structlog
 import sqlalchemy
 from sqlalchemy import orm, select
-from sqlalchemy.orm import undefer, selectinload
+from sqlalchemy.orm import undefer, selectinload, contains_eager
 from sqlalchemy.types import JSON
 from typing_extensions import Literal
 
@@ -351,9 +351,10 @@ class Work(Base):
             # The assignment doesn't have a rubric, so simply return an empty
             # query result. We filter it with `false` so it will never return
             # rows.
-            return db.session.query(cls.id, sql_expression.literal(-1.0)).filter(
-                sql_expression.false()
-            )
+            return db.session.query(cls.id,
+                                    sql_expression.literal(-1.0)).filter(
+                                        sql_expression.false()
+                                    )
 
         max_rubric_points = assignment.max_rubric_points
         min_grade = assignment.min_grade
@@ -755,7 +756,9 @@ class Work(Base):
         if rubricitem is not None:
             self.selected_items.remove(rubricitem)
 
-    def get_root_file(self, exclude_owner: 'file_models.FileOwner') -> 'file_models.File':
+    def get_root_file(
+        self, exclude_owner: 'file_models.FileOwner'
+    ) -> 'file_models.File':
         return psef.helpers.filter_single_or_404(
             file_models.File,
             file_models.File.work == self,
@@ -860,12 +863,27 @@ class Work(Base):
 
         return cache
 
-    @staticmethod
-    def limit_to_user_submissions(
-        query: _MyQuery['Work'],
+    @classmethod
+    def peer_feedback_submissions_filter(
+        cls,
+        peer_user: 'user_models.User',
+        assignment: 'assignment_models.Assignment',
+    ) -> FilterColumn:
+        pf_settings = assignment.peer_feedback_settings
+        if pf_settings is None:
+            return sql_expression.false()
+
+        PFConn = assignment_models.AssignmentPeerFeedbackConnection
+        return PFConn.query.filter(
+            PFConn.peer_feedback_settings == pf_settings,
+            PFConn.peer_user == peer_user,
+        ).exists()
+
+    @classmethod
+    def user_submissions_filter(
+        cls,
         user: 'user_models.User',
-        include_peer_feedback: bool = False
-    ) -> _MyQuery['Work']:
+    ) -> FilterColumn:
         """Limit the given query of submissions to only submission submitted by
             the given user.
 
@@ -883,21 +901,10 @@ class Work(Base):
         groups_of_user = group_models.Group.contains_users(
             [user]
         ).with_entities(group_models.Group.virtual_user_id)
-        filters: t.List[FilterColumn] = [
-            Work.user_id == user.id,
-            Work.user_id.in_(groups_of_user),
-        ]
-        if include_peer_feedback:
-            pf_conn = assignment_models.AssignmentPeerFeedbackConnection
-            filters.append(
-                db.session.query(pf_conn).filter(
-                    pf_conn.assignment_id == Work.assignment_id,
-                    pf_conn.user_id == Work.user_id,
-                    pf_conn.peer_user_id == user.id,
-                ).exists()
-            )
-
-        return query.filter(sql_expression.or_(*filters))
+        return sql_expression.or_(
+            cls.user_id == user.id,
+            cls.user_id.in_(groups_of_user),
+        )
 
     def is_peer_reviewed_by(self, user: 'user_models.User') -> bool:
         pf_settings = self.assignment.peer_feedback_settings

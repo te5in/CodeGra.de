@@ -25,6 +25,7 @@ from psef.helpers import (
     ensure_keys_in_dict, make_empty_response, get_from_map_transaction,
     get_json_dict_from_request
 )
+from cg_sqlalchemy_helpers import expression as sql_expression
 
 from . import api
 from .. import limiter, parsers, features
@@ -1239,7 +1240,9 @@ def get_user_submissions(
 
     def get_subs(query: models.MyQuery[models.Work]) -> t.List[models.Work]:
         return models.Work.update_query_for_extended_jsonify(
-            models.Work.limit_to_user_submissions(query, user),
+            query.filter(
+                models.Work.user_submissions_filter(user),
+            )
         ).all()
 
     if latest_only:
