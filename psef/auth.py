@@ -1126,6 +1126,7 @@ class AnalyticsWorkspacePermissions(CoursePermissionChecker):
 
 class AutoTestPermissions(CoursePermissionChecker):
     __slots__ = ('auto_test', )
+
     def __init__(self, auto_test: 'psef.models.AutoTest') -> None:
         super().__init__(auto_test.assignment.course_id)
         self.auto_test: Final = auto_test
@@ -1138,6 +1139,7 @@ class AutoTestPermissions(CoursePermissionChecker):
             return
         elif not self.auto_test.assignment.is_done:
             self._ensure(CPerm.can_view_autotest_before_done)
+
 
 class AutoTestRunPermissions(CoursePermissionChecker):
     __slots__ = ('run', )
