@@ -870,7 +870,7 @@ class Work(Base):
         assignment: 'assignment_models.Assignment',
     ) -> FilterColumn:
         pf_settings = assignment.peer_feedback_settings
-        if pf_settings is None:
+        if not assignment.deadline_expired or pf_settings is None:
             return sql_expression.false()
 
         PFConn = assignment_models.AssignmentPeerFeedbackConnection
@@ -912,7 +912,9 @@ class Work(Base):
         if pf_settings is None:
             return False
 
-        return self.user_id in pf_settings.get_subjects_for_user(user)
+        return pf_settings.does_peer_review_of(
+            reviewer=user, subject=self.user
+        )
 
     def get_all_authors(self) -> t.List['user_models.User']:
         """Get all the authors of this submission.

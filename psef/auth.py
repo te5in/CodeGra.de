@@ -971,9 +971,10 @@ class WorksByUserPermissions(CoursePermissionChecker):
         if self.author.contains_user(self.user):
             return
         pf_settings = self.assignment.peer_feedback_settings
-        if (
-            pf_settings is not None and
-            self.user.id in pf_settings.get_subjects_for_user(self.author)
+
+        if pf_settings is not None and pf_settings.does_peer_review_of(
+            reviewer=self.user,
+            subject=self.author,
         ):
             return
 
@@ -1257,6 +1258,7 @@ class AnalyticsWorkspacePermissions(CoursePermissionChecker):
         """
         self._ensure(CPerm.can_view_analytics)
 
+
 class AssignmentPermissions(CoursePermissionChecker):
     __slots__ = ('assignment', )
 
@@ -1267,6 +1269,7 @@ class AssignmentPermissions(CoursePermissionChecker):
     @PermissionChecker.as_ensure_function
     def ensure_may_edit_peer_feedback(self) -> None:
         self._ensure(CPerm.can_edit_peer_feedback_settings)
+
 
 class TaskResultPermissions(PermissionChecker):
     """The permission checker for :class:`psef.models.TaskResult`
@@ -1287,6 +1290,7 @@ class TaskResultPermissions(PermissionChecker):
                     f' {self.user}.'
                 ), APICodes.INCORRECT_PERMISSION, 403
             )
+
 
 class LTI1p3ProviderPermissions(GlobalPermissionChecker):
     """The permission checker for :class:`psef.models.LTI1p3Provider`.

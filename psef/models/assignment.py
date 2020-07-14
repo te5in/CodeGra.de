@@ -545,8 +545,8 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         return hash(self.id)
 
     @cg_cache.intra_request.cache_within_request
-    def get_subjects_for_user(self,
-                              user: 'user_models.User') -> t.Container[int]:
+    def _get_subjects_for_user(self,
+                               user: 'user_models.User') -> t.Container[int]:
         PFConn = AssignmentPeerFeedbackConnection
         result = set(
             user_id for user_id, in db.session.query(PFConn.user_id).filter(
@@ -555,6 +555,15 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
             )
         )
         return result
+
+    def does_peer_review_of(
+        self, *, reviewer: 'user_models.User', subject: 'user_models.User'
+    ) -> bool:
+        # If the assignment is not yet done the ordering has not stabilized, so
+        # we do
+        if not self.assignment.deadline_expired:
+            return False
+        return subject.id in self._get_subjects_for_user(reviewer)
 
     def do_initial_division(self) -> None:
         assig = self.assignment

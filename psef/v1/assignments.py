@@ -2022,7 +2022,10 @@ def get_comments_by_user(assignment_id: int, user_id: int
 
 
 @api.route(
-    '/assignments/<int:assignment_id>/users/<int:user_id>/peer_feedback_subjects/',
+    (
+        '/assignments/<int:assignment_id>/users/<int:user_id>'
+        '/peer_feedback_subjects/'
+    ),
     methods=['GET']
 )
 @features.feature_required(features.Feature.PEER_FEEDBACK)
@@ -2035,9 +2038,11 @@ def get_peer_feedback_subjects(
         also_error=lambda a: not a.is_visible,
     )
     user = helpers.get_or_404(models.User, user_id)
-    # TODO: Permission check
+    if not user.contains_user(current_user):
+        auth.ensure_permission(CPerm.can_see_others_work, assignment.course_id)
+
     peer_feedback = assignment.peer_feedback_settings
-    if peer_feedback is None:
+    if not assignment.deadline_expired or peer_feedback is None:
         return jsonify([])
 
     PFConn = models.AssignmentPeerFeedbackConnection

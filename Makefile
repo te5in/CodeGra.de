@@ -143,7 +143,7 @@ lint: mypy pylint isort_check
 
 .PHONY: mypy
 mypy:
-	mypy $(filter-out cg_override,$(PY_MODULES)) ./*.py
+	mypy $(filter-out cg_override cg_typing_extensions,$(PY_MODULES)) ./*.py --show-traceback
 
 .PHONY: generate_permission_files
 generate_permission_files:
