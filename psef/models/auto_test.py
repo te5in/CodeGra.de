@@ -1417,7 +1417,8 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         run = AutoTestRun(
             batch_run_done=(
                 not self.has_hidden_steps or self.assignment.deadline_expired
-            )
+            ),
+            auto_test=self,
         )
         auth.AutoTestRunPermissions(run).ensure_may_start()
         self._runs.append(run)

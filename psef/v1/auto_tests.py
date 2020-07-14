@@ -784,17 +784,17 @@ def restart_auto_test_result(auto_test_id: int, run_id: int, result_id: int
 
     auth.AutoTestResultPermissions(result).ensure_may_restart()
 
-    if not result.is_finished and result.runner is not None:
+    if result.is_finished or result.runner is None:
+        callback_after_this_request(
+            lambda: tasks.adjust_amount_runners(run_id)
+        )
+    else:
         # XXX: We can probably do this in a more efficient way, while still
         # making sure the code of the student is downloaded again. However, we
         # hypothesized that this case (restarting a running result) will not
         # happen very often so it doesn't really make sense to optimize this
         # case.
         result.run.stop_runners([result.runner])
-    else:
-        callback_after_this_request(
-            lambda: tasks.adjust_amount_runners(run_id)
-        )
 
     result.clear()
     db.session.commit()
