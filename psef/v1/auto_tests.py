@@ -11,8 +11,6 @@ import werkzeug
 import structlog
 from flask import Response, request, make_response
 
-from cg_dt_utils import DatetimeWithTimezone
-
 from . import api
 from .. import app, auth, files, tasks, models, helpers, registry, exceptions
 from ..models import db
@@ -631,8 +629,6 @@ def start_auto_test_run(auto_test_id: int) -> t.Union[JSONResponse[
         with_for_update=True
     )
 
-    auth.ensure_permission(CPerm.can_run_autotest, test.assignment.course_id)
-
     try:
         run = test.start_test_run()
     except exceptions.InvalidStateException as e:
@@ -673,9 +669,7 @@ def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
         also_error=lambda obj: obj.auto_test_id != auto_test_id,
         with_for_update=True,
     )
-    auth.ensure_permission(
-        CPerm.can_delete_autotest_run, run.auto_test.assignment.course_id
-    )
+    auth.AutoTestRunPermissions(run).ensure_may_stop()
 
     job_id = run.get_job_id()
     callback_after_this_request(
@@ -768,19 +762,22 @@ def get_auto_test_result(auto_test_id: int, run_id: int, result_id: int
 
 
 @api.route(
-    '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/results/<int:result_id>/restart',
+    (
+        '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/results'
+        '/<int:result_id>/restart'
+    ),
     methods=['POST']
 )
 @feature_required(Feature.AUTO_TEST)
 def restart_auto_test_result(auto_test_id: int, run_id: int, result_id: int
                              ) -> ExtendedJSONResponse[models.AutoTestResult]:
-    """Get the extended version of an AutoTest result.
+    """Restart an AutoTest result.
 
-    .. :quickref: AutoTest; Get the extended version of a single result.
+    .. :quickref: AutoTest; Restart a single result.
 
     :param auto_test_id: The id of the AutoTest in which the result is located.
     :param run_id: The id of run in which the result is located.
-    :param result_id: The id of the result you want to get.
+    :param result_id: The id of the result you want to restart.
     :returns: The extended version of a :class:`.models.AutoTestResult`.
     """
     result = _get_result_by_ids(auto_test_id, run_id, result_id)
@@ -788,10 +785,18 @@ def restart_auto_test_result(auto_test_id: int, run_id: int, result_id: int
     auth.AutoTestResultPermissions(result).ensure_may_restart()
 
     if not result.is_finished and result.runner is not None:
+        # XXX: We can probably do this in a more efficient way, while still
+        # making sure the code of the student is downloaded again. However, we
+        # hypothesized that this case (restarting a running result) will not
+        # happen very often so it doesn't really make sense to optimize this
+        # case.
         result.run.stop_runners([result.runner])
+    else:
+        callback_after_this_request(
+            lambda: tasks.adjust_amount_runners(run_id)
+        )
 
     result.clear()
-    callback_after_this_request(lambda: tasks.adjust_amount_runners(run_id))
     db.session.commit()
 
     return extended_jsonify(result, use_extended=models.AutoTestResult)

@@ -1125,6 +1125,8 @@ class AnalyticsWorkspacePermissions(CoursePermissionChecker):
 
 
 class AutoTestPermissions(CoursePermissionChecker):
+    """The permission checker for :class:`psef.models.AutoTest`.
+    """
     __slots__ = ('auto_test', )
 
     def __init__(self, auto_test: 'psef.models.AutoTest') -> None:
@@ -1133,6 +1135,8 @@ class AutoTestPermissions(CoursePermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see(self) -> None:
+        """Make sure the current user may see this auto test configuration.
+        """
         self._ensure_enrolled()
 
         if self.auto_test.run and self.auto_test.results_always_visible:
@@ -1142,6 +1146,8 @@ class AutoTestPermissions(CoursePermissionChecker):
 
 
 class AutoTestRunPermissions(CoursePermissionChecker):
+    """The permission checker for :class:`psef.models.AutoTestRun`.
+    """
     __slots__ = ('run', )
 
     def __init__(self, run: 'psef.models.AutoTestRun') -> None:
@@ -1150,14 +1156,20 @@ class AutoTestRunPermissions(CoursePermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_start(self) -> None:
+        """Make sure the current user may start this AutoTest run.
+        """
         self._ensure(CPerm.can_run_autotest)
 
     @PermissionChecker.as_ensure_function
     def ensure_may_stop(self) -> None:
+        """Make sure the current user may stop this AutoTest run.
+        """
         self._ensure(CPerm.can_delete_autotest_run)
 
 
 class AutoTestResultPermissions(CoursePermissionChecker):
+    """The permission checker for :class:`psef.models.AutoTestResult`.
+    """
     __slots__ = ('result', )
 
     def __init__(self, result: 'psef.models.AutoTestResult') -> None:
@@ -1166,6 +1178,8 @@ class AutoTestResultPermissions(CoursePermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see(self) -> None:
+        """Make sure the current user may see this AutoTest result.
+        """
         AutoTestPermissions(self.result.run.auto_test).ensure_may_see()
         run = self.result.run
         work = self.result.work
@@ -1180,6 +1194,8 @@ class AutoTestResultPermissions(CoursePermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_restart(self) -> None:
+        """Make sure the current user may restart this AutoTest result.
+        """
         self.ensure_may_see()
         run_perms = AutoTestRunPermissions(self.result.run)
         run_perms.ensure_may_start()
