@@ -785,3 +785,7 @@ export function withSentry(cb: (sentry: typeof Sentry) => void): void {
         cb(Sentry);
     }
 }
+
+export function formatTimePart(num: number): string {
+    return `${num < 10 ? '0' : ''}${num}`;
+}

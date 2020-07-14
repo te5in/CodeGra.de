@@ -41,6 +41,7 @@ import {
     getNoNull,
     deepExtendArray,
     deepCopy,
+    formatTimePart,
 } from '@/utils';
 
 import { makeCache } from '@/utils/cache';
@@ -1343,6 +1344,18 @@ describe('utils.js', () => {
             expect(res.map(x => x.idx)).toEqual([3, 0, 2, 4, 5, 1]);
         })
     });
+
+    describe('formatTimePart', () => {
+        it('should work for numbers larger than 10', () => {
+            expect(typeof formatTimePart(50)).toBe('string');
+            expect(formatTimePart(50)).toBe('50');
+        });
+
+        it('should work for numbers smaller than 10', () => {
+            expect(typeof formatTimePart(2)).toBe('string');
+            expect(formatTimePart(5)).toBe('05');
+        });
+    })
 });
 
 describe('cache.js', () => {

@@ -767,13 +767,7 @@ def ensure_can_view_autotest(auto_test: 'psef.models.AutoTest') -> None:
     :param auto_test: The AutoTest to check for.
     :returns: Nothing.
     """
-    course_id = auto_test.assignment.course_id
-    ensure_enrolled(course_id)
-
-    if auto_test.run and auto_test.results_always_visible:
-        return
-    elif not auto_test.assignment.is_done:
-        ensure_permission(CPerm.can_view_autotest_before_done, course_id)
+    AutoTestPermissions(auto_test).ensure_may_see()
 
 
 @login_required
@@ -784,17 +778,7 @@ def ensure_can_view_autotest_result(
 
     :param result: The result to check.
     """
-    run = result.run
-    work = result.work
-    course_id = run.auto_test.assignment.course_id
-    ensure_enrolled(course_id)
-
-    if run.auto_test.results_always_visible:
-        if work.has_as_author(_get_cur_user()):
-            return
-        ensure_permission(CPerm.can_see_others_work, work.assignment.course_id)
-    else:
-        ensure_can_see_grade(work)
+    AutoTestResultPermissions(result).ensure_may_see()
 
 
 @login_required
@@ -1138,6 +1122,66 @@ class AnalyticsWorkspacePermissions(CoursePermissionChecker):
         """Check if the current user has the permission to see analytics data.
         """
         self._ensure(CPerm.can_view_analytics)
+
+
+class AutoTestPermissions(CoursePermissionChecker):
+    __slots__ = ('auto_test', )
+    def __init__(self, auto_test: 'psef.models.AutoTest') -> None:
+        super().__init__(auto_test.assignment.course_id)
+        self.auto_test: Final = auto_test
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        self._ensure_enrolled()
+
+        if self.auto_test.run and self.auto_test.results_always_visible:
+            return
+        elif not self.auto_test.assignment.is_done:
+            self._ensure(CPerm.can_view_autotest_before_done)
+
+class AutoTestRunPermissions(CoursePermissionChecker):
+    __slots__ = ('run', )
+
+    def __init__(self, run: 'psef.models.AutoTestRun') -> None:
+        super().__init__(run.auto_test.assignment.course_id)
+        self.run: Final = run
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_start(self) -> None:
+        self._ensure(CPerm.can_run_autotest)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_stop(self) -> None:
+        self._ensure(CPerm.can_delete_autotest_run)
+
+
+class AutoTestResultPermissions(CoursePermissionChecker):
+    __slots__ = ('result', )
+
+    def __init__(self, result: 'psef.models.AutoTestResult') -> None:
+        super().__init__(result.run.auto_test.assignment.course_id)
+        self.result: Final = result
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        AutoTestPermissions(self.result.run.auto_test).ensure_may_see()
+        run = self.result.run
+        work = self.result.work
+        self._ensure_enrolled()
+
+        if run.auto_test.results_always_visible:
+            if work.has_as_author(self.user):
+                return
+            self._ensure(CPerm.can_see_others_work)
+        else:
+            WorkPermissions(work).ensure_may_see_grade()
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_restart(self) -> None:
+        self.ensure_may_see()
+        run_perms = AutoTestRunPermissions(self.result.run)
+        run_perms.ensure_may_start()
+        run_perms.ensure_may_stop()
 
 
 class TaskResultPermissions(PermissionChecker):

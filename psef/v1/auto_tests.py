@@ -11,6 +11,8 @@ import werkzeug
 import structlog
 from flask import Response, request, make_response
 
+from cg_dt_utils import DatetimeWithTimezone
+
 from . import api
 from .. import app, auth, files, tasks, models, helpers, registry, exceptions
 from ..models import db
@@ -42,6 +44,25 @@ def _get_at_set_by_ids(
         models.AutoTestSet.id == auto_test_set_id,
         also_error=also_error,
     )
+
+
+def _get_result_by_ids(
+    auto_test_id: int, run_id: int, result_id: int
+) -> models.AutoTestResult:
+    test = get_or_404(
+        models.AutoTest,
+        auto_test_id,
+        also_error=lambda at: not at.assignment.is_visible
+    )
+
+    def also_error(obj: models.AutoTestResult) -> bool:
+        if obj.auto_test_run_id != run_id or obj.run.auto_test_id != test.id:
+            return True
+        elif obj.work.deleted:
+            return True
+        return False
+
+    return get_or_404(models.AutoTestResult, result_id, also_error=also_error)
 
 
 def _update_auto_test(
@@ -741,27 +762,37 @@ def get_auto_test_result(auto_test_id: int, run_id: int, result_id: int
     :param result_id: The id of the result you want to get.
     :returns: The extended version of a :class:`.models.AutoTestResult`.
     """
-    test = get_or_404(
-        models.AutoTest,
-        auto_test_id,
-        also_error=lambda at: not at.assignment.is_visible
-    )
-    auth.ensure_can_view_autotest(test)
+    result = _get_result_by_ids(auto_test_id, run_id, result_id)
+    auth.AutoTestResultPermissions(result).ensure_may_see()
+    return extended_jsonify(result, use_extended=models.AutoTestResult)
 
-    def also_error(obj: models.AutoTestResult) -> bool:
-        if obj.auto_test_run_id != run_id or obj.run.auto_test_id != test.id:
-            return True
-        elif obj.work.deleted:
-            return True
-        return False
 
-    result = get_or_404(
-        models.AutoTestResult,
-        result_id,
-        also_error=also_error,
-    )
+@api.route(
+    '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/results/<int:result_id>/restart',
+    methods=['POST']
+)
+@feature_required(Feature.AUTO_TEST)
+def restart_auto_test_result(auto_test_id: int, run_id: int, result_id: int
+                             ) -> ExtendedJSONResponse[models.AutoTestResult]:
+    """Get the extended version of an AutoTest result.
 
-    auth.ensure_can_view_autotest_result(result)
+    .. :quickref: AutoTest; Get the extended version of a single result.
+
+    :param auto_test_id: The id of the AutoTest in which the result is located.
+    :param run_id: The id of run in which the result is located.
+    :param result_id: The id of the result you want to get.
+    :returns: The extended version of a :class:`.models.AutoTestResult`.
+    """
+    result = _get_result_by_ids(auto_test_id, run_id, result_id)
+
+    auth.AutoTestResultPermissions(result).ensure_may_restart()
+
+    if not result.is_finished and result.runner is not None:
+        result.run.stop_runners([result.runner])
+
+    result.clear()
+    callback_after_this_request(lambda: tasks.adjust_amount_runners(run_id))
+    db.session.commit()
 
     return extended_jsonify(result, use_extended=models.AutoTestResult)
 
@@ -858,29 +889,13 @@ def get_auto_test_result_proxy(
         allow_remote_resources = get('allow_remote_resources', bool)
         allow_remote_scripts = get('allow_remote_scripts', bool)
 
-    test = get_or_404(
-        models.AutoTest,
-        auto_test_id,
-        also_error=lambda at: not at.assignment.is_visible
-    )
-    auth.ensure_can_view_autotest(test)
+    result = _get_result_by_ids(auto_test_id, run_id, result_id)
+    test = result.run.auto_test
     if not test.assignment.is_done:
         auth.ensure_permission(
             CPerm.can_view_autotest_output_files_before_done,
             test.assignment.course_id,
         )
-
-    def also_error(obj: models.AutoTestResult) -> bool:
-        return (
-            obj.auto_test_run_id != run_id or
-            obj.run.auto_test_id != test.id or obj.work.deleted
-        )
-
-    result = get_or_404(
-        models.AutoTestResult,
-        result_id,
-        also_error=also_error,
-    )
 
     base_file = filter_single_or_404(
         models.AutoTestOutputFile,

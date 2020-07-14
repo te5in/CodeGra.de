@@ -234,6 +234,7 @@ export class AutoTestResult {
         this.id = result.id;
         this.submissionId = result.work_id;
         this.finished = false;
+        this.autoTest = autoTest;
 
         this.update(result, autoTest);
     }
