@@ -215,7 +215,9 @@
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">db</span>
 <span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">helpers</span>
-<span class="kn">from</span> <span class="nn">..permissions</span> <span class="kn">import</span> <span class="n">BasePermission</span><span class="p">,</span> <span class="n">CoursePermission</span><span class="p">,</span> <span class="n">GlobalPermission</span>
+<span class="kn">from</span> <span class="nn">..permissions</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BasePermission</span><span class="p">,</span> <span class="n">CoursePermission</span><span class="p">,</span> <span class="n">GlobalPermission</span><span class="p">,</span> <span class="n">UnknownPermission</span>
+<span class="p">)</span>
 
 <span class="n">_T</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;_T&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="n">BasePermission</span><span class="p">)</span>  <span class="c1"># pylint: disable=invalid-name</span>
 <span class="n">T</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
@@ -341,11 +343,14 @@
 
 <span class="sd">        :returns: The permission of this database permission.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># This logic is correct</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_permission</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s1">&#39;_T&#39;</span><span class="p">,</span> <span class="n">CoursePermission</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__name</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s1">&#39;_T&#39;</span><span class="p">,</span> <span class="n">GlobalPermission</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__name</span><span class="p">])</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">course_permission</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s1">&#39;_T&#39;</span><span class="p">,</span> <span class="n">CoursePermission</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__name</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s1">&#39;_T&#39;</span><span class="p">,</span> <span class="n">GlobalPermission</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__name</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="c1"># We might have old permissions still in the database</span>
+            <span class="k">return</span> <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="s1">&#39;_T&#39;</span><span class="p">,</span> <span class="n">UnknownPermission</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__name</span><span class="p">))</span>
 
     <span class="nd">@hybrid_expression</span>
     <span class="k">def</span> <span class="nf">_get_value_comp</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="s1">&#39;Permission[_T]&#39;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">PermissionComp</span><span class="p">[</span><span class="n">_T</span><span class="p">]:</span>  <span class="c1"># pylint: disable=no-self-argument,missing-docstring</span>

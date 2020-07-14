@@ -10921,7 +10921,7 @@ the <a class="reference internal" href="#psef.models.user.User.has_permission" t
 <dl class="field-list simple">
 <dt class="field-odd">Variables</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>default_value</strong> – The default value for this permission.</p></li>
+<li><p><a class="reference internal" href="#psef.permissions.UnknownPermission.default_value" title="psef.permissions.UnknownPermission.default_value"><strong>default_value</strong></a> – The default value for this permission.</p></li>
 <li><p><strong>course_permission</strong> – Indicates if this permission is for course
 specific actions. If this is the case a user can have this permission
 for a subset of all the courses. If <code class="docutils literal notranslate"><span class="pre">course_permission</span></code> is <code class="docutils literal notranslate"><span class="pre">False</span></code>
@@ -14646,6 +14646,27 @@ trees.</p></li>
 <dl class="py attribute">
 <dt id="psef.permissions.GlobalPermission.can_use_snippets">
 <code class="sig-name descname">can_use_snippets</code><em class="property"> = _PermissionValue(item=1, default_value=True)</em><a class="headerlink" href="#psef.permissions.GlobalPermission.can_use_snippets" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="psef.permissions.UnknownPermission">
+<em class="property">class </em><code class="sig-prename descclassname">psef.permissions.</code><code class="sig-name descname">UnknownPermission</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em>, <em class="sig-param"><span class="n">name</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)">str</a></span></em><span class="sig-paren">)</span> &#x2192; <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.8)">None</a><a class="reference internal" href="../_modules/psef/permissions.html#UnknownPermission"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.permissions.UnknownPermission" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="py method">
+<dt id="psef.permissions.UnknownPermission.default_value">
+<em class="property">property </em><code class="sig-name descname">default_value</code><a class="headerlink" href="#psef.permissions.UnknownPermission.default_value" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">None</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="psef.permissions.UnknownPermission.name">
+<code class="sig-name descname">name</code><em class="property">: <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)">str</a></em><a class="headerlink" href="#psef.permissions.UnknownPermission.name" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 </dd></dl>
