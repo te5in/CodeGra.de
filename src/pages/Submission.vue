@@ -656,7 +656,21 @@ export default {
         },
 
         showPeerFeedback() {
-            return this.$utils.getProps(this.assignment, null, 'peer_feedback_settings') != null;
+            const pfSettings = this.$utils.getProps(
+                this.assignment,
+                null,
+                'peer_feedback_settings',
+            );
+            if (pfSettings == null) {
+                return false;
+            }
+            if (this.canGrade) {
+                return true;
+            }
+            if (this.submission != null && this.userId === this.submission.userId) {
+                return true;
+            }
+            return false;
         },
     },
 
