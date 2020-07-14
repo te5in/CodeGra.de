@@ -1402,8 +1402,6 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         started, and if this is the case it starts the run. It also schedules a
         task to notify our broker that we need a runner. The changes to the
         database are not committed!
-
-        .. note:: This function does the required permission checks.
         """
         self._ensure_can_start_run()
 
@@ -1420,7 +1418,6 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             ),
             auto_test=self,
         )
-        auth.AutoTestRunPermissions(run).ensure_may_start()
         self._runs.append(run)
         db.session.flush()
 

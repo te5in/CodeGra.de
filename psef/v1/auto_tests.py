@@ -629,6 +629,8 @@ def start_auto_test_run(auto_test_id: int) -> t.Union[JSONResponse[
         with_for_update=True
     )
 
+    auth.ensure_permission(CPerm.can_run_autotest, test.assignment.course_id)
+
     try:
         run = test.start_test_run()
     except exceptions.InvalidStateException as e:
