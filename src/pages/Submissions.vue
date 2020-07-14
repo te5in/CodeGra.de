@@ -193,7 +193,7 @@
                 </div>
 
                 <div class="action-button m-2 m-md-3 rounded text-center"
-                     @click="openCategory('epeer-feedback')">
+                     @click="openCategory('peer-feedback')">
                     <div class="content-wrapper border rounded p-3 pt-4">
                         <div class="icon-wrapper mb-2">
                             <icon name="comments-o" :scale="actionIconFactor * 6" />
