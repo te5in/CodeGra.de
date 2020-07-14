@@ -28,6 +28,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 import enum
 import typing as t
+import dataclasses
 
 from . import exceptions
 
@@ -202,6 +203,17 @@ class CoursePermission(BasePermission):
             out.write(
                 genereate_value_str(i, perm_name, perm_data['default_value'])
             )
+
+        out.write("""
+
+@dataclasses.dataclass(frozen=True)
+class UnknownPermission:
+    name: str
+
+    @property
+    def default_value(self) -> None:  # pragma: no cover
+        raise AssertionError('This is not a real permission')
+""")
 
         out.write("\n# yapf: enable\n")
 

@@ -225,9 +225,9 @@
 
     <b-alert show
              variant="warning"
-             class="no-deadline-alert mb-0 rounded-bottom-0"
+             class="no-deadline-alert mb-0 rounded-bottom-0 border-bottom"
              :class="{ 'rounded-0': noBorder }"
-             v-if="disabled">
+             v-if="disabled || onlyTestSubmissions">
         <p v-if="!assignment.hasDeadline">
             The deadline for this assignment has not yet been set.
 
@@ -242,6 +242,10 @@
             <span v-else>
                 Please ask your teacher to set a deadline before you
                 can submit your work.
+            </span>
+
+            <span v-if="onlyTestSubmissions">
+                You can already submit test submissions.
             </span>
         </p>
         <p v-else-if="submitDisabledReasons.length > 0">
@@ -277,7 +281,7 @@
                 <user-selector v-if="forOthers"
                                v-model="author"
                                select-label=""
-                               :disabled="disabled || isTestSubmission"
+                               :disabled="disabled || isTestSubmission || onlyTestSubmissions"
                                :base-url="`/api/v1/courses/${course.id}/users/`"
                                :use-selector="canListUsers"
                                :placeholder="`${loggedInUser.name} (${loggedInUser.username})`"
@@ -289,7 +293,8 @@
                                    v-b-popover.hover.top="testSubmissionDisabledPopover">
                 <b-input-group-text class="border-0">
                     <b-form-checkbox v-model="isTestSubmission"
-                                     :disabled="disabled || !!author">
+                                     v-b-popover.hover.top="onlyTestSubmissions ? 'This assignment does not have a deadline, so you can only do test submissions.' : ''"
+                                     :disabled="disabled || !!author || onlyTestSubmissions">
                         Test submission
                         <description-popover hug-text placement="top">
                             This submission will be uploaded by a special test student.
@@ -715,6 +720,13 @@ export default {
         course() {
             return this.$utils.getProps(this.assignment, null, 'course');
         },
+
+        onlyTestSubmissions() {
+            return (
+                !this.assignment.hasDeadline &&
+                this.assignment.hasPermission(CPerm.canSubmitOthersWork)
+            );
+        },
     },
 
     data() {
@@ -777,6 +789,15 @@ export default {
                     });
                 } else {
                     this.loadingGroups = false;
+                }
+            },
+        },
+
+        onlyTestSubmissions: {
+            immediate: true,
+            handler(newValue) {
+                if (newValue) {
+                    this.isTestSubmission = true;
                 }
             },
         },
