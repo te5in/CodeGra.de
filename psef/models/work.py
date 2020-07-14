@@ -877,6 +877,7 @@ class Work(Base):
         return PFConn.query.filter(
             PFConn.peer_feedback_settings == pf_settings,
             PFConn.peer_user == peer_user,
+            PFConn.user_id == cls.user_id,
         ).exists()
 
     @classmethod
