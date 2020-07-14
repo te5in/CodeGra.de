@@ -31,6 +31,8 @@ Version *Next*
 - Add the year to course names in the sidebar if there are other courses with
   the same name `(#1387)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1387>`__.
+- It is now possible to restart the AutoTest run for a single student
+  `(#1397) <https://github.com/CodeGra-de/CodeGra.de/pull/1397>`__.
 
 **Fixes**
 
