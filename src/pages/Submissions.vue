@@ -192,9 +192,12 @@
                     </div>
                 </div>
 
-                <div class="action-button m-2 m-md-3 rounded text-center"
-                     @click="openCategory('peer-feedback')">
-                    <div class="content-wrapper border rounded p-3 pt-4">
+                <div v-if="assignment.peer_feedback_settings != null"
+                     class="action-button m-2 m-md-3 rounded text-center"
+                     v-b-popover.top.hover="peerFeedbackDisabled">
+                    <div class="content-wrapper border rounded p-3 pt-4"
+                         :class="{ disabled: peerFeedbackDisabled }"
+                         @click="peerFeedbackDisabled || openCategory('peer-feedback')">
                         <div class="icon-wrapper mb-2">
                             <icon name="comments-o" :scale="actionIconFactor * 6" />
                         </div>
@@ -572,6 +575,23 @@ export default {
             }
 
             return this.latestSubmission.isLate();
+        },
+
+        peerFeedbackDisabled() {
+            const assig = this.assignment;
+
+            if (assig.deadline == null) {
+                return 'Peer feedback is disabled because the deadline has not been set yet.';
+            } else if (assig.deadlinePassed()) {
+                return '';
+            } else {
+                const pfSettings = assig.peer_feedback_settings;
+                return (
+                    'Peer feedback is disabled until the deadline has passed, which is at' +
+                    ` ${assig.getFormattedDeadline()}. After the deadline you have` +
+                    ` ${pfSettings.amount} days to give peer feedback.`
+                );
+            }
         },
 
         // It should not be possible that `assignment` is null. Still we use getProps below just in
