@@ -83,7 +83,7 @@ context('Submission uploader', () => {
         }, opts);
 
         return selectFile('test_submissions/hello.py').then(
-            async ret => {
+            async ([fileName, fileContent]) => {
                 if (testSub) {
                     await cy.get('.submission-uploader')
                         .contains('.custom-control', 'Test submission')
@@ -98,7 +98,7 @@ context('Submission uploader', () => {
 
                 await cy.url().should('contain', '/files/');
 
-                return ret;
+                return cy.wrap([fileName, fileContent]);
             },
         );
     }
@@ -165,7 +165,10 @@ context('Submission uploader', () => {
 
         it('should not be visible to students when the assignment has no deadline', () => {
             cy.login('student1', 'Student1');
+            goToSubmissions();
 
+            cy.get('.page.submissions')
+                .should('be.visible');
             cy.get('.action-buttons')
                 .contains('.action-button', 'Upload files')
                 .find('.disabled')
