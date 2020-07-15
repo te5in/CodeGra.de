@@ -162,7 +162,7 @@ class CoursePermissionChecker(PermissionChecker):
     def _ensure_if_not(
         self, checker: t.Callable[[], bool], perm: CPerm
     ) -> None:
-        """Ensure the given permission if the checker returns ``True``.
+        """Ensure the given permission if the checker returns ``False``.
 
         This method flips the permission check around: it first checks if a
         user has the given permission (which is fast), and if that is **not**
