@@ -153,11 +153,13 @@
                                 </span>
 
                                 <auto-test-state v-if="singleResult"
+                                                 @restarted="loadSingleResult"
                                                  :result="result"
+                                                 :assignment="assignment"
                                                  btn>
                                     <template
                                         slot="extra"
-                                        v-if="$utils.getProps(result, null, 'approxWaitingBefore') != null"
+                                        v-if="result && result.state === 'not_started' && result.approxWaitingBefore != null"
                                         >, ~{{ $utils.withOrdinalSuffix(result.approxWaitingBefore + 1) }}
                                         in the queue
                                     </template>

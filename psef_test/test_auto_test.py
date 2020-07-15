@@ -757,12 +757,13 @@ def test_update_auto_test(
 @pytest.mark.parametrize('use_transaction', [False], indirect=True)
 def test_run_auto_test(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
-    describe, live_server, lxc_stub, monkeypatch, app, session,
-    stub_function_class, assert_similar, monkeypatch_for_run
+    describe, live_server, lxc_stub, monkeypatch, app, session, assert_similar,
+    monkeypatch_for_run, make_function_spy, stub_function_class
 ):
     with describe('setup'):
         course, assig_id, teacher, student1 = basic
         student2 = helpers.create_user_with_role(session, 'Student', [course])
+        adjust_spy = make_function_spy(psef.tasks, 'adjust_amount_runners')
 
         with logged_in(teacher):
             test = helpers.create_auto_test(
@@ -1050,7 +1051,7 @@ def test_run_auto_test(
 
     with describe('getting wrong result'), logged_in(student2):
         with describe('cannot get with wrong test id'):
-            wrong_url = f'/api/v1/auto_tests/404'
+            wrong_url = '/api/v1/auto_tests/404'
             res = test_client.req(
                 'get', f'{wrong_url}/runs/{run.id}/results/{res2}', 404
             )
@@ -1064,6 +1065,30 @@ def test_run_auto_test(
             )
             session.query(m.AutoTestResult).get(int(res2)).work.deleted = False
             session.commit()
+
+    with describe('restarting result'), logged_in(teacher):
+        assert session.query(m.AutoTestResult).get(int(res2)).is_finished
+        test_client.req(
+            'post', f'{url}/runs/{run.id}/results/{res2}/restart', 200
+        )
+        assert adjust_spy.called_amount == 1
+        result = session.query(m.AutoTestResult).get(int(res2))
+        assert result.state == m.AutoTestStepResultState.not_started
+
+        # Can also restart the result while it is running
+        result.state = m.AutoTestStepResultState.running
+        result.runner = m.AutoTestRunner.query.first()
+        session.commit()
+
+        stop_runners = stub_function_class()
+        with monkeypatch.context() as m_context:
+            m_context.setattr(m.AutoTestRun, 'stop_runners', stop_runners)
+            test_client.req(
+                'post', f'{url}/runs/{run.id}/results/{res2}/restart', 200
+            )
+        result = session.query(m.AutoTestResult).get(int(res2))
+        assert result.state == m.AutoTestStepResultState.not_started
+        assert stop_runners.called_amount == 1
 
     with describe('delete result'):
         with logged_in(student1):

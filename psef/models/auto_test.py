@@ -1415,7 +1415,8 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         run = AutoTestRun(
             batch_run_done=(
                 not self.has_hidden_steps or self.assignment.deadline_expired
-            )
+            ),
+            auto_test=self,
         )
         self._runs.append(run)
         db.session.flush()
