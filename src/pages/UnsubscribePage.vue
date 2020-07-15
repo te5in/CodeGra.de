@@ -2,7 +2,7 @@
 <template>
 <div class="unsubscribe-page">
     <div class="settings-wrapper d-flex align-items-center flex-column">
-        <cg-logo show-easter-eggs inverted />
+        <cg-logo />
         <hr class="w-75"/>
         <notification-settings class="col-lg-6 col-md-10" :token="token" />
     </div>
