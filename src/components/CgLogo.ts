@@ -20,7 +20,7 @@ export default Vue.extend({
         function getLogoSrc(): string {
             let logo;
             const now = ctx.parent.$root.$now;
-            const isChristmas = () => now.month() === 11 && now.date() <= 26;
+            const isChristmas = now.month() === 11 && now.date() <= 26;
 
             if (ctx.props.small) {
                 logo = 'logo';
@@ -28,7 +28,7 @@ export default Vue.extend({
                 logo = 'codegrade';
             }
 
-            if (isChristmas()) {
+            if (isChristmas) {
                 logo += '-christmas';
             }
 
