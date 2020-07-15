@@ -14,10 +14,6 @@ export default Vue.extend({
             type: Boolean,
             default: false,
         },
-        showEasterEggs: {
-            type: Boolean,
-            default: false,
-        },
     },
 
     render(h, ctx) {
@@ -26,12 +22,14 @@ export default Vue.extend({
             const now = ctx.parent.$root.$now;
             const isChristmas = () => now.month() === 11 && now.date() <= 26;
 
-            if (ctx.props.showEasterEggs && isChristmas()) {
-                logo = 'CodeGrade_christmas';
-            } else if (ctx.props.small) {
+            if (ctx.props.small) {
                 logo = 'logo';
             } else {
                 logo = 'codegrade';
+            }
+
+            if (isChristmas()) {
+                logo += '-christmas';
             }
 
             if (ctx.props.inverted) {
