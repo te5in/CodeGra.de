@@ -44,6 +44,25 @@ def _get_at_set_by_ids(
     )
 
 
+def _get_result_by_ids(
+    auto_test_id: int, run_id: int, result_id: int
+) -> models.AutoTestResult:
+    test = get_or_404(
+        models.AutoTest,
+        auto_test_id,
+        also_error=lambda at: not at.assignment.is_visible
+    )
+
+    def also_error(obj: models.AutoTestResult) -> bool:
+        if obj.auto_test_run_id != run_id or obj.run.auto_test_id != test.id:
+            return True
+        elif obj.work.deleted:
+            return True
+        return False
+
+    return get_or_404(models.AutoTestResult, result_id, also_error=also_error)
+
+
 def _update_auto_test(
     auto_test: models.AutoTest, json_dict: t.Mapping[str, helpers.JSONType]
 ) -> None:
@@ -652,9 +671,7 @@ def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
         also_error=lambda obj: obj.auto_test_id != auto_test_id,
         with_for_update=True,
     )
-    auth.ensure_permission(
-        CPerm.can_delete_autotest_run, run.auto_test.assignment.course_id
-    )
+    auth.AutoTestRunPermissions(run).ensure_may_stop()
 
     job_id = run.get_job_id()
     callback_after_this_request(
@@ -741,27 +758,48 @@ def get_auto_test_result(auto_test_id: int, run_id: int, result_id: int
     :param result_id: The id of the result you want to get.
     :returns: The extended version of a :class:`.models.AutoTestResult`.
     """
-    test = get_or_404(
-        models.AutoTest,
-        auto_test_id,
-        also_error=lambda at: not at.assignment.is_visible
-    )
-    auth.ensure_can_view_autotest(test)
+    result = _get_result_by_ids(auto_test_id, run_id, result_id)
+    auth.AutoTestResultPermissions(result).ensure_may_see()
+    return extended_jsonify(result, use_extended=models.AutoTestResult)
 
-    def also_error(obj: models.AutoTestResult) -> bool:
-        if obj.auto_test_run_id != run_id or obj.run.auto_test_id != test.id:
-            return True
-        elif obj.work.deleted:
-            return True
-        return False
 
-    result = get_or_404(
-        models.AutoTestResult,
-        result_id,
-        also_error=also_error,
-    )
+@api.route(
+    (
+        '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/results'
+        '/<int:result_id>/restart'
+    ),
+    methods=['POST']
+)
+@feature_required(Feature.AUTO_TEST)
+def restart_auto_test_result(auto_test_id: int, run_id: int, result_id: int
+                             ) -> ExtendedJSONResponse[models.AutoTestResult]:
+    """Restart an AutoTest result.
 
-    auth.ensure_can_view_autotest_result(result)
+    .. :quickref: AutoTest; Restart a single result.
+
+    :param auto_test_id: The id of the AutoTest in which the result is located.
+    :param run_id: The id of run in which the result is located.
+    :param result_id: The id of the result you want to restart.
+    :returns: The extended version of a :class:`.models.AutoTestResult`.
+    """
+    result = _get_result_by_ids(auto_test_id, run_id, result_id)
+
+    auth.AutoTestResultPermissions(result).ensure_may_restart()
+
+    if result.is_finished or result.runner is None:
+        callback_after_this_request(
+            lambda: tasks.adjust_amount_runners(run_id)
+        )
+    else:
+        # XXX: We can probably do this in a more efficient way, while still
+        # making sure the code of the student is downloaded again. However, we
+        # hypothesized that this case (restarting a running result) will not
+        # happen very often so it doesn't really make sense to optimize this
+        # case.
+        result.run.stop_runners([result.runner])
+
+    result.clear()
+    db.session.commit()
 
     return extended_jsonify(result, use_extended=models.AutoTestResult)
 
@@ -858,29 +896,13 @@ def get_auto_test_result_proxy(
         allow_remote_resources = get('allow_remote_resources', bool)
         allow_remote_scripts = get('allow_remote_scripts', bool)
 
-    test = get_or_404(
-        models.AutoTest,
-        auto_test_id,
-        also_error=lambda at: not at.assignment.is_visible
-    )
-    auth.ensure_can_view_autotest(test)
+    result = _get_result_by_ids(auto_test_id, run_id, result_id)
+    test = result.run.auto_test
     if not test.assignment.is_done:
         auth.ensure_permission(
             CPerm.can_view_autotest_output_files_before_done,
             test.assignment.course_id,
         )
-
-    def also_error(obj: models.AutoTestResult) -> bool:
-        return (
-            obj.auto_test_run_id != run_id or
-            obj.run.auto_test_id != test.id or obj.work.deleted
-        )
-
-    result = get_or_404(
-        models.AutoTestResult,
-        result_id,
-        also_error=also_error,
-    )
 
     base_file = filter_single_or_404(
         models.AutoTestOutputFile,

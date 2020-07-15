@@ -5,10 +5,6 @@ import { hasAttr, getProps } from './typed';
 
 export * from './typed';
 
-export function formatTimePart(num) {
-    return `${num < 10 ? '0' : ''}${num}`;
-}
-
 export function convertToUTC(timeStr) {
     return moment(timeStr, moment.ISO_8601)
         .utc()
