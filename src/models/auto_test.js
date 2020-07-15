@@ -15,6 +15,7 @@ import {
 
 export const FINISHED_STATES = new Set([
     'passed',
+    'done',
     'partial',
     'failed',
     'timed_out',
@@ -234,6 +235,7 @@ export class AutoTestResult {
         this.id = result.id;
         this.submissionId = result.work_id;
         this.finished = false;
+        this.finishedAllSets = false;
         this.autoTest = autoTest;
 
         this.update(result, autoTest);
@@ -275,7 +277,7 @@ export class AutoTestResult {
                 break;
         }
 
-        this.finished = FINISHED_STATES.has(newState);
+        this.finished = FINISHED_STATES.has(this.state);
     }
 
     updateStepResults(steps, autoTest) {
@@ -425,6 +427,9 @@ export class AutoTestResult {
                 return acc;
             }, {}),
         );
+
+        this.finishedAllSets =
+            this.finished && Object.values(this.setResults).every(setResult => setResult.finished);
     }
 }
 
