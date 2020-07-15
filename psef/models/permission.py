@@ -12,7 +12,9 @@ from cg_sqlalchemy_helpers.types import DbColumn
 
 from . import Base, db
 from .. import helpers
-from ..permissions import BasePermission, CoursePermission, GlobalPermission
+from ..permissions import (
+    BasePermission, CoursePermission, GlobalPermission, UnknownPermission
+)
 
 _T = t.TypeVar('_T', bound=BasePermission)  # pylint: disable=invalid-name
 T = t.TypeVar('T')
@@ -138,11 +140,14 @@ class Permission(Base, t.Generic[_T]):  # pylint: disable=unsubscriptable-object
 
         :returns: The permission of this database permission.
         """
-        # This logic is correct
-        if self.course_permission:
-            return t.cast('_T', CoursePermission[self.__name])
-        else:
-            return t.cast('_T', GlobalPermission[self.__name])
+        try:
+            if self.course_permission:
+                return t.cast('_T', CoursePermission[self.__name])
+            else:
+                return t.cast('_T', GlobalPermission[self.__name])
+        except KeyError:  # pragma: no cover
+            # We might have old permissions still in the database
+            return t.cast('_T', UnknownPermission(self.__name))
 
     @hybrid_expression
     def _get_value_comp(cls: t.Type['Permission[_T]']) -> PermissionComp[_T]:  # pylint: disable=no-self-argument,missing-docstring

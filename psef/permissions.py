@@ -13,6 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 import enum
 import typing as t
+import dataclasses
 
 from . import exceptions
 
@@ -263,5 +264,14 @@ class CoursePermission(BasePermission):
     can_view_inline_feedback_before_approved = _PermissionValue(item=56, default_value=False)
     can_approve_inline_comments = _PermissionValue(item=57, default_value=False)
     can_edit_peer_feedback_settings = _PermissionValue(item=58, default_value=False)
+
+
+@dataclasses.dataclass(frozen=True)
+class UnknownPermission:
+    name: str
+
+    @property
+    def default_value(self) -> None:  # pragma: no cover
+        raise AssertionError('This is not a real permission')
 
 # yapf: enable

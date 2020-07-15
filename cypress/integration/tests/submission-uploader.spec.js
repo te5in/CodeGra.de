@@ -55,6 +55,26 @@ context('Submission uploader', () => {
             .submit('success');
     }
 
+    function selectFile(fileName) {
+        cy.get('.multiple-files-uploader .dropzone')
+            .should('be.visible')
+            .as('dropzone');
+
+        return cy.fixture(fileName, 'utf8').then(fileContent => {
+            cy.get('@dropzone').upload(
+                {
+                    fileName,
+                    fileContent,
+                    mimeType: 'text/x-python',
+                    encoding: 'utf8',
+                },
+                { subjectType: 'drag-n-drop' },
+            );
+
+            return cy.wrap([fileName, fileContent]);
+        });
+    }
+
     function uploadFiles(opts) {
         const { author, testSub, submitOpts } = Object.assign({
             author: '',
@@ -62,39 +82,25 @@ context('Submission uploader', () => {
             submitOpts: { waitForState: false },
         }, opts);
 
-        const fileName = 'test_submissions/hello.py';
+        return selectFile('test_submissions/hello.py').then(
+            async ([fileName, fileContent]) => {
+                if (testSub) {
+                    await cy.get('.submission-uploader')
+                        .contains('.custom-control', 'Test submission')
+                        .click();
+                } else if (author) {
+                    await cy.get('.submission-uploader .user-selector').multiselect([author]);
+                }
 
-        cy.get('.multiple-files-uploader .dropzone').should('be.visible');
+                await cy.get('.submission-uploader .submit-button').submit('success', Object.assign({
+                    waitForState: false,
+                }, submitOpts));
 
-        return cy.fixture(fileName, 'utf8').then(fileContent => {
-            cy.get('.dropzone').upload(
-                {
-                    fileContent,
-                    fileName,
-                    mimeType: 'text/x-python',
-                    encoding: 'utf8',
-                },
-                { subjectType: 'drag-n-drop' },
-            );
+                await cy.url().should('contain', '/files/');
 
-            if (testSub) {
-                cy.get('.submission-uploader')
-                    .contains('.custom-control', 'Test submission')
-                    .click();
-            }
-
-            if (author) {
-                cy.get('.submission-uploader .user-selector').multiselect([author]);
-            }
-
-            cy.get('.submission-uploader .submit-button').submit('success', Object.assign({
-                waitForState: false,
-            }, submitOpts));
-
-            cy.url().should('contain', '/files/');
-
-            return cy.wrap([fileName, fileContent]);
-        });
+                return cy.wrap([fileName, fileContent]);
+            },
+        );
     }
 
     before(() => {
@@ -125,7 +131,7 @@ context('Submission uploader', () => {
             goToSubmissions();
         });
 
-        it('should not be visible to teachers when the assignment has no deadline', () => {
+        it('should be visible to teachers when the assignment has no deadline', () => {
             cy.login('robin', 'Robin');
 
             cy.get('.submission-uploader')
@@ -139,9 +145,30 @@ context('Submission uploader', () => {
                 .should('be.visible');
         });
 
+        it('should be possible to do test submissions', () => {
+            cy.get('.submission-uploader')
+                .should('be.visible');
+            cy.get('.submission-uploader .user-selector')
+                .should('have.class', 'disabled')
+                .find('input')
+                .should('be.disabled');
+            cy.get('.submission-uploader .test-student-checkbox input')
+                .should('be.disabled');
+            cy.get('.submission-uploader .submit-button')
+                .should('be.disabled');
+
+            uploadFiles();
+
+            cy.get('.page.submission').should('exist');
+            cy.get('.submission-nav-bar').should('contain', 'Test Student');
+        });
+
         it('should not be visible to students when the assignment has no deadline', () => {
             cy.login('student1', 'Student1');
+            goToSubmissions();
 
+            cy.get('.page.submissions')
+                .should('be.visible');
             cy.get('.action-buttons')
                 .contains('.action-button', 'Upload files')
                 .find('.disabled')
@@ -263,6 +290,18 @@ context('Submission uploader', () => {
             cy.get('.submission-uploader')
                 .find('.multiple-files-uploader')
                 .should('exist');
+        });
+
+        it('should disable the submit button when no files are selected', () => {
+            goToSubmissions();
+
+            cy.get('.submission-uploader .submit-button')
+                .should('be.disabled');
+
+            selectFile('test_submissions/hello.py');
+
+            cy.get('.submission-uploader .submit-button')
+                .should('not.be.disabled');
         });
 
         it('should be possible to upload something', () => {

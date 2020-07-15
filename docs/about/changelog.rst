@@ -16,6 +16,11 @@ Version *Next*
 - Make it possible to run AutoTest on the teacher revision instead of the
   student submission, if it is available. `(#1390)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1390>`__.
+- Allow test submissions before the deadline `(#1395)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1395>`__. This may be useful
+  when setting up a course without knowing the deadline yet in LMSes that
+  support deadline synchronization, for which impossible to change the deadline
+  from within CodeGrade.
 
 **Updates**
 

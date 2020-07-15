@@ -260,7 +260,7 @@ export class Assignment extends AssignmentData {
         return now.isAfter(deadline);
     }
 
-    getSubmitDisabledReasons(now: moment.Moment = moment()): string[] {
+    getSubmitDisabledReasons({ now = moment() }: { now?: moment.Moment } = {}): string[] {
         const res = [];
 
         if (
@@ -272,7 +272,7 @@ export class Assignment extends AssignmentData {
             res.push('you cannot submit work for this course');
         }
 
-        if (!this.hasDeadline) {
+        if (!this.hasDeadline && !this.hasPermission(CPerm.canSubmitOthersWork)) {
             res.push("the assignment's deadline has not yet been set");
         }
 
@@ -284,7 +284,7 @@ export class Assignment extends AssignmentData {
     }
 
     canSubmitWork(now: moment.Moment = moment()): boolean {
-        return this.getSubmitDisabledReasons(now).length === 0;
+        return this.getSubmitDisabledReasons({ now }).length === 0;
     }
 
     get maxGrade() {
