@@ -10,8 +10,7 @@
                    :to="$inLTI ? undefined : ({ name: 'home' })"
                    @click="$inLTI && closeSubMenu(true)">
             <cg-logo :small="!mobileVisible"
-                     :inverted="!darkMode && $inLTI"
-                     show-easter-eggs />
+                     :inverted="!darkMode && $inLTI" />
         </component>
         <hr class="separator">
         <div class="sidebar-top">
