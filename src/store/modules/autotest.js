@@ -301,9 +301,8 @@ const actions = {
         result = state.results[resultId];
 
         // If a result is finished and final, it cannot change anymore, so we
-        // do not request it again. But only if we do not have the extended
-        // result yet, i.e. setResults is set.
-        if (result && result.finished && result.isFinal && result.hasExtended && !force) {
+        // do not request it again.
+        if (result && result.finishedAllSets && result.isFinal && !force) {
             return Promise.resolve();
         }
 
