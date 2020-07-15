@@ -43,6 +43,17 @@ def test_make_key(app):
         assert len(lst) == 2
 
 
+def test_outside_app():
+    res = []
+    fun = c.cache_within_request(lambda: res.append('Hello'))
+
+    fun()
+    assert res == ['Hello']
+
+    fun()
+    assert res == ['Hello', 'Hello']
+
+
 def test_cache_in_cls(app):
     lst = []
     lst2 = []

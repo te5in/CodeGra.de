@@ -606,6 +606,17 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
     def does_peer_review_of(
         self, *, reviewer: 'user_models.User', subject: 'user_models.User'
     ) -> bool:
+        """Check if the given ``reviewer`` should peer review submissions by
+        the given ``subject``.
+
+        :param reviewer: The user that should do the review.
+        :param subject: Submissions of this user should be peer reviewed by the
+            ``reviewer`` if this function returns ``True``.
+
+        :returns: ``True`` if the ``reviewer`` should do a peer review,
+                  ``False`` otherwise. It also returns ``False`` if the
+                  deadline of an assignment has not expired just yet.
+        """
         # If the assignment is not yet done the ordering has not stabilized, so
         # we do
         if not self.assignment.deadline_expired:

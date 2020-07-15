@@ -25,7 +25,6 @@ from psef.helpers import (
     ensure_keys_in_dict, make_empty_response, get_from_map_transaction,
     get_json_dict_from_request
 )
-from cg_sqlalchemy_helpers import expression as sql_expression
 
 from . import api
 from .. import limiter, parsers, features

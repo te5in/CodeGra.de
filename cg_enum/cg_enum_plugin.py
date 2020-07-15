@@ -4,11 +4,14 @@ methods
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
-from functools import partial
 
-from mypy.nodes import Var, TypeInfo, MemberExpr
-from mypy.types import Type, Instance, LiteralType, PartialType
-from mypy.plugin import Plugin, AttributeContext
+from mypy.nodes import Var, MemberExpr  # pylint: disable=no-name-in-module
+from mypy.types import (  # pylint: disable=no-name-in-module
+    Type, Instance, LiteralType
+)
+from mypy.plugin import (  # pylint: disable=no-name-in-module
+    Plugin, AttributeContext
+)
 
 
 def _enum_has(enum: t.Any, attr: str) -> bool:
@@ -19,6 +22,8 @@ def _enum_has(enum: t.Any, attr: str) -> bool:
 
 
 def analyze_is_method(ctx: AttributeContext) -> Type:
+    """Callback to analyze the ``is_*`` methods on ``CGEnum``s.
+    """
     typ = ctx.type
     assert isinstance(ctx.context, MemberExpr)
     name = ctx.context.name
@@ -53,7 +58,9 @@ def analyze_is_method(ctx: AttributeContext) -> Type:
 
 
 class CgEnumPlugin(Plugin):
-    def get_attribute_hook(
+    """Plugin class for ``CGEnum``.
+    """
+    def get_attribute_hook(  # pylint: disable=no-self-use,missing-function-docstring
         self, fullname: str
     ) -> t.Optional[t.Callable[[AttributeContext], Type]]:
         if fullname.startswith('cg_enum.CGEnum.is_'):
@@ -61,6 +68,6 @@ class CgEnumPlugin(Plugin):
         return None
 
 
-def plugin(version: str) -> t.Type[CgEnumPlugin]:
+def plugin(version: str) -> t.Type[CgEnumPlugin]:  # pylint: disable=unused-argument,missing-function-docstring
     # ignore version argument if the plugin works with all mypy versions.
     return CgEnumPlugin

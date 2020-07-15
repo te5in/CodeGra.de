@@ -835,6 +835,18 @@ def ensure_can_view_files(
         files.
     """
     cur_user = _get_cur_user()
+    if teacher_files:
+        if work.has_as_author(cur_user) and work.assignment.is_done:
+            ensure_permission(
+                CPerm.can_view_own_teacher_files, work.assignment.course_id
+            )
+        else:
+            # If the assignment is not done you can only view teacher files
+            # if you can edit somebodies work.
+            ensure_permission(
+                CPerm.can_edit_others_work, work.assignment.course_id
+            )
+
     try:
         if not work.has_as_author(cur_user):
             try:
@@ -845,18 +857,6 @@ def ensure_can_view_files(
             except PermissionException:
                 if not work.is_peer_reviewed_by(cur_user):
                     raise
-
-        if teacher_files:
-            if work.has_as_author(cur_user) and work.assignment.is_done:
-                ensure_permission(
-                    CPerm.can_view_own_teacher_files, work.assignment.course_id
-                )
-            else:
-                # If the assignment is not done you can only view teacher files
-                # if you can edit somebodies work.
-                ensure_permission(
-                    CPerm.can_edit_others_work, work.assignment.course_id
-                )
     except PermissionException:
         # A user can also view a file if there is a plagiarism case between
         # submission {A, B} where submission A is from a virtual course and the

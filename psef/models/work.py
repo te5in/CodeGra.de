@@ -12,7 +12,7 @@ from collections import defaultdict
 import structlog
 import sqlalchemy
 from sqlalchemy import orm, select
-from sqlalchemy.orm import undefer, selectinload, contains_eager
+from sqlalchemy.orm import undefer, selectinload
 from sqlalchemy.types import JSON
 from typing_extensions import Literal
 
@@ -24,7 +24,6 @@ from cg_sqlalchemy_helpers import hybrid_property, hybrid_expression
 from cg_sqlalchemy_helpers.types import (
     DbColumn, ColumnProxy, FilterColumn, cast_as_non_null
 )
-from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 
 from . import Base, DbColumn, db
 from . import file as file_models
@@ -759,6 +758,13 @@ class Work(Base):
     def get_root_file(
         self, exclude_owner: 'file_models.FileOwner'
     ) -> 'file_models.File':
+        """Get the root file for this submission.
+
+        :param exclude: The fileowner to exclude from search, like described in
+            :func:`psef.v1.submissions.get_zip`.
+
+        :returns: The root file for the submission.
+        """
         return psef.helpers.filter_single_or_404(
             file_models.File,
             file_models.File.work == self,
@@ -869,6 +875,16 @@ class Work(Base):
         peer_user: 'user_models.User',
         assignment: 'assignment_models.Assignment',
     ) -> FilterColumn:
+        """Get a filter to filter database queries to only include submissions
+        that are peer reviewed by the given ``peer_user`` in the given
+        ``assignment``.
+
+        :param peer_user: The user that might peer reviews the submissions.
+        :param assignment: The assignment in which the ``peer_user`` should be
+            the peer reviewer of the submissions.
+
+        :returns: A column that can be used to filter a query for submissions.
+        """
         pf_settings = assignment.peer_feedback_settings
         if not assignment.deadline_expired or pf_settings is None:
             return sql_expression.false()
@@ -885,17 +901,17 @@ class Work(Base):
         cls,
         user: 'user_models.User',
     ) -> FilterColumn:
-        """Limit the given query of submissions to only submission submitted by
-            the given user.
+        """Get a filter to filter database queries to only include submissions
+        by the given ``user``.
 
         .. note::
 
             This is not the same as filtering on the author field as this also
             checks for groups.
 
-        :param query: The query to limit.
         :param user: The user to filter for.
-        :returns: The filtered query.
+
+        :returns: A column that can be used to filter a query for submissions.
         """
         # This query could be improved, but it seems fast enough. It now gets
         # every group of a user. This could be narrowed down probably.
@@ -908,13 +924,20 @@ class Work(Base):
         )
 
     def is_peer_reviewed_by(self, user: 'user_models.User') -> bool:
+        """Is this submission peer reviewed by the given ``user``.
+
+        :param user: The user that might be the peer reviewer of this
+            submission.
+
+        :returns: A boolean indicating if ``user`` is the peer reviewer of this
+                  submissions.
+        """
         pf_settings = self.assignment.peer_feedback_settings
         if pf_settings is None:
             return False
 
-        return pf_settings.does_peer_review_of(
-            reviewer=user, subject=self.user
-        )
+        author = self.user
+        return pf_settings.does_peer_review_of(reviewer=user, subject=author)
 
     def get_all_authors(self) -> t.List['user_models.User']:
         """Get all the authors of this submission.

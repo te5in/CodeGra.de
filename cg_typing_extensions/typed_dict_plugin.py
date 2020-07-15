@@ -2,14 +2,18 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-from functools import partial
-
-from mypy.nodes import ARG_NAMED, TypeInfo
-from mypy.types import Type, CallableType, TypedDictType
-from mypy.plugin import Plugin, FunctionContext
+from mypy.nodes import ARG_NAMED  # pylint: disable=no-name-in-module
+from mypy.types import (  # pylint: disable=no-name-in-module
+    Type, CallableType, TypedDictType
+)
+from mypy.plugin import (  # pylint: disable=no-name-in-module
+    Plugin, FunctionContext
+)
 
 
 def callback(ctx: FunctionContext) -> Type:
+    """Get the callback for ``extend_typed_dict``
+    """
     base_dict, (extends_to, ), *_ = ctx.arg_types
     ret = ctx.default_return_type
     if not isinstance(base_dict[0], TypedDictType):
@@ -71,11 +75,14 @@ def callback(ctx: FunctionContext) -> Type:
 
 
 class CgTypedDictPlugin(Plugin):
-    def get_function_hook(self, fullname: str):
+    """Class implementing the  ``make_typed_dict_extender`` plugin.
+    """
+    def get_function_hook(self, fullname: str):  # pylint: disable=no-self-use,missing-function-docstring
         if fullname == 'cg_typing_extensions.make_typed_dict_extender':
             return callback
+        return None
 
 
-def plugin(version: str):
+def plugin(version: str):  # pylint: disable=unused-argument,missing-function-docstring
     # ignore version argument if the plugin works with all mypy versions.
     return CgTypedDictPlugin

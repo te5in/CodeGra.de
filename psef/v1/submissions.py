@@ -983,7 +983,14 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
 
 
 class RootFileTreesJSON(TypedDict, total=True):
+    """A representation containing both the teacher file tree and student file
+    tree for a submission.
+    """
+    #: The teacher file tree, this will be ``null`` if you do not have the
+    #: permission to see teacher files. This might be exactly the same as the
+    #: student tree.
     teacher: t.Optional[psef.files.FileTree[int]]
+    #: The student file tree of the submission. This will never be ``null``.
     student: psef.files.FileTree[int]
 
 

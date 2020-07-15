@@ -31,7 +31,9 @@ from .. import auth, db_locks, current_app, current_user
 @enum.unique
 class CommentType(CGEnum):
     """The type of formatting used for the contents of the reply."""
+    #: This is a piece of normal feedback.
     normal = enum.auto()
+    #: This is peer feedback given by another student.
     peer_feedback = enum.auto()
 
 
@@ -39,32 +41,72 @@ class CommentType(CGEnum):
 class CommentReplyType(CGEnum):
     """The type of formatting used for the contents of the reply.
     """
+    #: The reply is plain text.
     plain_text = enum.auto()
+    #: The reply should be interpreted as markdown.
     markdown = enum.auto()
 
 
 class CommentReplyJSON(TypedDict, total=True):
+    """The serialization of an :class:`.CommentReply`.
+    """
+    #: The id of the reply
     id: int
+    #: The content of the reply, see ``reply_type`` to check in what kind of
+    #: formatting this reply is.
     comment: str
+    #: The id of the author of this reply, this will be ``null`` if no author
+    #: is known (for legacy replies), or if you do not have the permission to
+    #: see the author.
     author_id: t.Optional[int]
+    #: If this reply was a reply to a specific :class:`.CommentReply`, this
+    #: field will be the id of this :class:`.CommentReply`. Otherwise this will
+    #: be ``null``.
     in_reply_to_id: t.Optional[int]
+    #: The date the last edit was made to this reply, this will be ``null`` if
+    #: you do not have the permission to see this information.
     last_edit: t.Optional[DatetimeWithTimezone]
+    #: The date this reply was created.
     created_at: DatetimeWithTimezone
+    #: The formatting that the content of this reply is in.
     reply_type: CommentReplyType
+    #: The type of comment this is.
     comment_type: CommentType
+    #: Is this comment approved (i.e. visible for the author of the submission
+    #: in most cases) or not.
     approved: bool
-
-
-class CommentReplyExtendedJSON(CommentReplyJSON, total=True):
-    author: t.Optional['user_models.User']
+    #: The id of the :class:`.CommentBase` this reply is in.
     comment_base_id: int
 
 
+class CommentReplyExtendedJSON(CommentReplyJSON, total=True):
+    """The extended serialization of an :class:`.CommentReply`.
+
+    This serialization contains all data from :class:`.CommentReplyJSON` plus
+    some additional fields.
+    """
+    #: The author of this reply. This will be ``null`` if you do not have the
+    #: permission to see this information.
+    author: t.Optional['user_models.User']
+
+
 class CommentBaseJSON(TypedDict, total=True):
+    """The serialization of an :class:`.CommentBase`.
+    """
+    #: The id of the comment base.
     id: int
+
+    #: The line on which the comment was placed.
     line: int
+
+    #: The id of the file on which this comment was placed.
     file_id: str
+
+    #: The id of the work that this comment was placed on. This work will
+    #always contain the file with ``file_id``.
     work_id: int
+
+    #: The replies, that you are allowed to see, in this comment base.
     replies: t.Sequence['CommentReply']
 
 
@@ -174,8 +216,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
             You are only allowed to see the author when you are also allowed to
             see the reply itself.
         """
-        checker = psef.auth.FeedbackReplyPermissions(self)
-        return checker.ensure_may_see_author.as_bool()
+        return self.perm_checker.ensure_may_see_author.as_bool()
 
     @property
     def message_id(self) -> str:
@@ -198,6 +239,8 @@ class CommentReply(IdMixin, TimestampMixin, Base):
 
     @property
     def perm_checker(self) -> 'auth.FeedbackReplyPermissions':
+        """Get the permission checker for this class.
+        """
         return auth.FeedbackReplyPermissions(self)
 
     def __init__(
@@ -307,6 +350,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
             'reply_type': self.reply_type,
             'comment_type': self.comment_type,
             'approved': self.is_approved,
+            'comment_base_id': self.comment_base_id,
         }
 
         if self.can_see_author:
@@ -319,7 +363,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         # Tracking mypy issue: https://github.com/python/mypy/issues/4122
         return make_typed_dict_extender(
             self.__to_json__(), CommentReplyExtendedJSON
-        )(author=author, comment_base_id=self.comment_base_id)
+        )(author=author)
 
 
 class CommentReplyEdit(IdMixin, TimestampMixin, Base):
@@ -538,11 +582,13 @@ class CommentBase(IdMixin, Base):
         """
         return [
             r for r in self.replies
-            if auth.FeedbackReplyPermissions(r).ensure_may_see.as_bool()
+            if r.perm_checker.ensure_may_see.as_bool()
         ]
 
     @classmethod
     def get_base_comments_query(cls) -> MyQuery['CommentBase']:
+        """Get a base query to get all comments and replies in a correct order.
+        """
         return cls.query.filter(
             ~file_models.File.self_deleted,
             # We join the replies using an innerload to make sure we only get

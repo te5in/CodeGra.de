@@ -142,12 +142,6 @@ def cache_within_request(f: T) -> T:
     This decorator can also be used outside of flask, in which case it WILL NOT
     cache anything.
 
-    >>> p = cache_within_request(lambda: print('Hello'))
-    >>> p()
-    Hello
-    >>> p()
-    Hello
-
     :param f: The function to cache.
     :returns: A wrapped version of ``f`` that is cached.
     """

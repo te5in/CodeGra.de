@@ -15,7 +15,7 @@ from collections import defaultdict
 import werkzeug
 import structlog
 from flask import request
-from sqlalchemy.orm import joinedload, selectinload, contains_eager
+from sqlalchemy.orm import joinedload, selectinload
 
 import psef
 import psef.files

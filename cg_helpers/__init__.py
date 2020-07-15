@@ -115,7 +115,7 @@ def zip_times_with_offset(
     yield from _zip_times_with_offset(lst, 0)
 
 
-def remove_duplicates(it: t.Iterable[T],
+def remove_duplicates(iterable: t.Iterable[T],
                       make_key: t.Callable[[T], object]) -> t.Iterator[T]:
     """Get an iterator of the given iterable with all duplicates removed.
 
@@ -131,7 +131,7 @@ def remove_duplicates(it: t.Iterable[T],
     :returns: A new iterator in which all duplicates are removed.
     """
     seen = set()
-    for item in it:
+    for item in iterable:
         key = make_key(item)
         if key in seen:
             continue

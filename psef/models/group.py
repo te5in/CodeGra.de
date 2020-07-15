@@ -243,7 +243,7 @@ class Group(Base):
         :returns: The query as described above.
         """
         res = db.session.query(Group)
-        cond = t.cast(DbColumn[int], Group.id).in_(
+        cond = Group.id.in_(
             db.session.query(users_groups.c.group_id).filter(
                 t.cast(DbColumn[int],
                        users_groups.c.user_id).in_([m.id for m in users])
