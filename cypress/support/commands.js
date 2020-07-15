@@ -272,6 +272,8 @@ Cypress.Commands.add('createAssignment', (courseId, name, { state, bbZip, deadli
         if (deadline !== undefined) {
             if (deadline === 'tomorrow') {
                 deadline = tomorrow();
+            } else if (deadline === 'yesterday') {
+                deadline = yesterday();
             }
             body.deadline = deadline;
         }
@@ -336,6 +338,15 @@ Cypress.Commands.add('tempPatchAssignment', (assignment, props, callback) => {
             return callback(tempAssignment);
         })
         .then(() => cy.patchAssignment(assignment.id, oldProps));
+});
+
+Cypress.Commands.add('patchPeerFeedback', (assignmentId, settings) => {
+    return cy.authRequest({
+        url: `/api/v1/assignments/${assignmentId}/peer_feedback_settings`,
+        method: settings == null ? 'DELETE' : 'PUT',
+        user: ADMIN_USER,
+        body: settings,
+    });
 });
 
 Cypress.Commands.add('createSubmission', (assignmentId, fileName, opts={}) => {

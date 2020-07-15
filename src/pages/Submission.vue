@@ -532,7 +532,7 @@ export default {
                 },
                 {
                     id: 'feedback-overview',
-                    name: 'Feedback overview',
+                    name: 'Feedback Overview',
                     badge: this.numFeedbackItems === 0 ? null : {
                         label: this.numFeedbackItems,
                         variant: 'primary',
@@ -550,7 +550,7 @@ export default {
                 },
                 {
                     id: 'teacher-diff',
-                    name: 'Teacher diff',
+                    name: 'Teacher Diff',
                     enabled: this.showTeacherDiff,
                 },
                 {

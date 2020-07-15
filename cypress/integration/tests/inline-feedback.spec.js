@@ -235,7 +235,7 @@ context('Inline feedback', () => {
     }
 
     function checkSingleFeedbackOverview(filename, feedback) {
-        cy.openCategory('Feedback overview');
+        cy.openCategory('Feedback Overview');
         getOverviewFile(filename)
             .should('contain', 'Overview mode is not available');
         if (feedback != null) {
@@ -251,7 +251,7 @@ context('Inline feedback', () => {
         }
 
         cy.url().then(url => {
-            cy.openCategory('Feedback overview');
+            cy.openCategory('Feedback Overview');
             getOverviewFile(filename)
                 .contains('.inline-link', 'here')
                 .click();
@@ -264,12 +264,12 @@ context('Inline feedback', () => {
     function checkOverviewBadge(n) {
         if (n > 0) {
             cy.get('.categories')
-                .contains('.category', 'Feedback overview')
+                .contains('.category', 'Feedback Overview')
                 .find('.badge')
                 .should('contain', n.toString());
         } else {
             cy.get('.categories')
-                .contains('.category', 'Feedback overview')
+                .contains('.category', 'Feedback Overview')
                 .find('.badge')
                 .should('not.exist');
         }
@@ -380,7 +380,7 @@ context('Inline feedback', () => {
                 waitUntilLoaded();
                 cy.openCategory('Code');
                 checkInlineFeedback(0, inlineMsg);
-                cy.openCategory('Feedback overview');
+                cy.openCategory('Feedback Overview');
                 checkInlineFeedbackOverview(filename, 0, inlineMsg);
             });
 
@@ -403,7 +403,7 @@ context('Inline feedback', () => {
                 giveInlineFeedback(1, otherMsg);
                 checkOverviewBadge(2);
 
-                cy.openCategory('Feedback overview');
+                cy.openCategory('Feedback Overview');
                 checkInlineFeedbackOverview(filename, 0, inlineMsg);
                 checkInlineFeedbackOverview(filename, 1, otherMsg);
 
@@ -415,7 +415,7 @@ context('Inline feedback', () => {
             });
 
             it('should show a message if no inline feedback is given', () => {
-                cy.openCategory('Feedback overview');
+                cy.openCategory('Feedback Overview');
                 cy.get('.inline-feedback')
                     .should('contain', 'This submission has no inline feedback.');
             });
@@ -594,7 +594,7 @@ context('Inline feedback', () => {
                     cy.openCategory('Code');
                     openFile(opts.filename, opts.outerViewer);
                     checkSingleFeedback(inlineMsg, false, opts.innerViewer);
-                    cy.openCategory('Feedback overview');
+                    cy.openCategory('Feedback Overview');
                     const msg = opts.checkMessageInOverview ? inlineMsg : null;
                     checkSingleFeedbackOverview(opts.filename, msg);
                 });

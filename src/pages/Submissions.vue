@@ -454,12 +454,12 @@ export default {
                 },
                 {
                     id: 'course-feedback',
-                    name: 'Course feedback',
+                    name: 'Course Feedback',
                     enabled: this.isStudent,
                 },
                 {
                     id: 'peer-feedback',
-                    name: 'Peer feedback',
+                    name: 'Peer Feedback',
                     enabled: this.isStudent,
                 },
             ];
