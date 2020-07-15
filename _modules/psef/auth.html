@@ -970,13 +970,7 @@
 <span class="sd">    :param auto_test: The AutoTest to check for.</span>
 <span class="sd">    :returns: Nothing.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">course_id</span> <span class="o">=</span> <span class="n">auto_test</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span>
-    <span class="n">ensure_enrolled</span><span class="p">(</span><span class="n">course_id</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">auto_test</span><span class="o">.</span><span class="n">run</span> <span class="ow">and</span> <span class="n">auto_test</span><span class="o">.</span><span class="n">results_always_visible</span><span class="p">:</span>
-        <span class="k">return</span>
-    <span class="k">elif</span> <span class="ow">not</span> <span class="n">auto_test</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">is_done</span><span class="p">:</span>
-        <span class="n">ensure_permission</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_view_autotest_before_done</span><span class="p">,</span> <span class="n">course_id</span><span class="p">)</span></div>
+    <span class="n">AutoTestPermissions</span><span class="p">(</span><span class="n">auto_test</span><span class="p">)</span><span class="o">.</span><span class="n">ensure_may_see</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="ensure_can_view_autotest_result"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.ensure_can_view_autotest_result">[docs]</a><span class="nd">@login_required</span>
@@ -987,17 +981,7 @@
 
 <span class="sd">    :param result: The result to check.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">run</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">run</span>
-    <span class="n">work</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">work</span>
-    <span class="n">course_id</span> <span class="o">=</span> <span class="n">run</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span>
-    <span class="n">ensure_enrolled</span><span class="p">(</span><span class="n">course_id</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">run</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">results_always_visible</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">work</span><span class="o">.</span><span class="n">has_as_author</span><span class="p">(</span><span class="n">_get_cur_user</span><span class="p">()):</span>
-            <span class="k">return</span>
-        <span class="n">ensure_permission</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_others_work</span><span class="p">,</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">ensure_can_see_grade</span><span class="p">(</span><span class="n">work</span><span class="p">)</span></div>
+    <span class="n">AutoTestResultPermissions</span><span class="p">(</span><span class="n">result</span><span class="p">)</span><span class="o">.</span><span class="n">ensure_may_see</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="ensure_can_view_fixture"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.ensure_can_view_fixture">[docs]</a><span class="nd">@login_required</span>
@@ -1341,6 +1325,84 @@
         <span class="sd">&quot;&quot;&quot;Check if the current user has the permission to see analytics data.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_ensure</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_view_analytics</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="AutoTestPermissions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.AutoTestPermissions">[docs]</a><span class="k">class</span> <span class="nc">AutoTestPermissions</span><span class="p">(</span><span class="n">CoursePermissionChecker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The permission checker for :class:`psef.models.AutoTest`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;auto_test&#39;</span><span class="p">,</span> <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">auto_test</span><span class="p">:</span> <span class="s1">&#39;psef.models.AutoTest&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">auto_test</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_test</span><span class="p">:</span> <span class="n">Final</span> <span class="o">=</span> <span class="n">auto_test</span>
+
+<div class="viewcode-block" id="AutoTestPermissions.ensure_may_see"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.AutoTestPermissions.ensure_may_see">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_see</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Make sure the current user may see this auto test configuration.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_enrolled</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">run</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">results_always_visible</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">is_done</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ensure</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_view_autotest_before_done</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="AutoTestRunPermissions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.AutoTestRunPermissions">[docs]</a><span class="k">class</span> <span class="nc">AutoTestRunPermissions</span><span class="p">(</span><span class="n">CoursePermissionChecker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The permission checker for :class:`psef.models.AutoTestRun`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;run&#39;</span><span class="p">,</span> <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">run</span><span class="p">:</span> <span class="s1">&#39;psef.models.AutoTestRun&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">run</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">:</span> <span class="n">Final</span> <span class="o">=</span> <span class="n">run</span>
+
+<div class="viewcode-block" id="AutoTestRunPermissions.ensure_may_start"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.AutoTestRunPermissions.ensure_may_start">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_start</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Make sure the current user may start this AutoTest run.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_run_autotest</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AutoTestRunPermissions.ensure_may_stop"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.AutoTestRunPermissions.ensure_may_stop">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_stop</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Make sure the current user may stop this AutoTest run.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_delete_autotest_run</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="AutoTestResultPermissions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.AutoTestResultPermissions">[docs]</a><span class="k">class</span> <span class="nc">AutoTestResultPermissions</span><span class="p">(</span><span class="n">CoursePermissionChecker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The permission checker for :class:`psef.models.AutoTestResult`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;result&#39;</span><span class="p">,</span> <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="s1">&#39;psef.models.AutoTestResult&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">run</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">course_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">:</span> <span class="n">Final</span> <span class="o">=</span> <span class="n">result</span>
+
+<div class="viewcode-block" id="AutoTestResultPermissions.ensure_may_see"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.AutoTestResultPermissions.ensure_may_see">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_see</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Make sure the current user may see this AutoTest result.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">AutoTestPermissions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="o">.</span><span class="n">run</span><span class="o">.</span><span class="n">auto_test</span><span class="p">)</span><span class="o">.</span><span class="n">ensure_may_see</span><span class="p">()</span>
+        <span class="n">run</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="o">.</span><span class="n">run</span>
+        <span class="n">work</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="o">.</span><span class="n">work</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_enrolled</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">run</span><span class="o">.</span><span class="n">auto_test</span><span class="o">.</span><span class="n">results_always_visible</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">work</span><span class="o">.</span><span class="n">has_as_author</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">):</span>
+                <span class="k">return</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ensure</span><span class="p">(</span><span class="n">CPerm</span><span class="o">.</span><span class="n">can_see_others_work</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">WorkPermissions</span><span class="p">(</span><span class="n">work</span><span class="p">)</span><span class="o">.</span><span class="n">ensure_may_see_grade</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="AutoTestResultPermissions.ensure_may_restart"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.AutoTestResultPermissions.ensure_may_restart">[docs]</a>    <span class="nd">@PermissionChecker</span><span class="o">.</span><span class="n">as_ensure_function</span>
+    <span class="k">def</span> <span class="nf">ensure_may_restart</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Make sure the current user may restart this AutoTest result.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ensure_may_see</span><span class="p">()</span>
+        <span class="n">run_perms</span> <span class="o">=</span> <span class="n">AutoTestRunPermissions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="o">.</span><span class="n">run</span><span class="p">)</span>
+        <span class="n">run_perms</span><span class="o">.</span><span class="n">ensure_may_start</span><span class="p">()</span>
+        <span class="n">run_perms</span><span class="o">.</span><span class="n">ensure_may_stop</span><span class="p">()</span></div></div>
 
 
 <div class="viewcode-block" id="TaskResultPermissions"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auth.TaskResultPermissions">[docs]</a><span class="k">class</span> <span class="nc">TaskResultPermissions</span><span class="p">(</span><span class="n">PermissionChecker</span><span class="p">):</span>

@@ -312,8 +312,6 @@
 </li>
       <li><a href="psef_api/psef.html#psef.exceptions.APICodes.ASSIGNMENT_DEADLINE_UNSET">ASSIGNMENT_DEADLINE_UNSET (psef.exceptions.APICodes attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.exceptions.APICodes.ASSIGNMENT_GROUP_FULL">ASSIGNMENT_GROUP_FULL (psef.exceptions.APICodes attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.lti.v1_1.BareBonesLTIProvider.assignment_id">assignment_id() (psef.lti.v1_1.BareBonesLTIProvider property)</a>
@@ -324,6 +322,8 @@
         <li><a href="psef_api/psef.html#psef.lti.v1_1.LTI.assignment_id">(psef.lti.v1_1.LTI property)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.lti.v1_1.BareBonesLTIProvider.assignment_name">assignment_name() (psef.lti.v1_1.BareBonesLTIProvider property)</a>
 
       <ul>
@@ -376,6 +376,8 @@
 </li>
       <li><a href="psef_api/psef.html#psef.models.lti_provider.LTI1p3Provider.auth_token_url">auth_token_url() (psef.models.lti_provider.LTI1p3Provider property)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.auth.AutoTestPermissions.auto_test">auto_test (psef.auth.AutoTestPermissions attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTest">AutoTest (class in psef.models.auto_test)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.auto_test.AutoTestContainer">AutoTestContainer (class in psef.auto_test)</a>
@@ -384,7 +386,11 @@
 </li>
       <li><a href="psef_api/psef.html#psef.models.file.AutoTestOutputFile">AutoTestOutputFile (class in psef.models.file)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.auth.AutoTestPermissions">AutoTestPermissions (class in psef.auth)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTestResult">AutoTestResult (class in psef.models.auto_test)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.auth.AutoTestResultPermissions">AutoTestResultPermissions (class in psef.auth)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTestRun">AutoTestRun (class in psef.models.auto_test)</a>
 </li>
@@ -394,6 +400,8 @@
         <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTestRunner">(class in psef.models.auto_test)</a>
 </li>
       </ul></li>
+      <li><a href="psef_api/psef.html#psef.auth.AutoTestRunPermissions">AutoTestRunPermissions (class in psef.auth)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTestSet">AutoTestSet (class in psef.models.auto_test)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.auto_test_step.AutoTestStepBase">AutoTestStepBase (class in psef.models.auto_test_step)</a>
@@ -1012,11 +1020,15 @@
         <li><a href="psef_api/psef.html#psef.auth.NotificationPermissions.ensure_may_edit">(psef.auth.NotificationPermissions attribute)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="psef_api/psef.html#psef.auth.AutoTestResultPermissions.ensure_may_restart">ensure_may_restart (psef.auth.AutoTestResultPermissions attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.auth.AnalyticsWorkspacePermissions.ensure_may_see">ensure_may_see (psef.auth.AnalyticsWorkspacePermissions attribute)</a>
 
       <ul>
+        <li><a href="psef_api/psef.html#psef.auth.AutoTestPermissions.ensure_may_see">(psef.auth.AutoTestPermissions attribute)</a>
+</li>
+        <li><a href="psef_api/psef.html#psef.auth.AutoTestResultPermissions.ensure_may_see">(psef.auth.AutoTestResultPermissions attribute)</a>
+</li>
         <li><a href="psef_api/psef.html#psef.auth.FeedbackReplyPermissions.ensure_may_see">(psef.auth.FeedbackReplyPermissions attribute)</a>
 </li>
         <li><a href="psef_api/psef.html#psef.auth.LTI1p3ProviderPermissions.ensure_may_see">(psef.auth.LTI1p3ProviderPermissions attribute)</a>
@@ -1026,6 +1038,8 @@
         <li><a href="psef_api/psef.html#psef.auth.TaskResultPermissions.ensure_may_see">(psef.auth.TaskResultPermissions attribute)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.auth.FeedbackReplyPermissions.ensure_may_see_author">ensure_may_see_author (psef.auth.FeedbackReplyPermissions attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.auth.FeedbackReplyPermissions.ensure_may_see_edits">ensure_may_see_edits (psef.auth.FeedbackReplyPermissions attribute)</a>
@@ -1035,6 +1049,10 @@
       <li><a href="psef_api/psef.html#psef.auth.WorkPermissions.ensure_may_see_grade">ensure_may_see_grade (psef.auth.WorkPermissions attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.auth.WorkPermissions.ensure_may_see_linter_feedback">ensure_may_see_linter_feedback (psef.auth.WorkPermissions attribute)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.auth.AutoTestRunPermissions.ensure_may_start">ensure_may_start (psef.auth.AutoTestRunPermissions attribute)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.auth.AutoTestRunPermissions.ensure_may_stop">ensure_may_stop (psef.auth.AutoTestRunPermissions attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.models.auto_test.AutoTest.ensure_no_runs">ensure_no_runs() (psef.models.auto_test.AutoTest method)</a>
 </li>
@@ -2735,6 +2753,8 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="psef_api/psef.html#psef.files.restore_directory_structure">restore_directory_structure() (in module psef.files)</a>
 </li>
+      <li><a href="psef_api/psef.html#psef.auth.AutoTestResultPermissions.result">result (psef.auth.AutoTestResultPermissions attribute)</a>
+</li>
       <li><a href="psef_api/psef.html#psef.lti.v1_1.BareBonesLTIProvider.result_sourcedid">result_sourcedid() (psef.lti.v1_1.BareBonesLTIProvider property)</a>
 
       <ul>
@@ -2760,6 +2780,8 @@
       <li><a href="psef_api/psef.html#psef.models.rubric.RubricRowBase">RubricRowBase (class in psef.models.rubric)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.ignore.FileRule.rule_type">rule_type (psef.ignore.FileRule attribute)</a>
+</li>
+      <li><a href="psef_api/psef.html#psef.auth.AutoTestRunPermissions.run">run (psef.auth.AutoTestRunPermissions attribute)</a>
 </li>
       <li><a href="psef_api/psef.html#psef.linters.Checkstyle.run">run() (psef.linters.Checkstyle method)</a>
 

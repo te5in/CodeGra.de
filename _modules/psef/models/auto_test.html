@@ -1618,7 +1618,8 @@
         <span class="n">run</span> <span class="o">=</span> <span class="n">AutoTestRun</span><span class="p">(</span>
             <span class="n">batch_run_done</span><span class="o">=</span><span class="p">(</span>
                 <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_hidden_steps</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">deadline_expired</span>
-            <span class="p">)</span>
+            <span class="p">),</span>
+            <span class="n">auto_test</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_runs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">run</span><span class="p">)</span>
         <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
