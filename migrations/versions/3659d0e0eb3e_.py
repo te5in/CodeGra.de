@@ -28,9 +28,11 @@ def upgrade():
         sa.Column('time', sa.Interval(), nullable=True),
         sa.Column('assignment_id', sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint('id'),
-        sa.ForeignKeyConstraint(['assignment_id'],
-                                ['Assignment.id'],
+        sa.ForeignKeyConstraint(['assignment_id'], ['Assignment.id'],
                                 ondelete='CASCADE'),
+        sa.CheckConstraint(
+            'amount > 0', name='peer_feedback_amount_at_least_one'
+        ),
     )
     op.create_table(
         'assignment_peer_feedback_connection',
@@ -47,7 +49,7 @@ def upgrade():
         sa.ForeignKeyConstraint(['user_id'], ['User.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint(
             'peer_feedback_settings_id', 'user_id', 'peer_user_id'
-        )
+        ),
     )
     # ### end Alembic commands ###
 

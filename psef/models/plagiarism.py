@@ -314,9 +314,9 @@ class PlagiarismRun(Base):
     id = db.Column('id', db.Integer, primary_key=True)
     state = db.Column(
         'state',
-        db.Enum(PlagiarismState),
+        db.Enum(PlagiarismState, name='plagiarismtate'),
         default=PlagiarismState.starting,
-        nullable=False
+        nullable=False,
     )
     submissions_total = db.Column(
         'submissions_total', db.Integer, default=0, nullable=True

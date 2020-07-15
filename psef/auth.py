@@ -957,6 +957,9 @@ def ensure_can_edit_members_of_group(
 
 
 class WorksByUserPermissions(CoursePermissionChecker):
+    """The permission checker used to check if a user may see submissions by
+    the given ``author`` in the given ``assignment``.
+    """
     __slots__ = ('assignment', 'author')
 
     def __init__(
@@ -968,6 +971,9 @@ class WorksByUserPermissions(CoursePermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see(self) -> None:
+        """Make sure the current user may see the submissions by the author
+        connected to this permission checker.
+        """
         if self.author.contains_user(self.user):
             return
         pf_settings = self.assignment.peer_feedback_settings
@@ -992,6 +998,8 @@ class WorkPermissions(CoursePermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see(self) -> None:
+        """Ensure the current user may see this work.
+        """
         WorksByUserPermissions(self.work.assignment,
                                self.work.user).ensure_may_see()
 
@@ -1106,6 +1114,11 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_add_as_peer(self) -> None:
+        """Make sure the current user may add this reply as peer feedback.
+
+        This might be the case while the user may not add normal feedback
+        (:py:meth:`.FeedbackReplyPermissions.ensure_may_add`).
+        """
         work = self.reply.comment_base.work
         assig = work.assignment
         pf_setting = assig.peer_feedback_settings
@@ -1143,6 +1156,9 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_change_approval(self) -> None:
+        """Ensure that the current user may change the approval status of this
+        reply.
+        """
         self.ensure_may_see()
         self._ensure(CPerm.can_approve_inline_comments)
 
@@ -1260,6 +1276,8 @@ class AnalyticsWorkspacePermissions(CoursePermissionChecker):
 
 
 class AssignmentPermissions(CoursePermissionChecker):
+    """The permission checker for :class:`psef.models.Assignment`.
+    """
     __slots__ = ('assignment', )
 
     def __init__(self, assignment: 'psef.models.Assignment') -> None:
@@ -1268,6 +1286,9 @@ class AssignmentPermissions(CoursePermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_edit_peer_feedback(self) -> None:
+        """Make sure the current user may edit the peer feedback settings of
+        this assignment.
+        """
         self._ensure(CPerm.can_edit_peer_feedback_settings)
 
 

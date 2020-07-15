@@ -1,4 +1,4 @@
-"""empty message
+"""Add comment_type column
 
 Revision ID: a7acedf8ec06
 Revises: 851948d545a1

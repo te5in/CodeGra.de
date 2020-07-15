@@ -668,7 +668,7 @@ class SetInstructions(TypedDict, total=True):
 class AssignmentInformation(TypedDict, total=True):
     """Information about the assignment that this AutoTest belongs to.
 
-    :ivar deadline: The deadline of the assignment.
+    :ivar ~.deadline: The deadline of the assignment.
     """
     deadline: t.Optional[str]
 

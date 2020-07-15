@@ -18,7 +18,7 @@ import sqlalchemy
 from sqlalchemy.orm import validates
 from mypy_extensions import DefaultArg
 from sqlalchemy.types import JSON
-from typing_extensions import Literal, TypedDict
+from typing_extensions import TypedDict
 from sqlalchemy.sql.expression import and_, func
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
@@ -71,14 +71,26 @@ logger = structlog.get_logger()
 
 
 class PeerFeedbackSettingJSON(TypedDict, total=True):
+    """The serialization of an :class:`.AssignmentPeerFeedbackSettings`.
+    """
+    #: The id of this settings object, needed for mutations.
     id: int
+
+    #: The amount of student that a single user should peer review.
     amount: int
+
+    #: The amount of time in seconds a user has after the deadline to do the
+    #: peer review.
     time: t.Optional[float]
 
 
 class AssignmentPeerFeedbackConnectionJSON(TypedDict, total=True):
-    subject: 'user_models.User'
+    """The serialization of an :class:`.AssignmentPeerFeedbackConnection`.
+    """
+    #: The user that should do the peer review.
     peer: 'user_models.User'
+    #: The user that should be reviewed by ``peer``.
+    subject: 'user_models.User'
 
 
 class AssignmentJSON(TypedDict, total=True):
@@ -87,60 +99,79 @@ class AssignmentJSON(TypedDict, total=True):
     See the comments in the source code for the meaning of each field.
     """
 
-    id: int  # The id of the assignment.
-    state: str  # Current state of the assignment.
-    description: t.Optional[str]  # Description of the assignment.
-    created_at: str  # ISO UTC date.
-    deadline: t.Optional[str]  # ISO UTC date.
-    name: str  # The name of the assignment.
-    is_lti: bool  # Is this an LTI assignment.
-    course: 'course_models.Course'  # Course of this assignment.
-    cgignore: t.Optional['psef.helpers.JSONType']  # The cginore.
+    id: int  #: The id of the assignment.
+    state: str  #: Current state of the assignment.
+    description: t.Optional[str]  #: Description of the assignment.
+    created_at: str  #: ISO UTC date.
+    deadline: t.Optional[str]  #: ISO UTC date.
+    name: str  #: The name of the assignment.
+    is_lti: bool  #: Is this an LTI assignment.
+    course: 'course_models.Course'  #: Course of this assignment.
+    cgignore: t.Optional['psef.helpers.JSONType']  #: The cginore.
     cgignore_version: t.Optional[str]
-    # Has the whitespace linter run on this assignment.
+    #: Has the whitespace linter run on this assignment.
     whitespace_linter: bool
 
-    # The fixed value for the maximum that can be achieved in a rubric. This
-    # can be higher and lower than the actual max. Will be `null` if unset.
+    #: The fixed value for the maximum that can be achieved in a rubric. This
+    #: can be higher and lower than the actual max. Will be `null` if unset.
     fixed_max_rubric_points: t.Optional[float]
 
-    # The maximum grade you can get for this assignment. This is based around
-    # the idea that a 10 is a 'perfect' score. So if this value is 12 a user
-    # can score 2 additional bonus points. If this value is `null` it is unset
-    # and regarded as a 10.
+    #: The maximum grade you can get for this assignment. This is based around
+    #: the idea that a 10 is a 'perfect' score. So if this value is 12 a user
+    #: can score 2 additional bonus points. If this value is `null` it is unset
+    #: and regarded as a 10.
     max_grade: t.Optional[float]
-    group_set: t.Optional['psef.models.GroupSet']
-    auto_test_id: t.Optional[int]
-    files_upload_enabled: bool  # Can you upload files to this assignment.
-    webhook_upload_enabled: bool  # Can you connect git to this assignment.
 
-    # The maximum amount of submission a student may create, inclusive. The
-    # value ``null`` indicates that there is no limit.
+    #: The group set of this assignment. This is ``null`` if this assignment is
+    #: not a group assignment.
+    group_set: t.Optional['psef.models.GroupSet']
+
+    #: The id of the AutoTest configuration connected to this assignment. This
+    #: will always be given if there is a configuration connected to this
+    #: assignment, even if you do not have permission to see the configuration
+    #: itself.
+
+    auto_test_id: t.Optional[int]
+    files_upload_enabled: bool  #: Can you upload files to this assignment.
+    webhook_upload_enabled: bool  #: Can you connect git to this assignment.
+
+    #: The maximum amount of submission a student may create, inclusive. The
+    #: value ``null`` indicates that there is no limit.
     max_submissions: t.Optional[int]
 
-    # These two values determine the maximum submissions in an amount of time
-    # by a user. A user can submit at most `amount_in_cool_off_period`
-    # submissions in `cool_off_period` seconds. `amount_in_cool_off_period` is
-    # always >= 1, so this check is disabled if `cool_off_period == 0`.
+    #: These two values determine the maximum submissions in an amount of time
+    #: by a user. A user can submit at most `amount_in_cool_off_period`
+    #: submissions in `cool_off_period` seconds. `amount_in_cool_off_period`
+    #: is always >= 1, so this check is disabled if `cool_off_period == 0`.
     cool_off_period: float
     amount_in_cool_off_period: int
 
-    # All next values are filled in based on permissions and data availability.
-
-    # ISO UTC date. This will be `null` if you don't have the permission to see
-    # this or if it is unset.
+    #: ISO UTC date. This will be `null` if you don't have the permission to
+    #: see this or if it is unset.
     reminder_time: t.Optional[str]
-    lms_name: t.Optional[str]  # The LMS providing this LTI assignment.
 
-    # TODO: comment
+    #: The LMS providing this LTI assignment.
+    lms_name: t.Optional[str]
+
+    #: The peer feedback settings for this assignment. If ``null`` this
+    #assignment is not a peer feedback assignment.
     peer_feedback_settings: t.Optional['AssignmentPeerFeedbackSettings']
 
-    # The kind of reminder that will be sent.  If you don't have the permission
-    # to see this it will always be `null`. If this is not set it will also be
-    # `null`.
+    #: The kind of reminder that will be sent.  If you don't have the
+    #: permission to see this it will always be ``null``. If this is not set it
+    #: will also be ``null``.
     done_type: t.Optional[str]
+    #: The email where the done email will be sent to. This will be ``null`` if
+    #: you do not have permission to see this information.
     done_email: t.Optional[str]
+
+    #: The assignment id of the assignment that determines the grader division
+    #: of this assignment. This will be ``null`` if you do not have permissions
+    #: to see this information, or if no such parent is set.
     division_parent_id: t.Optional[int]
+
+    #: The ids of the analytics workspaces connected to this assignment.
+    #: WARNING: This API is still in beta, and might change in the future.
     analytics_workspace_ids: t.List[int]
 
 
@@ -414,6 +445,11 @@ class AssignmentLinter(Base):
 
 
 class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
+    """This table represents a link between a two users and assignment.
+
+    If connection from ``UserA`` to ``UserB`` for assignment ``A1`` exists this
+    means that ``UserA`` should peer review ``UserB`` for assignment ``A1``.
+    """
     def __init__(
         self,
         peer_feedback_settings: 'AssignmentPeerFeedbackSettings',
@@ -484,6 +520,8 @@ class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
 
     @property
     def assignment(self) -> 'Assignment':
+        """The assignment this peer feedback connection is for.
+        """
         return self.peer_feedback_settings.assignment
 
     def __to_json__(self) -> t.Any:
@@ -494,12 +532,14 @@ class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
 
 
 class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
+    """This table represents the peer feedback settings for an assignment.
+    """
     #: The amount of students a single student should review. If this is 0 peer
-    # feedback is disabled.
+    #: feedback is disabled.
     amount = db.Column('amount', db.Integer, default=0, nullable=False)
 
     #: The amount of time a user has after the deadline to do its peer
-    # feedback. If this is ``None`` the user has an infinite amount of time
+    #: feedback. If this is ``None`` the user has an infinite amount of time
     time = db.Column('time', db.Interval, nullable=True, default=None)
 
     assignment_id = db.Column(
@@ -523,6 +563,13 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         back_populates='peer_feedback_settings',
         cascade='delete-orphan,delete,save-update',
         uselist=True,
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "amount > 0",
+            name='peer_feedback_amount_at_least_one',
+        ),
     )
 
     def __init__(
@@ -566,6 +613,11 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         return subject.id in self._get_subjects_for_user(reviewer)
 
     def do_initial_division(self) -> None:
+        """Do the initial division of peer feedback.
+
+        This can only be done when the amount of submissions is equal to the
+        amount of submissions that each user should review.
+        """
         assig = self.assignment
         all_users = user_models.User.query.filter(
             user_models.User.id.in_(
@@ -596,7 +648,13 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
                 )
 
     @classmethod
-    def divide_work(cls, work: 'work_models.Work') -> None:
+    def maybe_divide_work_among_peers(cls, work: 'work_models.Work') -> None:
+        """Maybe divide the given work among peers.
+
+        The work will be divided if it is done by a real user (i.e. not a test
+        student), and if peer feedback is enabled. All users with a submission
+        for the assignment are considered peers.
+        """
         if work.user.is_test_student:
             # Test students cannot do peer feedback
             return
@@ -604,21 +662,26 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         self = assig.peer_feedback_settings
         if self is None:
             return
-        if self.amount <= 0:  # TODO: Enforce in db that this is impossible
-            return
+        assert self.amount > 0
 
-        db_locks.acquire_lock(
-            db_locks.LockNamespaces.peer_feedback_division, assig.id
-        )
+        def _has_no_submission() -> bool:
+            return db.session.query(
+                ~work_models.Work.query.filter(
+                    work_models.Work.assignment == assig,
+                    work_models.Work.user == work.user,
+                    work_models.Work.id != work.id,
+                ).exists(),
+            ).scalar()
 
-        if db.session.query(
-            work_models.Work.query.filter(
-                work_models.Work.assignment == assig,
-                work_models.Work.user == work.user,
-                work_models.Work.id != work.id,
-            ).exists(),
-        ).scalar():
-            # User already has a submission, so ignore this one.
+        # We use the entire body of submissions to determine the peer reviewers
+        # for this submission. So no submissions by new users (without any
+        # submissions) should be created at this point to prevent race
+        # conditions.
+        if not db_locks.maybe_acquire_lock(
+            _has_no_submission, db_locks.LockNamespaces.peer_feedback_division,
+            assig.id
+        ):
+            # The user already has a submission, so nothing needs to be done.
             return
 
         existing_submissions = assig.get_amount_not_deleted_submissions()
@@ -651,7 +714,7 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
 
 
 signals.WORK_CREATED.connect_immediate(
-    AssignmentPeerFeedbackSettings.divide_work
+    AssignmentPeerFeedbackSettings.maybe_divide_work_among_peers
 )
 
 
@@ -714,9 +777,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     )
     _state = db.Column(
         'state',
-        db.Enum(AssignmentStateEnum),
+        db.Enum(AssignmentStateEnum, name='_assignmentstateenum'),
         default=AssignmentStateEnum.hidden,
-        nullable=False
+        nullable=False,
     )
     description = db.Column('description', db.Unicode, default='')
     course_id = db.Column(

@@ -99,7 +99,7 @@ class CommentReply(IdMixin, TimestampMixin, Base):
 
     comment_type = db.Column(
         'comment_type',
-        db.Enum(CommentType),
+        db.Enum(CommentType, name='commentreplycommenttype'),
         nullable=False,
         default=CommentType.normal,
         server_default='normal',
