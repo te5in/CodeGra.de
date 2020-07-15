@@ -1,5 +1,18 @@
 <template>
-<cg-loader class="peer-feedback-by-user" v-if="loading" page-loader :scale="2" />
+<div v-if="!assignment.deadlinePassed()"
+   class="p-3 border rounded text-muted font-italic">
+    <p>
+        Peer feedback will be available once the deadline for this assignment has
+        passed.
+    </p>
+
+    <p class="mb-0">
+        After the deadline you have
+        {{ assignment.peer_feedback_settings.time / (24 * 60 * 60) }}
+        days to give feedback to your peers.
+    </p>
+</div>
+<cg-loader class="peer-feedback-by-user" v-else-if="loading" page-loader :scale="2" />
 <rs-panes class="peer-feedback-by-user" v-else
           allow-resize
           :split-to="$root.$isMediumWindow ? 'columns' : 'rows'"
