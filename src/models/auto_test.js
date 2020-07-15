@@ -236,6 +236,7 @@ export class AutoTestResult {
         this.submissionId = result.work_id;
         this.finished = false;
         this.finishedAllSets = false;
+        this.autoTest = autoTest;
 
         this.update(result, autoTest);
     }

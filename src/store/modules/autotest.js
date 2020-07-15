@@ -2,7 +2,7 @@
 import Vue from 'vue';
 import axios from 'axios';
 
-import { deepCopy, getProps, makeHttpErrorHandler } from '@/utils';
+import { deepCopy, getProps, makeHttpErrorHandler, AssertionError } from '@/utils';
 import { AutoTestSuiteData, AutoTestRun, FINISHED_STATES } from '@/models/auto_test';
 import * as types from '../mutation-types';
 
@@ -337,6 +337,26 @@ const actions = {
         }
 
         return loaders.results[resultId];
+    },
+
+    async restartAutoTestResult(
+        { commit, dispatch, state },
+        { autoTestId, autoTestRunId, autoTestResultId },
+    ) {
+        await dispatch('loadAutoTest', { autoTestId });
+        const autoTest = state.tests[autoTestId];
+        AssertionError.assert(autoTest != null, 'The AutoTest could not be found');
+
+        const run = getRun(autoTest, autoTestRunId);
+        AssertionError.assert(run != null, 'The run could not be found');
+
+        const result = run.findResultById(autoTestResultId);
+        AssertionError.assert(result != null, 'The result could not be found');
+
+        const { data } = await axios.post(
+            `/api/v1/auto_tests/${autoTestId}/runs/${autoTestRunId}/results/${autoTestResultId}/restart`,
+        );
+        return commit(types.UPDATE_AUTO_TEST_RESULT, { autoTest, result: data });
     },
 
     async deleteAutoTestResults({ commit, dispatch, state }, { autoTestId, runId }) {

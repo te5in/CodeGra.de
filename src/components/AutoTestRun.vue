@@ -54,7 +54,7 @@
                     </td>
                     <td class="state shrink">
                         <div>
-                            <auto-test-state :result="result" show-icon />
+                            <auto-test-state :assignment="assignment" :result="result" show-icon />
                         </div>
                     </td>
                 </tr>
