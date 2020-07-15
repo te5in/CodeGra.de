@@ -13,6 +13,12 @@
                 <td><cg-user :user="sub.user" /></td>
             </tr>
         </tbody>
+
+        <tfoot>
+            <tr>
+                <td>This is the list of all students that you should give peer feedback to.</td>
+            </tr>
+        </tfoot>
     </table>
 </div>
 </template>
