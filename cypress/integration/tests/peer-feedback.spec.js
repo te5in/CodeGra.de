@@ -61,55 +61,12 @@ context('Peer feedback', () => {
             );
         }).then(res => {
             submission2 = res;
-        });
-    });
-
-    context('Enabling peer feedback', () => {
-        it('should be possible', () => {
-            cy.visit(`/courses/${course.id}/assignments/${assignment.id}`);
-            cy.login('admin', 'admin');
-
-            cy.get('.page.manage-assignment')
-                .contains('.card', 'Peer feedback')
-                .as('card')
-                .contains('.submit-button', 'Enable')
-                .submit('success', { waitForDefault: false });
-            cy.get('@card')
-                .contains('.input-group', 'Amount of students')
-                .should('be.visible');
-            cy.get('@card')
-                .contains('.input-group', 'Time to give peer feedback')
-                .should('be.visible');
-            cy.get('@card')
-                .contains('.submit-button', 'Disable')
-                .should('be.visible')
-                .should('have.class', 'btn-danger');
-            cy.get('@card')
-                .contains('.submit-button', 'Submit')
-                .should('be.visible')
-                .should('have.class', 'btn-primary');
-            cy.get('@card')
-                .contains('.submit-button', 'Enable')
-                .should('not.exist');
-        });
-
-        it('should ask for confirmation when changing the amount of students', () => {
-            cy.get('.page.manage-assignment')
-                .contains('.card', 'Peer feedback')
-                .as('card');
-            cy.get('@card')
-                .contains('.input-group', 'Amount of students')
-                .find('input')
-                .setText('2');
-            cy.get('@card')
-                .contains('.submit-button', 'Submit')
-                .submit('success', { hasConfirm: true });
+            patchSettings({ time: daysToSeconds(7), amount: 1 });
         });
     });
 
     context('Giving peer feedback', () => {
         before(() => {
-            patchSettings({ time: daysToSeconds(7), amount: 1 });
             cy.login('student1', 'Student1');
             cy.visit(baseUrl);
         });
@@ -605,35 +562,6 @@ context('Peer feedback', () => {
             cy.get('.feedback-overview')
                 .contains('.inner-feedback-viewer', 'venn1.png')
                 .should('not.exist');
-        });
-    });
-
-    context('Disabling peer feedback', () => {
-        it('should be possible', () => {
-            cy.visit(`/courses/${course.id}/assignments/${assignment.id}`);
-            cy.login('admin', 'admin');
-
-            cy.get('.page.manage-assignment')
-                .contains('.card', 'Peer feedback')
-                .as('card')
-                .contains('.submit-button', 'Disable')
-                .submit('success', { hasConfirm: true, waitForDefault: false });
-
-            cy.get('@card')
-                .contains('.input-group', 'Amount of students')
-                .should('not.exist');
-            cy.get('@card')
-                .contains('.input-group', 'Time to give peer feedback')
-                .should('not.exist');
-            cy.get('@card')
-                .contains('.submit-button', 'Disable')
-                .should('not.exist');
-            cy.get('@card')
-                .contains('.submit-button', 'Submit')
-                .should('not.exist');
-            cy.get('@card')
-                .contains('.submit-button', 'Enable')
-                .should('be.visible');
         });
     });
 });

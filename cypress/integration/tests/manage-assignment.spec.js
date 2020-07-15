@@ -190,6 +190,24 @@ context('Manage Assignment', () => {
                 .submit('success', {
                     waitForDefault: false,
                 });
+
+            cy.get('.peer-feedback-settings')
+                .contains('.input-group', 'Amount of students')
+                .should('be.visible');
+            cy.get('.peer-feedback-settings')
+                .contains('.input-group', 'Time to give peer feedback')
+                .should('be.visible');
+            cy.get('.peer-feedback-settings')
+                .contains('.submit-button', 'Disable')
+                .should('be.visible')
+                .should('have.class', 'btn-danger');
+            cy.get('.peer-feedback-settings')
+                .contains('.submit-button', 'Submit')
+                .should('be.visible')
+                .should('have.class', 'btn-primary');
+            cy.get('.peer-feedback-settings')
+                .contains('.submit-button', 'Enable')
+                .should('not.exist');
         });
 
         it('should be possible to change the amount of students', () => {
@@ -297,6 +315,23 @@ context('Manage Assignment', () => {
                     hasConfirm: true,
                     waitForDefault: false,
                 });
+
+            cy.get('.peer-feedback-settings')
+                .contains('.input-group', 'Amount of students')
+                .should('not.exist');
+            cy.get('.peer-feedback-settings')
+                .contains('.input-group', 'Time to give peer feedback')
+                .should('not.exist');
+            cy.get('.peer-feedback-settings')
+                .contains('.submit-button', 'Disable')
+                .should('not.exist');
+            cy.get('.peer-feedback-settings')
+                .contains('.submit-button', 'Submit')
+                .should('not.exist');
+            cy.get('.peer-feedback-settings')
+                .contains('.submit-button', 'Enable')
+                .should('be.visible');
         });
+    });
     });
 });
