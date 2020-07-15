@@ -181,9 +181,6 @@ export default class AutoTestState extends Vue {
                 h(Icon, { class: this.iconClass, props: { name: this.icon } }),
             );
         }
-        if (this.$slots.extra) {
-            innerChildren.push(this.$slots.extra);
-        }
 
         const directives = [];
         if (this.btn) {
@@ -199,6 +196,9 @@ export default class AutoTestState extends Vue {
                 },
             });
         }
+        if (this.$slots.extra) {
+            innerChildren.push(this.$slots.extra);
+        }
 
         const inner = [
             h('span', { directives }, innerChildren),
@@ -211,7 +211,7 @@ export default class AutoTestState extends Vue {
                     class: 'auto-test-state',
                     props: {
                         split: true,
-                        menuClass: 'hel',
+                        right: true,
                     },
                     scopedSlots: {
                         'button-content': () => inner,
@@ -252,14 +252,23 @@ export default class AutoTestState extends Vue {
 <style lang="less">
 @import '~mixins.less';
 
+@{dark-mode} .auto-test-state.b-dropdown > .dropdown-menu {
+    background-color: @color-primary-darker;
+    &:hover .dropdown-item {
+        background-color: @color-primary-darkest;
+    }
+}
 .auto-test-state.b-dropdown > .btn:not(.dropdown-toggle) {
-    cursor: default;
+    cursor: inherit;
 
     &:hover {
         background-color: white !important;
-        @{dark-mode} {
-            background-color: white;
-        }
+    }
+    &:focus {
+        box-shadow: none !important;
+    }
+    @{dark-mode} {
+        background-color: @color-primary !important;
     }
 
 }
