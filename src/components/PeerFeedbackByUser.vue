@@ -265,7 +265,10 @@ export default class PeerFeedbackByUser extends Vue {
         if (ids == null) {
             return this.$utils.Nothing;
         }
-        return this.$utils.Just(Array.from(ids.values()));
+        return this.$utils.Just(Array.from(ids.values()).filter(subId => {
+            const sub = this.submissionById[subId];
+            return !sub || !this.user.isEqualOrMemberOf(sub.user);
+        }));
     }
 
     @Watch('submissionIds', { immediate: true })
