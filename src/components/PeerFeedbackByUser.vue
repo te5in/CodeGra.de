@@ -42,7 +42,7 @@
                             <div class="text-muted p-3 border-bottom text-center">
                                 &hellip;
                             </div>
-                            <div>
+                            <div class="p-3">
                                 <cg-loader :scale="2" />
                             </div>
                         </div>
