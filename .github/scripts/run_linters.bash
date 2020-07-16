@@ -1,6 +1,12 @@
 #!/bin/bash
 set -o xtrace
 
+# Make sure none of the tests are run as the only one.
+if grep -r 'opacity:.*%' ./src; then
+    printf >&2 'Opacity should not be used with percentages'
+    exit 1
+fi
+
 git fetch --all
 
 cat >config.ini <<EOF
