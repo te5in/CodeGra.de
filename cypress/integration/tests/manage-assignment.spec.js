@@ -332,6 +332,57 @@ context('Manage Assignment', () => {
                 .contains('.submit-button', 'Enable')
                 .should('be.visible');
         });
-    });
+
+        it('should not be possible to enable peer feedback for group assignments', () => {
+            cy.createGroupSet(course.id);
+            cy.reload();
+
+            cy.get('.assignment-group')
+                .find('.custom-checkbox')
+                .click();
+            cy.get('.assignment-group')
+                .contains('.submit-button', 'Submit')
+                .submit('success');
+
+            cy.get('.peer-feedback-settings')
+                .contains('.submit-button', 'Enable')
+                .should('be.visible')
+                .should('be.disabled');
+
+            cy.get('.assignment-group')
+                .find('.custom-checkbox')
+                .click();
+            cy.get('.assignment-group')
+                .contains('.submit-button', 'Submit')
+                .submit('success');
+
+            cy.get('.peer-feedback-settings')
+                .contains('.submit-button', 'Enable')
+                .should('be.visible')
+                .should('not.be.disabled');
+        });
+
+        it('should not be possible to connect a group set for peer feedback assignments', () => {
+            cy.get('.peer-feedback-settings')
+                .contains('.submit-button', 'Enable')
+                .submit('success', { waitForDefault: false });
+
+            cy.get('.assignment-group')
+                .contains('.submit-button', 'Submit')
+                .should('be.visible')
+                .should('be.disabled');
+
+            cy.get('.peer-feedback-settings')
+                .contains('.submit-button', 'Disable')
+                .submit('success',  {
+                    hasConfirm: true,
+                    waitForDefault: false,
+                });
+
+            cy.get('.assignment-group')
+                .contains('.submit-button', 'Submit')
+                .should('be.visible')
+                .should('not.be.disabled');
+        });
     });
 });

@@ -503,7 +503,7 @@ Cypress.Commands.add('deleteAutoTest', (autoTestId) => {
     });
 });
 
-Cypress.Commands.add('connectGroupSet', (courseId, assignmentId, minSize=1, maxSize=1) => {
+Cypress.Commands.add('createGroupSet', (courseId, minSize=1, maxSize=1) => {
     return cy.authRequest({
         url: `/api/v1/courses/${courseId}/group_sets/`,
         method: 'PUT',
@@ -512,7 +512,11 @@ Cypress.Commands.add('connectGroupSet', (courseId, assignmentId, minSize=1, maxS
             minimum_size: minSize,
             maximum_size: maxSize,
         },
-    }).its('body').then(
+    }).its('body');
+});
+
+Cypress.Commands.add('connectGroupSet', (courseId, assignmentId, minSize=1, maxSize=1) => {
+    cy.createGroupSet(courseId, minSize, maxSize).then(
         groupSet => cy.patchAssignment(assignmentId, {
             group_set_id: groupSet.id,
         }),
