@@ -612,6 +612,10 @@ export default {
             return (editable || done) && canSeeGrade;
         },
 
+        isPeerFeedback() {
+            return this.$utils.parseBool(this.$route.query.peerFeedback, false);
+        },
+
         submissionsRoute() {
             return {
                 name: 'assignment_submissions',
@@ -627,6 +631,7 @@ export default {
                     sortAsc: this.$route.query.sortAsc,
                     page: this.$route.query.page || undefined,
                 },
+                hash: this.isPeerFeedback ? '#peer-feedback' : undefined,
             };
         },
 
