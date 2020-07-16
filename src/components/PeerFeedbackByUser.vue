@@ -266,8 +266,8 @@ export default class PeerFeedbackByUser extends Vue {
             return this.$utils.Nothing;
         }
         return this.$utils.Just(Array.from(ids.values()).filter(subId => {
-            const sub = this.submissionById[subId];
-            return !sub || !this.user.isEqualOrMemberOf(sub.user);
+            const sub = this.submissionById.map(lookup => lookup[subId]).orDefault(null);
+            return sub == null || !this.user.isEqualOrMemberOf(sub.user);
         }));
     }
 
