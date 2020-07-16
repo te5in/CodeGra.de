@@ -6,10 +6,14 @@
             Enable peer feedback
         </b>
 
-        <cg-submit-button :submit="enable"
-                          @after-success="afterSubmit"
-                          label="Enable"
-                          class="my-n1"/>
+        <div v-b-popover.hover.top="submitDisabledMessage">
+            <cg-submit-button
+                :disabled="!!submitDisabledMessage"
+                :submit="enable"
+                @after-success="afterSubmit"
+                label="Enable"
+                class="my-n1"/>
+        </div>
     </div>
 
     <template v-else>
@@ -153,6 +157,15 @@ export default class PeerFeedbackSettings extends Vue {
         if (btn != null) {
             btn.onClick();
         }
+    }
+
+    get submitDisabledMessage() {
+        console.log(this.assignment);
+        if (this.assignment.group_set == null) {
+            return '';
+        }
+        return `This is a group assignment, but peer feedback is not yet
+            supported for group assignments.`;
     }
 
     get submitConfirmationMessage() {

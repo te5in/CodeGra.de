@@ -52,9 +52,12 @@
             Edit group sets
         </b-button>
 
-        <submit-button v-if="groupSets.length > 0"
-                       :submit="submit"
-                       @success="afterSubmit"/>
+        <div v-b-popover.hover.top="submitDisabledMessage">
+            <submit-button v-if="groupSets.length > 0"
+                           :disabled="!!submitDisabledMessage"
+                           :submit="submit"
+                           @success="afterSubmit"/>
+        </div>
     </b-button-toolbar>
 </div>
 </template>
@@ -99,6 +102,14 @@ export default {
         groupSets() {
             return this.assignment.course.group_sets;
         },
+
+        submitDisabledMessage() {
+            if (this.assignment.peer_feedback_settings == null) {
+                return '';
+            }
+            return `This assignment has peer feedback enabled, but peer feedback
+                is not yet supported for group assignments.`;
+        },
     },
 
     data() {
@@ -141,7 +152,7 @@ export default {
         },
 
         afterSubmit(response) {
-            const newSet = response.data.group_set || {};
+            const newSet = response.data.group_set || null;
             const oldSet = this.assignment.group_set || {};
 
             this.updateAssignment({
@@ -153,7 +164,7 @@ export default {
                 courseId: this.assignment.course.id,
                 courseProps: {
                     group_sets: this.assignment.course.group_sets.map(set => {
-                        if (set.id === newSet.id) {
+                        if (newSet != null && set.id === newSet.id) {
                             return newSet;
                         } else if (set.id === oldSet.id) {
                             return Object.assign({}, set, {

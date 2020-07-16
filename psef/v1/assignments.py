@@ -411,8 +411,17 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         )
         if new_group_set_id is None:
             group_set = None
-        else:
+        elif assig.peer_feedback_settings is None:
             group_set = helpers.get_or_404(models.GroupSet, new_group_set_id)
+        else:
+            raise APIException(
+                (
+                    'This assignment has peer feedback enabled, but peer'
+                    ' feedback is not yet supported for group assignments'
+                ),
+                'Group assignments do not support peer feedback',
+                APICodes.INVALID_STATE, 400
+            )
 
         if assig.group_set != group_set and assig.has_group_submissions():
             raise APIException(
@@ -1940,6 +1949,16 @@ def update_peer_feedback_settings(
     db_locks.acquire_lock(
         db_locks.LockNamespaces.peer_feedback_division, assignment.id
     )
+
+    if assignment.group_set is not None:
+        raise APIException(
+                (
+                    'This is a group assignment, but peer feedback is not yet'
+                    ' supported for group assignments.'
+                ),
+                'Group assignments do not support peer feedback',
+            APICodes.INVALID_STATE, 400
+        )
 
     with helpers.get_from_request_transaction() as [get, _]:
         new_amount = get('amount', int)
