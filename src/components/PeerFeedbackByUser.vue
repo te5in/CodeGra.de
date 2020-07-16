@@ -38,7 +38,7 @@
                     <div v-for="sub in [submissionById.orDefault({})[subId]]"
                          :key="subId"
                          class="mb-2">
-                        <div no-body v-if="sub == null">
+                        <div no-body v-if="sub == null || sub.feedback == null || sub.fileTree == null">
                             <div class="text-muted p-3 border-bottom text-center">
                                 &hellip;
                             </div>
@@ -282,10 +282,16 @@ export default class PeerFeedbackByUser extends Vue {
                     },
                 }),
                 ...submissionIds.map(
-                    subId => this.loadFileTree({
-                        submissionId: subId,
-                        assignmentId: this.assignmentId,
-                    }).catch(err => {
+                    subId => Promise.all([
+                        this.loadFileTree({
+                            submissionId: subId,
+                            assignmentId: this.assignmentId,
+                        }),
+                        FeedbackStore.loadFeedback({
+                            submissionId: subId,
+                            assignmentId: this.assignmentId,
+                        }),
+                    ]).catch(err => {
                         this.$utils.vueSet(this.errors, subId, err);
                     }),
                 ),

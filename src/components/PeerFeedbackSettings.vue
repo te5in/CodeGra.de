@@ -160,7 +160,6 @@ export default class PeerFeedbackSettings extends Vue {
     }
 
     get submitDisabledMessage() {
-        console.log(this.assignment);
         if (this.assignment.group_set == null) {
             return '';
         }
