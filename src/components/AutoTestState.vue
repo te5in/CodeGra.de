@@ -126,6 +126,7 @@ export default class AutoTestState extends Vue {
 
     restartAutoTestResult(): void {
         this.$utils.AssertionError.assert(this.result instanceof models.AutoTestResult);
+        // @ts-ignore
         this.restartPromise = this.storeRestartAutoTestResult({
             autoTestId: this.result.autoTest.id,
             autoTestRunId: this.result.autoTest.runs?.[0]?.id,
