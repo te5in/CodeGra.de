@@ -16,7 +16,15 @@
 
         <tfoot>
             <tr>
-                <td>This is the list of all students that you should give peer feedback to.</td>
+                <td>
+                    This lists all the students that you have been assigned to
+                    give peer feedback.
+
+                    <template v-if="peerFeedbackDeadline != null">
+                        You have until {{ peerFeedbackDeadline }} to complete
+                        your feedback.
+                    </template>
+                </td>
             </tr>
         </tfoot>
     </table>
@@ -51,6 +59,13 @@ export default {
                 ),
                 sub => [sub.user.readableName],
             );
+        },
+
+        peerFeedbackDeadline() {
+            if (this.assignment.peerFeedbackDeadline == null) {
+                return null;
+            }
+            return this.$utils.readableFormatDate(this.assignment.peerFeedbackDeadline);
         },
     },
 
