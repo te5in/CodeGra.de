@@ -50,7 +50,7 @@
             }"
             :data-line="i">
 
-            <code v-html="innerCodeLines[i - 1]" />
+            <code class="d-block px-2" v-html="innerCodeLines[i - 1]" />
 
             <span v-if="addingInlineFeedback[i - 1]"
                   class="add-feedback-loader-wrapper">
@@ -463,8 +463,6 @@ li {
 
     background-color: lighten(@linum-bg, 1%);
     border-left: 1px solid darken(@linum-bg, 5%);
-    padding-left: 0.75em;
-    padding-right: 0.75em;
 
     code, &.empty-file, &.missing-newline {
         font-family: monospace;
