@@ -36,7 +36,7 @@
                 </b-alert>
                 <template v-else>
                     <div v-for="sub in [submissionById.orDefault({})[subId]]"
-                         :key="sub.id"
+                         :key="subId"
                          class="mb-2">
                         <div no-body v-if="sub == null">
                             <div class="text-muted p-3 border-bottom text-center">
