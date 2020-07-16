@@ -10,7 +10,7 @@ import typing as t
 import datetime
 import dataclasses
 from random import shuffle
-from itertools import cycle
+from itertools import chain, cycle
 from collections import Counter, defaultdict
 
 import structlog
@@ -19,7 +19,6 @@ from sqlalchemy.orm import validates
 from mypy_extensions import DefaultArg
 from sqlalchemy.types import JSON
 from typing_extensions import TypedDict
-from sqlalchemy.sql.expression import and_, func
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 import psef
@@ -29,7 +28,7 @@ from cg_helpers import (
     handle_none, on_not_none, remove_duplicates, zip_times_with_offset
 )
 from cg_dt_utils import DatetimeWithTimezone
-from cg_sqlalchemy_helpers import expression
+from cg_sqlalchemy_helpers import expression as sql_expression
 from cg_sqlalchemy_helpers.types import (
     _T_BASE, MyQuery, DbColumn, ColumnProxy, MyNonOrderableQuery,
     hybrid_property
@@ -451,20 +450,58 @@ class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
     means that ``UserA`` should peer review ``UserB`` for assignment ``A1``.
     """
 
+    @t.overload
     def __init__(
         self,
         peer_feedback_settings: 'AssignmentPeerFeedbackSettings',
+        *,
         user: 'user_models.User',
         peer_user: 'user_models.User',
     ) -> None:
-        super().__init__(
-            peer_feedback_settings=peer_feedback_settings,
-            user=user,
-            peer_user=peer_user,
-            peer_feedback_settings_id=peer_feedback_settings.id,
-            user_id=user.id,
-            peer_user_id=peer_user.id,
-        )
+        ...
+
+    @t.overload
+    def __init__(
+        self,
+        peer_feedback_settings: 'AssignmentPeerFeedbackSettings',
+        *,
+        user_id: int,
+        peer_user_id: int,
+    ) -> None:
+        ...
+
+    def __init__(
+        self,
+        peer_feedback_settings: 'AssignmentPeerFeedbackSettings',
+        *,
+        user: 'user_models.User' = None,
+        peer_user: 'user_models.User' = None,
+        user_id: int = None,
+        peer_user_id: int = None,
+    ) -> None:
+        if user is not None:
+            assert peer_user is not None
+            assert user_id is None
+            assert peer_user_id is None
+
+            super().__init__(
+                peer_feedback_settings=peer_feedback_settings,
+                user=user,
+                peer_user=peer_user,
+                peer_feedback_settings_id=peer_feedback_settings.id,
+                user_id=user.id,
+                peer_user_id=peer_user.id,
+            )
+        else:
+            assert peer_user is None
+            assert user_id is not None
+            assert peer_user_id is not None
+            super().__init__(
+                peer_feedback_settings=peer_feedback_settings,
+                peer_feedback_settings_id=peer_feedback_settings.id,
+                user_id=user_id,
+                peer_user_id=peer_user_id,
+            )
 
     peer_feedback_settings_id = db.Column(
         'peer_feedback_settings_id',
@@ -494,7 +531,7 @@ class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
     peer_feedback_settings = db.relationship(
         lambda: AssignmentPeerFeedbackSettings,
         foreign_keys=peer_feedback_settings_id,
-        lazy='joined',
+        lazy='selectin',
         innerjoin=True,
         back_populates='connections',
     )
@@ -503,21 +540,31 @@ class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
         lambda: user_models.User,
         foreign_keys=user_id,
         innerjoin=True,
-        lazy='joined',
+        lazy='selectin',
     )
 
     peer_user = db.relationship(
         lambda: user_models.User,
         foreign_keys=peer_user_id,
         innerjoin=True,
-        lazy='joined',
+        lazy='selectin',
     )
 
     __table_args__ = (
         db.PrimaryKeyConstraint(
             peer_feedback_settings_id, user_id, peer_user_id
         ),
+        db.CheckConstraint(
+            'peer_user_id != user_id',
+            name='peer_feedback_reviewer_is_not_subject',
+        ),
     )
+
+    def __repr__(self) -> str:
+        return 'AssignmentPeerFeedbackConnection<peer={}, subject={}>'.format(
+            self.peer_user_id,
+            self.user_id,
+        )
 
     @property
     def assignment(self) -> 'Assignment':
@@ -624,7 +671,32 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
             return False
         return subject.id in self._get_subjects_for_user(reviewer)
 
-    def do_initial_division(self) -> None:
+    def maybe_do_initial_division(self) -> bool:
+        """Do the initial division of peer feedback if the amount of submissions is
+        adequate.
+
+        .. warning:: This will delete all old connections.
+
+        :returns: A boolean indicating if the initial submission was done.
+        """
+        assig = self.assignment
+        existing_submissions = assig.get_amount_not_deleted_submissions()
+        if existing_submissions > self.amount:
+            self.connections = []
+            self._do_initial_division()
+            return True
+        return False
+
+    def _make_connection(
+        self, *, peer_user: 'user_models.User', user: 'user_models.User'
+    ) -> AssignmentPeerFeedbackConnection:
+        return AssignmentPeerFeedbackConnection(
+            peer_feedback_settings=self,
+            peer_user=peer_user,
+            user=user,
+        )
+
+    def _do_initial_division(self) -> None:
         """Do the initial division of peer feedback.
 
         This can only be done when the amount of submissions is equal to the
@@ -639,25 +711,122 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         shuffle(all_users)
 
         self.connections = []
-        can_do_better_division = len(all_users) > self.amount ** 2
+        can_do_better_division = len(all_users) > (self.amount + 1) ** 2
 
         def get_offset_per_item(cur_depth: int) -> int:
             if can_do_better_division:
                 return cur_depth ** 2
             return cur_depth
 
+        logger.info(
+            'Doing initial division',
+            assignment=self.assignment,
+            amount_of_users=len(all_users),
+            division_amount=self.amount,
+            can_do_better_division=can_do_better_division
+        )
         for users in zip_times_with_offset(
             all_users, self.amount + 1, get_offset_per_item
         ):
             peer_user, *other_users = users
             for user in other_users:
-                self.connections.append(
-                    AssignmentPeerFeedbackConnection(
-                        peer_feedback_settings=self,
-                        peer_user=peer_user,
-                        user=user,
-                    )
+                self._make_connection(peer_user=peer_user, user=user)
+
+    @classmethod
+    def maybe_delete_division_among_peers(
+        cls, deletion: signals.WorkDeletedData
+    ) -> None:
+        author = deletion.deleted_work.user
+        assig = deletion.deleted_work.assignment
+        if (
+            not deletion.was_latest or author.is_test_student or
+            deletion.new_latest is not None
+        ):
+            return
+        self = assig.peer_feedback_settings
+        if self is None:
+            return
+
+        db_locks.acquire_lock(
+            db_locks.LockNamespaces.peer_feedback_division, assig.id
+        )
+
+        PFConn = AssignmentPeerFeedbackConnection
+        # First we get all connections that involve the author that now no
+        # longer has a submission.
+        all_conns = PFConn.query.filter(
+            PFConn.peer_feedback_settings == self,
+            sql_expression.or_(
+                PFConn.user == author,
+                PFConn.peer_user == author,
+            )
+        ).all()
+
+        all_subjects = set(
+            conn.user for conn in all_conns if conn.user != author
+        )
+        reviewers = set(
+            conn.peer_user for conn in all_conns if conn.peer_user != author
+        )
+        assert len(reviewers) == len(all_subjects)
+        assert len(reviewers) * 2 == len(all_conns)
+        illegal_connections = set(
+            db.session.query(PFConn.peer_user_id, PFConn.user_id).filter(
+                PFConn.peer_feedback_settings == self,
+                PFConn.user_id.in_([s.id for s in all_subjects]),
+                PFConn.peer_user_id.in_([r.id for r in reviewers]),
+            )
+        )
+
+        # We first want to divide the subjects that are also reviewers, as
+        # these subjects might cause the redivision to fail.
+        high_priority_subjects = all_subjects & reviewers
+        low_priority_subjects = all_subjects - high_priority_subjects
+
+        new_conns = []
+        # Redivision might fail if a user should review the ``author`` and if
+        # the ``author`` should review this user.
+        redivide_failed = False
+
+        for reviewer in reviewers:
+            for subj in chain(high_priority_subjects, low_priority_subjects):
+                # We don't know from which set we should remove the subject
+                # (high or low priority) so we simply remove it from the all
+                # set and check this set to see if the subject is still
+                # available.
+                if subj not in all_subjects:
+                    continue
+                if reviewer == subj:
+                    continue
+                if (reviewer.id, subj.id) in illegal_connections:
+                    continue
+
+                all_subjects.remove(subj)
+                new_conns.append((reviewer, subj))
+                break
+            else:
+                redivide_failed = True
+                break
+
+        if not redivide_failed:
+            logger.info('Redividing succeeded', new_connections=new_conns)
+            for conn in all_conns:
+                db.session.delete(conn)
+            for peer, subject in new_conns:
+                PFConn(
+                    peer_feedback_settings=self, user=subject, peer_user=peer
                 )
+            return
+
+        self.connections = []
+        db.session.flush()
+        if self.maybe_do_initial_division():
+            psef.helpers.add_warning(
+                (
+                    'All connections for peer feedback were redivided because'
+                    ' of this deletion.'
+                ), psef.errors.APIWarnings.ALL_PEER_FEEDBACK_REDIVIDED
+            )
 
     @classmethod
     def maybe_divide_work_among_peers(cls, work: 'work_models.Work') -> None:
@@ -678,8 +847,7 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
 
         def _has_no_submission() -> bool:
             return db.session.query(
-                ~work_models.Work.query.filter(
-                    work_models.Work.assignment == assig,
+                ~assig.get_not_deleted_submissions().filter(
                     work_models.Work.user == work.user,
                     work_models.Work.id != work.id,
                 ).exists(),
@@ -693,38 +861,91 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
             _has_no_submission, db_locks.LockNamespaces.peer_feedback_division,
             assig.id
         ):
-            # The user already has a submission, so nothing needs to be done.
+            logger.info(
+                'No division necessary, user already has a submission',
+                work_author=work.user,
+            )
             return
 
         existing_submissions = assig.get_amount_not_deleted_submissions()
-        if existing_submissions < self.amount:
+        if existing_submissions <= self.amount:
             # Not enough submissions to create a division
+            logger.info(
+                'Not enough submissions to do initial division',
+                existing_submissions=existing_submissions,
+                division_amount=self.amount
+            )
             return
-        elif existing_submissions == self.amount:
-            self.do_initial_division()
+        elif existing_submissions == self.amount + 1:
+            logger.info('Need to do initial division')
+            self._do_initial_division()
+            return
 
         PFConn = AssignmentPeerFeedbackConnection
-        connections = PFConn.query.filter(
+        # We query them as tuples as we might have a large number of
+        # connections and tuples are way (!) cheaper to instantiate than
+        # objects.
+        all_connections = db.session.query(
+            PFConn.peer_user_id, PFConn.user_id
+        ).filter(
             PFConn.peer_feedback_settings == self,
-            PFConn.user_id.in_(
-                assig.get_from_latest_submissions(
-                    work_models.Work.user_id
-                ).order_by(func.random()).limit(self.amount)
+        ).order_by(sql_expression.func.random()).all()
+
+        illegal_connections = set()
+        old_connections = []
+        new_connections = []
+        found = 0
+
+        for peer_id, subject_id in all_connections:
+            new = {(peer_id, work.user_id), (work.user_id, subject_id)}
+            if new & illegal_connections:
+                continue
+
+            found += 1
+            new_connections.extend(new)
+            old_connections.append((peer_id, subject_id))
+            illegal_connections.update(new)
+            if found == self.amount:
+                break
+
+        if found == self.amount:
+            PFConn.query.filter(
+                PFConn.peer_feedback_settings == self,
+                cg_sqlalchemy_helpers.tuple_(
+                    PFConn.peer_user_id, PFConn.user_id
+                ).in_(old_connections),
+            ).delete(synchronize_session=False)
+            for peer_id, subject_id in new_connections:
+                PFConn(
+                    peer_feedback_settings=self,
+                    peer_user_id=peer_id,
+                    user_id=subject_id,
+                )
+            db.session.commit()
+        else:  # pragma: no cover
+            # This should never happen, but the exact distribution of users
+            # (especially when ``self.amount > 1``) is really hard to
+            # follow. We don't want uploading to fail, so in production we
+            # simply redivide everybody and report this error to sentry.
+            if psef.current_app.do_sanity_checks:
+                raise AssertionError(
+                    (
+                        'Could not upload new submission without redividing'
+                        ' all existing users. Existing connections: {}'
+                    ).format(self.connections)
+                )
+            logger.error(
+                'All submissions needed a new division',
+                report_to_sentry=True,
+                old_connections=self.connections,
             )
-        ).all()
-
-        shuffle(connections)
-        for old_connection in remove_duplicates(
-            connections, lambda c: c.user_id
-        ):
-            AssignmentPeerFeedbackConnection(
-                peer_feedback_settings=self,
-                user=work.user,
-                peer_user=old_connection.peer_user,
-            )
-            old_connection.peer_user_id = work.user_id
+            self.connections = []
+            self._do_initial_division()
 
 
+signals.WORK_DELETED.connect_immediate(
+    AssignmentPeerFeedbackSettings.maybe_delete_division_among_peers
+)
 signals.WORK_CREATED.connect_immediate(
     AssignmentPeerFeedbackSettings.maybe_divide_work_among_peers
 )
@@ -1220,7 +1441,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         if max_submissions is not None and db.session.query(
             self.get_not_deleted_submissions().group_by(
                 work_models.Work.user_id
-            ).having(sqlalchemy.sql.func.count() > max_submissions).exists()
+            ).having(sql_expression.func.count() > max_submissions).exists()
         ).scalar():
             helpers.add_warning(
                 (
@@ -1380,8 +1601,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             rubric_models.WorkRubricItem.work_id == work_models.Work.id,
             isouter=True
         ).having(
-            and_(
-                func.count(rubric_models.WorkRubricItem.rubricitem_id) == 0,
+            sql_expression.and_(
+                sql_expression.func.count(
+                    rubric_models.WorkRubricItem.rubricitem_id
+                ) == 0,
                 # We access _grade here directly as we need it to do this query
                 work_models.Work._grade.is_(None)  # pylint: disable=protected-access
             )
@@ -1432,13 +1655,15 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     @cached_property
     def _dynamic_max_points(self) -> t.Optional[float]:
         sub = db.session.query(
-            func.max(rubric_models.RubricItem.points).label('max_val')
+            sql_expression.func.max(rubric_models.RubricItem.points
+                                    ).label('max_val')
         ).join(
             rubric_models.RubricRowBase, rubric_models.RubricRowBase.id ==
             rubric_models.RubricItem.rubricrow_id
         ).filter(rubric_models.RubricRowBase.assignment_id == self.id
                  ).group_by(rubric_models.RubricRowBase.id).subquery('sub')
-        return db.session.query(func.sum(sub.c.max_val)).scalar()
+        return db.session.query(sql_expression.func.sum(sub.c.max_val)
+                                ).scalar()
 
     @property
     def is_open(self) -> bool:
@@ -1623,7 +1848,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     def get_amount_not_deleted_submissions(self) -> int:
         return handle_none(
             self.get_not_deleted_submissions().with_entities(
-                expression.func.count(
+                sql_expression.func.count(
                     cg_sqlalchemy_helpers.distinct(work_models.Work.user_id)
                 )
             ).scalar(),
@@ -1641,7 +1866,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         base_query = db.session.query(
             work_models.Work,
         ).filter(
-            work_models.Work.assignment_id == self.id,
+            work_models.Work.assignment == self,
             # We don't need the intelligent `deleted` attribute here from the
             # Work models, which also checks if the assignment is deleted, as
             # we already check this at the start of the function.
@@ -1864,12 +2089,12 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         amount_subs: int
         amount_subs = self.get_from_latest_submissions(  # type: ignore
-            func.count(),
+            sql_expression.func.count(),
         ).scalar()
 
         divided_amount: t.MutableMapping[int, float] = defaultdict(float)
         for u_id, amount in self.get_from_latest_submissions(
-            work_models.Work.assigned_to, func.count()
+            work_models.Work.assigned_to, sql_expression.func.count()
         ).group_by(work_models.Work.assigned_to):
             if u_id is not None:
                 divided_amount[u_id] = amount
@@ -2178,7 +2403,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             user_course.c.course_id.label("course_id"),
         ).join(
             AssignmentGraderDone,
-            and_(
+            sql_expression.and_(
                 user_models.User.id == AssignmentGraderDone.user_id,
                 AssignmentGraderDone.assignment_id == self.id,
             ),
@@ -2211,7 +2436,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         ).join(graders, done_graders.c.course_id == graders.c.course_role_id)
 
         if sort:
-            res = res.order_by(func.lower(done_graders.c.name))
+            res = res.order_by(sql_expression.func.lower(done_graders.c.name))
 
         return res
 

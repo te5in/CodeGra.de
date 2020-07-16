@@ -1964,11 +1964,7 @@ def update_peer_feedback_settings(
         peer_feedback_settings.amount = new_amount
 
     if old_amount is None or old_amount != new_amount:
-        peer_feedback_settings.connections = []
-
-        amount_subs = assignment.get_amount_not_deleted_submissions()
-        if amount_subs >= new_amount:
-            peer_feedback_settings.do_initial_division()
+        peer_feedback_settings.maybe_do_initial_division()
 
     db.session.commit()
     return JSONResponse.make(peer_feedback_settings)

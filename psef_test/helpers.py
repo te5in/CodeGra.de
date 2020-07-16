@@ -256,6 +256,25 @@ def create_assignment(
     return res
 
 
+def enable_peer_feedback(test_client, assignment, *, amount=1, days=6):
+    assignment_id = get_id(assignment)
+    time = datetime.timedelta(days=days).total_seconds()
+    test_client.req(
+        'put',
+        f'/api/v1/assignments/{assignment_id}/peer_feedback_settings',
+        200,
+        data={
+            'amount': amount,
+            'time': time,
+        },
+        result={
+            'amount': amount,
+            'time': time,
+            'id': int,
+        }
+    )
+
+
 def create_submission(
     test_client,
     assignment_id=None,
@@ -298,6 +317,8 @@ def create_submission(
             for_user = for_user['username']
         elif hasattr(for_user, 'username'):
             for_user = for_user.username
+        elif isinstance(for_user, int):
+            for_user = m.User.query.get(for_user).username
         path += f'?author={for_user}'
 
     return test_client.req(

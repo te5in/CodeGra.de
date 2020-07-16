@@ -859,7 +859,19 @@ if t.TYPE_CHECKING and MYPY:
         def count(self, _to_count: DbColumn[t.Any]) -> DbColumn[int]:
             ...
 
+        def random(self) -> DbColumn[object]:
+            ...
+
+        def max(self, col: DbColumn[T]) -> DbColumn[T]:
+            ...
+
+        def lower(self, col: DbColumn[str]) -> DbColumn[str]:
+            ...
+
     def distinct(_distinct: T_DB_COLUMN) -> T_DB_COLUMN:
+        ...
+
+    def tuple_(itemA: DbColumn[T], itemB: DbColumn[Z]) -> DbColumn[t.Tuple[T, Z]]:
         ...
 
     class expression:
@@ -891,7 +903,7 @@ else:
     from sqlalchemy.dialects.postgresql import JSONB, ARRAY
     from sqlalchemy.sql import expression
     from citext import CIText as _CIText
-    from sqlalchemy import distinct
+    from sqlalchemy import distinct, tuple_
 
     class CIText(_CIText):
         # This is not defined in citext.CIText for whatever reason. This is
