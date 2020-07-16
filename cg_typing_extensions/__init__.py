@@ -11,6 +11,7 @@ def make_typed_dict_extender(base: t.Any, extends_to: t.Type) -> t.Callable:  # 
     """Get a function to extend the TypedDict ``base`` to the TypedDict
     ``extends_to``.
     """
+
     def _extend(**kwargs: t.Any) -> dict:
         kwargs.update(base)
         return kwargs

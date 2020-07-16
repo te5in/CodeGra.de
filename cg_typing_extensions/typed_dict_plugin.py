@@ -77,6 +77,7 @@ def callback(ctx: FunctionContext) -> Type:
 class CgTypedDictPlugin(Plugin):
     """Class implementing the  ``make_typed_dict_extender`` plugin.
     """
+
     def get_function_hook(self, fullname: str):  # pylint: disable=no-self-use,missing-function-docstring
         if fullname == 'cg_typing_extensions.make_typed_dict_extender':
             return callback

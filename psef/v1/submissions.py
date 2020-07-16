@@ -999,6 +999,16 @@ class RootFileTreesJSON(TypedDict, total=True):
 )
 @auth.login_required
 def get_root_file_trees(submission_id: int) -> JSONResponse[RootFileTreesJSON]:
+    """Get all the file trees of a submission.
+
+    .. :quickref: Submission; Get all the file trees of a submission.
+
+    :param submission_id: The id of the submission of which you want to get the
+        file trees.
+
+    :returns: The student and teacher file tree, from the base/root directory
+              of the submission.
+    """
     work = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
@@ -1033,11 +1043,19 @@ def get_dir_contents(
     The default file is the root of the submission, but a specific file can be
     specified with the file_id argument in the request.
 
+    .. note::
+
+        If you want the root file trees for the teacher and students, you can
+        also use the :func:`.get_root_file_trees` route to get these both in a
+        single request.
+
     :param int submission_id: The id of the submission
+
     :returns: A response with the JSON serialized directory structure as
-        content and return code 200. For the exact structure see
-        :py:meth:`.File.list_contents`. If path is given the return value will
-        be stat datastructure, see :py:func:`.files.get_stat_information`.
+              content and return code 200. For the exact structure see
+              :py:meth:`.File.list_contents`. If path is given the return value
+              will be stat datastructure, see
+              :py:func:`.files.get_stat_information`.
 
     :query int file_id: The file id of the directory to get. If this is not
         given the parent directory for the specified submission is used.
@@ -1048,17 +1066,17 @@ def get_dir_contents(
         listed.
 
     :raise APIException: If the submission with the given id does not exist or
-                         when a file id was specified no file with this id
-                         exists. (OBJECT_ID_NOT_FOUND)
+        when a file id was specified no file with this id exists.
+        (OBJECT_ID_NOT_FOUND)
+
     :raises APIException: wWhen a file id is specified and the submission id
-                          does not match the submission id of the file.
-                          (INVALID_URL)
+        does not match the submission id of the file. (INVALID_URL)
     :raises APIException: When a file id is specified and the file with that id
-                          is not a directory. (OBJECT_WRONG_TYPE)
+        is not a directory. (OBJECT_WRONG_TYPE)
     :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
     :raises PermissionException: If submission does not belong to the current
-                                 user and the user can not view files in the
-                                 attached course. (INCORRECT_PERMISSION)
+        user and the user can not view files in the attached course.
+        (INCORRECT_PERMISSION)
     """
     work = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted

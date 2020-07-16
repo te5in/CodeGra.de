@@ -450,6 +450,7 @@ class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
     If connection from ``UserA`` to ``UserB`` for assignment ``A1`` exists this
     means that ``UserA`` should peer review ``UserB`` for assignment ``A1``.
     """
+
     def __init__(
         self,
         peer_feedback_settings: 'AssignmentPeerFeedbackSettings',

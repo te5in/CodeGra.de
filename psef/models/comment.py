@@ -581,8 +581,7 @@ class CommentBase(IdMixin, Base):
             user may see.
         """
         return [
-            r for r in self.replies
-            if r.perm_checker.ensure_may_see.as_bool()
+            r for r in self.replies if r.perm_checker.ensure_may_see.as_bool()
         ]
 
     @classmethod

@@ -20,6 +20,7 @@ class CGEnum(enum.Enum):
     >>> e.is_b
     False
     """
+
     def __getattr__(self, name: str) -> t.Any:
         if name.startswith('is_'):
             try:

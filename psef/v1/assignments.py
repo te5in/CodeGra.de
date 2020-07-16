@@ -1915,7 +1915,19 @@ def get_git_settings(assignment_id: int) -> JSONResponse[models.WebhookBase]:
 def update_peer_feedback_settings(
     assignment_id: int
 ) -> JSONResponse[models.AssignmentPeerFeedbackSettings]:
-    """Get the LTI states for the members of a group for the given assignment.
+    """Enable peer feedback for an assignment.
+
+    .. :quickref: Assignment; Enable peer feedback.
+
+    :param assignment_id: The id of the assignment for which you want to enable
+        peer feedback.
+
+    :>json int amount: The amount of subjects a single reviewer should give
+        peer feedback on.
+    :>json time: The amount of time in seconds that a user has to give peer
+        feedback after the deadline has expired.
+
+    :returns: The just created peer feedback settings.
     """
     assignment = helpers.filter_single_or_404(
         models.Assignment,
@@ -1969,6 +1981,15 @@ def update_peer_feedback_settings(
 @features.feature_required(features.Feature.PEER_FEEDBACK)
 @auth.login_required
 def delete_peer_feedback_settings(assignment_id: int) -> EmptyResponse:
+    """Disabled peer feedback for an assignment.
+
+    .. :quickref: Assignment; Disable peer feedback.
+
+    :param assignment_id: The id of the assignment for which you want to
+        disable peer feedback.
+
+    :returns: Nothing; an empty response.
+    """
     assignment = helpers.filter_single_or_404(
         models.Assignment,
         models.Assignment.id == assignment_id,
@@ -1998,6 +2019,22 @@ def delete_peer_feedback_settings(assignment_id: int) -> EmptyResponse:
 @features.feature_required(features.Feature.PEER_FEEDBACK)
 def get_comments_by_user(assignment_id: int, user_id: int
                          ) -> JSONResponse[t.Sequence[models.CommentBase]]:
+    """Get all the comments threads that a user replied on.
+
+    .. :quickref: Assignment; Get comments bases in which a user participated.
+
+    This route is especially useful in the context of peer feedback. With this
+    route you can get all the comments placed by the student, so you don't have
+    to get all the submissions (including old ones) by the peer feedback
+    subjects.
+
+    :param assignment_id: The assignment from which you want to get the
+        threads.
+    :param user_id: The id of the user from which you want to get the threads.
+
+    :returns: A list of comments that all have at least one reply by the given
+              user.
+    """
     assignment = helpers.filter_single_or_404(
         models.Assignment,
         models.Assignment.id == assignment_id,
@@ -2032,6 +2069,19 @@ def get_comments_by_user(assignment_id: int, user_id: int
 def get_peer_feedback_subjects(
     assignment_id: int, user_id: int
 ) -> JSONResponse[t.Sequence[models.AssignmentPeerFeedbackConnection]]:
+    """Get the peer feedback subjects for a given user.
+
+    .. :quickref: Assignment; Get the peer feedback subjects for a user.
+
+    :param assignment_id: The id of the assignment in which you want to get the
+        peer feedback subjects.
+    :param user_id: The id of the user from which you want to retrieve the peer
+        feedback subjects.
+
+    :returns: The peer feedback subjects. If the deadline has not expired, or
+              if the assignment is not a peer feedback assignment an empty list
+              will be returned.
+    """
     assignment = helpers.filter_single_or_404(
         models.Assignment,
         models.Assignment.id == assignment_id,
