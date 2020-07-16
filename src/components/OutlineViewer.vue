@@ -40,7 +40,7 @@ export type OutlineOption = {
     children?: ReadonlyArray<OutlineOption>;
 };
 
-@Component
+@Component({ name: 'outline-viewer' })
 export default class OutlineViewer extends Vue {
     @Prop({ required: true }) options!: ReadonlyArray<OutlineOption>;
 
