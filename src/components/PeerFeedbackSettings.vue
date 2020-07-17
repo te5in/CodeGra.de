@@ -62,23 +62,21 @@
             </b-input-group>
         </b-form-fieldset>
 
-        <b-form-fieldset>
-            <b-input-group prepend="">
-                <b-input-group-prepend is-text>
-                    Auto approve comments
+        <b-form-fieldset class="mt-4">
+            <label>
+                Auto approve comments
 
-                    <cg-description-popover hug-text>
-                        Should new peer feedback comments be automatically
-                        approved. Changing this value does not change the
-                        approval status of existing comments.
-                    </cg-description-popover>
-                </b-input-group-prepend>
+                <cg-description-popover hug-text>
+                    Should new peer feedback comments be automatically
+                    approved. Changing this value does not change the
+                    approval status of existing comments.
+                </cg-description-popover>
+            </label>
 
-                <cg-toggle class="form-control"
-                           v-model="autoApproved"
-                           label-on="Yes"
-                           label-off="No" />
-            </b-input-group>
+            <cg-toggle v-model="autoApproved"
+                       class="float-right"
+                       label-on="Yes"
+                       label-off="No" />
         </b-form-fieldset>
 
         <b-button-toolbar class="justify-content-end">
