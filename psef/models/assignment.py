@@ -722,7 +722,7 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         shuffle(all_users)
 
         self.connections = []
-        can_do_better_division = len(all_users) > (self.amount + 1) ** 2
+        can_do_better_division = len(all_users) > self.amount ** 2
 
         def get_offset_per_item(cur_depth: int) -> int:
             if can_do_better_division:
