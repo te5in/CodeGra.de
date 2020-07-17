@@ -130,8 +130,8 @@ def login() -> ExtendedJSONResponse[
                 APICodes.INACTIVE_USER, 403
             )
 
-        # Check if the current password is safe, and add a warning to the response
-        # if it is not.
+        # Check if the current password is safe, and add a warning to the
+        # response if it is not.
         try:
             validate.ensure_valid_password(password, user=user)
         except WeakPasswordException:

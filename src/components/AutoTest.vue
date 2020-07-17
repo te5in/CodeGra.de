@@ -153,7 +153,7 @@
                                 </span>
 
                                 <auto-test-state v-if="singleResult"
-                                                 @restarted="loadSingleResult"
+                                                 @restarted="() => loadSingleResult(true)"
                                                  :result="result"
                                                  :assignment="assignment"
                                                  btn>
@@ -910,7 +910,7 @@ export default {
             }
         },
 
-        loadSingleResult() {
+        loadSingleResult(forceLoadSubmission = false) {
             if (!this.singleResult) {
                 return null;
             }
@@ -922,6 +922,15 @@ export default {
                     autoTestRunId: this.$utils.getProps(this.currentRun, undefined, 'id'),
                 }),
             ];
+            if (forceLoadSubmission) {
+                promises.push(
+                    this.storeLoadSingleSubmission({
+                        assignmentId: this.assignmentId,
+                        submissionId: this.submissionId,
+                        force: true,
+                    }),
+                );
+            }
 
             return Promise.all(promises).then(
                 () => {
@@ -939,7 +948,7 @@ export default {
                             });
                         }
                     } else {
-                        this.setPollingTimer(this.loadSingleResult);
+                        this.setPollingTimer(() => this.loadSingleResult());
                     }
 
                     return null;
