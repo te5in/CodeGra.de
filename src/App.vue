@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div id="app">
-    <loader v-if="loading" page-loader/>
+    <loader v-if="loading" class="main-page-loager" page-loader/>
     <template v-else>
         <sidebar ref="sidebar" v-if="showSidebar"/>
         <div class="container-fluid">

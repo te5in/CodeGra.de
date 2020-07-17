@@ -12,9 +12,13 @@ context('Analytics Dashboard', () => {
 
     function loadPage(assig) {
         visitSubmissions(assig);
-        cy.get('.analytics-dashboard')
+        cy.get('.main-page-loader')
+            .should('not.exist');
+        cy.get('.analytics-dashboard', { timeout: 100000 })
             .should('be.visible')
-            .find('.analytics-general-stats')
+            .find('.loader.page-loader')
+            .should('not.exist')
+        cy.get('.analytics-general-stats.large')
             .should('be.visible');
     }
 
@@ -82,7 +86,7 @@ context('Analytics Dashboard', () => {
         });
 
         it('should show the general statistics', () => {
-            cy.get('.analytics-general-stats')
+            cy.get('.analytics-general-stats.large')
                 .should('be.visible')
                 .within(() => {
                     cy.get('.card-body')
