@@ -30,8 +30,7 @@
         <b-input-group v-if="assignment != null">
             <b-button v-if="isStudent"
                       class="mr-2"
-                      :variant="isOnCourseFeedback ? 'primary' : 'secondary'"
-                      @click="openCourseFeedback">
+                      v-b-modal="`submissions-page-course-feedback-modal-${id}`">
                 Course feedback
             </b-button>
 
@@ -46,7 +45,7 @@
 
                 <b-button v-if="canEmailStudents"
                           v-b-popover.top.hover="`Email the authors of the visible submissions`"
-                          v-b-modal.submissions-page-email-students-modal
+                          v-b-modal="`submissions-page-email-students-modal-${id}`"
                           id="submissions-page-email-students-button">
                     <icon name="envelope"/>
                 </b-button>
@@ -67,7 +66,7 @@
     </local-header>
 
     <b-modal v-if="canEmailStudents"
-             id="submissions-page-email-students-modal"
+             :id="`submissions-page-email-students-modal-${id}`"
              ref="contactStudentModal"
              size="xl"
              hide-footer
@@ -97,6 +96,16 @@
                     class="p-3"/>
             </template>
         </cg-catch-error>
+    </b-modal>
+
+    <b-modal v-if="isStudent"
+             :id="`submissions-page-course-feedback-modal-${id}`"
+             title="Course feedback"
+             size="xl"
+             body-class="p-0"
+             hide-footer>
+        <course-feedback :course="assignment.course"
+                         :user="loggedInUser" />
     </b-modal>
 
     <div class="cat-container d-flex flex-column">
@@ -322,13 +331,6 @@
                 </cg-catch-error>
             </div>
 
-            <div v-if="selectedCat === 'course-feedback'"
-                 class="border rounded overflow-hidden"
-                 style="max-height: 100%;">
-                <course-feedback :course="assignment.course"
-                                 :user="loggedInUser" />
-            </div>
-
             <div v-if="selectedCat === 'peer-feedback'"
                  class="overflow-hidden"
                  style="max-height: 100%;">
@@ -385,6 +387,7 @@ export default {
 
     data() {
         return {
+            id: this.$utils.getUniqueId(),
             loading: true,
             loadingInner: true,
             wrongFiles: [],
@@ -392,7 +395,7 @@ export default {
             filteredSubmissions: [],
             gitData: null,
             error: null,
-            previousCategory: '',
+            showCourseFeedback: false,
         };
     },
 
@@ -453,11 +456,6 @@ export default {
                     name: 'Analytics',
                     badge: { label: 'beta' },
                     enabled: this.analyticsWorkspaceIds.length > 0,
-                },
-                {
-                    id: 'course-feedback',
-                    name: 'Course Feedback',
-                    enabled: this.isStudent,
                 },
                 {
                     id: 'peer-feedback',
@@ -723,10 +721,6 @@ export default {
             return (UserConfig.features.email_students &&
                     this.$utils.getProps(this.coursePermissions, false, 'can_email_students'));
         },
-
-        isOnCourseFeedback() {
-            return this.$route.hash === '#course-feedback';
-        },
     },
 
     watch: {
@@ -873,15 +867,6 @@ export default {
                 return this.currentGroup.group.id === group.id;
             }
             return false;
-        },
-
-        openCourseFeedback() {
-            if (this.isOnCourseFeedback && this.previousCategory) {
-                this.openCategory(this.previousCategory.replace(/^#/, ''));
-            } else {
-                this.previousCategory = this.$route.hash;
-                this.openCategory('course-feedback');
-            }
         },
     },
 
