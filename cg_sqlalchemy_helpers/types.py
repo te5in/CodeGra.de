@@ -28,6 +28,7 @@ QuerySelf = t.TypeVar('QuerySelf', bound='MyNonOrderableQuery')
 _T_BASE = t.TypeVar('_T_BASE', bound='Base')
 _Y_BASE = t.TypeVar('_Y_BASE', bound='Base')
 T_DB_COLUMN = t.TypeVar('T_DB_COLUMN', bound='DbColumn')
+T_NUM = t.TypeVar('T_NUM', bound=t.Union[int, float])
 
 Never = t.NewType('Never', object)
 
@@ -856,13 +857,16 @@ if t.TYPE_CHECKING and MYPY:
             return lambda x: x
 
     class _func:
-        def count(self, _to_count: DbColumn[t.Any]) -> DbColumn[int]:
+        def count(self, _to_count: DbColumn[t.Any] = None) -> DbColumn[int]:
             ...
 
         def random(self) -> DbColumn[object]:
             ...
 
         def max(self, col: DbColumn[T]) -> DbColumn[T]:
+            ...
+
+        def sum(self, col: DbColumn[T_NUM]) -> DbColumn[T_NUM]:
             ...
 
         def lower(self, col: DbColumn[str]) -> DbColumn[str]:

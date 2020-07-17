@@ -62,7 +62,6 @@ def test_division(
         helpers.create_submission(test_client, assignment, for_user=user3)
         connections = get_all_connections(assignment, 1)
         assert len(connections) == 3
-        assert all(len(v) == 1 for v in connections.values())
         if connections[user3] == [user1]:
             assert connections[user2] == [user3]
             assert connections[user1] == [user2]
@@ -70,6 +69,13 @@ def test_division(
             assert connections[user3] == [user2]
             assert connections[user1] == [user3]
             assert connections[user2] == [user1]
+
+    with describe('Submitting again does not change division'
+                  ), logged_in(admin_user):
+        old_connections = get_all_connections(assignment, 1)
+        for _ in range(10):
+            helpers.create_submission(test_client, assignment, for_user=user3)
+            assert get_all_connections(assignment, 1) == old_connections
 
     with describe('user gets assigned to different user every time'
                   ), logged_in(admin_user):
@@ -79,7 +85,6 @@ def test_division(
                 test_client, assignment, for_user=user4
             )
             new_conns = get_all_connections(assignment, 1)[user4]
-            assert len(new_conns) == 1
             conns.add(new_conns[0])
             _, rv = test_client.req(
                 'delete',

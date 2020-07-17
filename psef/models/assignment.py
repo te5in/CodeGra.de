@@ -24,9 +24,7 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 import psef
 import cg_cache
 import cg_sqlalchemy_helpers
-from cg_helpers import (
-    handle_none, on_not_none, remove_duplicates, zip_times_with_offset
-)
+from cg_helpers import handle_none, on_not_none, zip_times_with_offset
 from cg_dt_utils import DatetimeWithTimezone
 from cg_sqlalchemy_helpers import expression as sql_expression
 from cg_sqlalchemy_helpers.types import (
@@ -503,6 +501,19 @@ class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
                 peer_user_id=peer_user_id,
             )
 
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, AssignmentPeerFeedbackConnection):
+            return self._get_identity_tuple() == other._get_identity_tuple()
+        return NotImplemented
+
+    def _get_identity_tuple(self) -> t.Tuple[int, int, int]:
+        return (
+            self.peer_feedback_settings_id, self.peer_user_id, self.user_id
+        )
+
+    def __hash__(self) -> int:
+        return hash(self._get_identity_tuple())
+
     peer_feedback_settings_id = db.Column(
         'peer_feedback_settings_id',
         db.Integer,
@@ -688,12 +699,12 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         return False
 
     def _make_connection(
-        self, *, peer_user: 'user_models.User', user: 'user_models.User'
+        self, *, peer_user_id: int, user_id: int
     ) -> AssignmentPeerFeedbackConnection:
         return AssignmentPeerFeedbackConnection(
             peer_feedback_settings=self,
-            peer_user=peer_user,
-            user=user,
+            peer_user_id=peer_user_id,
+            user_id=user_id,
         )
 
     def _do_initial_division(self) -> None:
@@ -730,21 +741,41 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         ):
             peer_user, *other_users = users
             for user in other_users:
-                self._make_connection(peer_user=peer_user, user=user)
+                self._make_connection(
+                    peer_user_id=peer_user.id, user_id=user.id
+                )
 
     @classmethod
     def maybe_delete_division_among_peers(
         cls, deletion: signals.WorkDeletedData
     ) -> None:
-        author = deletion.deleted_work.user
-        assig = deletion.deleted_work.assignment
-        if (
-            not deletion.was_latest or author.is_test_student or
-            deletion.new_latest is not None
-        ):
-            return
+        """Maybe delete the division for the student connected to the deleted
+        work.
+
+        This method might redivide all submissions again, so deleting work is
+        quite dangerous. If this redivision happens a warning will be added to
+        the response.
+
+        :param deletion: The deleted work and extra data.
+
+        :returns: Nothing.
+        """
+        assig = deletion.assignment
         self = assig.peer_feedback_settings
         if self is None:
+            return
+        self._maybe_delete_division_among_peers(deletion)  # pylint: disable=protected-access
+
+    def _maybe_delete_division_among_peers(
+        self, deletion: signals.WorkDeletedData
+    ) -> None:
+        author = deletion.deleted_work.user
+        assig = deletion.assignment
+
+        if (
+            author.is_test_student or not deletion.was_latest or
+            deletion.new_latest is not None
+        ):
             return
 
         db_locks.acquire_lock(
@@ -836,14 +867,17 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         student), and if peer feedback is enabled. All users with a submission
         for the assignment are considered peers.
         """
+        self = work.assignment.peer_feedback_settings
+        if self is None:
+            return
+        self._maybe_divide_work_among_peers(work)  # pylint: disable=protected-access
+
+    def _maybe_divide_work_among_peers(self, work: 'work_models.Work') -> None:
         if work.user.is_test_student:
             # Test students cannot do peer feedback
             return
+
         assig = work.assignment
-        self = assig.peer_feedback_settings
-        if self is None:
-            return
-        assert self.amount > 0
 
         def _has_no_submission() -> bool:
             return db.session.query(
@@ -882,51 +916,40 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
             return
 
         PFConn = AssignmentPeerFeedbackConnection
-        # We query them as tuples as we might have a large number of
-        # connections and tuples are way (!) cheaper to instantiate than
-        # objects.
-        all_connections = db.session.query(
-            PFConn.peer_user_id, PFConn.user_id
-        ).filter(
+        all_connections = PFConn.query.filter(
             PFConn.peer_feedback_settings == self,
-        ).order_by(sql_expression.func.random()).all()
+        ).order_by(sql_expression.func.random())
+        # XXX: It might be faster do a ``random.shuffle`` in Python instead of
+        # ordering by a random value in the database. I have not tested this,
+        # but this seems fast enough for now.
 
-        illegal_connections = set()
-        old_connections = []
-        new_connections = []
-        found = 0
+        illegal_connections: t.Set[AssignmentPeerFeedbackConnection] = set()
 
-        for peer_id, subject_id in all_connections:
-            new = {(peer_id, work.user_id), (work.user_id, subject_id)}
-            if new & illegal_connections:
+        for connection in all_connections:
+            new = (
+                (connection.peer_user_id, work.user_id),
+                (work.user_id, connection.user_id),
+            )
+            if any(new_conn in illegal_connections for new_conn in new):
                 continue
 
-            found += 1
-            new_connections.extend(new)
-            old_connections.append((peer_id, subject_id))
+            db.session.delete(connection)
+            for peer_user, subject in new:
+                self._make_connection(peer_user_id=peer_user, user_id=subject)
+
             illegal_connections.update(new)
+            # We add two connections to `illegal_connections` every time, so
+            # the amount of connections for our new author is the length of
+            # that set divided by two.
+            found = len(illegal_connections) / 2
             if found == self.amount:
                 break
-
-        if found == self.amount:
-            PFConn.query.filter(
-                PFConn.peer_feedback_settings == self,
-                cg_sqlalchemy_helpers.tuple_(
-                    PFConn.peer_user_id, PFConn.user_id
-                ).in_(old_connections),
-            ).delete(synchronize_session=False)
-            for peer_id, subject_id in new_connections:
-                PFConn(
-                    peer_feedback_settings=self,
-                    peer_user_id=peer_id,
-                    user_id=subject_id,
-                )
-            db.session.commit()
         else:  # pragma: no cover
-            # This should never happen, but the exact distribution of users
-            # (especially when ``self.amount > 1``) is really hard to
-            # follow. We don't want uploading to fail, so in production we
-            # simply redivide everybody and report this error to sentry.
+            # This (``found < self.amount``) should never happen, but the exact
+            # distribution of users (especially when ``self.amount > 1``) is
+            # really hard to follow. We don't want uploading to fail, so in
+            # production we simply redivide everybody and report this error to
+            # sentry.
             if psef.current_app.do_sanity_checks:
                 raise AssertionError(
                     (
