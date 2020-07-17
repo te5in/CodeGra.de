@@ -207,7 +207,6 @@
                                               :reply="reply"
                                               @updated="emitUpdated"
                                               />
-                                              <!-- class="mr-1 mt-n1"/> -->
 
                     <cg-submit-button
                         v-if="editable"

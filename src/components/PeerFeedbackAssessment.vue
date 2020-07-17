@@ -5,21 +5,22 @@
                     :scale="0.75"
                     @success="afterApproval"
                     @after-error="approvalError" />
-    <cg-toggle :value="approved"
-               @input="updateApproval"
-               :disabled="approvedPromise != null"
-               :has-no-value="approvedPromise != null"
-               class="d-inline-block"
-               v-b-popover.top.hover="'Approve peer feedback'">
-        <template #label-off>
-            <fa-icon :name="approved ? 'thumbs-o-down' : 'thumbs-down'"
-                     class="text-danger" />
-        </template>
-        <template #label-on>
-            <fa-icon :name="approved ? 'thumbs-up' : 'thumbs-o-up'"
-                     class="text-success" />
-        </template>
-    </cg-toggle>
+    <span v-b-popover.top.hover="'Approve peer feedback'">
+        <cg-toggle :value="approved"
+                   @input="updateApproval"
+                   :disabled="approvedPromise != null"
+                   :has-no-value="approvedPromise != null"
+                   class="d-inline-block">
+            <template #label-off>
+                <fa-icon :name="approved ? 'thumbs-o-down' : 'thumbs-down'"
+                         class="text-danger" />
+            </template>
+            <template #label-on>
+                <fa-icon :name="approved ? 'thumbs-up' : 'thumbs-o-up'"
+                         class="text-success" />
+            </template>
+        </cg-toggle>
+    </span>
 </div>
 </template>
 
