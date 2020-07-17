@@ -103,7 +103,7 @@ class CommentBaseJSON(TypedDict, total=True):
     file_id: str
 
     #: The id of the work that this comment was placed on. This work will
-    #always contain the file with ``file_id``.
+    #: always contain the file with ``file_id``.
     work_id: int
 
     #: The replies, that you are allowed to see, in this comment base.

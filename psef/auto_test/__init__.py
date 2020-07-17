@@ -667,22 +667,19 @@ class SetInstructions(TypedDict, total=True):
 
 class AssignmentInformation(TypedDict, total=True):
     """Information about the assignment that this AutoTest belongs to.
-
-    :ivar ~.deadline: The deadline of the assignment.
     """
+    #: The deadline of the assignment.
     deadline: t.Optional[str]
 
 
 class StudentInformation(TypedDict, total=True):
     """Information about the submission that the AutoTest runs on.
-
-    :ivar result_id: The id of the :class:`AutoTestResult` corresponding to
-        this work.
-    :ivar student_id: The id of the :class:`User` who submitted the work.
-    :ivar created_at: The datetime when the work was submitted.
     """
+    #: The id of the :class:`AutoTestResult` corresponding to this work.
     result_id: int
+    #: The id of the :class:`User` who submitted the work.
     student_id: int
+    #: The datetime when the work was submitted.
     created_at: str
 
 
