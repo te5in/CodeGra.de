@@ -57,12 +57,14 @@ pytest --cov cg_worker_pool \
        --cov cg_signals \
        --cov cg_cache \
        --cov cg_helpers \
+       --cov cg_enum \
        --cov-report term-missing \
        "$(pwd)/cg_worker_pool/tests/" \
        "$(pwd)/cg_threading_utils/tests/" \
        "$(pwd)/cg_signals/tests/" \
        "$(pwd)/cg_cache/tests/" \
        "$(pwd)/cg_helpers/tests/" \
+       "$(pwd)/cg_enum/tests/" \
        -vvvv
 res1="$?"
 if [[ "$res1" -ne 0 ]]; then
@@ -70,7 +72,7 @@ if [[ "$res1" -ne 0 ]]; then
 fi
 
 timeout -k 900 900 \
-        pytest --cov psef --cov cg_signals --cov cg_cache \
+        pytest --cov psef --cov cg_signals --cov cg_cache --cov cg_enum \
         --cov-append \
         --postgresql="${BASE_DATABASE_URI}gw5" \
         --cov-report term-missing \
@@ -84,7 +86,7 @@ fi
 rm "$(pwd)/psef_test/test_auto_test.py"
 
 timeout -k 900 900 \
-        pytest --cov psef --cov cg_signals --cov cg_cache \
+        pytest --cov psef --cov cg_signals --cov cg_cache --cov cg_enum \
         --cov-append \
         --postgresql="$BASE_DATABASE_URI" \
         --cov-report term-missing \

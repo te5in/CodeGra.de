@@ -154,7 +154,11 @@ class JSONResponse(t.Generic[T], flask.Response):  # pylint: disable=too-many-an
     def dump_to_object(cls, obj: T) -> t.Mapping:
         """Serialize the given object and parse its serialization.
         """
-        return system_json.loads(cls._dump_to_string(obj, use_extended=object))
+
+        class Unused:
+            pass
+
+        return system_json.loads(cls._dump_to_string(obj, use_extended=Unused))
 
     @classmethod
     def _make(

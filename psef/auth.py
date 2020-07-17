@@ -153,9 +153,6 @@ class CoursePermissionChecker(PermissionChecker):
     def _ensure_enrolled(self) -> None:
         ensure_enrolled(self.course_id, self.user)
 
-    def _has_permission(self, perm: CPerm) -> bool:
-        return self.user.has_permission(perm, self.course_id)
-
     def _ensure(self, perm: CPerm) -> None:
         ensure_permission(perm, self.course_id, user=self.user)
 
