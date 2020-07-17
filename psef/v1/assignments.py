@@ -2056,9 +2056,8 @@ def get_comments_by_user(assignment_id: int, user_id: int
     user = helpers.get_or_404(models.User, user_id)
 
     comments = models.CommentBase.get_base_comments_query().filter(
-        models.Work.query.filter(
+        assignment.get_not_deleted_submissions().filter(
             models.File.work_id == models.Work.id,
-            models.Work.assignment == assignment,
         ).exists(),
         models.CommentReply.author == user,
     )
