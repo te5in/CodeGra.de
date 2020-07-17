@@ -28,7 +28,8 @@
         </div>
 
         <b-input-group v-if="assignment != null">
-            <b-button class="mr-2"
+            <b-button v-if="isStudent"
+                      class="mr-2"
                       variant="secondary"
                       @click="openCategory('course-feedback')">
                 Course feedback
