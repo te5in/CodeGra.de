@@ -53,6 +53,7 @@
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator';
 import { mapActions, mapGetters } from 'vuex';
 import * as models from '@/models';
+import { defaultdict } from '@/utils/defaultdict';
 
 import { FeedbackStore } from '@/store/modules/feedback';
 
@@ -114,11 +115,11 @@ export default class PeerFeedbackOverview extends Vue {
         );
     }
 
-    get commentsPerStudent(): Record<number, { latest: number; all: number; }> {
+    get commentsPerStudent(): Record<number, { latest: number | string; all: number | string; }> {
         const fb = this.commentsPerSubmission;
 
         if (fb == null) {
-            return {};
+            return defaultdict(() => ({ latest: '-', all: '-' }));
         }
 
         return this.$utils.mapToObject(this.latestSubmissions, sub => {

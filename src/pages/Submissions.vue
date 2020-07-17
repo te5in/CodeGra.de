@@ -30,8 +30,8 @@
         <b-input-group v-if="assignment != null">
             <b-button v-if="isStudent"
                       class="mr-2"
-                      variant="secondary"
-                      @click="openCategory('course-feedback')">
+                      :variant="isOnCourseFeedback ? 'primary' : 'secondary'"
+                      @click="openCourseFeedback">
                 Course feedback
             </b-button>
 
@@ -392,6 +392,7 @@ export default {
             filteredSubmissions: [],
             gitData: null,
             error: null,
+            previousCategory: '',
         };
     },
 
@@ -723,6 +724,9 @@ export default {
                     this.$utils.getProps(this.coursePermissions, false, 'can_email_students'));
         },
 
+        isOnCourseFeedback() {
+            return this.$route.hash === '#course-feedback';
+        },
     },
 
     watch: {
@@ -869,6 +873,15 @@ export default {
                 return this.currentGroup.group.id === group.id;
             }
             return false;
+        },
+
+        openCourseFeedback() {
+            if (this.isOnCourseFeedback && this.previousCategory) {
+                this.openCategory(this.previousCategory.replace(/^#/, ''));
+            } else {
+                this.previousCategory = this.$route.hash;
+                this.openCategory('course-feedback');
+            }
         },
     },
 
