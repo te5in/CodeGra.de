@@ -1,7 +1,8 @@
 #!/bin/bash
 set -o xtrace
 
-# Make sure none of the tests are run as the only one.
+# Opacity with a percentage gets changed by our css optimizer, and will always
+# be 1%, so we disallow using percentages and simply require a fraction.
 if grep -r 'opacity:.*%' ./src; then
     printf >&2 'Opacity should not be used with percentages'
     exit 1
