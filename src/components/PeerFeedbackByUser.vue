@@ -258,14 +258,14 @@ export default class PeerFeedbackByUser extends Vue {
         this.scrollTop = newScrollTop;
     }
 
-    get submissionIds() {
+    get submissionIds(): Maybe<ReadonlyArray<number>> {
         const ids = FeedbackStore.getSubmissionWithFeedbackByUser()(
             this.assignmentId, this.userId,
         );
         if (ids == null) {
             return this.$utils.Nothing;
         }
-        return this.$utils.Just(Array.from(ids.values()).filter(subId => {
+        return this.$utils.Just(Object.keys(ids).map(x => parseInt(x, 10)).filter(subId => {
             const sub = this.getSingleSubmission(subId);
             return sub == null || !this.user.isEqualOrMemberOf(sub.user);
         }));

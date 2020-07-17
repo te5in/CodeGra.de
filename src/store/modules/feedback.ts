@@ -2,6 +2,7 @@
 import { getStoreBuilder } from 'vuex-typex';
 import * as utils from '@/utils';
 import * as api from '@/api/v1';
+import { defaultdict } from '@/utils/defaultdict';
 
 import * as models from '@/models';
 import { RootState } from '@/store/state';
@@ -15,7 +16,11 @@ export interface FeedbackState {
             [submissionId: number]: models.Feedback;
         };
     };
-    inlineFeedbackByUser: { [assignmentId: number]: { [userId: number]: Set<number> } };
+    // Mapping from assignment id to mapping of user ids to a mapping of the
+    // number of comments that user gave per submission.
+    inlineFeedbackByUser: {
+        [assignmentId: number]: { [userId: number]: { [submissionId: number]: number } };
+    };
 }
 
 const moduleBuilder = storeBuilder.module<FeedbackState>('feedback', {
@@ -115,9 +120,9 @@ export namespace FeedbackStore {
                 utils.vueSet(state.inlineFeedbackByUser, payload.assignmentId, {});
             }
             const submissionIds = payload.comments.reduce((acc, comment) => {
-                acc.add(comment.workId);
+                acc[comment.workId]++;
                 return acc;
-            }, new Set() as Set<number>);
+            }, defaultdict(() => 0) as { [submissionId: number]: number });
             utils.vueSet(
                 state.inlineFeedbackByUser[payload.assignmentId],
                 payload.userId,
