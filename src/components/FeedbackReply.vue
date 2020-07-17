@@ -216,6 +216,7 @@
                         name="delete-feedback"
                         :submit="deleteFeedback"
                         confirm="Are you sure you want to delete this comment?"
+                        invert-colors
                         @error="inputDisabled = false"
                         @success="onDeleteFeedback"
                         @after-success="afterDeleteFeedback">
