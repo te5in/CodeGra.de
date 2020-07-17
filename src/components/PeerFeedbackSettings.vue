@@ -17,33 +17,48 @@
     </div>
 
     <template v-else>
-        <b-form-fieldset>
-            <b-input-group>
-                <b-input-group-prepend is-text>
-                    Amount of students
+        <b-form-fieldset label="Amount of students">
+            <template #label>
+                Amount of students
 
-                    <cg-description-popover hug-text>
-                        The amount of students that each student must review.
-                    </cg-description-popover>
-                </b-input-group-prepend>
+                <cg-description-popover hug-text>
+                    The amount of students that each student must review.
+                </cg-description-popover>
+            </template>
+            <b-input-group>
                 <cg-number-input v-model="amount"
+                                 :min="1"
                                  @keyup.ctrl.enter.native="doSubmit"/>
             </b-input-group>
         </b-form-fieldset>
 
         <b-form-fieldset>
-            <b-input-group prepend="">
-                <b-input-group-prepend is-text>
-                    Time to give peer feedback (days)
+            <template #label>
+                Time to give peer feedback
 
-                    <cg-description-popover hug-text>
-                        The amount of time students have to give feedback on the
-                        submissions they were assigned, after the deadline of
-                        this assignment has passed.
-                    </cg-description-popover>
-                </b-input-group-prepend>
-                <cg-number-input v-model="time"
+                <cg-description-popover hug-text>
+                    The amount of time students have to give feedback on the
+                    submissions they were assigned, after the deadline of
+                    this assignment has passed.
+                </cg-description-popover>
+            </template>
+
+            <b-input-group>
+                <cg-number-input v-model="days"
+                                 :min="0"
                                  @keyup.ctrl.enter.native="doSubmit"/>
+
+                <b-input-group-prepend is-text>
+                    Days
+                </b-input-group-prepend>
+
+                <cg-number-input v-model="hours"
+                                 :min="0"
+                                 @keyup.ctrl.enter.native="doSubmit"/>
+
+                <b-input-group-prepend is-text>
+                    Hours
+                </b-input-group-prepend>
             </b-input-group>
         </b-form-fieldset>
 
@@ -92,18 +107,20 @@ import * as models from '@/models';
 // @ts-ignore
 import Toggle from './Toggle';
 
-function daysToSeconds(days?: number | null): number | null {
-    if (days == null) {
-        return null;
-    }
-    return days * 24 * 60 * 60;
+function hoursToSeconds(hours: number): number {
+    return hours * 60 * 60;
+}
+
+function daysToSeconds(days: number): number {
+    return hoursToSeconds(days * 24);
 }
 
 function secondsToDays(secs?: number | null): number | null {
-    if (secs == null) {
-        return null;
-    }
-    return secs / 24 / 60 / 60;
+    return secs == null ? null : Math.floor(secs / daysToSeconds(1));
+}
+
+function secondsToHours(secs?: number | null): number | null {
+    return secs == null ? null : (secs % daysToSeconds(1)) / 60 / 60;
 }
 
 @Component({
@@ -127,7 +144,15 @@ export default class PeerFeedbackSettings extends Vue {
 
     amount: number | null = this.peerFeedbackSettings?.amount ?? 0;
 
-    time: number | null = secondsToDays(this.peerFeedbackSettings?.time) ?? 0;
+    days: number | null = secondsToDays(this.peerFeedbackSettings?.time);
+
+    hours: number | null = secondsToHours(this.peerFeedbackSettings?.time);
+
+    get time() {
+        const days = this.$utils.getProps(this, 0, 'days');
+        const hours = this.$utils.getProps(this, 0, 'hours');
+        return daysToSeconds(days) + hoursToSeconds(hours);
+    }
 
     // eslint-disable-next-line camelcase
     autoApproved: boolean = this.peerFeedbackSettings?.auto_approved ?? false;
@@ -149,7 +174,8 @@ export default class PeerFeedbackSettings extends Vue {
     }
 
     enable() {
-        this.time = 7;
+        this.days = 7;
+        this.hours = 0;
         this.amount = 1;
         this.autoApproved = false;
         return this.submit();
