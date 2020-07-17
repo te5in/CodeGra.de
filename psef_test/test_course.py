@@ -1103,6 +1103,7 @@ def test_add_assignment(
                 'amount_in_cool_off_period': 1,
                 'max_submissions': None,
                 'analytics_workspace_ids': [int],
+                'peer_feedback_settings': None,
             }
         )
 

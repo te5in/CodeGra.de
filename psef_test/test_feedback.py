@@ -96,6 +96,7 @@ def make_add_reply(session, test_client, error_template, mail_functions):
                     'comment': txt,
                     'in_reply_to_id': in_reply_to_id,
                     'last_edit': None,
+                    'comment_base_id': get_id(base),
                     '__allow_extra__': True,
                 },
                 include_response=True,
@@ -106,7 +107,6 @@ def make_add_reply(session, test_client, error_template, mail_functions):
             if include_base:
                 base['replies'].append({**res})
                 base['replies'][-1].pop('author')
-                base['replies'][-1].pop('comment_base_id')
                 result = (result, base)
 
             return result
@@ -1095,8 +1095,10 @@ def test_delete_feedback(
                 feedback_url,
                 200,
                 result={
-                    'general': '', 'linter': {}, 'authors': [student],
-                    'user': [base]
+                    'general': '',
+                    'linter': {},
+                    'authors': [student],
+                    'user': [base],
                 },
             )
 
