@@ -47,6 +47,25 @@
             </b-input-group>
         </b-form-fieldset>
 
+        <b-form-fieldset>
+            <b-input-group prepend="">
+                <b-input-group-prepend is-text>
+                    Auto approve comments
+
+                    <cg-description-popover hug-text>
+                        Should new peer feedback comments be automatically
+                        approved. Changing this value does not change the
+                        approval status of existing comments.
+                    </cg-description-popover>
+                </b-input-group-prepend>
+
+                <cg-toggle class="form-control"
+                           v-model="autoApproved"
+                           label-on="Yes"
+                           label-off="No" />
+            </b-input-group>
+        </b-form-fieldset>
+
         <b-button-toolbar class="justify-content-end">
             <cg-submit-button :submit="disable"
                               @after-success="afterDisable"
@@ -110,6 +129,9 @@ export default class PeerFeedbackSettings extends Vue {
 
     time: number | null = secondsToDays(this.peerFeedbackSettings?.time) ?? 0;
 
+    // eslint-disable-next-line camelcase
+    autoApproved: boolean = this.peerFeedbackSettings?.auto_approved ?? false;
+
     updateAssignment!: (data: {
         assignmentId: number,
         assignmentProps: models.AssignmentUpdateableProps
@@ -129,6 +151,7 @@ export default class PeerFeedbackSettings extends Vue {
     enable() {
         this.time = 7;
         this.amount = 1;
+        this.autoApproved = false;
         return this.submit();
     }
 
@@ -137,6 +160,7 @@ export default class PeerFeedbackSettings extends Vue {
         return this.$http.put(this.url, {
             time: daysToSeconds(this.time),
             amount: this.amount,
+            auto_approved: this.autoApproved,
         });
     }
 

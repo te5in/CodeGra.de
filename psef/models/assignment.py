@@ -80,6 +80,10 @@ class PeerFeedbackSettingJSON(TypedDict, total=True):
     #: peer review.
     time: t.Optional[float]
 
+    #: Should new peer feedback comments be considered approved by default or
+    #: not.
+    auto_approved: bool
+
 
 class AssignmentPeerFeedbackConnectionJSON(TypedDict, total=True):
     """The serialization of an :class:`.AssignmentPeerFeedbackConnection`.
@@ -601,6 +605,14 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
     #: feedback. If this is ``None`` the user has an infinite amount of time
     time = db.Column('time', db.Interval, nullable=True, default=None)
 
+    auto_approved = db.Column(
+        'auto_approved',
+        db.Boolean,
+        nullable=False,
+        default=False,
+        server_default='false'
+    )
+
     assignment_id = db.Column(
         'assignment_id',
         db.Integer,
@@ -632,12 +644,14 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
     )
 
     def __init__(
-        self, amount: int, time: datetime.timedelta, assignment: 'Assignment'
+            self, amount: int, time: datetime.timedelta, assignment: 'Assignment',
+            auto_approved: bool,
     ) -> None:
         super().__init__(
             amount=amount,
             time=time,
             assignment=assignment,
+            auto_approved=auto_approved,
         )
 
     def __to_json__(self) -> PeerFeedbackSettingJSON:
@@ -645,6 +659,7 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
             'id': self.id,
             'amount': self.amount,
             'time': on_not_none(self.time, lambda x: x.total_seconds()),
+            'auto_approved': self.auto_approved,
         }
 
     def __hash__(self) -> int:

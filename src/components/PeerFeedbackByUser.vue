@@ -504,6 +504,9 @@ export default class PeerFeedbackByUser extends Vue {
         return this.submissionById.chain(
             lookup => this.submissionIds.map(
                 subIds => subIds.every(subId => {
+                    if (this.errors[subId]) {
+                        return true;
+                    }
                     const sub = lookup[subId];
                     if (sub == null) {
                         return false;

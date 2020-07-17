@@ -1092,9 +1092,14 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
 
     @PermissionChecker.as_ensure_function
     def ensure_may_add_approved(self) -> None:
-        """Ensure that the current user may add this feedback reply.
+        """Ensure that the current user may add already approved comments.
         """
-        self.ensure_may_add()
+        assignment = self.reply.comment_base.work.assignment
+        pf_settings = assignment.peer_feedback_settings
+        if pf_settings is None or not pf_settings.auto_approved:
+            self.ensure_may_add()
+        else:
+            self.ensure_may_add_as_peer()
 
     @PermissionChecker.as_ensure_function
     def ensure_may_add_as_peer(self) -> None:

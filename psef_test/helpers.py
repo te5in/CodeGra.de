@@ -256,7 +256,9 @@ def create_assignment(
     return res
 
 
-def enable_peer_feedback(test_client, assignment, *, amount=1, days=6):
+def enable_peer_feedback(
+    test_client, assignment, *, amount=1, days=6, auto_approved=False
+):
     assignment_id = get_id(assignment)
     time = datetime.timedelta(days=days).total_seconds()
     test_client.req(
@@ -266,11 +268,13 @@ def enable_peer_feedback(test_client, assignment, *, amount=1, days=6):
         data={
             'amount': amount,
             'time': time,
+            'auto_approved': auto_approved,
         },
         result={
             'amount': amount,
             'time': time,
             'id': int,
+            'auto_approved': auto_approved,
         }
     )
 

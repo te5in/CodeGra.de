@@ -81,6 +81,8 @@ const ALLOWED_UPDATE_PROPS = new Set(keys<AssignmentUpdateableProps>());
 export interface AssignmentPeerFeedbackSettings {
     time: number;
     amount: number;
+    // eslint-disable-next-line camelcase
+    auto_approved: boolean;
 }
 
 type Mutable<T extends { [x: string]: any }, K extends string> = { [P in K]: T[P] };

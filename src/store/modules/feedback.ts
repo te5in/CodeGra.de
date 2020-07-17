@@ -2,7 +2,6 @@
 import { getStoreBuilder } from 'vuex-typex';
 import * as utils from '@/utils';
 import * as api from '@/api/v1';
-import { defaultdict } from '@/utils/defaultdict';
 
 import * as models from '@/models';
 import { RootState } from '@/store/state';
@@ -120,9 +119,12 @@ export namespace FeedbackStore {
                 utils.vueSet(state.inlineFeedbackByUser, payload.assignmentId, {});
             }
             const submissionIds = payload.comments.reduce((acc, comment) => {
+                if (!utils.hasAttr(acc, comment.workId)) {
+                    acc[comment.workId] = 0;
+                }
                 acc[comment.workId]++;
                 return acc;
-            }, defaultdict(() => 0) as { [submissionId: number]: number });
+            }, {} as { [submissionId: number]: number });
             utils.vueSet(
                 state.inlineFeedbackByUser[payload.assignmentId],
                 payload.userId,

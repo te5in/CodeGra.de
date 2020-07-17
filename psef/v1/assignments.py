@@ -1965,6 +1965,7 @@ def update_peer_feedback_settings(
             (float, int),
             transform=lambda t: datetime.timedelta(seconds=t),
         )
+        auto_approved = get('auto_approved', bool)
 
     peer_feedback_settings = assignment.peer_feedback_settings
 
@@ -1973,12 +1974,14 @@ def update_peer_feedback_settings(
             assignment=assignment,
             time=time,
             amount=new_amount,
+            auto_approved=auto_approved,
         )
         old_amount = None
     else:
         old_amount = peer_feedback_settings.amount
         peer_feedback_settings.time = time
         peer_feedback_settings.amount = new_amount
+        peer_feedback_settings.auto_approved = auto_approved
 
     if old_amount is None or old_amount != new_amount:
         peer_feedback_settings.maybe_do_initial_division()
