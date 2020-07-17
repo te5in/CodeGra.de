@@ -418,8 +418,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 (
                     'This assignment has peer feedback enabled, but peer'
                     ' feedback is not yet supported for group assignments'
-                ),
-                'Group assignments do not support peer feedback',
+                ), 'Group assignments do not support peer feedback',
                 APICodes.INVALID_STATE, 400
             )
 
@@ -1952,11 +1951,10 @@ def update_peer_feedback_settings(
 
     if assignment.group_set is not None:
         raise APIException(
-                (
-                    'This is a group assignment, but peer feedback is not yet'
-                    ' supported for group assignments.'
-                ),
-                'Group assignments do not support peer feedback',
+            (
+                'This is a group assignment, but peer feedback is not yet'
+                ' supported for group assignments.'
+            ), 'Group assignments do not support peer feedback',
             APICodes.INVALID_STATE, 400
         )
 

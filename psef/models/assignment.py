@@ -923,7 +923,7 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
         # ordering by a random value in the database. I have not tested this,
         # but this seems fast enough for now.
 
-        illegal_connections: t.Set[AssignmentPeerFeedbackConnection] = set()
+        illegal_connections: t.Set[t.Tuple[int, int]] = set()
 
         for connection in all_connections:
             new = (

@@ -875,7 +875,8 @@ if t.TYPE_CHECKING and MYPY:
     def distinct(_distinct: T_DB_COLUMN) -> T_DB_COLUMN:
         ...
 
-    def tuple_(itemA: DbColumn[T], itemB: DbColumn[Z]) -> DbColumn[t.Tuple[T, Z]]:
+    def tuple_(itemA: DbColumn[T],
+               itemB: DbColumn[Z]) -> DbColumn[t.Tuple[T, Z]]:
         ...
 
     class expression:
