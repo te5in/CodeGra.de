@@ -3,6 +3,7 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
+import itertools
 import contextlib
 from functools import wraps, partial
 
@@ -93,6 +94,45 @@ class _PermissionCheckFunction(t.Generic[_T_PERM_CHECKER]):
         def __call__(self) -> None:
             self.__fn()
 
+        def check(self) -> None:
+            """This is just another way to call the checker, but in some cases
+            (combining checkers) explicitly calling ``check`` can be more
+            clear.
+            """
+            self.__fn()
+
+        def or_(
+            self, *others: '_PermissionCheckFunction._Inner'
+        ) -> '_PermissionCheckFunction._Inner':
+            """Combine this checker with other checkers to produce a checker
+            that checks if any of the underlying checkers is satisfied.
+
+            :param others: Other permission checkers that this checker should
+                be combined with.
+
+            :returns: A new checker, make sure to call this checker (see
+                      :meth:`._PermissionCheckFunction.check` or
+                      :meth:`._PermissionCheckFunction.as_bool`), otherwise
+                      this method will not do anything useful.
+            """
+
+            def _inner() -> None:
+                err: t.Optional[PermissionException] = None
+                for checker in itertools.chain([self], others):
+                    try:
+                        checker()
+                    except PermissionException as exc:
+                        err = err or exc
+                    else:
+                        return
+
+                # err can never be ``None`` here, but this is needed for mypy
+                assert err is not None
+
+                raise err
+
+            return type(self)(_inner)
+
         def as_bool(self) -> bool:
             """Get the result permission checker as a bool.
 
@@ -111,7 +151,7 @@ class _PermissionCheckFunction(t.Generic[_T_PERM_CHECKER]):
         self.__fn = fn
 
     def __get__(
-        self, instance: _T_PERM_CHECKER, owner: object
+        self, instance: _T_PERM_CHECKER, owner: t.Type[_T_PERM_CHECKER]
     ) -> '_PermissionCheckFunction._Inner':
         return self.__class__._Inner(partial(self.__fn, instance))
 

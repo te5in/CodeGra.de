@@ -263,6 +263,8 @@ class CommentReply(IdMixin, TimestampMixin, Base):
         )
 
         self.is_approved = self.perm_checker.ensure_may_add_approved.as_bool()
+        if not self.perm_checker.ensure_may_add.as_bool():
+            self.comment_type = CommentType.peer_feedback
 
         work = self.comment_base.work
         user_reasons: t.Dict[user_models.User, t.Set[n_models.

@@ -88,9 +88,8 @@ def add_reply(comment_base_id: int) -> ExtendedJSONResponse[CommentReply]:
         )
     reply = base.add_reply(current_user, message, reply_type, in_reply_to)
 
-    if not reply.perm_checker.ensure_may_add.as_bool():
-        reply.perm_checker.ensure_may_add_as_peer()
-        reply.comment_type = models.CommentType.peer_feedback
+    checker = reply.perm_checker
+    checker.ensure_may_add.or_(checker.ensure_may_add_as_peer).check()
 
     db.session.flush()
 

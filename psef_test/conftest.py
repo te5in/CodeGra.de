@@ -367,7 +367,9 @@ def logged_in():
             res = None
         else:
             _TOKENS.append(
-                flask_jwt.create_access_token(identity=user.id, fresh=True)
+                flask_jwt.create_access_token(
+                    identity=helpers.to_db_object(user, m.User).id, fresh=True
+                )
             )
             res = user
 

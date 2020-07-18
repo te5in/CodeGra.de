@@ -27,6 +27,12 @@ def get_id(obj):
         return obj.id
 
 
+def dict_without(dct, *keys):
+    res = {**dct}
+    for key in keys:
+        del res[key]
+    return res
+
 def to_db_object(obj, cls):
     if isinstance(obj, cls):
         return obj

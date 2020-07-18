@@ -2,6 +2,7 @@ import pytest
 
 import helpers
 import psef.models as m
+from test_feedback import mail_functions, make_add_reply
 
 
 def get_all_connections(assignment, amount):
@@ -238,3 +239,176 @@ def test_delete_sub_with_cycle(
 
         conns = get_all_connections(assignment, 1)
         assert set(conns[user1]) & {user3, user4, user5}
+
+
+def test_getting_peer_feedback_connections(
+    test_client, admin_user, session, describe, logged_in, yesterday, tomorrow
+):
+    with describe('setup'), logged_in(admin_user):
+        course = helpers.create_course(test_client)
+        assignment = helpers.create_assignment(
+            test_client, course, deadline=yesterday, state='open'
+        )
+        teacher = helpers.create_user_with_role(session, 'Teacher', course)
+        users = [
+            helpers.get_id(
+                helpers.create_user_with_role(session, 'Student', course)
+            ) for _ in range(5)
+        ]
+        user1, user2, *_ = users
+        for user in users:
+            helpers.create_submission(test_client, assignment, for_user=user)
+
+        helpers.enable_peer_feedback(test_client, assignment, amount=1)
+        url = (
+            f'/api/v1/assignments/{helpers.get_id(assignment)}/users'
+            f'/{helpers.get_id(user1)}/peer_feedback_subjects/'
+        )
+        conns = get_all_connections(assignment, 1)[user1]
+
+    with describe('Can get connections for own user'):
+        with logged_in(user1):
+            api_conns = test_client.req(
+                'get',
+                url,
+                200,
+                result=[{
+                    'peer': helpers.to_db_object(user1, m.User),
+                    'subject': helpers.to_db_object(conns[0], m.User),
+                }]
+            )
+
+    with describe('Cannot get connections for other user as student'):
+        with logged_in(user2):
+            test_client.req('get', url, 403)
+
+    with describe('Can get connections for other user as teacher'):
+        with logged_in(teacher):
+            test_client.req('get', url, 200, result=api_conns)
+
+    with describe(
+        'No connections if assignments deadline has not expired just yet'
+    ):
+        with logged_in(teacher):
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{helpers.get_id(assignment)}',
+                200,
+                data={'deadline': tomorrow.isoformat()}
+            )
+
+        with logged_in(user1):
+            test_client.req('get', url, 200, result=[])
+
+        # Not even as teacher
+        with logged_in(teacher):
+            test_client.req('get', url, 200, result=[])
+
+
+@pytest.mark.parametrize('auto_approved', [True, False])
+def test_giving_peer_feedback_comments(
+    test_client, admin_user, session, describe, logged_in, yesterday, tomorrow,
+    auto_approved, make_add_reply
+):
+    with describe('setup'), logged_in(admin_user):
+        course = helpers.create_course(test_client)
+        assignment = helpers.create_assignment(
+            test_client, course, deadline=yesterday, state='open'
+        )
+        teacher = helpers.create_user_with_role(session, 'Teacher', course)
+        users = [
+            helpers.get_id(
+                helpers.create_user_with_role(session, 'Student', course)
+            ) for _ in range(5)
+        ]
+        user1, user2, *_ = users
+        for user in users:
+            helpers.create_submission(test_client, assignment, for_user=user)
+            # Every user has to submissions
+            helpers.create_submission(test_client, assignment, for_user=user)
+
+        helpers.enable_peer_feedback(
+            test_client, assignment, amount=1, auto_approved=auto_approved
+        )
+        conns = get_all_connections(assignment, 1)[user1]
+        base_url = f'/api/v1/assignments/{helpers.get_id(assignment)}'
+
+    with describe(
+        'Will receive peer feedback submissions when getting all submissions'
+    ), logged_in(user1):
+        pf_sub, own_sub = test_client.req(
+            'get',
+            f'{base_url}/submissions/?latest_only',
+            200,
+            result=[{
+                'id': int,
+                'user': {
+                    'id': user,
+                    '__allow_extra__': True,
+                },
+                '__allow_extra__': True,
+            } for user in [conns[0], user1]],
+        )
+
+    with describe('Can comment on other submission'), logged_in(user1):
+        add_reply = make_add_reply(pf_sub)
+        reply = add_reply('A peer feedback comment', expect_peer_feedback=True)
+        assert reply['approved'] == auto_approved
+
+    with describe('Cannot change approval status yourself'), logged_in(user1):
+        reply.set_approval(not auto_approved, err=403)
+
+    with describe('Teacher can change approval status'), logged_in(teacher):
+        reply = reply.set_approval(not auto_approved)
+
+    with describe('Cannot place peer feedback after pf deadline has expired'):
+        with logged_in(teacher):
+            helpers.enable_peer_feedback(
+                test_client,
+                assignment,
+                amount=1,
+                auto_approved=auto_approved,
+                days=0.5
+            )
+            assert get_all_connections(assignment, 1)[user1] == conns
+        with logged_in(user1):
+            add_reply('Another peer feedback comment', expect_error=403)
+
+    with describe('Student can see approved peer feedback after done'):
+        with logged_in(teacher):
+            test_client.req(
+                'get',
+                f'/api/v1/submissions/{helpers.get_id(pf_sub)}/feedbacks/',
+                200,
+                query={'with_replies': '1'},
+                result={
+                    'general': '',
+                    'linter': {},
+                    'authors': [helpers.to_db_object(user1, m.User)],
+                    'user': [{
+                        'id': int,
+                        '__allow_extra__': True,
+                        'replies': [helpers.dict_without(reply, 'author'), ],
+                    }],
+                },
+            )
+            test_client.req('patch', base_url, 200, data={'state': 'done'})
+
+        with logged_in(conns[0]):
+            test_client.req(
+                'get',
+                f'/api/v1/submissions/{helpers.get_id(pf_sub)}/feedbacks/',
+                200,
+                query={'with_replies': '1'},
+                result={
+                    'general': '',
+                    'linter': {},
+                    'authors': ([helpers.to_db_object(user1, m.User)]
+                                if reply['approved'] else []),
+                    'user': ([{
+                        'id': int,
+                        '__allow_extra__': True,
+                        'replies': [helpers.dict_without(reply, 'author')],
+                    }] if reply['approved'] else []),
+                },
+            )

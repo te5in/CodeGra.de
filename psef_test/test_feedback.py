@@ -20,19 +20,31 @@ only_own = create_marker(pytest.mark.only_own)
 @pytest.fixture
 def make_add_reply(session, test_client, error_template, mail_functions):
     class Reply(dict):
-        def delete(self):
-            test_client.req(
-                'delete', (
-                    f'/api/v1/comments/{self["comment_base_id"]}/'
-                    f'replies/{self["id"]}'
-                ), 204
-            )
-
-        def update(self, new_text, now=None):
-            url = (
+        def get_url(self):
+            return (
                 f'/api/v1/comments/{self["comment_base_id"]}/'
                 f'replies/{self["id"]}'
             )
+
+        def delete(self):
+            test_client.req('delete', self.get_url(), 204)
+
+        def set_approval(self, approved: bool, *, err=False):
+            result = error_template if err else {
+                **self,
+                'approved': approved,
+            }
+            res = test_client.req(
+                'post' if approved else 'delete',
+                f'{self.get_url()}/approval',
+                err or 200,
+                result=result
+            )
+            if err:
+                return res
+            return Reply(res)
+
+        def update(self, new_text, now=None):
             if now is None:
                 now = cg_dt_utils.DatetimeWithTimezone.utcnow()
 
@@ -40,7 +52,7 @@ def make_add_reply(session, test_client, error_template, mail_functions):
                 return Reply(
                     test_client.req(
                         'patch',
-                        url,
+                        self.get_url(),
                         200,
                         data={'comment': new_text},
                         result={
@@ -53,7 +65,7 @@ def make_add_reply(session, test_client, error_template, mail_functions):
 
     def inner(work_id):
         code_id = session.query(m.File.id).filter(
-            m.File.work_id == work_id,
+            m.File.work_id == get_id(work_id),
             m.File.parent_id.isnot(None),
             m.File.name != '__init__',
         ).first()[0]
@@ -65,6 +77,7 @@ def make_add_reply(session, test_client, error_template, mail_functions):
             include_base=False,
             in_reply_to=None,
             expect_error=False,
+            expect_peer_feedback=False,
         ):
             in_reply_to_id = in_reply_to and get_id(in_reply_to)
             base = test_client.req(
@@ -97,6 +110,9 @@ def make_add_reply(session, test_client, error_template, mail_functions):
                     'in_reply_to_id': in_reply_to_id,
                     'last_edit': None,
                     'comment_base_id': get_id(base),
+                    'comment_type': (
+                        'peer_feedback' if expect_peer_feedback else 'normal'
+                    ),
                     '__allow_extra__': True,
                 },
                 include_response=True,
