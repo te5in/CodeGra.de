@@ -22,6 +22,7 @@ from alembic.script import ScriptDirectory
 
 import psef
 import migrations
+from conftest import get_fresh_database
 
 MIGRATION_PATH = path.join(path.dirname(__file__), '..', 'migrations')
 
@@ -59,9 +60,6 @@ assert not ALL_MIGRATION_TESTS, 'Found unknown migrations'
 assert ALL_TESTED_MIGRATIONS
 
 WHITESPACE_REGEX = re.compile(r'\s+')
-FreshDatabase = namedtuple(
-    'FreshDatabase', ['engine', 'name', 'db_name', 'run_psql']
-)
 
 
 @pytest.fixture
@@ -77,42 +75,8 @@ def migration_app(make_app_settings, fresh_database):
 
 @pytest.fixture
 def fresh_database():
-    db_name = f'migration_test_db_{uuid.uuid4()}'.replace('-', '')
-
-    host = os.getenv('POSTGRES_HOST')
-    password = os.getenv('PGPASSWORD')
-    port = os.getenv('POSTGRES_PORT')
-    username = os.getenv('POSTGRES_USERNAME')
-    assert bool(host) == bool(port) == bool(username) == bool(password)
-    psql_host_info = bool(host)
-
-    def run_psql(*args):
-        base = ['psql']
-        if psql_host_info:
-            base.extend(['-h', host, '-p', port, '-U', username])
-
-        return subprocess.check_call(
-            [*base, *args],
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-
-    run_psql('-c', f'create database "{db_name}"')
-    try:
-        run_psql(db_name, '-c', 'create extension "uuid-ossp"')
-        run_psql(db_name, '-c', 'create extension "citext"')
-        if psql_host_info:
-            db_string = f'postgresql://{username}:{password}@{host}:{port}/{db_name}'
-        else:
-            db_string = f'postgresql:///{db_name}'
-
-        engine = create_engine(db_string)
-        yield FreshDatabase(
-            engine=engine, name=db_string, db_name=db_name, run_psql=run_psql
-        )
-    finally:
-        engine.dispose()
-        run_psql('-c', f'drop database "{db_name}"')
+    with get_fresh_database() as db:
+        yield db
 
 
 @pytest.fixture

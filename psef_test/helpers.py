@@ -33,7 +33,11 @@ def dict_without(dct, *keys):
         del res[key]
     return res
 
+
 def to_db_object(obj, cls):
+    if isinstance(obj, LocalProxy):
+        obj = obj._get_current_object()
+
     if isinstance(obj, cls):
         return obj
     return cls.query.get(get_id(obj))

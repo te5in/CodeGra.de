@@ -104,7 +104,7 @@ def test_division(
     with describe('user gets assigned to different user every time'
                   ), logged_in(admin_user):
         conns = set()
-        for _ in range(20):
+        for _ in range(40):
             sub = helpers.create_submission(
                 test_client, assignment, for_user=user4
             )

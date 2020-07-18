@@ -7,7 +7,7 @@ import requests_stubs
 from psef import tasks, models
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 def test_simple_about_with_live_server(live_server):
     live_server_url = live_server()
     res = requests.get(f'{live_server_url}/api/v1/about')

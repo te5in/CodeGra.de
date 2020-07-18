@@ -1757,7 +1757,7 @@ class AutoTestRunner:
             processes=self._get_amount_of_needed_workers(),
             function=lambda get_work:
             _run_student(self, base_container_name, cpu_cores, get_work),
-            sleep_time=mult * self.config['AUTO_TEST_CF_SLEEP_TIME'],
+            sleep_time=self.config['AUTO_TEST_CF_SLEEP_TIME'],
             extra_amount=mult * self.config['AUTO_TEST_CF_EXTRA_AMOUNT'],
             initial_work=self.work,
         )
