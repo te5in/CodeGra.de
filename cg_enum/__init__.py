@@ -29,7 +29,7 @@ class CGEnum(enum.Enum):
             except KeyError:
                 pass
 
-        raise AttributeError
+        return super().__getattribute__(name)
 
     def __to_json__(self) -> str:
         return self.name
