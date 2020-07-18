@@ -20,7 +20,6 @@ def test_is_method():
         Enum.c.not_a_prop
 
 
-
 def test_jsonify():
     class Enum(CGEnum):
         name_a = 2

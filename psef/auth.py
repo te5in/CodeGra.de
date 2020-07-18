@@ -20,6 +20,7 @@ from typing_extensions import Final, Literal
 import psef
 from psef import features
 from cg_json import JSONResponse
+from cg_helpers import maybe_wrap_in_list
 from cg_dt_utils import DatetimeWithTimezone
 from psef.helpers import readable_join
 from psef.exceptions import APICodes, APIException, PermissionException
@@ -157,7 +158,8 @@ class CoursePermissionChecker(PermissionChecker):
         ensure_permission(perm, self.course_id, user=self.user)
 
     def _ensure_if_not(
-        self, checker: t.Callable[[], bool], perm: CPerm
+        self, checker: t.Callable[[], bool],
+        perms: t.Union[t.List[CPerm], CPerm]
     ) -> None:
         """Ensure the given permission if the checker returns ``False``.
 
@@ -168,17 +170,13 @@ class CoursePermissionChecker(PermissionChecker):
         :param checker: A function that should check if the given permission is
             required.
         :param perm: The permission the user should have if ``checker`` returns
-            ``True``.
+            ``True``. If a list is passed any of the permissions is sufficient
+            for this check to pass.
         """
-        self._ensure_any_if((lambda: not checker(), perm))
-
-    def _ensure_any_if(
-        self, *checker_perm: t.Tuple[t.Callable[[], bool], CPerm]
-    ) -> None:
         try:
-            self._ensure_any([perm for _, perm in checker_perm])
+            self._ensure_any(maybe_wrap_in_list(perms))
         except PermissionException:
-            if all(checker() for checker, _ in checker_perm):
+            if not checker():
                 raise
 
     def _ensure_any(self, perms: t.List[CPerm]) -> None:
@@ -1026,11 +1024,9 @@ class FeedbackBasePermissions(CoursePermissionChecker):
         if self.base.work.has_as_author(self.user):
             perms.append(CPerm.can_add_own_inline_comments)
 
-        try:
-            self._ensure_any(perms)
-        except PermissionException:
-            if not self.base.work.is_peer_reviewed_by(self.user):
-                raise
+        self._ensure_if_not(
+            lambda: self.base.work.is_peer_reviewed_by(self.user), perms
+        )
 
 
 class FeedbackReplyPermissions(CoursePermissionChecker):
@@ -1108,7 +1104,6 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
         work = self.reply.comment_base.work
         assig = work.assignment
         pf_setting = assig.peer_feedback_settings
-        now = helpers.get_request_start_time()
 
         if pf_setting is None or not work.is_peer_reviewed_by(self.user):
             raise PermissionException(
@@ -1120,18 +1115,7 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
                 APICodes.INCORRECT_PERMISSION,
                 403,
             )
-        elif assig.deadline is None or not assig.deadline_expired:
-            raise PermissionException(
-                (
-                    'The assignments deadline has not yet expired, so you'
-                    ' cannot place peer feedback'
-                ), 'The assignment is before the peer review window',
-                APICodes.INCORRECT_PERMISSION, 403
-            )
-        elif (
-            pf_setting.time is not None and
-            (assig.deadline + pf_setting.time) < now
-        ):
+        elif pf_setting.deadline_expired:
             raise PermissionException(
                 (
                     'You cannot place peer feedback as the deadline for this'

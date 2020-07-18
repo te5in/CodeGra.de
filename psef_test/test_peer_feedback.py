@@ -74,7 +74,30 @@ def test_division(
                   ), logged_in(admin_user):
         old_connections = get_all_connections(assignment, 1)
         for _ in range(10):
-            helpers.create_submission(test_client, assignment, for_user=user3)
+            last_sub3 = helpers.create_submission(
+                test_client, assignment, for_user=user3
+            )
+            assert get_all_connections(assignment, 1) == old_connections
+
+    with describe('Deleting not last submission does not change division'
+                  ), logged_in(admin_user):
+        old_connections = get_all_connections(assignment, 1)
+        _, rv = test_client.req(
+            'delete',
+            f'/api/v1/submissions/{helpers.get_id(last_sub3)}',
+            204,
+            include_response=True,
+        )
+        assert 'warning' not in rv.headers
+        assert get_all_connections(assignment, 1) == old_connections
+
+    with describe('Test submission does not change anything'
+                  ), logged_in(admin_user):
+        old_connections = get_all_connections(assignment, 1)
+        for _ in range(10):
+            helpers.create_submission(
+                test_client, assignment, is_test_submission=True
+            )
             assert get_all_connections(assignment, 1) == old_connections
 
     with describe('user gets assigned to different user every time'

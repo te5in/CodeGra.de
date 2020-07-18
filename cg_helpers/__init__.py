@@ -172,3 +172,25 @@ def flatten(it_to_flatten: t.Iterable[t.Iterable[T]]) -> t.List[T]:
     :returns: A fresh flattened list.
     """
     return [x for wrap in it_to_flatten for x in wrap]
+
+
+def maybe_wrap_in_list(maybe_lst: t.Union[t.List[T], T]) -> t.List[T]:
+    """Wrap an item into a list if it is not already a list.
+
+    >>> maybe_wrap_in_list(5)
+    [5]
+    >>> maybe_wrap_in_list([5])
+    [5]
+    >>> maybe_wrap_in_list([5, 6])
+    [5, 6]
+    >>> maybe_wrap_in_list({5 : 6})
+    [{5: 6}]
+    >>> maybe_wrap_in_list((1, 2))
+    [(1, 2)]
+
+    :param maybe_lst: The item to maybe wrap.
+    :returns: The item wrapped or just the item.
+    """
+    if isinstance(maybe_lst, list):
+        return maybe_lst
+    return [maybe_lst]

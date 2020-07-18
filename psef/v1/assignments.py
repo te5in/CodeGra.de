@@ -301,10 +301,12 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     :returns: An empty response with return code 204.
     :raises APIException: If an invalid value is submitted. (INVALID_PARAM)
     """
-    assig = helpers.get_or_404(
+    assig = helpers.filter_single_or_404(
         models.Assignment,
-        assignment_id,
-        also_error=lambda a: not a.is_visible
+        models.Assignment.id == assignment_id,
+        also_error=lambda a: not a.is_visible,
+        with_for_update=True,
+        with_for_update_of=models.Assignment,
     )
     content = ensure_json_dict(request.get_json())
     with get_from_map_transaction(content) as [_, opt_get]:
@@ -411,9 +413,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         )
         if new_group_set_id is None:
             group_set = None
-        elif assig.peer_feedback_settings is None:
-            group_set = helpers.get_or_404(models.GroupSet, new_group_set_id)
-        else:
+        elif assig.peer_feedback_settings is not None:
             raise APIException(
                 (
                     'This assignment has peer feedback enabled, but peer'
@@ -421,6 +421,8 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 ), 'Group assignments do not support peer feedback',
                 APICodes.INVALID_STATE, 400
             )
+        else:
+            group_set = helpers.get_or_404(models.GroupSet, new_group_set_id)
 
         if assig.group_set != group_set and assig.has_group_submissions():
             raise APIException(

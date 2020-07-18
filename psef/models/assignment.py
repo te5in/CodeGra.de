@@ -505,19 +505,6 @@ class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
                 peer_user_id=peer_user_id,
             )
 
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, AssignmentPeerFeedbackConnection):
-            return self._get_identity_tuple() == other._get_identity_tuple()
-        return NotImplemented
-
-    def _get_identity_tuple(self) -> t.Tuple[int, int, int]:
-        return (
-            self.peer_feedback_settings_id, self.peer_user_id, self.user_id
-        )
-
-    def __hash__(self) -> int:
-        return hash(self._get_identity_tuple())
-
     peer_feedback_settings_id = db.Column(
         'peer_feedback_settings_id',
         db.Integer,
@@ -644,8 +631,11 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
     )
 
     def __init__(
-            self, amount: int, time: datetime.timedelta, assignment: 'Assignment',
-            auto_approved: bool,
+        self,
+        amount: int,
+        time: datetime.timedelta,
+        assignment: 'Assignment',
+        auto_approved: bool,
     ) -> None:
         super().__init__(
             amount=amount,
@@ -662,8 +652,21 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
             'auto_approved': self.auto_approved,
         }
 
-    def __hash__(self) -> int:
-        return hash(self.id)
+    @property
+    def deadline_expired(self) -> bool:
+        """Has the deadline for giving peer feedback expired.
+
+        If the deadline for the assignment has not been set just yet we don't
+        consider the deadline for the peer feedback expired. However, as the
+        deadline for the assignment also hasn't expired in this case peer
+        feedback is not yet open.
+        """
+        assig = self.assignment
+        now = helpers.get_request_start_time()
+        if self.time is None or assig.deadline is None:
+            return False
+
+        return (assig.deadline + self.time) < now
 
     @cg_cache.intra_request.cache_within_request
     def _get_subjects_for_user(self,

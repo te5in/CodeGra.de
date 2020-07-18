@@ -38,7 +38,7 @@ from cg_json import (
     JSONResponse, ExtendedJSONResponse, jsonify, extended_jsonify
 )
 from cg_timers import timed_code
-from cg_helpers import flatten, handle_none, on_not_none
+from cg_helpers import flatten, handle_none, on_not_none, maybe_wrap_in_list
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import (
     EmptyResponse, make_empty_response, callback_after_this_request
@@ -1705,38 +1705,6 @@ def readable_join(lst: t.Sequence[str]) -> str:
     if len(lst) < 3:
         return ' and '.join(lst)
     return ', '.join(lst[:-1]) + ', and ' + lst[-1]
-
-
-def maybe_wrap_in_list(maybe_lst: t.Union[t.List[T], T]) -> t.List[T]:
-    """Wrap an item into a list if it is not already a list.
-
-    >>> maybe_wrap_in_list(5)
-    [5]
-    >>> maybe_wrap_in_list([5])
-    [5]
-    >>> maybe_wrap_in_list([5, 6])
-    [5, 6]
-    >>> maybe_wrap_in_list({5 : 6})
-    [{5: 6}]
-    >>> maybe_wrap_in_list((1, 2))
-    [(1, 2)]
-    >>> item = object()
-    >>> maybe_wrap_in_list(item)[0] is item
-    True
-    >>> lst_item = [object()]
-    >>> maybe_wrap_in_list(lst_item) is lst_item
-    True
-    >>> class my_list(list): pass
-    >>> obj = my_list(['5'])
-    >>> maybe_wrap_in_list(obj) is obj
-    True
-
-    :param maybe_lst: The item to maybe wrap.
-    :returns: The item wrapped or just the item.
-    """
-    if isinstance(maybe_lst, list):
-        return maybe_lst
-    return [maybe_lst]
 
 
 def contains_duplicate(it_to_check: t.Iterable[T_Hashable]) -> bool:
