@@ -994,12 +994,12 @@ class WorksByUserPermissions(CoursePermissionChecker):
         connected to this permission checker.
         """
 
-        def is_own():
+        def is_own() -> bool:
             return self.author.contains_user(self.user)
 
-        def is_peer_sub():
+        def is_peer_sub() -> bool:
             pf_settings = self.assignment.peer_feedback_settings
-            if pf_settings:
+            if pf_settings is None:
                 return False
             return pf_settings.does_peer_review_of(
                 reviewer=self.user, subject=self.author
@@ -1026,7 +1026,7 @@ class WorkPermissions(CoursePermissionChecker):
         if self.work.deleted:
             raise PermissionException(
                 'The given work is deleted, so you may not see it',
-                f'The work "{work.id}" was deleted',
+                f'The work "{self.work.id}" was deleted',
                 APICodes.INCORRECT_PERMISSION,
                 403,
             )
