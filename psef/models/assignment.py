@@ -568,12 +568,6 @@ class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
             self.user_id,
         )
 
-    @property
-    def assignment(self) -> 'Assignment':
-        """The assignment this peer feedback connection is for.
-        """
-        return self.peer_feedback_settings.assignment
-
     def __to_json__(self) -> t.Any:
         return {
             'subject': self.user,

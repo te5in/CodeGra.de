@@ -216,9 +216,11 @@ def test_delete_sub_with_cycle(
         ]:
             reviewer = m.User.query.get(reviewer)
             subject = m.User.query.get(subject)
-            m.AssignmentPeerFeedbackConnection(
+            conn = m.AssignmentPeerFeedbackConnection(
                 pf_settings, user=subject, peer_user=reviewer
             )
+            assert str(reviewer.id) in repr(conn)
+            assert str(subject.id) in repr(conn)
 
         session.commit()
 
