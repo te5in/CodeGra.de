@@ -314,6 +314,8 @@ class CommentReply(IdMixin, TimestampMixin, Base):
             self, current_user, new_comment_text=new_comment_text
         )
         self.comment = new_comment_text
+        if not self.perm_checker.ensure_may_add_approved.as_bool():
+            self.is_approved = False
         return edit
 
     def delete(self) -> 'CommentReplyEdit':

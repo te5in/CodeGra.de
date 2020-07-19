@@ -993,17 +993,21 @@ class WorksByUserPermissions(CoursePermissionChecker):
         """Make sure the current user may see the submissions by the author
         connected to this permission checker.
         """
-        if self.author.contains_user(self.user):
-            return
-        pf_settings = self.assignment.peer_feedback_settings
 
-        if pf_settings is not None and pf_settings.does_peer_review_of(
-            reviewer=self.user,
-            subject=self.author,
-        ):
-            return
+        def is_own():
+            return self.author.contains_user(self.user)
 
-        self._ensure(CPerm.can_see_others_work)
+        def is_peer_sub():
+            pf_settings = self.assignment.peer_feedback_settings
+            if pf_settings:
+                return False
+            return pf_settings.does_peer_review_of(
+                reviewer=self.user, subject=self.author
+            )
+
+        self._ensure_if_not(
+            lambda: is_own() or is_peer_sub(), CPerm.can_see_others_work
+        )
 
 
 class WorkPermissions(CoursePermissionChecker):
@@ -1019,6 +1023,13 @@ class WorkPermissions(CoursePermissionChecker):
     def ensure_may_see(self) -> None:
         """Ensure the current user may see this work.
         """
+        if self.work.deleted:
+            raise PermissionException(
+                'The given work is deleted, so you may not see it',
+                f'The work "{work.id}" was deleted',
+                APICodes.INCORRECT_PERMISSION,
+                403,
+            )
         WorksByUserPermissions(self.work.assignment,
                                self.work.user).ensure_may_see()
 
@@ -1196,13 +1207,7 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
         """Make sure the current user may see this feedback reply.
         """
         work = self.reply.comment_base.work
-        if work.deleted:
-            raise PermissionException(
-                'The given work is deleted, so you may not see its feedback',
-                f'The work "{work.id}" was deleted',
-                APICodes.INCORRECT_PERMISSION,
-                403,
-            )
+        WorkPermissions(work).ensure_may_see()
 
         if self._is_own_reply:
             self._ensure_enrolled()
@@ -1217,14 +1222,6 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
         if self.reply.in_reply_to is not None:
             # You can only see the reply if you can see the base
             type(self)(self.reply.in_reply_to).ensure_may_see()
-
-        self._ensure_if_not(
-            lambda: (
-                work.has_as_author(self.user) or
-                (work.is_peer_reviewed_by(self.user) and assignment.is_done)
-            ),
-            CPerm.can_see_others_work,
-        )
 
         if not self.reply.is_approved:
             self._ensure(CPerm.can_view_inline_feedback_before_approved)
@@ -1364,6 +1361,8 @@ class AutoTestResultPermissions(CoursePermissionChecker):
         self._ensure_enrolled()
 
         if run.auto_test.results_always_visible:
+            # We cannot simply check if the user may see this work as peer
+            # reviewers are not allowed to see the AutoTest results.
             if work.has_as_author(self.user):
                 return
             self._ensure(CPerm.can_see_others_work)

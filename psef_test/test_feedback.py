@@ -44,24 +44,28 @@ def make_add_reply(session, test_client, error_template, mail_functions):
                 return res
             return Reply(res)
 
-        def update(self, new_text, now=None):
+        def update(self, new_text, now=None, *, approved=None, err=False):
             if now is None:
                 now = cg_dt_utils.DatetimeWithTimezone.utcnow()
+            if approved is None:
+                approved = self['approved']
 
             with freeze_time(now):
-                return Reply(
-                    test_client.req(
-                        'patch',
-                        self.get_url(),
-                        200,
-                        data={'comment': new_text},
-                        result={
-                            **self,
-                            'comment': new_text,
-                            'last_edit': now.isoformat(),
-                        },
-                    )
+                res = test_client.req(
+                    'patch',
+                    self.get_url(),
+                    err or 200,
+                    data={'comment': new_text},
+                    result=error_template if err else {
+                        **self,
+                        'comment': new_text,
+                        'last_edit': now.isoformat(),
+                        'approved': approved,
+                    },
                 )
+                if not err:
+                    return Reply(res)
+                return res
 
     def inner(work_id):
         code_id = session.query(m.File.id).filter(
@@ -78,9 +82,10 @@ def make_add_reply(session, test_client, error_template, mail_functions):
             in_reply_to=None,
             expect_error=False,
             expect_peer_feedback=False,
+            base_id=None
         ):
             in_reply_to_id = in_reply_to and get_id(in_reply_to)
-            base = test_client.req(
+            base = base_id or test_client.req(
                 'put',
                 '/api/v1/comments/',
                 200,

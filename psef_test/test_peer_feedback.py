@@ -321,7 +321,7 @@ def test_giving_peer_feedback_comments(
                 helpers.create_user_with_role(session, 'Student', course)
             ) for _ in range(5)
         ]
-        user1, user2, *_ = users
+        user1, *other_users = users
         for user in users:
             helpers.create_submission(test_client, assignment, for_user=user)
             # Every user has to submissions
@@ -331,6 +331,7 @@ def test_giving_peer_feedback_comments(
             test_client, assignment, amount=1, auto_approved=auto_approved
         )
         conns = get_all_connections(assignment, 1)[user1]
+        other_user = next(u for u in other_users if u not in conns)
         base_url = f'/api/v1/assignments/{helpers.get_id(assignment)}'
 
     with describe(
@@ -361,7 +362,27 @@ def test_giving_peer_feedback_comments(
     with describe('Teacher can change approval status'), logged_in(teacher):
         reply = reply.set_approval(not auto_approved)
 
-    with describe('Cannot place peer feedback after pf deadline has expired'):
+    with describe('Editing feedback resets approval status'):
+        with logged_in(user1):
+            # We don't reset it back to ``True`` if ``auto_approved`` is
+            # ``True`` but we do set it back to ``False``.
+            reply = reply.update('New content', approved=False)
+
+        if auto_approved:
+            # If reply is approved an ``auto_approved`` is ``True`` the
+            # approval state should not change.
+            with logged_in(teacher):
+                reply.set_approval(True)
+            with logged_in(user1):
+                reply = reply.update('New content2', approved=True)
+
+        with logged_in(teacher):
+            # Set approval to expected state
+            reply = reply.set_approval(not auto_approved)
+
+    with describe(
+        'Cannot place or edit peer feedback after pf deadline has expired'
+    ):
         with logged_in(teacher):
             helpers.enable_peer_feedback(
                 test_client,
@@ -373,6 +394,16 @@ def test_giving_peer_feedback_comments(
             assert get_all_connections(assignment, 1)[user1] == conns
         with logged_in(user1):
             add_reply('Another peer feedback comment', expect_error=403)
+
+            reply.update('Cannot update!', err=403)
+
+    with describe('Cannot add peer feedback to a non assigned sub'
+                  ), logged_in(other_user):
+        err = add_reply(
+            'Not possible to add this',
+            expect_error=403,
+            base_id=reply['comment_base_id']
+        )
 
     with describe('Student can see approved peer feedback after done'):
         with logged_in(teacher):
