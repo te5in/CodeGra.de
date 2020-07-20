@@ -56,7 +56,7 @@ export default class PeerFeedbackAssessment extends Vue {
     approvedPromise: null | Promise<unknown> = null;
 
     updateApproval(approved: boolean): Promise<unknown> {
-        if (!this.disabled) {
+        if (this.disabled) {
             return Promise.resolve();
         }
         this.approvedPromise = this.reply.approveAndSave(approved);

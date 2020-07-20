@@ -359,6 +359,7 @@ context('Course Feedback', () => {
                 cy.get('.local-header')
                     .contains('.btn', 'Course feedback')
                     .click();
+                cy.wait(2000);
                 cy.get('[id^="submissions-page-course-feedback-modal"]')
                     .should('be.visible');
             });

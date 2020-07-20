@@ -126,8 +126,8 @@ export default class PeerFeedbackOverview extends Vue {
             const user = sub.user;
             const subs = this.getSubmissionsByUser(this.assignmentId, user.id);
 
-            const onLatest = fb[sub.id];
-            const onAllSubs = subs.reduce((acc, s) => acc + fb[s.id], 0);
+            const onLatest = fb[sub.id] ?? 0;
+            const onAllSubs = subs.reduce((acc, s) => acc + (fb[s.id] ?? 0), 0);
 
             return [user.id, { latest: onLatest, all: onAllSubs }];
         });

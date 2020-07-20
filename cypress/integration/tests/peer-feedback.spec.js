@@ -72,6 +72,7 @@ context('Peer feedback', () => {
         });
 
         it('should not be possible before the deadline', () => {
+            cy.wait(2000);
             cy.get('.page.submissions')
                 .should('be.visible')
                 .contains('.action-button', 'Peer feedback')
@@ -197,7 +198,9 @@ context('Peer feedback', () => {
 
         it('should not be possible to approve your own feedback', () => {
             cy.get('.feedback-reply .peer-feedback-assessment')
-                .should('not.exist');
+                .should('be.visible')
+                .find('.toggle-container')
+                .should('have.class', 'disabled');
         });
 
         it('should be visible in the feedback overview', () => {
@@ -286,9 +289,11 @@ context('Peer feedback', () => {
             cy.login('student1', 'Student1');
             cy.openCategory('Peer Feedback');
 
+            cy.wait(2000);
+
             // Check the feedback in nested/timer.c
             cy.get('.peer-feedback-by-user')
-                .contains('.inner-feedback-viewer', 'nested/timer.c')
+                .contains('.inner-inline-feedback-file', 'nested/timer.c')
                 .find('.feedback-area')
                 .within(() => {
                     cy.get('.info-text-wrapper .user')
@@ -318,6 +323,8 @@ context('Peer feedback', () => {
         });
 
         it('should not be visible before the deadline', () => {
+            cy.wait(2000);
+
             cy.get('.page.submissions')
                 .should('be.visible')
                 .contains('.action-button', 'Latest submission')
@@ -357,6 +364,8 @@ context('Peer feedback', () => {
         it('should not be visible when the assignment is "done"', () => {
             patchSettings({ state: 'done' });
             cy.login('student2', 'Student2');
+
+            cy.wait(2000);
             cy.openCategory('Code');
 
             // Wait for file to be loaded.
