@@ -267,22 +267,22 @@ def create_assignment(
 
 
 def enable_peer_feedback(
-    test_client, assignment, *, amount=1, days=6, auto_approved=False
+        test_client, assignment, *, amount=1, days=6, auto_approved=False, err=False
 ):
     assignment_id = get_id(assignment)
     time = (
         None if days is None else datetime.timedelta(days=days).total_seconds()
     )
-    test_client.req(
+    return test_client.req(
         'put',
         f'/api/v1/assignments/{assignment_id}/peer_feedback_settings',
-        200,
+        err or 200,
         data={
             'amount': amount,
             'time': time,
             'auto_approved': auto_approved,
         },
-        result={
+        result=create_error_template() if err else {
             'amount': amount,
             'time': time,
             'id': int,

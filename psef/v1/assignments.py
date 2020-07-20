@@ -1969,7 +1969,25 @@ def update_peer_feedback_settings(
     if time_in_seconds is None:
         peer_time = None
     else:
+        if time_in_seconds <= 0:
+            raise APIException(
+                (
+                    'The time available to give peer feedback should be at'
+                    ' least 1 second'
+                ),
+                f'The time given ({time_in_seconds}) is not > 0',
+                APICodes.INVALID_PARAM,
+                400,
+            )
         peer_time = datetime.timedelta(seconds=time_in_seconds)
+
+    if new_amount <= 0:
+        raise APIException(
+            'The amount of users should be at least 1',
+            f'The amount given ({new_amount}) is not >= 1',
+            APICodes.INVALID_PARAM,
+            400,
+        )
 
     if peer_feedback_settings is None:
         peer_feedback_settings = models.AssignmentPeerFeedbackSettings(

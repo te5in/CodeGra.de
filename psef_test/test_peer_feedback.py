@@ -7,6 +7,7 @@ import helpers
 import psef.models as m
 from cg_dt_utils import DatetimeWithTimezone
 from test_feedback import mail_functions, make_add_reply
+from psef.permissions import CoursePermission as CPerm
 
 
 def get_all_connections(assignment, amount):
@@ -37,6 +38,41 @@ def get_all_connections(assignment, amount):
         assert seen_amount[a] == amount
 
     return res
+
+
+def test_enabling_peer_feedback(
+    test_client, session, describe, admin_user, logged_in
+):
+    with describe('setup'), logged_in(admin_user):
+        course = helpers.create_course(test_client)
+        assignment = helpers.create_assignment(
+            test_client, course, state='open'
+        )
+        user_with_perm = helpers.create_user_with_perms(
+            session, [CPerm.can_edit_peer_feedback_settings], course
+        )
+        user_without_perm = helpers.create_user_with_perms(session, [], course)
+
+    with describe('User without perm cannot enable'
+                  ), logged_in(user_without_perm):
+        helpers.enable_peer_feedback(test_client, assignment, err=403)
+
+    with describe('User with perm can enable'), logged_in(user_with_perm):
+        helpers.enable_peer_feedback(test_client, assignment)
+
+    with describe('Amount should be >= 1'), logged_in(user_with_perm):
+        helpers.enable_peer_feedback(
+            test_client, assignment, amount=-1, err=400
+        )
+        helpers.enable_peer_feedback(
+            test_client, assignment, amount=0, err=400
+        )
+        helpers.enable_peer_feedback(test_client, assignment, amount=110)
+
+    with describe('Time should be > 0'), logged_in(user_with_perm):
+        helpers.enable_peer_feedback(test_client, assignment, days=-1, err=400)
+        helpers.enable_peer_feedback(test_client, assignment, days=0, err=400)
+        helpers.enable_peer_feedback(test_client, assignment, days=0.005)
 
 
 @pytest.mark.parametrize('iteration', range(5))
@@ -580,3 +616,41 @@ def test_disabling_peer_feedback(
     with describe('deleting again does nothing'), logged_in(teacher):
         test_client.req('delete', pf_url, 204)
         get_all_connections(assignment, 0)
+
+
+def test_peer_feedback_and_group_assignments(
+    test_client, logged_in, describe, admin_user
+):
+    with describe('setup'), logged_in(admin_user):
+        course = helpers.create_course(test_client)
+        gset = helpers.create_group_set(test_client, course, 1, 2)
+
+        def enable_group(assig, *, err=False, gset_id=helpers.get_id(gset)):
+            return test_client.req(
+                'patch',
+                f'/api/v1/assignments/{helpers.get_id(assig)}',
+                err or 200,
+                data={'group_set_id': gset_id}
+            )
+
+    with describe('Cannot enable peer feedback on group assignment'
+                  ), logged_in(admin_user):
+        assig = helpers.create_assignment(test_client, course)
+        enable_group(assig)
+        err = helpers.enable_peer_feedback(test_client, assig, err=400)
+        assert 'This is a group assignment' in err['message']
+        enable_group(assig, gset_id=None)
+        helpers.enable_peer_feedback(test_client, assig)
+
+    with describe('Cannot make group assignment if peer feedback is enabled'
+                  ), logged_in(admin_user):
+        assig = helpers.create_assignment(test_client, course)
+        helpers.enable_peer_feedback(test_client, assig)
+        err = enable_group(assig, err=400)
+        assert 'This assignment has peer feedback enabled' in err['message']
+        url = (
+            f'/api/v1/assignments/{helpers.get_id(assig)}'
+            '/peer_feedback_settings'
+        )
+        test_client.req('delete', url, 204)
+        enable_group(assig)
