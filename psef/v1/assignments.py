@@ -2051,7 +2051,10 @@ def get_comments_by_user(assignment_id: int, user_id: int
     :param user_id: The id of the user from which you want to get the threads.
 
     :returns: A list of comments that all have at least one reply by the given
-              user.
+              user. There might be replies missing from these bases if these
+              replies where not given by the user with id ``user_id``, however
+              no guarantee is made that all replies are by the user with id
+              ``user_id``.
     """
     assignment = helpers.filter_single_or_404(
         models.Assignment,

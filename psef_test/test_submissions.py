@@ -974,8 +974,8 @@ def test_get_zip_file(
     indirect=True
 )
 def test_get_teacher_zip_file(
-    test_client, logged_in, assignment_real_works, error_template, request,
-    ta_user, student_user, session
+    test_client, logged_in, assignment_real_works, error_template, ta_user,
+    student_user, session
 ):
     def get_files(user, error):
         with logged_in(user):
@@ -1016,6 +1016,7 @@ def test_get_teacher_zip_file(
     ).filter(
         m.File.parent != None,
     ).update({'fileowner': m.FileOwner.student})
+    session.commit()
     assert get_files(ta_user, False) == {
         'multiple_dir_archive.zip/',
         'multiple_dir_archive.zip/dir/single_file_work_copy',
@@ -1025,14 +1026,16 @@ def test_get_teacher_zip_file(
         id=m.Work.query.get(work_id).assignment_id,
     ).update({
         'deadline': DatetimeWithTimezone.utcnow() - datetime.timedelta(days=1)
-    }, )
+    })
+    session.commit()
     get_files(student_user, 403)
 
     m.Assignment.query.filter_by(
         id=m.Work.query.get(work_id).assignment_id,
     ).update({
         'state': m.AssignmentStateEnum.done,
-    }, )
+    })
+    session.commit()
 
     assert get_files(student_user, False) == {
         'multiple_dir_archive.zip/',
@@ -1229,6 +1232,7 @@ def test_add_file(
             'deadline':
                 DatetimeWithTimezone.utcnow() - datetime.timedelta(days=1)
         })
+        session.commit()
 
         test_client.req(
             'post',
