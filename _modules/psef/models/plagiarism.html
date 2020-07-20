@@ -517,9 +517,9 @@
     <span class="nb">id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">state</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;state&#39;</span><span class="p">,</span>
-        <span class="n">db</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="n">PlagiarismState</span><span class="p">),</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="n">PlagiarismState</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;plagiarismtate&#39;</span><span class="p">),</span>
         <span class="n">default</span><span class="o">=</span><span class="n">PlagiarismState</span><span class="o">.</span><span class="n">starting</span><span class="p">,</span>
-        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">submissions_total</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;submissions_total&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span>

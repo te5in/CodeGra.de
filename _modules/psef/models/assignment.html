@@ -213,7 +213,7 @@
 <span class="kn">import</span> <span class="nn">datetime</span>
 <span class="kn">import</span> <span class="nn">dataclasses</span>
 <span class="kn">from</span> <span class="nn">random</span> <span class="kn">import</span> <span class="n">shuffle</span>
-<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">cycle</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">chain</span><span class="p">,</span> <span class="n">cycle</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Counter</span><span class="p">,</span> <span class="n">defaultdict</span>
 
 <span class="kn">import</span> <span class="nn">structlog</span>
@@ -222,15 +222,19 @@
 <span class="kn">from</span> <span class="nn">mypy_extensions</span> <span class="kn">import</span> <span class="n">DefaultArg</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.types</span> <span class="kn">import</span> <span class="n">JSON</span>
 <span class="kn">from</span> <span class="nn">typing_extensions</span> <span class="kn">import</span> <span class="n">TypedDict</span>
-<span class="kn">from</span> <span class="nn">sqlalchemy.sql.expression</span> <span class="kn">import</span> <span class="n">and_</span><span class="p">,</span> <span class="n">func</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.orm.collections</span> <span class="kn">import</span> <span class="n">attribute_mapped_collection</span>
 
 <span class="kn">import</span> <span class="nn">psef</span>
+<span class="kn">import</span> <span class="nn">cg_cache</span>
+<span class="kn">import</span> <span class="nn">cg_sqlalchemy_helpers</span>
+<span class="kn">from</span> <span class="nn">cg_helpers</span> <span class="kn">import</span> <span class="n">handle_none</span><span class="p">,</span> <span class="n">on_not_none</span><span class="p">,</span> <span class="n">zip_times_with_offset</span>
 <span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers</span> <span class="kn">import</span> <span class="n">expression</span> <span class="k">as</span> <span class="n">sql_expression</span>
 <span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">_T_BASE</span><span class="p">,</span> <span class="n">MyQuery</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">ColumnProxy</span><span class="p">,</span> <span class="n">MyNonOrderableQuery</span><span class="p">,</span>
     <span class="n">hybrid_property</span>
 <span class="p">)</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.mixins</span> <span class="kn">import</span> <span class="n">IdMixin</span><span class="p">,</span> <span class="n">TimestampMixin</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">UUID_LENGTH</span><span class="p">,</span> <span class="n">Base</span><span class="p">,</span> <span class="n">db</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">user</span> <span class="k">as</span> <span class="n">user_models</span>
@@ -240,7 +244,7 @@
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">rubric</span> <span class="k">as</span> <span class="n">rubric_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">analytics</span> <span class="k">as</span> <span class="n">analytics_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">auto_test</span> <span class="k">as</span> <span class="n">auto_test_models</span>
-<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span><span class="p">,</span> <span class="n">ignore</span><span class="p">,</span> <span class="n">helpers</span><span class="p">,</span> <span class="n">signals</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span><span class="p">,</span> <span class="n">ignore</span><span class="p">,</span> <span class="n">helpers</span><span class="p">,</span> <span class="n">signals</span><span class="p">,</span> <span class="n">db_locks</span>
 <span class="kn">from</span> <span class="nn">.role</span> <span class="kn">import</span> <span class="n">CourseRole</span>
 <span class="kn">from</span> <span class="nn">.permission</span> <span class="kn">import</span> <span class="n">Permission</span><span class="p">,</span> <span class="n">PermissionComp</span>
 <span class="kn">from</span> <span class="nn">..exceptions</span> <span class="kn">import</span> <span class="p">(</span>
@@ -266,63 +270,109 @@
 <span class="n">logger</span> <span class="o">=</span> <span class="n">structlog</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
 
 
+<div class="viewcode-block" id="PeerFeedbackSettingJSON"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.PeerFeedbackSettingJSON">[docs]</a><span class="k">class</span> <span class="nc">PeerFeedbackSettingJSON</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The serialization of an :class:`.AssignmentPeerFeedbackSettings`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#: The amount of student that a single user should peer review.</span>
+    <span class="n">amount</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="c1">#: The amount of time in seconds a user has after the deadline to do the</span>
+    <span class="c1">#: peer review.</span>
+    <span class="n">time</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+
+    <span class="c1">#: Should new peer feedback comments be considered approved by default or</span>
+    <span class="c1">#: not.</span>
+    <span class="n">auto_approved</span><span class="p">:</span> <span class="nb">bool</span></div>
+
+
+<div class="viewcode-block" id="AssignmentPeerFeedbackConnectionJSON"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentPeerFeedbackConnectionJSON">[docs]</a><span class="k">class</span> <span class="nc">AssignmentPeerFeedbackConnectionJSON</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The serialization of an :class:`.AssignmentPeerFeedbackConnection`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#: The user that should do the peer review.</span>
+    <span class="n">peer</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span>
+    <span class="c1">#: The user that should be reviewed by ``peer``.</span>
+    <span class="n">subject</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span></div>
+
+
 <div class="viewcode-block" id="AssignmentJSON"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentJSON">[docs]</a><span class="k">class</span> <span class="nc">AssignmentJSON</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;The serialization of an assignment.</span>
 
 <span class="sd">    See the comments in the source code for the meaning of each field.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span>  <span class="c1"># The id of the assignment.</span>
-    <span class="n">state</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># Current state of the assignment.</span>
-    <span class="n">description</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>  <span class="c1"># Description of the assignment.</span>
-    <span class="n">created_at</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># ISO UTC date.</span>
-    <span class="n">deadline</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>  <span class="c1"># ISO UTC date.</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># The name of the assignment.</span>
-    <span class="n">is_lti</span><span class="p">:</span> <span class="nb">bool</span>  <span class="c1"># Is this an LTI assignment.</span>
-    <span class="n">course</span><span class="p">:</span> <span class="s1">&#39;course_models.Course&#39;</span>  <span class="c1"># Course of this assignment.</span>
-    <span class="n">cgignore</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.helpers.JSONType&#39;</span><span class="p">]</span>  <span class="c1"># The cginore.</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span>  <span class="c1">#: The id of the assignment.</span>
+    <span class="n">state</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1">#: Current state of the assignment.</span>
+    <span class="n">description</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>  <span class="c1">#: Description of the assignment.</span>
+    <span class="n">created_at</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1">#: ISO UTC date.</span>
+    <span class="n">deadline</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>  <span class="c1">#: ISO UTC date.</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1">#: The name of the assignment.</span>
+    <span class="n">is_lti</span><span class="p">:</span> <span class="nb">bool</span>  <span class="c1">#: Is this an LTI assignment.</span>
+    <span class="n">course</span><span class="p">:</span> <span class="s1">&#39;course_models.Course&#39;</span>  <span class="c1">#: Course of this assignment.</span>
+    <span class="n">cgignore</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.helpers.JSONType&#39;</span><span class="p">]</span>  <span class="c1">#: The cginore.</span>
     <span class="n">cgignore_version</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
-    <span class="c1"># Has the whitespace linter run on this assignment.</span>
+    <span class="c1">#: Has the whitespace linter run on this assignment.</span>
     <span class="n">whitespace_linter</span><span class="p">:</span> <span class="nb">bool</span>
 
-    <span class="c1"># The fixed value for the maximum that can be achieved in a rubric. This</span>
-    <span class="c1"># can be higher and lower than the actual max. Will be `null` if unset.</span>
+    <span class="c1">#: The fixed value for the maximum that can be achieved in a rubric. This</span>
+    <span class="c1">#: can be higher and lower than the actual max. Will be `null` if unset.</span>
     <span class="n">fixed_max_rubric_points</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
 
-    <span class="c1"># The maximum grade you can get for this assignment. This is based around</span>
-    <span class="c1"># the idea that a 10 is a &#39;perfect&#39; score. So if this value is 12 a user</span>
-    <span class="c1"># can score 2 additional bonus points. If this value is `null` it is unset</span>
-    <span class="c1"># and regarded as a 10.</span>
+    <span class="c1">#: The maximum grade you can get for this assignment. This is based around</span>
+    <span class="c1">#: the idea that a 10 is a &#39;perfect&#39; score. So if this value is 12 a user</span>
+    <span class="c1">#: can score 2 additional bonus points. If this value is `null` it is unset</span>
+    <span class="c1">#: and regarded as a 10.</span>
     <span class="n">max_grade</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
-    <span class="n">group_set</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.models.GroupSet&#39;</span><span class="p">]</span>
-    <span class="n">auto_test_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
-    <span class="n">files_upload_enabled</span><span class="p">:</span> <span class="nb">bool</span>  <span class="c1"># Can you upload files to this assignment.</span>
-    <span class="n">webhook_upload_enabled</span><span class="p">:</span> <span class="nb">bool</span>  <span class="c1"># Can you connect git to this assignment.</span>
 
-    <span class="c1"># The maximum amount of submission a student may create, inclusive. The</span>
-    <span class="c1"># value ``null`` indicates that there is no limit.</span>
+    <span class="c1">#: The group set of this assignment. This is ``null`` if this assignment is</span>
+    <span class="c1">#: not a group assignment.</span>
+    <span class="n">group_set</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;psef.models.GroupSet&#39;</span><span class="p">]</span>
+
+    <span class="c1">#: The id of the AutoTest configuration connected to this assignment. This</span>
+    <span class="c1">#: will always be given if there is a configuration connected to this</span>
+    <span class="c1">#: assignment, even if you do not have permission to see the configuration</span>
+    <span class="c1">#: itself.</span>
+
+    <span class="n">auto_test_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="n">files_upload_enabled</span><span class="p">:</span> <span class="nb">bool</span>  <span class="c1">#: Can you upload files to this assignment.</span>
+    <span class="n">webhook_upload_enabled</span><span class="p">:</span> <span class="nb">bool</span>  <span class="c1">#: Can you connect git to this assignment.</span>
+
+    <span class="c1">#: The maximum amount of submission a student may create, inclusive. The</span>
+    <span class="c1">#: value ``null`` indicates that there is no limit.</span>
     <span class="n">max_submissions</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
 
-    <span class="c1"># These two values determine the maximum submissions in an amount of time</span>
-    <span class="c1"># by a user. A user can submit at most `amount_in_cool_off_period`</span>
-    <span class="c1"># submissions in `cool_off_period` seconds. `amount_in_cool_off_period` is</span>
-    <span class="c1"># always &gt;= 1, so this check is disabled if `cool_off_period == 0`.</span>
+    <span class="c1">#: These two values determine the maximum submissions in an amount of time</span>
+    <span class="c1">#: by a user. A user can submit at most `amount_in_cool_off_period`</span>
+    <span class="c1">#: submissions in `cool_off_period` seconds. `amount_in_cool_off_period`</span>
+    <span class="c1">#: is always &gt;= 1, so this check is disabled if `cool_off_period == 0`.</span>
     <span class="n">cool_off_period</span><span class="p">:</span> <span class="nb">float</span>
     <span class="n">amount_in_cool_off_period</span><span class="p">:</span> <span class="nb">int</span>
 
-    <span class="c1"># All next values are filled in based on permissions and data availability.</span>
-
-    <span class="c1"># ISO UTC date. This will be `null` if you don&#39;t have the permission to see</span>
-    <span class="c1"># this or if it is unset.</span>
+    <span class="c1">#: ISO UTC date. This will be `null` if you don&#39;t have the permission to</span>
+    <span class="c1">#: see this or if it is unset.</span>
     <span class="n">reminder_time</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
-    <span class="n">lms_name</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>  <span class="c1"># The LMS providing this LTI assignment.</span>
 
-    <span class="c1"># The kind of reminder that will be sent.  If you don&#39;t have the permission</span>
-    <span class="c1"># to see this it will always be `null`. If this is not set it will also be</span>
-    <span class="c1"># `null`.</span>
+    <span class="c1">#: The LMS providing this LTI assignment.</span>
+    <span class="n">lms_name</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+
+    <span class="c1">#: The peer feedback settings for this assignment. If ``null`` this</span>
+    <span class="c1">#assignment is not a peer feedback assignment.</span>
+    <span class="n">peer_feedback_settings</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;AssignmentPeerFeedbackSettings&#39;</span><span class="p">]</span>
+
+    <span class="c1">#: The kind of reminder that will be sent.  If you don&#39;t have the</span>
+    <span class="c1">#: permission to see this it will always be ``null``. If this is not set it</span>
+    <span class="c1">#: will also be ``null``.</span>
     <span class="n">done_type</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="c1">#: The email where the done email will be sent to. This will be ``null`` if</span>
+    <span class="c1">#: you do not have permission to see this information.</span>
     <span class="n">done_email</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+
+    <span class="c1">#: The assignment id of the assignment that determines the grader division</span>
+    <span class="c1">#: of this assignment. This will be ``null`` if you do not have permissions</span>
+    <span class="c1">#: to see this information, or if no such parent is set.</span>
     <span class="n">division_parent_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+
+    <span class="c1">#: The ids of the analytics workspaces connected to this assignment.</span>
+    <span class="c1">#: WARNING: This API is still in beta, and might change in the future.</span>
     <span class="n">analytics_workspace_ids</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span></div>
 
 
@@ -595,6 +645,546 @@
         <span class="k">return</span> <span class="bp">self</span></div></div>
 
 
+<div class="viewcode-block" id="AssignmentPeerFeedbackConnection"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentPeerFeedbackConnection">[docs]</a><span class="k">class</span> <span class="nc">AssignmentPeerFeedbackConnection</span><span class="p">(</span><span class="n">Base</span><span class="p">,</span> <span class="n">TimestampMixin</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This table represents a link between a two users and assignment.</span>
+
+<span class="sd">    If a connection from ``peer_user`` to ``user`` for assignment ``A1`` exists this</span>
+<span class="sd">    means that ``peer_user`` should peer review ``user`` for assignment ``A1``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">peer_feedback_settings</span><span class="p">:</span> <span class="s1">&#39;AssignmentPeerFeedbackSettings&#39;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">user</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span>
+        <span class="n">peer_user</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="o">...</span>
+
+    <span class="nd">@t</span><span class="o">.</span><span class="n">overload</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">peer_feedback_settings</span><span class="p">:</span> <span class="s1">&#39;AssignmentPeerFeedbackSettings&#39;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">peer_user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="o">...</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">peer_feedback_settings</span><span class="p">:</span> <span class="s1">&#39;AssignmentPeerFeedbackSettings&#39;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">user</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">peer_user</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">peer_user_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">peer_user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">assert</span> <span class="n">user_id</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="k">assert</span> <span class="n">peer_user_id</span> <span class="ow">is</span> <span class="kc">None</span>
+
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+                <span class="n">peer_feedback_settings</span><span class="o">=</span><span class="n">peer_feedback_settings</span><span class="p">,</span>
+                <span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">,</span>
+                <span class="n">peer_user</span><span class="o">=</span><span class="n">peer_user</span><span class="p">,</span>
+                <span class="n">peer_feedback_settings_id</span><span class="o">=</span><span class="n">peer_feedback_settings</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                <span class="n">user_id</span><span class="o">=</span><span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                <span class="n">peer_user_id</span><span class="o">=</span><span class="n">peer_user</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">peer_user</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="k">assert</span> <span class="n">user_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">assert</span> <span class="n">peer_user_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+                <span class="n">peer_feedback_settings</span><span class="o">=</span><span class="n">peer_feedback_settings</span><span class="p">,</span>
+                <span class="n">peer_feedback_settings_id</span><span class="o">=</span><span class="n">peer_feedback_settings</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+                <span class="n">peer_user_id</span><span class="o">=</span><span class="n">peer_user_id</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="n">peer_feedback_settings_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;peer_feedback_settings_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span>
+            <span class="s1">&#39;assignment_peer_feedback_settings.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span>
+        <span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1">#: The user that should be peer reviewed</span>
+    <span class="n">user_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;user_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;User.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1">#: The id of the user that should do this peer feedback.</span>
+    <span class="n">peer_user_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;peer_user_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;User.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">peer_feedback_settings</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">AssignmentPeerFeedbackSettings</span><span class="p">,</span>
+        <span class="n">foreign_keys</span><span class="o">=</span><span class="n">peer_feedback_settings_id</span><span class="p">,</span>
+        <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;selectin&#39;</span><span class="p">,</span>
+        <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;connections&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">user</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="p">,</span>
+        <span class="n">foreign_keys</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+        <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;selectin&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">peer_user</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="p">,</span>
+        <span class="n">foreign_keys</span><span class="o">=</span><span class="n">peer_user_id</span><span class="p">,</span>
+        <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;selectin&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">__table_args__</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">PrimaryKeyConstraint</span><span class="p">(</span>
+            <span class="n">peer_feedback_settings_id</span><span class="p">,</span> <span class="n">user_id</span><span class="p">,</span> <span class="n">peer_user_id</span>
+        <span class="p">),</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">CheckConstraint</span><span class="p">(</span>
+            <span class="s1">&#39;peer_user_id != user_id&#39;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s1">&#39;peer_feedback_reviewer_is_not_subject&#39;</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">&#39;AssignmentPeerFeedbackConnection&lt;peer=</span><span class="si">{}</span><span class="s1">, subject=</span><span class="si">{}</span><span class="s1">&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">peer_user_id</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">user_id</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;subject&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+            <span class="s1">&#39;peer&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">peer_user</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="AssignmentPeerFeedbackSettings"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentPeerFeedbackSettings">[docs]</a><span class="k">class</span> <span class="nc">AssignmentPeerFeedbackSettings</span><span class="p">(</span><span class="n">Base</span><span class="p">,</span> <span class="n">IdMixin</span><span class="p">,</span> <span class="n">TimestampMixin</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This table represents the peer feedback settings for an assignment.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#: The amount of students a single student should review. If this is 0 peer</span>
+    <span class="c1">#: feedback is disabled.</span>
+    <span class="n">amount</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;amount&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1">#: The amount of time a user has after the deadline to do its peer</span>
+    <span class="c1">#: feedback. If this is ``None`` the user has an infinite amount of time</span>
+    <span class="n">time</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;time&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Interval</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+    <span class="n">auto_approved</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;auto_approved&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;false&#39;</span>
+    <span class="p">)</span>
+
+    <span class="n">assignment_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;assignment_id&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">ForeignKey</span><span class="p">(</span><span class="s1">&#39;Assignment.id&#39;</span><span class="p">,</span> <span class="n">ondelete</span><span class="o">=</span><span class="s1">&#39;CASCADE&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">assignment</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">Assignment</span><span class="p">,</span>
+        <span class="n">foreign_keys</span><span class="o">=</span><span class="n">assignment_id</span><span class="p">,</span>
+        <span class="n">lazy</span><span class="o">=</span><span class="s1">&#39;joined&#39;</span><span class="p">,</span>
+        <span class="n">innerjoin</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;peer_feedback_settings&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">connections</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="k">lambda</span><span class="p">:</span> <span class="n">AssignmentPeerFeedbackConnection</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s1">&#39;peer_feedback_settings&#39;</span><span class="p">,</span>
+        <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;delete-orphan,delete,save-update&#39;</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">__table_args__</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">CheckConstraint</span><span class="p">(</span>
+            <span class="s2">&quot;amount &gt; 0&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s1">&#39;peer_feedback_amount_at_least_one&#39;</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">amount</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">time</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">],</span>
+        <span class="n">assignment</span><span class="p">:</span> <span class="s1">&#39;Assignment&#39;</span><span class="p">,</span>
+        <span class="n">auto_approved</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">amount</span><span class="o">=</span><span class="n">amount</span><span class="p">,</span>
+            <span class="n">time</span><span class="o">=</span><span class="n">time</span><span class="p">,</span>
+            <span class="n">assignment</span><span class="o">=</span><span class="n">assignment</span><span class="p">,</span>
+            <span class="n">auto_approved</span><span class="o">=</span><span class="n">auto_approved</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PeerFeedbackSettingJSON</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;amount&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">amount</span><span class="p">,</span>
+            <span class="s1">&#39;time&#39;</span><span class="p">:</span> <span class="n">on_not_none</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()),</span>
+            <span class="s1">&#39;auto_approved&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_approved</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">deadline_expired</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Has the deadline for giving peer feedback expired.</span>
+
+<span class="sd">        If the deadline for the assignment has not been set just yet we don&#39;t</span>
+<span class="sd">        consider the deadline for the peer feedback expired. However, as the</span>
+<span class="sd">        deadline for the assignment also hasn&#39;t expired in this case peer</span>
+<span class="sd">        feedback is not yet open.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">assig</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignment</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">helpers</span><span class="o">.</span><span class="n">get_request_start_time</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">time</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">assig</span><span class="o">.</span><span class="n">deadline</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">return</span> <span class="p">(</span><span class="n">assig</span><span class="o">.</span><span class="n">deadline</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">now</span>
+
+    <span class="nd">@cg_cache</span><span class="o">.</span><span class="n">intra_request</span><span class="o">.</span><span class="n">cache_within_request</span>
+    <span class="k">def</span> <span class="nf">_get_subjects_for_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                               <span class="n">user</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Container</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+        <span class="n">PFConn</span> <span class="o">=</span> <span class="n">AssignmentPeerFeedbackConnection</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span>
+            <span class="n">user_id</span> <span class="k">for</span> <span class="n">user_id</span><span class="p">,</span> <span class="ow">in</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">PFConn</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+                <span class="n">PFConn</span><span class="o">.</span><span class="n">peer_feedback_settings</span> <span class="o">==</span> <span class="bp">self</span><span class="p">,</span>
+                <span class="n">PFConn</span><span class="o">.</span><span class="n">peer_user</span> <span class="o">==</span> <span class="n">user</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+<div class="viewcode-block" id="AssignmentPeerFeedbackSettings.does_peer_review_of"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentPeerFeedbackSettings.does_peer_review_of">[docs]</a>    <span class="k">def</span> <span class="nf">does_peer_review_of</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">reviewer</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span> <span class="n">subject</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Check if the given ``reviewer`` should peer review submissions by</span>
+<span class="sd">        the given ``subject``.</span>
+
+<span class="sd">        :param reviewer: The user that should do the review.</span>
+<span class="sd">        :param subject: Submissions of this user should be peer reviewed by the</span>
+<span class="sd">            ``reviewer`` if this function returns ``True``.</span>
+
+<span class="sd">        :returns: ``True`` if the ``reviewer`` should do a peer review,</span>
+<span class="sd">                  ``False`` otherwise. It also returns ``False`` if the</span>
+<span class="sd">                  deadline of an assignment has not expired just yet.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If the assignment is not yet done the ordering has not stabilized, so</span>
+        <span class="c1"># we always return ``False`` for this check.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">deadline_expired</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="n">subject</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_subjects_for_user</span><span class="p">(</span><span class="n">reviewer</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AssignmentPeerFeedbackSettings.maybe_do_initial_division"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentPeerFeedbackSettings.maybe_do_initial_division">[docs]</a>    <span class="k">def</span> <span class="nf">maybe_do_initial_division</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Do the initial division of peer feedback if the amount of submissions is</span>
+<span class="sd">        adequate.</span>
+
+<span class="sd">        .. warning:: This will delete all old connections.</span>
+
+<span class="sd">        :returns: A boolean indicating if the initial submission was done.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">assig</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignment</span>
+        <span class="n">existing_submissions</span> <span class="o">=</span> <span class="n">assig</span><span class="o">.</span><span class="n">get_amount_not_deleted_submissions</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">existing_submissions</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">amount</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connections</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_do_initial_division</span><span class="p">()</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+    <span class="k">def</span> <span class="nf">_make_connection</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">peer_user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AssignmentPeerFeedbackConnection</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">AssignmentPeerFeedbackConnection</span><span class="p">(</span>
+            <span class="n">peer_feedback_settings</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">peer_user_id</span><span class="o">=</span><span class="n">peer_user_id</span><span class="p">,</span>
+            <span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_do_initial_division</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Do the initial division of peer feedback.</span>
+
+<span class="sd">        This can only be done when the amount of submissions is equal to or</span>
+<span class="sd">        larger than the amount of submissions that each user should review.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">assig</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignment</span>
+        <span class="n">all_users</span> <span class="o">=</span> <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span>
+                <span class="n">assig</span><span class="o">.</span><span class="n">get_from_latest_submissions</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+        <span class="n">shuffle</span><span class="p">(</span><span class="n">all_users</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">connections</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">can_do_better_division</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_users</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">amount</span> <span class="o">**</span> <span class="mi">2</span>
+
+        <span class="k">def</span> <span class="nf">get_offset_per_item</span><span class="p">(</span><span class="n">cur_depth</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">can_do_better_division</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">cur_depth</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="k">return</span> <span class="n">cur_depth</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s1">&#39;Doing initial division&#39;</span><span class="p">,</span>
+            <span class="n">assignment</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">assignment</span><span class="p">,</span>
+            <span class="n">amount_of_users</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">all_users</span><span class="p">),</span>
+            <span class="n">division_amount</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">amount</span><span class="p">,</span>
+            <span class="n">can_do_better_division</span><span class="o">=</span><span class="n">can_do_better_division</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">users</span> <span class="ow">in</span> <span class="n">zip_times_with_offset</span><span class="p">(</span>
+            <span class="n">all_users</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">amount</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">get_offset_per_item</span>
+        <span class="p">):</span>
+            <span class="n">peer_user</span><span class="p">,</span> <span class="o">*</span><span class="n">other_users</span> <span class="o">=</span> <span class="n">users</span>
+            <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">other_users</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_make_connection</span><span class="p">(</span>
+                    <span class="n">peer_user_id</span><span class="o">=</span><span class="n">peer_user</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">user_id</span><span class="o">=</span><span class="n">user</span><span class="o">.</span><span class="n">id</span>
+                <span class="p">)</span>
+
+<div class="viewcode-block" id="AssignmentPeerFeedbackSettings.maybe_delete_division_among_peers"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentPeerFeedbackSettings.maybe_delete_division_among_peers">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">maybe_delete_division_among_peers</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">deletion</span><span class="p">:</span> <span class="n">signals</span><span class="o">.</span><span class="n">WorkDeletedData</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Maybe delete the division for the student connected to the deleted</span>
+<span class="sd">        work.</span>
+
+<span class="sd">        This method might redivide all submissions again, so deleting work is</span>
+<span class="sd">        quite dangerous. If this redivision happens a warning will be added to</span>
+<span class="sd">        the response.</span>
+
+<span class="sd">        :param deletion: The deleted work and extra data.</span>
+
+<span class="sd">        :returns: Nothing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">assig</span> <span class="o">=</span> <span class="n">deletion</span><span class="o">.</span><span class="n">assignment</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="n">assig</span><span class="o">.</span><span class="n">peer_feedback_settings</span>
+        <span class="k">if</span> <span class="bp">self</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_maybe_delete_division_among_peers</span><span class="p">(</span><span class="n">deletion</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span></div>
+
+    <span class="k">def</span> <span class="nf">_maybe_delete_division_among_peers</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">deletion</span><span class="p">:</span> <span class="n">signals</span><span class="o">.</span><span class="n">WorkDeletedData</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">author</span> <span class="o">=</span> <span class="n">deletion</span><span class="o">.</span><span class="n">deleted_work</span><span class="o">.</span><span class="n">user</span>
+        <span class="n">assig</span> <span class="o">=</span> <span class="n">deletion</span><span class="o">.</span><span class="n">assignment</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">author</span><span class="o">.</span><span class="n">is_test_student</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">deletion</span><span class="o">.</span><span class="n">was_latest</span> <span class="ow">or</span>
+            <span class="n">deletion</span><span class="o">.</span><span class="n">new_latest</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="n">db_locks</span><span class="o">.</span><span class="n">acquire_lock</span><span class="p">(</span>
+            <span class="n">db_locks</span><span class="o">.</span><span class="n">LockNamespaces</span><span class="o">.</span><span class="n">peer_feedback_division</span><span class="p">,</span> <span class="n">assig</span><span class="o">.</span><span class="n">id</span>
+        <span class="p">)</span>
+
+        <span class="n">PFConn</span> <span class="o">=</span> <span class="n">AssignmentPeerFeedbackConnection</span>
+        <span class="c1"># First we get all connections that involve the author that now no</span>
+        <span class="c1"># longer has a submission.</span>
+        <span class="n">all_conns</span> <span class="o">=</span> <span class="n">PFConn</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">PFConn</span><span class="o">.</span><span class="n">peer_feedback_settings</span> <span class="o">==</span> <span class="bp">self</span><span class="p">,</span>
+            <span class="n">sql_expression</span><span class="o">.</span><span class="n">or_</span><span class="p">(</span>
+                <span class="n">PFConn</span><span class="o">.</span><span class="n">user</span> <span class="o">==</span> <span class="n">author</span><span class="p">,</span>
+                <span class="n">PFConn</span><span class="o">.</span><span class="n">peer_user</span> <span class="o">==</span> <span class="n">author</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+
+        <span class="n">all_subjects</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">user</span> <span class="k">for</span> <span class="n">conn</span> <span class="ow">in</span> <span class="n">all_conns</span> <span class="k">if</span> <span class="n">conn</span><span class="o">.</span><span class="n">user</span> <span class="o">!=</span> <span class="n">author</span>
+        <span class="p">)</span>
+        <span class="n">reviewers</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">peer_user</span> <span class="k">for</span> <span class="n">conn</span> <span class="ow">in</span> <span class="n">all_conns</span> <span class="k">if</span> <span class="n">conn</span><span class="o">.</span><span class="n">peer_user</span> <span class="o">!=</span> <span class="n">author</span>
+        <span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">reviewers</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_subjects</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">reviewers</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_conns</span><span class="p">)</span>
+        <span class="n">illegal_connections</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">PFConn</span><span class="o">.</span><span class="n">peer_user_id</span><span class="p">,</span> <span class="n">PFConn</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+                <span class="n">PFConn</span><span class="o">.</span><span class="n">peer_feedback_settings</span> <span class="o">==</span> <span class="bp">self</span><span class="p">,</span>
+                <span class="n">PFConn</span><span class="o">.</span><span class="n">user_id</span><span class="o">.</span><span class="n">in_</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">all_subjects</span><span class="p">]),</span>
+                <span class="n">PFConn</span><span class="o">.</span><span class="n">peer_user_id</span><span class="o">.</span><span class="n">in_</span><span class="p">([</span><span class="n">r</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">reviewers</span><span class="p">]),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># We first want to divide the subjects that are also reviewers, as</span>
+        <span class="c1"># these subjects might cause the redivision to fail.</span>
+        <span class="n">high_priority_subjects</span> <span class="o">=</span> <span class="n">all_subjects</span> <span class="o">&amp;</span> <span class="n">reviewers</span>
+        <span class="n">low_priority_subjects</span> <span class="o">=</span> <span class="n">all_subjects</span> <span class="o">-</span> <span class="n">high_priority_subjects</span>
+
+        <span class="n">new_conns</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># Redivision might fail if a user should review the ``author`` and if</span>
+        <span class="c1"># the ``author`` should review this user.</span>
+        <span class="n">redivide_failed</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">for</span> <span class="n">reviewer</span> <span class="ow">in</span> <span class="n">reviewers</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">subj</span> <span class="ow">in</span> <span class="n">chain</span><span class="p">(</span><span class="n">high_priority_subjects</span><span class="p">,</span> <span class="n">low_priority_subjects</span><span class="p">):</span>
+                <span class="c1"># We don&#39;t know from which set we should remove the subject</span>
+                <span class="c1"># (high or low priority) so we simply remove it from the all</span>
+                <span class="c1"># set and check this set to see if the subject is still</span>
+                <span class="c1"># available.</span>
+                <span class="k">if</span> <span class="n">subj</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">all_subjects</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="n">reviewer</span> <span class="o">==</span> <span class="n">subj</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">reviewer</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">subj</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="ow">in</span> <span class="n">illegal_connections</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">all_subjects</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">subj</span><span class="p">)</span>
+                <span class="n">new_conns</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">reviewer</span><span class="p">,</span> <span class="n">subj</span><span class="p">))</span>
+                <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">redivide_failed</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">break</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">redivide_failed</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Redividing succeeded&#39;</span><span class="p">,</span> <span class="n">new_connections</span><span class="o">=</span><span class="n">new_conns</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">conn</span> <span class="ow">in</span> <span class="n">all_conns</span><span class="p">:</span>
+                <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">peer</span><span class="p">,</span> <span class="n">subject</span> <span class="ow">in</span> <span class="n">new_conns</span><span class="p">:</span>
+                <span class="n">PFConn</span><span class="p">(</span>
+                    <span class="n">peer_feedback_settings</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">subject</span><span class="p">,</span> <span class="n">peer_user</span><span class="o">=</span><span class="n">peer</span>
+                <span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">connections</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">maybe_do_initial_division</span><span class="p">():</span>
+            <span class="n">psef</span><span class="o">.</span><span class="n">helpers</span><span class="o">.</span><span class="n">add_warning</span><span class="p">(</span>
+                <span class="p">(</span>
+                    <span class="s1">&#39;All connections for peer feedback were redivided because&#39;</span>
+                    <span class="s1">&#39; of this deletion.&#39;</span>
+                <span class="p">),</span> <span class="n">psef</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">APIWarnings</span><span class="o">.</span><span class="n">ALL_PEER_FEEDBACK_REDIVIDED</span>
+            <span class="p">)</span>
+
+<div class="viewcode-block" id="AssignmentPeerFeedbackSettings.maybe_divide_work_among_peers"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentPeerFeedbackSettings.maybe_divide_work_among_peers">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">maybe_divide_work_among_peers</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">work</span><span class="p">:</span> <span class="s1">&#39;work_models.Work&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Maybe divide the given work among peers.</span>
+
+<span class="sd">        The work will be divided if it is done by a real user (i.e. not a test</span>
+<span class="sd">        student), and if peer feedback is enabled. All users with a submission</span>
+<span class="sd">        for the assignment are considered peers.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">peer_feedback_settings</span>
+        <span class="k">if</span> <span class="bp">self</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_maybe_divide_work_among_peers</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span></div>
+
+    <span class="k">def</span> <span class="nf">_maybe_divide_work_among_peers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">:</span> <span class="s1">&#39;work_models.Work&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">work</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">is_test_student</span><span class="p">:</span>
+            <span class="c1"># Test students cannot do peer feedback</span>
+            <span class="k">return</span>
+
+        <span class="n">assig</span> <span class="o">=</span> <span class="n">work</span><span class="o">.</span><span class="n">assignment</span>
+
+        <span class="k">def</span> <span class="nf">_has_no_submission</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+                <span class="o">~</span><span class="n">assig</span><span class="o">.</span><span class="n">get_not_deleted_submissions</span><span class="p">()</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+                    <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user</span> <span class="o">==</span> <span class="n">work</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+                    <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span> <span class="o">!=</span> <span class="n">work</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">(),</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
+
+        <span class="c1"># We use the entire body of submissions to determine the peer reviewers</span>
+        <span class="c1"># for this submission. So no submissions by new users (without any</span>
+        <span class="c1"># submissions) should be created at this point to prevent race</span>
+        <span class="c1"># conditions.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">db_locks</span><span class="o">.</span><span class="n">maybe_acquire_lock</span><span class="p">(</span>
+            <span class="n">_has_no_submission</span><span class="p">,</span> <span class="n">db_locks</span><span class="o">.</span><span class="n">LockNamespaces</span><span class="o">.</span><span class="n">peer_feedback_division</span><span class="p">,</span>
+            <span class="n">assig</span><span class="o">.</span><span class="n">id</span>
+        <span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;No division necessary, user already has a submission&#39;</span><span class="p">,</span>
+                <span class="n">work_author</span><span class="o">=</span><span class="n">work</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">existing_submissions</span> <span class="o">=</span> <span class="n">assig</span><span class="o">.</span><span class="n">get_amount_not_deleted_submissions</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">existing_submissions</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">amount</span><span class="p">:</span>
+            <span class="c1"># Not enough submissions to create a division</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Not enough submissions to do initial division&#39;</span><span class="p">,</span>
+                <span class="n">existing_submissions</span><span class="o">=</span><span class="n">existing_submissions</span><span class="p">,</span>
+                <span class="n">division_amount</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">amount</span>
+            <span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">elif</span> <span class="n">existing_submissions</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">amount</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Need to do initial division&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_do_initial_division</span><span class="p">()</span>
+            <span class="k">return</span>
+
+        <span class="n">PFConn</span> <span class="o">=</span> <span class="n">AssignmentPeerFeedbackConnection</span>
+        <span class="n">all_connections</span> <span class="o">=</span> <span class="n">PFConn</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">PFConn</span><span class="o">.</span><span class="n">peer_feedback_settings</span> <span class="o">==</span> <span class="bp">self</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">sql_expression</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">random</span><span class="p">())</span>
+        <span class="c1"># XXX: It might be faster do a ``random.shuffle`` in Python instead of</span>
+        <span class="c1"># ordering by a random value in the database. I have not tested this,</span>
+        <span class="c1"># but this seems fast enough for now.</span>
+
+        <span class="n">illegal_connections</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Set</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">connection</span> <span class="ow">in</span> <span class="n">all_connections</span><span class="p">:</span>
+            <span class="n">new</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">connection</span><span class="o">.</span><span class="n">peer_user_id</span><span class="p">,</span> <span class="n">work</span><span class="o">.</span><span class="n">user_id</span><span class="p">),</span>
+                <span class="p">(</span><span class="n">work</span><span class="o">.</span><span class="n">user_id</span><span class="p">,</span> <span class="n">connection</span><span class="o">.</span><span class="n">user_id</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">new_conn</span> <span class="ow">in</span> <span class="n">illegal_connections</span> <span class="k">for</span> <span class="n">new_conn</span> <span class="ow">in</span> <span class="n">new</span><span class="p">):</span>
+                <span class="k">continue</span>
+
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">peer_user</span><span class="p">,</span> <span class="n">subject</span> <span class="ow">in</span> <span class="n">new</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_make_connection</span><span class="p">(</span><span class="n">peer_user_id</span><span class="o">=</span><span class="n">peer_user</span><span class="p">,</span> <span class="n">user_id</span><span class="o">=</span><span class="n">subject</span><span class="p">)</span>
+
+            <span class="n">illegal_connections</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">new</span><span class="p">)</span>
+            <span class="c1"># We add two connections to `illegal_connections` every time, so</span>
+            <span class="c1"># the amount of connections for our new author is the length of</span>
+            <span class="c1"># that set divided by two.</span>
+            <span class="n">found</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">illegal_connections</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="k">if</span> <span class="n">found</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">amount</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="c1"># This (``found &lt; self.amount``) should never happen, but the exact</span>
+            <span class="c1"># distribution of users (especially when ``self.amount &gt; 1``) is</span>
+            <span class="c1"># really hard to follow. We don&#39;t want uploading to fail, so in</span>
+            <span class="c1"># production we simply redivide everybody and report this error to</span>
+            <span class="c1"># sentry.</span>
+            <span class="k">if</span> <span class="n">psef</span><span class="o">.</span><span class="n">current_app</span><span class="o">.</span><span class="n">do_sanity_checks</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span>
+                    <span class="p">(</span>
+                        <span class="s1">&#39;Could not upload new submission without redividing&#39;</span>
+                        <span class="s1">&#39; all existing users. Existing connections: </span><span class="si">{}</span><span class="s1">&#39;</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connections</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s1">&#39;All submissions needed a new division&#39;</span><span class="p">,</span>
+                <span class="n">report_to_sentry</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">old_connections</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">connections</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connections</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_do_initial_division</span><span class="p">()</span></div>
+
+
+<span class="n">signals</span><span class="o">.</span><span class="n">WORK_DELETED</span><span class="o">.</span><span class="n">connect_immediate</span><span class="p">(</span>
+    <span class="n">AssignmentPeerFeedbackSettings</span><span class="o">.</span><span class="n">maybe_delete_division_among_peers</span>
+<span class="p">)</span>
+<span class="n">signals</span><span class="o">.</span><span class="n">WORK_CREATED</span><span class="o">.</span><span class="n">connect_immediate</span><span class="p">(</span>
+    <span class="n">AssignmentPeerFeedbackSettings</span><span class="o">.</span><span class="n">maybe_divide_work_among_peers</span>
+<span class="p">)</span>
+
+
 <div class="viewcode-block" id="AssignmentResult"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.AssignmentResult">[docs]</a><span class="k">class</span> <span class="nc">AssignmentResult</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;The class creates the link between an :class:`.user_models.User` and an</span>
 <span class="sd">    :class:`.Assignment` in the database and the external users LIS sourcedid.</span>
@@ -654,9 +1244,9 @@
     <span class="p">)</span>
     <span class="n">_state</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;state&#39;</span><span class="p">,</span>
-        <span class="n">db</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="n">AssignmentStateEnum</span><span class="p">),</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="n">AssignmentStateEnum</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;_assignmentstateenum&#39;</span><span class="p">),</span>
         <span class="n">default</span><span class="o">=</span><span class="n">AssignmentStateEnum</span><span class="o">.</span><span class="n">hidden</span><span class="p">,</span>
-        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">description</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span><span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Unicode</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
     <span class="n">course_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
@@ -851,6 +1441,13 @@
 
     <span class="n">_max_submissions</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
         <span class="s1">&#39;max_amount_of_submissions&#39;</span><span class="p">,</span> <span class="n">db</span><span class="o">.</span><span class="n">Integer</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
+
+    <span class="n">peer_feedback_settings</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">relationship</span><span class="p">(</span>
+        <span class="n">AssignmentPeerFeedbackSettings</span><span class="p">,</span>
+        <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;assignment&quot;</span><span class="p">,</span>
+        <span class="n">uselist</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">cascade</span><span class="o">=</span><span class="s1">&#39;delete-orphan,delete,save-update&#39;</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="n">__table_args__</span> <span class="o">=</span> <span class="p">(</span>
@@ -1078,7 +1675,7 @@
         <span class="k">if</span> <span class="n">max_submissions</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">get_not_deleted_submissions</span><span class="p">()</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span>
                 <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">having</span><span class="p">(</span><span class="n">sqlalchemy</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">max_submissions</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">having</span><span class="p">(</span><span class="n">sql_expression</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">max_submissions</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
         <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">():</span>
             <span class="n">helpers</span><span class="o">.</span><span class="n">add_warning</span><span class="p">(</span>
                 <span class="p">(</span>
@@ -1238,8 +1835,10 @@
             <span class="n">rubric_models</span><span class="o">.</span><span class="n">WorkRubricItem</span><span class="o">.</span><span class="n">work_id</span> <span class="o">==</span> <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
             <span class="n">isouter</span><span class="o">=</span><span class="kc">True</span>
         <span class="p">)</span><span class="o">.</span><span class="n">having</span><span class="p">(</span>
-            <span class="n">and_</span><span class="p">(</span>
-                <span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">rubric_models</span><span class="o">.</span><span class="n">WorkRubricItem</span><span class="o">.</span><span class="n">rubricitem_id</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="n">sql_expression</span><span class="o">.</span><span class="n">and_</span><span class="p">(</span>
+                <span class="n">sql_expression</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">(</span>
+                    <span class="n">rubric_models</span><span class="o">.</span><span class="n">WorkRubricItem</span><span class="o">.</span><span class="n">rubricitem_id</span>
+                <span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span>
                 <span class="c1"># We access _grade here directly as we need it to do this query</span>
                 <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">_grade</span><span class="o">.</span><span class="n">is_</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
             <span class="p">)</span>
@@ -1290,13 +1889,15 @@
     <span class="nd">@cached_property</span>
     <span class="k">def</span> <span class="nf">_dynamic_max_points</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
         <span class="n">sub</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
-            <span class="n">func</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricItem</span><span class="o">.</span><span class="n">points</span><span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s1">&#39;max_val&#39;</span><span class="p">)</span>
+            <span class="n">sql_expression</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricItem</span><span class="o">.</span><span class="n">points</span>
+                                    <span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s1">&#39;max_val&#39;</span><span class="p">)</span>
         <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
             <span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricRowBase</span><span class="p">,</span> <span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricRowBase</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span>
             <span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricItem</span><span class="o">.</span><span class="n">rubricrow_id</span>
         <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricRowBase</span><span class="o">.</span><span class="n">assignment_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span>
                  <span class="p">)</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">rubric_models</span><span class="o">.</span><span class="n">RubricRowBase</span><span class="o">.</span><span class="n">id</span><span class="p">)</span><span class="o">.</span><span class="n">subquery</span><span class="p">(</span><span class="s1">&#39;sub&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">max_val</span><span class="p">))</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">sql_expression</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">max_val</span><span class="p">)</span>
+                                <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">is_open</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -1421,6 +2022,7 @@
             <span class="s1">&#39;max_submissions&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_submissions</span><span class="p">,</span>
             <span class="s1">&#39;cool_off_period&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cool_off_period</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">(),</span>
             <span class="s1">&#39;amount_in_cool_off_period&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">amount_in_cool_off_period</span><span class="p">,</span>
+            <span class="s1">&#39;peer_feedback_settings&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">peer_feedback_settings</span><span class="p">,</span>
 
             <span class="c1"># These are all filled in based on permissions and data</span>
             <span class="c1"># availability.</span>
@@ -1477,6 +2079,16 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">InvalidAssignmentState</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s1"> is not a valid state&#39;</span><span class="p">)</span></div>
 
+    <span class="k">def</span> <span class="nf">get_amount_not_deleted_submissions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">handle_none</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_not_deleted_submissions</span><span class="p">()</span><span class="o">.</span><span class="n">with_entities</span><span class="p">(</span>
+                <span class="n">sql_expression</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">(</span>
+                    <span class="n">cg_sqlalchemy_helpers</span><span class="o">.</span><span class="n">distinct</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">(),</span>
+            <span class="mi">0</span><span class="p">,</span>
+        <span class="p">)</span>
+
 <div class="viewcode-block" id="Assignment.get_not_deleted_submissions"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.assignment.Assignment.get_not_deleted_submissions">[docs]</a>    <span class="k">def</span> <span class="nf">get_not_deleted_submissions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;work_models.Work&#39;</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Get a query returning all not deleted submissions to this</span>
 <span class="sd">            assignment.</span>
@@ -1488,7 +2100,7 @@
         <span class="n">base_query</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
             <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="p">,</span>
         <span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-            <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">assignment_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">assignment</span> <span class="o">==</span> <span class="bp">self</span><span class="p">,</span>
             <span class="c1"># We don&#39;t need the intelligent `deleted` attribute here from the</span>
             <span class="c1"># Work models, which also checks if the assignment is deleted, as</span>
             <span class="c1"># we already check this at the start of the function.</span>
@@ -1711,12 +2323,12 @@
 
         <span class="n">amount_subs</span><span class="p">:</span> <span class="nb">int</span>
         <span class="n">amount_subs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_from_latest_submissions</span><span class="p">(</span>  <span class="c1"># type: ignore</span>
-            <span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">(),</span>
+            <span class="n">sql_expression</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">(),</span>
         <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
 
         <span class="n">divided_amount</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">MutableMapping</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">u_id</span><span class="p">,</span> <span class="n">amount</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_from_latest_submissions</span><span class="p">(</span>
-            <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">assigned_to</span><span class="p">,</span> <span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+            <span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">assigned_to</span><span class="p">,</span> <span class="n">sql_expression</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
         <span class="p">)</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="n">work_models</span><span class="o">.</span><span class="n">Work</span><span class="o">.</span><span class="n">assigned_to</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">u_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">divided_amount</span><span class="p">[</span><span class="n">u_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">amount</span>
@@ -2025,7 +2637,7 @@
             <span class="n">user_course</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">course_id</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s2">&quot;course_id&quot;</span><span class="p">),</span>
         <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
             <span class="n">AssignmentGraderDone</span><span class="p">,</span>
-            <span class="n">and_</span><span class="p">(</span>
+            <span class="n">sql_expression</span><span class="o">.</span><span class="n">and_</span><span class="p">(</span>
                 <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="n">AssignmentGraderDone</span><span class="o">.</span><span class="n">user_id</span><span class="p">,</span>
                 <span class="n">AssignmentGraderDone</span><span class="o">.</span><span class="n">assignment_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
             <span class="p">),</span>
@@ -2058,7 +2670,7 @@
         <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">graders</span><span class="p">,</span> <span class="n">done_graders</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">course_id</span> <span class="o">==</span> <span class="n">graders</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">course_role_id</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">sort</span><span class="p">:</span>
-            <span class="n">res</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="n">lower</span><span class="p">(</span><span class="n">done_graders</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span><span class="n">sql_expression</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="n">lower</span><span class="p">(</span><span class="n">done_graders</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
 
         <span class="k">return</span> <span class="n">res</span></div>
 

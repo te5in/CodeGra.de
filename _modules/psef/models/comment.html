@@ -211,15 +211,17 @@
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
 
 <span class="kn">import</span> <span class="nn">sqlalchemy</span>
-<span class="kn">from</span> <span class="nn">sqlalchemy.orm</span> <span class="kn">import</span> <span class="n">column_property</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy.orm</span> <span class="kn">import</span> <span class="n">contains_eager</span><span class="p">,</span> <span class="n">column_property</span>
 <span class="kn">from</span> <span class="nn">werkzeug.utils</span> <span class="kn">import</span> <span class="n">invalidate_cached_property</span>  <span class="c1"># type: ignore</span>
 <span class="kn">from</span> <span class="nn">werkzeug.utils</span> <span class="kn">import</span> <span class="n">cached_property</span>
-<span class="kn">from</span> <span class="nn">typing_extensions</span> <span class="kn">import</span> <span class="n">Literal</span>
+<span class="kn">from</span> <span class="nn">typing_extensions</span> <span class="kn">import</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">TypedDict</span>
 
 <span class="kn">import</span> <span class="nn">psef</span>
+<span class="kn">from</span> <span class="nn">cg_enum</span> <span class="kn">import</span> <span class="n">CGEnum</span>
 <span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
 <span class="kn">from</span> <span class="nn">cg_flask_helpers</span> <span class="kn">import</span> <span class="n">callback_after_this_request</span>
-<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">ImmutableColumnProxy</span>
+<span class="kn">from</span> <span class="nn">cg_typing_extensions</span> <span class="kn">import</span> <span class="n">make_typed_dict_extender</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">MyQuery</span><span class="p">,</span> <span class="n">ImmutableColumnProxy</span>
 <span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.mixins</span> <span class="kn">import</span> <span class="n">IdMixin</span><span class="p">,</span> <span class="n">TimestampMixin</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">db</span>
@@ -229,12 +231,86 @@
 <span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span><span class="p">,</span> <span class="n">db_locks</span><span class="p">,</span> <span class="n">current_app</span><span class="p">,</span> <span class="n">current_user</span>
 
 
+<div class="viewcode-block" id="CommentType"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentType">[docs]</a><span class="nd">@enum</span><span class="o">.</span><span class="n">unique</span>
+<span class="k">class</span> <span class="nc">CommentType</span><span class="p">(</span><span class="n">CGEnum</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The kind of a reply.&quot;&quot;&quot;</span>
+    <span class="c1">#: This is a piece of normal feedback.</span>
+    <span class="n">normal</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
+    <span class="c1">#: This is peer feedback given by another student.</span>
+    <span class="n">peer_feedback</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span></div>
+
+
 <div class="viewcode-block" id="CommentReplyType"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentReplyType">[docs]</a><span class="nd">@enum</span><span class="o">.</span><span class="n">unique</span>
-<span class="k">class</span> <span class="nc">CommentReplyType</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">CommentReplyType</span><span class="p">(</span><span class="n">CGEnum</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;The type of formatting used for the contents of the reply.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#: The reply is plain text.</span>
     <span class="n">plain_text</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
+    <span class="c1">#: The reply should be interpreted as markdown.</span>
     <span class="n">markdown</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="CommentReplyJSON"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentReplyJSON">[docs]</a><span class="k">class</span> <span class="nc">CommentReplyJSON</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The serialization of an :class:`.CommentReply`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#: The id of the reply</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="c1">#: The content of the reply, see ``reply_type`` to check in what kind of</span>
+    <span class="c1">#: formatting this reply is.</span>
+    <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="c1">#: The id of the author of this reply, this will be ``null`` if no author</span>
+    <span class="c1">#: is known (for legacy replies), or if you do not have the permission to</span>
+    <span class="c1">#: see the author.</span>
+    <span class="n">author_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="c1">#: If this reply was a reply to a specific :class:`.CommentReply`, this</span>
+    <span class="c1">#: field will be the id of this :class:`.CommentReply`. Otherwise this will</span>
+    <span class="c1">#: be ``null``.</span>
+    <span class="n">in_reply_to_id</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="c1">#: The date the last edit was made to this reply, this will be ``null`` if</span>
+    <span class="c1">#: you do not have the permission to see this information.</span>
+    <span class="n">last_edit</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">DatetimeWithTimezone</span><span class="p">]</span>
+    <span class="c1">#: The date this reply was created.</span>
+    <span class="n">created_at</span><span class="p">:</span> <span class="n">DatetimeWithTimezone</span>
+    <span class="c1">#: The formatting that the content of this reply is in.</span>
+    <span class="n">reply_type</span><span class="p">:</span> <span class="n">CommentReplyType</span>
+    <span class="c1">#: The type of comment this is.</span>
+    <span class="n">comment_type</span><span class="p">:</span> <span class="n">CommentType</span>
+    <span class="c1">#: Is this comment approved (i.e. visible for the author of the submission</span>
+    <span class="c1">#: in most cases) or not.</span>
+    <span class="n">approved</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="c1">#: The id of the :class:`.CommentBase` this reply is in.</span>
+    <span class="n">comment_base_id</span><span class="p">:</span> <span class="nb">int</span></div>
+
+
+<div class="viewcode-block" id="CommentReplyExtendedJSON"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentReplyExtendedJSON">[docs]</a><span class="k">class</span> <span class="nc">CommentReplyExtendedJSON</span><span class="p">(</span><span class="n">CommentReplyJSON</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The extended serialization of an :class:`.CommentReply`.</span>
+
+<span class="sd">    This serialization contains all data from :class:`.CommentReplyJSON` plus</span>
+<span class="sd">    some additional fields.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#: The author of this reply. This will be ``null`` if you do not have the</span>
+    <span class="c1">#: permission to see this information.</span>
+    <span class="n">author</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;user_models.User&#39;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="CommentBaseJSON"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentBaseJSON">[docs]</a><span class="k">class</span> <span class="nc">CommentBaseJSON</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The serialization of an :class:`.CommentBase`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#: The id of the comment base.</span>
+    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="c1">#: The line on which the comment was placed.</span>
+    <span class="n">line</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="c1">#: The id of the file on which this comment was placed.</span>
+    <span class="n">file_id</span><span class="p">:</span> <span class="nb">str</span>
+
+    <span class="c1">#: The id of the work that this comment was placed on. This work will</span>
+    <span class="c1">#: always contain the file with ``file_id``.</span>
+    <span class="n">work_id</span><span class="p">:</span> <span class="nb">int</span>
+
+    <span class="c1">#: The replies, that you are allowed to see, in this comment base.</span>
+    <span class="n">replies</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Sequence</span><span class="p">[</span><span class="s1">&#39;CommentReply&#39;</span><span class="p">]</span></div>
 
 
 <div class="viewcode-block" id="CommentReply"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentReply">[docs]</a><span class="k">class</span> <span class="nc">CommentReply</span><span class="p">(</span><span class="n">IdMixin</span><span class="p">,</span> <span class="n">TimestampMixin</span><span class="p">,</span> <span class="n">Base</span><span class="p">):</span>
@@ -264,6 +340,22 @@
         <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;f&#39;</span>
+    <span class="p">)</span>
+
+    <span class="n">comment_type</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;comment_type&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="n">CommentType</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;commentreplycommenttype&#39;</span><span class="p">),</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="n">CommentType</span><span class="o">.</span><span class="n">normal</span><span class="p">,</span>
+        <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;normal&#39;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">is_approved</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
+        <span class="s1">&#39;is_approved&#39;</span><span class="p">,</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">Boolean</span><span class="p">,</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">server_default</span><span class="o">=</span><span class="s1">&#39;true&#39;</span>
     <span class="p">)</span>
 
     <span class="n">in_reply_to_id</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
@@ -327,8 +419,7 @@
 <span class="sd">            You are only allowed to see the author when you are also allowed to</span>
 <span class="sd">            see the reply itself.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">checker</span> <span class="o">=</span> <span class="n">psef</span><span class="o">.</span><span class="n">auth</span><span class="o">.</span><span class="n">FeedbackReplyPermissions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">checker</span><span class="o">.</span><span class="n">ensure_may_see_author</span><span class="o">.</span><span class="n">as_bool</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">perm_checker</span><span class="o">.</span><span class="n">ensure_may_see_author</span><span class="o">.</span><span class="n">as_bool</span><span class="p">()</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">message_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -349,6 +440,12 @@
             <span class="n">base</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">in_reply_to</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">base</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">perm_checker</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;auth.FeedbackReplyPermissions&#39;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get the permission checker for this class.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">auth</span><span class="o">.</span><span class="n">FeedbackReplyPermissions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">author</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span>
@@ -367,6 +464,10 @@
             <span class="n">in_reply_to_id</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">in_reply_to</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">in_reply_to</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
             <span class="n">comment_base</span><span class="o">=</span><span class="n">comment_base</span><span class="p">,</span>
         <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_approved</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">perm_checker</span><span class="o">.</span><span class="n">ensure_may_add_approved</span><span class="o">.</span><span class="n">as_bool</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">perm_checker</span><span class="o">.</span><span class="n">ensure_may_add</span><span class="o">.</span><span class="n">as_bool</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">comment_type</span> <span class="o">=</span> <span class="n">CommentType</span><span class="o">.</span><span class="n">peer_feedback</span>
 
         <span class="n">work</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment_base</span><span class="o">.</span><span class="n">work</span>
         <span class="n">user_reasons</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Set</span><span class="p">[</span><span class="n">n_models</span><span class="o">.</span>
@@ -416,6 +517,8 @@
             <span class="bp">self</span><span class="p">,</span> <span class="n">current_user</span><span class="p">,</span> <span class="n">new_comment_text</span><span class="o">=</span><span class="n">new_comment_text</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">comment</span> <span class="o">=</span> <span class="n">new_comment_text</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">perm_checker</span><span class="o">.</span><span class="n">ensure_may_add_approved</span><span class="o">.</span><span class="n">as_bool</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">is_approved</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="k">return</span> <span class="n">edit</span></div>
 
 <div class="viewcode-block" id="CommentReply.delete"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentReply.delete">[docs]</a>    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;CommentReplyEdit&#39;</span><span class="p">:</span>
@@ -442,16 +545,19 @@
             <span class="n">res</span><span class="p">[</span><span class="s1">&#39;author&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">author</span>
         <span class="k">return</span> <span class="n">res</span></div>
 
-    <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]]:</span>
+    <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CommentReplyJSON</span><span class="p">:</span>
         <span class="n">last_edit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_edit</span>
-        <span class="n">res</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">res</span><span class="p">:</span> <span class="n">CommentReplyJSON</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
             <span class="s1">&#39;comment&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment</span><span class="p">,</span>
             <span class="s1">&#39;author_id&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
             <span class="s1">&#39;in_reply_to_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_reply_to_id</span><span class="p">,</span>
-            <span class="s1">&#39;last_edit&#39;</span><span class="p">:</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">last_edit</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">last_edit</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
-            <span class="s1">&#39;created_at&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
-            <span class="s1">&#39;reply_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">reply_type</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s1">&#39;last_edit&#39;</span><span class="p">:</span> <span class="n">last_edit</span><span class="p">,</span>
+            <span class="s1">&#39;created_at&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">created_at</span><span class="p">,</span>
+            <span class="s1">&#39;reply_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">reply_type</span><span class="p">,</span>
+            <span class="s1">&#39;comment_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment_type</span><span class="p">,</span>
+            <span class="s1">&#39;approved&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_approved</span><span class="p">,</span>
+            <span class="s1">&#39;comment_base_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment_base_id</span><span class="p">,</span>
         <span class="p">}</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">can_see_author</span><span class="p">:</span>
@@ -459,15 +565,12 @@
 
         <span class="k">return</span> <span class="n">res</span>
 
-    <span class="k">def</span> <span class="nf">__extended_to_json__</span><span class="p">(</span>
-        <span class="bp">self</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">]]:</span>
+    <span class="k">def</span> <span class="nf">__extended_to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CommentReplyExtendedJSON</span><span class="p">:</span>
         <span class="n">author</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">author</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">can_see_author</span> <span class="k">else</span> <span class="kc">None</span>
-        <span class="k">return</span> <span class="p">{</span>
-            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">__to_json__</span><span class="p">(),</span>
-            <span class="s1">&#39;author&#39;</span><span class="p">:</span> <span class="n">author</span><span class="p">,</span>
-            <span class="s1">&#39;comment_base_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment_base_id</span><span class="p">,</span>
-        <span class="p">}</span></div>
+        <span class="c1"># Tracking mypy issue: https://github.com/python/mypy/issues/4122</span>
+        <span class="k">return</span> <span class="n">make_typed_dict_extender</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__to_json__</span><span class="p">(),</span> <span class="n">CommentReplyExtendedJSON</span>
+        <span class="p">)(</span><span class="n">author</span><span class="o">=</span><span class="n">author</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="CommentReplyEdit"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentReplyEdit">[docs]</a><span class="k">class</span> <span class="nc">CommentReplyEdit</span><span class="p">(</span><span class="n">IdMixin</span><span class="p">,</span> <span class="n">TimestampMixin</span><span class="p">,</span> <span class="n">Base</span><span class="p">):</span>
@@ -685,11 +788,31 @@
 <span class="sd">            user may see.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span>
-            <span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">replies</span>
-            <span class="k">if</span> <span class="n">auth</span><span class="o">.</span><span class="n">FeedbackReplyPermissions</span><span class="p">(</span><span class="n">r</span><span class="p">)</span><span class="o">.</span><span class="n">ensure_may_see</span><span class="o">.</span><span class="n">as_bool</span><span class="p">()</span>
+            <span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">replies</span> <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">perm_checker</span><span class="o">.</span><span class="n">ensure_may_see</span><span class="o">.</span><span class="n">as_bool</span><span class="p">()</span>
         <span class="p">]</span></div>
 
-    <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">]:</span>
+<div class="viewcode-block" id="CommentBase.get_base_comments_query"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.comment.CommentBase.get_base_comments_query">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_base_comments_query</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MyQuery</span><span class="p">[</span><span class="s1">&#39;CommentBase&#39;</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Get a base query to get all comments and replies in a correct order.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="o">~</span><span class="n">file_models</span><span class="o">.</span><span class="n">File</span><span class="o">.</span><span class="n">self_deleted</span><span class="p">,</span>
+            <span class="c1"># We join the replies using an innerload to make sure we only get</span>
+            <span class="c1"># ``CommentBase``s that have at least one reply.</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">replies</span><span class="p">,</span> <span class="n">isouter</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">file</span><span class="p">,</span> <span class="n">isouter</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">order_by</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">file_id</span><span class="o">.</span><span class="n">asc</span><span class="p">(),</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">line</span><span class="o">.</span><span class="n">asc</span><span class="p">(),</span>
+            <span class="n">CommentReply</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">asc</span><span class="p">(),</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">options</span><span class="p">(</span>
+            <span class="n">contains_eager</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">replies</span><span class="p">)</span><span class="o">.</span><span class="n">selectinload</span><span class="p">(</span><span class="n">CommentReply</span><span class="o">.</span><span class="n">author</span><span class="p">),</span>
+            <span class="n">contains_eager</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">file</span><span class="p">)</span><span class="o">.</span><span class="n">selectinload</span><span class="p">(</span><span class="n">file_models</span><span class="o">.</span><span class="n">File</span><span class="o">.</span><span class="n">work</span><span class="p">),</span>
+        <span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">__to_json__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CommentBaseJSON</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Creates a JSON serializable representation of this object.</span>
 
 
@@ -710,6 +833,7 @@
             <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
             <span class="s1">&#39;line&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">line</span><span class="p">,</span>
             <span class="s1">&#39;file_id&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_id</span><span class="p">),</span>
+            <span class="s1">&#39;work_id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">work_id</span><span class="p">,</span>
             <span class="s1">&#39;replies&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">user_visible_replies</span><span class="p">,</span>
         <span class="p">}</span></div>
 </pre></div>

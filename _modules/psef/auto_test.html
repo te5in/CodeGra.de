@@ -870,22 +870,19 @@
 
 <div class="viewcode-block" id="AssignmentInformation"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.AssignmentInformation">[docs]</a><span class="k">class</span> <span class="nc">AssignmentInformation</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Information about the assignment that this AutoTest belongs to.</span>
-
-<span class="sd">    :ivar deadline: The deadline of the assignment.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#: The deadline of the assignment.</span>
     <span class="n">deadline</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span></div>
 
 
 <div class="viewcode-block" id="StudentInformation"><a class="viewcode-back" href="../../psef_api/psef.html#psef.auto_test.StudentInformation">[docs]</a><span class="k">class</span> <span class="nc">StudentInformation</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Information about the submission that the AutoTest runs on.</span>
-
-<span class="sd">    :ivar result_id: The id of the :class:`AutoTestResult` corresponding to</span>
-<span class="sd">        this work.</span>
-<span class="sd">    :ivar student_id: The id of the :class:`User` who submitted the work.</span>
-<span class="sd">    :ivar created_at: The datetime when the work was submitted.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#: The id of the :class:`AutoTestResult` corresponding to this work.</span>
     <span class="n">result_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="c1">#: The id of the :class:`User` who submitted the work.</span>
     <span class="n">student_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="c1">#: The datetime when the work was submitted.</span>
     <span class="n">created_at</span><span class="p">:</span> <span class="nb">str</span></div>
 
 
@@ -1963,7 +1960,7 @@
             <span class="n">processes</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_amount_of_needed_workers</span><span class="p">(),</span>
             <span class="n">function</span><span class="o">=</span><span class="k">lambda</span> <span class="n">get_work</span><span class="p">:</span>
             <span class="n">_run_student</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">base_container_name</span><span class="p">,</span> <span class="n">cpu_cores</span><span class="p">,</span> <span class="n">get_work</span><span class="p">),</span>
-            <span class="n">sleep_time</span><span class="o">=</span><span class="n">mult</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_CF_SLEEP_TIME&#39;</span><span class="p">],</span>
+            <span class="n">sleep_time</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_CF_SLEEP_TIME&#39;</span><span class="p">],</span>
             <span class="n">extra_amount</span><span class="o">=</span><span class="n">mult</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;AUTO_TEST_CF_EXTRA_AMOUNT&#39;</span><span class="p">],</span>
             <span class="n">initial_work</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">work</span><span class="p">,</span>
         <span class="p">)</span>

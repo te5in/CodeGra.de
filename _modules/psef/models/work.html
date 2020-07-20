@@ -214,7 +214,6 @@
 
 <span class="kn">import</span> <span class="nn">structlog</span>
 <span class="kn">import</span> <span class="nn">sqlalchemy</span>
-<span class="kn">import</span> <span class="nn">sqlalchemy.sql</span> <span class="k">as</span> <span class="nn">sql</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">orm</span><span class="p">,</span> <span class="n">select</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.orm</span> <span class="kn">import</span> <span class="n">undefer</span><span class="p">,</span> <span class="n">selectinload</span>
 <span class="kn">from</span> <span class="nn">sqlalchemy.types</span> <span class="kn">import</span> <span class="n">JSON</span>
@@ -223,8 +222,11 @@
 <span class="kn">import</span> <span class="nn">psef</span>
 <span class="kn">import</span> <span class="nn">cg_timers</span>
 <span class="kn">from</span> <span class="nn">cg_dt_utils</span> <span class="kn">import</span> <span class="n">DatetimeWithTimezone</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers</span> <span class="kn">import</span> <span class="n">expression</span> <span class="k">as</span> <span class="n">sql_expression</span>
 <span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers</span> <span class="kn">import</span> <span class="n">hybrid_property</span><span class="p">,</span> <span class="n">hybrid_expression</span>
-<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">ColumnProxy</span><span class="p">,</span> <span class="n">cast_as_non_null</span>
+<span class="kn">from</span> <span class="nn">cg_sqlalchemy_helpers.types</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DbColumn</span><span class="p">,</span> <span class="n">ColumnProxy</span><span class="p">,</span> <span class="n">FilterColumn</span><span class="p">,</span> <span class="n">cast_as_non_null</span>
+<span class="p">)</span>
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">Base</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">db</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">file</span> <span class="k">as</span> <span class="n">file_models</span>
@@ -440,7 +442,11 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># pylint: disable=no-self-argument</span>
         <span class="k">return</span> <span class="n">select</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">sql</span><span class="o">.</span><span class="n">or_</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_deleted</span><span class="p">,</span> <span class="o">~</span><span class="n">assignment_models</span><span class="o">.</span><span class="n">Assignment</span><span class="o">.</span><span class="n">is_visible</span><span class="p">)]</span>
+            <span class="p">[</span>
+                <span class="n">sql_expression</span><span class="o">.</span><span class="n">or_</span><span class="p">(</span>
+                    <span class="bp">cls</span><span class="o">.</span><span class="n">_deleted</span><span class="p">,</span> <span class="o">~</span><span class="n">assignment_models</span><span class="o">.</span><span class="n">Assignment</span><span class="o">.</span><span class="n">is_visible</span>
+                <span class="p">)</span>
+            <span class="p">]</span>
         <span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
             <span class="bp">cls</span><span class="o">.</span><span class="n">assignment_id</span> <span class="o">==</span> <span class="n">assignment_models</span><span class="o">.</span><span class="n">Assignment</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
         <span class="p">)</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s1">&#39;deleted&#39;</span><span class="p">)</span>
@@ -547,9 +553,10 @@
             <span class="c1"># The assignment doesn&#39;t have a rubric, so simply return an empty</span>
             <span class="c1"># query result. We filter it with `false` so it will never return</span>
             <span class="c1"># rows.</span>
-            <span class="k">return</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">sqlalchemy</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">null</span><span class="p">())</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-                <span class="n">sqlalchemy</span><span class="o">.</span><span class="n">sql</span><span class="o">.</span><span class="n">false</span><span class="p">()</span>
-            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                                    <span class="n">sql_expression</span><span class="o">.</span><span class="n">literal</span><span class="p">(</span><span class="o">-</span><span class="mf">1.0</span><span class="p">))</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+                                        <span class="n">sql_expression</span><span class="o">.</span><span class="n">false</span><span class="p">()</span>
+                                    <span class="p">)</span>
 
         <span class="n">max_rubric_points</span> <span class="o">=</span> <span class="n">assignment</span><span class="o">.</span><span class="n">max_rubric_points</span>
         <span class="n">min_grade</span> <span class="o">=</span> <span class="n">assignment</span><span class="o">.</span><span class="n">min_grade</span>
@@ -951,6 +958,24 @@
         <span class="k">if</span> <span class="n">rubricitem</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">selected_items</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">rubricitem</span><span class="p">)</span></div>
 
+<div class="viewcode-block" id="Work.get_root_file"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.get_root_file">[docs]</a>    <span class="k">def</span> <span class="nf">get_root_file</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">exclude_owner</span><span class="p">:</span> <span class="s1">&#39;file_models.FileOwner&#39;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;file_models.File&#39;</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get the root file for this submission.</span>
+
+<span class="sd">        :param exclude: The fileowner to exclude from search, like described in</span>
+<span class="sd">            :func:`psef.v1.submissions.get_zip`.</span>
+
+<span class="sd">        :returns: The root file for the submission.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">psef</span><span class="o">.</span><span class="n">helpers</span><span class="o">.</span><span class="n">filter_single_or_404</span><span class="p">(</span>
+            <span class="n">file_models</span><span class="o">.</span><span class="n">File</span><span class="p">,</span>
+            <span class="n">file_models</span><span class="o">.</span><span class="n">File</span><span class="o">.</span><span class="n">work</span> <span class="o">==</span> <span class="bp">self</span><span class="p">,</span>
+            <span class="n">file_models</span><span class="o">.</span><span class="n">File</span><span class="o">.</span><span class="n">parent_id</span><span class="o">.</span><span class="n">is_</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span>
+            <span class="n">file_models</span><span class="o">.</span><span class="n">File</span><span class="o">.</span><span class="n">fileowner</span> <span class="o">!=</span> <span class="n">exclude_owner</span><span class="p">,</span>
+            <span class="o">~</span><span class="n">file_models</span><span class="o">.</span><span class="n">File</span><span class="o">.</span><span class="n">self_deleted</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
 <div class="viewcode-block" id="Work.search_file_filters"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.search_file_filters">[docs]</a>    <span class="k">def</span> <span class="nf">search_file_filters</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">pathname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -1047,35 +1072,75 @@
 
         <span class="k">return</span> <span class="n">cache</span></div>
 
-<div class="viewcode-block" id="Work.limit_to_user_submissions"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.limit_to_user_submissions">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">limit_to_user_submissions</span><span class="p">(</span>
-        <span class="n">query</span><span class="p">:</span> <span class="n">_MyQuery</span><span class="p">[</span><span class="s1">&#39;Work&#39;</span><span class="p">],</span> <span class="n">user</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_MyQuery</span><span class="p">[</span><span class="s1">&#39;Work&#39;</span><span class="p">]:</span>
-        <span class="sd">&quot;&quot;&quot;Limit the given query of submissions to only submission submitted by</span>
-<span class="sd">            the given user.</span>
+<div class="viewcode-block" id="Work.peer_feedback_submissions_filter"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.peer_feedback_submissions_filter">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">peer_feedback_submissions_filter</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">peer_user</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span>
+        <span class="n">assignment</span><span class="p">:</span> <span class="s1">&#39;assignment_models.Assignment&#39;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FilterColumn</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get a filter to filter database queries to only include submissions</span>
+<span class="sd">        that are peer reviewed by the given ``peer_user`` in the given</span>
+<span class="sd">        ``assignment``.</span>
+
+<span class="sd">        :param peer_user: The user that might peer reviews the submissions.</span>
+<span class="sd">        :param assignment: The assignment in which the ``peer_user`` should be</span>
+<span class="sd">            the peer reviewer of the submissions.</span>
+
+<span class="sd">        :returns: A column that can be used to filter a query for submissions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pf_settings</span> <span class="o">=</span> <span class="n">assignment</span><span class="o">.</span><span class="n">peer_feedback_settings</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">assignment</span><span class="o">.</span><span class="n">deadline_expired</span> <span class="ow">or</span> <span class="n">pf_settings</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">sql_expression</span><span class="o">.</span><span class="n">false</span><span class="p">()</span>
+
+        <span class="n">PFConn</span> <span class="o">=</span> <span class="n">assignment_models</span><span class="o">.</span><span class="n">AssignmentPeerFeedbackConnection</span>
+        <span class="k">return</span> <span class="n">PFConn</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+            <span class="n">PFConn</span><span class="o">.</span><span class="n">peer_feedback_settings</span> <span class="o">==</span> <span class="n">pf_settings</span><span class="p">,</span>
+            <span class="n">PFConn</span><span class="o">.</span><span class="n">peer_user</span> <span class="o">==</span> <span class="n">peer_user</span><span class="p">,</span>
+            <span class="n">PFConn</span><span class="o">.</span><span class="n">user_id</span> <span class="o">==</span> <span class="bp">cls</span><span class="o">.</span><span class="n">user_id</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Work.user_submissions_filter"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.user_submissions_filter">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">user_submissions_filter</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">user</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FilterColumn</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Get a filter to filter database queries to only include submissions</span>
+<span class="sd">        by the given ``user``.</span>
 
 <span class="sd">        .. note::</span>
 
 <span class="sd">            This is not the same as filtering on the author field as this also</span>
 <span class="sd">            checks for groups.</span>
 
-<span class="sd">        :param query: The query to limit.</span>
 <span class="sd">        :param user: The user to filter for.</span>
-<span class="sd">        :returns: The filtered query.</span>
+
+<span class="sd">        :returns: A column that can be used to filter a query for submissions.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># This query could be improved, but it seems fast enough. It now gets</span>
         <span class="c1"># every group of a user. This could be narrowed down probably.</span>
         <span class="n">groups_of_user</span> <span class="o">=</span> <span class="n">group_models</span><span class="o">.</span><span class="n">Group</span><span class="o">.</span><span class="n">contains_users</span><span class="p">(</span>
             <span class="p">[</span><span class="n">user</span><span class="p">]</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">with_entities</span><span class="p">(</span>
-            <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">group_models</span><span class="o">.</span><span class="n">Group</span><span class="o">.</span><span class="n">virtual_user_id</span><span class="p">)</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
-            <span class="n">sql</span><span class="o">.</span><span class="n">or_</span><span class="p">(</span>
-                <span class="n">Work</span><span class="o">.</span><span class="n">user_id</span> <span class="o">==</span> <span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
-                <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">DbColumn</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">Work</span><span class="o">.</span><span class="n">user_id</span><span class="p">)</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span><span class="n">groups_of_user</span><span class="p">)</span>
-            <span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">with_entities</span><span class="p">(</span><span class="n">group_models</span><span class="o">.</span><span class="n">Group</span><span class="o">.</span><span class="n">virtual_user_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sql_expression</span><span class="o">.</span><span class="n">or_</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">user_id</span> <span class="o">==</span> <span class="n">user</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">user_id</span><span class="o">.</span><span class="n">in_</span><span class="p">(</span><span class="n">groups_of_user</span><span class="p">),</span>
         <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Work.is_peer_reviewed_by"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.is_peer_reviewed_by">[docs]</a>    <span class="k">def</span> <span class="nf">is_peer_reviewed_by</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="s1">&#39;user_models.User&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Is this submission peer reviewed by the given ``user``.</span>
+
+<span class="sd">        :param user: The user that might be the peer reviewer of this</span>
+<span class="sd">            submission.</span>
+
+<span class="sd">        :returns: A boolean indicating if ``user`` is the peer reviewer of this</span>
+<span class="sd">                  submissions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pf_settings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assignment</span><span class="o">.</span><span class="n">peer_feedback_settings</span>
+        <span class="k">if</span> <span class="n">pf_settings</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">author</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user</span>
+        <span class="k">return</span> <span class="n">pf_settings</span><span class="o">.</span><span class="n">does_peer_review_of</span><span class="p">(</span><span class="n">reviewer</span><span class="o">=</span><span class="n">user</span><span class="p">,</span> <span class="n">subject</span><span class="o">=</span><span class="n">author</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Work.get_all_authors"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.work.Work.get_all_authors">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_authors</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="s1">&#39;user_models.User&#39;</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Get all the authors of this submission.</span>
