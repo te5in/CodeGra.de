@@ -10,6 +10,7 @@ import typing as t
 import structlog
 from flask import Response, g, request
 
+import psef
 from cg_json import JSONResponse, jsonify
 
 from .exceptions import APICodes, APIWarnings, APIException
@@ -49,8 +50,6 @@ def init_app(app: t.Any) -> None:
         :returns: A response with the JSON serialized error as content.
         :rtype: flask.Response
         """
-        from . import models  # pylint: disable=import-outside-toplevel
-
         response = t.cast(t.Any, jsonify(error))
         response.status_code = error.status_code
         logger.warning(
@@ -59,8 +58,8 @@ def init_app(app: t.Any) -> None:
             exc_info=True,
         )
 
-        models.db.session.expire_all()
-        models.db.session.rollback()
+        print('ROLLING BACK')
+        psef.models.db.session.rollback()
 
         return response
 
@@ -70,7 +69,6 @@ def init_app(app: t.Any) -> None:
 
     @app.errorhandler(404)
     def handle_404(_: object) -> JSONResponse[APIException]:  # pylint: disable=unused-variable; #pragma: no cover
-        from . import models  # pylint: disable=import-outside-toplevel
         logger.warning('A unknown route was requested')
 
         api_exp = APIException(
@@ -79,8 +77,7 @@ def init_app(app: t.Any) -> None:
             APICodes.ROUTE_NOT_FOUND, 404
         )
 
-        models.db.session.expire_all()
-        models.db.session.rollback()
+        psef.models.db.session.rollback()
 
         return jsonify(api_exp, status_code=404)
 
@@ -93,7 +90,6 @@ def init_app(app: t.Any) -> None:
         This function should never really be called, as it means our code
         contains a bug.
         """
-        from . import models  # pylint: disable=import-outside-toplevel
 
         logger.error(
             'Unknown exception occurred', exc_info=True, report_to_sentry=True
@@ -106,7 +102,6 @@ def init_app(app: t.Any) -> None:
             ), APICodes.UNKOWN_ERROR, 500
         )
 
-        models.db.session.expire_all()
-        models.db.session.rollback()
+        psef.models.db.session.rollback()
 
         return jsonify(api_exp, status_code=500)

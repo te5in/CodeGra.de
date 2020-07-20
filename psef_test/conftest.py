@@ -540,7 +540,7 @@ def db(_db, fresh_db, monkeypatch, app):
 
 
 @pytest.fixture(autouse=True)
-def session(app, db, fresh_db):
+def session(app, db, fresh_db, monkeypatch):
     """Creates a new database session for a test."""
     connection = db.engine.connect()
     if not fresh_db:
@@ -549,6 +549,8 @@ def session(app, db, fresh_db):
     options = dict(bind=connection, binds={}, autoflush=False)
     session = db.create_scoped_session(options=options)
 
+    old_uri = app.config['SQLALCHEMY_DATABASE_URI']
+
     if not fresh_db:
         session.begin_nested()
 
@@ -556,17 +558,12 @@ def session(app, db, fresh_db):
         @sqlalchemy.event.listens_for(session, "after_transaction_end")
         def restart_savepoint(session, transaction):
             if transaction.nested and not transaction._parent.nested:
-
                 # ensure that state is expired the way
                 # session.commit() at the top level normally does
                 # (optional step)
                 session.expire_all()
 
                 session.begin_nested()
-
-    old_ses = psef.models.db.session
-    psef.models.db.session = session
-    old_uri = app.config['SQLALCHEMY_DATABASE_URI']
 
     if fresh_db:
         with app.app_context():
@@ -580,9 +577,14 @@ def session(app, db, fresh_db):
         manage.test_data(psef.models.db)
 
     try:
-        yield session
+        with monkeypatch.context() as context:
+            context.setattr(psef.models.db, 'session', session)
+            context.setattr(session, 'remove', lambda :None)
+            yield session
     finally:
-        psef.models.db.session = old_ses
+        sqlalchemy.event.remove(
+            session, "after_transaction_end", restart_savepoint
+        )
 
         if not fresh_db:
             transaction.rollback()
