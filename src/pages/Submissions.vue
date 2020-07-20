@@ -309,7 +309,7 @@
 
             <div v-show="selectedCat === 'export'"
                  class="flex-grow-1">
-                <submissions-exporter :get-submissions="filter => filter ? filteredSubmissions : submissions"
+                <submissions-exporter :get-submissions="getExportedSubmissions"
                                       :assignment-id="assignment.id"
                                       :filename="exportFilename" />
             </div>
@@ -407,7 +407,7 @@ export default {
         ...mapGetters('pref', ['darkMode']),
         ...mapGetters('courses', ['courses', 'assignments']),
         ...mapGetters('rubrics', { allRubrics: 'rubrics' }),
-        ...mapGetters('submissions', ['getSubmissionsByUser']),
+        ...mapGetters('submissions', ['getSubmissionsByUser', 'getLatestSubmissions']),
         ...mapGetters('users', ['getUser', 'getGroupInGroupSetOfUser']),
 
         loggedInUser() {
@@ -498,6 +498,10 @@ export default {
             return this.getSubmissionsByUser(this.assignmentId, this.userId, {
                 includeGroupSubmissions: true,
             });
+        },
+
+        latestSubmissions() {
+            return this.getLatestSubmissions(this.assignmentId);
         },
 
         rubric() {
@@ -876,6 +880,14 @@ export default {
                 return this.currentGroup.group.id === group.id;
             }
             return false;
+        },
+
+        getExportedSubmissions(filter) {
+            if (filter) {
+                return this.filteredSubmissions;
+            } else {
+                return this.latestSubmissions;
+            }
         },
     },
 
