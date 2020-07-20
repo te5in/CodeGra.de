@@ -14,6 +14,9 @@ def get_all_connections(assignment, amount):
     assignment = m.Assignment.query.get(assig_id)
     assert assignment is not None, 'Could not find assignment'
     pf_settings = assignment.peer_feedback_settings
+    if amount == 0:
+        assert pf_settings is None
+        return
     assert pf_settings is not None, 'Not a PF assig'
     connections = sorted((conn.peer_user_id, conn.user_id)
                          for conn in pf_settings.connections)
@@ -319,7 +322,7 @@ def test_giving_peer_feedback_comments(
     with describe('setup'), logged_in(admin_user):
         course = helpers.create_course(test_client)
         assignment = helpers.create_assignment(
-            test_client, course, deadline=yesterday, state='open'
+            test_client, course, deadline=tomorrow, state='open'
         )
         teacher = helpers.create_user_with_role(session, 'Teacher', course)
         users = [
@@ -328,10 +331,13 @@ def test_giving_peer_feedback_comments(
             ) for _ in range(5)
         ]
         user1, *other_users = users
+        subs_by_user = {}
         for user in users:
             helpers.create_submission(test_client, assignment, for_user=user)
-            # Every user has to submissions
-            helpers.create_submission(test_client, assignment, for_user=user)
+            # Every user has two submissions
+            subs_by_user[user] = helpers.create_submission(
+                test_client, assignment, for_user=user
+            )
 
         helpers.enable_peer_feedback(
             test_client, assignment, amount=1, auto_approved=auto_approved
@@ -339,26 +345,64 @@ def test_giving_peer_feedback_comments(
         conns = get_all_connections(assignment, 1)[user1]
         other_user = next(u for u in other_users if u not in conns)
         base_url = f'/api/v1/assignments/{helpers.get_id(assignment)}'
+        pf_sub = subs_by_user[conns[0]]
+        own_sub = subs_by_user[user1]
+        add_reply = make_add_reply(pf_sub)
+
+        with logged_in(teacher):
+            teacher_rep = add_reply('Hello')
+            base_comment_id = teacher_rep['comment_base_id']
+            teacher_rep.delete()
 
     with describe(
-        'Will receive peer feedback submissions when getting all submissions'
+        'Before deadline we have no connections (and cannot place feedback)'
     ), logged_in(user1):
-        pf_sub, own_sub = test_client.req(
+        test_client.req(
             'get',
             f'{base_url}/submissions/?latest_only',
             200,
             result=[{
                 'id': int,
                 'user': {
-                    'id': user,
+                    'id': user1,
                     '__allow_extra__': True,
                 },
                 '__allow_extra__': True,
-            } for user in [conns[0], user1]],
+            }]
+        )
+        add_reply(
+            'Too early for a reply', expect_error=403, base_id=base_comment_id
+        )
+
+    with logged_in(teacher):
+        test_client.req(
+            'patch', base_url, 200, data={'deadline': yesterday.isoformat()}
+        )
+
+    with describe(
+        'Will receive peer feedback submissions when getting all submissions'
+    ), logged_in(user1):
+        test_client.req(
+            'get',
+            f'{base_url}/submissions/?latest_only&extended',
+            200,
+            result=[pf_sub, own_sub],
+        )
+        # Can also get older subs of a assigned user
+        test_client.req(
+            'get',
+            f'{base_url}/users/{conns[0]}/submissions/?extended',
+            200,
+            result=[
+                pf_sub,
+                {
+                    '__allow_extra__': True,
+                    'user': {'id': conns[0], '__allow_extra__': True},
+                }
+            ],
         )
 
     with describe('Can comment on other submission'), logged_in(user1):
-        add_reply = make_add_reply(pf_sub)
         reply = add_reply('A peer feedback comment', expect_peer_feedback=True)
         assert reply['approved'] == auto_approved
 
@@ -461,3 +505,78 @@ def test_giving_peer_feedback_comments(
                     }] if reply['approved'] else []),
                 },
             )
+
+
+def test_disabling_peer_feedback(
+    test_client, admin_user, session, describe, logged_in, yesterday,
+    make_add_reply
+):
+    with describe('setup'), logged_in(admin_user):
+        course = helpers.create_course(test_client)
+        assignment = helpers.create_assignment(
+            test_client, course, deadline=yesterday, state='open'
+        )
+        teacher = helpers.create_user_with_role(session, 'Teacher', course)
+        users = [
+            helpers.get_id(
+                helpers.create_user_with_role(session, 'Student', course)
+            ) for _ in range(5)
+        ]
+        user1, *other_users = users
+        for user in users:
+            helpers.create_submission(test_client, assignment, for_user=user)
+
+        helpers.enable_peer_feedback(test_client, assignment)
+        conns = get_all_connections(assignment, 1)[user1]
+        base_url = f'/api/v1/assignments/{helpers.get_id(assignment)}'
+
+        pf_sub = m.Work.query.filter_by(
+            assignment_id=helpers.get_id(assignment),
+            user_id=helpers.get_id(conns[0]),
+        ).one()
+        pf_url = f'{base_url}/peer_feedback_settings'
+
+        add_reply = make_add_reply(pf_sub)
+        with logged_in(user1):
+            reply = add_reply(
+                'A peer feedback comment', expect_peer_feedback=True
+            )
+
+    with describe('Students cannot disable peer feedback'), logged_in(user1):
+        test_client.req('delete', pf_url, 403)
+
+    with describe('Teachers can disable peer feedback'), logged_in(teacher):
+        test_client.req('delete', pf_url, 204)
+        get_all_connections(assignment, 0)
+
+    with describe('Old feedback still exists after disabling'
+                  ), logged_in(teacher):
+        test_client.req(
+            'get',
+            f'/api/v1/submissions/{helpers.get_id(pf_sub)}/feedbacks/',
+            200,
+            query={'with_replies': '1'},
+            result={
+                'general': '',
+                'linter': {},
+                'authors': [helpers.to_db_object(user1, m.User)],
+                'user': [{
+                    'id': int,
+                    '__allow_extra__': True,
+                    'replies': [helpers.dict_without(reply, 'author')],
+                }],
+            }
+        )
+
+        # Students can no longer see their peer feedback subs
+    with describe('Student can no longer place new comments'
+                  ), logged_in(user1):
+        add_reply(
+            'No peer feedback',
+            expect_error=403,
+            base_id=reply['comment_base_id'],
+        )
+
+    with describe('deleting again does nothing'), logged_in(teacher):
+        test_client.req('delete', pf_url, 204)
+        get_all_connections(assignment, 0)

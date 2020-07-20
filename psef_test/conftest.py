@@ -342,7 +342,7 @@ def assert_similar():
             assert len(
                 vals
             ) == i, 'Length of lists is not equal at {}: {} vs {}'.format(
-                '.'.join(cur_path + [str(k)]), len(vals), i
+                '.'.join(cur_path), len(vals), i
             )
         elif not allowed_extra:
             assert len(vals) == i, (
