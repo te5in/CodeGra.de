@@ -907,23 +907,8 @@ else:
     from sqlalchemy import TypeDecorator, TIMESTAMP
     from sqlalchemy.dialects.postgresql import JSONB, ARRAY
     from sqlalchemy.sql import expression
-    from citext import CIText as _CIText
+    from citext import CIText
     from sqlalchemy import distinct, tuple_
-
-    class CIText(_CIText):
-        # This is not defined in citext.CIText for whatever reason. This is
-        # copied from the `literal_processor` of sqlalchemy's own `String`
-        # type.
-        def literal_processor(self, dialect: t.Any) -> t.Callable[[str], str]:
-            def process(value: str) -> str:
-                value = value.replace("'", "''")
-
-                if dialect.identifier_preparer._double_percents:
-                    value = value.replace("%", "%%")
-
-                return "'%s'" % value
-
-            return process
 
     def hybrid_expression(fun: T) -> T:
         return fun
