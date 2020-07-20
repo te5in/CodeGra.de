@@ -555,7 +555,7 @@ def session(app, db, fresh_db, monkeypatch):
         session.begin_nested()
 
         # then each time that SAVEPOINT ends, reopen it
-        @sqlalchemy.event.listens_for(session, "after_transaction_end")
+        @sqlalchemy.event.listens_for(session, 'after_transaction_end')
         def restart_savepoint(session, transaction):
             if transaction.nested and not transaction._parent.nested:
                 # ensure that state is expired the way
@@ -580,14 +580,13 @@ def session(app, db, fresh_db, monkeypatch):
         with monkeypatch.context() as context:
             context.setattr(psef.models.db, 'session', session)
             if not fresh_db:
-                context.setattr(session, 'remove', lambda :None)
+                context.setattr(session, 'remove', lambda: None)
             yield session
     finally:
-        sqlalchemy.event.remove(
-            session, "after_transaction_end", restart_savepoint
-        )
-
         if not fresh_db:
+            sqlalchemy.event.remove(
+                session, 'after_transaction_end', restart_savepoint
+            )
             transaction.rollback()
 
         try:
