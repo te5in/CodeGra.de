@@ -21,7 +21,7 @@
                             :level="level + 1"
                             @goto-option="$emit('goto-option', $event)"
                             :selected-option="selectedOption"
-                            v-if="openOptions[option.id] && option.children" >
+                            v-if="openOptions[option.id] && option.children && option.children.length > 0" >
                 <template #option="{ option, open }">
                     <slot name="option" :open="open" :option="option" />
                 </template>
@@ -79,15 +79,17 @@ ol {
     list-style: none !important;
 }
 
+@active-border-width: 3px;
+
 a {
     border-color: @color-primary !important;
 
     &.active {
-        border-left-width: 3px !important;
+        border-left-width: @active-border-width !important;
     }
 
     &.not-active {
-        margin-left: 2px;
+        margin-left: @active-border-width - 1px;
     }
 }
 </style>
