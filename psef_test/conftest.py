@@ -339,10 +339,11 @@ def assert_similar():
                 )
 
         if is_list:
-            assert len(vals
-                       ) == i, 'Length of lists is not equal: {} vs {}'.format(
-                           len(vals), i
-                       )
+            assert len(
+                vals
+            ) == i, 'Length of lists is not equal at {}: {} vs {}'.format(
+                '.'.join(cur_path + [str(k)]), len(vals), i
+            )
         elif not allowed_extra:
             assert len(vals) == i, (
                 'Difference in keys: {}, (server data: {}, expected: {})'
@@ -542,12 +543,26 @@ def db(_db, fresh_db, monkeypatch, app):
 def session(app, db, fresh_db):
     """Creates a new database session for a test."""
     connection = db.engine.connect()
-
     if not fresh_db:
         transaction = connection.begin()
 
     options = dict(bind=connection, binds={}, autoflush=False)
     session = db.create_scoped_session(options=options)
+
+    if not fresh_db:
+        session.begin_nested()
+
+        # then each time that SAVEPOINT ends, reopen it
+        @sqlalchemy.event.listens_for(session, "after_transaction_end")
+        def restart_savepoint(session, transaction):
+            if transaction.nested and not transaction._parent.nested:
+
+                # ensure that state is expired the way
+                # session.commit() at the top level normally does
+                # (optional step)
+                session.expire_all()
+
+                session.begin_nested()
 
     old_ses = psef.models.db.session
     psef.models.db.session = session

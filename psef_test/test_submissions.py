@@ -2275,13 +2275,13 @@ def test_all_all_file_trees(
         )
         base_url = f'/api/v1/submissions/{helpers.get_id(sub)}'
 
-        def get_trees(err=False, teacher=None):
+        def get_trees(err=False, teacher=None, student=dict):
             return test_client.req(
                 'get',
                 f'{base_url}/root_file_trees/',
                 err or 200,
                 result=error_template if err else {
-                    'student': dict,
+                    'student': student,
                     'teacher': teacher,
                 }
             )
@@ -2293,8 +2293,7 @@ def test_all_all_file_trees(
 
     with describe('Students may not see teacher tree iff not done'):
         with logged_in(student1):
-            res = get_trees(teacher=None)
-            assert res['student'] == orig_student
+            res = get_trees(teacher=None, student=orig_student)
         with logged_in(teacher):
             test_client.req(
                 'patch',
@@ -2303,7 +2302,7 @@ def test_all_all_file_trees(
                 data={'state': 'done'},
             )
         with logged_in(student1):
-            get_trees(teacher=orig_student)
+            get_trees(teacher=orig_student, student=orig_student)
 
     with describe('Changes in teacher tree are visible'):
         with logged_in(teacher):
@@ -2321,9 +2320,9 @@ def test_all_all_file_trees(
             })
 
         with logged_in(ta):
-            get_trees(teacher=teacher_tree)
+            get_trees(teacher=teacher_tree, student=orig_student)
         with logged_in(student1):
-            get_trees(teacher=teacher_tree)
+            get_trees(teacher=teacher_tree, student=orig_student)
 
     with describe('Other students receive do not receive any tree'
                   ), logged_in(student2):

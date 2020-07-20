@@ -51,6 +51,7 @@ def init_app(app: t.Any) -> None:
         """
         from . import models  # pylint: disable=import-outside-toplevel
         models.db.session.expire_all()
+        models.db.session.rollback()
 
         response = t.cast(t.Any, jsonify(error))
         response.status_code = error.status_code
@@ -69,6 +70,7 @@ def init_app(app: t.Any) -> None:
     def handle_404(_: object) -> JSONResponse[APIException]:  # pylint: disable=unused-variable; #pragma: no cover
         from . import models  # pylint: disable=import-outside-toplevel
         models.db.session.expire_all()
+        models.db.session.rollback()
 
         logger.warning('A unknown route was requested')
         api_exp = APIException(
@@ -89,6 +91,8 @@ def init_app(app: t.Any) -> None:
         """
         from . import models  # pylint: disable=import-outside-toplevel
         models.db.session.expire_all()
+        models.db.session.rollback()
+
         logger.error(
             'Unknown exception occurred', exc_info=True, report_to_sentry=True
         )
