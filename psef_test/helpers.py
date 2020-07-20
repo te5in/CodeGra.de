@@ -267,7 +267,13 @@ def create_assignment(
 
 
 def enable_peer_feedback(
-        test_client, assignment, *, amount=1, days=6, auto_approved=False, err=False
+    test_client,
+    assignment,
+    *,
+    amount=1,
+    days=6,
+    auto_approved=False,
+    err=False
 ):
     assignment_id = get_id(assignment)
     time = (
