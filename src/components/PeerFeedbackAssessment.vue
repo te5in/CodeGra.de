@@ -5,10 +5,10 @@
                     :scale="0.75"
                     @success="afterApproval"
                     @after-error="approvalError" />
-    <span v-b-popover.top.hover="'Approve peer feedback'">
+    <span v-b-popover.top.hover="popoverMessage">
         <cg-toggle :value="approved"
                    @input="updateApproval"
-                   :disabled="approvedPromise != null"
+                   :disabled="disabled || approvedPromise != null"
                    :has-no-value="approvedPromise != null"
                    class="d-inline-block">
             <template #label-off>
@@ -40,13 +40,25 @@ import PromiseLoader from './PromiseLoader';
 export default class PeerFeedbackAssessment extends Vue {
     @Prop({ required: true }) reply!: models.FeedbackReply;
 
+    @Prop({ default: false }) disabled!: boolean;
+
     get approved(): boolean {
         return this.reply.approved;
     }
 
+    get popoverMessage(): string {
+        if (this.disabled) {
+            return `This peer feedback has${this.approved ? '' : ' not'} been approved.`;
+        }
+        return 'Approve peer feedback';
+    }
+
     approvedPromise: null | Promise<unknown> = null;
 
-    updateApproval(approved: boolean) {
+    updateApproval(approved: boolean): Promise<unknown> {
+        if (!this.disabled) {
+            return Promise.resolve();
+        }
         this.approvedPromise = this.reply.approveAndSave(approved);
         return this.approvedPromise;
     }

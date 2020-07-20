@@ -203,10 +203,10 @@
                     </b-btn>
 
                 <template v-if="!nonEditable">
-                    <peer-feedback-assessment v-if="canApprove"
-                                              :reply="reply"
-                                              @updated="emitUpdated"
-                                              />
+                    <peer-feedback-assessment
+                        :disabled="!canApprove"
+                        :reply="reply"
+                        @updated="emitUpdated" />
 
                     <cg-submit-button
                         v-if="editable"
