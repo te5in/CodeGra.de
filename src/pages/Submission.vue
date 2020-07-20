@@ -275,7 +275,6 @@ import { mapGetters, mapActions } from 'vuex';
 
 import { nameOfUser } from '@/utils';
 
-import { PeerFeedbackStore } from '@/store/modules/peer_feedback';
 import * as assignmentState from '@/store/assignment-states';
 
 import { setPageTitle } from '@/pages/title';
@@ -856,15 +855,6 @@ export default {
                         // no AT results...
                         noResponse: () => {},
                     })),
-                );
-            }
-
-            if (this.assignment.peer_feedback_settings != null) {
-                promises.push(
-                    PeerFeedbackStore.loadConnectionsForUser({
-                        assignmentId: this.assignment.id,
-                        userId: this.submission.userId,
-                    }),
                 );
             }
 
