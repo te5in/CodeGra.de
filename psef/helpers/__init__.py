@@ -25,6 +25,7 @@ import flask
 import requests
 import structlog
 import mypy_extensions
+import sqlalchemy_utils
 from flask import g, request
 from werkzeug.local import LocalProxy
 from mypy_extensions import Arg
@@ -263,7 +264,7 @@ def escape_like(unescaped_like: str) -> str:
     :param unescaped_like: The string to escape
     :returns: The same string but escaped
     """
-    return re.sub(r'(%|_|\\)', r'\\\1', unescaped_like)
+    return sqlalchemy_utils.escape_like(unescaped_like, escape_char='\\')
 
 
 class FloatHelpers:
