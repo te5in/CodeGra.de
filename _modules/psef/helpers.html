@@ -228,6 +228,7 @@
 <span class="kn">import</span> <span class="nn">requests</span>
 <span class="kn">import</span> <span class="nn">structlog</span>
 <span class="kn">import</span> <span class="nn">mypy_extensions</span>
+<span class="kn">import</span> <span class="nn">sqlalchemy_utils</span>
 <span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">g</span><span class="p">,</span> <span class="n">request</span>
 <span class="kn">from</span> <span class="nn">werkzeug.local</span> <span class="kn">import</span> <span class="n">LocalProxy</span>
 <span class="kn">from</span> <span class="nn">mypy_extensions</span> <span class="kn">import</span> <span class="n">Arg</span>
@@ -451,7 +452,7 @@
 <span class="sd">    :param unescaped_like: The string to escape</span>
 <span class="sd">    :returns: The same string but escaped</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(%|_|</span><span class="se">\\</span><span class="s1">)&#39;</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">\1&#39;</span><span class="p">,</span> <span class="n">unescaped_like</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">sqlalchemy_utils</span><span class="o">.</span><span class="n">escape_like</span><span class="p">(</span><span class="n">unescaped_like</span><span class="p">,</span> <span class="n">escape_char</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="FloatHelpers"><a class="viewcode-back" href="../../psef_api/psef.html#psef.helpers.FloatHelpers">[docs]</a><span class="k">class</span> <span class="nc">FloatHelpers</span><span class="p">:</span>
