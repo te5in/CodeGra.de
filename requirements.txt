@@ -38,7 +38,7 @@ mistune==0.8.4
 mypy==0.782
 mypy-extensions==0.4.3
 passlib==1.7.2
-psutil==5.7.0
+psutil==5.7.2
 psycopg2-binary==2.8.5
 PyJWT==1.7.1
 pylint==2.5.3
