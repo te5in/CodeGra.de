@@ -14,10 +14,10 @@ const getters = {
         if (workspaces == null) {
             return {};
         }
-        return utils.mapToObject(
-            [...state.workspacesByAssignment[assignmentId]],
-            workspaceId => state.workspaces[workspaceId],
-        );
+        return utils.mapToObject([...state.workspacesByAssignment[assignmentId]], workspaceId => [
+            workspaceId,
+            state.workspaces[workspaceId],
+        ]);
     },
 };
 
