@@ -339,7 +339,7 @@ context('Course Feedback', () => {
             });
 
             it('should open file links in a new tab', () => {
-                cy.get('.course-feedback .card.inline-feedback .card-header a')
+                cy.get('.course-feedback .inner-inline-feedback-file .card-header a')
                     .should('have.attr', 'target', '_blank');
             });
         });
@@ -356,9 +356,11 @@ context('Course Feedback', () => {
                     'Student1',
                     `/courses/${course.id}/assignments/${assignments[0].id}/submissions/`,
                 );
-                cy.get('.action-buttons')
-                    .contains('.action-button', 'Course feedback')
+                cy.get('.local-header')
+                    .contains('.btn', 'Course feedback')
                     .click();
+                cy.get('[id^="submissions-page-course-feedback-modal"]')
+                    .should('be.visible');
             });
 
             it('should be available to students', () => {

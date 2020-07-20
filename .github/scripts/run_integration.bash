@@ -34,6 +34,7 @@ course_register = true
 groups = true
 render_html = true
 email_students = true
+peer_feedback = true
 
 EOF
 

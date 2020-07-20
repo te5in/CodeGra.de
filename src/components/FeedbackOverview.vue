@@ -38,7 +38,7 @@
             <template #no-feedback>
                 <b-card-header>Inline feedback</b-card-header>
                 <b-card-body class="text-muted font-italic">
-                    <slot name="no-inline-feedback" class="">
+                    <slot name="no-inline-feedback">
                         This submission has no inline feedback.
                     </slot>
                 </b-card-body>
