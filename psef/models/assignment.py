@@ -448,8 +448,8 @@ class AssignmentLinter(Base):
 class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
     """This table represents a link between a two users and assignment.
 
-    If connection from ``UserA`` to ``UserB`` for assignment ``A1`` exists this
-    means that ``UserA`` should peer review ``UserB`` for assignment ``A1``.
+    If a connection from ``peer_user`` to ``user`` for assignment ``A1`` exists this
+    means that ``peer_user`` should peer review ``user`` for assignment ``A1``.
     """
 
     @t.overload
