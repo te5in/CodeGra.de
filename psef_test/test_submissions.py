@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import io
 import os
+import copy
 import zipfile
 import datetime
 
@@ -2254,3 +2255,76 @@ def test_maximum_grade(
             200,
             data={'grade': 10},
         )
+
+
+def test_all_all_file_trees(
+    test_client, logged_in, admin_user, describe, session, tomorrow,
+    error_template
+):
+    with describe('setup'), logged_in(admin_user):
+        course = helpers.create_course(test_client)
+        assignment = helpers.create_assignment(
+            test_client, course, state='open', deadline=tomorrow
+        )
+        student1 = helpers.create_user_with_role(session, 'Student', course)
+        student2 = helpers.create_user_with_role(session, 'Student', course)
+        ta = helpers.create_user_with_role(session, 'TA', course)
+        teacher = helpers.create_user_with_role(session, 'Teacher', course)
+        sub = helpers.create_submission(
+            test_client, assignment, for_user=student1
+        )
+        base_url = f'/api/v1/submissions/{helpers.get_id(sub)}'
+
+        def get_trees(err=False, teacher=None):
+            return test_client.req(
+                'get',
+                f'{base_url}/root_file_trees/',
+                err or 200,
+                result=error_template if err else {
+                    'student': dict,
+                    'teacher': teacher,
+                }
+            )
+
+    with describe('Before editing both trees are the same'), logged_in(ta):
+        res = get_trees(teacher=dict)
+        assert res['student'] == res['teacher']
+        orig_student = res['student']
+
+    with describe('Students may not see teacher tree iff not done'):
+        with logged_in(student1):
+            res = get_trees(teacher=None)
+            assert res['student'] == orig_student
+        with logged_in(teacher):
+            test_client.req(
+                'patch',
+                f'/api/v1/assignments/{helpers.get_id(assignment)}',
+                200,
+                data={'state': 'done'},
+            )
+        with logged_in(student1):
+            get_trees(teacher=orig_student)
+
+    with describe('Changes in teacher tree are visible'):
+        with logged_in(teacher):
+            test_client.req(
+                'post',
+                f'/api/v1/submissions/{helpers.get_id(sub)}/files/',
+                200,
+                query={'path': '/f.zip/dir2/teacher_file'},
+                real_data='NEW_FILE',
+            )
+            teacher_tree = copy.deepcopy(orig_student)
+            teacher_tree['entries'][1]['entries'].append({
+                'name': 'teacher_file',
+                'id': str,
+            })
+
+        with logged_in(ta):
+            get_trees(teacher=teacher_tree)
+        with logged_in(student1):
+            get_trees(teacher=teacher_tree)
+
+    with describe('Other students receive do not receive any tree'
+                  ), logged_in(student2):
+        get_trees(err=403)
