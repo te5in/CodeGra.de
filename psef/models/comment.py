@@ -30,7 +30,7 @@ from .. import auth, db_locks, current_app, current_user
 
 @enum.unique
 class CommentType(CGEnum):
-    """The type of formatting used for the contents of the reply."""
+    """The kind of a reply."""
     #: This is a piece of normal feedback.
     normal = enum.auto()
     #: This is peer feedback given by another student.

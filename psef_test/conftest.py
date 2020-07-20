@@ -186,6 +186,9 @@ def app(request, make_app_settings):
     app.config['__S_FEATURES']['RENDER_HTML'] = True
     app.config['FEATURES'][psef.features.Feature.RENDER_HTML] = True
 
+    app.config['__S_FEATURES']['PEER_FEEDBACK'] = True
+    app.config['FEATURES'][psef.features.Feature.PEER_FEEDBACK] = True
+
     psef.tasks.celery.conf.update({
         'task_always_eager': False,
         'task_eager_propagates': False,

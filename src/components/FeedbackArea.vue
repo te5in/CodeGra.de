@@ -101,8 +101,6 @@ export default class FeedbackArea extends Vue {
 
     @Prop({ default: false }) readonly nonEditable!: boolean;
 
-    @Prop({ default: false }) readonly noNewReplies!: boolean;
-
     // A function that receives a thread and a reply as arguments, and returns
     // a boolean value indicating whether a reply within a thread should be
     // faded.

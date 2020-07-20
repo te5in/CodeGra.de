@@ -8,7 +8,7 @@
         <slot name="error" :error="error" />
     </template>
 
-    <component v-for="id in fileIds"
+    <div v-for="id in fileIds"
                v-else
                v-bind="fileWrapperProps"
                :key="id"
@@ -39,7 +39,7 @@
                       :chunk="{ start: part[0], end: part[1], content: codeLines[id], idx: i }" />
             </div>
         </component>
-    </component>
+    </div>
 </div>
 </template>
 

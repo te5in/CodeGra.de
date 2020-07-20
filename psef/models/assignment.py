@@ -70,9 +70,6 @@ logger = structlog.get_logger()
 class PeerFeedbackSettingJSON(TypedDict, total=True):
     """The serialization of an :class:`.AssignmentPeerFeedbackSettings`.
     """
-    #: The id of this settings object, needed for mutations.
-    id: int
-
     #: The amount of student that a single user should peer review.
     amount: int
 
@@ -640,7 +637,6 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
 
     def __to_json__(self) -> PeerFeedbackSettingJSON:
         return {
-            'id': self.id,
             'amount': self.amount,
             'time': on_not_none(self.time, lambda x: x.total_seconds()),
             'auto_approved': self.auto_approved,
@@ -689,7 +685,7 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
                   deadline of an assignment has not expired just yet.
         """
         # If the assignment is not yet done the ordering has not stabilized, so
-        # we do
+        # we always return ``False`` for this check.
         if not self.assignment.deadline_expired:
             return False
         return subject.id in self._get_subjects_for_user(reviewer)

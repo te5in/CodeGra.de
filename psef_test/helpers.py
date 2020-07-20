@@ -285,7 +285,6 @@ def enable_peer_feedback(
         result=create_error_template() if err else {
             'amount': amount,
             'time': time,
-            'id': int,
             'auto_approved': auto_approved,
         }
     )

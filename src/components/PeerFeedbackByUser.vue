@@ -52,7 +52,7 @@
                                 <cg-user :user="sub.user" />
                                 <fa-icon name="exclamation-triangle"
                                          class="text-warning ml-1"
-                                         v-b-popover.top.hover="'This is not the latest submissions'"
+                                         v-b-popover.top.hover="'This is not the latest submission'"
                                          v-if="!isLatest(sub)"/>
                             </div>
                             <feedback-overview
@@ -108,7 +108,7 @@
                             <cg-user :user="option.data.sub.user" />
                             <fa-icon name="exclamation-triangle"
                                      class="text-warning ml-1"
-                                     v-b-popover.top.hover="'This is not the latest submissions'"
+                                     v-b-popover.top.hover="'This is not the latest submission'"
                                      v-if="!isLatest(option.data.sub)"/>
                         </template>
                         <template v-else-if="option.data.typ == 'missing-subject'">
@@ -341,14 +341,7 @@ export default class PeerFeedbackByUser extends Vue {
         }
 
         return this.submissionIds.map(
-            subIds => subIds.some(subId => {
-                if (subId != null) {
-                    return false;
-                } else if (this.errors[subId]) {
-                    return false;
-                }
-                return true;
-            }),
+            subIds => subIds.some(subId => subId == null),
         ).orDefault(false);
     }
 

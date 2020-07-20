@@ -23,7 +23,7 @@
             <preference-manager in-popover
                                 container="#submission-page"
                                 :file-id="prefFileId"
-                                :show-context-amount="selectedCat === 'feedback-overview' || selectedCat === 'teacher-diff' || selectedCat === 'peer-feedback'"
+                                :show-context-amount="showPrefContextAmount"
                                 :show-language="selectedCat === 'code'"
                                 @whitespace="whitespaceChanged"
                                 @language="languageChanged"
@@ -677,6 +677,11 @@ export default {
             }
             return false;
         },
+
+        showPrefContextAmount() {
+            const cat = this.selectedCat;
+            return cat === 'feedback-overview' || cat === 'teacher-diff' || cat === 'peer-feedback';
+        },
     },
 
     watch: {
@@ -858,8 +863,7 @@ export default {
                 promises.push(
                     PeerFeedbackStore.loadConnectionsForUser({
                         assignmentId: this.assignment.id,
-                        userId: this.userId,
-                        // userId: this.submission.userId,
+                        userId: this.submission.userId,
                     }),
                 );
             }
