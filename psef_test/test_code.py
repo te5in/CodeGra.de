@@ -1065,6 +1065,7 @@ def test_rename_code(
         m.Assignment.query.filter_by(id=assignment.id).update({
             'state': m.AssignmentStateEnum.done
         })
+        session.commit()
         rename(
             files['entries'][0]['id'],
             f'/multiple_dir_archive{extension}/dir3', 403
