@@ -32,6 +32,9 @@ context('Course Feedback', () => {
 
         it('should show a message that there is nothing to show', () => {
             cy.visit(`/courses/${course.id}/assignments/${assignment.id}/submissions/${submission.id}`);
+            cy.wait(2000);
+            cy.get('.page.submission')
+                .should('be.visible');
             cy.get('.submission-sidebar')
                 .should('be.visible')
                 .contains('.nav-item', 'Feedback')
@@ -82,6 +85,9 @@ context('Course Feedback', () => {
 
         it('should show a message that there is nothing to show', () => {
             cy.visit(`/courses/${course.id}/assignments/${assignments[0].id}/submissions/${submission.id}`);
+            cy.wait(2000);
+            cy.get('.page.submission')
+                .should('be.visible');
             cy.get('.submission-sidebar')
                 .should('be.visible')
                 .contains('.nav-item', 'Feedback')
@@ -356,6 +362,7 @@ context('Course Feedback', () => {
                     'Student1',
                     `/courses/${course.id}/assignments/${assignments[0].id}/submissions/`,
                 );
+                cy.wait(2000);
                 cy.get('.local-header')
                     .contains('.btn', 'Course feedback')
                     .click();
