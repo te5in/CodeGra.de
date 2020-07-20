@@ -270,7 +270,9 @@ def enable_peer_feedback(
     test_client, assignment, *, amount=1, days=6, auto_approved=False
 ):
     assignment_id = get_id(assignment)
-    time = datetime.timedelta(days=days).total_seconds()
+    time = (
+        None if days is None else datetime.timedelta(days=days).total_seconds()
+    )
     test_client.req(
         'put',
         f'/api/v1/assignments/{assignment_id}/peer_feedback_settings',

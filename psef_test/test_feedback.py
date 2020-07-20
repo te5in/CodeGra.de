@@ -122,6 +122,8 @@ def make_add_reply(session, test_client, error_template, mail_functions):
                 },
                 include_response=True,
             )
+            if expect_error:
+                return (res, rv) if include_response else res
             reply = Reply(res)
             result = (reply, rv) if include_response else reply
 

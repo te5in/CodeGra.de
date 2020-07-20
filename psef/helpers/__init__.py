@@ -852,6 +852,14 @@ class TransactionGet(Protocol[K]):
     ) -> t.Union[T, TT]:
         ...
 
+    @t.overload
+    def __call__(
+        self,
+        to_get: K,
+        typ: t.Tuple[t.Type[T], t.Type[TT], t.Type[ZZ]],
+    ) -> t.Union[T, TT, ZZ]:
+        ...
+
 
 class TransactionOptionalGet(Protocol[T_CONTRA]):
     """Protocol for a function to optionally get something with a given type

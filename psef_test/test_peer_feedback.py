@@ -1,7 +1,11 @@
+from datetime import timedelta
+
 import pytest
+import freezegun
 
 import helpers
 import psef.models as m
+from cg_dt_utils import DatetimeWithTimezone
 from test_feedback import mail_functions, make_add_reply
 
 
@@ -378,10 +382,6 @@ def test_giving_peer_feedback_comments(
             with logged_in(user1):
                 reply = reply.update('New content2', approved=True)
 
-        with logged_in(teacher):
-            # Set approval to expected state
-            reply = reply.set_approval(not auto_approved)
-
     with describe(
         'Cannot place or edit peer feedback after pf deadline has expired'
     ):
@@ -399,9 +399,24 @@ def test_giving_peer_feedback_comments(
 
             reply.update('Cannot update!', err=403)
 
+    with describe('Can always place peer feedback if pf time is None'):
+        with logged_in(teacher):
+            helpers.enable_peer_feedback(
+                test_client,
+                assignment,
+                amount=1,
+                auto_approved=auto_approved,
+                days=None,
+            )
+
+        with freezegun.freeze_time(
+            DatetimeWithTimezone.utcnow() + timedelta(days=365 * 20)
+        ), logged_in(user1):
+            reply = reply.update('Can update way after the deadline!')
+
     with describe('Cannot add peer feedback to a non assigned sub'
                   ), logged_in(other_user):
-        err = add_reply(
+        add_reply(
             'Not possible to add this',
             expect_error=403,
             base_id=reply['comment_base_id']
@@ -409,6 +424,7 @@ def test_giving_peer_feedback_comments(
 
     with describe('Student can see approved peer feedback after done'):
         with logged_in(teacher):
+            reply = reply.set_approval(not auto_approved)
             test_client.req(
                 'get',
                 f'/api/v1/submissions/{helpers.get_id(pf_sub)}/feedbacks/',
@@ -417,12 +433,12 @@ def test_giving_peer_feedback_comments(
                 result={
                     'general': '',
                     'linter': {},
-                    'authors': [helpers.to_db_object(user1, m.User)],
                     'user': [{
                         'id': int,
                         '__allow_extra__': True,
                         'replies': [helpers.dict_without(reply, 'author'), ],
                     }],
+                    'authors': [helpers.to_db_object(user1, m.User)],
                 },
             )
             test_client.req('patch', base_url, 200, data={'state': 'done'})

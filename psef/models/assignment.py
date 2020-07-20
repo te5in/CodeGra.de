@@ -627,7 +627,7 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
     def __init__(
         self,
         amount: int,
-        time: datetime.timedelta,
+        time: t.Optional[datetime.timedelta],
         assignment: 'Assignment',
         auto_approved: bool,
     ) -> None:

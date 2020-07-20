@@ -1962,26 +1962,29 @@ def update_peer_feedback_settings(
 
     with helpers.get_from_request_transaction() as [get, _]:
         new_amount = get('amount', int)
-        time = get(
+        time_in_seconds = get(
             'time',
-            (float, int),
-            transform=lambda t: datetime.timedelta(seconds=t),
+            (float, int, type(None))
         )
         auto_approved = get('auto_approved', bool)
 
     peer_feedback_settings = assignment.peer_feedback_settings
+    if time_in_seconds is None:
+        peer_time = None
+    else:
+        peer_time = datetime.timedelta(seconds=time_in_seconds)
 
     if peer_feedback_settings is None:
         peer_feedback_settings = models.AssignmentPeerFeedbackSettings(
             assignment=assignment,
-            time=time,
+            time=peer_time,
             amount=new_amount,
             auto_approved=auto_approved,
         )
         old_amount = None
     else:
         old_amount = peer_feedback_settings.amount
-        peer_feedback_settings.time = time
+        peer_feedback_settings.time = peer_time
         peer_feedback_settings.amount = new_amount
         peer_feedback_settings.auto_approved = auto_approved
 
