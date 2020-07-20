@@ -10,7 +10,7 @@ context('Peer feedback', () => {
     let submission2;
     let baseUrl;
 
-    function patchSettings({ deadline, state, time, amount }) {
+    function patchSettings({ deadline, state, time, amount, auto_approved }) {
         if (deadline != null) {
             cy.patchAssignment(assignment.id, { deadline });
         }
@@ -19,9 +19,9 @@ context('Peer feedback', () => {
             cy.patchAssignment(assignment.id, { state });
         }
 
-        if (time != null && amount != null) {
-            cy.patchPeerFeedback(assignment.id, { time, amount });
-        } else if (time === null && amount === null) {
+        if (time != null && amount != null && auto_approved != null) {
+            cy.patchPeerFeedback(assignment.id, { time, amount, auto_approved });
+        } else if (time === null && amount === null && auto_approved === null) {
             cy.patchPeerFeedback(assignment.id, null);
         }
     }
@@ -61,7 +61,7 @@ context('Peer feedback', () => {
             );
         }).then(res => {
             submission2 = res;
-            patchSettings({ time: daysToSeconds(7), amount: 1 });
+            patchSettings({ time: daysToSeconds(7), amount: 1, auto_approved: false });
         });
     });
 
@@ -235,7 +235,7 @@ context('Peer feedback', () => {
         });
 
         it('should not be possible after the peer feedback deadline', () => {
-            patchSettings({ amount: 1, time: 1 });
+            patchSettings({ amount: 1, time: 1, auto_approved: false });
             cy.login('student1', 'Student1');
 
             // Open nested/timer.c
@@ -257,7 +257,7 @@ context('Peer feedback', () => {
         });
 
         it('should not be possible if the assignment state is "done"', () => {
-            patchSettings({ state: 'done', amount: 1, time: daysToSeconds(7) });
+            patchSettings({ state: 'done', amount: 1, time: daysToSeconds(7), auto_approved: false });
             cy.login('student1', 'Student1');
 
             // The feedback overview tab is focused by default now.
@@ -495,7 +495,7 @@ context('Peer feedback', () => {
         });
 
         it('should not be visible before the assignment is "done"', () => {
-            patchSettings({ amount: 1, time: 1 });
+            patchSettings({ amount: 1, time: 1, auto_approved: false });
             cy.login('student2', 'Student2');
 
             // Wait for file to be loaded.
