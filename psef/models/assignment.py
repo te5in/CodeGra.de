@@ -718,8 +718,8 @@ class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
     def _do_initial_division(self) -> None:
         """Do the initial division of peer feedback.
 
-        This can only be done when the amount of submissions is equal to the
-        amount of submissions that each user should review.
+        This can only be done when the amount of submissions is equal to or
+        larger than the amount of submissions that each user should review.
         """
         assig = self.assignment
         all_users = user_models.User.query.filter(
