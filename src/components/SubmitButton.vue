@@ -2,7 +2,7 @@
 <template>
 <b-button :id="btnId"
           class="submit-button"
-          :class="`state-${state}`"
+          :class="`state-${state} ${invertColors ? 'invert-colors border-0' : ''}`"
           :tabindex="tabindex"
           :disabled="isDisabled && !modalVisible"
           :style="{ opacity: modalVisible ? 1 : undefined }"
@@ -257,6 +257,11 @@ export default {
         container: {
             default: undefined,
         },
+
+        invertColors: {
+            type: Boolean,
+            default: false,
+        },
     },
 
     data() {
@@ -278,6 +283,9 @@ export default {
 
     computed: {
         currentVariant() {
+            if (this.invertColors) {
+                return 'secondary';
+            }
             return {
                 default: this.variant,
                 pending: this.variant,
@@ -468,6 +476,8 @@ export default {
 </script>
 
 <style lang="less" scoped>
+@import '~mixins';
+
 .submit-button {
     position: relative;
 }
@@ -498,6 +508,18 @@ export default {
 .state-pending .label.pending,
 .state-default .label.default {
     display: initial;
+}
+
+.invert-colors .label {
+    &.success .fa-icon {
+        color: @color-success;
+    }
+    &.error .fa-icon {
+        color: @color-danger;
+    }
+    &.warning .fa-icon {
+        color: @color-warning;
+    }
 }
 
 .hide-button {

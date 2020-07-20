@@ -353,10 +353,11 @@ const actions = {
         const result = run.findResultById(autoTestResultId);
         AssertionError.assert(result != null, 'The result could not be found');
 
-        const { data } = await axios.post(
+        const response = await axios.post(
             `/api/v1/auto_tests/${autoTestId}/runs/${autoTestRunId}/results/${autoTestResultId}/restart`,
         );
-        return commit(types.UPDATE_AUTO_TEST_RESULT, { autoTest, result: data });
+        commit(types.UPDATE_AUTO_TEST_RESULT, { autoTest, result: response.data });
+        return response;
     },
 
     async deleteAutoTestResults({ commit, dispatch, state }, { autoTestId, runId }) {

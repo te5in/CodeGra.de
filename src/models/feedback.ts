@@ -6,13 +6,15 @@ import axios, { AxiosResponse } from 'axios';
 import DiffMatchPatch from 'diff-match-patch';
 
 // @ts-ignore
-import { setProps, coerceToString, getUniqueId, htmlEscape } from '@/utils';
+import { setProps, coerceToString, getUniqueId, htmlEscape, withSentry } from '@/utils';
 import { NEWLINE_CHAR } from '@/utils/diff';
 import { Assignment, Submission } from '@/models';
 
 import { CoursePermission as CPerm } from '@/permissions';
 
 import { store } from '@/store';
+import { PeerFeedbackStore } from '@/store/modules/peer_feedback';
+import * as assignmentState from '@/store/assignment-states';
 import { SubmitButtonResult } from '../interfaces';
 
 import { User, AnyUser, UserServerData, NormalUser } from './user';
@@ -37,20 +39,23 @@ export interface FeedbackReplyServerData {
     created_at: string;
     updated_at: string;
     reply_type: ReplyTypes;
+    comment_type: 'normal' | 'peer_feedback';
+    approved: boolean;
 
     author?: UserServerData;
 }
 
-interface FeedbackLineServerData {
+export interface FeedbackLineServerData {
     id: number;
-    file_id: number;
+    file_id: string;
+    work_id: number;
     line: number;
     replies: FeedbackReplyServerData[];
 }
 
 type LinterFeedbackServerData = Record<string, Record<string, [string, Record<string, any>][]>>;
 
-interface FeedbackServerData {
+export interface FeedbackServerData {
     general: string | null;
     linter: LinterFeedbackServerData;
     user: Array<FeedbackLine | FeedbackLineServerData>;
@@ -130,6 +135,8 @@ export class FeedbackReply {
         public readonly replyType: ReplyTypes,
         public readonly createdAt: moment.Moment,
         private readonly feedbackLineId: number,
+        public readonly commentType: 'normal' | 'peer_feedback',
+        public readonly approved: boolean,
         public readonly deleted = false,
     ) {
         const foundTrackingId = trackingIdLookup.get(id ?? -1);
@@ -163,6 +170,8 @@ export class FeedbackReply {
             serverData.reply_type,
             moment.utc(serverData.created_at, moment.ISO_8601),
             feedbackLineId,
+            serverData.comment_type,
+            serverData.approved,
         );
     }
 
@@ -174,6 +183,10 @@ export class FeedbackReply {
             ...response,
             cgResult: response.data.map(d => FeedbackReplyEdit.fromServerData(d)),
         };
+    }
+
+    get isPeerFeedback() {
+        return this.commentType === 'peer_feedback';
     }
 
     canSeeEdits(assignment: Assignment): boolean {
@@ -192,6 +205,13 @@ export class FeedbackReply {
         return assignment.hasPermission(CPerm.canEditOthersComments);
     }
 
+    canApprove(assignment: Assignment): boolean {
+        if (this.commentType === 'normal') {
+            return false;
+        }
+        return assignment.hasPermission(CPerm.canApproveInlineComments);
+    }
+
     updateFromServerData(serverData: FeedbackReplyServerData): FeedbackReply {
         return FeedbackReply.fromServerData(serverData, this.feedbackLineId, this.trackingId);
     }
@@ -204,33 +224,46 @@ export class FeedbackReply {
         return !this.message;
     }
 
-    update(message: string): FeedbackReply {
+    _update(props: { message?: string; deleted?: boolean; approved?: boolean }): FeedbackReply {
         return new FeedbackReply(
             this.trackingId,
             this.id,
             this.inReplyToId,
-            message,
+            props?.message ?? this.message,
             this.authorId,
             this.lastEdit,
             this.replyType,
             this.createdAt,
             this.feedbackLineId,
+            this.commentType,
+            props?.approved ?? this.approved,
+            props?.deleted ?? this.deleted,
+        );
+    }
+
+    update(message: string): FeedbackReply {
+        return this._update({ message });
+    }
+
+    approveAndSave(approved: boolean): Promise<SubmitButtonResult<FeedbackReply>> {
+        let meth = axios.post;
+        if (!approved) {
+            meth = axios.delete;
+        }
+        return meth(`/api/v1/comments/${this.feedbackLineId}/replies/${this.id}/approval`).then(
+            response => ({
+                ...response,
+                cgResult: FeedbackReply.fromServerData(
+                    response.data,
+                    this.feedbackLineId,
+                    this.trackingId,
+                ),
+            }),
         );
     }
 
     markAsDeleted() {
-        return new FeedbackReply(
-            this.trackingId,
-            this.id,
-            this.inReplyToId,
-            this.message,
-            this.authorId,
-            this.lastEdit,
-            this.replyType,
-            this.createdAt,
-            this.feedbackLineId,
-            true, // Deleted
-        );
+        return this._update({ deleted: true });
     }
 
     delete(): Promise<object> {
@@ -254,7 +287,11 @@ export class FeedbackReply {
         }
     }
 
-    static createEmpty(userId: number, feedbackLineId: number): FeedbackReply {
+    static createEmpty(
+        userId: number,
+        feedbackLineId: number,
+        isPeerFeedback: boolean = false,
+    ): FeedbackReply {
         return new FeedbackReply(
             getUniqueId(),
             null,
@@ -265,6 +302,8 @@ export class FeedbackReply {
             'markdown',
             moment(),
             feedbackLineId,
+            isPeerFeedback ? 'peer_feedback' : 'normal',
+            isPeerFeedback,
         );
     }
 }
@@ -275,6 +314,7 @@ export class FeedbackLine {
         public readonly fileId: string,
         public readonly line: number,
         public readonly replies: ReadonlyArray<FeedbackReply>,
+        public readonly workId: number,
     ) {
         Object.freeze(this);
     }
@@ -291,7 +331,13 @@ export class FeedbackLine {
         const replies = Object.freeze(
             data.replies.map(r => FeedbackReply.fromServerData(r, data.id)),
         );
-        return new FeedbackLine(data.id, coerceToString(data.file_id), data.line, replies);
+        return new FeedbackLine(
+            data.id,
+            coerceToString(data.file_id),
+            data.line,
+            replies,
+            data.work_id,
+        );
     }
 
     deleteReply(updatedReply: FeedbackReply): FeedbackLine {
@@ -301,7 +347,13 @@ export class FeedbackLine {
             }
             return r;
         });
-        return new FeedbackLine(this.id, this.fileId, this.line, Object.freeze(replies));
+        return new FeedbackLine(
+            this.id,
+            this.fileId,
+            this.line,
+            Object.freeze(replies),
+            this.workId,
+        );
     }
 
     updateReply(updatedReply: FeedbackReply): FeedbackLine {
@@ -311,7 +363,13 @@ export class FeedbackLine {
             }
             return r;
         });
-        return new FeedbackLine(this.id, this.fileId, this.line, Object.freeze(replies));
+        return new FeedbackLine(
+            this.id,
+            this.fileId,
+            this.line,
+            Object.freeze(replies),
+            this.workId,
+        );
     }
 
     static canAddReply(submission: Submission) {
@@ -324,7 +382,47 @@ export class FeedbackLine {
         if (author.isEqualOrMemberOf(NormalUser.getCurrentUser())) {
             perms.push(CPerm.canAddOwnInlineComments);
         }
-        return perms.some(x => assignment.hasPermission(x));
+        if (perms.some(x => assignment.hasPermission(x))) {
+            return true;
+        }
+
+        if (assignment.peer_feedback_settings) {
+            const userId = store.getters['user/id'];
+            const connections = PeerFeedbackStore.getConnectionsForUser()(assignment.id, userId);
+
+            connections.ifNothing(() => {
+                withSentry(sentry => {
+                    sentry.captureMessage('Peer feedback connections were not yet loaded');
+                });
+                PeerFeedbackStore.loadConnectionsForUser({
+                    userId,
+                    assignmentId: assignment.id,
+                });
+            });
+
+            const hasConnection = connections
+                .map(conns => conns.some(user => user.id === author.id))
+                .orDefault(true);
+
+            if (!hasConnection) {
+                return false;
+            }
+
+            if (!assignment.deadlinePassed()) {
+                return false;
+            }
+            if (assignment.peerFeedbackDeadlinePassed()) {
+                return false;
+            }
+
+            if (assignment.state === assignmentState.DONE) {
+                return false;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     addReply(newReply: FeedbackReply): FeedbackLine {
@@ -333,6 +431,7 @@ export class FeedbackLine {
             this.fileId,
             this.line,
             Object.freeze(this.replies.concat(newReply)),
+            this.workId,
         );
     }
 

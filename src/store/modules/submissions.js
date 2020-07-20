@@ -69,6 +69,28 @@ const getters = {
 
         return res;
     },
+
+    getIsLatestSubmissionByUser: (state, otherGetters) => submission => {
+        const assignmentId = submission.assignment.id;
+        const user = submission.user;
+        if (!user.isGroup) {
+            if (otherGetters.getGroupSubmissionOfUser(assignmentId, user.id)) {
+                return false;
+            }
+        }
+
+        const subIds = utils.getProps(state.submissionsByUser, [], assignmentId, user.id);
+        // eslint-disable-next-line
+        for (const subId of subIds.values()) {
+            if (
+                subId !== submission.id &&
+                getSubmission(state, subId).createdAt.isAfter(submission.createdAt)
+            ) {
+                return false;
+            }
+        }
+        return true;
+    },
 };
 
 function getUsersInGroup(submissions, subIds) {
@@ -168,13 +190,21 @@ const actions = {
         return context.getters.getSubmissionsByUser(assignmentId, userId);
     },
 
-    loadGivenSubmissions(context, { assignmentId, submissionIds }) {
+    loadGivenSubmissions(context, { assignmentId, submissionIds, onError }) {
         return Promise.all(
             submissionIds.map(submissionId =>
-                context.dispatch('loadSingleSubmission', {
-                    assignmentId,
-                    submissionId,
-                }),
+                context
+                    .dispatch('loadSingleSubmission', {
+                        assignmentId,
+                        submissionId,
+                    })
+                    .catch(err => {
+                        if (onError) {
+                            return onError(err, submissionId);
+                        } else {
+                            throw err;
+                        }
+                    }),
             ),
         );
     },

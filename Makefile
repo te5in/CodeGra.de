@@ -2,7 +2,7 @@
 TEST_MODULES ?= $(wildcard cg_*/tests/)
 TEST_FILE ?= $(TEST_MODULES) psef_test/
 TEST_FLAGS ?=
-DOCTEST_MODULES ?= psef cg_cache cg_helpers
+DOCTEST_MODULES ?= psef cg_cache cg_helpers cg_enum
 SHELL := $(shell which bash)
 PYTHON ?= env/bin/python3
 export PYTHONPATH=$(CURDIR)
@@ -143,7 +143,7 @@ lint: mypy pylint isort_check
 
 .PHONY: mypy
 mypy:
-	mypy $(filter-out cg_override,$(PY_MODULES)) ./*.py
+	mypy $(filter-out cg_override cg_typing_extensions,$(PY_MODULES)) ./*.py --show-traceback
 
 .PHONY: generate_permission_files
 generate_permission_files:

@@ -263,7 +263,7 @@ export default class FeedbackArea extends Vue {
     }
 
     .faded {
-        opacity: 50%;
+        opacity: 0.5;
     }
 }
 

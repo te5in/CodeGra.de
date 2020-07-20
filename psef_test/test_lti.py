@@ -1048,7 +1048,8 @@ def test_lti_assignment_create_and_delete(
     ),
 ])
 def test_lti_assignment_update(
-    test_client, app, logged_in, ta_user, error_template, lms, extra_data
+    test_client, app, logged_in, ta_user, error_template, lms, extra_data,
+    describe
 ):
     def do_lti_launch():
         with app.app_context():
@@ -1078,21 +1079,23 @@ def test_lti_assignment_update(
                 ).state == m.AssignmentStateEnum.open
             return lti_res['assignment'], lti_res.get('access_token', None)
 
-    with app.app_context():
-        assig, token = do_lti_launch()
-        lti_class = lti.lti_classes.get(lms)
-        assert assig['lms_name'] == lms
-        assert lti_class is not None
+    lti_class = None
 
-        test_client.req(
-            'patch',
-            f'/api/v1/assignments/{assig["id"]}',
-            400,
-            data={'name': 'wow'},
-            headers={'Authorization': f'Bearer {token}'},
-            result=error_template,
-        )
+    def update(status, **kwargs):
+        nonlocal lti_class
+        with app.app_context():
+            assig, token = do_lti_launch()
+            url = f'/api/v1/assignments/{assig["id"]}'
+            lti_class = lti.lti_classes.get(lms)
+            headers = {'Authorization': f'Bearer {token}'}
+            assert assig['lms_name'] == lms
+            assert lti_class is not None
+            test_client.req('patch', url, status, headers=headers, **kwargs)
 
+    with describe('Cannot update name'):
+        update(400, data={'name': 'wow'}, result=error_template)
+
+    with describe('Can only update deadline if supported'):
         if lti_class.supports_deadline():
             status = 400
             result = error_template
@@ -1100,15 +1103,13 @@ def test_lti_assignment_update(
             status = 200
             result = None
 
-        test_client.req(
-            'patch',
-            f'/api/v1/assignments/{assig["id"]}',
+        update(
             status,
             data={'deadline': DatetimeWithTimezone.utcnow().isoformat()},
-            headers={'Authorization': f'Bearer {token}'},
-            result=result,
+            result=result
         )
 
+    with describe('Can only update max points if supported'):
         if lti_class.supports_max_points():
             status = 200
             result = None
@@ -1116,14 +1117,7 @@ def test_lti_assignment_update(
             status = 400
             result = error_template
 
-        test_client.req(
-            'patch',
-            f'/api/v1/assignments/{assig["id"]}',
-            status,
-            data={'max_grade': 100},
-            headers={'Authorization': f'Bearer {token}'},
-            result=result,
-        )
+        update(status, data={'max_grade': 100}, result=result)
 
 
 def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
@@ -1131,14 +1125,16 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
         days=1, hours=1, minutes=2
     )
     due_at = due_at.replace(second=0, microsecond=0)
+    username = f'username-{uuid.uuid4()}'
+    lti_id = str(uuid.uuid4())
 
     def do_lti_launch(
         email,
         name='A the A-er',
-        lti_id='USER_ID',
+        lti_id=lti_id,
         source_id='',
         published='false',
-        username='a-the-a-er',
+        username=username,
         due=None
     ):
         with app.app_context():
@@ -1195,13 +1191,13 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
     assig, token = do_lti_launch('orig@example.com')
     out = get_user_info(token)
     assert out['name'] == 'A the A-er'
-    assert out['username'] == 'a-the-a-er'
+    assert out['username'] == username
     old_id = out['id']
 
     _, token = do_lti_launch('new@example.com')
     out = get_user_info(token)
     assert out['name'] == 'A the A-er'
-    assert out['username'] == 'a-the-a-er'
+    assert out['username'] == username
     assert out['email'] == 'orig@example.com'
     assert out['id'] == old_id
 
@@ -1210,7 +1206,7 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
     _, token = do_lti_launch('new@example.com')
     out = get_user_info(token)
     assert out['name'] == 'A the A-er'
-    assert out['username'] == 'a-the-a-er'
+    assert out['username'] == username
     assert out['email'] == 'new@example.com'
     assert out['id'] == old_id
 
@@ -1445,6 +1441,7 @@ def test_lti_grade_passback_with_groups(
             do_lti_launch(lti_id=u1_lti_id)
             wrong_sub = create_submission(test_client, assig['id'])
         with logged_in(teacher_user):
+            print(teacher_user)
             set_grade(4.5, wrong_sub['id'])
         session.delete(
             session.query(
@@ -1460,6 +1457,8 @@ def test_lti_grade_passback_with_groups(
             session, [CPerm.can_submit_own_work],
             m.Course.query.get(assig['course']['id'])
         )
+        print(u3)
+        session.commit()
 
         g_set = create_group_set(
             test_client, assig['course']['id'], 2, 4, [assig["id"]]

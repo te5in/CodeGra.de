@@ -150,6 +150,23 @@
                 </b-card>
             </div>
 
+            <div class="col-lg-12">
+                <b-card v-if="canEditPeerFeedbackSettings">
+                    <template #header>
+                        Peer feedback
+                        <description-popover>
+                            Enable peer feedback for this assignment. When
+                            enabled you can set the amount of days that
+                            students have after the deadline of the assignment
+                            to give feedback to their peers. You can also set
+                            the number of students that each student must
+                            review.
+                        </description-popover>
+                    </template>
+                    <peer-feedback-settings :assignment="assignment" />
+                </b-card>
+            </div>
+
             <div :class="canSubmitBbZip ? 'col-xl-6' : 'col-xl-12'">
                 <b-card v-if="canSubmitWork" no-body>
                     <span slot="header">
@@ -350,6 +367,7 @@ import {
     AutoTest,
     AssignmentSubmitTypes,
     SubmissionLimits,
+    PeerFeedbackSettings,
 } from '@/components';
 
 export default {
@@ -431,6 +449,11 @@ export default {
 
         canEditGroups() {
             return UserConfig.features.groups && this.permissions.can_edit_group_assignment;
+        },
+
+        canEditPeerFeedbackSettings() {
+            return UserConfig.features.peer_feedback &&
+                this.permissions.can_edit_peer_feedback_settings;
         },
 
         canSubmitWork() {
@@ -746,6 +769,7 @@ export default {
         AutoTest,
         AssignmentSubmitTypes,
         SubmissionLimits,
+        PeerFeedbackSettings,
     },
 };
 </script>

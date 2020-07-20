@@ -5,9 +5,7 @@ from multiprocessing.sharedctypes import Value
 import pytest
 
 import psef.helpers as h
-from psef.helpers import (
-    RepeatedTimer, defer, deep_get, on_not_none, try_for_every
-)
+from psef.helpers import RepeatedTimer, defer, deep_get, try_for_every
 from psef.exceptions import APIException
 from psef.helpers.register import Register
 
@@ -173,13 +171,6 @@ def test_deep_get():
     assert deep_get(mapping, ['6'], obj3) is obj2
     assert deep_get(mapping, ['1', '4', 5], obj3) is obj1
     assert deep_get(mapping, ['6', '6'], obj3) is obj3
-
-
-def test_on_not_none():
-    obj1 = object()
-    obj2 = object()
-    assert on_not_none(obj1, lambda _: obj2) is obj2
-    assert on_not_none(None, lambda _: obj1) is None
 
 
 def test_get_from_map_transaction_with_register():

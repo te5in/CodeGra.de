@@ -21,7 +21,7 @@ from cg_dt_utils import DatetimeWithTimezone
 from . import types, mixins
 from .types import (
     ARRAY, JSONB, TIMESTAMP, CIText, DbEnum, DbType, Comparator, TypeDecorator,
-    expression, hybrid_property, hybrid_expression
+    tuple_, distinct, expression, hybrid_property, hybrid_expression
 )
 
 UUID_LENGTH = len(str(uuid.uuid4()))  # 36

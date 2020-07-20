@@ -38,7 +38,7 @@ def _set_g_vars() -> None:
 
 
 def _clear_g_vars(value: Y) -> Y:
-    _set_g_vars()
+    g.cg_function_cache = defaultdict(dict)
     return value
 
 
@@ -93,6 +93,7 @@ def _cache_or_call(
             _set_g_vars()
     except:  # pylint: disable=bare-except
         # Never error because of this decorator
+        logger.error('cg_cache threw an error', exc_info=True)
         return fun(*args, **kwargs)
 
     if key in g.cg_function_cache[master_key]:
@@ -140,12 +141,6 @@ def cache_within_request(f: T) -> T:
 
     This decorator can also be used outside of flask, in which case it WILL NOT
     cache anything.
-
-    >>> p = cache_within_request(lambda: print('Hello'))
-    >>> p()
-    Hello
-    >>> p()
-    Hello
 
     :param f: The function to cache.
     :returns: A wrapped version of ``f`` that is cached.

@@ -23,7 +23,7 @@
             <preference-manager in-popover
                                 container="#submission-page"
                                 :file-id="prefFileId"
-                                :show-context-amount="selectedCat === 'feedback-overview' || selectedCat === 'teacher-diff'"
+                                :show-context-amount="showPrefContextAmount"
                                 :show-language="selectedCat === 'code'"
                                 @whitespace="whitespaceChanged"
                                 @language="languageChanged"
@@ -34,7 +34,7 @@
                                    container="#submission-page"
                                    :assignment="assignment"
                                    :submission="submission"
-                                   :editable="true" />
+                                   editable/>
 
             <b-button v-if="canSeeGradeHistory"
                       id="codeviewer-grade-history"
@@ -152,7 +152,7 @@
                       :on-drag-started="() => { resizingFileViewer = true; }"
                       :on-drag-finished="() => { resizingFileViewer = false; }"
                       :size="splitRatio"
-                      :step="50"
+                      :step="25"
                       units="percents"
                       class="code-wrapper"
                       id="submission-page-inner"
@@ -235,6 +235,18 @@
                            :submission-id="submissionId" />
             </div>
         </div>
+
+        <div class="cat-wrapper"
+             :class="{ hidden: selectedCat !== 'peer-feedback'}"
+             v-if="showPeerFeedback">
+            <peer-feedback-by-user
+                v-if="!hiddenCats.has('peer-feedback')"
+                :assignment="assignment"
+                :context-lines="contextAmount"
+                :show-whitespace="showWhitespace"
+                :show-inline-feedback="selectedCat === 'peer-feedback'"
+                :user="submission.user"/>
+        </div>
     </template>
 
     <grade-viewer :assignment="assignment"
@@ -284,6 +296,7 @@ import {
     SubmitButton,
     Toggle,
     User,
+    PeerFeedbackByUser,
 } from '@/components';
 
 import FileViewer from '@/components/FileViewer';
@@ -518,7 +531,7 @@ export default {
                 },
                 {
                     id: 'feedback-overview',
-                    name: 'Feedback overview',
+                    name: 'Feedback Overview',
                     badge: this.numFeedbackItems === 0 ? null : {
                         label: this.numFeedbackItems,
                         variant: 'primary',
@@ -536,8 +549,13 @@ export default {
                 },
                 {
                     id: 'teacher-diff',
-                    name: 'Teacher diff',
+                    name: 'Teacher Diff',
                     enabled: this.showTeacherDiff,
+                },
+                {
+                    id: 'peer-feedback',
+                    name: 'Peer Feedback',
+                    enabled: this.showPeerFeedback,
                 },
             ];
         },
@@ -593,6 +611,10 @@ export default {
             return (editable || done) && canSeeGrade;
         },
 
+        isPeerFeedback() {
+            return this.$utils.parseBool(this.$route.query.peerFeedback, false);
+        },
+
         submissionsRoute() {
             return {
                 name: 'assignment_submissions',
@@ -608,6 +630,7 @@ export default {
                     sortAsc: this.$route.query.sortAsc,
                     page: this.$route.query.page || undefined,
                 },
+                hash: this.isPeerFeedback ? '#peer-feedback' : undefined,
             };
         },
 
@@ -634,6 +657,29 @@ export default {
 
         defaultEmailSubject() {
             return `[CodeGrade - ${this.assignment.course.name}/${this.assignment.name}] …`;
+        },
+
+        showPeerFeedback() {
+            const pfSettings = this.$utils.getProps(
+                this.assignment,
+                null,
+                'peer_feedback_settings',
+            );
+            if (pfSettings == null) {
+                return false;
+            }
+            if (this.canGrade) {
+                return true;
+            }
+            if (this.submission != null && this.userId === this.submission.userId) {
+                return true;
+            }
+            return false;
+        },
+
+        showPrefContextAmount() {
+            const cat = this.selectedCat;
+            return cat === 'feedback-overview' || cat === 'teacher-diff' || cat === 'peer-feedback';
         },
     },
 
@@ -977,6 +1023,7 @@ export default {
         User,
         StudentContact,
         'rs-panes': ResSplitPane,
+        PeerFeedbackByUser,
     },
 };
 </script>

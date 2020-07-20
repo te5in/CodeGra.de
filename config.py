@@ -616,6 +616,8 @@ set_bool(CONFIG['__S_FEATURES'], feature_ops, 'RENDER_HTML', False)
 
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'EMAIL_STUDENTS', True)
 
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'PEER_FEEDBACK', False)
+
 ############
 # LTI keys #
 ############

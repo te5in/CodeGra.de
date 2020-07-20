@@ -9,6 +9,7 @@ import uuid
 import random
 import signal
 import string
+import logging
 import secrets
 import datetime
 import functools
@@ -21,11 +22,14 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 import pytest
+import sqlalchemy
 import flask_migrate
 import sqlalchemy.orm as orm
 import flask_jwt_extended as flask_jwt
 from flask import _app_ctx_stack as ctx_stack
+from sqlalchemy import create_engine
 from werkzeug.local import LocalProxy
+from sqlalchemy_utils.functions import drop_database, create_database
 
 import psef
 import manage
@@ -44,27 +48,21 @@ LIVE_SERVER_PORT = random.randint(5001, 6001)
 
 _DATABASE = None
 
+FreshDatabase = collections.namedtuple(
+    'FreshDatabase', ['engine', 'name', 'db_name', 'run_psql']
+)
+
 
 def get_database_name(request):
     global _DATABASE
 
     if _DATABASE is None:
-        _DATABASE = [request.config.getoption('--postgresql'), False]
+        _DATABASE = (request.config.getoption('--postgresql'), False)
         if _DATABASE[0] == 'GENERATE':
-            _DATABASE = [
-                ''.join(
-                    x for x in secrets.token_hex(64)
-                    if x in string.ascii_lowercase
-                ),
-                True,
-            ]
+            with get_fresh_database(keep=True) as fresh:
+                _DATABASE = (fresh.name, True)
 
-    if not _DATABASE[0].startswith('postgresql:/'):
-        _DATABASE[0] = 'postgresql:///' + _DATABASE[0]
-
-    _DATABASE[0] = _DATABASE[0] + os.environ.get('PYTEST_XDIST_WORKER', '')
-
-    return tuple(_DATABASE)
+    return _DATABASE
 
 
 def pytest_addoption(parser):
@@ -138,6 +136,7 @@ def make_app_settings(request):
             'MIN_PASSWORD_SCORE': 3,
             'AUTO_TEST_PASSWORD': auto_test_password,
             'AUTO_TEST_CF_EXTRA_AMOUNT': 2,
+            'AUTO_TEST_CF_SLEEP_TIME': 5.0,
             'AUTO_TEST_RUNNER_INSTANCE_PASS': auto_test_password,
             'AUTO_TEST_DISABLE_ORIGIN_CHECK': True,
             'AUTO_TEST_MAX_TIME_COMMAND': 3,
@@ -186,6 +185,9 @@ def app(request, make_app_settings):
 
     app.config['__S_FEATURES']['RENDER_HTML'] = True
     app.config['FEATURES'][psef.features.Feature.RENDER_HTML] = True
+
+    app.config['__S_FEATURES']['PEER_FEEDBACK'] = True
+    app.config['FEATURES'][psef.features.Feature.PEER_FEEDBACK] = True
 
     psef.tasks.celery.conf.update({
         'task_always_eager': False,
@@ -340,10 +342,11 @@ def assert_similar():
                 )
 
         if is_list:
-            assert len(vals
-                       ) == i, 'Length of lists is not equal: {} vs {}'.format(
-                           len(vals), i
-                       )
+            assert len(
+                vals
+            ) == i, 'Length of lists is not equal at {}: {} vs {}'.format(
+                '.'.join(cur_path), len(vals), i
+            )
         elif not allowed_extra:
             assert len(vals) == i, (
                 'Difference in keys: {}, (server data: {}, expected: {})'
@@ -367,7 +370,9 @@ def logged_in():
             res = None
         else:
             _TOKENS.append(
-                flask_jwt.create_access_token(identity=user.id, fresh=True)
+                flask_jwt.create_access_token(
+                    identity=helpers.to_db_object(user, m.User).id, fresh=True
+                )
             )
             res = user
 
@@ -446,7 +451,7 @@ def prolog_course(session):
 
 
 @pytest.fixture(scope='session', autouse=True)
-def db(app, request):
+def _db(app, request):
     """Session-wide test database."""
     if os.path.exists(TESTDB_PATH):
         os.unlink(TESTDB_PATH)
@@ -456,28 +461,6 @@ def db(app, request):
     else:
         db_name, generated = get_database_name(request)
         if generated:
-            try:
-                subprocess.check_output(
-                    'psql -c "create database {}"'.format(
-                        db_name.replace('postgresql:///', '')
-                    ),
-                    shell=True
-                )
-                subprocess.check_output(
-                    'psql {} -c \'create extension "uuid-ossp"\''.format(
-                        db_name.replace('postgresql:///', '')
-                    ),
-                    shell=True
-                )
-                subprocess.check_output(
-                    'psql {} -c \'create extension "citext"\''.format(
-                        db_name.replace('postgresql:///', '')
-                    ),
-                    shell=True
-                )
-            except subprocess.CalledProcessError as e:
-                print(e.stdout, file=sys.stderr)
-                print(e.stderr, file=sys.stderr)
             psef.models.db.create_all()
 
     manage.app = app
@@ -495,42 +478,118 @@ def db(app, request):
             if generated:
                 orm.session.close_all_sessions()
                 psef.models.db.engine.dispose()
-                subprocess.check_call(
-                    'dropdb "{}"'.format(
-                        db_name.replace('postgresql:///', '')
-                    ),
-                    shell=True,
-                    stdout=sys.stdout,
-                    stderr=sys.stderr
-                )
+                drop_database(db_name)
         else:
             os.unlink(TESTDB_PATH)
 
 
-@pytest.fixture(params=[True])
-def use_transaction(request):
+@pytest.fixture(params=[False])
+def fresh_db(request):
     yield request.param
 
 
+@contextlib.contextmanager
+def get_fresh_database(keep=False):
+    db_name = f'migration_test_db_{uuid.uuid4()}'.replace('-', '')
+
+    host = os.getenv('POSTGRES_HOST')
+    password = os.getenv('PGPASSWORD')
+    port = os.getenv('POSTGRES_PORT')
+    username = os.getenv('POSTGRES_USERNAME')
+    assert bool(host) == bool(port) == bool(username) == bool(password)
+    psql_host_info = bool(host)
+
+    def run_psql(*args):
+        base = ['psql']
+        if psql_host_info:
+            base.extend(['-h', host, '-p', port, '-U', username])
+
+        return subprocess.check_call(
+            [*base, *args],
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+
+    run_psql('-c', f'create database "{db_name}"')
+    try:
+        run_psql(db_name, '-c', 'create extension "uuid-ossp"')
+        run_psql(db_name, '-c', 'create extension "citext"')
+        if psql_host_info:
+            db_string = f'postgresql://{username}:{password}@{host}:{port}/{db_name}'
+        else:
+            db_string = f'postgresql:///{db_name}'
+
+        engine = create_engine(db_string)
+        yield FreshDatabase(
+            engine=engine, name=db_string, db_name=db_name, run_psql=run_psql
+        )
+    finally:
+        engine.dispose()
+        if not keep:
+            run_psql('-c', f'drop database "{db_name}"')
+
+
+@pytest.fixture
+def db(_db, fresh_db, monkeypatch, app):
+    if fresh_db:
+        with get_fresh_database(keep=True) as fresh:
+            monkeypatch.setitem(
+                app.config, 'SQLALCHEMY_DATABASE_URI', fresh.name
+            )
+
+            yield psef.models.db
+    else:
+        yield _db
+
+
 @pytest.fixture(autouse=True)
-def session(app, db, use_transaction):
+def session(app, db, fresh_db, monkeypatch):
     """Creates a new database session for a test."""
     connection = db.engine.connect()
-    if use_transaction:
+    if not fresh_db:
         transaction = connection.begin()
 
     options = dict(bind=connection, binds={}, autoflush=False)
     session = db.create_scoped_session(options=options)
 
-    old_ses = psef.models.db.session
-    psef.models.db.session = session
+    old_uri = app.config['SQLALCHEMY_DATABASE_URI']
+
+    if not fresh_db:
+        session.begin_nested()
+
+        # then each time that SAVEPOINT ends, reopen it
+        @sqlalchemy.event.listens_for(session, 'after_transaction_end')
+        def restart_savepoint(session, transaction):
+            if transaction.nested and not transaction._parent.nested:
+                # ensure that state is expired the way
+                # session.commit() at the top level normally does
+                # (optional step)
+                session.expire_all()
+
+                session.begin_nested()
+
+    if fresh_db:
+        with app.app_context():
+            from flask_migrate import upgrade as db_upgrade
+            from flask_migrate import Migrate
+            logging.disable(logging.ERROR)
+            Migrate(app, db)
+            db_upgrade()
+            logging.disable(logging.NOTSET)
+        manage.seed_force(psef.models.db)
+        manage.test_data(psef.models.db)
 
     try:
-        yield session
+        with monkeypatch.context() as context:
+            context.setattr(psef.models.db, 'session', session)
+            if not fresh_db:
+                context.setattr(session, 'remove', lambda: None)
+            yield session
     finally:
-        psef.models.db.session = old_ses
-
-        if use_transaction:
+        if not fresh_db:
+            sqlalchemy.event.remove(
+                session, 'after_transaction_end', restart_savepoint
+            )
             transaction.rollback()
 
         try:
@@ -541,14 +600,10 @@ def session(app, db, use_transaction):
             traceback.print_exc(file=sys.stderr)
             raise
 
-        if not use_transaction:
+        if fresh_db:
+            db.engine.dispose()
             db.drop_all()
-            sys.setrecursionlimit(5000)
-            psef.models.db.create_all()
-            manage.app = app
-            manage.seed_force(psef.models.db)
-            assert manage.test_data(psef.models.db) != 1
-            psef.permissions.database_permissions_sanity_check(app)
+            drop_database(old_uri)
 
 
 @pytest.fixture(autouse=True)
@@ -819,7 +874,7 @@ def live_server_url():
 
 
 @pytest.fixture
-def live_server(app, live_server_url):
+def live_server(app, live_server_url, db):
     p = None
 
     def stop():

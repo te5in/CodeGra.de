@@ -71,12 +71,12 @@ context('Submission page', () => {
     function checkOverviewBadge(n) {
         if (n > 0) {
             cy.get('.categories')
-                .contains('.category', 'Feedback overview')
+                .contains('.category', 'Feedback Overview')
                 .find('.badge')
                 .should('contain', n.toString());
         } else {
             cy.get('.categories')
-                .contains('.category', 'Feedback overview')
+                .contains('.category', 'Feedback Overview')
                 .find('.badge')
                 .should('not.exist');
         }
@@ -186,7 +186,7 @@ context('Submission page', () => {
 
     context('General feedback', () => {
         beforeEach(() => {
-            cy.openCategory('Feedback overview');
+            cy.openCategory('Feedback Overview');
         });
 
         after(() => {
@@ -219,7 +219,7 @@ context('Submission page', () => {
             checkGeneralFeedbackOverview('No general feedback given.');
         });
 
-        it('should show a badge in the "Feedback overview" tab title if general feedback is not empty', () => {
+        it('should show a badge in the "Feedback Overview" tab title if general feedback is not empty', () => {
             giveGeneralFeedback('');
             checkOverviewBadge(0);
             giveGeneralFeedback(generalMsg);

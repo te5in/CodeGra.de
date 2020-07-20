@@ -27,6 +27,8 @@ DbSelf = t.TypeVar('DbSelf', bound='MyDb')
 QuerySelf = t.TypeVar('QuerySelf', bound='MyNonOrderableQuery')
 _T_BASE = t.TypeVar('_T_BASE', bound='Base')
 _Y_BASE = t.TypeVar('_Y_BASE', bound='Base')
+T_DB_COLUMN = t.TypeVar('T_DB_COLUMN', bound='DbColumn')
+T_NUM = t.TypeVar('T_NUM', bound=t.Union[int, float])
 
 Never = t.NewType('Never', object)
 
@@ -39,7 +41,7 @@ class MySession:  # pragma: no cover
         ...
 
     @t.overload
-    def query(self, __x: '_ExistsColumn') -> '_MyExistsQuery':
+    def query(self, __x: 'ExistsColumn') -> '_MyExistsQuery':
         ...
 
     @t.overload
@@ -244,7 +246,8 @@ class MyDb:  # pragma: no cover
         unique: bool = False,
         nullable: Literal[True] = True,
         default: t.Union[T, t.Callable[[], T], None] = None,
-        index: bool = False
+        index: bool = False,
+        server_default: t.Any = ...,
     ) -> 'ColumnProxy[t.Optional[T]]':
         ...
 
@@ -598,9 +601,13 @@ class IndexedJSONColumn(DbColumn[Never]):
         ...
 
 
-class _ExistsColumn:
-    def __invert__(self) -> '_ExistsColumn':
+class ExistsColumn:
+    def __invert__(self) -> 'ExistsColumn':
         ...
+
+
+FilterColumn = t.Union[DbColumn[bool], DbColumn[Literal[True]], DbColumn[
+    Literal[False]], ExistsColumn]
 
 
 class Mapper(t.Generic[_T_BASE]):
@@ -630,7 +637,7 @@ class MyNonOrderableQuery(t.Generic[T]):  # pragma: no cover
     subquery: t.Callable[[QuerySelf, str], RawTable]
     limit: t.Callable[[QuerySelf, int], QuerySelf]
     first: t.Callable[[QuerySelf], t.Optional[T]]
-    exists: t.Callable[[QuerySelf], _ExistsColumn]
+    exists: t.Callable[[QuerySelf], ExistsColumn]
     count: t.Callable[[QuerySelf], int]
     one: t.Callable[[QuerySelf], T]
     yield_per: t.Callable[[QuerySelf, int], QuerySelf]
@@ -683,9 +690,7 @@ class MyNonOrderableQuery(t.Generic[T]):  # pragma: no cover
     ) -> QuerySelf:
         ...
 
-    def filter(
-        self: QuerySelf, *args: t.Union[DbColumn[bool], _ExistsColumn]
-    ) -> QuerySelf:
+    def filter(self: QuerySelf, *args: FilterColumn) -> QuerySelf:
         ...
 
     def filter_by(
@@ -851,13 +856,50 @@ if t.TYPE_CHECKING and MYPY:
                              coltype: object) -> t.Callable[[object], object]:
             return lambda x: x
 
+    class _func:
+        def count(self, _to_count: DbColumn[t.Any] = None) -> DbColumn[int]:
+            ...
+
+        def random(self) -> DbColumn[object]:
+            ...
+
+        def max(self, col: DbColumn[T]) -> DbColumn[T]:
+            ...
+
+        def sum(self, col: DbColumn[T_NUM]) -> DbColumn[T_NUM]:
+            ...
+
+        def lower(self, col: DbColumn[str]) -> DbColumn[str]:
+            ...
+
+    def distinct(_distinct: T_DB_COLUMN) -> T_DB_COLUMN:
+        ...
+
+    def tuple_(itemA: DbColumn[T],
+               itemB: DbColumn[Z]) -> DbColumn[t.Tuple[T, Z]]:
+        ...
+
     class expression:
+        func: _func
+
         @staticmethod
-        def and_(*to_and: DbColumn[bool]) -> DbColumn[bool]:
+        def and_(*to_and: FilterColumn) -> DbColumn[bool]:
             ...
 
         @staticmethod
-        def or_(*to_or: DbColumn[bool]) -> DbColumn[bool]:
+        def or_(*to_or: FilterColumn) -> DbColumn[bool]:
+            ...
+
+        @staticmethod
+        def null() -> DbColumn[None]:
+            ...
+
+        @staticmethod
+        def false() -> DbColumn[Literal[False]]:
+            ...
+
+        @staticmethod
+        def literal(value: T) -> DbColumn[T]:
             ...
 else:
     from sqlalchemy.ext.hybrid import hybrid_property
@@ -866,6 +908,7 @@ else:
     from sqlalchemy.dialects.postgresql import JSONB, ARRAY
     from sqlalchemy.sql import expression
     from citext import CIText as _CIText
+    from sqlalchemy import distinct, tuple_
 
     class CIText(_CIText):
         # This is not defined in citext.CIText for whatever reason. This is

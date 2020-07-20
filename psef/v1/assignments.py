@@ -14,7 +14,6 @@ from collections import defaultdict
 
 import werkzeug
 import structlog
-import sqlalchemy.sql as sql
 from flask import request
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -30,11 +29,12 @@ from psef.helpers import (
     ensure_keys_in_dict, make_empty_response, get_from_map_transaction
 )
 from psef.exceptions import APICodes, APIWarnings, APIException
+from cg_sqlalchemy_helpers import expression as sql_expression
 
 from . import api
 from .. import (
-    auth, tasks, ignore, models, archive, helpers, linters, parsers, features,
-    registry, plagiarism
+    auth, tasks, ignore, models, archive, helpers, linters, parsers, db_locks,
+    features, registry, plagiarism
 )
 from ..permissions import CoursePermission as CPerm
 
@@ -74,7 +74,7 @@ def get_all_assignments() -> JSONResponse[t.Sequence[models.Assignment]]:
         ).in_(courses)
     ).join(
         models.AssignmentLinter,
-        sql.expression.and_(
+        sql_expression.and_(
             models.Assignment.id == models.AssignmentLinter.assignment_id,
             models.AssignmentLinter.name == 'MixedWhitespace'
         ),
@@ -180,8 +180,8 @@ def get_assignments_feedback(assignment_id: int) -> JSONResponse[
     try:
         auth.ensure_permission(CPerm.can_see_others_work, assignment.course_id)
     except auth.PermissionException:
-        latest_subs = models.Work.limit_to_user_submissions(
-            latest_subs, current_user
+        latest_subs = latest_subs.filter(
+            models.Work.user_submissions_filter(current_user),
         )
 
     res = {}
@@ -301,10 +301,12 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     :returns: An empty response with return code 204.
     :raises APIException: If an invalid value is submitted. (INVALID_PARAM)
     """
-    assig = helpers.get_or_404(
+    assig = helpers.filter_single_or_404(
         models.Assignment,
-        assignment_id,
-        also_error=lambda a: not a.is_visible
+        models.Assignment.id == assignment_id,
+        also_error=lambda a: not a.is_visible,
+        with_for_update=True,
+        with_for_update_of=models.Assignment,
     )
     content = ensure_json_dict(request.get_json())
     with get_from_map_transaction(content) as [_, opt_get]:
@@ -411,6 +413,14 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         )
         if new_group_set_id is None:
             group_set = None
+        elif assig.peer_feedback_settings is not None:
+            raise APIException(
+                (
+                    'This assignment has peer feedback enabled, but peer'
+                    ' feedback is not yet supported for group assignments'
+                ), 'Group assignments do not support peer feedback',
+                APICodes.INVALID_STATE, 400
+            )
         else:
             group_set = helpers.get_or_404(models.GroupSet, new_group_set_id)
 
@@ -1226,11 +1236,7 @@ def get_all_works_by_user_for_assignment(
         )
 
     user = helpers.get_or_404(models.User, user_id)
-    if (
-        user.id != current_user.id and
-        not (user.group and current_user in user.group.members)
-    ):
-        auth.ensure_permission(CPerm.can_see_others_work, assignment.course_id)
+    auth.WorksByUserPermissions(assignment, user).ensure_may_see()
 
     return extended_jsonify(
         models.Work.update_query_for_extended_jsonify(
@@ -1295,7 +1301,14 @@ def get_all_works_for_assignment(
     if not current_user.has_permission(
         CPerm.can_see_others_work, course_id=assignment.course_id
     ):
-        obj = models.Work.limit_to_user_submissions(obj, current_user)
+        obj = obj.filter(
+            sql_expression.or_(
+                models.Work.user_submissions_filter(current_user),
+                models.Work.peer_feedback_submissions_filter(
+                    current_user, assignment
+                )
+            )
+        )
 
     if helpers.extended_requested():
         return extended_jsonify(
@@ -1902,3 +1915,228 @@ def get_git_settings(assignment_id: int) -> JSONResponse[models.WebhookBase]:
     db.session.commit()
 
     return jsonify(webhook)
+
+
+@api.route(
+    '/assignments/<int:assignment_id>/peer_feedback_settings', methods=['PUT']
+)
+@features.feature_required(features.Feature.PEER_FEEDBACK)
+@auth.login_required
+def update_peer_feedback_settings(
+    assignment_id: int
+) -> JSONResponse[models.AssignmentPeerFeedbackSettings]:
+    """Enable peer feedback for an assignment.
+
+    .. :quickref: Assignment; Enable peer feedback.
+
+    :param assignment_id: The id of the assignment for which you want to enable
+        peer feedback.
+
+    :>json int amount: The amount of subjects a single reviewer should give
+        peer feedback on.
+    :>json time: The amount of time in seconds that a user has to give peer
+        feedback after the deadline has expired.
+
+    :returns: The just created peer feedback settings.
+    """
+    assignment = helpers.filter_single_or_404(
+        models.Assignment,
+        models.Assignment.id == assignment_id,
+        also_error=lambda a: not a.is_visible,
+        with_for_update=True,
+        with_for_update_of=models.Assignment,
+    )
+    auth.AssignmentPermissions(assignment).ensure_may_edit_peer_feedback()
+    db_locks.acquire_lock(
+        db_locks.LockNamespaces.peer_feedback_division, assignment.id
+    )
+
+    if assignment.group_set is not None:
+        raise APIException(
+            (
+                'This is a group assignment, but peer feedback is not yet'
+                ' supported for group assignments.'
+            ), 'Group assignments do not support peer feedback',
+            APICodes.INVALID_STATE, 400
+        )
+
+    with helpers.get_from_request_transaction() as [get, _]:
+        new_amount = get('amount', int)
+        time_in_seconds = get('time', (float, int, type(None)))
+        auto_approved = get('auto_approved', bool)
+
+    peer_feedback_settings = assignment.peer_feedback_settings
+    if time_in_seconds is None:
+        peer_time = None
+    else:
+        if time_in_seconds <= 0:
+            raise APIException(
+                (
+                    'The time available to give peer feedback should be at'
+                    ' least 1 second'
+                ),
+                f'The time given ({time_in_seconds}) is not > 0',
+                APICodes.INVALID_PARAM,
+                400,
+            )
+        peer_time = datetime.timedelta(seconds=time_in_seconds)
+
+    if new_amount <= 0:
+        raise APIException(
+            'The amount of users should be at least 1',
+            f'The amount given ({new_amount}) is not >= 1',
+            APICodes.INVALID_PARAM,
+            400,
+        )
+
+    if peer_feedback_settings is None:
+        peer_feedback_settings = models.AssignmentPeerFeedbackSettings(
+            assignment=assignment,
+            time=peer_time,
+            amount=new_amount,
+            auto_approved=auto_approved,
+        )
+        old_amount = None
+    else:
+        old_amount = peer_feedback_settings.amount
+        peer_feedback_settings.time = peer_time
+        peer_feedback_settings.amount = new_amount
+        peer_feedback_settings.auto_approved = auto_approved
+
+    if old_amount is None or old_amount != new_amount:
+        peer_feedback_settings.maybe_do_initial_division()
+
+    db.session.commit()
+    return JSONResponse.make(peer_feedback_settings)
+
+
+@api.route(
+    '/assignments/<int:assignment_id>/peer_feedback_settings',
+    methods=['DELETE'],
+)
+@features.feature_required(features.Feature.PEER_FEEDBACK)
+@auth.login_required
+def delete_peer_feedback_settings(assignment_id: int) -> EmptyResponse:
+    """Disabled peer feedback for an assignment.
+
+    .. :quickref: Assignment; Disable peer feedback.
+
+    :param assignment_id: The id of the assignment for which you want to
+        disable peer feedback.
+
+    :returns: Nothing; an empty response.
+    """
+    assignment = helpers.filter_single_or_404(
+        models.Assignment,
+        models.Assignment.id == assignment_id,
+        also_error=lambda a: not a.is_visible,
+        with_for_update=True,
+        with_for_update_of=models.Assignment,
+    )
+    auth.AssignmentPermissions(assignment).ensure_may_edit_peer_feedback()
+
+    db_locks.acquire_lock(
+        db_locks.LockNamespaces.peer_feedback_division, assignment.id
+    )
+
+    if assignment.peer_feedback_settings is None:
+        return make_empty_response()
+
+    assignment.peer_feedback_settings = None
+
+    db.session.commit()
+    return make_empty_response()
+
+
+@api.route(
+    '/assignments/<int:assignment_id>/users/<int:user_id>/comments/',
+    methods=['GET']
+)
+@features.feature_required(features.Feature.PEER_FEEDBACK)
+def get_comments_by_user(assignment_id: int, user_id: int
+                         ) -> JSONResponse[t.Sequence[models.CommentBase]]:
+    """Get all the comments threads that a user replied on.
+
+    .. :quickref: Assignment; Get comments bases in which a user participated.
+
+    This route is especially useful in the context of peer feedback. With this
+    route you can get all the comments placed by the student, so you don't have
+    to get all the submissions (including old ones) by the peer feedback
+    subjects.
+
+    :param assignment_id: The assignment from which you want to get the
+        threads.
+    :param user_id: The id of the user from which you want to get the threads.
+
+    :returns: A list of comments that all have at least one reply by the given
+              user. There might be replies missing from these bases if these
+              replies where not given by the user with id ``user_id``, however
+              no guarantee is made that all replies are by the user with id
+              ``user_id``.
+    """
+    assignment = helpers.filter_single_or_404(
+        models.Assignment,
+        models.Assignment.id == assignment_id,
+        also_error=lambda a: not a.is_visible,
+    )
+    user = helpers.get_or_404(models.User, user_id)
+
+    comments = models.CommentBase.get_base_comments_query().filter(
+        assignment.get_not_deleted_submissions().filter(
+            models.File.work_id == models.Work.id,
+        ).exists(),
+        models.CommentReply.author == user,
+    )
+
+    return jsonify(
+        [
+            c for c in comments
+            if auth.WorkPermissions(c.file.work).ensure_may_see.as_bool()
+        ]
+    )
+
+
+@api.route(
+    (
+        '/assignments/<int:assignment_id>/users/<int:user_id>'
+        '/peer_feedback_subjects/'
+    ),
+    methods=['GET']
+)
+@features.feature_required(features.Feature.PEER_FEEDBACK)
+def get_peer_feedback_subjects(
+    assignment_id: int, user_id: int
+) -> JSONResponse[t.Sequence[models.AssignmentPeerFeedbackConnection]]:
+    """Get the peer feedback subjects for a given user.
+
+    .. :quickref: Assignment; Get the peer feedback subjects for a user.
+
+    :param assignment_id: The id of the assignment in which you want to get the
+        peer feedback subjects.
+    :param user_id: The id of the user from which you want to retrieve the peer
+        feedback subjects.
+
+    :returns: The peer feedback subjects. If the deadline has not expired, or
+              if the assignment is not a peer feedback assignment an empty list
+              will be returned.
+    """
+    assignment = helpers.filter_single_or_404(
+        models.Assignment,
+        models.Assignment.id == assignment_id,
+        also_error=lambda a: not a.is_visible,
+    )
+    user = helpers.get_or_404(models.User, user_id)
+    if not user.contains_user(current_user):
+        auth.ensure_permission(CPerm.can_see_others_work, assignment.course_id)
+
+    peer_feedback = assignment.peer_feedback_settings
+    if not assignment.deadline_expired or peer_feedback is None:
+        return jsonify([])
+
+    PFConn = models.AssignmentPeerFeedbackConnection
+    return jsonify(
+        PFConn.query.filter(
+            PFConn.peer_user == user,
+            PFConn.peer_feedback_settings == peer_feedback,
+        ).all()
+    )

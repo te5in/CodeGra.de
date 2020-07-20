@@ -15,7 +15,7 @@ from flask import request, make_response, send_from_directory
 
 from . import api
 from .. import app, files, tasks, models, helpers, auto_test
-from ..models import DbColumn, db
+from ..models import db
 from ..helpers import (
     JSONResponse, EmptyResponse, jsonify, get_or_404, ensure_json_dict,
     request_arg_true, make_empty_response, filter_single_or_404,
@@ -33,7 +33,7 @@ def _ensure_from_latest_work(result: models.AutoTestResult) -> None:
     work = result.work
 
     if work.assignment.get_latest_submission_for_user(work.user).with_entities(
-        t.cast(DbColumn[int], models.Work.id)
+        models.Work.id
     ).scalar() != work.id:
         raise APIException(
             'You are not working on the newest submission',

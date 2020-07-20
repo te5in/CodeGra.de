@@ -667,22 +667,19 @@ class SetInstructions(TypedDict, total=True):
 
 class AssignmentInformation(TypedDict, total=True):
     """Information about the assignment that this AutoTest belongs to.
-
-    :ivar deadline: The deadline of the assignment.
     """
+    #: The deadline of the assignment.
     deadline: t.Optional[str]
 
 
 class StudentInformation(TypedDict, total=True):
     """Information about the submission that the AutoTest runs on.
-
-    :ivar result_id: The id of the :class:`AutoTestResult` corresponding to
-        this work.
-    :ivar student_id: The id of the :class:`User` who submitted the work.
-    :ivar created_at: The datetime when the work was submitted.
     """
+    #: The id of the :class:`AutoTestResult` corresponding to this work.
     result_id: int
+    #: The id of the :class:`User` who submitted the work.
     student_id: int
+    #: The datetime when the work was submitted.
     created_at: str
 
 
@@ -1760,7 +1757,7 @@ class AutoTestRunner:
             processes=self._get_amount_of_needed_workers(),
             function=lambda get_work:
             _run_student(self, base_container_name, cpu_cores, get_work),
-            sleep_time=mult * self.config['AUTO_TEST_CF_SLEEP_TIME'],
+            sleep_time=self.config['AUTO_TEST_CF_SLEEP_TIME'],
             extra_amount=mult * self.config['AUTO_TEST_CF_EXTRA_AMOUNT'],
             initial_work=self.work,
         )

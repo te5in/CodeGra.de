@@ -10,7 +10,7 @@ import typing as t
 import datetime
 import dataclasses
 from random import shuffle
-from itertools import cycle
+from itertools import chain, cycle
 from collections import Counter, defaultdict
 
 import structlog
@@ -19,15 +19,19 @@ from sqlalchemy.orm import validates
 from mypy_extensions import DefaultArg
 from sqlalchemy.types import JSON
 from typing_extensions import TypedDict
-from sqlalchemy.sql.expression import and_, func
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 import psef
+import cg_cache
+import cg_sqlalchemy_helpers
+from cg_helpers import handle_none, on_not_none, zip_times_with_offset
 from cg_dt_utils import DatetimeWithTimezone
+from cg_sqlalchemy_helpers import expression as sql_expression
 from cg_sqlalchemy_helpers.types import (
     _T_BASE, MyQuery, DbColumn, ColumnProxy, MyNonOrderableQuery,
     hybrid_property
 )
+from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
 
 from . import UUID_LENGTH, Base, db
 from . import user as user_models
@@ -37,7 +41,7 @@ from . import linter as linter_models
 from . import rubric as rubric_models
 from . import analytics as analytics_models
 from . import auto_test as auto_test_models
-from .. import auth, ignore, helpers, signals
+from .. import auth, ignore, helpers, signals, db_locks
 from .role import CourseRole
 from .permission import Permission, PermissionComp
 from ..exceptions import (
@@ -63,63 +67,109 @@ Z = t.TypeVar('Z')
 logger = structlog.get_logger()
 
 
+class PeerFeedbackSettingJSON(TypedDict, total=True):
+    """The serialization of an :class:`.AssignmentPeerFeedbackSettings`.
+    """
+    #: The amount of student that a single user should peer review.
+    amount: int
+
+    #: The amount of time in seconds a user has after the deadline to do the
+    #: peer review.
+    time: t.Optional[float]
+
+    #: Should new peer feedback comments be considered approved by default or
+    #: not.
+    auto_approved: bool
+
+
+class AssignmentPeerFeedbackConnectionJSON(TypedDict, total=True):
+    """The serialization of an :class:`.AssignmentPeerFeedbackConnection`.
+    """
+    #: The user that should do the peer review.
+    peer: 'user_models.User'
+    #: The user that should be reviewed by ``peer``.
+    subject: 'user_models.User'
+
+
 class AssignmentJSON(TypedDict, total=True):
     """The serialization of an assignment.
 
     See the comments in the source code for the meaning of each field.
     """
 
-    id: int  # The id of the assignment.
-    state: str  # Current state of the assignment.
-    description: t.Optional[str]  # Description of the assignment.
-    created_at: str  # ISO UTC date.
-    deadline: t.Optional[str]  # ISO UTC date.
-    name: str  # The name of the assignment.
-    is_lti: bool  # Is this an LTI assignment.
-    course: 'course_models.Course'  # Course of this assignment.
-    cgignore: t.Optional['psef.helpers.JSONType']  # The cginore.
+    id: int  #: The id of the assignment.
+    state: str  #: Current state of the assignment.
+    description: t.Optional[str]  #: Description of the assignment.
+    created_at: str  #: ISO UTC date.
+    deadline: t.Optional[str]  #: ISO UTC date.
+    name: str  #: The name of the assignment.
+    is_lti: bool  #: Is this an LTI assignment.
+    course: 'course_models.Course'  #: Course of this assignment.
+    cgignore: t.Optional['psef.helpers.JSONType']  #: The cginore.
     cgignore_version: t.Optional[str]
-    # Has the whitespace linter run on this assignment.
+    #: Has the whitespace linter run on this assignment.
     whitespace_linter: bool
 
-    # The fixed value for the maximum that can be achieved in a rubric. This
-    # can be higher and lower than the actual max. Will be `null` if unset.
+    #: The fixed value for the maximum that can be achieved in a rubric. This
+    #: can be higher and lower than the actual max. Will be `null` if unset.
     fixed_max_rubric_points: t.Optional[float]
 
-    # The maximum grade you can get for this assignment. This is based around
-    # the idea that a 10 is a 'perfect' score. So if this value is 12 a user
-    # can score 2 additional bonus points. If this value is `null` it is unset
-    # and regarded as a 10.
+    #: The maximum grade you can get for this assignment. This is based around
+    #: the idea that a 10 is a 'perfect' score. So if this value is 12 a user
+    #: can score 2 additional bonus points. If this value is `null` it is unset
+    #: and regarded as a 10.
     max_grade: t.Optional[float]
-    group_set: t.Optional['psef.models.GroupSet']
-    auto_test_id: t.Optional[int]
-    files_upload_enabled: bool  # Can you upload files to this assignment.
-    webhook_upload_enabled: bool  # Can you connect git to this assignment.
 
-    # The maximum amount of submission a student may create, inclusive. The
-    # value ``null`` indicates that there is no limit.
+    #: The group set of this assignment. This is ``null`` if this assignment is
+    #: not a group assignment.
+    group_set: t.Optional['psef.models.GroupSet']
+
+    #: The id of the AutoTest configuration connected to this assignment. This
+    #: will always be given if there is a configuration connected to this
+    #: assignment, even if you do not have permission to see the configuration
+    #: itself.
+
+    auto_test_id: t.Optional[int]
+    files_upload_enabled: bool  #: Can you upload files to this assignment.
+    webhook_upload_enabled: bool  #: Can you connect git to this assignment.
+
+    #: The maximum amount of submission a student may create, inclusive. The
+    #: value ``null`` indicates that there is no limit.
     max_submissions: t.Optional[int]
 
-    # These two values determine the maximum submissions in an amount of time
-    # by a user. A user can submit at most `amount_in_cool_off_period`
-    # submissions in `cool_off_period` seconds. `amount_in_cool_off_period` is
-    # always >= 1, so this check is disabled if `cool_off_period == 0`.
+    #: These two values determine the maximum submissions in an amount of time
+    #: by a user. A user can submit at most `amount_in_cool_off_period`
+    #: submissions in `cool_off_period` seconds. `amount_in_cool_off_period`
+    #: is always >= 1, so this check is disabled if `cool_off_period == 0`.
     cool_off_period: float
     amount_in_cool_off_period: int
 
-    # All next values are filled in based on permissions and data availability.
-
-    # ISO UTC date. This will be `null` if you don't have the permission to see
-    # this or if it is unset.
+    #: ISO UTC date. This will be `null` if you don't have the permission to
+    #: see this or if it is unset.
     reminder_time: t.Optional[str]
-    lms_name: t.Optional[str]  # The LMS providing this LTI assignment.
 
-    # The kind of reminder that will be sent.  If you don't have the permission
-    # to see this it will always be `null`. If this is not set it will also be
-    # `null`.
+    #: The LMS providing this LTI assignment.
+    lms_name: t.Optional[str]
+
+    #: The peer feedback settings for this assignment. If ``null`` this
+    #assignment is not a peer feedback assignment.
+    peer_feedback_settings: t.Optional['AssignmentPeerFeedbackSettings']
+
+    #: The kind of reminder that will be sent.  If you don't have the
+    #: permission to see this it will always be ``null``. If this is not set it
+    #: will also be ``null``.
     done_type: t.Optional[str]
+    #: The email where the done email will be sent to. This will be ``null`` if
+    #: you do not have permission to see this information.
     done_email: t.Optional[str]
+
+    #: The assignment id of the assignment that determines the grader division
+    #: of this assignment. This will be ``null`` if you do not have permissions
+    #: to see this information, or if no such parent is set.
     division_parent_id: t.Optional[int]
+
+    #: The ids of the analytics workspaces connected to this assignment.
+    #: WARNING: This API is still in beta, and might change in the future.
     analytics_workspace_ids: t.List[int]
 
 
@@ -392,6 +442,546 @@ class AssignmentLinter(Base):
         return self
 
 
+class AssignmentPeerFeedbackConnection(Base, TimestampMixin):
+    """This table represents a link between a two users and assignment.
+
+    If a connection from ``peer_user`` to ``user`` for assignment ``A1`` exists this
+    means that ``peer_user`` should peer review ``user`` for assignment ``A1``.
+    """
+
+    @t.overload
+    def __init__(
+        self,
+        peer_feedback_settings: 'AssignmentPeerFeedbackSettings',
+        *,
+        user: 'user_models.User',
+        peer_user: 'user_models.User',
+    ) -> None:
+        ...
+
+    @t.overload
+    def __init__(
+        self,
+        peer_feedback_settings: 'AssignmentPeerFeedbackSettings',
+        *,
+        user_id: int,
+        peer_user_id: int,
+    ) -> None:
+        ...
+
+    def __init__(
+        self,
+        peer_feedback_settings: 'AssignmentPeerFeedbackSettings',
+        *,
+        user: 'user_models.User' = None,
+        peer_user: 'user_models.User' = None,
+        user_id: int = None,
+        peer_user_id: int = None,
+    ) -> None:
+        if user is not None:
+            assert peer_user is not None
+            assert user_id is None
+            assert peer_user_id is None
+
+            super().__init__(
+                peer_feedback_settings=peer_feedback_settings,
+                user=user,
+                peer_user=peer_user,
+                peer_feedback_settings_id=peer_feedback_settings.id,
+                user_id=user.id,
+                peer_user_id=peer_user.id,
+            )
+        else:
+            assert peer_user is None
+            assert user_id is not None
+            assert peer_user_id is not None
+            super().__init__(
+                peer_feedback_settings=peer_feedback_settings,
+                peer_feedback_settings_id=peer_feedback_settings.id,
+                user_id=user_id,
+                peer_user_id=peer_user_id,
+            )
+
+    peer_feedback_settings_id = db.Column(
+        'peer_feedback_settings_id',
+        db.Integer,
+        db.ForeignKey(
+            'assignment_peer_feedback_settings.id', ondelete='CASCADE'
+        ),
+        nullable=False,
+    )
+
+    #: The user that should be peer reviewed
+    user_id = db.Column(
+        'user_id',
+        db.Integer,
+        db.ForeignKey('User.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+
+    #: The id of the user that should do this peer feedback.
+    peer_user_id = db.Column(
+        'peer_user_id',
+        db.Integer,
+        db.ForeignKey('User.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+
+    peer_feedback_settings = db.relationship(
+        lambda: AssignmentPeerFeedbackSettings,
+        foreign_keys=peer_feedback_settings_id,
+        lazy='selectin',
+        innerjoin=True,
+        back_populates='connections',
+    )
+
+    user = db.relationship(
+        lambda: user_models.User,
+        foreign_keys=user_id,
+        innerjoin=True,
+        lazy='selectin',
+    )
+
+    peer_user = db.relationship(
+        lambda: user_models.User,
+        foreign_keys=peer_user_id,
+        innerjoin=True,
+        lazy='selectin',
+    )
+
+    __table_args__ = (
+        db.PrimaryKeyConstraint(
+            peer_feedback_settings_id, user_id, peer_user_id
+        ),
+        db.CheckConstraint(
+            'peer_user_id != user_id',
+            name='peer_feedback_reviewer_is_not_subject',
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return 'AssignmentPeerFeedbackConnection<peer={}, subject={}>'.format(
+            self.peer_user_id,
+            self.user_id,
+        )
+
+    def __to_json__(self) -> t.Any:
+        return {
+            'subject': self.user,
+            'peer': self.peer_user,
+        }
+
+
+class AssignmentPeerFeedbackSettings(Base, IdMixin, TimestampMixin):
+    """This table represents the peer feedback settings for an assignment.
+    """
+    #: The amount of students a single student should review. If this is 0 peer
+    #: feedback is disabled.
+    amount = db.Column('amount', db.Integer, default=0, nullable=False)
+
+    #: The amount of time a user has after the deadline to do its peer
+    #: feedback. If this is ``None`` the user has an infinite amount of time
+    time = db.Column('time', db.Interval, nullable=True, default=None)
+
+    auto_approved = db.Column(
+        'auto_approved',
+        db.Boolean,
+        nullable=False,
+        default=False,
+        server_default='false'
+    )
+
+    assignment_id = db.Column(
+        'assignment_id',
+        db.Integer,
+        db.ForeignKey('Assignment.id', ondelete='CASCADE'),
+        nullable=False,
+        unique=True,
+    )
+
+    assignment = db.relationship(
+        lambda: Assignment,
+        foreign_keys=assignment_id,
+        lazy='joined',
+        innerjoin=True,
+        back_populates="peer_feedback_settings",
+    )
+
+    connections = db.relationship(
+        lambda: AssignmentPeerFeedbackConnection,
+        back_populates='peer_feedback_settings',
+        cascade='delete-orphan,delete,save-update',
+        uselist=True,
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "amount > 0",
+            name='peer_feedback_amount_at_least_one',
+        ),
+    )
+
+    def __init__(
+        self,
+        amount: int,
+        time: t.Optional[datetime.timedelta],
+        assignment: 'Assignment',
+        auto_approved: bool,
+    ) -> None:
+        super().__init__(
+            amount=amount,
+            time=time,
+            assignment=assignment,
+            auto_approved=auto_approved,
+        )
+
+    def __to_json__(self) -> PeerFeedbackSettingJSON:
+        return {
+            'amount': self.amount,
+            'time': on_not_none(self.time, lambda x: x.total_seconds()),
+            'auto_approved': self.auto_approved,
+        }
+
+    @property
+    def deadline_expired(self) -> bool:
+        """Has the deadline for giving peer feedback expired.
+
+        If the deadline for the assignment has not been set just yet we don't
+        consider the deadline for the peer feedback expired. However, as the
+        deadline for the assignment also hasn't expired in this case peer
+        feedback is not yet open.
+        """
+        assig = self.assignment
+        now = helpers.get_request_start_time()
+        if self.time is None or assig.deadline is None:
+            return False
+
+        return (assig.deadline + self.time) < now
+
+    @cg_cache.intra_request.cache_within_request
+    def _get_subjects_for_user(self,
+                               user: 'user_models.User') -> t.Container[int]:
+        PFConn = AssignmentPeerFeedbackConnection
+        result = set(
+            user_id for user_id, in db.session.query(PFConn.user_id).filter(
+                PFConn.peer_feedback_settings == self,
+                PFConn.peer_user == user,
+            )
+        )
+        return result
+
+    def does_peer_review_of(
+        self, *, reviewer: 'user_models.User', subject: 'user_models.User'
+    ) -> bool:
+        """Check if the given ``reviewer`` should peer review submissions by
+        the given ``subject``.
+
+        :param reviewer: The user that should do the review.
+        :param subject: Submissions of this user should be peer reviewed by the
+            ``reviewer`` if this function returns ``True``.
+
+        :returns: ``True`` if the ``reviewer`` should do a peer review,
+                  ``False`` otherwise. It also returns ``False`` if the
+                  deadline of an assignment has not expired just yet.
+        """
+        # If the assignment is not yet done the ordering has not stabilized, so
+        # we always return ``False`` for this check.
+        if not self.assignment.deadline_expired:
+            return False
+        return subject.id in self._get_subjects_for_user(reviewer)
+
+    def maybe_do_initial_division(self) -> bool:
+        """Do the initial division of peer feedback if the amount of submissions is
+        adequate.
+
+        .. warning:: This will delete all old connections.
+
+        :returns: A boolean indicating if the initial submission was done.
+        """
+        assig = self.assignment
+        existing_submissions = assig.get_amount_not_deleted_submissions()
+        if existing_submissions > self.amount:
+            self.connections = []
+            self._do_initial_division()
+            return True
+        return False
+
+    def _make_connection(
+        self, *, peer_user_id: int, user_id: int
+    ) -> AssignmentPeerFeedbackConnection:
+        return AssignmentPeerFeedbackConnection(
+            peer_feedback_settings=self,
+            peer_user_id=peer_user_id,
+            user_id=user_id,
+        )
+
+    def _do_initial_division(self) -> None:
+        """Do the initial division of peer feedback.
+
+        This can only be done when the amount of submissions is equal to or
+        larger than the amount of submissions that each user should review.
+        """
+        assig = self.assignment
+        all_users = user_models.User.query.filter(
+            user_models.User.id.in_(
+                assig.get_from_latest_submissions(work_models.Work.user_id)
+            )
+        ).all()
+        shuffle(all_users)
+
+        self.connections = []
+        can_do_better_division = len(all_users) > self.amount ** 2
+
+        def get_offset_per_item(cur_depth: int) -> int:
+            if can_do_better_division:
+                return cur_depth ** 2
+            return cur_depth
+
+        logger.info(
+            'Doing initial division',
+            assignment=self.assignment,
+            amount_of_users=len(all_users),
+            division_amount=self.amount,
+            can_do_better_division=can_do_better_division
+        )
+        for users in zip_times_with_offset(
+            all_users, self.amount + 1, get_offset_per_item
+        ):
+            peer_user, *other_users = users
+            for user in other_users:
+                self._make_connection(
+                    peer_user_id=peer_user.id, user_id=user.id
+                )
+
+    @classmethod
+    def maybe_delete_division_among_peers(
+        cls, deletion: signals.WorkDeletedData
+    ) -> None:
+        """Maybe delete the division for the student connected to the deleted
+        work.
+
+        This method might redivide all submissions again, so deleting work is
+        quite dangerous. If this redivision happens a warning will be added to
+        the response.
+
+        :param deletion: The deleted work and extra data.
+
+        :returns: Nothing.
+        """
+        assig = deletion.assignment
+        self = assig.peer_feedback_settings
+        if self is None:
+            return
+        self._maybe_delete_division_among_peers(deletion)  # pylint: disable=protected-access
+
+    def _maybe_delete_division_among_peers(
+        self, deletion: signals.WorkDeletedData
+    ) -> None:
+        author = deletion.deleted_work.user
+        assig = deletion.assignment
+
+        if (
+            author.is_test_student or not deletion.was_latest or
+            deletion.new_latest is not None
+        ):
+            return
+
+        db_locks.acquire_lock(
+            db_locks.LockNamespaces.peer_feedback_division, assig.id
+        )
+
+        PFConn = AssignmentPeerFeedbackConnection
+        # First we get all connections that involve the author that now no
+        # longer has a submission.
+        all_conns = PFConn.query.filter(
+            PFConn.peer_feedback_settings == self,
+            sql_expression.or_(
+                PFConn.user == author,
+                PFConn.peer_user == author,
+            )
+        ).all()
+
+        all_subjects = set(
+            conn.user for conn in all_conns if conn.user != author
+        )
+        reviewers = set(
+            conn.peer_user for conn in all_conns if conn.peer_user != author
+        )
+        assert len(reviewers) == len(all_subjects)
+        assert len(reviewers) * 2 == len(all_conns)
+        illegal_connections = set(
+            db.session.query(PFConn.peer_user_id, PFConn.user_id).filter(
+                PFConn.peer_feedback_settings == self,
+                PFConn.user_id.in_([s.id for s in all_subjects]),
+                PFConn.peer_user_id.in_([r.id for r in reviewers]),
+            )
+        )
+
+        # We first want to divide the subjects that are also reviewers, as
+        # these subjects might cause the redivision to fail.
+        high_priority_subjects = all_subjects & reviewers
+        low_priority_subjects = all_subjects - high_priority_subjects
+
+        new_conns = []
+        # Redivision might fail if a user should review the ``author`` and if
+        # the ``author`` should review this user.
+        redivide_failed = False
+
+        for reviewer in reviewers:
+            for subj in chain(high_priority_subjects, low_priority_subjects):
+                # We don't know from which set we should remove the subject
+                # (high or low priority) so we simply remove it from the all
+                # set and check this set to see if the subject is still
+                # available.
+                if subj not in all_subjects:
+                    continue
+                if reviewer == subj:
+                    continue
+                if (reviewer.id, subj.id) in illegal_connections:
+                    continue
+
+                all_subjects.remove(subj)
+                new_conns.append((reviewer, subj))
+                break
+            else:
+                redivide_failed = True
+                break
+
+        if not redivide_failed:
+            logger.info('Redividing succeeded', new_connections=new_conns)
+            for conn in all_conns:
+                db.session.delete(conn)
+            for peer, subject in new_conns:
+                PFConn(
+                    peer_feedback_settings=self, user=subject, peer_user=peer
+                )
+            return
+
+        self.connections = []
+        db.session.flush()
+        if self.maybe_do_initial_division():
+            psef.helpers.add_warning(
+                (
+                    'All connections for peer feedback were redivided because'
+                    ' of this deletion.'
+                ), psef.errors.APIWarnings.ALL_PEER_FEEDBACK_REDIVIDED
+            )
+
+    @classmethod
+    def maybe_divide_work_among_peers(cls, work: 'work_models.Work') -> None:
+        """Maybe divide the given work among peers.
+
+        The work will be divided if it is done by a real user (i.e. not a test
+        student), and if peer feedback is enabled. All users with a submission
+        for the assignment are considered peers.
+        """
+        self = work.assignment.peer_feedback_settings
+        if self is None:
+            return
+        self._maybe_divide_work_among_peers(work)  # pylint: disable=protected-access
+
+    def _maybe_divide_work_among_peers(self, work: 'work_models.Work') -> None:
+        if work.user.is_test_student:
+            # Test students cannot do peer feedback
+            return
+
+        assig = work.assignment
+
+        def _has_no_submission() -> bool:
+            return db.session.query(
+                ~assig.get_not_deleted_submissions().filter(
+                    work_models.Work.user == work.user,
+                    work_models.Work.id != work.id,
+                ).exists(),
+            ).scalar()
+
+        # We use the entire body of submissions to determine the peer reviewers
+        # for this submission. So no submissions by new users (without any
+        # submissions) should be created at this point to prevent race
+        # conditions.
+        if not db_locks.maybe_acquire_lock(
+            _has_no_submission, db_locks.LockNamespaces.peer_feedback_division,
+            assig.id
+        ):
+            logger.info(
+                'No division necessary, user already has a submission',
+                work_author=work.user,
+            )
+            return
+
+        existing_submissions = assig.get_amount_not_deleted_submissions()
+        if existing_submissions <= self.amount:
+            # Not enough submissions to create a division
+            logger.info(
+                'Not enough submissions to do initial division',
+                existing_submissions=existing_submissions,
+                division_amount=self.amount
+            )
+            return
+        elif existing_submissions == self.amount + 1:
+            logger.info('Need to do initial division')
+            self._do_initial_division()
+            return
+
+        PFConn = AssignmentPeerFeedbackConnection
+        all_connections = PFConn.query.filter(
+            PFConn.peer_feedback_settings == self,
+        ).order_by(sql_expression.func.random())
+        # XXX: It might be faster do a ``random.shuffle`` in Python instead of
+        # ordering by a random value in the database. I have not tested this,
+        # but this seems fast enough for now.
+
+        illegal_connections: t.Set[t.Tuple[int, int]] = set()
+
+        for connection in all_connections:
+            new = (
+                (connection.peer_user_id, work.user_id),
+                (work.user_id, connection.user_id),
+            )
+            if any(new_conn in illegal_connections for new_conn in new):
+                continue
+
+            db.session.delete(connection)
+            for peer_user, subject in new:
+                self._make_connection(peer_user_id=peer_user, user_id=subject)
+
+            illegal_connections.update(new)
+            # We add two connections to `illegal_connections` every time, so
+            # the amount of connections for our new author is the length of
+            # that set divided by two.
+            found = len(illegal_connections) / 2
+            if found == self.amount:
+                break
+        else:  # pragma: no cover
+            # This (``found < self.amount``) should never happen, but the exact
+            # distribution of users (especially when ``self.amount > 1``) is
+            # really hard to follow. We don't want uploading to fail, so in
+            # production we simply redivide everybody and report this error to
+            # sentry.
+            if psef.current_app.do_sanity_checks:
+                raise AssertionError(
+                    (
+                        'Could not upload new submission without redividing'
+                        ' all existing users. Existing connections: {}'
+                    ).format(self.connections)
+                )
+            logger.error(
+                'All submissions needed a new division',
+                report_to_sentry=True,
+                old_connections=self.connections,
+            )
+            self.connections = []
+            self._do_initial_division()
+
+
+signals.WORK_DELETED.connect_immediate(
+    AssignmentPeerFeedbackSettings.maybe_delete_division_among_peers
+)
+signals.WORK_CREATED.connect_immediate(
+    AssignmentPeerFeedbackSettings.maybe_divide_work_among_peers
+)
+
+
 class AssignmentResult(Base):
     """The class creates the link between an :class:`.user_models.User` and an
     :class:`.Assignment` in the database and the external users LIS sourcedid.
@@ -451,9 +1041,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     )
     _state = db.Column(
         'state',
-        db.Enum(AssignmentStateEnum),
+        db.Enum(AssignmentStateEnum, name='_assignmentstateenum'),
         default=AssignmentStateEnum.hidden,
-        nullable=False
+        nullable=False,
     )
     description = db.Column('description', db.Unicode, default='')
     course_id = db.Column(
@@ -648,6 +1238,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
     _max_submissions = db.Column(
         'max_amount_of_submissions', db.Integer, default=None, nullable=True
+    )
+
+    peer_feedback_settings = db.relationship(
+        AssignmentPeerFeedbackSettings,
+        back_populates="assignment",
+        uselist=False,
+        cascade='delete-orphan,delete,save-update',
     )
 
     __table_args__ = (
@@ -875,7 +1472,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         if max_submissions is not None and db.session.query(
             self.get_not_deleted_submissions().group_by(
                 work_models.Work.user_id
-            ).having(sqlalchemy.sql.func.count() > max_submissions).exists()
+            ).having(sql_expression.func.count() > max_submissions).exists()
         ).scalar():
             helpers.add_warning(
                 (
@@ -1035,8 +1632,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             rubric_models.WorkRubricItem.work_id == work_models.Work.id,
             isouter=True
         ).having(
-            and_(
-                func.count(rubric_models.WorkRubricItem.rubricitem_id) == 0,
+            sql_expression.and_(
+                sql_expression.func.count(
+                    rubric_models.WorkRubricItem.rubricitem_id
+                ) == 0,
                 # We access _grade here directly as we need it to do this query
                 work_models.Work._grade.is_(None)  # pylint: disable=protected-access
             )
@@ -1087,13 +1686,15 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     @cached_property
     def _dynamic_max_points(self) -> t.Optional[float]:
         sub = db.session.query(
-            func.max(rubric_models.RubricItem.points).label('max_val')
+            sql_expression.func.max(rubric_models.RubricItem.points
+                                    ).label('max_val')
         ).join(
             rubric_models.RubricRowBase, rubric_models.RubricRowBase.id ==
             rubric_models.RubricItem.rubricrow_id
         ).filter(rubric_models.RubricRowBase.assignment_id == self.id
                  ).group_by(rubric_models.RubricRowBase.id).subquery('sub')
-        return db.session.query(func.sum(sub.c.max_val)).scalar()
+        return db.session.query(sql_expression.func.sum(sub.c.max_val)
+                                ).scalar()
 
     @property
     def is_open(self) -> bool:
@@ -1218,6 +1819,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             'max_submissions': self.max_submissions,
             'cool_off_period': self.cool_off_period.total_seconds(),
             'amount_in_cool_off_period': self.amount_in_cool_off_period,
+            'peer_feedback_settings': self.peer_feedback_settings,
 
             # These are all filled in based on permissions and data
             # availability.
@@ -1274,6 +1876,16 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         else:
             raise InvalidAssignmentState(f'{state} is not a valid state')
 
+    def get_amount_not_deleted_submissions(self) -> int:
+        return handle_none(
+            self.get_not_deleted_submissions().with_entities(
+                sql_expression.func.count(
+                    cg_sqlalchemy_helpers.distinct(work_models.Work.user_id)
+                )
+            ).scalar(),
+            0,
+        )
+
     def get_not_deleted_submissions(self) -> MyQuery['work_models.Work']:
         """Get a query returning all not deleted submissions to this
             assignment.
@@ -1285,7 +1897,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         base_query = db.session.query(
             work_models.Work,
         ).filter(
-            work_models.Work.assignment_id == self.id,
+            work_models.Work.assignment == self,
             # We don't need the intelligent `deleted` attribute here from the
             # Work models, which also checks if the assignment is deleted, as
             # we already check this at the start of the function.
@@ -1508,12 +2120,12 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         amount_subs: int
         amount_subs = self.get_from_latest_submissions(  # type: ignore
-            func.count(),
+            sql_expression.func.count(),
         ).scalar()
 
         divided_amount: t.MutableMapping[int, float] = defaultdict(float)
         for u_id, amount in self.get_from_latest_submissions(
-            work_models.Work.assigned_to, func.count()
+            work_models.Work.assigned_to, sql_expression.func.count()
         ).group_by(work_models.Work.assigned_to):
             if u_id is not None:
                 divided_amount[u_id] = amount
@@ -1822,7 +2434,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             user_course.c.course_id.label("course_id"),
         ).join(
             AssignmentGraderDone,
-            and_(
+            sql_expression.and_(
                 user_models.User.id == AssignmentGraderDone.user_id,
                 AssignmentGraderDone.assignment_id == self.id,
             ),
@@ -1855,7 +2467,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         ).join(graders, done_graders.c.course_id == graders.c.course_role_id)
 
         if sort:
-            res = res.order_by(func.lower(done_graders.c.name))
+            res = res.order_by(sql_expression.func.lower(done_graders.c.name))
 
         return res
 

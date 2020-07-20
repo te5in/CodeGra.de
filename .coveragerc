@@ -15,3 +15,5 @@ omit =
     cg_signals/tests/*
     cg_cache/tests/*
     cg_helpers/tests/*
+    cg_enum/tests/*
+    cg_enum/cg_enum_plugin.py

@@ -21,6 +21,10 @@ Version *Next*
   when setting up a course without knowing the deadline yet in LMSes that
   support deadline synchronization, for which impossible to change the deadline
   from within CodeGrade.
+- Add Peer Feedback feature `(#1394)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1394>`__. When peer feedback
+  is enabled for an assignment, students can give each other feedback after the
+  deadline of an assignment has passed.
 
 **Updates**
 

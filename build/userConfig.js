@@ -92,6 +92,7 @@ config.features = Object.assign({
     register: false,
     groups: false,
     email_students: false,
+    peer_feedback: false,
 }, userConfig.Features);
 
 config.autoTest = {

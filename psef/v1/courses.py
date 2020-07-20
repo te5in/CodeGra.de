@@ -1239,7 +1239,9 @@ def get_user_submissions(
 
     def get_subs(query: models.MyQuery[models.Work]) -> t.List[models.Work]:
         return models.Work.update_query_for_extended_jsonify(
-            models.Work.limit_to_user_submissions(query, user),
+            query.filter(
+                models.Work.user_submissions_filter(user),
+            )
         ).all()
 
     if latest_only:

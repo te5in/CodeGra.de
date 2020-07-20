@@ -32,6 +32,9 @@ context('Course Feedback', () => {
 
         it('should show a message that there is nothing to show', () => {
             cy.visit(`/courses/${course.id}/assignments/${assignment.id}/submissions/${submission.id}`);
+            cy.wait(2000);
+            cy.get('.page.submission')
+                .should('be.visible');
             cy.get('.submission-sidebar')
                 .should('be.visible')
                 .contains('.nav-item', 'Feedback')
@@ -82,6 +85,9 @@ context('Course Feedback', () => {
 
         it('should show a message that there is nothing to show', () => {
             cy.visit(`/courses/${course.id}/assignments/${assignments[0].id}/submissions/${submission.id}`);
+            cy.wait(2000);
+            cy.get('.page.submission')
+                .should('be.visible');
             cy.get('.submission-sidebar')
                 .should('be.visible')
                 .contains('.nav-item', 'Feedback')
@@ -339,7 +345,7 @@ context('Course Feedback', () => {
             });
 
             it('should open file links in a new tab', () => {
-                cy.get('.course-feedback .card.inline-feedback .card-header a')
+                cy.get('.course-feedback .inner-inline-feedback-file .card-header a')
                     .should('have.attr', 'target', '_blank');
             });
         });
@@ -356,9 +362,13 @@ context('Course Feedback', () => {
                     'Student1',
                     `/courses/${course.id}/assignments/${assignments[0].id}/submissions/`,
                 );
-                cy.get('.action-buttons')
-                    .contains('.action-button', 'Course feedback')
+                cy.wait(2000);
+                cy.get('.local-header')
+                    .contains('.btn', 'Course feedback')
                     .click();
+                cy.wait(2000);
+                cy.get('[id^="submissions-page-course-feedback-modal"]')
+                    .should('be.visible');
             });
 
             it('should be available to students', () => {

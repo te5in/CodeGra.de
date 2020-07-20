@@ -15,7 +15,7 @@
         </b-popover>
     </template>
     <cg-loader :center="false"
-               :scale="1"
+               :scale="scale"
                v-else-if="state === 'loading'" />
     <fa-icon name="check"
              class="text-success"
@@ -34,6 +34,8 @@ export default class PromiseLoader extends Vue {
     @Prop({ default: 250 }) waitAtLeast!: number;
 
     @Prop({ default: 750 }) duration!: number;
+
+    @Prop({ default: 1 }) scale!: number;
 
     state: 'success' | Error | 'loading' | 'hidden' = 'loading';
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export default function decodeBuffer(buffer, force = false) {
+export default function decodeBuffer(buffer: ArrayBuffer, force: boolean = false): string {
     const fatal = !force;
     try {
         return new TextDecoder('utf8', { fatal }).decode(buffer);

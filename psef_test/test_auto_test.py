@@ -36,6 +36,11 @@ from psef.exceptions import APICodes, APIException
 
 
 @pytest.fixture(params=[False])
+def poll_after_done(request):
+    yield request.param
+
+
+@pytest.fixture(params=[False])
 def fail_wget_attach(request):
     yield request.param
 
@@ -79,7 +84,8 @@ def make_failer(app, session):
 
 @pytest.fixture
 def monkeypatch_for_run(
-    monkeypatch, lxc_stub, stub_function_class, fail_wget_attach
+    monkeypatch, lxc_stub, stub_function_class, fail_wget_attach,
+    poll_after_done
 ):
     old_run_command = psef.auto_test.StartedContainer._run_command
     psef.auto_test._STOP_RUNNING.clear()
@@ -121,8 +127,9 @@ def monkeypatch_for_run(
         elif '/etc/sudoers' in cmd:
             signal_start()
             return 0
-        elif 'wget' == cmd[0] and fail_wget_attach:
-            os.execvp('sleep', ['sleep', 'inf'])
+        elif cmd[0] == 'wget' and fail_wget_attach:
+            while True:
+                time.sleep(5)
 
         return old_run_command(self, cmd_user)
 
@@ -151,7 +158,7 @@ def monkeypatch_for_run(
     )
     monkeypatch.setattr(
         psef.auto_test.AutoTestRunner, '_should_poll_after_done',
-        stub_function_class(lambda: False)
+        stub_function_class(lambda: poll_after_done)
     )
     monkeypatch.setattr(
         psef.tasks, 'check_heartbeat_auto_test_run', stub_function_class()
@@ -754,7 +761,7 @@ def test_update_auto_test(
         update_test(error=409)
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 def test_run_auto_test(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
     describe, live_server, lxc_stub, monkeypatch, app, session, assert_similar,
@@ -1843,7 +1850,7 @@ def test_update_result_dates_in_broker(
         assert not broker_ses.calls
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 def test_output_dir(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
     describe, live_server, lxc_stub, monkeypatch, app, session,
@@ -2158,7 +2165,7 @@ def test_copy_auto_test(
 
 
 @pytest.mark.parametrize(
-    'use_transaction,fail_wget_attach', [(False, True)], indirect=True
+    'fresh_db,fail_wget_attach', [(True, True)], indirect=True
 )
 def test_failing_attach(
     monkeypatch_celery, basic, test_client, logged_in, describe, live_server,
@@ -2240,7 +2247,7 @@ def test_starting_at_run_without_submissions(
         assert not stub_notify.called
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 def test_continuous_rubric(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
     describe, live_server, lxc_stub, monkeypatch, app, session,
@@ -2386,7 +2393,7 @@ def test_continuous_rubric(
         )
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 def test_runner_harakiri(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
     describe, live_server, lxc_stub, monkeypatch, app, session,
@@ -2442,7 +2449,7 @@ def test_runner_harakiri(
         assert runners_in_start.get()
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 def test_failing_container_startup(
     monkeypatch_celery, basic, test_client, logged_in, describe, live_server,
     lxc_stub, monkeypatch, app, session, stub_function_class, assert_similar,
@@ -2517,7 +2524,7 @@ def test_failing_container_startup(
         assert res.state == m.AutoTestStepResultState.not_started
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 def test_failing_container_shutdown(
     monkeypatch_celery, basic, test_client, logged_in, describe, live_server,
     lxc_stub, monkeypatch, app, session, stub_function_class, assert_similar,
@@ -2589,7 +2596,7 @@ def test_failing_container_shutdown(
         assert failed_at_least_once
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 @pytest.mark.parametrize('prefer_teacher_revision', [True, False])
 @pytest.mark.parametrize('with_teacher_revision', [True, False])
 def test_prefer_teacher_revision_option(
@@ -2670,28 +2677,31 @@ def test_prefer_teacher_revision_option(
             assert step_result.log['stdout'] == 'student\n'
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize(
+    'fresh_db,poll_after_done', [(True, True)], indirect=True
+)
 def test_running_old_submission(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
     describe, live_server, lxc_stub, monkeypatch, app, session,
-    stub_function_class, assert_similar, monkeypatch_for_run
+    stub_function_class, assert_similar, monkeypatch_for_run, request
 ):
     with describe('setup'):
         course, assig_id, teacher, student = basic
+        monkeypatch.setitem(app.config, 'AUTO_TEST_CF_SLEEP_TIME', 0.25)
+        monkeypatch.setitem(app.config, 'AUTO_TEST_CF_EXTRA_AMOUNT', 4)
 
         uploaded_once = False
-        # We need to disable debug to register this `before_request` method as
-        # we already processed requests at this point.
-        old_debug = app.debug
-        app.debug = False
 
-        @app.before_request
-        def update_result():
+        @flask.signals.request_started.connect_via(app)
+        def update_result(*_, **__):
             nonlocal uploaded_once
+            if uploaded_once:
+                return
+
             result = m.AutoTestResult.query.get(
                 flask.request.view_args.get('result_id', -1)
             )
-            if result and result.work.id == sub1['id'] and not uploaded_once:
+            if result and result.work_id == sub1['id']:
                 # Make sure we only upload a new submission once
                 uploaded_once = True
                 with app.app_context(), logged_in(teacher):
@@ -2699,18 +2709,30 @@ def test_running_old_submission(
                         test_client, assig_id, for_user=student
                     )
 
-        app.debug = old_debug
+        request.addfinalizer(
+            lambda: flask.signals.request_started.
+            disconnect(update_result, app)
+        )
 
         with logged_in(teacher):
-            test = helpers.create_auto_test(
-                test_client,
-                assig_id,
-                amount_sets=2,
-                amount_suites=2,
-                amount_fixtures=1,
-                stop_points=[0.5, None],
-                grade_calculation='partial',
+            # yapf: disable
+            test = helpers.create_auto_test_from_dict(
+                test_client, helpers.get_id(assig_id), {
+                    'sets': [{
+                        'suites': [{
+                            'submission_info': True,
+                            'steps': [{
+                                'run_p': 'sleep 1',
+                                'name': 'Short sleep',
+                            }, {
+                                'run_p': 'sleep 6',
+                                'name': 'Longer sleep',
+                            }]
+                        }],
+                    }],
+                }
             )
+            # yapf: enable
         url = f'/api/v1/auto_tests/{test["id"]}'
 
         with logged_in(teacher):
@@ -2740,6 +2762,14 @@ def test_running_old_submission(
         assert session.query(
             m.AutoTestResult
         ).filter_by(work_id=sub1['id']).one().state.name == 'skipped'
+        latest = helpers.to_db_object(
+            assig_id, m.Assignment
+        ).get_latest_submission_for_user(
+            helpers.to_db_object(student, m.User)
+        ).one()
+        latest_id = helpers.get_id(latest)
+        assert isinstance(latest_id, int)
+        assert latest_id != sub1
 
         with logged_in(teacher):
             res = test_client.req(
@@ -2748,7 +2778,7 @@ def test_running_old_submission(
                 200,
                 result=[
                     {'__allow_extra__': True, 'work_id': sub1['id']},
-                    {'__allow_extra__': True, 'work_id': int},
+                    {'__allow_extra__': True, 'work_id': latest_id},
                 ]
             )
 
@@ -2757,7 +2787,7 @@ def test_running_old_submission(
         ).filter_by(work_id=res[-1]['work_id']).one().state.name == 'passed'
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 @pytest.mark.parametrize('deadline', ['tomorrow', None])
 def test_submission_info_env_vars(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
@@ -2836,6 +2866,7 @@ def test_submission_info_env_vars(
             'student_id': work['user']['id'],
         }
 
+        print(res.step_results)
         assert len(res.step_results) == 2
 
         for step_result in res.step_results:
@@ -2889,7 +2920,7 @@ def test_broker_extra_env_vars(describe):
             assert env['PATH'] != ''
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 def test_update_step_attachment(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
     describe, live_server, lxc_stub, monkeypatch, app, session, admin_user,

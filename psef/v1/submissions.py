@@ -14,8 +14,7 @@ import structlog
 import sqlalchemy.sql as sql
 from flask import request
 from sqlalchemy.orm import selectinload, contains_eager
-from mypy_extensions import TypedDict
-from typing_extensions import Protocol
+from typing_extensions import Protocol, TypedDict
 
 import psef.files
 from psef import app, current_user
@@ -23,7 +22,6 @@ from cg_sqlalchemy_helpers.types import ColumnProxy
 
 from . import api
 from .. import auth, models, helpers, features
-from ..errors import APICodes, APIException
 from ..models import DbColumn, FileOwner, db
 from ..helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
@@ -31,6 +29,7 @@ from ..helpers import (
     make_empty_response
 )
 from ..signals import WORK_DELETED, WorkDeletedData
+from ..exceptions import APICodes, APIException, PermissionException
 from ..permissions import CoursePermission as CPerm
 
 logger = structlog.get_logger()
@@ -121,11 +120,7 @@ def get_submission(
     work = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
     )
-
-    if not work.has_as_author(current_user):
-        auth.ensure_permission(
-            CPerm.can_see_others_work, work.assignment.course_id
-        )
+    auth.WorkPermissions(work).ensure_may_see()
 
     if request.args.get('type') == 'zip':
         exclude_owner = models.File.get_exclude_owner(
@@ -382,23 +377,8 @@ def get_feedback_from_submission(
             for file_id, lcomms in _group_by_file_id(all_linter_comments)
         }
 
-    comments = models.CommentBase.query.filter(
-        models.File.work == work,
-        ~models.File.self_deleted,
-        # We join the replies using an innerload to make sure we only get
-        # commentbases that have at least one reply.
-    ).join(
-        models.CommentBase.replies, isouter=False
-    ).join(
-        models.CommentBase.file, isouter=False
-    ).order_by(
-        # This order is really important for the `itertools.groupby` call.
-        models.CommentBase.file_id.asc(),
-        models.CommentBase.line.asc(),
-        models.CommentReply.created_at.asc(),
-    ).options(
-        contains_eager(models.CommentBase.replies),
-        contains_eager(models.CommentBase.file),
+    comments = models.CommentBase.get_base_comments_query().filter(
+        models.File.work == work
     ).all()
 
     fun: t.Callable[[t.List[models.CommentBase], LinterComments, str], t.
@@ -1002,6 +982,53 @@ def create_new_file(submission_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
     return jsonify(psef.files.get_stat_information(code))
 
 
+class RootFileTreesJSON(TypedDict, total=True):
+    """A representation containing both the teacher file tree and student file
+    tree for a submission.
+    """
+    #: The teacher file tree, this will be ``null`` if you do not have the
+    #: permission to see teacher files. This might be exactly the same as the
+    #: student tree.
+    teacher: t.Optional[psef.files.FileTree[int]]
+    #: The student file tree of the submission. This will never be ``null``.
+    student: psef.files.FileTree[int]
+
+
+@api.route(
+    "/submissions/<int:submission_id>/root_file_trees/", methods=['GET']
+)
+@auth.login_required
+def get_root_file_trees(submission_id: int) -> JSONResponse[RootFileTreesJSON]:
+    """Get all the file trees of a submission.
+
+    .. :quickref: Submission; Get all the file trees of a submission.
+
+    :param submission_id: The id of the submission of which you want to get the
+        file trees.
+
+    :returns: The student and teacher file tree, from the base/root directory
+              of the submission.
+    """
+    work = helpers.filter_single_or_404(
+        models.Work, models.Work.id == submission_id, ~models.Work.deleted
+    )
+    auth.ensure_can_view_files(work, teacher_files=False)
+    student_files = work.get_root_file(FileOwner.teacher).list_contents(
+        FileOwner.teacher
+    )
+
+    try:
+        auth.ensure_can_view_files(work, teacher_files=True)
+    except PermissionException:
+        teacher_files = None
+    else:
+        teacher_files = work.get_root_file(FileOwner.student).list_contents(
+            FileOwner.student
+        )
+
+    return jsonify({'teacher': teacher_files, 'student': student_files})
+
+
 @api.route("/submissions/<int:submission_id>/files/", methods=['GET'])
 @auth.login_required
 def get_dir_contents(
@@ -1016,11 +1043,19 @@ def get_dir_contents(
     The default file is the root of the submission, but a specific file can be
     specified with the file_id argument in the request.
 
+    .. note::
+
+        If you want the root file trees for the teacher and students, you can
+        also use the :func:`.get_root_file_trees` route to get these both in a
+        single request.
+
     :param int submission_id: The id of the submission
+
     :returns: A response with the JSON serialized directory structure as
-        content and return code 200. For the exact structure see
-        :py:meth:`.File.list_contents`. If path is given the return value will
-        be stat datastructure, see :py:func:`.files.get_stat_information`.
+              content and return code 200. For the exact structure see
+              :py:meth:`.File.list_contents`. If path is given the return value
+              will be stat datastructure, see
+              :py:func:`.files.get_stat_information`.
 
     :query int file_id: The file id of the directory to get. If this is not
         given the parent directory for the specified submission is used.
@@ -1031,17 +1066,17 @@ def get_dir_contents(
         listed.
 
     :raise APIException: If the submission with the given id does not exist or
-                         when a file id was specified no file with this id
-                         exists. (OBJECT_ID_NOT_FOUND)
+        when a file id was specified no file with this id exists.
+        (OBJECT_ID_NOT_FOUND)
+
     :raises APIException: wWhen a file id is specified and the submission id
-                          does not match the submission id of the file.
-                          (INVALID_URL)
+        does not match the submission id of the file. (INVALID_URL)
     :raises APIException: When a file id is specified and the file with that id
-                          is not a directory. (OBJECT_WRONG_TYPE)
+        is not a directory. (OBJECT_WRONG_TYPE)
     :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
     :raises PermissionException: If submission does not belong to the current
-                                 user and the user can not view files in the
-                                 attached course. (INCORRECT_PERMISSION)
+        user and the user can not view files in the attached course.
+        (INCORRECT_PERMISSION)
     """
     work = helpers.filter_single_or_404(
         models.Work, models.Work.id == submission_id, ~models.Work.deleted
@@ -1068,13 +1103,7 @@ def get_dir_contents(
         found_file = work.search_file(path, exclude_owner)
         return jsonify(psef.files.get_stat_information(found_file))
     else:
-        file = helpers.filter_single_or_404(
-            models.File,
-            models.File.work_id == submission_id,
-            models.File.parent_id.is_(None),
-            models.File.fileowner != exclude_owner,
-            ~models.File.self_deleted,
-        )
+        file = work.get_root_file(exclude_owner)
 
     if not file.is_directory:
         raise APIException(
