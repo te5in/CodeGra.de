@@ -98,16 +98,6 @@
         </cg-catch-error>
     </b-modal>
 
-    <b-modal v-if="isStudent"
-             :id="`submissions-page-course-feedback-modal-${id}`"
-             title="Course feedback"
-             size="xl"
-             body-class="p-0"
-             hide-footer>
-        <course-feedback :course="assignment.course"
-                         :user="loggedInUser" />
-    </b-modal>
-
     <div class="cat-container d-flex flex-column">
         <div v-if="error != null">
             <b-alert variant="danger" show>
@@ -118,6 +108,16 @@
         <loader center page-loader v-else-if="loadingInner" />
 
         <template v-else>
+            <b-modal v-if="isStudent"
+                     :id="`submissions-page-course-feedback-modal-${id}`"
+                     title="Course feedback"
+                     size="xl"
+                     body-class="p-0"
+                     hide-footer>
+                <course-feedback :course="assignment.course"
+                                 :user="loggedInUser" />
+            </b-modal>
+
             <div v-if="selectedCat === 'student-start'"
                  class="action-buttons flex-grow-1 d-flex flex-wrap">
                 <template v-if="canUploadForSomeone">
@@ -828,7 +828,7 @@ export default {
         submitForceLoadSubmissions() {
             this.$root.$emit('cg::submissions-page::reload');
             return this.loadInner(
-                this.forceLoadSubmissions(this.assignment.id),
+                this.forceLoadSubmissions(this.assignmentId),
             );
         },
 
@@ -877,6 +877,14 @@ export default {
             }
             return false;
         },
+    },
+
+    mounted() {
+        this.$root.$on('sidebar::reload', this.submitForceLoadSubmissions);
+    },
+
+    destroyed() {
+        this.$root.$off('sidebar::reload', this.submitForceLoadSubmissions);
     },
 
     components: {
