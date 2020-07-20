@@ -1962,10 +1962,7 @@ def update_peer_feedback_settings(
 
     with helpers.get_from_request_transaction() as [get, _]:
         new_amount = get('amount', int)
-        time_in_seconds = get(
-            'time',
-            (float, int, type(None))
-        )
+        time_in_seconds = get('time', (float, int, type(None)))
         auto_approved = get('auto_approved', bool)
 
     peer_feedback_settings = assignment.peer_feedback_settings
