@@ -149,6 +149,10 @@ describe('Submission.vue', () => {
                     treeLoadedAmount.student++;
                     res = jsonCopy(tree1);
                 }
+            } else if (/^.api.v1.submissions.[0-9]+.root_file_trees/.test(path)) {
+                treeLoadedAmount.student++;
+                treeLoadedAmount.teacher++;
+                res = { student: tree1, teacher: tree2 };
             } else if (/^.api.v1.submissions.[0-9]+.rubrics./.test(path)) {
                 res = rubric;
             } else if (/^.api.v1.submissions.[0-9]+.feedbacks./.test(path)) {
