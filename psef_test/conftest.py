@@ -579,7 +579,8 @@ def session(app, db, fresh_db, monkeypatch):
     try:
         with monkeypatch.context() as context:
             context.setattr(psef.models.db, 'session', session)
-            context.setattr(session, 'remove', lambda :None)
+            if not fresh_db:
+                context.setattr(session, 'remove', lambda :None)
             yield session
     finally:
         sqlalchemy.event.remove(
