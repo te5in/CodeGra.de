@@ -58,7 +58,6 @@ def init_app(app: t.Any) -> None:
             exc_info=True,
         )
 
-        print('ROLLING BACK')
         psef.models.db.session.rollback()
 
         return response
