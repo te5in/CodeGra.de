@@ -877,6 +877,7 @@ def test_update_code(
         m.Assignment.query.filter_by(id=assignment.id).update({
             'state': m.AssignmentStateEnum.done
         })
+        session.commit()
 
         adjust_code(code_id, 403)
 
