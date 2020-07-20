@@ -28,20 +28,14 @@ const actions = {
                     { assignmentId, submissionId },
                     { root: true },
                 ),
-                axios.get(`/api/v1/submissions/${submissionId}/files/`),
-                axios
-                    .get(`/api/v1/submissions/${submissionId}/files/`, {
-                        params: { owner: 'teacher' },
-                    })
-                    .catch(
-                        utils.makeHttpErrorHandler({
-                            403: () => ({ data: null }),
-                        }),
-                    ),
+                axios.get(`/api/v1/submissions/${submissionId}/root_file_trees/`),
             ]).then(
-                ([, student, teacher]) => {
+                ([, { data: allFileTrees }]) => {
                     delete loaders.fileTrees[submissionId];
-                    const fileTree = FileTree.fromServerData(student.data, teacher.data);
+                    const fileTree = FileTree.fromServerData(
+                        allFileTrees.student,
+                        allFileTrees.teacher,
+                    );
                     commit(types.SET_FILETREE, {
                         assignmentId,
                         submissionId,

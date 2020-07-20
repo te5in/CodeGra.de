@@ -153,6 +153,7 @@ def test_get_assignment(
                 'amount_in_cool_off_period': 1,
                 'max_submissions': None,
                 'analytics_workspace_ids': [int] if analytics else [],
+                'peer_feedback_settings': None,
             }
         else:
             res = error_template

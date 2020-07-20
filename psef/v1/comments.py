@@ -7,6 +7,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 
+import flask
+
 from cg_json import ExtendedJSONResponse
 from cg_flask_helpers import EmptyResponse
 
@@ -86,7 +88,9 @@ def add_reply(comment_base_id: int) -> ExtendedJSONResponse[CommentReply]:
         )
     reply = base.add_reply(current_user, message, reply_type, in_reply_to)
 
-    FeedbackReplyPermissions(reply).ensure_may_add()
+    checker = reply.perm_checker
+    checker.ensure_may_add.or_(checker.ensure_may_add_as_peer).check()
+
     db.session.flush()
 
     warning_authors = set()
@@ -208,3 +212,33 @@ def delete_reply(comment_base_id: int, reply_id: int) -> EmptyResponse:
     db.session.commit()
 
     return EmptyResponse.make()
+
+
+@api.route(
+    '/comments/<int:comment_base_id>/replies/<int:reply_id>/approval',
+    methods=['POST', 'DELETE']
+)
+def update_reply_approval(comment_base_id: int,
+                          reply_id: int) -> ExtendedJSONResponse[CommentReply]:
+    """Update the content of reply.
+
+    .. :quickref: Comment; Update the content of an inline feedback reply.
+
+    :>json string comment: The new content of the reply.
+    :param comment_base_id: The base of the given reply.
+    :param reply_id: The id of the reply for which you want to update.
+    :returns: The just updated reply.
+    """
+    reply = helpers.filter_single_or_404(
+        CommentReply,
+        CommentReply.id == reply_id,
+        CommentReply.comment_base_id == comment_base_id,
+        ~CommentReply.deleted,
+        with_for_update=True,
+        with_for_update_of=CommentReply,
+    )
+    FeedbackReplyPermissions(reply).ensure_may_change_approval()
+    reply.is_approved = flask.request.method == 'POST'
+    db.session.commit()
+
+    return ExtendedJSONResponse.make(reply, use_extended=CommentReply)

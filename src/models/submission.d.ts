@@ -1,9 +1,32 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import moment from 'moment';
+
 import { AnyUser } from './user';
 import { Assignment } from './assignment';
 import { Feedback } from './feedback';
 
 /* eslint-disable camelcase */
+declare class BaseFile {
+    public id: string;
+
+    public name: string;
+
+    public parent: Directory | null;
+}
+
+export class File extends BaseFile {}
+
+export class Directory extends BaseFile {
+    public entries: ReadonlyArray<BaseFile>;
+}
+
+export class FileTree {
+    getRevision(fileId: string): BaseFile | null;
+
+    // Maps fileId to file name.
+    public flattened: Record<string, string>;
+}
+
 export class Submission {
     public id: number;
 
@@ -26,5 +49,9 @@ export class Submission {
     public comment_author: AnyUser | null;
 
     public feedback?: Feedback;
+
+    public fileTree?: FileTree;
+
+    public createdAt: moment.Moment;
 }
 /* eslint-enable camelcase */

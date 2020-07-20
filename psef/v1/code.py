@@ -82,7 +82,8 @@ def put_comment(code_id: int, line: int) -> EmptyResponse:
             models.CommentReplyType.plain_text,
             None,
         )
-        auth.FeedbackReplyPermissions(reply).ensure_may_add()
+        checker = reply.perm_checker
+        checker.ensure_may_add.or_(checker.ensure_may_add_as_peer).check()
 
     db.session.commit()
 

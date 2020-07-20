@@ -1,10 +1,12 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <b-alert class="error" variant="danger" show v-if="error">
-    <div v-html="error"/>
+    <div>{{ $utils.getErrorMessage(error) }}</div>
 </b-alert>
 
-<loader page-loader v-else-if="loading" />
+<div v-else-if="loading">
+    <loader page-loader :scale="2" />
+</div>
 
 <div v-else-if="!feedbackAvailable"
      class="feedback-overview p-3 border rounded font-italic text-muted">
@@ -15,7 +17,7 @@
      class="feedback-overview border rounded">
     <div class="scroller">
         <b-card header="General feedback"
-                class="general-feedback"
+                class="general-feedback inline-feedback-scroll-part"
                 v-if="shouldRenderGeneral">
             <pre v-if="generalFeedback"
                  class="text-wrap-pre mb-0">{{ generalFeedback }}</pre>
@@ -24,70 +26,73 @@
             </span>
         </b-card>
 
-        <b-card v-if="fileIds.length === 0"
-                header="Inline feedback"
-                class="inline-feedback"
-                body-class="text-muted font-italic">
-            <slot name="no-inline-feedback">
-                This submission has no inline feedback.
-            </slot>
-        </b-card>
+        <inner-feedback-overview :file-wrapper-props="{ is: 'div', class: 'inline-feedback-scroll-part' }"
+                                 parts-wrapper-component="b-card-body"
+                                 :on-file-visible="onFileVisible"
+                                 :assignment="assignment"
+                                 :context-lines="contextLines"
+                                 :submission="submission"
+                                 :feedback="feedback"
+                                 :file-tree="fileTree"
+                                 :should-render-thread="shouldRenderThread">
+            <template #no-feedback>
+                <b-card-header>Inline feedback</b-card-header>
+                <b-card-body class="text-muted font-italic">
+                    <slot name="no-inline-feedback">
+                        This submission has no inline feedback.
+                    </slot>
+                </b-card-body>
+            </template>
 
-        <template v-else>
-            <b-card v-for="id in fileIds"
-                    :key="id"
-                    class="inline-feedback">
-                <router-link slot="header"
-                             :to="getFileLink(id)"
-                             :target="openFilesInNewTab ? '_blank' : undefined"
-                             :title="openFilesInNewTab ? 'Open file in a new tab' : 'Go to file'">
-                    {{ fileTree.flattened[id] }}
-                    <fa-icon v-if="openFilesInNewTab"
-                             name="share-square-o"
-                             class="ml-1"/>
-                </router-link>
+            <template #header="{ file }">
+                <b-card-header>
+                    <router-link slot="header"
+                                 :to="file.link"
+                                 :target="openFilesInNewTab ? '_blank' : undefined"
+                                 :title="openFilesInNewTab ? 'Open file in a new tab' : 'Go to file'">
+                        {{ file.name }}
+                        <fa-icon v-if="openFilesInNewTab"
+                                 name="share-square-o"
+                                 class="ml-1"/>
+                    </router-link>
+                </b-card-header>
+            </template>
 
-                <div v-if="disabledFileType(id)">
-                    Overview mode is not available for {{ disabledFileType(id).name }}. Click
-                    <router-link class="inline-link" :to="getFileLink(id)">here</router-link>
-                    to see the entire file.
+            <template #disabled-file="{ file, fileType, userFeedback }">
+                Overview mode is not available for {{ file.disabled.name }}. Click
+                <router-link class="inline-link" :to="file.link">here</router-link>
+                to see the entire file.
 
-                    <feedback-area v-if="disabledFileType(id).singleLine && showInlineFeedback"
-                                   class="pt-2"
-                                   :can-use-snippets="false"
-                                   :line="0"
-                                   :feedback="feedback.user[id][0]"
-                                   :total-amount-lines="0"
+                <feedback-area v-if="fileType.singleLine && showInlineFeedback"
+                               class="pt-2"
+                               :can-use-snippets="false"
+                               :line="0"
+                               :feedback="userFeedback[0]"
+                               :total-amount-lines="0"
+                               :assignment="assignment"
+                               :submission="submission"
+                               :non-editable="nonEditable"
+                               :should-fade-reply="shouldFadeReply"/>
+            </template>
+
+            <template #code="{ file, userFeedback, linterFeedback, chunk, part }">
+                <hr v-if="chunk.idx !== 0">
+
+                <inner-code-viewer class="border rounded p-0"
                                    :assignment="assignment"
                                    :submission="submission"
+                                   :code-lines="chunk.content"
+                                   :feedback="showInlineFeedback ? userFeedback : {}"
+                                   :linter-feedback="linterFeedback"
+                                   :file-id="file.id"
+                                   :start-line="chunk.start"
+                                   :end-line="chunk.end"
+                                   :show-whitespace="showWhitespace"
                                    :non-editable="nonEditable"
+                                   :should-render-thread="shouldRenderThread"
                                    :should-fade-reply="shouldFadeReply"/>
-                </div>
-
-                <div v-else-if="codeLines[id] == null">
-                    <loader/>
-                </div>
-                <div v-else
-                     v-for="(part, i) in getParts(id)"
-                     :key="`file-${id}-line-${part[0]}`">
-                    <hr v-if="i !== 0">
-
-                    <inner-code-viewer class="border rounded p-0"
-                                       :assignment="assignment"
-                                       :submission="submission"
-                                       :code-lines="codeLines[id]"
-                                       :feedback="showInlineFeedback ? (feedback.user[id] || {}) : {}"
-                                       :linter-feedback="feedback.linter[id]"
-                                       :file-id="id"
-                                       :start-line="part[0]"
-                                       :end-line="part[1]"
-                                       :show-whitespace="showWhitespace"
-                                       :non-editable="nonEditable"
-                                       :should-render-thread="shouldRenderThread"
-                                       :should-fade-reply="shouldFadeReply"/>
-                </div>
-            </b-card>
-        </template>
+            </template>
+        </inner-feedback-overview>
     </div>
 </div>
 </template>
@@ -96,11 +101,11 @@
 import { mapActions, mapGetters } from 'vuex';
 
 import { Assignment, Submission } from '@/models';
-import decodeBuffer from '@/utils/decode';
 
 import Loader from './Loader';
 import InnerCodeViewer from './InnerCodeViewer';
 import FeedbackArea from './FeedbackArea';
+import InnerFeedbackOverview from './InnerFeedbackOverview';
 
 export default {
     name: 'feedback-overview',
@@ -155,12 +160,16 @@ export default {
             type: Boolean,
             default: false,
         },
+
+        onFileVisible: {
+            type: Function,
+            default: () => false,
+        },
     },
 
     data() {
         return {
-            error: '',
-            codeLines: null,
+            error: null,
         };
     },
 
@@ -171,9 +180,8 @@ export default {
         loading() {
             const feedback = this.feedback;
             const fileTree = this.fileTree;
-            const codeLines = this.codeLines;
 
-            return feedback == null || fileTree == null || codeLines == null;
+            return feedback == null || fileTree == null || feedback.user == null;
         },
 
         fileTree() {
@@ -182,26 +190,6 @@ export default {
 
         feedback() {
             return this.$utils.getProps(this.submission, {}, 'feedback');
-        },
-
-        fileIds() {
-            // Because the submission's fileTree and feedback are loaded simultaneously, it is
-            // possible that the fileTree is not set when the feedback changes. The rest of the
-            // component, however, depends on the fact that both are non-null, and because almost
-            // everything works via computed properties, we wait with returning the file ids that
-            // need to be rendered until the fileTree has been loaded.
-            if (this.fileTree == null || this.feedback == null) {
-                return [];
-            }
-            return Object.keys(this.feedback.user).filter(fileId =>
-                Object.values(this.feedback.user[fileId]).some(thread =>
-                    this.shouldRenderThread(thread),
-                ),
-            );
-        },
-
-        nonDisabledFileIds() {
-            return this.fileIds.filter(id => !this.disabledFileType(id));
         },
 
         generalFeedback() {
@@ -233,14 +221,7 @@ export default {
         submissionId: {
             immediate: true,
             handler() {
-                this.loadFeedback();
-            },
-        },
-
-        nonDisabledFileIds: {
-            immediate: true,
-            handler() {
-                this.loadCode();
+                this.loadData();
             },
         },
     },
@@ -252,12 +233,8 @@ export default {
         ...mapActions('fileTrees', {
             storeLoadSubmissionFileTree: 'loadFileTree',
         }),
-        ...mapActions('code', { storeLoadCode: 'loadCode' }),
 
-        async loadFeedback() {
-            this.codeLines = null;
-            this.error = '';
-
+        async loadData() {
             Promise.all([
                 this.storeLoadSubmissionFeedback({
                     assignmentId: this.assignment.id,
@@ -271,156 +248,13 @@ export default {
                 this.error = this.$utils.getErrorMessage(err);
             });
         },
-
-        async loadCode() {
-            if (this.fileIds.length === 0) {
-                this.codeLines = {};
-                return;
-            }
-
-            if (this.codeLines == null) {
-                this.codeLines = {};
-            }
-
-            this.nonDisabledFileIds.filter(id => this.codeLines[id] == null).map(async id => {
-                this.$set(this.codeLines, id, await this.loadCodeWithSettings(id));
-            });
-        },
-
-        async loadCodeWithSettings(fileId) {
-            const val = await this.$hlanguageStore.getItem(`${fileId}`);
-            let selectedLanguage;
-
-            if (val !== null) {
-                selectedLanguage = val;
-            } else {
-                selectedLanguage = 'Default';
-            }
-            return this.getCode(fileId, selectedLanguage);
-        },
-
-        getCode(fileId, selectedLanguage) {
-            return this.storeLoadCode(fileId).then(
-                rawCode => {
-                    let code;
-                    try {
-                        code = decodeBuffer(rawCode);
-                    } catch (e) {
-                        return [];
-                    }
-                    return this.highlightCode(
-                        code.split('\n'),
-                        selectedLanguage,
-                        this.fileTree.flattened[fileId],
-                    );
-                },
-                err => {
-                    this.error = this.$utils.getErrorMessage(err);
-                },
-            );
-        },
-
-        highlightCode(codeLines, language, filePath) {
-            const lang = language === 'Default' ? this.$utils.getExtension(filePath) : language;
-            return this.$utils.highlightCode(codeLines, lang, 1000);
-        },
-
-        getFileLink(fileId) {
-            const revision = this.fileTree.getRevision(fileId);
-            const newQuery = Object.assign({}, this.$route.query, {
-                revision,
-            });
-
-            return {
-                name: 'submission_file',
-                params: {
-                    courseId: this.assignment.course.id,
-                    assignmentId: this.assignment.id,
-                    submissionId: this.submission.id,
-                    fileId,
-                },
-                query: newQuery,
-                hash: '#code',
-            };
-        },
-
-        disabledFileType(fileId) {
-            const file = this.fileTree.flattened[fileId];
-            if (!file) {
-                return false;
-            }
-            const parts = file.split('.');
-            return {
-                ipynb: {
-                    name: 'IPython notebooks',
-                    singleLine: false,
-                },
-                md: {
-                    name: 'markdown files',
-                    singleLine: true,
-                },
-                markdown: {
-                    name: 'markdown files',
-                    singleLine: true,
-                },
-                svg: {
-                    name: 'images',
-                    singleLine: true,
-                },
-                gif: {
-                    name: 'images',
-                    singleLine: true,
-                },
-                jpeg: {
-                    name: 'images',
-                    singleLine: true,
-                },
-                jpg: {
-                    name: 'images',
-                    singleLine: true,
-                },
-                png: {
-                    name: 'images',
-                    singleLine: true,
-                },
-                pdf: {
-                    name: 'PDF files',
-                    singleLine: true,
-                },
-            }[parts.length > 1 ? parts[parts.length - 1] : ''];
-        },
-
-        getParts(fileId) {
-            const last = this.$utils.last;
-            const lines = this.codeLines[fileId];
-            const feedback = this.feedback.user[fileId];
-
-            const ret = Object.entries(feedback).reduce((res, [lineStr, thread]) => {
-                if (!this.shouldRenderThread(thread)) {
-                    return res;
-                }
-
-                const line = Number(lineStr);
-                const startLine = Math.max(line - this.contextLines, 0);
-                const endLine = Math.min(line + this.contextLines + 1, lines.length);
-
-                if (res.length === 0 || last(last(res)) <= startLine - 2) {
-                    res.push([startLine, endLine]);
-                } else {
-                    last(res)[1] = endLine;
-                }
-
-                return res;
-            }, []);
-
-            return ret;
-        },
     },
 
     components: {
         Loader,
         FeedbackArea,
         InnerCodeViewer,
+        InnerFeedbackOverview,
     },
 };
 </script>
@@ -452,7 +286,10 @@ export default {
 </style>
 
 <style lang="less">
-.feedback-overview > .scroller > .card {
+@import '~mixins.less';
+
+.feedback-overview > .scroller .inline-feedback-scroll-part {
+    border: 1px solid @border-color;
     border-left-width: 0px;
     border-right-width: 0px;
 

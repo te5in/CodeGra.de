@@ -421,10 +421,10 @@
                         <div class="mt-3"
                              v-b-popover.top.hover="splitFiltersFailed ? 'The split parameters are invalid' : ''">
                             <submit-button class="float-right"
-                                        variant="primary"
-                                        :disabled="splitFiltersFailed"
-                                        :submit="() => splitFilter(filterIndex)"
-                                        @after-success="afterSplitFilter">
+                                           variant="primary"
+                                           :disabled="splitFiltersFailed"
+                                           :submit="() => splitFilter(filterIndex)"
+                                           @after-success="afterSplitFilter">
                                 <icon name="check" />
                             </submit-button>
                         </div>

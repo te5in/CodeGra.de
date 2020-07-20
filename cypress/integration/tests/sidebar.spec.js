@@ -397,7 +397,7 @@ context('Sidebar', () => {
                 const subId = url.match(/\/submissions\/(\d+)\//)[1];
 
                 cy.delayRoute({
-                    url: `/api/v1/submissions/${subId}/files/`,
+                    url: `/api/v1/submissions/${subId}/root_file_trees/`,
                     method: 'GET',
                 }).as('filesRoute');
                 cy.delayRoute({

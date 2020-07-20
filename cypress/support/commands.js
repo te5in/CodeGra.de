@@ -272,6 +272,8 @@ Cypress.Commands.add('createAssignment', (courseId, name, { state, bbZip, deadli
         if (deadline !== undefined) {
             if (deadline === 'tomorrow') {
                 deadline = tomorrow();
+            } else if (deadline === 'yesterday') {
+                deadline = yesterday();
             }
             body.deadline = deadline;
         }
@@ -336,6 +338,15 @@ Cypress.Commands.add('tempPatchAssignment', (assignment, props, callback) => {
             return callback(tempAssignment);
         })
         .then(() => cy.patchAssignment(assignment.id, oldProps));
+});
+
+Cypress.Commands.add('patchPeerFeedback', (assignmentId, settings) => {
+    return cy.authRequest({
+        url: `/api/v1/assignments/${assignmentId}/peer_feedback_settings`,
+        method: settings == null ? 'DELETE' : 'PUT',
+        user: ADMIN_USER,
+        body: settings,
+    });
 });
 
 Cypress.Commands.add('createSubmission', (assignmentId, fileName, opts={}) => {
@@ -492,7 +503,7 @@ Cypress.Commands.add('deleteAutoTest', (autoTestId) => {
     });
 });
 
-Cypress.Commands.add('connectGroupSet', (courseId, assignmentId, minSize=1, maxSize=1) => {
+Cypress.Commands.add('createGroupSet', (courseId, minSize=1, maxSize=1) => {
     return cy.authRequest({
         url: `/api/v1/courses/${courseId}/group_sets/`,
         method: 'PUT',
@@ -501,7 +512,11 @@ Cypress.Commands.add('connectGroupSet', (courseId, assignmentId, minSize=1, maxS
             minimum_size: minSize,
             maximum_size: maxSize,
         },
-    }).its('body').then(
+    }).its('body');
+});
+
+Cypress.Commands.add('connectGroupSet', (courseId, assignmentId, minSize=1, maxSize=1) => {
+    cy.createGroupSet(courseId, minSize, maxSize).then(
         groupSet => cy.patchAssignment(assignmentId, {
             group_set_id: groupSet.id,
         }),

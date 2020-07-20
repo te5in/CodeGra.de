@@ -393,5 +393,23 @@
     "short_description": "Manage LTI providers",
     "long_description": "Users with this permission can edit and list existing, and create new LTI providers.",
     "warning": "This is a really powerful permission, only give to users you trust completely."
+  },
+  "can_view_inline_feedback_before_approved": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "View peer feedback before approved",
+    "long_description": "Users with this permission can view unapproved inline comments, comments that need approval include peer feedback comments. Users still need to have the permission to see the feedback, so this permission alone is not enough to see peer feedback."
+  },
+  "can_approve_inline_comments": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Approve inline comments",
+    "long_description": "Users with this permission can approve inline comments, comments that need approval include peer feedback comments."
+  },
+  "can_edit_peer_feedback_settings": {
+    "default_value": false,
+    "course_permission": true,
+    "short_description": "Edit peer feedback settings",
+    "long_description": "Users with this permission can edit the peer feedback status of an assignment."
   }
 }

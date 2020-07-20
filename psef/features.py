@@ -43,6 +43,7 @@ class Feature(enum.Enum):
     COURSE_REGISTER = enum.auto()
     RENDER_HTML = enum.auto()
     EMAIL_STUDENTS = enum.auto()
+    PEER_FEEDBACK = enum.auto()
 
     def __to_json__(self) -> t.Mapping[str, str]:
         return {

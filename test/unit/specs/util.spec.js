@@ -1276,12 +1276,33 @@ describe('utils.js', () => {
         });
 
         it('should support reversing', () => {
-            expect(sortBy(xs, x => [x], true)).toEqual(xs.slice().sort().reverse());
+            expect(sortBy(xs, x => [x], {
+                reverse: true
+            })).toEqual(xs.slice().sort().reverse());
+        });
+
+        it('should support reversing specific keys', () => {
+            const values = [0, 2, 4, 6, 8, 10, 1, 5];
+            const keyFunc = x => [x % 2 != 0, x % 5 != 0];
+
+            expect(sortBy(values, keyFunc, {
+                reversePerKey: [true, false]
+            })).toEqual([5, 1, 0, 10, 2, 4, 6, 8]);
+            expect(sortBy(values, keyFunc, {
+                reversePerKey: [false, false]
+            })).toEqual([0, 10, 2, 4, 6, 8, 5, 1]);
+            expect(sortBy(values, keyFunc, {
+                reversePerKey: [false, false],
+                // reverse should be overridden
+                reverse: true,
+            })).toEqual([0, 10, 2, 4, 6, 8, 5, 1]);
         });
 
         it('reverse should also be stable', () => {
             // Should keep same order, as the key was the same for every item.
-            expect(sortBy(xs, x => [1], true)).toEqual(xs);
+            expect(sortBy(xs, x => [1], {
+                reverse: true,
+            })).toEqual(xs);
         });
 
         it('Test sorting multiple keys', () => {

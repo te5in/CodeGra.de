@@ -44,7 +44,9 @@
       "can_see_linter_feedback_before_done",
       "can_see_user_feedback_before_done",
       "can_add_own_inline_comments",
-      "can_view_feedback_author"
+      "can_view_feedback_author",
+      "can_view_inline_feedback_before_approved",
+      "can_approve_inline_comments"
     ],
     "admin_role": false,
     "initial_role": false
@@ -106,7 +108,10 @@
       "can_add_own_inline_comments",
       "can_view_others_comment_edits",
       "can_view_feedback_author",
-      "can_email_students"
+      "can_email_students",
+      "can_view_inline_feedback_before_approved",
+      "can_approve_inline_comments",
+      "can_edit_peer_feedback_settings"
     ],
     "admin_role": true,
     "initial_role": true
@@ -155,7 +160,8 @@
       "can_see_user_feedback_before_done",
       "can_add_own_inline_comments",
       "can_view_others_comment_edits",
-      "can_view_feedback_author"
+      "can_view_feedback_author",
+      "can_edit_peer_feedback_settings"
     ],
     "admin_role": false,
     "initial_role": false

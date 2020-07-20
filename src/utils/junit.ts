@@ -172,13 +172,13 @@ export class CGJunit {
         Object.freeze(this);
     }
 
-    static fromXml(id: string, xml: string): CGJunit {
+    static fromXml(id: string, xml: ArrayBuffer): CGJunit {
         const rootNodes = CGJunit.parseXML(xml);
 
         return new CGJunit(id, mapHTMLCollection(rootNodes, CGJunitSuite.fromXml));
     }
 
-    private static parseXML(xml: string): HTMLCollection {
+    private static parseXML(xml: ArrayBuffer): HTMLCollection {
         const xmlDoc = new DOMParser().parseFromString(decodeBuffer(xml), 'text/xml');
 
         CGJunit.maybeRaiseParserError(xmlDoc);

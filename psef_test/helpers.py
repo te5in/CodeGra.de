@@ -27,7 +27,17 @@ def get_id(obj):
         return obj.id
 
 
+def dict_without(dct, *keys):
+    res = {**dct}
+    for key in keys:
+        del res[key]
+    return res
+
+
 def to_db_object(obj, cls):
+    if isinstance(obj, LocalProxy):
+        obj = obj._get_current_object()
+
     if isinstance(obj, cls):
         return obj
     return cls.query.get(get_id(obj))
@@ -256,6 +266,36 @@ def create_assignment(
     return res
 
 
+def enable_peer_feedback(
+    test_client,
+    assignment,
+    *,
+    amount=1,
+    days=6,
+    auto_approved=False,
+    err=False
+):
+    assignment_id = get_id(assignment)
+    time = (
+        None if days is None else datetime.timedelta(days=days).total_seconds()
+    )
+    return test_client.req(
+        'put',
+        f'/api/v1/assignments/{assignment_id}/peer_feedback_settings',
+        err or 200,
+        data={
+            'amount': amount,
+            'time': time,
+            'auto_approved': auto_approved,
+        },
+        result=create_error_template() if err else {
+            'amount': amount,
+            'time': time,
+            'auto_approved': auto_approved,
+        }
+    )
+
+
 def create_submission(
     test_client,
     assignment_id=None,
@@ -298,6 +338,8 @@ def create_submission(
             for_user = for_user['username']
         elif hasattr(for_user, 'username'):
             for_user = for_user.username
+        elif isinstance(for_user, int):
+            for_user = m.User.query.get(for_user).username
         path += f'?author={for_user}'
 
     return test_client.req(
