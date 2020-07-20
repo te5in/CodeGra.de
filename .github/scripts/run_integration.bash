@@ -9,7 +9,6 @@ if grep -r '\.only(' ./cypress; then
 fi
 
 make privacy_statement
-npm run start_integration &
 
 DBNAME="ci_test"
 export SQLALCHEMY_DATABASE_URI="postgresql://postgres:postgres@localhost:5432/${DBNAME}"
@@ -37,6 +36,8 @@ email_students = true
 peer_feedback = true
 
 EOF
+
+npm run start_integration &
 
 wget https://github.com/CodeGra-de/jplag/releases/download/v2.14.2-SNAPSHOT/jplag-2.14.2-SNAPSHOT-jar-with-dependencies.jar -O jplag.jar
 export PYTHONPATH="$PYTHONPATH:${PWD}"
