@@ -724,10 +724,11 @@ export default {
     },
 
     watch: {
-        submissions(newVal) {
-            if (newVal.length === 0) {
+        userId: {
+            immediate: true,
+            handler() {
                 this.loadData();
-            }
+            },
         },
 
         assignmentId: {
