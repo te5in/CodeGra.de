@@ -45,6 +45,7 @@
 
             <b-input-group>
                 <cg-number-input v-model="days"
+                                 name="days"
                                  :min="0"
                                  @keyup.ctrl.enter.native="doSubmit"/>
 
@@ -53,7 +54,9 @@
                 </b-input-group-prepend>
 
                 <cg-number-input v-model="hours"
+                                 name="hours"
                                  :min="0"
+                                 :max="24"
                                  @keyup.ctrl.enter.native="doSubmit"/>
 
                 <b-input-group-prepend is-text>
@@ -64,7 +67,7 @@
 
         <b-form-fieldset class="mt-4">
             <label>
-                Auto approve comments
+                Automatically approve comments
 
                 <cg-description-popover hug-text>
                     Should new peer feedback comments be automatically
@@ -74,7 +77,6 @@
             </label>
 
             <cg-toggle v-model="autoApproved"
-                       class="float-right"
                        label-on="Yes"
                        label-off="No" />
         </b-form-fieldset>
@@ -146,7 +148,7 @@ export default class PeerFeedbackSettings extends Vue {
 
     hours: number | null = secondsToHours(this.peerFeedbackSettings?.time);
 
-    get time() {
+    get totalTime() {
         const days = this.$utils.getProps(this, 0, 'days');
         const hours = this.$utils.getProps(this, 0, 'hours');
         return daysToSeconds(days) + hoursToSeconds(hours);
@@ -182,7 +184,7 @@ export default class PeerFeedbackSettings extends Vue {
     submit() {
         this.validateSettings();
         return this.$http.put(this.url, {
-            time: daysToSeconds(this.time),
+            time: this.totalTime,
             amount: this.amount,
             auto_approved: this.autoApproved,
         });
@@ -230,7 +232,8 @@ export default class PeerFeedbackSettings extends Vue {
     validateSettings(): void {
         const errs = utils.mapFilterObject({
             amount: this.ensurePositive(this.amount),
-            time: this.ensurePositive(this.time),
+            days: this.ensurePositive(this.days),
+            hours: this.ensurePositive(this.hours),
         }, (v: string, k: string) => {
             if (!v) {
                 return utils.Nothing;
@@ -247,11 +250,8 @@ export default class PeerFeedbackSettings extends Vue {
 
     // eslint-disable-next-line class-methods-use-this
     ensurePositive(value: number | null): string {
-        if (typeof value !== 'number') {
-            return 'is not a number';
-        }
-        if (value < 0) {
-            return 'is not positive';
+        if (typeof value !== 'number' || value < 0) {
+            return 'is not a positive number';
         }
         return '';
     }

@@ -7,23 +7,19 @@ context('Manage Assignment', () => {
         cy.visit('/');
         cy.createCourse(unique).then(res => {
             course = res;
-            cy.createAssignment(course.id, unique).then(res => {
-                assignment = res;
-            });
-        });
-    });
+            return cy.createAssignment(course.id, unique);
+        }).then(res => {
+            assignment = res;
 
-    beforeEach(() => {
-        cy.login('admin', 'admin');
-        cy.visit(`/courses/${course.id}/assignments/${assignment.id}`);
-        cy.get('.page.manage-assignment').should('exist');
+            cy.login('admin', 'admin');
+            cy.visit(`/courses/${course.id}/assignments/${assignment.id}`);
+            cy.get('.page.manage-assignment').should('exist');
+            cy.get('.page.manage-assignment .page-loader').should('not.exist');
+            cy.openCategory('General');
+        });
     });
 
     context('General', () => {
-        beforeEach(() => {
-            cy.openCategory('General');
-        });
-
         it('should only change then name in the header after submit was clicked', () => {
             cy.get('.page.manage-assignment')
                 .find('.local-header h4.title span')
@@ -147,39 +143,6 @@ context('Manage Assignment', () => {
                 popoverMsg: 'higher or equal to 1',
             });
         });
-
-        it('should be possible to delete an assignment', () => {
-            cy.get('.sidebar .sidebar-top a:nth-child(1)').click();
-            cy.get('.sidebar .sidebar-top a:nth-child(2)').click();
-            cy.get('.course-list').contains(course.name).click();
-            cy.get('.assignment-list').should('contain', assignment.name);
-
-            cy.get('.danger-zone-wrapper')
-                .contains('.submit-button', 'Delete assignment')
-                .submit('success', {
-                    hasConfirm: true,
-                    confirmInModal: true,
-                    doConfirm: false,
-                    confirmMsg: 'Deleting this assignment cannot be reversed',
-                });
-
-            cy.get('.danger-zone-wrapper')
-                .contains('.submit-button', 'Delete assignment')
-                .submit('success', {
-                    hasConfirm: true,
-                    confirmInModal: true,
-                    waitForDefault: false,
-                    confirmMsg: 'Deleting this assignment cannot be reversed',
-                });
-
-            cy.url().should('eq', Cypress.config().baseUrl + '/');
-            cy.get('.assig-list').should('not.contain', assignment.name);
-            cy.get('.course-wrapper').should('contain', course.name);
-
-            cy.get('.sidebar .sidebar-top a:nth-child(2)').click();
-            cy.get('.course-list').contains(course.name).click();
-            cy.get('.assignment-list').should('not.contain', assignment.name);
-        });
     });
 
     context('Peer feedback', () => {
@@ -192,10 +155,10 @@ context('Manage Assignment', () => {
                 });
 
             cy.get('.peer-feedback-settings')
-                .contains('.input-group', 'Amount of students')
+                .contains('.form-group', 'Amount of students')
                 .should('be.visible');
             cy.get('.peer-feedback-settings')
-                .contains('.input-group', 'Time to give peer feedback')
+                .contains('.form-group', 'Time to give peer feedback')
                 .should('be.visible');
             cy.get('.peer-feedback-settings')
                 .contains('.submit-button', 'Disable')
@@ -212,7 +175,7 @@ context('Manage Assignment', () => {
 
         it('should be possible to change the amount of students', () => {
             cy.get('.peer-feedback-settings')
-                .contains('.input-group', 'Amount of students')
+                .contains('.form-group', 'Amount of students')
                 .find('input')
                 .setText('10');
             cy.get('.peer-feedback-settings')
@@ -223,88 +186,96 @@ context('Manage Assignment', () => {
                 });
             cy.reload();
             cy.get('.peer-feedback-settings')
-                .contains('.input-group', 'Amount of students')
+                .contains('.form-group', 'Amount of students')
                 .find('input')
                 .should('have.value', '10');
         });
 
         it('should be possible to change the time to give feedback', () => {
             cy.get('.peer-feedback-settings')
-                .contains('.input-group', 'Time to give peer feedback')
-                .find('input')
+                .contains('.form-group', 'Time to give peer feedback')
+                .find('input[name="days"]')
                 .setText('10')
+            cy.get('.peer-feedback-settings')
+                .contains('.form-group', 'Time to give peer feedback')
+                .find('input[name="hours"]')
+                .setText('0')
             cy.get('.peer-feedback-settings')
                 .contains('.submit-button', 'Submit')
                 .submit('success');
             cy.reload();
+
             cy.get('.peer-feedback-settings')
-                .contains('.input-group', 'Time to give peer feedback')
-                .find('input')
+                .contains('.form-group', 'Time to give peer feedback')
+                .find('input[name="days"]')
                 .should('have.value', '10');
+            cy.get('.peer-feedback-settings')
+                .contains('.form-group', 'Time to give peer feedback')
+                .find('input[name="hours"]')
+                .should('have.value', '0');
         });
 
         it('should not be possible to set an invalid amount of students', () => {
             cy.get('.peer-feedback-settings')
-                .contains('.input-group', 'Amount of students')
+                .contains('.form-group', 'Amount of students')
                 .find('input')
                 .setText('abc');
             cy.get('.peer-feedback-settings')
                 .contains('.submit-button', 'Submit')
                 .submit('error', {
-                    popoverMsg: 'amount is not a number',
+                    popoverMsg: 'amount is not a positive number',
                 });
 
             cy.get('.peer-feedback-settings')
-                .contains('.input-group', 'Amount of students')
+                .contains('.form-group', 'Amount of students')
                 .find('input')
                 .clear();
             cy.get('.peer-feedback-settings')
                 .contains('.submit-button', 'Submit')
                 .submit('error', {
-                    popoverMsg: 'amount is not a number',
-                });
-
-            cy.get('.peer-feedback-settings')
-                .contains('.input-group', 'Amount of students')
-                .find('input')
-                .setText('-10');
-            cy.get('.peer-feedback-settings')
-                .contains('.submit-button', 'Submit')
-                .submit('error', {
-                    hasConfirm: true,
-                    popoverMsg: 'amount is not positive',
+                    popoverMsg: 'amount is not a positive number',
                 });
         });
 
         it('should not be possible to set an invalid time to give feedback', () => {
             cy.get('.peer-feedback-settings')
-                .contains('.input-group', 'Time to give peer feedback')
-                .find('input')
+                .contains('.form-group', 'Time to give peer feedback')
+                .find('input[name="days"]')
                 .setText('abc');
             cy.get('.peer-feedback-settings')
                 .contains('.submit-button', 'Submit')
                 .submit('error', {
-                    popoverMsg: 'time is not a number',
+                    popoverMsg: 'days is not a positive number',
                 });
 
             cy.get('.peer-feedback-settings')
-                .contains('.input-group', 'Time to give peer feedback')
-                .find('input')
+                .contains('.form-group', 'Time to give peer feedback')
+                .find('input[name="hours"]')
+                .setText('abc');
+            cy.get('.peer-feedback-settings')
+                .contains('.submit-button', 'Submit')
+                .submit('error', {
+                    popoverMsg: 'hours is not a positive number',
+                });
+
+            cy.get('.peer-feedback-settings')
+                .contains('.form-group', 'Time to give peer feedback')
+                .find('input[name="days"]')
                 .clear();
             cy.get('.peer-feedback-settings')
                 .contains('.submit-button', 'Submit')
                 .submit('error', {
-                    popoverMsg: 'time is not a number',
+                    popoverMsg: 'days is not a positive number',
                 });
 
             cy.get('.peer-feedback-settings')
-                .contains('.input-group', 'Time to give peer feedback')
-                .find('input')
-                .setText('-10');
+                .contains('.form-group', 'Time to give peer feedback')
+                .find('input[name="hours"]')
+                .clear();
             cy.get('.peer-feedback-settings')
                 .contains('.submit-button', 'Submit')
                 .submit('error', {
-                    popoverMsg: 'time is not positive',
+                    popoverMsg: 'hours is not a positive number',
                 });
         });
 
@@ -317,10 +288,10 @@ context('Manage Assignment', () => {
                 });
 
             cy.get('.peer-feedback-settings')
-                .contains('.input-group', 'Amount of students')
+                .contains('.form-group', 'Amount of students')
                 .should('not.exist');
             cy.get('.peer-feedback-settings')
-                .contains('.input-group', 'Time to give peer feedback')
+                .contains('.form-group', 'Time to give peer feedback')
                 .should('not.exist');
             cy.get('.peer-feedback-settings')
                 .contains('.submit-button', 'Disable')
@@ -335,7 +306,7 @@ context('Manage Assignment', () => {
 
         it('should not be possible to enable peer feedback for group assignments', () => {
             cy.createGroupSet(course.id);
-            cy.reload();
+            cy.login('admin', 'admin');
 
             cy.get('.assignment-group')
                 .find('.custom-checkbox')
@@ -383,6 +354,41 @@ context('Manage Assignment', () => {
                 .contains('.submit-button', 'Submit')
                 .should('be.visible')
                 .should('not.be.disabled');
+        });
+    });
+
+    context('DANGER ZONE!!!', () => {
+        it('should be possible to delete an assignment', () => {
+            cy.get('.sidebar .sidebar-top a:nth-child(1)').click();
+            cy.get('.sidebar .sidebar-top a:nth-child(2)').click();
+            cy.get('.course-list').contains(course.name).click();
+            cy.get('.assignment-list').should('contain', assignment.name);
+
+            cy.get('.danger-zone-wrapper')
+                .contains('.submit-button', 'Delete assignment')
+                .submit('success', {
+                    hasConfirm: true,
+                    confirmInModal: true,
+                    doConfirm: false,
+                    confirmMsg: 'Deleting this assignment cannot be reversed',
+                });
+
+            cy.get('.danger-zone-wrapper')
+                .contains('.submit-button', 'Delete assignment')
+                .submit('success', {
+                    hasConfirm: true,
+                    confirmInModal: true,
+                    waitForDefault: false,
+                    confirmMsg: 'Deleting this assignment cannot be reversed',
+                });
+
+            cy.url().should('eq', Cypress.config().baseUrl + '/');
+            cy.get('.assig-list').should('not.contain', assignment.name);
+            cy.get('.course-wrapper').should('contain', course.name);
+
+            cy.get('.sidebar .sidebar-top a:nth-child(2)').click();
+            cy.get('.course-list').contains(course.name).click();
+            cy.get('.assignment-list').should('not.contain', assignment.name);
         });
     });
 });
