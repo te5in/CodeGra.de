@@ -778,8 +778,6 @@ export default {
                 return;
             }
 
-            this.loadingInner = true;
-
             const promises = [
                 this.loadSubmissions(this.assignmentId),
                 this.loadRubric(),
@@ -793,15 +791,7 @@ export default {
 
             setPageTitle(`${this.assignment.name} ${pageTitleSep} Submissions`);
 
-            Promise.all(promises).then(
-                () => {
-                    this.loadingInner = false;
-                },
-                err => {
-                    this.error = err;
-                    this.loadingInner = false;
-                },
-            );
+            this.loadInner(Promise.all(promises));
         },
 
         loadGitData() {
@@ -837,7 +827,25 @@ export default {
 
         submitForceLoadSubmissions() {
             this.$root.$emit('cg::submissions-page::reload');
-            return this.forceLoadSubmissions(this.assignment.id);
+            return this.loadInner(
+                this.forceLoadSubmissions(this.assignment.id),
+            );
+        },
+
+        loadInner(promise) {
+            this.loadingInner = true;
+
+            return promise.then(
+                res => {
+                    this.loadingInner = false;
+                    return res;
+                },
+                err => {
+                    this.loadingInner = false;
+                    this.error = err;
+                    throw err;
+                },
+            );
         },
 
         goToSubmission(submission) {

@@ -2,18 +2,28 @@
 import Vue from 'vue';
 import axios from 'axios';
 
+import * as utils from '@/utils';
 import * as types from '../mutation-types';
 
 let Workspace = null;
 
 const getters = {
-    getWorkspace: state => (assignmentId, workspaceId) =>
-        state.workspaces[assignmentId][workspaceId],
-    getAssignmentWorkspaces: state => assignmentId => state.workspaces[assignmentId],
+    getWorkspace: state => workspaceId => state.workspaces[workspaceId],
+    getAssignmentWorkspaces: state => assignmentId => {
+        const workspaces = state.workspacesByAssignment[assignmentId];
+        if (workspaces == null) {
+            return {};
+        }
+        return utils.mapToObject(
+            [...state.workspacesByAssignment[assignmentId]],
+            workspaceId => state.workspaces[workspaceId],
+        );
+    },
 };
 
 const loaders = {
     workspaces: {},
+    workspacesByAssignment: {},
 };
 
 async function loadWorkspace(workspaceId) {
@@ -42,14 +52,14 @@ async function loadWorkspace(workspaceId) {
 const actions = {
     loadWorkspace({ commit, state }, { workspaceId, force }) {
         if (!force && Object.hasOwnProperty.call(state.workspaces, workspaceId)) {
-            return state.workspaces[workspaceId];
+            return Promise.resolve({ data: state.workspaces[workspaceId] });
         }
 
         if (!Object.hasOwnProperty.call(loaders.workspaces, workspaceId)) {
             loaders.workspaces[workspaceId] = loadWorkspace(workspaceId).then(
                 workspace => {
                     delete loaders.workspaces[workspaceId];
-                    commit(types.SET_WORKSPACE, { workspaceId, workspace });
+                    commit(types.SET_WORKSPACE, { workspaceId, workspace: workspace.data });
                     return workspace;
                 },
                 err => {
@@ -69,14 +79,21 @@ const actions = {
 
 const mutations = {
     [types.SET_WORKSPACE](state, { workspaceId, workspace }) {
+        Vue.set(state.workspaces, workspaceId, workspace);
+
         const assignmentId = workspace.assignment_id;
-        const workspaces = state.workspaces[assignmentId] || {};
-        Vue.set(workspaces, workspaceId, workspace);
-        Vue.set(state.workspaces, assignmentId, workspaces);
+        const assigWorkspaces = state.workspacesByAssignment[assignmentId] || new Set();
+        assigWorkspaces.add(workspaceId);
+        Vue.set(state.workspacesByAssignment, assignmentId, assigWorkspaces);
     },
 
     [types.CLEAR_ASSIGNMENT_WORKSPACES](state, assignmentId) {
-        Vue.set(state.workspaces, assignmentId, {});
+        const ids = state.workspacesByAssignment[assignmentId];
+        Vue.delete(state.workspacesByAssignment, assignmentId);
+
+        if (ids != null) {
+            ids.forEach(workspaceId => Vue.delete(state.workspaces, workspaceId));
+        }
     },
 };
 
@@ -84,6 +101,7 @@ export default {
     namespaced: true,
     state: {
         workspaces: {},
+        workspacesByAssignment: {},
     },
     getters,
     actions,
