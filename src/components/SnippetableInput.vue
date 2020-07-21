@@ -400,7 +400,7 @@ export default {
             const wantedCursor = start + selected.value.length;
             this.confirmSnippet();
 
-            const el = this.$waitForRef('field');
+            const el = await this.$waitForRef('field');
             if (el) {
                 el.focus();
                 el.setSelectionRange(wantedCursor, wantedCursor);
