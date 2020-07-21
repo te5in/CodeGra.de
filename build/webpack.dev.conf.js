@@ -25,7 +25,7 @@ const plugins = [
   new FriendlyErrorsPlugin()
 ];
 
-if (process.env.NODE_ENV !== 'integration_testing') {
+if (config.dev.env.NODE_ENV !== 'integration_testing') {
   // https://github.com/glenjamin/webpack-hot-middleware#installation--usage
   plugins.push(new webpack.HotModuleReplacementPlugin());
 }
