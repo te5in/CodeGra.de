@@ -1,6 +1,7 @@
 <template>
 <div class="junit-result w-100">
-    <div v-if="junit.suites.length === 0">
+    <div v-if="junit.suites.length === 0"
+         class"p-3">
         <b-alert variant="info" show>
             This test contains no suites.
         </b-alert>
@@ -21,7 +22,8 @@
              ourselves does the trick. -->
         <masonry :cols="{ default: $root.$windowWidth <= $root.mediumWidth ? 1 : 2 }"
                  gutter="1rem">
-            <div v-if="suite.cases.length === 0">
+            <div v-if="suite.cases.length === 0"
+                 class="py-1">
                 <b-alert variant="info" show>
                     This suite contains no cases.
                 </b-alert>
