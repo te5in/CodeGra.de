@@ -190,24 +190,25 @@
                     <feedback-reply-history :reply="reply"/>
                 </b-popover>
 
-                    <b-btn @click="showExternalImages = !showExternalImages"
-                           class="state-default"
-                           v-b-popover.top.hover="externalImagesTogglePopover"
-                           v-if="hasExternalImages">
-                        <icon name="picture-o"
-                              v-if="showExternalImages"
-                              class="enabled"/>
-                        <span v-else class="strikethrough disabled">
+                <b-btn @click="showExternalImages = !showExternalImages"
+                       class="state-default"
+                       v-b-popover.top.hover="externalImagesTogglePopover"
+                       v-if="hasExternalImages">
+                    <icon name="picture-o"
+                          v-if="showExternalImages"
+                          class="enabled"/>
+                    <span v-else class="strikethrough disabled">
                             <icon name="picture-o" />
-                        </span>
-                    </b-btn>
+                    </span>
+                </b-btn>
+
+                <peer-feedback-assessment
+                    v-if="reply.isPeerFeedback"
+                    :disabled="nonEditable || !canApprove"
+                    :reply="reply"
+                    @updated="emitUpdated" />
 
                 <template v-if="!nonEditable">
-                    <peer-feedback-assessment
-                        :disabled="!canApprove"
-                        :reply="reply"
-                        @updated="emitUpdated" />
-
                     <cg-submit-button
                         v-if="editable"
                         ref="deleteButton"
