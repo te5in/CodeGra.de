@@ -188,7 +188,7 @@ export default {
         },
 
         async editing() {
-            const nameInput = this.$waitForRef('nameInput');
+            const nameInput = await this.$waitForRef('nameInput');
             if (nameInput != null) {
                 nameInput.focus();
             }
