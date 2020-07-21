@@ -67,11 +67,11 @@
                             :show-whitespace="true"
                             :warn-no-newline="false"
                             :empty-file-message="'No output.'" />
+                        </div>
                     </div>
                 </div>
-            </div>
-        </masonry>
-    </div>
+            </masonry>
+        </div>
     </div>
 </div>
 </template>
