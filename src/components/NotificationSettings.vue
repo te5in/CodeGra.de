@@ -142,6 +142,8 @@ export default class NotificationSettings extends Vue {
 </script>
 
 <style lang="less" scoped>
+@import "~mixins.less";
+
 td {
     vertical-align: middle;
 }
@@ -167,5 +169,9 @@ td {
 .feedback-notification-options-list b {
     text-transform: uppercase;
     font-size: 80%;
+}
+
+.notification-settings {
+    .default-background;
 }
 </style>
