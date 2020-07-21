@@ -174,6 +174,12 @@
                 </span>
             </div>
             <div v-if="showApprovalToggle || editable || canSeeEdits || hasExternalImages" class="d-flex edit-buttons-wrapper">
+                <peer-feedback-assessment
+                    v-if="showApprovalToggle"
+                    :disabled="nonEditable || !canApprove"
+                    :reply="reply"
+                    @updated="emitUpdated" />
+
                 <b-btn v-if="canSeeEdits && reply.lastEdit"
                        class="state-default"
                        :id="`${componentId}-history-btn`">
@@ -201,12 +207,6 @@
                             <icon name="picture-o" />
                     </span>
                 </b-btn>
-
-                <peer-feedback-assessment
-                    v-if="showApprovalToggle"
-                    :disabled="nonEditable || !canApprove"
-                    :reply="reply"
-                    @updated="emitUpdated" />
 
                 <template v-if="!nonEditable">
                     <cg-submit-button
