@@ -1,77 +1,75 @@
 <template>
 <div class="junit-result w-100">
-    <div>
-        <div v-if="junit.suites.length === 0" class"p-3">
-            <b-alert variant="info" show>
-                This test contains no suites.
-            </b-alert>
+    <div class="p-3" v-if="junit.suites.length === 0">
+        <b-alert variant="info" show>
+            This test contains no suites.
+        </b-alert>
+    </div>
+    <div v-for="suite in junit.suites"
+         class="junit-suite p-3">
+        <div class="d-flex align-items-center mb-1">
+            <b-badge v-if="hasSuiteWeights"
+                     class="mr-2 text-small-uppercase">
+                weight: {{ suite.weight }}
+            </b-badge>
+            <h5 class="mb-0">{{ suite.name }} ({{ suite.successful }} / {{ suite.runTests }})</h5>
         </div>
-        <div v-for="suite in junit.suites"
-             class="junit-suite p-3">
-            <div class="d-flex align-items-center mb-1">
-                <b-badge v-if="hasSuiteWeights"
-                         class="mr-2 text-small-uppercase">
-                    weight: {{ suite.weight }}
-                </b-badge>
-                <h5 class="mb-0">{{ suite.name }} ({{ suite.successful }} / {{ suite.runTests }})</h5>
+
+        <!-- The masonry would not change the number of columns when resizing
+             the window for some unknown reason, but doing the comparison
+             ourselves does the trick. -->
+        <masonry :cols="{ default: $root.$windowWidth <= $root.mediumWidth ? 1 : 2 }"
+                 gutter="1rem">
+            <div v-if="suite.cases.length === 0"
+                 class="py-1">
+                <b-alert variant="info" show>
+                    This suite contains no cases.
+                </b-alert>
             </div>
-
-            <!-- The masonry would not change the number of columns when resizing
-                 the window for some unknown reason, but doing the comparison
-                 ourselves does the trick. -->
-            <masonry :cols="{ default: $root.$windowWidth <= $root.mediumWidth ? 1 : 2 }"
-                     gutter="1rem">
-                <div v-if="suite.cases.length === 0"
-                     class="py-1">
-                    <b-alert variant="info" show>
-                        This suite contains no cases.
-                    </b-alert>
-                </div>
-                <div v-for="testCase in suite.cases"
-                     v-else
-                     class="py-1">
-                    <div class="border rounded overflow-hidden">
-                        <div class="d-flex flex-row p-2">
-                            <div class="flex-grow-1">
-                                <b-badge v-if="hasCaseWeights"
-                                         class="text-small-uppercase">
-                                    weight: {{ testCase.weight }}
-                                </b-badge>
-                                <div class="badge classname">
-                                    <code>{{ testCase.classname }}</code>
-                                </div>
-                                {{ testCase.name }}
+            <div v-for="testCase in suite.cases"
+                 v-else
+                 class="py-1">
+                <div class="border rounded overflow-hidden">
+                    <div class="d-flex flex-row p-2">
+                        <div class="flex-grow-1">
+                            <b-badge v-if="hasCaseWeights"
+                                     class="text-small-uppercase">
+                                weight: {{ testCase.weight }}
+                            </b-badge>
+                            <div class="badge classname">
+                                <code>{{ testCase.classname }}</code>
                             </div>
-
-                            <div :title="statePopover(testCase.state)"
-                                 class="flex-grow-0 ml-2">
-                                <fa-icon :name="testCase.fontAwesomeIcon.icon"
-                                         style="width: 1rem;"
-                                         :class="testCase.fontAwesomeIcon.cls" />
-                            </div>
+                            {{ testCase.name }}
                         </div>
 
-                        <pre v-if="testCase.message"
-                             class="px-3 pb-2 mb-0"
-                             style="white-space: pre-wrap;"
-                             >{{ testCase.message }}</pre>
-                        <div v-if="testCase.content != null">
-                            <inner-code-viewer
-                                class="border-top"
-                                v-if="testCase.content"
-                                :assignment="assignment"
-                                :code-lines="testCase.content.map($utils.htmlEscape)"
-                                file-id="-1"
-                                :feedback="{}"
-                                :start-line="0"
+                        <div :title="statePopover(testCase.state)"
+                             class="flex-grow-0 ml-2">
+                            <fa-icon :name="testCase.fontAwesomeIcon.icon"
+                                     style="width: 1rem;"
+                                     :class="testCase.fontAwesomeIcon.cls" />
+                        </div>
+                    </div>
+
+                    <pre v-if="testCase.message"
+                         class="px-3 pb-2 mb-0"
+                         style="white-space: pre-wrap;"
+                         >{{ testCase.message }}</pre>
+                    <div v-if="testCase.content != null">
+                        <inner-code-viewer
+                            class="border-top"
+                            v-if="testCase.content"
+                            :assignment="assignment"
+                            :code-lines="testCase.content.map($utils.htmlEscape)"
+                            file-id="-1"
+                            :feedback="{}"
+                            :start-line="0"
                             :show-whitespace="true"
                             :warn-no-newline="false"
                             :empty-file-message="'No output.'" />
-                        </div>
                     </div>
                 </div>
-            </masonry>
-        </div>
+            </div>
+        </masonry>
     </div>
 </div>
 </template>
