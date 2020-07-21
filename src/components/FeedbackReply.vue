@@ -173,7 +173,7 @@
                     </span>
                 </span>
             </div>
-            <div v-if="canApprove || editable || canSeeEdits || hasExternalImages" class="d-flex edit-buttons-wrapper">
+            <div v-if="showApprovalToggle || editable || canSeeEdits || hasExternalImages" class="d-flex edit-buttons-wrapper">
                 <b-btn v-if="canSeeEdits && reply.lastEdit"
                        class="state-default"
                        :id="`${componentId}-history-btn`">
@@ -203,7 +203,7 @@
                 </b-btn>
 
                 <peer-feedback-assessment
-                    v-if="reply.isPeerFeedback"
+                    v-if="showApprovalToggle"
                     :disabled="nonEditable || !canApprove"
                     :reply="reply"
                     @updated="emitUpdated" />
@@ -465,6 +465,10 @@ Do you want to overwrite it?`;
             return 'Are you sure you want to discard your changes?';
         }
         return '';
+    }
+
+    get showApprovalToggle() {
+        return this.reply.isPeerFeedback || !this.reply.approved;
     }
 
     @Ref() readonly inputField: SnippetableInput | null;
