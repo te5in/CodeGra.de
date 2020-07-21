@@ -82,11 +82,11 @@
                 :should-fade-reply="shouldFadeReply"
                 v-if="hasFeedback(i - 1) && shouldRenderThread(feedback[i - 1 + lineFeedbackOffset])"/>
         </li>
-        <li class="empty-file"
+        <li class="empty-file px-2"
             v-if="innerCodeLines.length === 1 && innerCodeLines[0] === ''">
             {{ emptyFileMessage }}
         </li>
-        <li class="missing-newline"
+        <li class="missing-newline px-2"
             v-if="showMissingNewline">
             <icon name="level-up" class="missing-newline-icon"/> Missing newline at the end of file.
         </li>

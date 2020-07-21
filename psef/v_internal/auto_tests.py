@@ -400,10 +400,12 @@ def update_step_result(auto_test_id: int, result_id: int
         res_id = opt_get('id', int, None)
         has_attachment = opt_get('has_attachment', bool, False)
 
-    result = get_or_404(
+    result = filter_single_or_404(
         models.AutoTestResult,
-        result_id,
+        models.AutoTestResult.id == result_id,
         also_error=lambda res: res.run.auto_test_id != auto_test_id,
+        with_for_update=True,
+        with_for_update_of=models.AutoTestResult,
     )
     _ensure_from_latest_work(result)
     _verify_and_get_runner(result.run, password)

@@ -55,7 +55,7 @@ python run.py > /dev/null &
 curl http://localhost:8080/
 curl http://localhost:8080/app.js | tail -c 100
 
-sleep 10
+sleep 30
 
 FILES=$(python - <<PYTHON
 import os

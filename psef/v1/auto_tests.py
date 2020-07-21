@@ -45,7 +45,7 @@ def _get_at_set_by_ids(
 
 
 def _get_result_by_ids(
-    auto_test_id: int, run_id: int, result_id: int
+    auto_test_id: int, run_id: int, result_id: int, *, lock: bool = False
 ) -> models.AutoTestResult:
     test = get_or_404(
         models.AutoTest,
@@ -60,6 +60,14 @@ def _get_result_by_ids(
             return True
         return False
 
+    if lock:
+        return filter_single_or_404(
+            models.AutoTestResult,
+            models.AutoTestResult.id == result_id,
+            also_error=also_error,
+            with_for_update=True,
+            with_for_update_of=models.AutoTestResult,
+        )
     return get_or_404(models.AutoTestResult, result_id, also_error=also_error)
 
 
@@ -782,7 +790,7 @@ def restart_auto_test_result(auto_test_id: int, run_id: int, result_id: int
     :param result_id: The id of the result you want to restart.
     :returns: The extended version of a :class:`.models.AutoTestResult`.
     """
-    result = _get_result_by_ids(auto_test_id, run_id, result_id)
+    result = _get_result_by_ids(auto_test_id, run_id, result_id, lock=True)
 
     auth.AutoTestResultPermissions(result).ensure_may_restart()
 

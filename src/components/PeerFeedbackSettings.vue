@@ -205,7 +205,7 @@ export default class PeerFeedbackSettings extends Vue {
     async doSubmit() {
         const btn = await this.$waitForRef('submitButton');
         if (btn != null) {
-            btn.onClick();
+            (btn as any).onClick();
         }
     }
 

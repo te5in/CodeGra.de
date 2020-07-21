@@ -173,7 +173,13 @@
                     </span>
                 </span>
             </div>
-            <div v-if="canApprove || editable || canSeeEdits || hasExternalImages" class="d-flex edit-buttons-wrapper">
+            <div v-if="showApprovalToggle || editable || canSeeEdits || hasExternalImages" class="d-flex edit-buttons-wrapper">
+                <peer-feedback-assessment
+                    v-if="showApprovalToggle"
+                    :disabled="nonEditable || !canApprove"
+                    :reply="reply"
+                    @updated="emitUpdated" />
+
                 <b-btn v-if="canSeeEdits && reply.lastEdit"
                        class="state-default"
                        :id="`${componentId}-history-btn`">
@@ -190,24 +196,19 @@
                     <feedback-reply-history :reply="reply"/>
                 </b-popover>
 
-                    <b-btn @click="showExternalImages = !showExternalImages"
-                           class="state-default"
-                           v-b-popover.top.hover="externalImagesTogglePopover"
-                           v-if="hasExternalImages">
-                        <icon name="picture-o"
-                              v-if="showExternalImages"
-                              class="enabled"/>
-                        <span v-else class="strikethrough disabled">
+                <b-btn @click="showExternalImages = !showExternalImages"
+                       class="state-default"
+                       v-b-popover.top.hover="externalImagesTogglePopover"
+                       v-if="hasExternalImages">
+                    <icon name="picture-o"
+                          v-if="showExternalImages"
+                          class="enabled"/>
+                    <span v-else class="strikethrough disabled">
                             <icon name="picture-o" />
-                        </span>
-                    </b-btn>
+                    </span>
+                </b-btn>
 
                 <template v-if="!nonEditable">
-                    <peer-feedback-assessment
-                        :disabled="!canApprove"
-                        :reply="reply"
-                        @updated="emitUpdated" />
-
                     <cg-submit-button
                         v-if="editable"
                         ref="deleteButton"
@@ -464,6 +465,10 @@ Do you want to overwrite it?`;
             return 'Are you sure you want to discard your changes?';
         }
         return '';
+    }
+
+    get showApprovalToggle() {
+        return this.reply.isPeerFeedback || !this.reply.approved;
     }
 
     @Ref() readonly inputField: SnippetableInput | null;

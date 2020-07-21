@@ -443,7 +443,7 @@ export default {
         },
 
         putGrade() {
-            let grade = this.grade;
+            let grade = this.grade === '' ? null : this.grade;
 
             if (grade != null && !isDecimalNumber(grade)) {
                 throw new Error('Grade must be a number.');

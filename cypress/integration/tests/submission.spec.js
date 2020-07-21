@@ -306,12 +306,9 @@ context('Submission page', () => {
             }
         });
 
-        it('should not be possible to give an empty grade', () => {
-            getGradeInput()
-                .clear();
-            submitGrade('error', {
-                popoverMsg: 'Grade must be a number.',
-            });
+        it('should be possible to give an empty grade', () => {
+            getGradeInput().clear();
+            submitGrade('success');
         });
 
         it('should be possible to delete the grade', () => {

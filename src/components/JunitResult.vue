@@ -1,6 +1,12 @@
 <template>
 <div class="junit-result w-100">
-    <div v-for="suite in junit.suites" class="junit-suite p-3">
+    <div class="p-3" v-if="junit.suites.length === 0">
+        <b-alert variant="info" show>
+            This test contains no suites.
+        </b-alert>
+    </div>
+    <div v-for="suite in junit.suites"
+         class="junit-suite p-3">
         <div class="d-flex align-items-center mb-1">
             <b-badge v-if="hasSuiteWeights"
                      class="mr-2 text-small-uppercase">
@@ -14,7 +20,15 @@
              ourselves does the trick. -->
         <masonry :cols="{ default: $root.$windowWidth <= $root.mediumWidth ? 1 : 2 }"
                  gutter="1rem">
-            <div v-for="testCase in suite.cases" class="py-1">
+            <div v-if="suite.cases.length === 0"
+                 class="py-1">
+                <b-alert variant="info" show>
+                    This suite contains no cases.
+                </b-alert>
+            </div>
+            <div v-for="testCase in suite.cases"
+                 v-else
+                 class="py-1">
                 <div class="border rounded overflow-hidden">
                     <div class="d-flex flex-row p-2">
                         <div class="flex-grow-1">

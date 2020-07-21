@@ -47,10 +47,11 @@ export default class PeerFeedbackAssessment extends Vue {
     }
 
     get popoverMessage(): string {
+        const comment = `${this.reply.isPeerFeedback ? 'peer feedback ' : ''}comment`;
         if (this.disabled) {
-            return `This peer feedback has${this.approved ? '' : ' not'} been approved.`;
+            return `This ${comment} has${this.approved ? '' : ' not'} been approved.`;
         }
-        return 'Approve peer feedback';
+        return `Change approval status for this ${comment}.`;
     }
 
     approvedPromise: null | Promise<unknown> = null;
