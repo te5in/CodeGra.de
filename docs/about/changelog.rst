@@ -6,6 +6,16 @@ Version *Next*
 
 **Released**: TBD
 
+Version Mosaic
+---------------
+
+**Released**: July 21st, 2020
+
+With CodeGrade Peer Feedback it is now possible for students to review code of
+other students, allowing them to learn from each other. Furthermore, it is even
+easier to integrate existing unit tests in AutoTest, by utilizing the new "Unit
+test" step type.
+
 **Features**
 
 - Add "Unit Test" AutoTest step `(#1385)
