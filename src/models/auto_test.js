@@ -349,15 +349,25 @@ export class AutoTestResult {
                     }
                     stepResult.step = step;
 
-                    if (step.type === 'check_points' && stepResult.state === 'failed') {
-                        suiteFailed = true;
-                    } else if (step.type === 'custom_output' && stepResult.state === 'passed') {
-                        const points = stepResult.log.points;
-                        if (points === 0) {
-                            stepResult.state = 'failed';
-                        } else if (points < 1) {
-                            stepResult.state = 'partial';
-                        }
+                    switch (step.type) {
+                        case 'check_points':
+                            if (stepResult.state === 'failed') {
+                                suiteFailed = true;
+                            }
+                            break;
+                        case 'custom_output':
+                        case 'unit_test':
+                            if (stepResult.state === 'passed') {
+                                const points = stepResult.log.points;
+                                if (points === 0) {
+                                    stepResult.state = 'failed';
+                                } else if (points < 1) {
+                                    stepResult.state = 'partial';
+                                }
+                            }
+                            break;
+                        default:
+                            break;
                     }
 
                     suiteResult.achieved += getProps(stepResult, 0, 'achieved_points');
