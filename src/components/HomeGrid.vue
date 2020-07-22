@@ -198,6 +198,8 @@ export default {
             );
         },
 
+        // TODO: This is duplicated in Sidebar/CourseList.vue. We should factor
+        // it out into a Course or CourseCollection model or something.
         courseExtraDataToDisplay() {
             const getNameAndYear = c => `${c.name} (${c.created_at.slice(0, 4)})`;
 
@@ -249,14 +251,10 @@ export default {
     async mounted() {
         await Promise.all([this.$afterRerender(), this.loadCourses()]);
         this.loadingCourses = false;
-        for (let i = 0; i < 2; ++i) {
-            // eslint-disable-next-line no-await-in-loop
-            await this.$afterRerender();
-            const input = this.$refs.searchInput;
-            if (input) {
-                input.focus();
-                break;
-            }
+
+        const searchInput = await this.$waitForRef('searchInput');
+        if (searchInput != null) {
+            searchInput.focus();
         }
     },
 

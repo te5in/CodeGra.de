@@ -25,6 +25,7 @@ import flask
 import requests
 import structlog
 import mypy_extensions
+import sqlalchemy_utils
 from flask import g, request
 from werkzeug.local import LocalProxy
 from mypy_extensions import Arg
@@ -38,6 +39,7 @@ from cg_json import (
     JSONResponse, ExtendedJSONResponse, jsonify, extended_jsonify
 )
 from cg_timers import timed_code
+from cg_helpers import flatten, handle_none, on_not_none, maybe_wrap_in_list
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import (
     EmptyResponse, make_empty_response, callback_after_this_request
@@ -129,34 +131,6 @@ def add_warning(warning: str, code: psef.exceptions.APIWarnings) -> None:
     if not hasattr(g, 'request_warnings'):
         g.request_warnings = []
     g.request_warnings.append(psef.errors.make_warning(warning, code))
-
-
-def handle_none(value: t.Optional[T], default: TT) -> t.Union[T, TT]:
-    """Get the given ``value`` or ``default`` if ``value`` is ``None``.
-
-    >>> handle_none(None, 5)
-    5
-    >>> handle_none(5, 6)
-    5
-    >>> handle_none(5.5, 6)
-    5.5
-    """
-    return default if value is None else value
-
-
-def on_not_none(value: t.Optional[T],
-                callback: t.Callable[[T], K]) -> t.Optional[K]:
-    """Call a given ``callback`` if the given ``value`` is not none.
-
-    :param value: The value to operate on if not ``None``.
-    :param callback: The callback to call with ``value`` if the ``value`` is
-        not ``None``.
-
-    :returns: The return of the ``callback`` or ``None``.
-    """
-    if value is not None:
-        return callback(value)
-    return None
 
 
 def add_deprecate_warning(warning: str) -> None:
@@ -275,7 +249,7 @@ def escape_like(unescaped_like: str) -> str:
     :param unescaped_like: The string to escape
     :returns: The same string but escaped
     """
-    return re.sub(r'(%|_|\\)', r'\\\1', unescaped_like)
+    return sqlalchemy_utils.escape_like(unescaped_like, escape_char='\\')
 
 
 class FloatHelpers:
@@ -866,7 +840,25 @@ class TransactionGet(Protocol[K]):
         self,
         to_get: K,
         typ: t.Tuple[t.Type[T], t.Type[TT]],
+        *,
+        transform: t.Callable[[t.Union[T, TT]], ZZ],
+    ) -> ZZ:
+        ...
+
+    @t.overload
+    def __call__(
+        self,
+        to_get: K,
+        typ: t.Tuple[t.Type[T], t.Type[TT]],
     ) -> t.Union[T, TT]:
+        ...
+
+    @t.overload
+    def __call__(
+        self,
+        to_get: K,
+        typ: t.Tuple[t.Type[T], t.Type[TT], t.Type[ZZ]],
+    ) -> t.Union[T, TT, ZZ]:
         ...
 
 
@@ -1724,38 +1716,6 @@ def readable_join(lst: t.Sequence[str]) -> str:
     return ', '.join(lst[:-1]) + ', and ' + lst[-1]
 
 
-def maybe_wrap_in_list(maybe_lst: t.Union[t.List[T], T]) -> t.List[T]:
-    """Wrap an item into a list if it is not already a list.
-
-    >>> maybe_wrap_in_list(5)
-    [5]
-    >>> maybe_wrap_in_list([5])
-    [5]
-    >>> maybe_wrap_in_list([5, 6])
-    [5, 6]
-    >>> maybe_wrap_in_list({5 : 6})
-    [{5: 6}]
-    >>> maybe_wrap_in_list((1, 2))
-    [(1, 2)]
-    >>> item = object()
-    >>> maybe_wrap_in_list(item)[0] is item
-    True
-    >>> lst_item = [object()]
-    >>> maybe_wrap_in_list(lst_item) is lst_item
-    True
-    >>> class my_list(list): pass
-    >>> obj = my_list(['5'])
-    >>> maybe_wrap_in_list(obj) is obj
-    True
-
-    :param maybe_lst: The item to maybe wrap.
-    :returns: The item wrapped or just the item.
-    """
-    if isinstance(maybe_lst, list):
-        return maybe_lst
-    return [maybe_lst]
-
-
 def contains_duplicate(it_to_check: t.Iterable[T_Hashable]) -> bool:
     """Check if an iterable contains duplicate values.
 
@@ -1807,25 +1767,6 @@ def chunkify(iterable: t.Iterable[T],
 
     if cur:
         yield cur
-
-
-def flatten(it_to_flatten: t.Iterable[t.Iterable[T]]) -> t.List[T]:
-    """Flatten a given iterable of iterables to a list.
-
-    >>> flatten((range(2) for _ in range(4)))
-    [0, 1, 0, 1, 0, 1, 0, 1]
-    >>> flatten((range(i) for i in range(5)))
-    [0, 0, 1, 0, 1, 2, 0, 1, 2, 3]
-    >>> flatten((range(2) for _ in range(0)))
-    []
-    >>> flatten([[[1, 2]], [[1, 2]]])
-    [[1, 2], [1, 2]]
-
-    :param it_to_flatten: The iterable to flatten, which will be iterated
-        completely.
-    :returns: A fresh flattened list.
-    """
-    return [x for wrap in it_to_flatten for x in wrap]
 
 
 def maybe_unwrap_proxy(

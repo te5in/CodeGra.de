@@ -219,6 +219,30 @@ export default {
         histogramOptions() {
             const getDataset = (tooltipItem, data) => data.datasets[tooltipItem.datasetIndex];
 
+            const title = (tooltipItems, data) => {
+                const tooltipItem = this.$utils.getProps(tooltipItems, null, 0);
+                if (tooltipItem == null) {
+                    return '';
+                }
+
+                const ds = getDataset(tooltipItem, data);
+                const rubricLockReason = this.$utils.getProps(
+                    ds,
+                    null,
+                    'stats',
+                    tooltipItem.index,
+                    'rubricRow',
+                    'locked',
+                );
+
+                switch (rubricLockReason) {
+                    case 'auto_test':
+                        return `${tooltipItem.label} (AutoTest)`;
+                    default:
+                        return tooltipItem.label;
+                }
+            };
+
             const label = (tooltipItem, data) => {
                 const ds = getDataset(tooltipItem, data);
                 return ds.label;
@@ -232,6 +256,7 @@ export default {
 
                 // Do not escape, chart.js does its own escaping.
                 return [
+                    `Max. points: ${stats.rubricRow.maxPoints}`,
                     `Times filled: ${stats.nTimesFilled}`,
                     `Mean: ${numOrDash(stats.mean)}`,
                     `Std. deviation: ${numOrDash(stats.stdev)}`,
@@ -257,7 +282,7 @@ export default {
                     ],
                 },
                 tooltips: {
-                    callbacks: { label, afterLabel },
+                    callbacks: { title, label, afterLabel },
                 },
                 plugins: [errorBarsPlugin],
             };
@@ -335,6 +360,7 @@ export default {
                         rir: source.rirPerCat[row.id],
                         nTimesFilled: source.nTimesFilledPerCat[row.id],
                         rowId: row.id,
+                        rubricRow: row,
                     };
                     stats.push(rowStats);
                     // Make sure we render at least a minimal bar for each

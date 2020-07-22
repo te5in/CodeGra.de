@@ -27,11 +27,39 @@ class LockNamespaces(enum.Enum):
     """
     comment_base = 1
     user = 2
+    peer_feedback_division = 3
 
 
 NAMESPACE_RESERVE_BITS = 8
 MAX_LOCK_VALUE = 2 ** 63
 MAX_GIVEN_VALUE = MAX_LOCK_VALUE >> NAMESPACE_RESERVE_BITS
+
+
+def maybe_acquire_lock(
+    checker: t.Callable[[], bool], namespace: LockNamespaces,
+    value: t.Union[int, str]
+) -> bool:
+    """Maybe acquire the lock in the given ``namespace`` for the given
+    ``value``.
+
+    This method is very useful if you want to minimize the amount of locks
+    held, but still want to be safe. This method checks the checker function
+    without the lock held, if it returns ``True`` it acquires the lock and
+    checks the checker function again.
+
+    :param checker: The check to check if we should acquire the lock, this
+        method may be called more than once. The lock wil only be required if
+        this function returns ``True``.
+    :param namespace: The namespace in which we should acquire the lock.
+    :param value: The value in the namespace in which we should acquire the
+        lock.
+
+    :returns: The value as returned by the checker.
+    """
+    if checker():
+        acquire_lock(namespace=namespace, value=value)
+        return checker()
+    return False
 
 
 def acquire_lock(namespace: LockNamespaces, value: t.Union[int, str]) -> None:

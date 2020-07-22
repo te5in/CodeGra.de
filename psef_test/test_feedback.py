@@ -8,7 +8,7 @@ import helpers
 import cg_dt_utils
 import psef.models as m
 from dotdict import dotdict
-from helpers import get_id, create_marker
+from helpers import get_id, dict_without, create_marker
 from psef.permissions import CoursePermission as CPerm
 
 perm_error = create_marker(pytest.mark.perm_error)
@@ -20,40 +20,56 @@ only_own = create_marker(pytest.mark.only_own)
 @pytest.fixture
 def make_add_reply(session, test_client, error_template, mail_functions):
     class Reply(dict):
-        def delete(self):
-            test_client.req(
-                'delete', (
-                    f'/api/v1/comments/{self["comment_base_id"]}/'
-                    f'replies/{self["id"]}'
-                ), 204
-            )
-
-        def update(self, new_text, now=None):
-            url = (
+        def get_url(self):
+            return (
                 f'/api/v1/comments/{self["comment_base_id"]}/'
                 f'replies/{self["id"]}'
             )
+
+        def delete(self):
+            test_client.req('delete', self.get_url(), 204)
+
+        def set_approval(self, approved: bool, *, err=False):
+            result = error_template if err else {
+                **self,
+                'approved': approved,
+            }
+            res = test_client.req(
+                'post' if approved else 'delete',
+                f'{self.get_url()}/approval',
+                err or 200,
+                result=result
+            )
+            if err:
+                return res
+            return Reply(res)
+
+        def update(self, new_text, now=None, *, approved=None, err=False):
             if now is None:
                 now = cg_dt_utils.DatetimeWithTimezone.utcnow()
+            if approved is None:
+                approved = self['approved']
 
             with freeze_time(now):
-                return Reply(
-                    test_client.req(
-                        'patch',
-                        url,
-                        200,
-                        data={'comment': new_text},
-                        result={
-                            **self,
-                            'comment': new_text,
-                            'last_edit': now.isoformat(),
-                        },
-                    )
+                res = test_client.req(
+                    'patch',
+                    self.get_url(),
+                    err or 200,
+                    data={'comment': new_text},
+                    result=error_template if err else {
+                        **self,
+                        'comment': new_text,
+                        'last_edit': now.isoformat(),
+                        'approved': approved,
+                    },
                 )
+                if not err:
+                    return Reply(res)
+                return res
 
     def inner(work_id):
         code_id = session.query(m.File.id).filter(
-            m.File.work_id == work_id,
+            m.File.work_id == get_id(work_id),
             m.File.parent_id.isnot(None),
             m.File.name != '__init__',
         ).first()[0]
@@ -65,9 +81,11 @@ def make_add_reply(session, test_client, error_template, mail_functions):
             include_base=False,
             in_reply_to=None,
             expect_error=False,
+            expect_peer_feedback=False,
+            base_id=None
         ):
             in_reply_to_id = in_reply_to and get_id(in_reply_to)
-            base = test_client.req(
+            base = base_id or test_client.req(
                 'put',
                 '/api/v1/comments/',
                 200,
@@ -96,17 +114,22 @@ def make_add_reply(session, test_client, error_template, mail_functions):
                     'comment': txt,
                     'in_reply_to_id': in_reply_to_id,
                     'last_edit': None,
+                    'comment_base_id': get_id(base),
+                    'comment_type': (
+                        'peer_feedback' if expect_peer_feedback else 'normal'
+                    ),
                     '__allow_extra__': True,
                 },
                 include_response=True,
             )
+            if expect_error:
+                return (res, rv) if include_response else res
             reply = Reply(res)
             result = (reply, rv) if include_response else reply
 
             if include_base:
                 base['replies'].append({**res})
                 base['replies'][-1].pop('author')
-                base['replies'][-1].pop('comment_base_id')
                 result = (result, base)
 
             return result
@@ -1095,8 +1118,10 @@ def test_delete_feedback(
                 feedback_url,
                 200,
                 result={
-                    'general': '', 'linter': {}, 'authors': [student],
-                    'user': [base]
+                    'general': '',
+                    'linter': {},
+                    'authors': [student],
+                    'user': [base],
                 },
             )
 
@@ -1296,3 +1321,95 @@ def test_reply_to_a_comment(
     with describe('You cannot reply on a comment from a different line'
                   ), logged_in(teacher):
         add_reply('a reply to', line=10, in_reply_to=reply, expect_error=404)
+
+
+def test_get_all_comments_of_user(
+    logged_in, test_client, session, admin_user, describe, tomorrow,
+    make_add_reply
+):
+    with describe('setup'), logged_in(admin_user):
+        assignment = helpers.create_assignment(
+            test_client, state='open', deadline=tomorrow
+        )
+        course = assignment['course']
+        teacher1 = admin_user
+        teacher2 = helpers.create_user_with_role(session, 'Teacher', course)
+        student1 = helpers.create_user_with_role(session, 'Student', course)
+        student2 = helpers.create_user_with_role(session, 'Student', course)
+
+        sub1 = helpers.create_submission(
+            test_client, assignment, for_user=student1
+        )
+
+        sub2 = helpers.create_submission(
+            test_client, assignment, for_user=student2
+        )
+
+        add_reply1 = make_add_reply(sub1)
+        add_reply2 = make_add_reply(sub2)
+
+        with logged_in(teacher1):
+            rep1_1 = add_reply1('Hello a reply', line=1)
+            rep1_2 = add_reply1('Hello a reply', line=1)
+            rep2 = add_reply1('Hello a reply', line=10)
+            rep3 = add_reply2('Hello a reply', line=5)
+
+        def get_url(user):
+            return (
+                f'/api/v1/assignments/{get_id(assignment)}/users'
+                f'/{get_id(user)}/comments/'
+            )
+
+    with describe('Can get all comments by a user'), logged_in(teacher1):
+        result = [
+            {
+                '__allow_extra__': True,
+                'replies': [
+                    dict_without(rep1_1, 'author'),
+                    dict_without(rep1_2, 'author')
+                ],
+                'line': 1,
+            },
+            {
+                '__allow_extra__': True,
+                'replies': [dict_without(rep2, 'author')],
+                'line': 10,
+            },
+            {
+                '__allow_extra__': True,
+                'replies': [dict_without(rep3, 'author')],
+                'line': 5,
+            },
+        ]
+        test_client.req('get', get_url(teacher1), 200, result)
+
+    with describe('Does not get threads without own reply'):
+        with logged_in(teacher2):
+            # rep1_3 is allowed to exist in the reply, however this is not the
+            # case with the current implementation. rep5 should never be in the
+            # reply.
+            rep1_3 = add_reply1('A reply by somebody else', line=1)
+            rep5 = add_reply1('A reply by somebody else', line=100)
+            test_client.req(
+                'get',
+                get_url(teacher2),
+                200,
+                [
+                    {
+                        '__allow_extra__': True,
+                        'replies': [
+                            # rep1_1 and rep1_2 are allowed to be present
+                            dict_without(rep1_3, 'author')
+                        ],
+                        'line': 1,
+                    },
+                    {
+                        '__allow_extra__': True,
+                        'replies': [dict_without(rep5, 'author')],
+                        'line': 100,
+                    },
+                ],
+            )
+
+        with logged_in(teacher1):
+            test_client.req('get', get_url(teacher1), 200, result)

@@ -67,6 +67,7 @@
                                     :index="i + 1"
                                     :test-types="stepTypes"
                                     :assignment="assignment"
+                                    :auto-test="autoTest"
                                     @delete="internalValue.removeItem(i)"
                                     editable/>
                 </SlickItem>
@@ -227,15 +228,20 @@
 
     <b-card no-body v-if="!value.isEmpty()">
         <b-card-header class="suite-header d-flex align-items-center">
-            <span class="title">
+            <span class="title"
+                  v-if="rubricRow != null">
                 <a v-if="result"
                    href="#"
-                   @click.capture.prevent.stop="$root.$emit('cg::rubric-viewer::open-category', value.rubricRow.id)">
-                    {{ value.rubricRow.header }}
+                   @click.capture.prevent.stop="$root.$emit('cg::rubric-viewer::open-category', rubricRow.id)">
+                    {{ rubricRow.header }}
                 </a>
                 <template v-else>
-                    {{ value.rubricRow.header }}
+                    {{ rubricRow.header }}
                 </template>
+            </span>
+            <span v-else
+                  class="text-muted">
+                No rubric category selected.
             </span>
 
             <a href="#"
@@ -321,7 +327,8 @@
                             :key="step.trackingId"
                             :index="i + 1"
                             :result="result"
-                            :assignment="assignment" />
+                            :assignment="assignment"
+                            :auto-test="autoTest" />
         </table>
     </b-card>
 </div>
@@ -338,6 +345,7 @@ import 'vue-awesome/icons/minus-square';
 import 'vue-awesome/icons/plus-square';
 import 'vue-awesome/icons/caret-down';
 
+import { Assignment, AutoTestSuiteData, AutoTestResult } from '@/models';
 import { getProps } from '@/utils';
 
 import Collapse from './Collapse';
@@ -349,10 +357,14 @@ export default {
 
     props: {
         value: {
-            type: Object,
+            type: AutoTestSuiteData,
             required: true,
         },
         assignment: {
+            type: Assignment,
+            required: true,
+        },
+        autoTest: {
             type: Object,
             required: true,
         },
@@ -369,7 +381,7 @@ export default {
             default: false,
         },
         result: {
-            type: Object,
+            type: AutoTestResult,
             default: null,
         },
     },
@@ -449,11 +461,22 @@ export default {
                         'Stop testing this category if the amount of points is below a certain threshold.',
                     meta: true,
                 },
+                {
+                    name: 'junit_test',
+                    title: 'Unit test',
+                    color: 'rgb(247, 136, 123)',
+                    help: 'Run a JUnit-compatible testing framework and display the results in a nice overview.',
+                    meta: false,
+                },
             ];
         },
 
         rubricRow() {
-            return getProps(this, null, 'internalValue', 'rubricRow');
+            const rowId = getProps(this.value, null, 'rubricRow', 'id');
+            if (rowId == null) {
+                return null;
+            }
+            return getProps(this.rubric, null, 'rowsById', rowId);
         },
 
         pointPercentage() {
@@ -512,6 +535,9 @@ export default {
                 case 'run_program':
                     res.data.program = '';
                     break;
+                case 'junit_test':
+                    res.data.program = '';
+                    break;
                 default:
                     throw new Error('Unknown test type!');
             }
@@ -538,9 +564,9 @@ export default {
             return this.internalValue.save();
         },
 
-        cancelEdit() {
-            const modal = this.$refs.editModal;
-            if (modal) {
+        async cancelEdit() {
+            const modal = await this.$waitForRef('editModal');
+            if (modal != null) {
                 modal.hide();
                 this.$emit('save-cancelled');
             }

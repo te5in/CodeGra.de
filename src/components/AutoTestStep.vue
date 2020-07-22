@@ -263,26 +263,127 @@
                       v-b-popover.hover.top="hiddenPopover" />
             </td>
             <td class="shrink">{{ index }}</td>
-            <td colspan="2">
-                <b>{{ stepName }}</b>
+            <td class="overflowable" colspan="2">
+                <div class="overflow-auto">
+                    <b>{{ stepName }}</b>
 
-                <template v-if="canViewDetails">
-                    Stop when you achieve less than
-                    <code>{{ value.data.min_points }}%</code>
-                    of the points possible.
-                </template>
+                    <template v-if="canViewDetails">
+                        Stop when you achieve less than
+                        <code>{{ value.data.min_points }}%</code>
+                        of the points possible.
+                    </template>
+                </div>
             </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state :result="stepResult" show-icon />
+                <auto-test-state :assignment="assignment" :result="stepResult" show-icon />
             </td>
         </tr>
 
         <tr v-if="canViewOutput" class="results-log-collapse-row">
-            <td colspan="5">
+            <td :colspan="result ? 5 : 4">
                 <collapse :id="resultsCollapseId" class="container-fluid" lazy-load>
                     <div class="col-12 mb-3" slot-scope="{}">
                         You {{ stepResult.state === 'passed' ? 'scored' : 'did not score' }}
                         enough points.
+                    </div>
+                </collapse>
+            </td>
+        </tr>
+    </template>
+
+    <template v-else-if="value.type === 'junit_test'">
+        <tr class="step-summary"
+            :class="{ 'with-output': canViewOutput, 'text-muted': value.hidden }"
+            :key="resultsCollapseId"
+            v-cg-toggle="resultsCollapseId">
+            <td class="expand shrink">
+                <template v-if="canViewOutput">
+                    <icon name="chevron-down" :scale="0.75" class="caret" />
+                </template>
+
+                <icon v-if="value.hidden" name="eye-slash" :scale="0.85"
+                      v-b-popover.hover.top="hiddenPopover" />
+            </td>
+            <td class="shrink">{{ index }}</td>
+            <td class="overflowable">
+                <div class="overflow-auto">
+                    <b>{{ stepName }}</b>
+
+                    <template v-if="canViewDetails">
+                        Run the unit tests using <code>{{ value.data.program }}</code>.
+                    </template>
+                </div>
+            </td>
+            <td class="shrink text-center">
+                <template v-if="result">
+                    {{ achievedPoints }} /
+                </template>
+                {{ $utils.toMaxNDecimals(value.weight, 2) }}
+            </td>
+            <td class="shrink text-center" v-if="result">
+                <auto-test-state :assignment="assignment" :result="stepResult" show-icon />
+            </td>
+        </tr>
+
+        <tr v-if="canViewOutput" class="results-log-collapse-row">
+            <td :colspan="result ? 5 : 4">
+                <collapse :id="resultsCollapseId"
+                          lazy-load-always
+                          no-animation
+                          v-model="junitCollapseClosed">
+                    <div slot-scope="{}">
+                        <b-card no-body>
+                            <b-tabs card no-fade>
+                                <b-tab title="Results"
+                                       v-if="$utils.getProps(stepResult, null, 'attachment_id') != null">
+                                    <cg-loader v-if="junitAttachmentLoading"
+                                               page-loader
+                                               class="mb-3"
+                                               :scale="2" />
+                                    <b-alert v-else-if="junitError != ''"
+                                             show
+                                             variant="danger"
+                                             class="mx-3 w-100">
+                                        Failed to parse JUnit XML.
+                                    </b-alert>
+                                    <junit-result v-else
+                                                  :junit="junitAttachment"
+                                                  :assignment="assignment"/>
+                                </b-tab>
+                                <b-tab title="Output" class="mb-3 flex-wrap">
+                                    <p class="col-12 mb-1">
+                                        <label>Exit code</label>
+                                        <code>{{ $utils.getProps(stepResult.log, '(unknown)', 'exit_code') }}</code>
+                                    </p>
+
+                                    <div class="col-12 mb-1">
+                                        <label>Output</label>
+                                        <inner-code-viewer class="rounded border"
+                                                           :assignment="assignment"
+                                                           :code-lines="stepStdout"
+                                                           file-id="-1"
+                                                           :feedback="{}"
+                                                           :start-line="0"
+                                                           :show-whitespace="true"
+                                                           :warn-no-newline="false"
+                                                           :empty-file-message="'No output.'" />
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label>Errors</label>
+                                        <inner-code-viewer class="rounded border"
+                                                           :assignment="assignment"
+                                                           :code-lines="stepStderr"
+                                                           file-id="-1"
+                                                           :feedback="{}"
+                                                           :start-line="0"
+                                                           :show-whitespace="true"
+                                                           :warn-no-newline="false"
+                                                           :empty-file-message="'No output.'" />
+                                    </div>
+                                </b-tab>
+                            </b-tabs>
+                        </b-card>
                     </div>
                 </collapse>
             </td>
@@ -300,13 +401,15 @@
                       v-b-popover.hover.top="hiddenPopover" />
             </td>
             <td class="shrink">{{ index }}</td>
-            <td>
-                <b>{{ stepName }}</b>
+            <td class="overflowable">
+                <div class="overflow-auto">
+                    <b>{{ stepName }}</b>
 
-                <template v-if="canViewDetails">
-                    Run <code>{{ value.data.program }}</code>
-                    and check for successful completion.
-                </template>
+                    <template v-if="canViewDetails">
+                        Run <code>{{ value.data.program }}</code>
+                        and check for successful completion.
+                    </template>
+                </div>
             </td>
             <td class="shrink text-center">
                 <template v-if="result">
@@ -315,12 +418,12 @@
                 {{ $utils.toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state :result="stepResult" show-icon />
+                <auto-test-state :assignment="assignment" :result="stepResult" show-icon />
             </td>
         </tr>
 
         <tr v-if="canViewOutput" class="results-log-collapse-row">
-            <td colspan="5">
+            <td :colspan="result ? 5 : 4">
                 <collapse :id="resultsCollapseId" lazy-load>
                     <b-card no-body slot-scope="{}">
                         <b-tabs card no-fade>
@@ -375,12 +478,14 @@
                       v-b-popover.hover.top="hiddenPopover" />
             </td>
             <td class="shrink">{{ index }}</td>
-            <td>
-                <b>{{ stepName }}</b>
+            <td class="overflowable">
+                <div class="overflow-auto">
+                    <b>{{ stepName }}</b>
 
-                <template v-if="canViewDetails">
-                    Run <code>{{ value.data.program }}</code> and parse its output.
-                </template>
+                    <template v-if="canViewDetails">
+                        Run <code>{{ value.data.program }}</code> and parse its output.
+                    </template>
+                </div>
             </td>
             <td class="shrink text-center">
                 <template v-if="result">
@@ -389,12 +494,12 @@
                 {{ $utils.toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state :result="stepResult" show-icon />
+                <auto-test-state :assignment="assignment" :result="stepResult" show-icon />
             </td>
         </tr>
 
         <tr v-if="canViewDetails" class="results-log-collapse-row">
-            <td colspan="5">
+            <td :colspan="result ? 5 : 4">
                 <collapse :id="resultsCollapseId" lazy-load>
                     <template slot-scope="{}">
                         <b-card no-body v-if="canViewOutput">
@@ -517,7 +622,7 @@
                 {{ $utils.toMaxNDecimals(value.weight, 2) }}
             </td>
             <td class="shrink text-center" v-if="result">
-                <auto-test-state v-if="stepResult.state === 'hidden'" :result="stepResult" show-icon />
+                <auto-test-state :assignment="assignment" v-if="stepResult.state === 'hidden'" :result="stepResult" show-icon />
             </td>
         </tr>
 
@@ -532,16 +637,18 @@
                           v-b-popover.hover.top="hiddenPopover" />
                 </td>
                 <td class="shrink">{{ index }}.{{ i + 1 }}</td>
-                <td>
-                    <template v-if="canViewDetails && result">
-                        <b>{{ input.name }}</b>
+                <td class="overflowable">
+                    <div class="overflow-auto">
+                        <template v-if="canViewDetails && result">
+                            <b>{{ input.name }}</b>
 
-                        Run <code>{{ value.data.program }} {{ input.args }}</code>
-                        and match its output to an expected value.
-                    </template>
-                    <template v-else>
-                        {{ input.name }}
-                    </template>
+                            Run <code>{{ value.data.program }} {{ input.args }}</code>
+                            and match its output to an expected value.
+                        </template>
+                        <template v-else>
+                            {{ input.name }}
+                        </template>
+                    </div>
                 </td>
                 <td class="shrink text-center">
                     <template v-if="result">
@@ -550,12 +657,12 @@
                     {{ $utils.toMaxNDecimals(input.weight, 2) }}
                 </td>
                 <td class="shrink text-center" v-if="result">
-                    <auto-test-state :result="ioSubStepProps(i, stepResult)" show-icon />
+                    <auto-test-state :assignment="assignment" :result="ioSubStepProps(i, stepResult)" show-icon />
                 </td>
             </tr>
 
             <tr v-if="canViewDetails" class="results-log-collapse-row">
-                <td colspan="5">
+                <td :colspan="result ? 5 : 4">
                     <collapse :id="`${resultsCollapseId}-${i}`" lazy-load>
                         <template slot-scope="{}">
                             <b-card no-body v-if="canViewSubStepOutput(i)">
@@ -835,7 +942,8 @@ import 'vue-awesome/icons/ban';
 
 import { visualizeWhitespace } from '@/utils/visualize';
 import { getCapturePointsDiff } from '@/utils/diff';
-import { mapGetters } from 'vuex';
+import { CGJunit } from '@/utils/junit';
+import { mapGetters, mapActions } from 'vuex';
 
 import Collapse from './Collapse';
 import SubmitButton from './SubmitButton';
@@ -843,12 +951,17 @@ import DescriptionPopover from './DescriptionPopover';
 import AutoTestState from './AutoTestState';
 import InnerCodeViewer from './InnerCodeViewer';
 import Toggle from './Toggle';
+import JunitResult from './JunitResult';
 
 export default {
     name: 'auto-test-step',
 
     props: {
         assignment: {
+            type: Object,
+            required: true,
+        },
+        autoTest: {
             type: Object,
             required: true,
         },
@@ -888,6 +1001,11 @@ export default {
             activeIoTab: {},
             hideIgnoredPartOfDiff: {},
             getDiff: getCapturePointsDiff,
+
+            junitCollapseClosed: true,
+            junitAttachment: null,
+            junitAttachmentLoading: false,
+            junitError: '',
         };
     },
 
@@ -895,10 +1013,32 @@ export default {
         editable() {
             this.collapseState = {};
         },
+
+        junitCollapseClosed: {
+            handler(newVal) {
+                if (!newVal && this.stepResultAttachment) {
+                    this.loadJunitAttachment();
+                }
+            },
+            immediate: true,
+        },
+
+        async stepResultAttachment(newVal) {
+            this.junitError = '';
+            if (!this.junitCollapseClosed && newVal) {
+                this.loadJunitAttachment();
+            } else if (!newVal) {
+                this.junitAttachment = null;
+            }
+        },
     },
 
     computed: {
         ...mapGetters('pref', ['fontSize']),
+
+        stepResultAttachment() {
+            return this.$utils.getProps(this.stepResult, null, 'attachment_id');
+        },
 
         valueCopy() {
             return this.$utils.deepCopy(this.value);
@@ -1119,13 +1259,21 @@ export default {
         },
     },
 
-    mounted() {
-        if (this.editable && this.$refs.nameInput && !this.value.name) {
-            this.$refs.nameInput.focus();
+    async mounted() {
+        if (!this.editable || this.value.name) {
+            return;
+        }
+        const nameInput = await this.$waitForRef('nameInput');
+        if (nameInput != null) {
+            nameInput.focus();
         }
     },
 
     methods: {
+        ...mapActions('code', {
+            storeLoadCodeFromRoute: 'loadCodeFromRoute',
+        }),
+
         updateInput(index, key, value) {
             const input = [...this.inputs];
             input[index] = {
@@ -1237,6 +1385,37 @@ export default {
                 this.$emit('input', this.$utils.deepCopy(this.valueCopy));
             }
         },
+
+        async loadJunitAttachment() {
+            if (this.junitError || this.$utils.getProps(this.junitAttachment, 'NOT_EQUAL', 'id') === this.stepResultAttachment) {
+                return;
+            }
+
+            this.junitAttachmentLoading = true;
+            const attachmentId = this.stepResultAttachment;
+
+            await this.$afterRerender();
+
+            const autoTestId = this.autoTest.id;
+            const runId = this.autoTest.runs[0].id;
+            const resultId = this.stepResult.id;
+
+            const attachment = await this.storeLoadCodeFromRoute({
+                route: `/api/v1/auto_tests/${autoTestId}/runs/${runId}/step_results/${resultId}/attachment`,
+            });
+
+            if (attachmentId !== this.stepResultAttachment) {
+                return;
+            }
+
+            try {
+                this.junitAttachment = CGJunit.fromXml(attachmentId, attachment);
+            } catch (err) {
+                this.junitError = err;
+            }
+
+            this.junitAttachmentLoading = false;
+        },
     },
 
     components: {
@@ -1246,6 +1425,7 @@ export default {
         DescriptionPopover,
         AutoTestState,
         InnerCodeViewer,
+        JunitResult,
         Toggle,
     },
 };
@@ -1313,6 +1493,12 @@ export default {
             transform: translateY(2px);
         }
 
+        // Makes a block with overflow: auto placed in this cell actually
+        // overflow.
+        td.overflowable {
+            max-width: 0;
+        }
+
         .expand .fa-icon {
             transition: transform 300ms;
         }
@@ -1323,6 +1509,10 @@ export default {
 
         .caret + .fa-icon {
             margin-left: 0.333rem;
+        }
+
+        code {
+            word-wrap: initial;
         }
     }
 }

@@ -3,6 +3,7 @@
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
+import itertools
 import contextlib
 from functools import wraps, partial
 
@@ -20,6 +21,7 @@ from typing_extensions import Final, Literal
 import psef
 from psef import features
 from cg_json import JSONResponse
+from cg_helpers import maybe_wrap_in_list
 from cg_dt_utils import DatetimeWithTimezone
 from psef.helpers import readable_join
 from psef.exceptions import APICodes, APIException, PermissionException
@@ -92,6 +94,45 @@ class _PermissionCheckFunction(t.Generic[_T_PERM_CHECKER]):
         def __call__(self) -> None:
             self.__fn()
 
+        def check(self) -> None:
+            """This is just another way to call the checker, but in some cases
+            (combining checkers) explicitly calling ``check`` can be more
+            clear.
+            """
+            self.__fn()
+
+        def or_(
+            self, *others: '_PermissionCheckFunction._Inner'
+        ) -> '_PermissionCheckFunction._Inner':
+            """Combine this checker with other checkers to produce a checker
+            that checks if any of the underlying checkers is satisfied.
+
+            :param others: Other permission checkers that this checker should
+                be combined with.
+
+            :returns: A new checker, make sure to call this checker (see
+                      :meth:`._PermissionCheckFunction.check` or
+                      :meth:`._PermissionCheckFunction.as_bool`), otherwise
+                      this method will not do anything useful.
+            """
+
+            def _inner() -> None:
+                err: t.Optional[PermissionException] = None
+                for checker in itertools.chain([self], others):
+                    try:
+                        checker()
+                    except PermissionException as exc:
+                        err = err or exc
+                    else:
+                        return
+
+                # err can never be ``None`` here, but this is needed for mypy
+                assert err is not None
+
+                raise err
+
+            return type(self)(_inner)
+
         def as_bool(self) -> bool:
             """Get the result permission checker as a bool.
 
@@ -110,7 +151,7 @@ class _PermissionCheckFunction(t.Generic[_T_PERM_CHECKER]):
         self.__fn = fn
 
     def __get__(
-        self, instance: _T_PERM_CHECKER, owner: object
+        self, instance: _T_PERM_CHECKER, owner: t.Type[_T_PERM_CHECKER]
     ) -> '_PermissionCheckFunction._Inner':
         return self.__class__._Inner(partial(self.__fn, instance))
 
@@ -153,11 +194,30 @@ class CoursePermissionChecker(PermissionChecker):
     def _ensure_enrolled(self) -> None:
         ensure_enrolled(self.course_id, self.user)
 
-    def _has_permission(self, perm: CPerm) -> bool:
-        return self.user.has_permission(perm, self.course_id)
-
     def _ensure(self, perm: CPerm) -> None:
         ensure_permission(perm, self.course_id, user=self.user)
+
+    def _ensure_if_not(
+        self, checker: t.Callable[[], bool],
+        perms: t.Union[t.List[CPerm], CPerm]
+    ) -> None:
+        """Ensure the given permission if the checker returns ``False``.
+
+        This method flips the permission check around: it first checks if a
+        user has the given permission (which is fast), and if that is **not**
+        the case it calls the given ``checker``.
+
+        :param checker: A function that should check if the given permission is
+            required.
+        :param perm: The permission the user should have if ``checker`` returns
+            ``True``. If a list is passed any of the permissions is sufficient
+            for this check to pass.
+        """
+        try:
+            self._ensure_any(maybe_wrap_in_list(perms))
+        except PermissionException:
+            if not checker():
+                raise
 
     def _ensure_any(self, perms: t.List[CPerm]) -> None:
         ensure_any_of_permissions(perms, self.course_id, user=self.user)
@@ -767,13 +827,7 @@ def ensure_can_view_autotest(auto_test: 'psef.models.AutoTest') -> None:
     :param auto_test: The AutoTest to check for.
     :returns: Nothing.
     """
-    course_id = auto_test.assignment.course_id
-    ensure_enrolled(course_id)
-
-    if auto_test.run and auto_test.results_always_visible:
-        return
-    elif not auto_test.assignment.is_done:
-        ensure_permission(CPerm.can_view_autotest_before_done, course_id)
+    AutoTestPermissions(auto_test).ensure_may_see()
 
 
 @login_required
@@ -784,17 +838,7 @@ def ensure_can_view_autotest_result(
 
     :param result: The result to check.
     """
-    run = result.run
-    work = result.work
-    course_id = run.auto_test.assignment.course_id
-    ensure_enrolled(course_id)
-
-    if run.auto_test.results_always_visible:
-        if work.has_as_author(_get_cur_user()):
-            return
-        ensure_permission(CPerm.can_see_others_work, work.assignment.course_id)
-    else:
-        ensure_can_see_grade(work)
+    AutoTestResultPermissions(result).ensure_may_see()
 
 
 @login_required
@@ -826,28 +870,28 @@ def ensure_can_view_files(
         files.
     """
     cur_user = _get_cur_user()
+    if teacher_files:
+        if work.has_as_author(cur_user) and work.assignment.is_done:
+            ensure_permission(
+                CPerm.can_view_own_teacher_files, work.assignment.course_id
+            )
+        else:
+            # If the assignment is not done you can only view teacher files
+            # if you can edit somebodies work.
+            ensure_permission(
+                CPerm.can_edit_others_work, work.assignment.course_id
+            )
+
     try:
         if not work.has_as_author(cur_user):
             try:
-                ensure_permission(
-                    CPerm.can_see_others_work, work.assignment.course_id
+                ensure_any_of_permissions(
+                    [CPerm.can_see_others_work, CPerm.can_view_plagiarism],
+                    work.assignment.course_id,
                 )
             except PermissionException:
-                ensure_permission(
-                    CPerm.can_view_plagiarism, work.assignment.course_id
-                )
-
-        if teacher_files:
-            if work.has_as_author(cur_user) and work.assignment.is_done:
-                ensure_permission(
-                    CPerm.can_view_own_teacher_files, work.assignment.course_id
-                )
-            else:
-                # If the assignment is not done you can only view teacher files
-                # if you can edit somebodies work.
-                ensure_permission(
-                    CPerm.can_edit_others_work, work.assignment.course_id
-                )
+                if not work.is_peer_reviewed_by(cur_user):
+                    raise
     except PermissionException:
         # A user can also view a file if there is a plagiarism case between
         # submission {A, B} where submission A is from a virtual course and the
@@ -931,6 +975,41 @@ def ensure_can_edit_members_of_group(
         )
 
 
+class WorksByUserPermissions(CoursePermissionChecker):
+    """The permission checker used to check if a user may see submissions by
+    the given ``author`` in the given ``assignment``.
+    """
+    __slots__ = ('assignment', 'author')
+
+    def __init__(
+        self, assignment: 'psef.models.Assignment', author: 'psef.models.User'
+    ):
+        super().__init__(course_id=assignment.course_id)
+        self.assignment = assignment
+        self.author = author
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        """Make sure the current user may see the submissions by the author
+        connected to this permission checker.
+        """
+
+        def is_own() -> bool:
+            return self.author.contains_user(self.user)
+
+        def is_peer_sub() -> bool:
+            pf_settings = self.assignment.peer_feedback_settings
+            if pf_settings is None:
+                return False
+            return pf_settings.does_peer_review_of(
+                reviewer=self.user, subject=self.author
+            )
+
+        self._ensure_if_not(
+            lambda: is_own() or is_peer_sub(), CPerm.can_see_others_work
+        )
+
+
 class WorkPermissions(CoursePermissionChecker):
     """The permission checker for :class:`psef.models.Work`.
     """
@@ -939,6 +1018,20 @@ class WorkPermissions(CoursePermissionChecker):
     def __init__(self, work: 'psef.models.Work'):
         super().__init__(course_id=work.assignment.course_id)
         self.work = work
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        """Ensure the current user may see this work.
+        """
+        if self.work.deleted:
+            raise PermissionException(
+                'The given work is deleted, so you may not see it',
+                f'The work "{self.work.id}" was deleted',
+                APICodes.INCORRECT_PERMISSION,
+                403,
+            )
+        WorksByUserPermissions(self.work.assignment,
+                               self.work.user).ensure_may_see()
 
     # TODO: We should move the functions `ensure_can_see_grade`,
     # `ensure_can_see_general_feedback`, and `ensure_can_see_linter_feedback`
@@ -981,7 +1074,10 @@ class FeedbackBasePermissions(CoursePermissionChecker):
         perms = [CPerm.can_grade_work]
         if self.base.work.has_as_author(self.user):
             perms.append(CPerm.can_add_own_inline_comments)
-        self._ensure_any(perms)
+
+        self._ensure_if_not(
+            lambda: self.base.work.is_peer_reviewed_by(self.user), perms
+        )
 
 
 class FeedbackReplyPermissions(CoursePermissionChecker):
@@ -1003,7 +1099,9 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
     def ensure_may_edit(self) -> None:
         """Ensure that the current user may edit this reply.
         """
-        if self._is_own_reply:
+        if self._is_own_reply and self.reply.comment_type.is_peer_feedback:
+            self.ensure_may_add_as_peer()
+        elif self._is_own_reply:
             self._ensure_enrolled()
         else:
             self._ensure(CPerm.can_edit_others_comments)
@@ -1031,7 +1129,59 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
     def ensure_may_add(self) -> None:
         """Ensure that the current user may add this feedback reply.
         """
-        FeedbackBasePermissions(self.reply.comment_base).ensure_may_add()
+        perms = [CPerm.can_grade_work]
+        if self.reply.comment_base.work.has_as_author(self.user):
+            perms.append(CPerm.can_add_own_inline_comments)
+        self._ensure_any(perms)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_add_approved(self) -> None:
+        """Ensure that the current user may add already approved comments.
+        """
+        assignment = self.reply.comment_base.work.assignment
+        pf_settings = assignment.peer_feedback_settings
+        if pf_settings is None or not pf_settings.auto_approved:
+            self.ensure_may_add()
+        else:
+            self.ensure_may_add_as_peer()
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_add_as_peer(self) -> None:
+        """Make sure the current user may add this reply as peer feedback.
+
+        This might be the case while the user may not add normal feedback
+        (:py:meth:`.FeedbackReplyPermissions.ensure_may_add`).
+        """
+        work = self.reply.comment_base.work
+        assig = work.assignment
+        pf_setting = assig.peer_feedback_settings
+
+        if pf_setting is None or not work.is_peer_reviewed_by(self.user):
+            raise PermissionException(
+                (
+                    'You are not the peer reviewer of this submission so you'
+                    ' may not add a peer review comment'
+                ),
+                'The user is not a peer reviewer of this submission',
+                APICodes.INCORRECT_PERMISSION,
+                403,
+            )
+        elif pf_setting.deadline_expired:
+            raise PermissionException(
+                (
+                    'You cannot place peer feedback as the deadline for this'
+                    ' has expired.'
+                ), 'The assignment is after the peer review window',
+                APICodes.INCORRECT_PERMISSION, 403
+            )
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_change_approval(self) -> None:
+        """Ensure that the current user may change the approval status of this
+        reply.
+        """
+        self.ensure_may_see()
+        self._ensure(CPerm.can_approve_inline_comments)
 
     @PermissionChecker.as_ensure_function
     def ensure_may_delete(self) -> None:
@@ -1049,7 +1199,7 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
             see the reply itself.
         """
         self.ensure_may_see()
-        if not self.reply.author.contains_user(psef.current_user):
+        if not self.reply.author.contains_user(self.user):
             self._ensure(CPerm.can_view_feedback_author)
 
     @PermissionChecker.as_ensure_function
@@ -1057,20 +1207,7 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
         """Make sure the current user may see this feedback reply.
         """
         work = self.reply.comment_base.work
-        if work.deleted:
-            raise PermissionException(
-                'The given work is deleted, so you may not see its feedback',
-                f'The work "{work.id}" was deleted',
-                APICodes.INCORRECT_PERMISSION,
-                403,
-            )
-
-        # Don't check for any state if we simply have all required permissions.
-        if (
-            self._has_permission(CPerm.can_see_others_work) and
-            self._has_permission(CPerm.can_see_user_feedback_before_done)
-        ):
-            return
+        WorkPermissions(work).ensure_may_see()
 
         if self._is_own_reply:
             self._ensure_enrolled()
@@ -1078,11 +1215,16 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
 
         # This check is faster than the other one, and more common to fail, so
         # lets check this one first.
-        if not work.assignment.is_done:
+        assignment = work.assignment
+        if not assignment.is_done:
             self._ensure(CPerm.can_see_user_feedback_before_done)
 
-        if not work.has_as_author(self.user):
-            self._ensure(CPerm.can_see_others_work)
+        if self.reply.in_reply_to is not None:
+            # You can only see the reply if you can see the base
+            type(self)(self.reply.in_reply_to).ensure_may_see()
+
+        if not self.reply.is_approved:
+            self._ensure(CPerm.can_view_inline_feedback_before_approved)
 
 
 class NotificationPermissions(CoursePermissionChecker):
@@ -1138,6 +1280,103 @@ class AnalyticsWorkspacePermissions(CoursePermissionChecker):
         """Check if the current user has the permission to see analytics data.
         """
         self._ensure(CPerm.can_view_analytics)
+
+
+class AssignmentPermissions(CoursePermissionChecker):
+    """The permission checker for :class:`psef.models.Assignment`.
+    """
+    __slots__ = ('assignment', )
+
+    def __init__(self, assignment: 'psef.models.Assignment') -> None:
+        super().__init__(assignment.course_id)
+        self.assignment: Final = assignment
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_edit_peer_feedback(self) -> None:
+        """Make sure the current user may edit the peer feedback settings of
+        this assignment.
+        """
+        self._ensure(CPerm.can_edit_peer_feedback_settings)
+
+
+class AutoTestPermissions(CoursePermissionChecker):
+    """The permission checker for :class:`psef.models.AutoTest`.
+    """
+    __slots__ = ('auto_test', )
+
+    def __init__(self, auto_test: 'psef.models.AutoTest') -> None:
+        super().__init__(auto_test.assignment.course_id)
+        self.auto_test: Final = auto_test
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        """Make sure the current user may see this auto test configuration.
+        """
+        self._ensure_enrolled()
+
+        if self.auto_test.run and self.auto_test.results_always_visible:
+            return
+        elif not self.auto_test.assignment.is_done:
+            self._ensure(CPerm.can_view_autotest_before_done)
+
+
+class AutoTestRunPermissions(CoursePermissionChecker):
+    """The permission checker for :class:`psef.models.AutoTestRun`.
+    """
+    __slots__ = ('run', )
+
+    def __init__(self, run: 'psef.models.AutoTestRun') -> None:
+        super().__init__(run.auto_test.assignment.course_id)
+        self.run: Final = run
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_start(self) -> None:
+        """Make sure the current user may start this AutoTest run.
+        """
+        self._ensure(CPerm.can_run_autotest)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_stop(self) -> None:
+        """Make sure the current user may stop this AutoTest run.
+        """
+        self._ensure(CPerm.can_delete_autotest_run)
+
+
+class AutoTestResultPermissions(CoursePermissionChecker):
+    """The permission checker for :class:`psef.models.AutoTestResult`.
+    """
+    __slots__ = ('result', )
+
+    def __init__(self, result: 'psef.models.AutoTestResult') -> None:
+        super().__init__(result.run.auto_test.assignment.course_id)
+        self.result: Final = result
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        """Make sure the current user may see this AutoTest result.
+        """
+        AutoTestPermissions(self.result.run.auto_test).ensure_may_see()
+        run = self.result.run
+        work = self.result.work
+        self._ensure_enrolled()
+
+        if run.auto_test.results_always_visible:
+            # We cannot simply check if the user may see this work as peer
+            # reviewers are not allowed to see the AutoTest results.
+            if work.has_as_author(self.user):
+                return
+            self._ensure(CPerm.can_see_others_work)
+        else:
+            WorkPermissions(work).ensure_may_see_grade()
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_restart(self) -> None:
+        """Make sure the current user may restart this AutoTest result.
+        """
+        self.ensure_may_see()
+        run_perms = AutoTestRunPermissions(self.result.run)
+        run_perms.ensure_may_start()
+        run_perms.ensure_may_stop()
 
 
 class TaskResultPermissions(PermissionChecker):

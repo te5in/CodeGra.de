@@ -65,7 +65,11 @@ class BrokerFlask(flask.Flask):
                 parser = ConfigParser(delimiters=delimiters)
                 parser.optionxform = str  # type: ignore
             else:
-                parser = ConfigParser(os.environ, delimiters=delimiters)
+                parser = ConfigParser({
+                    k: v
+                    for k, v in os.environ.items() if k.isupper()
+                },
+                                      delimiters=delimiters)
 
             config_file = os.getenv("BROKER_CONFIG_FILE", "broker_config.ini")
             parser.read(config_file)

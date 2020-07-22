@@ -673,7 +673,7 @@ def random_file_path(use_mirror_dir: bool = False) -> t.Tuple[str, str]:
 
     :param use_mirror_dir: Use the mirror directory as the basedir of the
         random file path.
-    :returns: The name of the new file and a path to that file
+    :returns: The path to the new file and the name of the file.
     """
     if use_mirror_dir:
         root = app.config['MIRROR_UPLOAD_DIR']
@@ -686,6 +686,24 @@ def random_file_path(use_mirror_dir: bool = False) -> t.Tuple[str, str]:
         if not os.path.exists(candidate):  # pragma: no cover
             break
     return candidate, name
+
+
+def save_stream(stream: FileStorage) -> str:
+    """Save the data from a stream to a new random filepath in the upload
+    directory.
+
+    :param stream: The stream to be saved.
+    :returns: The filename where the data is stored relative to the UPLOADS
+        directory..
+    """
+    new_file_name, filename = random_file_path()
+    stream.save(new_file_name)
+    if get_file_size(new_file_name) > app.max_single_file_size:
+        os.unlink(new_file_name)
+        helpers.raise_file_too_big_exception(
+            app.max_single_file_size, single_file=True
+        )
+    return filename
 
 
 def process_files(

@@ -196,7 +196,7 @@ export default class CanvasSetup extends Vue {
     }
 
     get defaultKeySetUrl() {
-        return `${this.canvasBaseUrl ?? ''}/lti/security/jwks`;
+        return `${this.canvasBaseUrl ?? ''}/api/lti/security/jwks`;
     }
 
     get showLogo(): boolean {

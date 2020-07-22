@@ -5,6 +5,7 @@ which are registered as active runners.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import json
 import typing as t
 
 import requests
@@ -14,11 +15,11 @@ from flask import request, make_response, send_from_directory
 
 from . import api
 from .. import app, files, tasks, models, helpers, auto_test
-from ..models import DbColumn, db
+from ..models import db
 from ..helpers import (
-    JSONResponse, EmptyResponse, jsonify, get_or_404, request_arg_true,
-    make_empty_response, filter_single_or_404, get_from_map_transaction,
-    get_json_dict_from_request
+    JSONResponse, EmptyResponse, jsonify, get_or_404, ensure_json_dict,
+    request_arg_true, make_empty_response, filter_single_or_404,
+    get_from_map_transaction, get_json_dict_from_request
 )
 from ..parsers import parse_enum
 from ..features import Feature, feature_required
@@ -32,7 +33,7 @@ def _ensure_from_latest_work(result: models.AutoTestResult) -> None:
     work = result.work
 
     if work.assignment.get_latest_submission_for_user(work.user).with_entities(
-        t.cast(DbColumn[int], models.Work.id)
+        models.Work.id
     ).scalar() != work.id:
         raise APIException(
             'You are not working on the newest submission',
@@ -208,8 +209,13 @@ def get_result_data(auto_test_id: int, result_id: int
     res = make_empty_response()
 
     if request.args.get('type', None) == 'submission_files':
+        if result.run.auto_test.prefer_teacher_revision:
+            excluded_user = models.FileOwner.student
+        else:
+            excluded_user = models.FileOwner.teacher
+
         file_name = result.work.create_zip(
-            models.FileOwner.teacher,
+            excluded_user,
             create_leading_directory=False,
         )
         directory = app.config['MIRROR_UPLOAD_DIR']
@@ -382,18 +388,24 @@ def update_step_result(auto_test_id: int, result_id: int
     """
     password = _verify_global_header_password()
 
-    with get_from_map_transaction(get_json_dict_from_request()) as [
-        get, opt_get
-    ]:
+    content = ensure_json_dict(
+        ('json' in request.files and json.load(request.files['json'])) or
+        request.get_json()
+    )
+
+    with get_from_map_transaction(content) as [get, opt_get]:
         state = get('state', str)
         log = get('log', dict)
         auto_test_step_id = get('auto_test_step_id', int)
         res_id = opt_get('id', int, None)
+        has_attachment = opt_get('has_attachment', bool, False)
 
-    result = get_or_404(
+    result = filter_single_or_404(
         models.AutoTestResult,
-        result_id,
+        models.AutoTestResult.id == result_id,
         also_error=lambda res: res.run.auto_test_id != auto_test_id,
+        with_for_update=True,
+        with_for_update_of=models.AutoTestResult,
     )
     _ensure_from_latest_work(result)
     _verify_and_get_runner(result.run, password)
@@ -417,6 +429,9 @@ def update_step_result(auto_test_id: int, result_id: int
     step_result.state = new_state
 
     step_result.log = log
+
+    if has_attachment:
+        step_result.update_attachment(request.files['attachment'])
 
     db.session.commit()
 

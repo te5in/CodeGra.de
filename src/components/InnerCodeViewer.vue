@@ -50,7 +50,7 @@
             }"
             :data-line="i">
 
-            <code v-html="innerCodeLines[i - 1]" />
+            <code class="d-block px-2" v-html="innerCodeLines[i - 1]" />
 
             <span v-if="addingInlineFeedback[i - 1]"
                   class="add-feedback-loader-wrapper">
@@ -82,11 +82,11 @@
                 :should-fade-reply="shouldFadeReply"
                 v-if="hasFeedback(i - 1) && shouldRenderThread(feedback[i - 1 + lineFeedbackOffset])"/>
         </li>
-        <li class="empty-file"
+        <li class="empty-file px-2"
             v-if="innerCodeLines.length === 1 && innerCodeLines[0] === ''">
             {{ emptyFileMessage }}
         </li>
-        <li class="missing-newline"
+        <li class="missing-newline px-2"
             v-if="showMissingNewline">
             <icon name="level-up" class="missing-newline-icon"/> Missing newline at the end of file.
         </li>
@@ -465,8 +465,6 @@ li {
     border-left: 1px solid darken(@linum-bg, 5%);
 
     code, &.empty-file, &.missing-newline {
-        padding-left: 0.75em;
-        padding-right: 0.75em;
         font-family: monospace;
     }
 

@@ -5,11 +5,11 @@ import axios from 'axios';
 import Deque from '@/utils/deque';
 import * as types from '../mutation-types';
 
-const MAX_CACHE_SIZE = 2 ** 20;
+const MAX_CACHE_SIZE = 10 * 2 ** 20;
 
 const getters = {
-    getCachedCode: state => codeId => {
-        const cached = state.cacheMap[codeId];
+    getCachedCode: state => route => {
+        const cached = state.cacheMap[route];
         if (cached == null) {
             return null;
         }
@@ -22,36 +22,42 @@ const loaders = {
 };
 
 const actions = {
-    accessedCode({ commit }, codeId) {
-        commit(types.UPDATE_LATEST_ACCESS, codeId);
+    accessedCode({ commit }, route) {
+        commit(types.UPDATE_LATEST_ACCESS, route);
     },
 
     loadCode(context, codeId) {
-        const cached = context.getters.getCachedCode(codeId);
+        return context.dispatch('loadCodeFromRoute', {
+            route: `/api/v1/code/${codeId}`,
+        });
+    },
+
+    loadCodeFromRoute(context, { route }) {
+        const cached = context.getters.getCachedCode(route);
         if (cached != null) {
-            context.dispatch('accessedCode', codeId);
+            context.dispatch('accessedCode', route);
             return cached;
         }
 
-        if (codeId in loaders.codeLoaders) {
-            return loaders.codeLoaders[codeId];
+        if (route in loaders.codeLoaders) {
+            return loaders.codeLoaders[route];
         }
 
         let promise;
 
         const clearLoader = () => {
             promise = undefined;
-            Vue.delete(loaders.codeLoaders, codeId);
+            Vue.delete(loaders.codeLoaders, route);
         };
 
         promise = axios
-            .get(`/api/v1/code/${codeId}`, {
+            .get(route, {
                 responseType: 'arraybuffer',
             })
             .then(
                 code => {
                     context.commit(types.SET_CODE_CACHE, {
-                        codeId,
+                        route,
                         code: code.data,
                     });
                     clearLoader();
@@ -63,7 +69,7 @@ const actions = {
                 },
             );
 
-        Vue.set(loaders.codeLoaders, codeId, promise);
+        Vue.set(loaders.codeLoaders, route, promise);
         return promise;
     },
 };
@@ -83,7 +89,7 @@ const mutations = {
         });
     },
 
-    [types.UPDATE_LATEST_ACCESS](state, codeId) {
+    [types.UPDATE_LATEST_ACCESS](state, route) {
         const deq = state.cacheDeque;
 
         if (deq.isEmpty()) {
@@ -91,14 +97,14 @@ const mutations = {
         }
 
         const lastVal = deq.peekFront();
-        if (lastVal === codeId) {
+        if (lastVal === route) {
             return;
         }
 
         for (let len = state.cacheDeque.length, oldVal = lastVal, i = 1; i < len; ++i) {
             const prevVal = deq.setAt(i, oldVal);
 
-            if (prevVal === codeId) {
+            if (prevVal === route) {
                 // We just overridden the value we want at the beginning, so we
                 // set it at index 0 and we are done.
                 deq.setAt(0, prevVal);
@@ -111,7 +117,7 @@ const mutations = {
         Vue.set(state, 'cacheDeque', deq);
     },
 
-    [types.SET_CODE_CACHE](state, { codeId, code }) {
+    [types.SET_CODE_CACHE](state, { route, code }) {
         const deq = state.cacheDeque;
         const cacheMap = state.cacheMap;
         const compressed = snappyJs.compress(code);
@@ -144,8 +150,8 @@ const mutations = {
             }
         }
 
-        deq.unshift(codeId);
-        Vue.set(state.cacheMap, codeId, compressed);
+        deq.unshift(route);
+        Vue.set(state.cacheMap, route, compressed);
 
         state.cacheSize = cacheSize;
         state.cacheDeque = deq;

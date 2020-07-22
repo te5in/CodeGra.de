@@ -13,22 +13,6 @@ EOF
 
 pip install -r test_requirements.txt
 
-create_db() {
-    DBNAME="ci_test_gw${1}"
-    export SQLALCHEMY_DATABASE_URI="postgresql://postgres:postgres@localhost:5432/${DBNAME}"
-
-    PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -c "create database $DBNAME;" || exit 1
-    PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres "$DBNAME" -c "create extension \"citext\";" || exit 1
-    PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres "$DBNAME" -c "create extension \"uuid-ossp\";" || exit 1
-    ./manage.py db upgrade
-}
-
-for i in $(seq 0 5); do
-    create_db "$i" &
-done
-
-wait
-
 rm package.json
 rm npm-shrinkwrap.json
 
@@ -46,29 +30,38 @@ sudo npm list
 sudo chown -R "$USER":"$(id -gn "$USER")" "$(npm root -g)"
 sudo chown -R "$USER":"$(id -gn "$USER")" ~/.config
 
-export BASE_DATABASE_URI='postgresql://postgres:postgres@localhost:5432/ci_test_'
+# export BASE_DATABASE_URI='postgresql://postgres:postgres@localhost:5432/ci_test_'
+export POSTGRES_HOST=localhost
+export POSTGRES_PORT=5432
+export POSTGRES_USERNAME=postgres
+export PGPASSWORD=postgres
 
 pytest --cov cg_worker_pool \
        --cov cg_threading_utils \
        --cov cg_signals \
        --cov cg_cache \
+       --cov cg_helpers \
+       --cov cg_enum \
        --cov-report term-missing \
        "$(pwd)/cg_worker_pool/tests/" \
        "$(pwd)/cg_threading_utils/tests/" \
        "$(pwd)/cg_signals/tests/" \
        "$(pwd)/cg_cache/tests/" \
+       "$(pwd)/cg_helpers/tests/" \
+       "$(pwd)/cg_enum/tests/" \
        -vvvv
 res1="$?"
 if [[ "$res1" -ne 0 ]]; then
     exit "$res1";
 fi
 
-timeout -k 600 600 \
-        pytest --cov psef --cov cg_signals --cov cg_cache \
-        --cov-append \
-        --postgresql="${BASE_DATABASE_URI}gw5" \
+timeout -k 900 900 \
+        pytest --cov psef --cov cg_signals --cov cg_cache --cov cg_enum \
+        --cov-append -x -s \
+        --postgresql="GENERATE" \
         --cov-report term-missing \
         "$(pwd)/psef_test/test_auto_test.py" \
+        -n 2 \
         -vvvv
 res2="$?"
 if [[ "$res2" -ne 0 ]]; then
@@ -78,9 +71,9 @@ fi
 rm "$(pwd)/psef_test/test_auto_test.py"
 
 timeout -k 900 900 \
-        pytest --cov psef --cov cg_signals --cov cg_cache \
-        --cov-append \
-        --postgresql="$BASE_DATABASE_URI" \
+        pytest --cov psef --cov cg_signals --cov cg_cache --cov cg_enum \
+        --cov-append -x \
+        --postgresql="GENERATE" \
         --cov-report term-missing \
         "$(pwd)/psef_test/" \
         -n 4 \

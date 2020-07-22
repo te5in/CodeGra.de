@@ -1,11 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-TEST_FILE?=cg_worker_pool/tests/ cg_threading_utils/tests/ cg_signals/tests cg_cache/tests/ psef_test/
-SHELL=/bin/bash
-TEST_FLAGS?=
-PYTHON?=env/bin/python3
+TEST_MODULES ?= $(wildcard cg_*/tests/)
+TEST_FILE ?= $(TEST_MODULES) psef_test/
+TEST_FLAGS ?=
+DOCTEST_MODULES ?= psef cg_cache cg_helpers cg_enum
+SHELL := $(shell which bash)
+PYTHON ?= env/bin/python3
 export PYTHONPATH=$(CURDIR)
-PY_MODULES?=psef cg_celery cg_sqlalchemy_helpers cg_json cg_broker cg_logger cg_worker_pool cg_threading_utils cg_flask_helpers cg_dt_utils cg_signals cg_cache
-PY_ALL_MODULES=$(PY_MODULES) psef_test
+PY_MODULES ?= psef $(wildcard cg_*)
+PY_ALL_MODULES = $(PY_MODULES) psef_test
 
 .PHONY: test_setup
 test_setup:
@@ -13,12 +15,12 @@ test_setup:
 	mkdir -p /tmp/psef/mirror_uploads
 
 .PHONY: test_quick
-test_quick:
-	$(MAKE) test TEST_FLAGS="$(TEST_FLAGS) -x"
+test_quick: TEST_FLAGS += -x
+test_quick: test
 
 .PHONY: test
-test:
-	$(MAKE) test_no_cov TEST_FLAGS="$(TEST_FLAGS) --cov psef --cov cg_worker_pool --cov cg_threading_utils --cov-report term-missing"
+test: TEST_FLAGS += --cov psef $(patsubst %/tests/,--cov %,$(TEST_MODULES)) --cov-report term-missing
+test: test_no_cov
 
 .PHONY: test_no_cov
 test_no_cov: test_setup
@@ -31,11 +33,10 @@ count:
 
 .PHONY: doctest
 doctest: test_setup
-	pytest --cov psef \
-	       --cov cg_worker_pool \
+	pytest $(patsubst %,--cov %,$(DOCTEST_MODULES)) \
+	       $(patsubst %,--doctest-modules %,$(DOCTEST_MODULES)) \
 	       --cov-append \
 	       --cov-report term-missing \
-	       --doctest-modules psef --doctest-modules cg_cache \
 	       -vvvvv $(TEST_FLAGS)
 
 .PHONY: reset_db_broker
@@ -142,7 +143,7 @@ lint: mypy pylint isort_check
 
 .PHONY: mypy
 mypy:
-	mypy $(PY_MODULES) ./*.py
+	mypy $(filter-out cg_override cg_typing_extensions,$(PY_MODULES)) ./*.py --show-traceback
 
 .PHONY: generate_permission_files
 generate_permission_files:

@@ -23,6 +23,7 @@ import requests
 import freezegun
 import pytest_cov
 from werkzeug.local import LocalProxy
+from werkzeug.datastructures import FileStorage
 
 import psef
 import helpers
@@ -32,6 +33,11 @@ import requests_stubs
 from helpers import get_id
 from cg_dt_utils import DatetimeWithTimezone
 from psef.exceptions import APICodes, APIException
+
+
+@pytest.fixture(params=[False])
+def poll_after_done(request):
+    yield request.param
 
 
 @pytest.fixture(params=[False])
@@ -78,7 +84,8 @@ def make_failer(app, session):
 
 @pytest.fixture
 def monkeypatch_for_run(
-    monkeypatch, lxc_stub, stub_function_class, fail_wget_attach
+    monkeypatch, lxc_stub, stub_function_class, fail_wget_attach,
+    poll_after_done
 ):
     old_run_command = psef.auto_test.StartedContainer._run_command
     psef.auto_test._STOP_RUNNING.clear()
@@ -88,6 +95,10 @@ def monkeypatch_for_run(
         ['python', '-c', 'import random; exit(random.randint(0, 1))']
     )
 
+    import shutil
+    bash_path = shutil.which('bash')
+    monkeypatch.setattr(psef.auto_test, 'BASH_PATH', bash_path)
+
     monkeypatch.setattr(psef.auto_test, 'FIXTURES_ROOT', '/tmp')
     monkeypatch.setattr(psef.auto_test, 'OUTPUT_DIR', f'/tmp/{uuid.uuid4()}')
     monkeypatch.setattr(os, 'setgroups', stub_function_class())
@@ -95,14 +106,17 @@ def monkeypatch_for_run(
     def new_run_command(self, cmd_user):
         signal_start = psef.auto_test.StartedContainer._signal_start
         cmd, user = cmd_user
+
+        cmd[0] = re.sub('(/bin/)?bash', bash_path, cmd[0])
+
         if cmd[0] in {'adduser', 'usermod', 'deluser', 'sudo', 'apt'}:
             signal_start()
             return 0
-        elif cmd[0] == '/bin/bash' and cmd[2].startswith('adduser'):
+        elif cmd[0] == bash_path and cmd[2].startswith('adduser'):
             # Don't make the user, as we cannot do that locally
             cmd[2] = '&&'.join(['whoami'] + cmd[2].split('&&')[1:-2])
             cmd_user = (cmd, user)
-        elif cmd[0] == '/bin/bash' and cmd[2].startswith('mv'):
+        elif cmd[0] == bash_path and cmd[2].startswith('mv'):
             # Don't mv as this is not automatically restored as it is in the
             # actual LXC container.
             cmd[2] = cmd[2].replace('mv', 'cp -R')
@@ -113,8 +127,9 @@ def monkeypatch_for_run(
         elif '/etc/sudoers' in cmd:
             signal_start()
             return 0
-        elif 'wget' == cmd[0] and fail_wget_attach:
-            os.execvp('sleep', ['sleep', 'inf'])
+        elif cmd[0] == 'wget' and fail_wget_attach:
+            while True:
+                time.sleep(5)
 
         return old_run_command(self, cmd_user)
 
@@ -143,7 +158,7 @@ def monkeypatch_for_run(
     )
     monkeypatch.setattr(
         psef.auto_test.AutoTestRunner, '_should_poll_after_done',
-        stub_function_class(lambda: False)
+        stub_function_class(lambda: poll_after_done)
     )
     monkeypatch.setattr(
         psef.tasks, 'check_heartbeat_auto_test_run', stub_function_class()
@@ -294,6 +309,7 @@ def test_create_auto_test(test_client, basic, logged_in, describe):
                 'grade_calculation': None,
                 'runs': [],
                 'results_always_visible': None,
+                'prefer_teacher_revision': None,
             }
         )
 
@@ -534,6 +550,11 @@ def test_start_auto_test_before_complete(
         assert 'a results_always_visible set' in err['message']
         update_test(results_always_visible=True)
 
+    with describe('no preferred revision'), logged_in(teacher):
+        err = start_run(409)
+        assert 'not have prefer_teacher_revision set' in err['message']
+        update_test(prefer_teacher_revision=False)
+
     with describe('already has a run'), logged_in(teacher):
         start_run(200)
         err = start_run(409)
@@ -669,6 +690,7 @@ def test_update_auto_test(
             assert res.status_code == 403
 
         update_test(results_always_visible=True)
+        update_test(prefer_teacher_revision=False)
         t = m.AutoTest.query.get(test['id'])
         with app.test_request_context('/'):
             t.start_test_run()
@@ -739,15 +761,16 @@ def test_update_auto_test(
         update_test(error=409)
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 def test_run_auto_test(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
-    describe, live_server, lxc_stub, monkeypatch, app, session,
-    stub_function_class, assert_similar, monkeypatch_for_run
+    describe, live_server, lxc_stub, monkeypatch, app, session, assert_similar,
+    monkeypatch_for_run, make_function_spy, stub_function_class
 ):
     with describe('setup'):
         course, assig_id, teacher, student1 = basic
         student2 = helpers.create_user_with_role(session, 'Student', [course])
+        adjust_spy = make_function_spy(psef.tasks, 'adjust_amount_runners')
 
         with logged_in(teacher):
             test = helpers.create_auto_test(
@@ -942,7 +965,7 @@ def test_run_auto_test(
             # A student cannot see the results of another student
             test_client.req('get', f'{url}/runs/{run.id}/results/{res2}', 403)
 
-            # You should be able too see your own results
+            # You should be able to see your own results
             res = test_client.req(
                 'get',
                 f'{url}/runs/{run.id}/results/{res1}',
@@ -979,7 +1002,7 @@ def test_run_auto_test(
                 }
             )
 
-            # You should be able too see your own results
+            # You should be able to see your own results
             res = test_client.req(
                 'get',
                 f'{url}/runs/{run.id}/results/{res2}',
@@ -1035,7 +1058,7 @@ def test_run_auto_test(
 
     with describe('getting wrong result'), logged_in(student2):
         with describe('cannot get with wrong test id'):
-            wrong_url = f'/api/v1/auto_tests/404'
+            wrong_url = '/api/v1/auto_tests/404'
             res = test_client.req(
                 'get', f'{wrong_url}/runs/{run.id}/results/{res2}', 404
             )
@@ -1049,6 +1072,30 @@ def test_run_auto_test(
             )
             session.query(m.AutoTestResult).get(int(res2)).work.deleted = False
             session.commit()
+
+    with describe('restarting result'), logged_in(teacher):
+        assert session.query(m.AutoTestResult).get(int(res2)).is_finished
+        test_client.req(
+            'post', f'{url}/runs/{run.id}/results/{res2}/restart', 200
+        )
+        assert adjust_spy.called_amount == 1
+        result = session.query(m.AutoTestResult).get(int(res2))
+        assert result.state == m.AutoTestStepResultState.not_started
+
+        # Can also restart the result while it is running
+        result.state = m.AutoTestStepResultState.running
+        result.runner = m.AutoTestRunner.query.first()
+        session.commit()
+
+        stop_runners = stub_function_class()
+        with monkeypatch.context() as m_context:
+            m_context.setattr(m.AutoTestRun, 'stop_runners', stop_runners)
+            test_client.req(
+                'post', f'{url}/runs/{run.id}/results/{res2}/restart', 200
+            )
+        result = session.query(m.AutoTestResult).get(int(res2))
+        assert result.state == m.AutoTestStepResultState.not_started
+        assert stop_runners.called_amount == 1
 
     with describe('delete result'):
         with logged_in(student1):
@@ -1803,7 +1850,7 @@ def test_update_result_dates_in_broker(
         assert not broker_ses.calls
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 def test_output_dir(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
     describe, live_server, lxc_stub, monkeypatch, app, session,
@@ -2118,7 +2165,7 @@ def test_copy_auto_test(
 
 
 @pytest.mark.parametrize(
-    'use_transaction,fail_wget_attach', [(False, True)], indirect=True
+    'fresh_db,fail_wget_attach', [(True, True)], indirect=True
 )
 def test_failing_attach(
     monkeypatch_celery, basic, test_client, logged_in, describe, live_server,
@@ -2200,7 +2247,7 @@ def test_starting_at_run_without_submissions(
         assert not stub_notify.called
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 def test_continuous_rubric(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
     describe, live_server, lxc_stub, monkeypatch, app, session,
@@ -2346,7 +2393,7 @@ def test_continuous_rubric(
         )
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 def test_runner_harakiri(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
     describe, live_server, lxc_stub, monkeypatch, app, session,
@@ -2402,7 +2449,7 @@ def test_runner_harakiri(
         assert runners_in_start.get()
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 def test_failing_container_startup(
     monkeypatch_celery, basic, test_client, logged_in, describe, live_server,
     lxc_stub, monkeypatch, app, session, stub_function_class, assert_similar,
@@ -2477,7 +2524,7 @@ def test_failing_container_startup(
         assert res.state == m.AutoTestStepResultState.not_started
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 def test_failing_container_shutdown(
     monkeypatch_celery, basic, test_client, logged_in, describe, live_server,
     lxc_stub, monkeypatch, app, session, stub_function_class, assert_similar,
@@ -2549,28 +2596,112 @@ def test_failing_container_shutdown(
         assert failed_at_least_once
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
-def test_running_old_submission(
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
+@pytest.mark.parametrize('prefer_teacher_revision', [True, False])
+@pytest.mark.parametrize('with_teacher_revision', [True, False])
+def test_prefer_teacher_revision_option(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
     describe, live_server, lxc_stub, monkeypatch, app, session,
-    stub_function_class, assert_similar, monkeypatch_for_run
+    stub_function_class, assert_similar, monkeypatch_for_run, admin_user,
+    prefer_teacher_revision, with_teacher_revision
 ):
+    # TODO: This test fails if it is run _after_ test_running_old_submission,
+    # although it is unclear why.
     with describe('setup'):
         course, assig_id, teacher, student = basic
 
-        uploaded_once = False
-        # We need to disable debug to register this `before_request` method as
-        # we already processed requests at this point.
-        old_debug = app.debug
-        app.debug = False
+        with logged_in(teacher):
+            # yapf: disable
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig_id, {
+                    'prefer_teacher_revision': prefer_teacher_revision,
+                    'sets': [{
+                        'suites': [{
+                            'submission_info': True,
+                            'steps': [{
+                                'run_p': f'{psef.auto_test.BASH_PATH} script.sh',
+                                'name': 'Run script',
+                            }]
+                        }],
+                    }],
+                }
+            )
+            # yapf: enable
 
-        @app.before_request
-        def update_result():
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+    with describe('start_auto_test'):
+        t = m.AutoTest.query.get(test['id'])
+        with logged_in(teacher), tempfile.NamedTemporaryFile() as f:
+            f.write(b'echo student\n')
+            f.flush()
+
+            work = helpers.create_submission(
+                test_client,
+                assig_id,
+                for_user=student.username,
+                submission_data=(f.name, 'script.sh'),
+            )
+
+            if with_teacher_revision:
+                file_id = test_client.get(
+                    f'/api/v1/submissions/{work["id"]}/files/',
+                ).json['entries'][0]['id']
+                test_client.req(
+                    'patch',
+                    f'/api/v1/code/{file_id}',
+                    200,
+                    real_data='echo teacher\n',
+                )
+
+            run_id = test_client.req('post', f'{url}/runs/', 200)['id']
+            session.commit()
+
+        monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, )
+        )
+        thread.start()
+        thread.join()
+
+        res = session.query(m.AutoTestResult).filter_by(work_id=work['id']
+                                                        ).one()
+
+    with describe('should run the correct code'):
+        step_result = res.step_results[0]
+
+        if prefer_teacher_revision and with_teacher_revision:
+            assert step_result.log['stdout'] == 'teacher\n'
+        else:
+            assert step_result.log['stdout'] == 'student\n'
+
+
+@pytest.mark.parametrize(
+    'fresh_db,poll_after_done', [(True, True)], indirect=True
+)
+def test_running_old_submission(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session,
+    stub_function_class, assert_similar, monkeypatch_for_run, request
+):
+    with describe('setup'):
+        course, assig_id, teacher, student = basic
+        monkeypatch.setitem(app.config, 'AUTO_TEST_CF_SLEEP_TIME', 0.25)
+        monkeypatch.setitem(app.config, 'AUTO_TEST_CF_EXTRA_AMOUNT', 4)
+
+        uploaded_once = False
+
+        @flask.signals.request_started.connect_via(app)
+        def update_result(*_, **__):
             nonlocal uploaded_once
+            if uploaded_once:
+                return
+
             result = m.AutoTestResult.query.get(
                 flask.request.view_args.get('result_id', -1)
             )
-            if result and result.work.id == sub1['id'] and not uploaded_once:
+            if result and result.work_id == sub1['id']:
                 # Make sure we only upload a new submission once
                 uploaded_once = True
                 with app.app_context(), logged_in(teacher):
@@ -2578,18 +2709,30 @@ def test_running_old_submission(
                         test_client, assig_id, for_user=student
                     )
 
-        app.debug = old_debug
+        request.addfinalizer(
+            lambda: flask.signals.request_started.
+            disconnect(update_result, app)
+        )
 
         with logged_in(teacher):
-            test = helpers.create_auto_test(
-                test_client,
-                assig_id,
-                amount_sets=2,
-                amount_suites=2,
-                amount_fixtures=1,
-                stop_points=[0.5, None],
-                grade_calculation='partial',
+            # yapf: disable
+            test = helpers.create_auto_test_from_dict(
+                test_client, helpers.get_id(assig_id), {
+                    'sets': [{
+                        'suites': [{
+                            'submission_info': True,
+                            'steps': [{
+                                'run_p': 'sleep 1',
+                                'name': 'Short sleep',
+                            }, {
+                                'run_p': 'sleep 6',
+                                'name': 'Longer sleep',
+                            }]
+                        }],
+                    }],
+                }
             )
+            # yapf: enable
         url = f'/api/v1/auto_tests/{test["id"]}'
 
         with logged_in(teacher):
@@ -2619,6 +2762,14 @@ def test_running_old_submission(
         assert session.query(
             m.AutoTestResult
         ).filter_by(work_id=sub1['id']).one().state.name == 'skipped'
+        latest = helpers.to_db_object(
+            assig_id, m.Assignment
+        ).get_latest_submission_for_user(
+            helpers.to_db_object(student, m.User)
+        ).one()
+        latest_id = helpers.get_id(latest)
+        assert isinstance(latest_id, int)
+        assert latest_id != sub1
 
         with logged_in(teacher):
             res = test_client.req(
@@ -2627,7 +2778,7 @@ def test_running_old_submission(
                 200,
                 result=[
                     {'__allow_extra__': True, 'work_id': sub1['id']},
-                    {'__allow_extra__': True, 'work_id': int},
+                    {'__allow_extra__': True, 'work_id': latest_id},
                 ]
             )
 
@@ -2636,7 +2787,7 @@ def test_running_old_submission(
         ).filter_by(work_id=res[-1]['work_id']).one().state.name == 'passed'
 
 
-@pytest.mark.parametrize('use_transaction', [False], indirect=True)
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
 @pytest.mark.parametrize('deadline', ['tomorrow', None])
 def test_submission_info_env_vars(
     monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
@@ -2715,6 +2866,7 @@ def test_submission_info_env_vars(
             'student_id': work['user']['id'],
         }
 
+        print(res.step_results)
         assert len(res.step_results) == 2
 
         for step_result in res.step_results:
@@ -2766,3 +2918,180 @@ def test_broker_extra_env_vars(describe):
         with cont.extra_env({'PATH': ''}):
             env = cont._create_env(cur_user)
             assert env['PATH'] != ''
+
+
+@pytest.mark.parametrize('fresh_db', [True], indirect=True)
+def test_update_step_attachment(
+    monkeypatch_celery, monkeypatch_broker, basic, test_client, logged_in,
+    describe, live_server, lxc_stub, monkeypatch, app, session, admin_user,
+    stub_function_class, assert_similar, monkeypatch_for_run
+):
+    fixtures_dir = f'{os.path.dirname(__file__)}/../test_data'
+    junit_xml_files = [
+        f'{fixtures_dir}/test_junit_xml/valid.xml',
+        f'{fixtures_dir}/test_junit_xml/invalid_xml.xml',
+        f'{fixtures_dir}/test_submissions/hello.py',
+        None,
+    ]
+
+    with describe('setup'):
+        course, _, teacher, student = basic
+        student2 = helpers.create_user_with_role(session, 'Student', course)
+
+        with logged_in(admin_user):
+            assig = helpers.create_assignment(
+                test_client,
+                course,
+                deadline='tomorrow',
+            )
+
+        with logged_in(teacher):
+            steps = []
+            for i, junit_xml in enumerate(junit_xml_files):
+                if junit_xml is None:
+                    program = 'echo hello world'
+                else:
+                    program = f'cp "{junit_xml}" "$CG_JUNIT_XML_LOCATION"'
+
+                steps.append({
+                    'type': 'junit_test',
+                    'data': {'program': program},
+                    'name': f'junit test {i}',
+                })
+
+            # yapf: disable
+            test = helpers.create_auto_test_from_dict(
+                test_client, assig['id'], {
+                    'sets': [{
+                        'suites': [{
+                            'submission_info': True,
+                            'steps': steps,
+                        }],
+                    }],
+                }
+            )
+            # yapf: enable
+
+        url = f'/api/v1/auto_tests/{test["id"]}'
+
+    with describe('start_auto_test'):
+        t = m.AutoTest.query.get(test['id'])
+        with logged_in(teacher):
+            work = helpers.create_submission(
+                test_client, assig['id'], for_user=student.username
+            )
+            work2 = helpers.create_submission(
+                test_client, assig['id'], for_user=student2.username
+            )
+
+            run_id = test_client.req('post', f'{url}/runs/', 200)['id']
+            session.commit()
+
+        monkeypatch_broker()
+        live_server_url, stop_server = live_server(get_stop=True)
+        thread = threading.Thread(
+            target=psef.auto_test.start_polling, args=(app.config, )
+        )
+        thread.start()
+        thread.join()
+
+        res = session.query(m.AutoTestResult).filter_by(
+            work_id=work['id'],
+        ).one()
+
+    with describe('attachment should be uploaded to the server'):
+        for i, step_result in enumerate(res.step_results):
+            with logged_in(teacher):
+                attachment = test_client.get(
+                    f'{url}/runs/{run_id}/step_results/{step_result.id}'
+                    '/attachment',
+                )
+
+            if junit_xml_files[i] is None:
+                assert attachment.status_code == 404
+            else:
+                assert attachment.status_code == 200
+                with open(junit_xml_files[i], 'r') as f:
+                    assert attachment.get_data(as_text=True) == f.read()
+
+    with describe('should not get points if XML is not created or invalid'):
+        for i, step_result in enumerate(res.step_results):
+            pts = step_result.log['points']
+            path = junit_xml_files[i]
+            if path is not None and path.endswith('/valid.xml'):
+                assert 0.99 <= pts < 1.0
+            else:
+                assert pts == 0
+
+    with describe('previous attachment should be deleted from disk'):
+        step_result = res.step_results[0]
+        old_attachment = step_result.attachment_filename
+        assert old_attachment
+        assert os.path.exists(f'{app.config["UPLOAD_DIR"]}/{old_attachment}')
+
+        with tempfile.NamedTemporaryFile() as f:
+            step_result.update_attachment(FileStorage(f))
+        session.commit()
+
+        res = session.query(m.AutoTestResult).filter_by(
+            work_id=work['id'],
+        ).one()
+        step_result = res.step_results[0]
+        new_attachment = step_result.attachment_filename
+
+        assert new_attachment != old_attachment
+        assert os.path.exists(f'{app.config["UPLOAD_DIR"]}/{new_attachment}')
+        assert not os.path.exists(
+            f'{app.config["UPLOAD_DIR"]}/{old_attachment}'
+        )
+
+    with describe('should fail when step is not in the requested run'):
+        with logged_in(teacher):
+            attachment = test_client.get(
+                f'{url}/runs/0/step_results/{step_result.id}/attachment',
+            )
+
+        assert attachment.status_code == 404
+        assert ('The requested "AutoTestStepResult" was not found'
+                ) in attachment.json['message']
+
+    with describe('should fail when work is deleted'):
+        work = session.query(m.Work).filter_by(id=work['id']).one()
+        work.deleted = True
+        session.commit()
+
+        with logged_in(teacher):
+            attachment = test_client.get(
+                f'{url}/runs/{run_id}/step_results/{step_result.id}/attachment',
+            )
+
+        assert attachment.status_code == 404
+        assert ('The requested "AutoTestStepResult" was not found'
+                ) in attachment.json['message']
+
+    with describe('should be deleted when the result is reset'):
+        work2 = session.query(m.Work).filter_by(id=work2['id']).one()
+        res2 = m.AutoTestResult.query.filter_by(work=work2).one()
+        attachment2 = os.path.join(
+            app.config["UPLOAD_DIR"], res2.step_results[0].attachment_filename
+        )
+        assert os.path.isfile(attachment2)
+        work2.assignment.auto_test.reset_work(work2)
+        session.commit()
+        assert not os.path.isfile(attachment2)
+
+    with describe('should be deleted when the run is deleted'):
+        step_result_id = step_result.id
+        with logged_in(teacher):
+            test_client.req('delete', f'{url}/runs/{run_id}', 204)
+            attachment = test_client.get(
+                f'{url}/runs/{run_id}/step_results/{step_result_id}'
+                '/attachment'
+            )
+
+        assert attachment.status_code == 404
+        assert ('The requested "AutoTestStepResult" was not found'
+                ) in attachment.json['message']
+        assert not os.path.exists(
+            f'{app.config["UPLOAD_DIR"]}/{new_attachment}'
+        )

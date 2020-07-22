@@ -174,11 +174,23 @@ export default {
             storeRubricResults: 'results',
         }),
 
+        course() {
+            return this.$utils.getProps(this.assignment, null, 'course');
+        },
+
+        ltiProvider() {
+            return this.$utils.getProps(this.assignment, null, 'course', 'ltiProvider');
+        },
+
         globalPopover() {
             if (this.notLatest) {
-                return `This is not the latest submission by ${this.$utils.nameOfUser(
+                let msg = `This is not the latest submission by ${this.$utils.nameOfUser(
                     this.submission.user,
-                )} so you cannot edit the grade. This grade will not be passed back to your LMS`;
+                )} so you cannot edit the grade.`;
+                if (this.ltiProvider != null) {
+                    msg += ` This grade will not be passed back to ${this.ltiProvider.lms}.`;
+                }
+                return msg;
             } else if (this.groupOfUser) {
                 return `This user is member of the group "${
                     this.groupOfUser.group.name
@@ -431,7 +443,7 @@ export default {
         },
 
         putGrade() {
-            let grade = this.grade;
+            let grade = this.grade === '' ? null : this.grade;
 
             if (grade != null && !isDecimalNumber(grade)) {
                 throw new Error('Grade must be a number.');

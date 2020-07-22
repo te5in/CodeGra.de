@@ -14,8 +14,8 @@
             <small v-else class="text-muted"><i>- No deadline</i></small>
         </template>
         <small slot="title"
-              v-else
-              class="text-muted font-italic">
+               v-else
+               class="text-muted font-italic">
             Unknown assignment
         </small>
 
@@ -28,6 +28,12 @@
         </div>
 
         <b-input-group v-if="assignment != null">
+            <b-button v-if="isStudent"
+                      class="mr-2"
+                      v-b-modal="`submissions-page-course-feedback-modal-${id}`">
+                Course feedback
+            </b-button>
+
             <b-button-group>
                 <b-button :to="manageAssignmentRoute"
                           variant="secondary"
@@ -39,7 +45,7 @@
 
                 <b-button v-if="canEmailStudents"
                           v-b-popover.top.hover="`Email the authors of the visible submissions`"
-                          v-b-modal.submissions-page-email-students-modal
+                          v-b-modal="`submissions-page-email-students-modal-${id}`"
                           id="submissions-page-email-students-button">
                     <icon name="envelope"/>
                 </b-button>
@@ -60,7 +66,7 @@
     </local-header>
 
     <b-modal v-if="canEmailStudents"
-             id="submissions-page-email-students-modal"
+             :id="`submissions-page-email-students-modal-${id}`"
              ref="contactStudentModal"
              size="xl"
              hide-footer
@@ -102,6 +108,16 @@
         <loader center page-loader v-else-if="loadingInner" />
 
         <template v-else>
+            <b-modal v-if="isStudent"
+                     :id="`submissions-page-course-feedback-modal-${id}`"
+                     title="Course feedback"
+                     size="xl"
+                     body-class="p-0"
+                     hide-footer>
+                <course-feedback :course="assignment.course"
+                                 :user="loggedInUser" />
+            </b-modal>
+
             <div v-if="selectedCat === 'student-start'"
                  class="action-buttons flex-grow-1 d-flex flex-wrap">
                 <template v-if="canUploadForSomeone">
@@ -186,13 +202,16 @@
                     </div>
                 </div>
 
-                <div class="action-button m-2 m-md-3 rounded text-center"
-                     @click="openCategory('course-feedback')">
-                    <div class="content-wrapper border rounded p-3 pt-4">
+                <div v-if="assignment.peer_feedback_settings != null"
+                     class="action-button m-2 m-md-3 rounded text-center"
+                     v-b-popover.top.hover="peerFeedbackDisabled">
+                    <div class="content-wrapper border rounded p-3 pt-4"
+                         :class="{ disabled: peerFeedbackDisabled }"
+                         @click="peerFeedbackDisabled || openCategory('peer-feedback')">
                         <div class="icon-wrapper mb-2">
                             <icon name="comments-o" :scale="actionIconFactor * 6" />
                         </div>
-                        <p class="mb-0">Course feedback</p>
+                        <p class="mb-0">Peer feedback</p>
                     </div>
                 </div>
             </div>
@@ -290,7 +309,7 @@
 
             <div v-show="selectedCat === 'export'"
                  class="flex-grow-1">
-                <submissions-exporter :get-submissions="filter => filter ? filteredSubmissions : submissions"
+                <submissions-exporter :get-submissions="getExportedSubmissions"
                                       :assignment-id="assignment.id"
                                       :filename="exportFilename" />
             </div>
@@ -312,11 +331,13 @@
                 </cg-catch-error>
             </div>
 
-            <div v-if="selectedCat === 'course-feedback'"
-                 class="border rounded overflow-hidden"
+            <div v-if="selectedCat === 'peer-feedback'"
+                 class="overflow-hidden"
                  style="max-height: 100%;">
-                <course-feedback :course="assignment.course"
-                                 :user="loggedInUser" />
+                <peer-feedback-overview :assignment="assignment"
+                                        :rubric="rubric"
+                                        :graders="graders"
+                                        class="mb-3" />
             </div>
         </template>
     </div>
@@ -334,9 +355,7 @@ import 'vue-awesome/icons/plus';
 import 'vue-awesome/icons/refresh';
 import 'vue-awesome/icons/th';
 import 'vue-awesome/icons/users';
-import 'vue-awesome/icons/chevron-down';
 import 'vue-awesome/icons/code-fork';
-import 'vue-awesome/icons/git';
 import 'vue-awesome/icons/envelope';
 import 'vue-awesome/icons/comments-o';
 
@@ -357,6 +376,7 @@ import {
     SubmissionUploader,
     SubmissionsExporter,
     WebhookInstructions,
+    PeerFeedbackOverview,
 } from '@/components';
 import StudentContact from '@/components/StudentContact';
 
@@ -367,6 +387,7 @@ export default {
 
     data() {
         return {
+            id: this.$utils.getUniqueId(),
             loading: true,
             loadingInner: true,
             wrongFiles: [],
@@ -374,6 +395,7 @@ export default {
             filteredSubmissions: [],
             gitData: null,
             error: null,
+            showCourseFeedback: false,
         };
     },
 
@@ -385,7 +407,7 @@ export default {
         ...mapGetters('pref', ['darkMode']),
         ...mapGetters('courses', ['courses', 'assignments']),
         ...mapGetters('rubrics', { allRubrics: 'rubrics' }),
-        ...mapGetters('submissions', ['getLatestSubmissions']),
+        ...mapGetters('submissions', ['getSubmissionsByUser', 'getLatestSubmissions']),
         ...mapGetters('users', ['getUser', 'getGroupInGroupSetOfUser']),
 
         loggedInUser() {
@@ -436,8 +458,8 @@ export default {
                     enabled: this.analyticsWorkspaceIds.length > 0,
                 },
                 {
-                    id: 'course-feedback',
-                    name: 'Course feedback',
+                    id: 'peer-feedback',
+                    name: 'Peer Feedback',
                     enabled: this.isStudent,
                 },
             ];
@@ -473,6 +495,12 @@ export default {
         },
 
         submissions() {
+            return this.getSubmissionsByUser(this.assignmentId, this.userId, {
+                includeGroupSubmissions: true,
+            });
+        },
+
+        latestSubmissions() {
             return this.getLatestSubmissions(this.assignmentId);
         },
 
@@ -553,6 +581,23 @@ export default {
             return this.latestSubmission.isLate();
         },
 
+        peerFeedbackDisabled() {
+            const assig = this.assignment;
+
+            if (assig.deadline == null) {
+                return 'Peer feedback is disabled because the deadline has not been set yet.';
+            } else if (assig.deadlinePassed()) {
+                return '';
+            } else {
+                const pfSettings = assig.peer_feedback_settings;
+                return (
+                    'Peer feedback is disabled until the deadline has passed, which is at' +
+                    ` ${assig.getFormattedDeadline()}. After the deadline you have` +
+                    ` ${pfSettings.amount} days to give peer feedback.`
+                );
+            }
+        },
+
         // It should not be possible that `assignment` is null. Still we use getProps below just in
         // case it ever is.
 
@@ -579,11 +624,10 @@ export default {
         },
 
         latestSubmission() {
-            if (this.submissions.length > 1) {
-                return this.submissions.find(s => s.user.group != null);
-            } else {
-                return this.submissions[0];
+            if (this.submissions.length === 0) {
+                return null;
             }
+            return this.$utils.last(this.submissions);
         },
 
         latestSubmissionGrade() {
@@ -681,14 +725,14 @@ export default {
             return (UserConfig.features.email_students &&
                     this.$utils.getProps(this.coursePermissions, false, 'can_email_students'));
         },
-
     },
 
     watch: {
-        submissions(newVal) {
-            if (newVal.length === 0) {
+        userId: {
+            immediate: true,
+            handler() {
                 this.loadData();
-            }
+            },
         },
 
         assignmentId: {
@@ -738,8 +782,6 @@ export default {
                 return;
             }
 
-            this.loadingInner = true;
-
             const promises = [
                 this.loadSubmissions(this.assignmentId),
                 this.loadRubric(),
@@ -753,15 +795,7 @@ export default {
 
             setPageTitle(`${this.assignment.name} ${pageTitleSep} Submissions`);
 
-            Promise.all(promises).then(
-                () => {
-                    this.loadingInner = false;
-                },
-                err => {
-                    this.error = err;
-                    this.loadingInner = false;
-                },
-            );
+            this.loadInner(Promise.all(promises));
         },
 
         loadGitData() {
@@ -797,7 +831,25 @@ export default {
 
         submitForceLoadSubmissions() {
             this.$root.$emit('cg::submissions-page::reload');
-            return this.forceLoadSubmissions(this.assignment.id);
+            return this.loadInner(
+                this.forceLoadSubmissions(this.assignmentId),
+            );
+        },
+
+        loadInner(promise) {
+            this.loadingInner = true;
+
+            return promise.then(
+                res => {
+                    this.loadingInner = false;
+                    return res;
+                },
+                err => {
+                    this.loadingInner = false;
+                    this.error = err;
+                    throw err;
+                },
+            );
         },
 
         goToSubmission(submission) {
@@ -829,6 +881,22 @@ export default {
             }
             return false;
         },
+
+        getExportedSubmissions(filter) {
+            if (filter) {
+                return this.filteredSubmissions;
+            } else {
+                return this.latestSubmissions;
+            }
+        },
+    },
+
+    mounted() {
+        this.$root.$on('sidebar::reload', this.submitForceLoadSubmissions);
+    },
+
+    destroyed() {
+        this.$root.$off('sidebar::reload', this.submitForceLoadSubmissions);
     },
 
     components: {
@@ -849,6 +917,7 @@ export default {
         WebhookInstructions,
         LateSubmissionIcon,
         StudentContact,
+        PeerFeedbackOverview,
         AnalyticsDashboard: () => ({
             component: import('@/components/AnalyticsDashboard'),
             loading: Loader,
@@ -885,17 +954,6 @@ export default {
     flex: 1 1 auto;
 }
 
-.chevron {
-    margin-right: 0.5rem;
-    transform: rotate(0);
-    transition: transform @transition-duration;
-
-    .x-collapsing &,
-    .x-collapsed & {
-        transform: rotate(-90deg);
-    }
-}
-
 .action-buttons {
     max-width: 48rem;
     width: 100%;
@@ -918,13 +976,19 @@ export default {
     flex: 0 0 ~'calc(33.33% - 2rem)';
     height: 12rem;
 
+    @media @media-no-large {
+        flex-basis: ~'calc(40% - 2rem)';
+        min-width: 14rem;
+    }
+
     @media @media-small {
         flex-basis: ~'calc(50% - 1rem)';
         height: 10rem;
+        min-width: 10rem;
     }
 
-    @media (max-width: 17.5rem) {
-        flex-basis: ~'calc(100% - 1rem)';
+    @media (max-width: 24rem) {
+        flex-grow: 1;
     }
 
     &.variant-danger {

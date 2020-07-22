@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import fs from 'fs';
 
-import decodeBuffer from '@/utils/decode.js';
+import decodeBuffer from '@/utils/decode';
 
 describe('decoder.js', () => {
     describe('decodeBuffer', () => {

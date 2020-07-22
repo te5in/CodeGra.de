@@ -2,6 +2,7 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import io
 import os  # typing: ignore
 import abc
 import grp
@@ -70,6 +71,9 @@ PRE_STUDENT_FIXTURES_DIR = f'{uuid.uuid4().hex}/'
 
 OUTPUT_DIR = f'/.{uuid.uuid4().hex}/{uuid.uuid4().hex}'
 
+# _Absolute_ path to the bash executable.
+BASH_PATH = '/bin/bash'
+
 
 class UpdateResultFunction(Protocol):
     """A protocol for a function that can update the state of a step.
@@ -79,6 +83,8 @@ class UpdateResultFunction(Protocol):
         self,
         state: 'models.AutoTestStepResultState',
         log: t.Dict[str, object],
+        *,
+        attachment: t.Optional[t.IO[bytes]] = None
     ) -> None:
         ...
 
@@ -661,22 +667,19 @@ class SetInstructions(TypedDict, total=True):
 
 class AssignmentInformation(TypedDict, total=True):
     """Information about the assignment that this AutoTest belongs to.
-
-    :ivar deadline: The deadline of the assignment.
     """
+    #: The deadline of the assignment.
     deadline: t.Optional[str]
 
 
 class StudentInformation(TypedDict, total=True):
     """Information about the submission that the AutoTest runs on.
-
-    :ivar result_id: The id of the :class:`AutoTestResult` corresponding to
-        this work.
-    :ivar student_id: The id of the :class:`User` who submitted the work.
-    :ivar created_at: The datetime when the work was submitted.
     """
+    #: The id of the :class:`AutoTestResult` corresponding to this work.
     result_id: int
+    #: The id of the :class:`User` who submitted the work.
     student_id: int
+    #: The datetime when the work was submitted.
     created_at: str
 
 
@@ -911,7 +914,7 @@ class StartedContainer:
         new_path = f'{FIXTURES_ROOT}/{new_dir}'
         self.run_command(
             [
-                '/bin/bash',
+                BASH_PATH,
                 '-c',
                 (
                     'mv "{old_path}" "{new_path}" && '
@@ -1238,7 +1241,7 @@ class StartedContainer:
         env['PATH'] += f'{home_dir}/student/:{self.fixtures_dir}'
 
         self._change_user(user)
-        cmd_list = ['/bin/bash', '-c', cmd]
+        cmd_list = [BASH_PATH, '-c', cmd]
         os.chdir(cwd)
 
         self._signal_start()
@@ -1754,7 +1757,7 @@ class AutoTestRunner:
             processes=self._get_amount_of_needed_workers(),
             function=lambda get_work:
             _run_student(self, base_container_name, cpu_cores, get_work),
-            sleep_time=mult * self.config['AUTO_TEST_CF_SLEEP_TIME'],
+            sleep_time=self.config['AUTO_TEST_CF_SLEEP_TIME'],
             extra_amount=mult * self.config['AUTO_TEST_CF_EXTRA_AMOUNT'],
             initial_work=self.work,
         )
@@ -1954,7 +1957,7 @@ class AutoTestRunner:
             return
 
         with tempfile.NamedTemporaryFile() as tfile:
-            os.chmod(tfile.name, 0o777)
+            os.chmod(tfile.name, 0o622)
             cont.run_command(
                 ['tar', 'cjf', '/dev/stdout', cont.output_dir],
                 user=CODEGRADE_USER,
@@ -1995,6 +1998,48 @@ class AutoTestRunner:
             submission_info=test_suite.get('submission_info', False),
         )
 
+        step_result_id: t.Optional[int] = None
+
+        def outer_update_test_result(
+            state: models.AutoTestStepResultState,
+            log: t.Dict[str, object],
+            test_step: StepInstructions,
+            attachment: t.Optional[t.IO[bytes]],
+        ) -> None:
+            nonlocal step_result_id
+            data = {
+                'log': log,
+                'state': state.name,
+                'auto_test_step_id': test_step['id'],
+                'has_attachment': attachment is not None,
+            }
+            if step_result_id is not None:
+                data['id'] = step_result_id
+
+            logger.info('Posting result data', json=data, url=url)
+            if attachment is not None:
+                json_data = io.StringIO()
+                json.dump(data, json_data)
+                json_data.seek(0, 0)
+
+                response = self.req.put(
+                    url,
+                    files={
+                        'attachment': attachment,
+                        'json': json_data,
+                    },
+                    timeout=_REQUEST_TIMEOUT,
+                )
+            else:
+                response = self.req.put(
+                    url,
+                    json=data,
+                    timeout=_REQUEST_TIMEOUT,
+                )
+            logger.info('Posted result data', response=response)
+            response.raise_for_status()
+            step_result_id = response.json()['id']
+
         with student_container.as_snapshot(
             test_suite['network_disabled']
         ) as snap, snap.extra_env(extra_env):
@@ -2002,31 +2047,18 @@ class AutoTestRunner:
 
             for idx, test_step in enumerate(test_suite['steps']):
                 logger.info('Running step', step=test_step)
-                step_result_id: t.Optional[int] = None
+                step_result_id = None
 
                 def update_test_result(
                     state: models.AutoTestStepResultState,
                     log: t.Dict[str, object],
+                    *,
+                    attachment: t.Optional[t.IO[bytes]] = None,
                     test_step: StepInstructions = test_step,
                 ) -> None:
-                    nonlocal step_result_id
-                    data = {
-                        'log': log,
-                        'state': state.name,
-                        'auto_test_step_id': test_step['id'],
-                    }
-                    if step_result_id is not None:
-                        data['id'] = step_result_id
-
-                    logger.info('Posting result data', json=data, url=url)
-                    response = self.req.put(
-                        url,
-                        json=data,
-                        timeout=_REQUEST_TIMEOUT,
+                    return outer_update_test_result(
+                        state, log, test_step=test_step, attachment=attachment
                     )
-                    logger.info('Posted result data', response=response)
-                    response.raise_for_status()
-                    step_result_id = response.json()['id']
 
                 typ = auto_test_handlers[test_step['test_type_name']]
 
@@ -2156,7 +2188,7 @@ class AutoTestRunner:
 
             cont.run_command(
                 [
-                    '/bin/bash',
+                    BASH_PATH,
                     '-c',
                     (
                         'mkdir -p "{output_dir}" && '
@@ -2431,10 +2463,10 @@ class AutoTestRunner:
         with timed_code('run_setup_commands'):
             cont.run_command(
                 [
-                    '/bin/bash',
+                    BASH_PATH,
                     '-c',
                     (
-                        'adduser --shell /bin/bash --disabled-password --gecos'
+                        'adduser --shell {bash_path} --disabled-password --gecos'
                         ' "" {user} && '
                         'mkdir -p "{home_dir}/student/" && '
                         'mkdir -p "{fixtures_root}/{fixtures}" && '
@@ -2446,6 +2478,7 @@ class AutoTestRunner:
                         home_dir=_get_home_dir(CODEGRADE_USER),
                         fixtures=PRE_STUDENT_FIXTURES_DIR,
                         fixtures_root=FIXTURES_ROOT,
+                        bash_path=BASH_PATH,
                     ),
                 ],
             )

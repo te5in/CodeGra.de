@@ -65,6 +65,7 @@
 
             <diff-viewer class="border rounded p-0"
                          :file="f"
+                         :fileId="f.ids[0]"
                          :show-whitespace="showWhitespace"
                          diff-only />
         </b-card>

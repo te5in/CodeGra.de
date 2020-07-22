@@ -27,7 +27,17 @@ def get_id(obj):
         return obj.id
 
 
+def dict_without(dct, *keys):
+    res = {**dct}
+    for key in keys:
+        del res[key]
+    return res
+
+
 def to_db_object(obj, cls):
+    if isinstance(obj, LocalProxy):
+        obj = obj._get_current_object()
+
     if isinstance(obj, cls):
         return obj
     return cls.query.get(get_id(obj))
@@ -256,6 +266,36 @@ def create_assignment(
     return res
 
 
+def enable_peer_feedback(
+    test_client,
+    assignment,
+    *,
+    amount=1,
+    days=6,
+    auto_approved=False,
+    err=False
+):
+    assignment_id = get_id(assignment)
+    time = (
+        None if days is None else datetime.timedelta(days=days).total_seconds()
+    )
+    return test_client.req(
+        'put',
+        f'/api/v1/assignments/{assignment_id}/peer_feedback_settings',
+        err or 200,
+        data={
+            'amount': amount,
+            'time': time,
+            'auto_approved': auto_approved,
+        },
+        result=create_error_template() if err else {
+            'amount': amount,
+            'time': time,
+            'auto_approved': auto_approved,
+        }
+    )
+
+
 def create_submission(
     test_client,
     assignment_id=None,
@@ -298,6 +338,8 @@ def create_submission(
             for_user = for_user['username']
         elif hasattr(for_user, 'username'):
             for_user = for_user.username
+        elif isinstance(for_user, int):
+            for_user = m.User.query.get(for_user).username
         path += f'?author={for_user}'
 
     return test_client.req(
@@ -511,6 +553,7 @@ def create_auto_test(
     grade_calculation=None,
     amount_fixtures=0,
     results_always_visible=False,
+    prefer_teacher_revision=False,
     has_hidden_steps=False,
 ):
     a_id = get_id(assignment)
@@ -535,6 +578,7 @@ def create_auto_test(
             'runs': [],
             'grade_calculation': None,
             'results_always_visible': None,
+            'prefer_teacher_revision': None,
         },
     )
 
@@ -546,11 +590,13 @@ def create_auto_test(
             data={
                 'grade_calculation': grade_calculation,
                 'results_always_visible': results_always_visible,
+                'prefer_teacher_revision': prefer_teacher_revision,
             },
             result={
                 'grade_calculation': grade_calculation,
                 '__allow_extra__': True,
                 'results_always_visible': results_always_visible,
+                'prefer_teacher_revision': prefer_teacher_revision,
             }
         )
 
@@ -636,6 +682,8 @@ def create_auto_test_from_dict(test_client, assig, at_dict):
             'setup_script': at_dict.get('setup_script', ''),
             'run_setup_script': at_dict.get('run_setup_script', ''),
             'grade_calculation': at_dict.get('grade_calculation', 'full'),
+            'prefer_teacher_revision':
+                at_dict.get('prefer_teacher_revision', False),
             'results_always_visible':
                 at_dict.get('results_always_visible', True),
         },

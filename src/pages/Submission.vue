@@ -23,7 +23,7 @@
             <preference-manager in-popover
                                 container="#submission-page"
                                 :file-id="prefFileId"
-                                :show-context-amount="selectedCat === 'feedback-overview' || selectedCat === 'teacher-diff'"
+                                :show-context-amount="showPrefContextAmount"
                                 :show-language="selectedCat === 'code'"
                                 @whitespace="whitespaceChanged"
                                 @language="languageChanged"
@@ -34,7 +34,7 @@
                                    container="#submission-page"
                                    :assignment="assignment"
                                    :submission="submission"
-                                   :editable="true" />
+                                   editable/>
 
             <b-button v-if="canSeeGradeHistory"
                       id="codeviewer-grade-history"
@@ -133,9 +133,9 @@
 
         <template slot="extra" v-if="!loadingInner">
             <category-selector slot="extra"
-                                :default="defaultCat"
-                                v-model="selectedCat"
-                                :categories="categories"/>
+                               :default="defaultCat"
+                               v-model="selectedCat"
+                               :categories="categories"/>
         </template>
     </local-header>
 
@@ -152,7 +152,7 @@
                       :on-drag-started="() => { resizingFileViewer = true; }"
                       :on-drag-finished="() => { resizingFileViewer = false; }"
                       :size="splitRatio"
-                      :step="50"
+                      :step="25"
                       units="percents"
                       class="code-wrapper"
                       id="submission-page-inner"
@@ -235,6 +235,18 @@
                            :submission-id="submissionId" />
             </div>
         </div>
+
+        <div class="cat-wrapper"
+             :class="{ hidden: selectedCat !== 'peer-feedback'}"
+             v-if="showPeerFeedback">
+            <peer-feedback-by-user
+                v-if="!hiddenCats.has('peer-feedback')"
+                :assignment="assignment"
+                :context-lines="contextAmount"
+                :show-whitespace="showWhitespace"
+                :show-inline-feedback="selectedCat === 'peer-feedback'"
+                :user="submission.user"/>
+        </div>
     </template>
 
     <grade-viewer :assignment="assignment"
@@ -284,6 +296,7 @@ import {
     SubmitButton,
     Toggle,
     User,
+    PeerFeedbackByUser,
 } from '@/components';
 
 import FileViewer from '@/components/FileViewer';
@@ -296,6 +309,7 @@ export default {
         return {
             assignmentState,
 
+            defaultCat: '',
             selectedCat: '',
             hiddenCats: new Set(),
 
@@ -517,7 +531,7 @@ export default {
                 },
                 {
                     id: 'feedback-overview',
-                    name: 'Feedback overview',
+                    name: 'Feedback Overview',
                     badge: this.numFeedbackItems === 0 ? null : {
                         label: this.numFeedbackItems,
                         variant: 'primary',
@@ -535,8 +549,13 @@ export default {
                 },
                 {
                     id: 'teacher-diff',
-                    name: 'Teacher diff',
+                    name: 'Teacher Diff',
                     enabled: this.showTeacherDiff,
+                },
+                {
+                    id: 'peer-feedback',
+                    name: 'Peer Feedback',
+                    enabled: this.showPeerFeedback,
                 },
             ];
         },
@@ -584,33 +603,16 @@ export default {
             }
         },
 
-        defaultCat() {
-            const editable = this.editable;
-            const done = this.assignmentDone;
-            const hasFb = this.hasFeedback;
-            const testRun = this.autoTestRun;
-
-            if (done) {
-                if (hasFb) {
-                    return 'feedback-overview';
-                } else if (testRun) {
-                    return 'auto-test';
-                } else {
-                    return 'feedback-overview';
-                }
-            } else if (!editable && testRun) {
-                return 'auto-test';
-            } else {
-                return 'code';
-            }
-        },
-
         rubricStartOpen() {
             const done = this.assignmentDone;
             const editable = this.editable;
             const canSeeGrade = this.canSeeGrade;
 
             return (editable || done) && canSeeGrade;
+        },
+
+        isPeerFeedback() {
+            return this.$utils.parseBool(this.$route.query.peerFeedback, false);
         },
 
         submissionsRoute() {
@@ -628,6 +630,7 @@ export default {
                     sortAsc: this.$route.query.sortAsc,
                     page: this.$route.query.page || undefined,
                 },
+                hash: this.isPeerFeedback ? '#peer-feedback' : undefined,
             };
         },
 
@@ -654,6 +657,29 @@ export default {
 
         defaultEmailSubject() {
             return `[CodeGrade - ${this.assignment.course.name}/${this.assignment.name}] …`;
+        },
+
+        showPeerFeedback() {
+            const pfSettings = this.$utils.getProps(
+                this.assignment,
+                null,
+                'peer_feedback_settings',
+            );
+            if (pfSettings == null) {
+                return false;
+            }
+            if (this.canGrade) {
+                return true;
+            }
+            if (this.submission != null && this.userId === this.submission.userId) {
+                return true;
+            }
+            return false;
+        },
+
+        showPrefContextAmount() {
+            const cat = this.selectedCat;
+            return cat === 'feedback-overview' || cat === 'teacher-diff' || cat === 'peer-feedback';
         },
     },
 
@@ -773,7 +799,7 @@ export default {
             });
         },
 
-        async loadData() {
+        loadData() {
             if (this.submissionId == null || this.error != null) {
                 return;
             }
@@ -832,8 +858,11 @@ export default {
                 );
             }
 
-            await Promise.all(promises).then(
-                this.openFirstFile,
+            Promise.all(promises).then(
+                () => {
+                    this.setDefaultCat();
+                    this.openFirstFile();
+                },
                 err => {
                     this.error = this.$utils.getErrorMessage(err);
                 },
@@ -946,6 +975,31 @@ export default {
                 this.splitRatio = 50;
             }
         },
+
+        setDefaultCat() {
+            this.defaultCat = this.getDefaultCat(
+                this.editable,
+                this.assignmentDone,
+                this.hasFeedback,
+                this.autoTestRun,
+            );
+        },
+
+        getDefaultCat(feedbackEditable, assignmentDone, hasFeedback, autoTestRun) {
+            if (assignmentDone) {
+                if (hasFeedback) {
+                    return 'feedback-overview';
+                } else if (autoTestRun) {
+                    return 'auto-test';
+                } else {
+                    return 'feedback-overview';
+                }
+            } else if (!feedbackEditable && autoTestRun) {
+                return 'auto-test';
+            } else {
+                return 'code';
+            }
+        },
     },
 
     components: {
@@ -969,6 +1023,7 @@ export default {
         User,
         StudentContact,
         'rs-panes': ResSplitPane,
+        PeerFeedbackByUser,
     },
 };
 </script>

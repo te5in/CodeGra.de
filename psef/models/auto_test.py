@@ -2,6 +2,7 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import os
 import math
 import uuid
 import typing as t
@@ -1090,9 +1091,39 @@ class AutoTestRun(Base, TimestampMixin, IdMixin):
 
     def delete_and_clear_rubric(self) -> None:
         """Delete this AutoTestRun and clear all the results and rubrics.
+
+        This method will also delete all the existing attachments for step
+        results.
         """
         for result in self.results:
             result.clear_rubric()
+
+        ATResult = auto_test_step_models.AutoTestStepResult  # pylint: disable=invalid-name
+
+        attachments = db.session.query(ATResult.attachment_filename).filter(
+            ATResult.attachment_filename.isnot(None),
+            ATResult.auto_test_result_id.in_(
+                [result.id for result in self.results]
+            )
+        ).all()
+
+        if attachments:
+
+            def after_req() -> None:
+                for attachment, in attachments:
+                    # This is never the case as we filter the attachments in
+                    # the query, but mypy doesn't understand that.
+                    if attachment is None:  # pragma: no cover
+                        continue
+
+                    path = psef.files.safe_join(
+                        psef.app.config['UPLOAD_DIR'], attachment
+                    )
+                    if os.path.isfile(path):
+                        os.unlink(path)
+
+            callback_after_this_request(after_req)
+
         db.session.delete(self)
 
     @property
@@ -1285,6 +1316,13 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         default=None,
     )
 
+    prefer_teacher_revision = db.Column(
+        'prefer_teacher_revision',
+        db.Boolean,
+        nullable=True,
+        default=None,
+    )
+
     def ensure_no_runs(self) -> None:
         """Ensure that this AutoTest has no runs.
 
@@ -1323,12 +1361,17 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     def _ensure_can_start_run(self) -> None:
         if self.grade_calculator is None:
             raise InvalidStateException(
-                'This AutoTest has no grade_calculation set, but this options'
+                'This AutoTest has no grade_calculation set, but this option'
                 ' is required.'
             )
         elif self.results_always_visible is None:
             raise InvalidStateException(
                 'This AutoTest does not have a results_always_visible set, but'
+                ' this option is required'
+            )
+        elif self.prefer_teacher_revision is None:
+            raise InvalidStateException(
+                'This AutoTest does not have prefer_teacher_revision set, but'
                 ' this option is required'
             )
         elif not self.sets:
@@ -1372,7 +1415,8 @@ class AutoTest(Base, TimestampMixin, IdMixin):
         run = AutoTestRun(
             batch_run_done=(
                 not self.has_hidden_steps or self.assignment.deadline_expired
-            )
+            ),
+            auto_test=self,
         )
         self._runs.append(run)
         db.session.flush()
@@ -1518,6 +1562,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             'assignment_id': self.assignment.id,
             'runs': self._runs,
             'results_always_visible': self.results_always_visible,
+            'prefer_teacher_revision': self.prefer_teacher_revision,
         }
 
     def copy(
@@ -1546,6 +1591,7 @@ class AutoTest(Base, TimestampMixin, IdMixin):
             finalize_script=self.finalize_script,
             results_always_visible=self.results_always_visible,
             _grade_calculation=self._grade_calculation,
+            prefer_teacher_revision=self.prefer_teacher_revision,
         )
         for suite in res.all_suites:
             suite.rubric_row = rubric_mapping[suite.rubric_row]

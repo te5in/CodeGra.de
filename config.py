@@ -23,7 +23,7 @@ CONFIG['BASE_DIR'] = cur_dir
 
 os.environ['BASE_DIR'] = str(CONFIG['BASE_DIR'])
 
-parser = ConfigParser(os.environ)
+parser = ConfigParser({k: v for k, v in os.environ.items() if k.isupper()})
 parser.read(config_file)
 
 if 'Back-end' not in parser:
@@ -84,6 +84,7 @@ FlaskConfig = TypedDict(
         'AUTO_TEST_MAX_CONCURRENT_BATCH_RUNS': int,
         'AUTO_TEST_RUNNER_INSTANCE_PASS': str,
         'AUTO_TEST_RUNNER_CONTAINER_URL': t.Optional[str],
+        'CUR_COMMIT': str,
         'VERSION': str,
         'TESTING': bool,
         'Celery': CeleryConfig,
@@ -355,14 +356,14 @@ set_int(CONFIG, backend_ops, 'MIN_FREE_DISK_SPACE', 10 * GB)
 
 
 def _set_version() -> None:
-    CONFIG['CUR_COMMIT'] = subprocess.check_output([
-        'git', 'rev-parse', 'HEAD'
-    ],
-                                                   text=True).strip()
-    CONFIG['VERSION'] = subprocess.check_output([
-        'git', 'describe', '--abbrev=0', '--tags'
-    ],
-                                                text=True).strip()
+    CONFIG['CUR_COMMIT'] = subprocess.check_output(
+        ['git', 'rev-parse', 'HEAD'],
+        text=True,
+    ).strip()
+    CONFIG['VERSION'] = subprocess.check_output(
+        ['git', 'describe', '--abbrev=0', '--tags'],
+        text=True,
+    ).strip()
 
 
 try:
@@ -614,6 +615,8 @@ set_bool(CONFIG['__S_FEATURES'], feature_ops, 'AUTO_TEST', False)
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'RENDER_HTML', False)
 
 set_bool(CONFIG['__S_FEATURES'], feature_ops, 'EMAIL_STUDENTS', True)
+
+set_bool(CONFIG['__S_FEATURES'], feature_ops, 'PEER_FEEDBACK', False)
 
 ############
 # LTI keys #

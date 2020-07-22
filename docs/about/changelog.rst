@@ -6,10 +6,63 @@ Version *Next*
 
 **Released**: TBD
 
+Version Mosaic
+---------------
+
+**Released**: July 21st, 2020
+
+With CodeGrade Peer Feedback it is now possible for students to review code of
+other students, allowing them to learn from each other. Furthermore, it is even
+easier to integrate existing unit tests in AutoTest, by utilizing the new "Unit
+test" step type.
+
+**Features**
+
+- Add "Unit Test" AutoTest step `(#1385)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1385>`__. This new AutoTest
+  step type supports all testing frameworks that can output their results the
+  JUnit XML format. The results are shown to the student  in an intuitive
+  overview.
+- Make it possible to run AutoTest on the teacher revision instead of the
+  student submission, if it is available. `(#1390)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1390>`__.
+- Allow test submissions before the deadline `(#1395)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1395>`__. This may be useful
+  when setting up a course without knowing the deadline yet in LMSes that
+  support deadline synchronization, for which impossible to change the deadline
+  from within CodeGrade.
+- Add Peer Feedback feature `(#1394)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1394>`__. When peer feedback
+  is enabled for an assignment, students can give each other feedback after the
+  deadline of an assignment has passed.
+
+**Updates**
+
+- Automatically focus the percentage input in continuous rubric rows
+  `(#1370) <https://github.com/CodeGra-de/CodeGra.de/pull/1370>`__.
+- Make it easier to upgrade from LTI 1.1 to LTI 1.3
+  `(#1374) <https://github.com/CodeGra-de/CodeGra.de/pull/1374>`__.
+- Add more rubric category information to the rubric analytics graphs
+  `(#1383) <https://github.com/CodeGra-de/CodeGra.de/pull/1383>`__.
+- Do not automatically hide the general feedback popover after saving the
+  general feedback or interacting with the page `(#1386)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1386>`__.
+- Add the year to course names in the sidebar if there are other courses with
+  the same name `(#1387)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1387>`__.
+- It is now possible to restart the AutoTest run for a single student
+  `(#1397) <https://github.com/CodeGra-de/CodeGra.de/pull/1397>`__.
+
 **Fixes**
 
 - Fix IPython ``execute_result`` cell outputs `(#1367)
-  <https://github.com/CodeGra-de/CodeGra.de>`__.
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1367>`__.
+- Add missing newline at the end of symbolic link replacement files
+  `(#1382) <https://github.com/CodeGra-de/CodeGra.de/pull/1382>`__.
+- Miscellaneous fixes:
+  `(#1373) <https://github.com/CodeGra-de/CodeGra.de/pull/1373>`__,
+  `(#1375) <https://github.com/CodeGra-de/CodeGra.de/pull/1375>`__,
+  `(#1376) <https://github.com/CodeGra-de/CodeGra.de/pull/1376>`__.
 
 Version *LowVoltage.1*
 ----------------------

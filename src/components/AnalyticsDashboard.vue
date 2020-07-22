@@ -292,7 +292,7 @@ export default {
         },
 
         reloadWorkspace() {
-            this.clearAssignmentWorkspaces().then(this.loadWorkspaceData);
+            this.clearAssignmentWorkspaces(this.assignmentId).then(this.loadWorkspaceData);
         },
     },
 

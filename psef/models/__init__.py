@@ -169,7 +169,8 @@ if True:  # pylint: disable=using-constant-test
     from .assignment import (
         Assignment, AssignmentLinter, AssignmentResult, AssignmentDoneType,
         AssignmentGraderDone, AssignmentAssignedGrader, AssignmentStateEnum,
-        AssignmentAmbiguousSettingTag, AssignmentVisibilityState
+        AssignmentAmbiguousSettingTag, AssignmentVisibilityState,
+        AssignmentPeerFeedbackSettings, AssignmentPeerFeedbackConnection
     )
     from .permission import Permission
     from .user import User
@@ -187,7 +188,8 @@ if True:  # pylint: disable=using-constant-test
         PlagiarismState, PlagiarismRun, PlagiarismCase, PlagiarismMatch
     )
     from .comment import (
-        CommentBase, CommentReply, CommentReplyEdit, CommentReplyType
+        CommentBase, CommentReply, CommentReplyEdit, CommentReplyType,
+        CommentType
     )
     from .role import AbstractRole, Role, CourseRole
     from .snippet import Snippet

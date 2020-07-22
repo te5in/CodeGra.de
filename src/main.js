@@ -52,10 +52,12 @@ import RelativeTime from './components/RelativeTime';
 import User from './components/User';
 import Loader from './components/Loader';
 import SubmitButton from './components/SubmitButton';
+import PromiseLoader from './components/PromiseLoader';
 import DescriptionPopover from './components/DescriptionPopover';
 import CgLogo from './components/CgLogo';
 import CatchError from './components/CatchError';
 import Toggle from './components/Toggle';
+import Collapse from './components/Collapse';
 import NumberInput from './components/NumberInput';
 import WizardWrapper from './components/WizardWrapper';
 /* eslint-enable import/first */
@@ -64,10 +66,12 @@ Vue.component('cg-relative-time', RelativeTime);
 Vue.component('cg-user', User);
 Vue.component('cg-loader', Loader);
 Vue.component('cg-submit-button', SubmitButton);
+Vue.component('cg-promise-loader', PromiseLoader);
 Vue.component('cg-description-popover', DescriptionPopover);
 Vue.component('cg-logo', CgLogo);
 Vue.component('cg-catch-error', CatchError);
 Vue.component('cg-toggle', Toggle);
+Vue.component('cg-collapse', Collapse);
 Vue.component('cg-number-input', NumberInput);
 Vue.component('cg-wizard-wrapper', WizardWrapper);
 
@@ -182,6 +186,18 @@ Vue.prototype.$afterRerender = function doubleRequestAnimationFrame(cb) {
     });
 };
 
+Vue.prototype.$waitForRef = async function waitForRef(refName, retries = 5) {
+    for (let i = 0; i < retries; i++) {
+        if (this.$refs[refName] == null) {
+            // eslint-disable-next-line no-await-in-loop
+            await this.$afterRerender();
+        } else {
+            break;
+        }
+    }
+    return this.$refs[refName];
+};
+
 // eslint-disable-next-line
 Promise.all([
     polyFilled,
@@ -282,6 +298,7 @@ Promise.all([
             }, 1000);
 
             this._loadNotifications();
+            this._checkForUpdates();
         },
 
         computed: {
@@ -356,14 +373,6 @@ Promise.all([
                         }
                         throw err;
                     },
-                    '5xx': err => {
-                        const { request } = err;
-
-                        if (request) {
-                            this.backendError();
-                        }
-                        throw err;
-                    },
                     noResponse: err => {
                         this.connectionError();
                         throw err;
@@ -403,16 +412,6 @@ Promise.all([
                 });
             },
 
-            backendError() {
-                this.$emit('cg::app::toast', {
-                    tag: 'BackendError',
-                    title: 'Unknown error',
-                    message:
-                        'An unexpected error occurred. Please try again in a moment or contact support if this persists.',
-                    variant: 'danger',
-                });
-            },
-
             connectionError() {
                 this.$emit('cg::app::toast', {
                     tag: 'ConnectionError',
@@ -421,6 +420,25 @@ Promise.all([
                         'There was an error connecting to the server... Please try again later.',
                     variant: 'danger',
                 });
+            },
+
+            async _checkForUpdates() {
+                const res = await this.$http.get('/api/v1/about').catch(() => ({ data: {} }));
+                if (UserConfig.isProduction && res.data.commit !== UserConfig.release.commitHash) {
+                    this.$emit('cg::app::toast', {
+                        tag: 'UpdateAvailable',
+                        title: 'CodeGrade update available!',
+                        message:
+                            'An updated version of CodeGrade is available. Please click here to reload the page and start using the latest version!',
+                        variant: '',
+                        href: '#',
+                        onClick() {
+                            window.location.reload();
+                        },
+                    });
+                } else {
+                    setTimeout(this._checkForUpdates, 10 * 60 * 1000);
+                }
             },
         },
 

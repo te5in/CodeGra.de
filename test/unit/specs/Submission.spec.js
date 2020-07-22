@@ -149,6 +149,10 @@ describe('Submission.vue', () => {
                     treeLoadedAmount.student++;
                     res = jsonCopy(tree1);
                 }
+            } else if (/^.api.v1.submissions.[0-9]+.root_file_trees/.test(path)) {
+                treeLoadedAmount.student++;
+                treeLoadedAmount.teacher++;
+                res = { student: tree1, teacher: tree2 };
             } else if (/^.api.v1.submissions.[0-9]+.rubrics./.test(path)) {
                 res = rubric;
             } else if (/^.api.v1.submissions.[0-9]+.feedbacks./.test(path)) {
@@ -241,8 +245,6 @@ describe('Submission.vue', () => {
 
     describe('Computed', () => {
         it('ids should be numbers', () => {
-            console.log(comp.course);
-            console.log(comp.courseId);
             expect(comp.courseId).toBeNumber();
             expect(comp.assignmentId).toBeNumber();
             expect(comp.submissionId).toBeNumber();
@@ -303,7 +305,41 @@ describe('Submission.vue', () => {
             });
         });
 
-        describe('defaultCat', () => {
+        describe('getDefaultCat', () => {
+            it.each([
+                [false, false, false, null, 'code'],
+                [false, false, false, {},   'auto-test'],
+                [false, false, true,  null, 'code'],
+                [false, false, true,  {},   'code'],
+                [false, true,  false, null, 'code'],
+                [false, true,  false, {},   'auto-test'],
+                [false, true,  true,  null, 'code'],
+                [false, true,  true,  {},   'code'],
+                [true,  false, false, null, 'feedback-overview'],
+                [true,  false, false, {},   'auto-test'],
+                [true,  false, true,  null, 'feedback-overview'],
+                [true,  false, true,  {},   'auto-test'],
+                [true,  true,  false, null, 'feedback-overview'],
+                [true,  true,  false, {},   'feedback-overview'],
+                [true,  true,  true,  null, 'feedback-overview'],
+                [true,  true,  true,  {},   'feedback-overview'],
+            ])('should behave correctly', (
+                assignmentDone,
+                hasFeedback,
+                feedbackEditable,
+                autoTestRun,
+                expected = 'code',
+            ) => {
+                expect(comp.getDefaultCat(
+                    feedbackEditable,
+                    assignmentDone,
+                    hasFeedback,
+                    autoTestRun,
+                )).toBe(expected);
+            });
+        });
+
+        describe('setDefaultCat', () => {
             it('should be "Code" when the assignment is not done and there is no Continuous Feedback', async () => {
                 store.dispatch('courses/updateAssignment', {
                     assignmentId: comp.assignmentId,
@@ -312,8 +348,9 @@ describe('Submission.vue', () => {
                         auto_test_id: null,
                     },
                 });
-
                 await wait();
+                comp.setDefaultCat();
+
                 expect(comp.defaultCat).toBe('code');
             });
 
@@ -331,6 +368,7 @@ describe('Submission.vue', () => {
                     user: [],
                 });
                 await wait();
+                comp.setDefaultCat();
 
                 expect(comp.defaultCat).toBe('feedback-overview');
 
@@ -348,6 +386,7 @@ describe('Submission.vue', () => {
                     }],
                 })
                 await wait();
+                comp.setDefaultCat();
 
                 expect(comp.defaultCat).toBe('feedback-overview');
             });
@@ -365,6 +404,7 @@ describe('Submission.vue', () => {
                     user: {},
                 });
                 await wait();
+                comp.setDefaultCat();
 
                 expect(comp.defaultCat).toBe('feedback-overview');
             });
@@ -382,8 +422,9 @@ describe('Submission.vue', () => {
                     user: [],
                     linter: {},
                 });
-
                 await wait(100);
+                comp.setDefaultCat();
+
                 expect(comp.defaultCat).toBe('auto-test');
             });
 
@@ -397,6 +438,7 @@ describe('Submission.vue', () => {
                     },
                 });
                 await wait();
+                comp.setDefaultCat();
 
                 expect(comp.defaultCat).toBe('code');
 
@@ -421,6 +463,7 @@ describe('Submission.vue', () => {
                     },
                 });
                 await wait();
+                comp.setDefaultCat();
 
                 expect(comp.defaultCat).toBe('code');
             });

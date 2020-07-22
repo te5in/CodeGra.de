@@ -263,6 +263,8 @@ def test_lti_new_user_new_course(test_client, app, logged_in, ta_user):
         assert m.UserLTIProvider.query.filter_by(
             user_id=ta_user.id
         ).one().lti_user_id == 'THOMAS_SCHAPER'
+        provider = m.LTI1p1Provider.query.filter_by(key='my_lti').one()
+        assert provider.find_user('THOMAS_SCHAPER') == ta_user
 
         assert assig['id'] in ta_user.assignment_results
 
@@ -1046,7 +1048,8 @@ def test_lti_assignment_create_and_delete(
     ),
 ])
 def test_lti_assignment_update(
-    test_client, app, logged_in, ta_user, error_template, lms, extra_data
+    test_client, app, logged_in, ta_user, error_template, lms, extra_data,
+    describe
 ):
     def do_lti_launch():
         with app.app_context():
@@ -1076,21 +1079,23 @@ def test_lti_assignment_update(
                 ).state == m.AssignmentStateEnum.open
             return lti_res['assignment'], lti_res.get('access_token', None)
 
-    with app.app_context():
-        assig, token = do_lti_launch()
-        lti_class = lti.lti_classes.get(lms)
-        assert assig['lms_name'] == lms
-        assert lti_class is not None
+    lti_class = None
 
-        test_client.req(
-            'patch',
-            f'/api/v1/assignments/{assig["id"]}',
-            400,
-            data={'name': 'wow'},
-            headers={'Authorization': f'Bearer {token}'},
-            result=error_template,
-        )
+    def update(status, **kwargs):
+        nonlocal lti_class
+        with app.app_context():
+            assig, token = do_lti_launch()
+            url = f'/api/v1/assignments/{assig["id"]}'
+            lti_class = lti.lti_classes.get(lms)
+            headers = {'Authorization': f'Bearer {token}'}
+            assert assig['lms_name'] == lms
+            assert lti_class is not None
+            test_client.req('patch', url, status, headers=headers, **kwargs)
 
+    with describe('Cannot update name'):
+        update(400, data={'name': 'wow'}, result=error_template)
+
+    with describe('Can only update deadline if supported'):
         if lti_class.supports_deadline():
             status = 400
             result = error_template
@@ -1098,15 +1103,13 @@ def test_lti_assignment_update(
             status = 200
             result = None
 
-        test_client.req(
-            'patch',
-            f'/api/v1/assignments/{assig["id"]}',
+        update(
             status,
             data={'deadline': DatetimeWithTimezone.utcnow().isoformat()},
-            headers={'Authorization': f'Bearer {token}'},
-            result=result,
+            result=result
         )
 
+    with describe('Can only update max points if supported'):
         if lti_class.supports_max_points():
             status = 200
             result = None
@@ -1114,14 +1117,7 @@ def test_lti_assignment_update(
             status = 400
             result = error_template
 
-        test_client.req(
-            'patch',
-            f'/api/v1/assignments/{assig["id"]}',
-            status,
-            data={'max_grade': 100},
-            headers={'Authorization': f'Bearer {token}'},
-            result=result,
-        )
+        update(status, data={'max_grade': 100}, result=result)
 
 
 def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
@@ -1129,14 +1125,16 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
         days=1, hours=1, minutes=2
     )
     due_at = due_at.replace(second=0, microsecond=0)
+    username = f'username-{uuid.uuid4()}'
+    lti_id = str(uuid.uuid4())
 
     def do_lti_launch(
         email,
         name='A the A-er',
-        lti_id='USER_ID',
+        lti_id=lti_id,
         source_id='',
         published='false',
-        username='a-the-a-er',
+        username=username,
         due=None
     ):
         with app.app_context():
@@ -1193,13 +1191,13 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
     assig, token = do_lti_launch('orig@example.com')
     out = get_user_info(token)
     assert out['name'] == 'A the A-er'
-    assert out['username'] == 'a-the-a-er'
+    assert out['username'] == username
     old_id = out['id']
 
     _, token = do_lti_launch('new@example.com')
     out = get_user_info(token)
     assert out['name'] == 'A the A-er'
-    assert out['username'] == 'a-the-a-er'
+    assert out['username'] == username
     assert out['email'] == 'orig@example.com'
     assert out['id'] == old_id
 
@@ -1208,7 +1206,7 @@ def test_reset_lti_email(test_client, app, logged_in, ta_user, session):
     _, token = do_lti_launch('new@example.com')
     out = get_user_info(token)
     assert out['name'] == 'A the A-er'
-    assert out['username'] == 'a-the-a-er'
+    assert out['username'] == username
     assert out['email'] == 'new@example.com'
     assert out['id'] == old_id
 
@@ -1329,12 +1327,17 @@ def test_invalid_lms(
         }
         if source_id:
             data['lis_result_sourcedid'] = source_id
-        res = test_client.req(
+
+        res = test_client.post('/api/v1/lti/launch/1', data=data)
+        assert res.status_code == 303
+        url = urllib.parse.urlparse(res.headers['Location'])
+        blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
+        test_client.req(
             'post',
-            '/api/v1/lti/launch/1',
+            '/api/v1/lti/launch/2',
             err,
-            real_data=data,
-            result=error_template,
+            data={'blob_id': blob_id},
+            result={**error_template, 'original_exception': error_template},
         )
 
 
@@ -1438,6 +1441,7 @@ def test_lti_grade_passback_with_groups(
             do_lti_launch(lti_id=u1_lti_id)
             wrong_sub = create_submission(test_client, assig['id'])
         with logged_in(teacher_user):
+            print(teacher_user)
             set_grade(4.5, wrong_sub['id'])
         session.delete(
             session.query(
@@ -1453,6 +1457,8 @@ def test_lti_grade_passback_with_groups(
             session, [CPerm.can_submit_own_work],
             m.Course.query.get(assig['course']['id'])
         )
+        print(u3)
+        session.commit()
 
         g_set = create_group_set(
             test_client, assig['course']['id'], 2, 4, [assig["id"]]
@@ -2386,3 +2392,77 @@ def test_lti_multiple_providers_same_user_id(
     assert user1['username'] == user3['username']
     assert user1['username'] + ' (1)' == user4['username']
     assert user1['username'] + ' (2)' == user6['username']
+
+
+def test_launch_upgraded_lti1p1_provider(
+    test_client, app, error_template, session, describe, lti1p3_provider
+):
+    with describe('setup'):
+        due_at = DatetimeWithTimezone.utcnow() + datetime.timedelta(days=1)
+        assig_max_points = 8
+        lti_max_points = assig_max_points / 2
+        last_xml = None
+
+        source_url = f'http://source_url-{uuid.uuid4()}.com'
+        source_id = 'NON_EXISTING2!'
+
+        def do_lti_launch(
+            username='A the A-er',
+            lti_id='USER_ID',
+            canvas_id='MY_COURSE_ID_100',
+            source_id=source_id,
+            status_code=200,
+        ):
+            nonlocal last_xml
+            with app.app_context():
+                last_xml = None
+                data = {
+                    'custom_canvas_course_name': 'NEW_COURSE',
+                    'custom_canvas_course_id': canvas_id,
+                    'custom_canvas_assignment_id': f'{canvas_id}_ASSIG_1',
+                    'custom_canvas_assignment_title': 'MY_ASSIG_TITLE',
+                    'ext_roles':
+                        'urn:lti:sysrole:ims/lis/Administrator,urn:lti:role:ims/lis/Instructor',
+                    'custom_canvas_user_login_id': username,
+                    'custom_canvas_assignment_due_at': due_at.isoformat(),
+                    'custom_canvas_assignment_published': 'true',
+                    'user_id': lti_id,
+                    'lis_person_contact_email_primary': 'a@a.nl',
+                    'lis_person_name_full': username,
+                    'context_id': 'NO_CONTEXT!!',
+                    'context_title': 'WRONG_TITLE!!',
+                    'oauth_consumer_key': 'my_lti',
+                    'lis_outcome_service_url': source_url,
+                    'custom_canvas_points_possible': lti_max_points,
+                }
+                if source_id:
+                    data['lis_result_sourcedid'] = source_id
+                res = test_client.post('/api/v1/lti/launch/1', data=data)
+
+                url = urllib.parse.urlparse(res.headers['Location'])
+                blob_id = urllib.parse.parse_qs(url.query)['blob_id'][0]
+                lti_res = test_client.req(
+                    'post',
+                    '/api/v1/lti/launch/2',
+                    status_code,
+                    data={'blob_id': blob_id},
+                )
+                if status_code == 200:
+                    assert lti_res['assignment']['course']
+                return lti_res
+
+    with describe('Can do initial launch'):
+        do_lti_launch()
+
+    with describe(
+        'Cannot do launch if a lti 1.3 provider upgrades this provider'
+    ):
+        lti1p3_provider._updates_lti1p1 = m.LTI1p1Provider.query.filter_by(
+            key='my_lti'
+        ).one()
+        session.commit()
+        res = do_lti_launch(status_code=400)
+        assert (
+            'This provider has been upgraded to LTI 1.3' ==
+            res['original_exception']['message']
+        )

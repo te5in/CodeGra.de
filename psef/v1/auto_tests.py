@@ -6,9 +6,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 import json
 import typing as t
 
+import flask
 import werkzeug
 import structlog
-from flask import request, make_response
+from flask import Response, request, make_response
 
 from . import api
 from .. import app, auth, files, tasks, models, helpers, registry, exceptions
@@ -43,6 +44,33 @@ def _get_at_set_by_ids(
     )
 
 
+def _get_result_by_ids(
+    auto_test_id: int, run_id: int, result_id: int, *, lock: bool = False
+) -> models.AutoTestResult:
+    test = get_or_404(
+        models.AutoTest,
+        auto_test_id,
+        also_error=lambda at: not at.assignment.is_visible
+    )
+
+    def also_error(obj: models.AutoTestResult) -> bool:
+        if obj.auto_test_run_id != run_id or obj.run.auto_test_id != test.id:
+            return True
+        elif obj.work.deleted:
+            return True
+        return False
+
+    if lock:
+        return filter_single_or_404(
+            models.AutoTestResult,
+            models.AutoTestResult.id == result_id,
+            also_error=also_error,
+            with_for_update=True,
+            with_for_update_of=models.AutoTestResult,
+        )
+    return get_or_404(models.AutoTestResult, result_id, also_error=also_error)
+
+
 def _update_auto_test(
     auto_test: models.AutoTest, json_dict: t.Mapping[str, helpers.JSONType]
 ) -> None:
@@ -52,8 +80,11 @@ def _update_auto_test(
         run_setup_script = optional_get('run_setup_script', str, None)
         has_new_fixtures = optional_get('has_new_fixtures', bool, False)
         grade_calculation = optional_get('grade_calculation', str, None)
-        results_always_visible: t.Optional[bool] = optional_get(
+        results_always_visible = optional_get(
             'results_always_visible', (bool, type(None)), None
+        )
+        prefer_teacher_revision = optional_get(
+            'prefer_teacher_revision', (bool, type(None)), None
         )
 
     if old_fixtures is not None:
@@ -103,6 +134,8 @@ def _update_auto_test(
                 ), APICodes.OBJECT_NOT_FOUND, 404
             )
         auto_test.grade_calculator = calc
+    if prefer_teacher_revision is not None:
+        auto_test.prefer_teacher_revision = prefer_teacher_revision
     if results_always_visible is not None:
         auto_test.results_always_visible = results_always_visible
 
@@ -646,9 +679,7 @@ def delete_auto_test_runs(auto_test_id: int, run_id: int) -> EmptyResponse:
         also_error=lambda obj: obj.auto_test_id != auto_test_id,
         with_for_update=True,
     )
-    auth.ensure_permission(
-        CPerm.can_delete_autotest_run, run.auto_test.assignment.course_id
-    )
+    auth.AutoTestRunPermissions(run).ensure_may_stop()
 
     job_id = run.get_job_id()
     callback_after_this_request(
@@ -735,27 +766,48 @@ def get_auto_test_result(auto_test_id: int, run_id: int, result_id: int
     :param result_id: The id of the result you want to get.
     :returns: The extended version of a :class:`.models.AutoTestResult`.
     """
-    test = get_or_404(
-        models.AutoTest,
-        auto_test_id,
-        also_error=lambda at: not at.assignment.is_visible
-    )
-    auth.ensure_can_view_autotest(test)
+    result = _get_result_by_ids(auto_test_id, run_id, result_id)
+    auth.AutoTestResultPermissions(result).ensure_may_see()
+    return extended_jsonify(result, use_extended=models.AutoTestResult)
 
-    def also_error(obj: models.AutoTestResult) -> bool:
-        if obj.auto_test_run_id != run_id or obj.run.auto_test_id != test.id:
-            return True
-        elif obj.work.deleted:
-            return True
-        return False
 
-    result = get_or_404(
-        models.AutoTestResult,
-        result_id,
-        also_error=also_error,
-    )
+@api.route(
+    (
+        '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/results'
+        '/<int:result_id>/restart'
+    ),
+    methods=['POST']
+)
+@feature_required(Feature.AUTO_TEST)
+def restart_auto_test_result(auto_test_id: int, run_id: int, result_id: int
+                             ) -> ExtendedJSONResponse[models.AutoTestResult]:
+    """Restart an AutoTest result.
 
-    auth.ensure_can_view_autotest_result(result)
+    .. :quickref: AutoTest; Restart a single result.
+
+    :param auto_test_id: The id of the AutoTest in which the result is located.
+    :param run_id: The id of run in which the result is located.
+    :param result_id: The id of the result you want to restart.
+    :returns: The extended version of a :class:`.models.AutoTestResult`.
+    """
+    result = _get_result_by_ids(auto_test_id, run_id, result_id, lock=True)
+
+    auth.AutoTestResultPermissions(result).ensure_may_restart()
+
+    if result.is_finished or result.runner is None:
+        callback_after_this_request(
+            lambda: tasks.adjust_amount_runners(run_id)
+        )
+    else:
+        # XXX: We can probably do this in a more efficient way, while still
+        # making sure the code of the student is downloaded again. However, we
+        # hypothesized that this case (restarting a running result) will not
+        # happen very often so it doesn't really make sense to optimize this
+        # case.
+        result.run.stop_runners([result.runner])
+
+    result.clear()
+    db.session.commit()
 
     return extended_jsonify(result, use_extended=models.AutoTestResult)
 
@@ -852,29 +904,13 @@ def get_auto_test_result_proxy(
         allow_remote_resources = get('allow_remote_resources', bool)
         allow_remote_scripts = get('allow_remote_scripts', bool)
 
-    test = get_or_404(
-        models.AutoTest,
-        auto_test_id,
-        also_error=lambda at: not at.assignment.is_visible
-    )
-    auth.ensure_can_view_autotest(test)
+    result = _get_result_by_ids(auto_test_id, run_id, result_id)
+    test = result.run.auto_test
     if not test.assignment.is_done:
         auth.ensure_permission(
             CPerm.can_view_autotest_output_files_before_done,
             test.assignment.course_id,
         )
-
-    def also_error(obj: models.AutoTestResult) -> bool:
-        return (
-            obj.auto_test_run_id != run_id or
-            obj.run.auto_test_id != test.id or obj.work.deleted
-        )
-
-    result = get_or_404(
-        models.AutoTestResult,
-        result_id,
-        also_error=also_error,
-    )
 
     base_file = filter_single_or_404(
         models.AutoTestOutputFile,
@@ -891,3 +927,59 @@ def get_auto_test_result_proxy(
     db.session.add(proxy)
     db.session.commit()
     return jsonify(proxy)
+
+
+@api.route(
+    '/auto_tests/<int:auto_test_id>/runs/<int:run_id>/step_results/<int:step_result_id>/attachment',
+    methods=['GET']
+)
+@feature_required(Feature.AUTO_TEST)
+def get_auto_test_step_result_attachment(
+    auto_test_id: int, run_id: int, step_result_id: int
+) -> Response:
+    """Get the attachment of an AutoTest step.
+
+    .. :quickref: AutoTest; Get AutoTest step result attachment.
+
+    :param auto_test_id: The id of the AutoTest in which the result is located.
+    :param run_id: The id of run in which the result is located.
+    :param step_result_id: The id of the step result of which you want the attachment.
+    :returns: The attachment data, as an application/octet-stream.
+    """
+    test = get_or_404(
+        models.AutoTest,
+        auto_test_id,
+        also_error=lambda at: not at.assignment.is_visible
+    )
+    auth.ensure_can_view_autotest(test)
+
+    def also_error(obj: models.AutoTestStepResult) -> bool:
+        result = obj.result
+        if result.auto_test_run_id != run_id or result.run.auto_test_id != test.id:
+            return True
+        elif result.work.deleted:
+            return True
+        return False
+
+    step_result = get_or_404(
+        models.AutoTestStepResult,
+        step_result_id,
+        also_error=also_error,
+    )
+
+    auth.ensure_can_view_autotest_result(step_result.result)
+    auth.ensure_can_view_autotest_step_details(step_result.step)
+
+    if step_result.attachment_filename is None:
+        raise APIException(
+            'This step did not produce an attachment',
+            f'The step result {step_result.id} does not contain an attachment',
+            APICodes.OBJECT_NOT_FOUND, 404
+        )
+
+    res = flask.send_from_directory(
+        app.config['UPLOAD_DIR'],
+        step_result.attachment_filename,
+    )
+    res.headers['Content-Type'] = 'application/octet-stream'
+    return res

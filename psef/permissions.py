@@ -13,6 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 import enum
 import typing as t
+import dataclasses
 
 from . import exceptions
 
@@ -195,6 +196,9 @@ class CoursePermission(BasePermission):
     :ivar can_view_others_comment_edits: Users with this permission may see the edit history of comments placed by others
     :ivar can_view_feedback_author: Users with this permission can view the author of inline and general feedback
     :ivar can_email_students: Users with this permission can email students using the contact student button.
+    :ivar can_view_inline_feedback_before_approved: Users with this permission can view unapproved inline comments, comments that need approval include peer feedback comments. Users still need to have the permission to see the feedback, so this permission alone is not enough to see peer feedback.
+    :ivar can_approve_inline_comments: Users with this permission can approve inline comments, comments that need approval include peer feedback comments.
+    :ivar can_edit_peer_feedback_settings: Users with this permission can edit the peer feedback status of an assignment.
     """
 
     @staticmethod
@@ -257,5 +261,17 @@ class CoursePermission(BasePermission):
     can_view_others_comment_edits = _PermissionValue(item=53, default_value=False)
     can_view_feedback_author = _PermissionValue(item=54, default_value=True)
     can_email_students = _PermissionValue(item=55, default_value=False)
+    can_view_inline_feedback_before_approved = _PermissionValue(item=56, default_value=False)
+    can_approve_inline_comments = _PermissionValue(item=57, default_value=False)
+    can_edit_peer_feedback_settings = _PermissionValue(item=58, default_value=False)
+
+
+@dataclasses.dataclass(frozen=True)
+class UnknownPermission:
+    name: str
+
+    @property
+    def default_value(self) -> None:  # pragma: no cover
+        raise AssertionError('This is not a real permission')
 
 # yapf: enable

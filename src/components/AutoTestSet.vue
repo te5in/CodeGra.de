@@ -25,13 +25,14 @@
             </template>
         </span>
 
-        <masonry :gutter="30" :cols="{default: (result ? 1 : 2), [$root.xlargeWidth]: 1 }">
+        <masonry :gutter="30" :cols="{default: (result ? 1 : 2), [1.25 * $root.xlargeWidth]: 1 }">
             <auto-test-suite v-for="suite, j in value.suites"
                              class="mb-3"
                              :editable="editable"
                              :editing="suite.steps.length === 0"
                              :key="suite.id"
                              :assignment="assignment"
+                             :auto-test="autoTest"
                              :other-suites="otherSuites"
                              :value="value.suites[j]"
                              :result="result"
@@ -132,6 +133,10 @@ export default {
             required: true,
         },
         assignment: {
+            type: Object,
+            required: true,
+        },
+        autoTest: {
             type: Object,
             required: true,
         },

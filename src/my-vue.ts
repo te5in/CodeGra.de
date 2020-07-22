@@ -11,11 +11,15 @@ declare module 'vue/types/vue' {
     // 3. Declare augmentation for Vue
     interface Vue {
         $afterRerender(): Promise<void>;
+        $waitForRef(ref: string, retries?: number): Promise<HTMLElement | Vue | null>;
         $http: AxiosStatic;
         $utils: typeof typedUtils;
         $now: Moment;
+        $epoch: Moment;
 
         $loadFullNotifications: boolean;
         $userConfig: typeof UserConfig;
+
+        $hlanguageStore: LocalForage;
     }
 }

@@ -40,6 +40,7 @@ interface AssignmentServerProps {
     amount_in_cool_off_period: number;
     lms_name: string | null;
     analytics_workspace_ids: number[];
+    peer_feedback_settings: AssignmentPeerFeedbackSettings;
 
     deadline: string;
     created_at: string;
@@ -47,7 +48,7 @@ interface AssignmentServerProps {
     cool_off_period: string;
 }
 
-interface AssignmentUpdateableProps {
+export interface AssignmentUpdateableProps {
     state?: assignmentState.AssignmentStates;
     description?: string | null;
     name?: string | null;
@@ -70,11 +71,19 @@ interface AssignmentUpdateableProps {
     // Special properties that also may be set.
     reminderTime?: moment.Moment;
     deadline?: moment.Moment;
-    graders: NormalUserServerData[] | null;
+    graders?: NormalUserServerData[] | null;
     cool_off_period?: number;
+    peer_feedback_settings?: AssignmentPeerFeedbackSettings | null;
 }
 
 const ALLOWED_UPDATE_PROPS = new Set(keys<AssignmentUpdateableProps>());
+
+export interface AssignmentPeerFeedbackSettings {
+    time: number;
+    amount: number;
+    // eslint-disable-next-line camelcase
+    auto_approved: boolean;
+}
 
 type Mutable<T extends { [x: string]: any }, K extends string> = { [P in K]: T[P] };
 
@@ -138,6 +147,8 @@ abstract class AssignmentData {
     readonly graderIds?: number[] | null;
 
     readonly analytics_workspace_ids!: number[];
+
+    readonly peer_feedback_settings!: AssignmentPeerFeedbackSettings;
 }
 /* eslint-enable camelcase */
 
@@ -236,7 +247,22 @@ export class Assignment extends AssignmentData {
         return now.isAfter(this.deadline);
     }
 
-    getSubmitDisabledReasons(now: moment.Moment = moment()): string[] {
+    get peerFeedbackDeadline() {
+        if (this.deadline == null || this.peer_feedback_settings == null) {
+            return null;
+        }
+        return this.deadline.clone().add(this.peer_feedback_settings.time, 'seconds');
+    }
+
+    peerFeedbackDeadlinePassed(now: moment.Moment = moment(), dflt: boolean = true): boolean {
+        const deadline = this.peerFeedbackDeadline;
+        if (deadline == null) {
+            return dflt;
+        }
+        return now.isAfter(deadline);
+    }
+
+    getSubmitDisabledReasons({ now = moment() }: { now?: moment.Moment } = {}): string[] {
         const res = [];
 
         if (
@@ -248,7 +274,7 @@ export class Assignment extends AssignmentData {
             res.push('you cannot submit work for this course');
         }
 
-        if (!this.hasDeadline) {
+        if (!this.hasDeadline && !this.hasPermission(CPerm.canSubmitOthersWork)) {
             res.push("the assignment's deadline has not yet been set");
         }
 
@@ -260,7 +286,7 @@ export class Assignment extends AssignmentData {
     }
 
     canSubmitWork(now: moment.Moment = moment()): boolean {
-        return this.getSubmitDisabledReasons(now).length === 0;
+        return this.getSubmitDisabledReasons({ now }).length === 0;
     }
 
     get maxGrade() {

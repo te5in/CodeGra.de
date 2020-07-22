@@ -42,6 +42,7 @@ context('Submission page', () => {
     function giveGeneralFeedback(feedback) {
         showGeneralFeedbackArea()
             .as('gfArea')
+            .invoke('focus')
             .find('textarea')
             .setText(feedback)
         cy.get('@gfArea')
@@ -50,7 +51,7 @@ context('Submission page', () => {
     }
 
     function checkGeneralFeedbackArea(feedback) {
-        showGeneralFeedbackArea()
+        cy.get('[id^="general-feedback-popover"]')
             .find('textarea')
             .should('have.value', feedback);
         reload();
@@ -70,12 +71,12 @@ context('Submission page', () => {
     function checkOverviewBadge(n) {
         if (n > 0) {
             cy.get('.categories')
-                .contains('.category', 'Feedback overview')
+                .contains('.category', 'Feedback Overview')
                 .find('.badge')
                 .should('contain', n.toString());
         } else {
             cy.get('.categories')
-                .contains('.category', 'Feedback overview')
+                .contains('.category', 'Feedback Overview')
                 .find('.badge')
                 .should('not.exist');
         }
@@ -185,7 +186,7 @@ context('Submission page', () => {
 
     context('General feedback', () => {
         beforeEach(() => {
-            cy.openCategory('Feedback overview');
+            cy.openCategory('Feedback Overview');
         });
 
         after(() => {
@@ -218,7 +219,7 @@ context('Submission page', () => {
             checkGeneralFeedbackOverview('No general feedback given.');
         });
 
-        it('should show a badge in the "Feedback overview" tab title if general feedback is not empty', () => {
+        it('should show a badge in the "Feedback Overview" tab title if general feedback is not empty', () => {
             giveGeneralFeedback('');
             checkOverviewBadge(0);
             giveGeneralFeedback(generalMsg);
@@ -305,12 +306,9 @@ context('Submission page', () => {
             }
         });
 
-        it('should not be possible to give an empty grade', () => {
-            getGradeInput()
-                .clear();
-            submitGrade('error', {
-                popoverMsg: 'Grade must be a number.',
-            });
+        it('should be possible to give an empty grade', () => {
+            getGradeInput().clear();
+            submitGrade('success');
         });
 
         it('should be possible to delete the grade', () => {

@@ -1,0 +1,873 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="149" failures="71" time="40.728">
+  <testsuite name="PlagiarismRunner.vue" errors="0" failures="9" skipped="0" timestamp="2020-06-19T12:45:09" time="16.289" tests="13">
+    <testcase classname="PlagiarismRunner.vue canGoToOverview" name="should be a function" time="0.165">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue canGoToOverview" name="should work" time="0.06">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue setOption" name="should copy old selectedOptions" time="0.051">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue setOption" name="should work" time="0.054">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue translateOption" name="should be a function" time="0.076">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue translateOption" name="should work for special cases" time="0.074">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue translateOption" name="should work for normal options" time="0.084">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue translateOption" name="should work when provider is not found" time="0.064">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue runPlagiarismChecker" name="should be a function" time="0.056">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue runPlagiarismChecker" name="should work in the most simple case" time="0.2">
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue runPlagiarismChecker" name="should work in with base code and old submissions" time="0.156">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue load providers" name="should work with multiple providers" time="0.059">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="PlagiarismRunner.vue load providers" name="should work with a single provider" time="0.133">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Workspace" errors="0" failures="62" skipped="0" timestamp="2020-06-19T12:45:08" time="17.982" tests="136">
+    <testcase classname="Workspace fromServerData" name="should throw an error when not passed the correct sources" time="0.095">
+    </testcase>
+    <testcase classname="Workspace fromServerData" name="should throw an error when an unknown data source name was given" time="0.006">
+    </testcase>
+    <testcase classname="Workspace fromServerData" name="should throw an error when the data source name does not match the data source" time="0.007">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="Workspace fromServerData" name="should create a WorkspaceSubmissionSet from the received submissions" time="0.009">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="Workspace fromServerData" name="should create a subclass of DataSource for each source" time="0.018">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="Workspace constructor" name="should return a frozen object" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="Workspace constructor" name="should create an unfrozen dataSources prop" time="0.006">
+    </testcase>
+    <testcase classname="Workspace _setSources" name="should copy the given props to the dataSources prop" time="0.008">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="Workspace _setSources" name="should freeze the dataSources prop" time="0.005">
+    </testcase>
+    <testcase classname="Workspace _setSources" name="should throw an error if called twice" time="0.007">
+    </testcase>
+    <testcase classname="Workspace hasSource" name="should return true if the requested source is available" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="Workspace hasSource" name="should return false if the requested source is not available" time="0.004">
+    </testcase>
+    <testcase classname="Workspace hasSource" name="should return false on invalid input" time="0.005">
+    </testcase>
+    <testcase classname="Workspace getSource" name="should return the source if the requested source is available" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="Workspace getSource" name="should return undefined if the requested source is not available" time="0.003">
+    </testcase>
+    <testcase classname="Workspace getSource" name="should return undefined on invalid input" time="0.005">
+    </testcase>
+    <testcase classname="Workspace filter" name="should return a WorkspaceFilterResult for each passed filter" time="0.007">
+    </testcase>
+    <testcase classname="WorkspaceFilter constructor" name="should return a frozen object" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter constructor" name="should throw when an invalid filter key is passed" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter constructor" name="should accept a subset of the valid filter keys" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter constructor" name="should use sensible defaults for omitted filter keys" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter constructor" name="should convert dates to moments" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter constructor" name="should use null if an invalid number is passed" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter constructor" name="should use null if an invalid date is passed" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter emptyFilter" name="should return the default filter" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter update" name="should return a new object" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter update" name="should update the given property" time="0.009">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter split" name="should do nothing if splitting on nothing" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on latest" name="should return two new filters" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on latest" name="should put the latest submissions in the second group" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on grade" name="should return two new filters" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on grade" name="should put the lower grades in the first group" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on grade" name="should throw an error when the grade is greater than the filter minGrade" time="0.005">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on grade" name="should throw an error when the date is after the filter submittedBefore" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on date" name="should return two new filters" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on date" name="should put the earlier dates in the first group" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on date" name="should throw an error when the date is before the filter submittedAfter" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on date" name="should throw an error when the date is after the filter submittedBefore" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on assignees" name="should return a new filter for each given assignee" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on assignees" name="should order the filters in the order the assignees were given" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on multiple filters" name="should return the cartesian product of all possible splits" time="0.005">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on multiple filters latest" name="should apply onlySplitLatest to half of the filters if selected" time="0.005">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on multiple filters latest" name="should keep the filter latest if not selected" time="0.006">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on multiple filters grade" name="should apply maxGrade to half the filters and minGrade to the other half if selected" time="0.005">
+    </testcase>
+    <testcase classname="WorkspaceFilter split splitting on multiple filters grade" name="should keep the filter min and max grade if not selected" time="0.007">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter serialize" name="should convert moments to strings" time="0.006">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilter serialize" name="should convert assignees to their ids" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceFilter serialize" name="should not include default values" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilterResult constructor" name="should return a frozen object" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilterResult constructor" name="should keep a reference to the workspace" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilterResult constructor" name="should keep a reference to the filter" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilterResult constructor" name="should filter the workspace submissions" time="0.007">
+    </testcase>
+    <testcase classname="WorkspaceFilterResult constructor" name="should filter each data source" time="0.007">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilterResult getSource" name="should return the requested source if it is available" time="0.005">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceFilterResult getSource" name="should return undefined if the requested source is not available" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet fromServerData" name="should convert the given submissions to instances of WorkspaceSubmission" time="0.008">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet constructor" name="should return a frozen object" time="0.006">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet constructor" name="should freeze the submission data" time="0.011">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet allSubmissions" name="should return a list of all submissions" time="0.018">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet allSubmissions" name="should return the empty list if there are no submissions" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet firstSubmissionDate" name="should return the date of the first submission in the set" time="0.005">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet firstSubmissionDate" name="should return null if there are no submissions" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet lastSubmissionDate" name="should return the date of the last submission in the set" time="0.005">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet lastSubmissionDate" name="should return null if there are no submissions" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet binSubmissionsByGrade" name="should return a defaultdict with bin index as keys and lists of submissions as values" time="0.005">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet binSubmissionsByGrade" name="should accept a bin size" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet binSubmissionsByGrade" name="should round down to a multiple of the bin size" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet binSubmissionsByGrade" name="should return an empty dict if there are no submissions" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionCount" name="should return the total number of submissions" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionCount" name="should work even if there are no submissions" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionCount" name="should count submissions with grade null" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet studentCount" name="should return the total number of students" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet studentCount" name="should work even if there are no submissions" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet studentCount" name="should include students without submissions" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet gradeStats" name="should return the various averages over all grades" time="0.007">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet gradeStats" name="should return 0 stdev when there is just one submission" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet gradeStats" name="should return null when there are no submissions" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionStats" name="should return the various averages over number of submissions per student" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionStats" name="should return 0 stdev when there is just one submission" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionStats" name="should return null when there are no submissions" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionsPerStudent" name="should return the number of submissions per student" time="0.004">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet submissionsPerStudent" name="should not count students without submissions" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet filter" name="should return a new WorkspaceSubmissionSet" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet filter" name="should only return submissions that satisfy the given filter" time="0.007">
+    </testcase>
+    <testcase classname="WorkspaceSubmissionSet filter" name="should leave the empty set empty" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmission fromServerData" name="should create a createdAt property which is a moment instance" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmission constructor" name="should return a frozen object" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesGrade" name="should ignore arguments that are null" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesGrade" name="should return false for submissions without a grade if one of the arguments is not null" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesGrade" name="should return true if minGrade is less than the submission grade" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesGrade" name="should return false if minGrade is greater than the submission grade" time="0.005">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesGrade" name="should return true if maxGrade is greater than the submission grade" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesGrade" name="should return false if maxGrade is less than the submission grade" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesDate" name="should ignore arguments that are null" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesDate" name="should return true if submittedAfter is before the submission date" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesDate" name="should return false if submittedAfter is before the submission date" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesDate" name="should return true if submittedBefore is after the submission date" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesDate" name="should return false if submittedBefore is before the submission date" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesAssignees" name="should return true if no assignees are given" time="0.003">
+    </testcase>
+    <testcase classname="WorkspaceSubmission satisfiesAssignees" name="should return true if any of the given assignees matches the submission assignee" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="DataSource fromServerData" name="should throw an error if the source name does not match the class name" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="DataSource fromServerData" name="should throw an error if the data source does not have a data prop" time="0.004">
+    </testcase>
+    <testcase classname="DataSource fromServerData" name="should return an instance of the correct subclass" time="0.003">
+    </testcase>
+    <testcase classname="DataSource constructor" name="should throw an error if called directly" time="0.003">
+    </testcase>
+    <testcase classname="DataSource constructor" name="should freeze the data it has been given" time="0.003">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="DataSource filter" name="should return a new instance of the data source with only the filtered data" time="0.003">
+    </testcase>
+    <testcase classname="RubricSource constructor" name="should return a frozen object" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource constructor" name="should throw if the assignment does not have a rubric" time="0.005">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="RubricSource constructor" name="should calculate per item the exact amount of achieved points" time="0.007">
+    </testcase>
+    <testcase classname="RubricSource rubricItems" name="should return a mapping from item id to item" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource rubricRowPerItem" name="should return a mapping from item id to rubric row" time="0.008">
+    </testcase>
+    <testcase classname="RubricSource itemsPerCat" name="should return a mapping from rubric row id to the achieved items in that row" time="0.006">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="RubricSource nTimesFilledPerCat" name="should return a mapping from rubric row id to the number of times that row was filled" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource meanPerCat" name="should return the mean per category" time="0.005">
+    </testcase>
+    <testcase classname="RubricSource meanPerCat" name="should return null if the row was never filled" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource stdevPerCat" name="should return the standard deviation per category" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource stdevPerCat" name="should return 0 if a row is filled only once" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="RubricSource stdevPerCat" name="should return null if the row was never filled" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource medianPerCat" name="should return the median per category" time="0.005">
+    </testcase>
+    <testcase classname="RubricSource medianPerCat" name="should return null if the row was never filled" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource modePerCat" name="should return the mode per category" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource modePerCat" name="should return null if the row was never filled" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="RubricSource scorePerCatPerSubmission" name="should return a list of mappings from row id to score per submission" time="0.005">
+    </testcase>
+    <testcase classname="RubricSource totalScorePerSubmission" name="should return a mapping from submission id to their total score on the rubric" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="RubricSource ritItemsPerCat" name="should return a list of pairs (item score, total score) per category" time="0.005">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="RubricSource rirItemsPerCat" name="should return a list of pairs (item score, reduced score) per category" time="0.005">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="RubricSource ritPerCat" name="should return the rit value per category" time="0.005">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="RubricSource ritPerCat" name="should return null if the row was filled less than 2 times" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource ritPerCat" name="should return null if all students scored the same in a category" time="0.004">
+    </testcase>
+    <testcase classname="RubricSource rirPerCat" name="should return the rir value per category" time="0.004">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="RubricSource rirPerCat" name="should return null if the row was filled less than 2 times" time="0.008">
+    </testcase>
+    <testcase classname="RubricSource rirPerCat" name="should return null if all students scored the same in a category" time="0.006">
+    </testcase>
+    <testcase classname="InlineFeedbackSource constructor" name="should return a frozen object" time="0.006">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="InlineFeedbackSource entryStats" name="should return the various averages over the number of feedback entries per submission" time="0.006">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+    <testcase classname="InlineFeedbackSource entryStats" name="should return 0 stdev when there is just one submission" time="0.006">
+    </testcase>
+    <testcase classname="InlineFeedbackSource entryStats" name="should return null when there are no submissions" time="0.005">
+      <failure>Error: expect(jest.fn()).toBeCalledWith(...expected)
+
+Expected: &quot;/api/v1/assignments/0/plagiarism&quot;, Any&lt;FormData&gt;
+Received: &quot;/api/v1/assignments/0/plagiarism&quot;, {&quot;base_code&quot;: &quot;BASE__BASE__&quot;, &quot;has_base_code&quot;: false, &quot;has_old_submissions&quot;: false, &quot;hello&quot;: &quot;goodbye&quot;, &quot;old_assignments&quot;: [], &quot;old_submissions&quot;: &quot;__OLDSUB__OLDSUB__&quot;}
+
+Number of calls: 1
+    at Object.it (/home/thomas/software/codegra.de/test/unit/specs/PlagiarismRunner.spec.js:204:30)
+    at process._tickCallback (internal/process/next_tick.js:68:7)</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

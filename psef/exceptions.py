@@ -34,6 +34,7 @@ class APIWarnings(IntEnum):
     LIMIT_ALREADY_EXCEEDED = 15
     POSSIBLE_LTI_SETUP_ERROR = 16
     POSSIBLE_INVISIBLE_REPLY = 17
+    ALL_PEER_FEEDBACK_REDIVIDED = 18
 
 
 @unique
@@ -86,6 +87,7 @@ class APICodes(IntEnum):
     MAILING_FAILED = 43
     LTI1_3_ERROR = 44
     LTI1_3_COOKIE_ERROR = 45
+    LTI1_1_ERROR = 46
 
 
 class APIException(Exception):

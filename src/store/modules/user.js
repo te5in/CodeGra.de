@@ -1,18 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import Vue from 'vue';
 import axios from 'axios';
-import * as Sentry from '@sentry/browser';
 
+import * as utils from '@/utils';
 import * as types from '../mutation-types';
 
 const UNLOADED_SNIPPETS = {};
 let snippetsLastReloaded;
 
 function setUser(user) {
-    // Some users might want to block sentry which should be just fine.
-    if (Sentry) {
+    utils.withSentry(Sentry => {
         Sentry.setUser(user);
-    }
+    });
 }
 
 const getters = {
@@ -102,8 +101,9 @@ const actions = {
             commit(`autotest/${types.CLEAR_AUTO_TESTS}`, null, { root: true }),
             commit(`users/${types.CLEAR_USERS}`, null, { root: true }),
             commit(`fileTrees/${types.DELETE_ALL_FILETREES}`, null, { root: true }),
-            commit(`feedback/${types.DELETE_ALL_FEEDBACKS}`, null, { root: true }),
+            commit('feedback/commitDeleteAllFeedback', null, { root: true }),
             commit('notification/commitClearNotifications', null, { root: true }),
+            commit('peer_feedback/commitClearConnections', null, { root: true }),
             commit(types.LOGOUT),
         ]);
     },
