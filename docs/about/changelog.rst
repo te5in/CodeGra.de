@@ -8,6 +8,10 @@ Version *Next*
 
 **Updates**
 
+- Use the same icons from the "Capture Points" AutoTest step for the "Unit
+  Test" step `(#1403) <https://github.com/CodeGra-de/CodeGra.de/pull/1403>`__.
+  The "Unit Test" step would always use the green checkmark if the step did not
+  crash, but now the icon depends on the score achieved.
 - Make the peer feedback counters for students more clear `(#1406)
   <https://github.com/CodeGra-de/CodeGra.de/pull 1406>`__. This changes the
   counters with the number of comments students have given to their peirs to be
