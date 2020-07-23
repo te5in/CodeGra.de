@@ -6,6 +6,15 @@ Version *Next*
 
 **Released**: TBD
 
+**Updates**
+
+- Remove bin size "year" for the "Students submitted on" graph in the analytics
+  dashboard `(#1407) <https://github.com/CodeGra-de/CodeGra.de/pull/1407>`__.
+  The years option did not work very nicely because it didn't use the correct
+  labels, and it is unclear what the start of a bin should be, so it has been
+  removed as it isn't really useful in a context where an assignment takes less
+  than a year.
+
 Version Mosaic
 ---------------
 
