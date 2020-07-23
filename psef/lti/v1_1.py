@@ -1206,7 +1206,6 @@ class _BareLTIRolesMixin:
                             ) -> t.List[T_LTI_ROLE]:
         roles: t.List[T_LTI_ROLE] = []
 
-        print(self.launch_params[key].split(','))
         for role in self.launch_params[key].split(','):
             if role in {
                 'Instructor', 'Learner'
