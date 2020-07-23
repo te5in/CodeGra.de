@@ -2170,12 +2170,12 @@ def test_lti_roles(
                 do_lti_launch(
                     f'urn:lti:instrole:ims/lis/{srole},Learner',
                     crole='Student',
-                    oauth_key='moodle_lti',
+                    oauth_key=f'{lms}_lti',
                 )
                 do_lti_launch(
                     f'urn:lti:instrole:ims/lis/{srole},Instructor',
                     crole='Teacher',
-                    oauth_key='moodle_lti',
+                    oauth_key=f'{lms}_lti',
                 )
 
     with describe(
