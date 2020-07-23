@@ -2162,7 +2162,8 @@ def test_lti_roles(
             )
 
     with describe(
-        "it interprets Moodle's and Sakai's roles without a urn: prefix correctly,'"
+        "it interprets Moodle's and Sakai's roles without a urn: prefix"
+        " correctly"
     ):
         for lms in ['moodle', 'sakai']:
             for srole in lti.LTIGlobalRole._LOOKUP:
