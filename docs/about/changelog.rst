@@ -6,6 +6,13 @@ Version *Next*
 
 **Released**: TBD
 
+**Updates**
+
+- Make the peer feedback counters for students more clear `(#1406)
+  <https://github.com/CodeGra-de/CodeGra.de/pull 1406>`__. This changes the
+  counters with the number of comments students have given to their peirs to be
+  clearer and give more detailed information.
+
 Version Mosaic
 ---------------
 
