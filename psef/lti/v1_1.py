@@ -1197,7 +1197,7 @@ class BlackboardLTI(BareBonesLTIProvider):
     """
 
 
-class _BareLTIRolesMixin:
+class _BareRolesLTIProvider(BareBonesLTIProvider):
     """This mixin is for LMSes that give the "Instructor" and "Learner" without
     any namespace, but they should be considered course roles.
     """
@@ -1222,13 +1222,13 @@ class _BareLTIRolesMixin:
 
 
 @lti_classes.register('Sakai')
-class SakaiLTI(_BareLTIRolesMixin, BareBonesLTIProvider):
+class SakaiLTI(_BareRolesLTIProvider):
     """The LTI class used for the Sakai LMS.
     """
 
 
 @lti_classes.register('Moodle')
-class MoodleLTI(_BareLTIRolesMixin, BareBonesLTIProvider):
+class MoodleLTI(_BareRolesLTIProvider):
     """The LTI class used for the Moodle LMS.
     """
 
