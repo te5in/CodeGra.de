@@ -356,7 +356,7 @@ export class AutoTestResult {
                             }
                             break;
                         case 'custom_output':
-                        case 'unit_test':
+                        case 'junit_test':
                             if (stepResult.state === 'passed') {
                                 const points = stepResult.log.points;
                                 if (points === 0) {
