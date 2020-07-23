@@ -131,15 +131,17 @@
                                 <icon name="file-o" :scale="actionIconFactor * 6" />
                                 <icon name="history" :scale="actionIconFactor * 2" class="center" />
                             </div>
+
                             <p class="mb-0">
                                 Latest submission
                                 <late-submission-icon v-if="latestSubmission"
                                                       :submission="latestSubmission"
                                                       :assignment="assignment" />
                             </p>
-                            <p class="text-muted mb-0 grade"
-                               v-if="latestSubmissionGrade != null">
-                                Grade: {{ latestSubmissionGrade }}
+
+                            <p class="mb-0"
+                               v-if="latestSubmission">
+                                Submitted <cg-relative-time :date="latestSubmission.createdAt" />
                             </p>
                         </div>
                     </div>
