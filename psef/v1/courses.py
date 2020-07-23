@@ -1045,7 +1045,7 @@ def create_or_edit_registration_link(
     methods=['POST']
 )
 @features.feature_required(features.Feature.COURSE_REGISTER)
-@limiter.limit('1 per second', key_func=get_remote_address)
+@limiter.limit('5 per minute', key_func=get_remote_address)
 def register_user_in_course(course_id: int, link_id: uuid.UUID
                             ) -> JSONResponse[t.Mapping[str, str]]:
     """Register as a new user, and directly enroll in a course.
@@ -1090,6 +1090,7 @@ def register_user_in_course(course_id: int, link_id: uuid.UUID
 
 
 @api.route('/courses/<int:course_id>/email', methods=['POST'])
+@auth.login_required
 @limiter.limit('10 per 10 minutes', key_func=lambda: current_user.id)
 @features.feature_required(features.Feature.EMAIL_STUDENTS)
 def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:

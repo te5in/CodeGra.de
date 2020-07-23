@@ -154,7 +154,7 @@ else:
     current_user = flask_jwt.current_user  # pylint: disable=invalid-name
 
 
-def limiter_key_func() -> None:  # pragma: no cover
+def _limiter_key_func() -> None:  # pragma: no cover
     """This is the default key function for the limiter.
 
     The key function should be set locally at every place the limiter is used
@@ -163,7 +163,14 @@ def limiter_key_func() -> None:  # pragma: no cover
     raise ValueError('Key function should be overridden')
 
 
-limiter = Limiter(key_func=limiter_key_func)  # pylint: disable=invalid-name
+def _limiter_deduct_when(response: Response) -> bool:
+    return response.status_code >= 400
+
+
+limiter = Limiter(  # pylint: disable=invalid-name
+    key_func=_limiter_key_func,
+    default_limits_deduct_when=_limiter_deduct_when
+)
 
 
 def create_app(  # pylint: disable=too-many-statements
