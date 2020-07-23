@@ -8,6 +8,10 @@ Version *Next*
 
 **Updates**
 
+- Use the same icons from the "Capture Points" AutoTest step for the "Unit
+  Test" step `(#1403) <https://github.com/CodeGra-de/CodeGra.de/pull/1403>`__.
+  The "Unit Test" step would always use the green checkmark if the step did not
+  crash, but now the icon depends on the score achieved.
 - Remove bin size "year" for the "Students submitted on" graph in the analytics
   dashboard `(#1407) <https://github.com/CodeGra-de/CodeGra.de/pull/1407>`__.
   The years option did not work very nicely because it didn't use the correct
