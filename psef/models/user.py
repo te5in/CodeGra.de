@@ -5,9 +5,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 import uuid
 import typing as t
 import functools
+from datetime import timedelta
 from collections import defaultdict
 
 import structlog
+import flask_jwt_extended
 from flask import current_app
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from werkzeug.local import LocalProxy
@@ -21,7 +23,7 @@ from cg_sqlalchemy_helpers import CIText, hybrid_property
 
 from . import UUID_LENGTH, Base, DbColumn, db
 from . import course as course_models
-from .. import signals
+from .. import auth, signals
 from .role import Role, CourseRole
 from ..helpers import NotEqualMixin, validate, handle_none, maybe_unwrap_proxy
 from .permission import Permission
@@ -66,6 +68,23 @@ class User(NotEqualMixin, Base):
     :ivar reset_email_on_lti: Determines if the email should be reset on the
         next LTI launch.
     """
+
+    def make_access_token(
+        self,
+        *,
+        expires_in: t.Optional[timedelta] = None,
+        for_course: t.Optional['course_models.Course'] = None
+    ) -> str:
+        assert self.id is not None
+
+        return flask_jwt_extended.create_access_token(
+            identity=self.id,
+            fresh=True,
+            expires_delta=expires_in,
+            user_claims={
+                'for_course': None if for_course is None else for_course.id,
+            }
+        )
 
     @classmethod
     def resolve(
@@ -368,6 +387,9 @@ class User(NotEqualMixin, Base):
             return self.role.has_permission(permission)
         else:
             assert isinstance(permission, CoursePermission)
+            for_course = flask_jwt_extended.get_jwt_claims().get('for_course')
+            if for_course is not None and for_course != course_id:
+                return False
 
             if isinstance(course_id, course_models.Course):
                 course_id = course_id.id
@@ -570,14 +592,14 @@ class User(NotEqualMixin, Base):
         ...  # pylint: disable=pointless-statement
 
     def get_all_permissions(  # pylint: disable=function-redefined
-        self, course_id: t.Union['course_models.Course', int, None] = None
+        self, course: t.Union['course_models.Course', int, None] = None
     ) -> t.Union[t.Mapping[CoursePermission, bool], t.
                  Mapping[GlobalPermission, bool]]:
         """Get all global permissions (:class:`.Permission`) of this user or
             all course permissions of the user in a specific
             :class:`.course_models.Course`.
 
-        :param course_id: The course or course id
+        :param course: The course or course id
 
         :returns: A name boolean mapping where the name is the name of the
                   permission and the value indicates if this user has this
@@ -585,16 +607,19 @@ class User(NotEqualMixin, Base):
         """
         assert not self.virtual
 
-        if isinstance(course_id, course_models.Course):
-            course_id = course_id.id
-
-        if course_id is None:
+        if course is None:
             if self.role is None:
                 return {perm: False for perm in GlobalPermission}
             else:
                 return self.role.get_all_permissions()
         else:
-            if course_id in self.courses:
+            if isinstance(course, int):
+                course = course_models.Course.query.get(course)
+
+            if (
+                course is not None and
+                auth.CoursePermissions(course).ensure_may_see.as_bool()
+            ):
                 return self.courses[course_id].get_all_permissions()
             else:
                 return {perm: False for perm in CoursePermission}

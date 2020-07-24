@@ -1749,8 +1749,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
                 AssignmentLinter.query.filter(
                     AssignmentLinter.assignment_id == self.id,
                     AssignmentLinter.name == 'MixedWhitespace'
-                ).exists()
-            ).scalar() or False
+                ).exists(),
+            ).scalar()
 
         return self._whitespace_linter_exists
 

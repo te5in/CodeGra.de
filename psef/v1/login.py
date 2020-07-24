@@ -7,7 +7,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 """
 import typing as t
 
-import flask_jwt_extended as flask_jwt
 from flask import request
 
 from psef.exceptions import WeakPasswordException
@@ -152,11 +151,7 @@ def login() -> ExtendedJSONResponse[
     return extended_jsonify(
         {
             'user': json_user,
-            'access_token':
-                flask_jwt.create_access_token(
-                    identity=user.id,
-                    fresh=True,
-                )
+            'access_token': user.make_access_token(),
         }
     )
 
@@ -302,15 +297,7 @@ def user_patch_handle_reset_password() -> JSONResponse[t.Mapping[str, str]]:
 
     user.reset_password(token, password)
     db.session.commit()
-    return jsonify(
-        {
-            'access_token':
-                flask_jwt.create_access_token(
-                    identity=user.id,
-                    fresh=True,
-                )
-        }
-    )
+    return jsonify({'access_token': user.make_access_token()})
 
 
 def user_patch_handle_reset_on_lti() -> EmptyResponse:

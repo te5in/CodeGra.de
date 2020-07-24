@@ -1591,10 +1591,7 @@ class UserLTIProvider(Base, TimestampMixin):
         )
         db.session.flush()
 
-        token = flask_jwt.create_access_token(
-            identity=user.id,
-            fresh=True,
-        )
+        token = user.make_access_token()
         return user, token
 
     @classmethod
@@ -1698,10 +1695,7 @@ class UserLTIProvider(Base, TimestampMixin):
                     lti_user=lti_user
                 )
             # LTI users are used before the current logged user.
-            token = flask_jwt.create_access_token(
-                identity=lti_user.id,
-                fresh=True,
-            )
+            token = lti_user.make_access_token()
             user = lti_user
         elif is_logged_in and not cls.user_is_linked(current_user):
             # TODO show some sort of screen if this linking is wanted

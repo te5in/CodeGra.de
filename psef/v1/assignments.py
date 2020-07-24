@@ -55,48 +55,33 @@ def get_all_assignments() -> JSONResponse[t.Sequence[models.Assignment]]:
 
     :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
     """
-    courses = []
-
-    for course_role in current_user.courses.values():
-        if course_role.has_permission(CPerm.can_see_assignments):
-            courses.append(course_role.course_id)
+    # This is only used for limiting to improve performance and is NOT used for
+    # permission checks.
+    course_ids = [crole.course_id for crole in current_user.courses.values()]
 
     res = []
 
     query = db.session.query(
         models.Assignment,
-        t.cast(models.DbColumn[str], models.AssignmentLinter.id).isnot(None)
+        models.AssignmentLinter.id.isnot(None),
     ).filter(
         models.Assignment.is_visible,
-        t.cast(
-            models.DbColumn[int],
-            models.Assignment.course_id,
-        ).in_(courses)
+        models.Assignment.course_id.in_(course_ids),
     ).join(
         models.AssignmentLinter,
         sql_expression.and_(
             models.Assignment.id == models.AssignmentLinter.assignment_id,
             models.AssignmentLinter.name == 'MixedWhitespace'
         ),
-        isouter=True
-    ).order_by(
-        t.cast(models.DbColumn[object], models.Assignment.created_at).desc()
-    )
-    if request.args.get('only_with_rubric',
-                        'false').lower() in {'', 't', 'true'}:
-        query = query.filter(
-            t.cast(models.DbColumn[object],
-                   models.Assignment.rubric_rows).any()
-        )
+        isouter=True,
+    ).order_by(models.Assignment.created_at.desc())
+    if helpers.request_arg_true('only_with_rubric'):
+        query = query.filter(models.Assignment.rubric_rows.any())
 
-    if courses:
-        for assignment, has_linter in query.all():
-            has_perm = current_user.has_permission(
-                CPerm.can_see_hidden_assignments, assignment.course_id
-            )
-            assignment.whitespace_linter_exists = has_linter
-            if ((not assignment.is_hidden) or has_perm):
-                res.append(assignment)
+    for assig, has_linter in query.all():
+        if auth.AssignmentPermissions(assig).ensure_may_see.as_bool():
+            assig.whitespace_linter_exists = has_linter
+            res.append(assig)
 
     return jsonify(res)
 
@@ -174,7 +159,7 @@ def get_assignments_feedback(assignment_id: int) -> JSONResponse[
         also_error=lambda a: not a.is_visible
     )
 
-    auth.ensure_enrolled(assignment.course_id)
+    auth.AssignmentPermissions(assignment).ensure_may_see()
 
     latest_subs = assignment.get_all_latest_submissions()
     try:

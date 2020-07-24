@@ -732,7 +732,7 @@ def get_auto_test_results_for_user(
         also_error=also_error,
     )
     user = get_or_404(models.User, user_id)
-    auth.ensure_enrolled(run.auto_test.assignment.course_id)
+    auth.AssignmentPermissions(run.auto_test.assignment).ensure_may_see()
 
     results = []
     for result in models.AutoTestResult.get_results_by_user(

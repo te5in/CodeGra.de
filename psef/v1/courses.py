@@ -580,8 +580,7 @@ def get_courses() -> JSONResponse[t.Sequence[t.Mapping[str, t.Any]]]:
                 models.CourseRole._permissions,  # pylint: disable=protected-access
             ),
         ]
-    ).first()
-    assert user is not None
+    ).one()
 
     return jsonify(
         [
@@ -590,10 +589,10 @@ def get_courses() -> JSONResponse[t.Sequence[t.Mapping[str, t.Any]]]:
                 **_get_rest(c),
             } for c in helpers.get_in_or_error(
                 models.Course,
-                t.cast(models.DbColumn[int], models.Course.id),
+                models.Course.id,
                 [cr.course_id for cr in user.courses.values()],
                 extra_loads,
-            )
+            ) if auth.CoursePermissions(c).ensure_may_see.as_bool()
         ]
     )
 
@@ -617,20 +616,14 @@ def get_course_data(course_id: int) -> JSONResponse[t.Mapping[str, t.Any]]:
                           (OBJECT_ID_NOT_FOUND)
     :raises PermissionException: If there is no logged in user. (NOT_LOGGED_IN)
     """
-    # TODO: Optimize this loop to a single query
-    for course_role in current_user.courses.values():
-        if course_role.course_id == course_id:
-            return jsonify(
-                {
-                    'role': course_role.name,
-                    **course_role.course.__to_json__(),
-                }
-            )
+    course = helpers.get_or_404(models.Course, course_id)
+    auth.CoursePermissions(course).ensure_may_see()
 
-    raise APIException(
-        'Course not found',
-        'The course with id {} was not found'.format(course_id),
-        APICodes.OBJECT_ID_NOT_FOUND, 404
+    return jsonify(
+        {
+            'role': current_user.courses[course.id].name,
+            **course.__to_json__(),
+        }
     )
 
 
@@ -671,7 +664,7 @@ def get_group_sets(course_id: int
     :returns: A list of group sets.
     """
     course = helpers.get_or_404(models.Course, course_id)
-    auth.ensure_enrolled(course.id)
+    auth.CoursePermissions(course).ensure_may_see()
     return jsonify(course.group_sets)
 
 
@@ -1082,11 +1075,7 @@ def register_user_in_course(course_id: int, link_id: uuid.UUID
     user.courses[link.course_id] = link.course_role
     db.session.commit()
 
-    token: str = flask_jwt.create_access_token(
-        identity=user.id,
-        fresh=True,
-    )
-    return jsonify({'access_token': token})
+    return jsonify({'access_token': user.make_access_token()})
 
 
 @api.route('/courses/<int:course_id>/email', methods=['POST'])
@@ -1222,7 +1211,7 @@ def get_user_submissions(
         (INCORRECT_PERMISSION)
     """
     course = helpers.get_or_404(models.Course, course_id)
-    auth.ensure_permission(CPerm.can_see_assignments, course.id)
+    auth.CoursePermissions.ensure_may_see()
     assignments = course.get_all_visible_assignments()
 
     user = helpers.get_or_404(models.User, user_id)

@@ -191,8 +191,8 @@ class CoursePermissionChecker(PermissionChecker):
 
         self.course_id = course_id
 
-    def _ensure_enrolled(self) -> None:
-        ensure_enrolled(self.course_id, self.user)
+    def _ensure_course_visible(self) -> None:
+        _ensure_course_visible(self.course_id, self.user)
 
     def _ensure(self, perm: CPerm) -> None:
         ensure_permission(perm, self.course_id, user=self.user)
@@ -311,7 +311,7 @@ def ensure_logged_in() -> None:
         _raise_login_exception()
 
 
-def ensure_enrolled(
+def _ensure_course_visible(
     course_id: int, user: t.Optional['psef.models.User'] = None
 ) -> None:
     """Ensure that the given user is enrolled in the given course.
@@ -325,16 +325,25 @@ def ensure_enrolled(
     :raises PermissionException: If the user is not enrolled.
         (INCORRECT_PERMISSION)
     """
-    if user is None:
-        label = 'You are'
-        ensure_logged_in()
-        user = _get_cur_user()
-    else:
-        label = f'The user "{user.name}" is'
+    user = _get_cur_user()
+    err_msg = None
 
-    if not user.is_enrolled(course_id):
+    if user.is_enrolled(course_id):
+        for_course = flask_jwt.get_jwt_claims().get('for_course')
+        if for_course is not None and for_course != course_id:
+            err_msg = 'not allowed to see this course with the provided token'
+    else:
+        err_msg = 'not enrolled in this course'
+
+    if err_msg is not None:
+        current_user = _get_cur_user(allow_none=True)
+        if current_user is not None and current_user.id == user:
+            you_are = 'You are'
+        else:
+            you_are = f'The user "{user.name}" is'
+
         raise PermissionException(
-            f'{label} not enrolled in this course.',
+            f'{you_are} {err_msg}.',
             f'The user "{user.id}" is not enrolled in course "{course_id}"',
             APICodes.INCORRECT_PERMISSION, 403
         )
@@ -534,7 +543,7 @@ def ensure_can_submit_work(
         current_user = _get_cur_user()
 
     # Group users aren't enrolled in a course.
-    ensure_enrolled(assig.course_id, for_user)
+    _ensure_course_visible(assig.course_id, for_user)
 
     submit_self = author.contains_user(current_user)
 
@@ -953,7 +962,7 @@ def ensure_can_edit_members_of_group(
     )
 
     for member in members:
-        ensure_enrolled(group.group_set.course_id, member)
+        _ensure_course_visible(group.group_set.course_id, member)
         if member.is_test_student:
             raise APIException(
                 'You cannot add test students to groups',
@@ -1102,7 +1111,7 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
         if self._is_own_reply and self.reply.comment_type.is_peer_feedback:
             self.ensure_may_add_as_peer()
         elif self._is_own_reply:
-            self._ensure_enrolled()
+            self._ensure_course_visible()
         else:
             self._ensure(CPerm.can_edit_others_comments)
 
@@ -1210,7 +1219,7 @@ class FeedbackReplyPermissions(CoursePermissionChecker):
         WorkPermissions(work).ensure_may_see()
 
         if self._is_own_reply:
-            self._ensure_enrolled()
+            self._ensure_course_visible()
             return
 
         # This check is faster than the other one, and more common to fail, so
@@ -1282,6 +1291,23 @@ class AnalyticsWorkspacePermissions(CoursePermissionChecker):
         self._ensure(CPerm.can_view_analytics)
 
 
+class CoursePermissions(CoursePermissionChecker):
+    """The permission checker for :class:`psef.models.Course`.
+    """
+    __slots__ = ('course', )
+
+    def __init__(self, course: 'psef.models.Course') -> None:
+        super().__init__(course.id)
+        self.course: Final = course
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        """Make sure the current user may edit the peer feedback settings of
+        this course.
+        """
+        self._ensure_course_visible()
+
+
 class AssignmentPermissions(CoursePermissionChecker):
     """The permission checker for :class:`psef.models.Assignment`.
     """
@@ -1292,10 +1318,27 @@ class AssignmentPermissions(CoursePermissionChecker):
         self.assignment: Final = assignment
 
     @PermissionChecker.as_ensure_function
+    def ensure_may_see(self) -> None:
+        self._ensure_course_visible()
+
+        if not self.assignment.is_visible:
+            raise PermissionException(
+                'This assignment is not visible for any user', (
+                    f'The assignment {self.assignment.id} is not visible',
+                ), APICodes.INCORRECT_PERMISSION, 403
+            )
+
+        self._ensure(CPerm.can_see_assignments)
+
+        if self.assignment.is_hidden:
+            self._ensure(CPerm.can_see_hidden_assignments)
+
+    @PermissionChecker.as_ensure_function
     def ensure_may_edit_peer_feedback(self) -> None:
         """Make sure the current user may edit the peer feedback settings of
         this assignment.
         """
+        self.ensure_may_see()
         self._ensure(CPerm.can_edit_peer_feedback_settings)
 
 
@@ -1312,7 +1355,7 @@ class AutoTestPermissions(CoursePermissionChecker):
     def ensure_may_see(self) -> None:
         """Make sure the current user may see this auto test configuration.
         """
-        self._ensure_enrolled()
+        self._ensure_course_visible()
 
         if self.auto_test.run and self.auto_test.results_always_visible:
             return
@@ -1358,7 +1401,7 @@ class AutoTestResultPermissions(CoursePermissionChecker):
         AutoTestPermissions(self.result.run.auto_test).ensure_may_see()
         run = self.result.run
         work = self.result.work
-        self._ensure_enrolled()
+        self._ensure_course_visible()
 
         if run.auto_test.results_always_visible:
             # We cannot simply check if the user may see this work as peer

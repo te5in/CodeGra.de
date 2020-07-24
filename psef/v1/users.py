@@ -123,8 +123,4 @@ def register_user() -> JSONResponse[t.Mapping[str, str]]:
     )
     db.session.commit()
 
-    token: str = flask_jwt.create_access_token(
-        identity=user.id,
-        fresh=True,
-    )
-    return jsonify({'access_token': token})
+    return jsonify({'access_token': user.make_access_token()})

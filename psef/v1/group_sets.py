@@ -120,7 +120,7 @@ def get_group_set(group_set_id: int) -> JSONResponse[models.GroupSet]:
     :returns: A response containing the JSON serialized group set.
     """
     group_set = get_or_404(models.GroupSet, group_set_id)
-    auth.ensure_enrolled(group_set.course_id)
+    auth.CoursePermissions(group_set.course).ensure_may_see()
     return jsonify(group_set)
 
 
