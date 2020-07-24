@@ -35,7 +35,9 @@ def _login_rate_limit() -> t.Tuple[str, str]:
 
 
 @api.route("/login", methods=["POST"])
-@limiter.limit('5 per minute', key_func=_login_rate_limit)
+@limiter.limit(
+    '5 per minute', key_func=_login_rate_limit, deduct_on_err_only=True
+)
 def login() -> ExtendedJSONResponse[
     t.Mapping[str, t.Union[t.MutableMapping[str, t.Any], str]]]:
     """Login a :class:`.models.User` if the request is valid.
