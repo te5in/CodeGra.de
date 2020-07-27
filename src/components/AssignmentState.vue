@@ -2,26 +2,7 @@
 <template>
 <div class="assignment-state" v-if="editable">
     <b-button-group>
-        <b-button-group v-if="canManageLTIState"
-                        v-b-popover.window.top.hover="managedByLTIPopover">
-            <submit-button class="state-button larger state-hidden state-open"
-                           :variant="ltiHiddenOpenVariant"
-                           :duration="0"
-                           confirm="true"
-                           :submit="() => updateState(states.OPEN)"
-                           @success="afterUpdateState">
-                <icon :name="icons[states.HIDDEN]"/>
-                <icon :name="icons[states.OPEN]"/>
-
-                <template #confirm>
-                    Students will not be able to see their grade. Whether they
-                    can see the assignment at all is determined by the
-                    assignment's state in {{ lmsName }}.
-                </template>
-            </submit-button>
-        </b-button-group>
-
-        <b-button-group v-else>
+        <template v-if="canManageOpenState">
             <b-button-group v-b-popover.window.top.hover="labels[states.HIDDEN]">
                 <submit-button class="state-button state-hidden"
                             :variant="hiddenVariant"
@@ -54,7 +35,27 @@
                     </template>
                 </submit-button>
             </b-button-group>
+        </template>
+
+        <b-button-group v-else
+                        v-b-popover.window.top.hover="openOrClosePopover">
+            <submit-button class="state-button larger state-hidden state-open"
+                           :variant="ltiHiddenOpenVariant"
+                           :duration="0"
+                           confirm="true"
+                           :submit="() => updateState(states.OPEN)"
+                           @success="afterUpdateState">
+                <icon :name="icons[states.HIDDEN]"/>
+                <icon :name="icons[states.OPEN]"/>
+
+                <template #confirm>
+                    Students will not be able to see their grade. Whether they
+                    can see the assignment at all is determined by the
+                    assignment's state in {{ lmsName }}.
+                </template>
+            </submit-button>
         </b-button-group>
+
 
         <b-button-group v-b-popover.window.top.hover="labels[states.DONE]">
             <submit-button class="state-button state-done"
@@ -155,15 +156,29 @@ export default {
             return this.$utils.getProps(this.assignment, null, 'course', 'ltiProvider');
         },
 
-        canManageLTIState() {
-            return this.$utils.getProps(this.ltiProvider, false, 'supportsStateManagement');
+        canManageOpenState() {
+            if (this.assignment.availableAt) {
+                return false;
+            }
+            return !this.$utils.getProps(this.ltiProvider, false, 'supportsStateManagement');
         },
 
         lmsName() {
             return this.$utils.getProps(this.ltiProvider, null, 'lms');
         },
 
-        managedByLTIPopover() {
+        openOrClosePopover() {
+            const availableAt = this.$utils.getProps(this.assignment, null, 'availableAt');
+            if (availableAt != null) {
+                const readable = this.$utils.readableFormatDate(availableAt);
+                const base = `Hidden until ${readable}`;
+                let managedBy = '';
+                if (this.lmsName != null) {
+                    managedBy = `, managed by ${this.lmsName}`;
+                }
+                return `${base}${managedBy}.`;
+            }
+
             let curState = '';
             switch (this.assignment.state) {
             case states.SUBMITTING:
@@ -187,15 +202,14 @@ export default {
             return this.$http
                 .patch(`/api/v1/assignments/${this.assignment.id}`, {
                     state: pendingState,
-                })
-                .then(() => pendingState);
+                });
         },
 
-        afterUpdateState(pendingState) {
+        afterUpdateState({ data }) {
             this.updateAssignment({
                 assignmentId: this.assignment.id,
                 assignmentProps: {
-                    state: pendingState,
+                    state: data.state,
                 },
             });
         },

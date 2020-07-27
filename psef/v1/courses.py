@@ -1210,8 +1210,8 @@ def get_user_submissions(
         and the logged in user does not have the permission to see others work.
         (INCORRECT_PERMISSION)
     """
+    auth.CoursePermissions(course_id=course_id).ensure_may_see()
     course = helpers.get_or_404(models.Course, course_id)
-    auth.CoursePermissions.ensure_may_see()
     assignments = course.get_all_visible_assignments()
 
     user = helpers.get_or_404(models.User, user_id)

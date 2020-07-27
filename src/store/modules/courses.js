@@ -180,6 +180,31 @@ export const actions = {
                 return response;
             });
     },
+
+    async updateAssignmentAvailableAt({ commit, state, dispatch }, { assignmentId, availableAt }) {
+        await dispatch('loadCourses');
+
+        const assig = getAssignment(state, assignmentId);
+        const newAvailableAt =
+            availableAt == null ? null : moment(availableAt, moment.ISO_8601).utc();
+        return axios
+            .patch(`/api/v1/assignments/${assig.id}`, {
+                available_at: newAvailableAt,
+            })
+            .then(response => {
+                response.onAfterSuccess = () => {
+                    const resAvail = moment(response.data.available_at, moment.ISO_8601);
+                    return commit(types.UPDATE_ASSIGNMENT, {
+                        assignmentId,
+                        assignmentProps: {
+                            availableAt: resAvail.isValid() ? resAvail : null,
+                            state: response.data.state,
+                        },
+                    });
+                };
+                return response;
+            });
+    },
 };
 
 const mutations = {

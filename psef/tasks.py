@@ -297,7 +297,7 @@ def _run_autotest_batch_runs_1() -> None:
     runs = p.models.AutoTestRun.query.join(
         p.models.AutoTestRun.auto_test
     ).join(p.models.Assignment).filter(
-        t.cast(DbColumn[bool], p.models.AutoTestRun.batch_run_done).is_(False),
+        p.models.AutoTestRun.batch_run_done.is_(False),
         p.models.Assignment.deadline < now,
     ).options(contains_eager(p.models.AutoTestRun.auto_test)).order_by(
         p.models.Assignment.deadline
@@ -545,8 +545,9 @@ def _clone_commit_as_submission_1(
         logger.warning('Could not find webhook')
         return
 
-    assignment = p.models.Assignment.query.filter_by(id=webhook.assignment_id
-                                                     ).with_for_update().one()
+    assignment = p.models.Assignment.query.filter_by(
+        id=webhook.assignment_id
+    ).with_for_update(read=True).one()
 
     created_at = DatetimeWithTimezone.utcfromtimestamp(unix_timestamp)
 
@@ -791,6 +792,29 @@ def _send_email_as_user_1(
     p.models.db.session.commit()
 
 
+@celery.task
+def _maybe_open_assignment_at_1(assignment_id: int) -> None:
+    assignment = p.models.Assignment.query.filter(
+        p.models.Assignment.id == assignment_id,
+    ).with_for_update(of=p.models.Assignment).one_or_none()
+
+    if assignment is None:
+        logger.error('Could not find assignment')
+        return
+    if assignment.available_at is None:
+        logger.info('Assignment does not have an available_at defined')
+        return
+    if not assignment.state.is_hidden:
+        logger.info('State already set to not hidden')
+        return
+
+    if current_task.maybe_delay_task(assignment.available_at):
+        return
+
+    assignment.state = p.models.AssignmentStateEnum.open
+    p.models.db.session.commit()
+
+
 lint_instances = _lint_instances_1.delay  # pylint: disable=invalid-name
 add = _add_1.delay  # pylint: disable=invalid-name
 send_done_mail = _send_done_mail_1.delay  # pylint: disable=invalid-name
@@ -816,3 +840,8 @@ check_heartbeat_auto_test_run: t.Callable[
     [t.Tuple[str],
      DefaultNamedArg(t.Optional[DatetimeWithTimezone], 'eta')], t.
     Any] = _check_heartbeat_stop_test_runner_1.apply_async  # pylint: disable=invalid-name
+
+maybe_open_assignment_at: t.Callable[[
+    t.Tuple[int],
+    DefaultNamedArg(t.Optional[DatetimeWithTimezone], 'eta')
+], None] = _maybe_open_assignment_at_1.apply_async  # pylint: disable=invalid-name

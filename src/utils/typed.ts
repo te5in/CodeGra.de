@@ -478,6 +478,15 @@ export function parseOrKeepFloat(num: string | number | null | undefined): numbe
     return parseFloat(num);
 }
 
+export function formatNullableDate(date: string | moment.Moment | null): string | null {
+    if (date == null) {
+        return null;
+    }
+    return toMoment(date)
+        .local()
+        .format('YYYY-MM-DDTHH:mm');
+}
+
 export function formatDate(date: string | moment.Moment): string {
     return toMoment(date)
         .local()

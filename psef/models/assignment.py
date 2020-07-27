@@ -22,10 +22,12 @@ from typing_extensions import TypedDict
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 import psef
+import cg_enum
 import cg_cache
 import cg_sqlalchemy_helpers
 from cg_helpers import handle_none, on_not_none, zip_times_with_offset
 from cg_dt_utils import DatetimeWithTimezone
+from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers import expression as sql_expression
 from cg_sqlalchemy_helpers.types import (
     _T_BASE, MyQuery, DbColumn, ColumnProxy, MyNonOrderableQuery,
@@ -100,8 +102,8 @@ class AssignmentJSON(TypedDict, total=True):
     id: int  #: The id of the assignment.
     state: str  #: Current state of the assignment.
     description: t.Optional[str]  #: Description of the assignment.
-    created_at: str  #: ISO UTC date.
-    deadline: t.Optional[str]  #: ISO UTC date.
+    created_at: DatetimeWithTimezone  #: ISO UTC date.
+    deadline: t.Optional[DatetimeWithTimezone]  #: ISO UTC date.
     name: str  #: The name of the assignment.
     is_lti: bool  #: Is this an LTI assignment.
     course: 'course_models.Course'  #: Course of this assignment.
@@ -109,6 +111,12 @@ class AssignmentJSON(TypedDict, total=True):
     cgignore_version: t.Optional[str]
     #: Has the whitespace linter run on this assignment.
     whitespace_linter: bool
+
+    #: The time the assignment will become available (i.e. the state will
+    #: switch from 'hidden' to 'open'). If the state is not 'hidden' this value
+    #: has no meaning. If this value is not ``None`` you cannot change to state
+    #: to 'hidden' or 'open'.
+    available_at: t.Optional[DatetimeWithTimezone]
 
     #: The fixed value for the maximum that can be achieved in a rubric. This
     #: can be higher and lower than the actual max. Will be `null` if unset.
@@ -141,7 +149,7 @@ class AssignmentJSON(TypedDict, total=True):
     #: by a user. A user can submit at most `amount_in_cool_off_period`
     #: submissions in `cool_off_period` seconds. `amount_in_cool_off_period`
     #: is always >= 1, so this check is disabled if `cool_off_period == 0`.
-    cool_off_period: float
+    cool_off_period: datetime.timedelta
     amount_in_cool_off_period: int
 
     #: ISO UTC date. This will be `null` if you don't have the permission to
@@ -192,7 +200,7 @@ class _AssignmentAmbiguousSetting:
 
 
 @enum.unique
-class AssignmentStateEnum(enum.IntEnum):
+class AssignmentStateEnum(cg_enum.CGEnum):
     """Describes in what state an :class:`.Assignment` is.
     """
     hidden = 0
@@ -1193,7 +1201,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     linters: ColumnProxy[t.Iterable['AssignmentLinter']]
 
     # This variable is available through a backref
-    submissions: t.Iterable['work_models.Work']
+    submissions: ColumnProxy[t.Iterable['work_models.Work']]
 
     auto_test_id = db.Column(
         'auto_test_id',
@@ -1245,6 +1253,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         back_populates="assignment",
         uselist=False,
         cascade='delete-orphan,delete,save-update',
+    )
+
+    _available_at = db.Column(
+        'available_at',
+        db.TIMESTAMP(timezone=True),
+        nullable=True,
+        default=None,
     )
 
     __table_args__ = (
@@ -1488,14 +1503,53 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         return self._state
 
     def _state_setter(self, new_value: AssignmentStateEnum) -> None:
-        if new_value != self._state:
-            self._state = new_value
-            signals.ASSIGNMENT_STATE_CHANGED.send(self)
+        if self.available_at is not None and not new_value.is_done:
+            now = helpers.get_request_start_time()
+            expired = now >= self.available_at
+            new_value = (
+                AssignmentStateEnum.open
+                if expired else AssignmentStateEnum.hidden
+            )
+
+        if new_value == self._state:
+            return
+
+        self._state = new_value
+        signals.ASSIGNMENT_STATE_CHANGED.send(self)
 
     state = hybrid_property(_state_getter, _state_setter)
 
+    @property
+    def available_at(self) -> t.Optional[DatetimeWithTimezone]:
+        return self._available_at
+
+    @available_at.setter
+    def available_at(
+        self, new_value: t.Optional[DatetimeWithTimezone]
+    ) -> None:
+        if self._available_at == new_value:
+            return
+
+        self._available_at = new_value
+        if new_value is None:
+            return
+
+        # The state setter sets this to the correct value based on the expired
+        # state.
+        self.state = AssignmentStateEnum.open
+
+        now = helpers.get_request_start_time()
+        expired = now >= new_value
+        if not expired:
+            callback_after_this_request(
+                lambda: psef.tasks.maybe_open_assignment_at(
+                    (self.id, ),
+                    eta=new_value,
+                )
+            )
+
     # We don't use property.setter because in that case `new_val` could only be
-    # a `float` because of https://github.com/python/mypy/issues/220
+    # a `float` because of https://github.com/python/mypy/issues/3004
     def set_max_grade(self, new_val: t.Union[None, float, int]) -> None:
         """Set or unset the maximum grade for this assignment.
 
@@ -1504,8 +1558,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         """
         self._max_grade = new_val
 
+    #: The minimum grade for a submission in this assignment.
     min_grade = 0
-    """The minimum grade for a submission in this assignment."""
 
     def change_notifications(
         self,
@@ -1701,23 +1755,23 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         """Is the current assignment open, which means the assignment is in the
         state students submit work.
         """
-        return bool(
-            self.deadline is not None and
-            self.state == AssignmentStateEnum.open and
-            not self.deadline_expired
-        )
+        if self.deadline is None:
+            return False
+        if not self.state.is_open:
+            return False
+        return not self.deadline_expired
 
     @property
     def is_hidden(self) -> bool:
         """Is the assignment hidden.
         """
-        return self.state == AssignmentStateEnum.hidden
+        return self.state.is_hidden
 
     @property
     def is_done(self) -> bool:
         """Is the assignment done, which means that grades are open.
         """
-        return self.state == AssignmentStateEnum.done
+        return self.state.is_done
 
     @property
     def should_passback(self) -> bool:
@@ -1733,7 +1787,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         :returns: The correct name of the current state.
         """
-        if self.state == AssignmentStateEnum.open:
+        if self.state.is_open:
             return 'submitting' if self.is_open else 'grading'
         return AssignmentStateEnum(self.state).name
 
@@ -1801,9 +1855,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             'id': self.id,
             'state': self.state_name,
             'description': self.description,
-            'created_at': self.created_at.isoformat(),
-            'deadline':
-                None if self.deadline is None else self.deadline.isoformat(),
+            'created_at': self.created_at,
+            'deadline': self.deadline,
             'name': self.name,
             'is_lti': self.is_lti,
             'course': self.course,
@@ -1817,9 +1870,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             'files_upload_enabled': self.files_upload_enabled,
             'webhook_upload_enabled': self.webhook_upload_enabled,
             'max_submissions': self.max_submissions,
-            'cool_off_period': self.cool_off_period.total_seconds(),
+            'cool_off_period': self.cool_off_period,
             'amount_in_cool_off_period': self.amount_in_cool_off_period,
             'peer_feedback_settings': self.peer_feedback_settings,
+            'available_at': self.available_at,
 
             # These are all filled in based on permissions and data
             # availability.
@@ -1867,14 +1921,12 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         :param state: The new state, can be 'hidden', 'done' or 'open'
         :returns: Nothing
         """
-        if state == 'open':
-            self.state = AssignmentStateEnum.open
-        elif state == 'hidden':
-            self.state = AssignmentStateEnum.hidden
-        elif state == 'done':
-            self.state = AssignmentStateEnum.done
-        else:
+        try:
+            new_state = AssignmentStateEnum[state]
+        except KeyError:
             raise InvalidAssignmentState(f'{state} is not a valid state')
+
+        self.state = new_state
 
     def get_amount_not_deleted_submissions(self) -> int:
         return handle_none(

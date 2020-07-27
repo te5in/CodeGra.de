@@ -1294,11 +1294,31 @@ class AnalyticsWorkspacePermissions(CoursePermissionChecker):
 class CoursePermissions(CoursePermissionChecker):
     """The permission checker for :class:`psef.models.Course`.
     """
-    __slots__ = ('course', )
+    __slots__ = ('_course', )
 
+    @t.overload
+    def __init__(self, *, course_id: int) -> None:
+        ...
+
+    @t.overload
     def __init__(self, course: 'psef.models.Course') -> None:
-        super().__init__(course.id)
-        self.course: Final = course
+        ...
+
+    def __init__(self, course: 'psef.models.Course' = None, *, course_id: int = None) -> None:
+        if course_id is None:
+            assert course is not None
+            course_id = course.id
+        super().__init__(course_id)
+        self._course = course
+
+    @property
+    def course(self) -> 'psef.models.Course':
+        """The course connected to this checker.
+        """
+        if self._course is None:
+            self._course = psef.models.Course.query.get(self.course_id)
+            assert self._course is not None
+        return self._course
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see(self) -> None:
@@ -1324,7 +1344,7 @@ class AssignmentPermissions(CoursePermissionChecker):
         if not self.assignment.is_visible:
             raise PermissionException(
                 'This assignment is not visible for any user', (
-                    f'The assignment {self.assignment.id} is not visible',
+                    f'The assignment {self.assignment.id} is not visible'
                 ), APICodes.INCORRECT_PERMISSION, 403
             )
 
@@ -1332,6 +1352,26 @@ class AssignmentPermissions(CoursePermissionChecker):
 
         if self.assignment.is_hidden:
             self._ensure(CPerm.can_see_hidden_assignments)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_edit_info(self) -> None:
+        self.ensure_may_see()
+        self._ensure(CPerm.can_edit_assignment_info)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_edit_cgignore(self) -> None:
+        self.ensure_may_see()
+        self._ensure(CPerm.can_edit_cgignore)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_edit_notifications(self) -> None:
+        self.ensure_may_see()
+        self._ensure(CPerm.can_update_course_notifications)
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_edit_group_status(self) -> None:
+        self.ensure_may_see()
+        self._ensure(CPerm.can_edit_group_assignment)
 
     @PermissionChecker.as_ensure_function
     def ensure_may_edit_peer_feedback(self) -> None:

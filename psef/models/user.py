@@ -592,7 +592,7 @@ class User(NotEqualMixin, Base):
         ...  # pylint: disable=pointless-statement
 
     def get_all_permissions(  # pylint: disable=function-redefined
-        self, course: t.Union['course_models.Course', int, None] = None
+        self, course_id: t.Union['course_models.Course', int, None] = None
     ) -> t.Union[t.Mapping[CoursePermission, bool], t.
                  Mapping[GlobalPermission, bool]]:
         """Get all global permissions (:class:`.Permission`) of this user or
@@ -607,19 +607,17 @@ class User(NotEqualMixin, Base):
         """
         assert not self.virtual
 
-        if course is None:
+        if course_id is None:
             if self.role is None:
                 return {perm: False for perm in GlobalPermission}
             else:
                 return self.role.get_all_permissions()
         else:
-            if isinstance(course, int):
-                course = course_models.Course.query.get(course)
+            if isinstance(course_id, course_models.Course):
+                course_id = course_id.id
 
-            if (
-                course is not None and
-                auth.CoursePermissions(course).ensure_may_see.as_bool()
-            ):
+            if auth.CoursePermissions(course_id=course_id
+                                      ).ensure_may_see.as_bool():
                 return self.courses[course_id].get_all_permissions()
             else:
                 return {perm: False for perm in CoursePermission}

@@ -54,6 +54,41 @@
                     </b-input-group>
                 </b-form-fieldset>
 
+                <b-form-fieldset>
+                    <b-input-group v-b-popover.top.hover="availableAtPopover">
+                        <b-input-group-prepend is-text slot="prepend">
+                            Available at
+                            <cg-description-popover hug-text>
+                                The time the assignment should switch from the
+                                hidden state to the open state. With the default
+                                permissions this means that students will be
+                                able to see the assignment at this moment.
+                            </cg-description-popover>
+                        </b-input-group-prepend>
+
+                        <datetime-picker v-model="assignmentTempAvailableAt"
+                                         :disabled="!canSetAvailableAt"
+                                         placeholder="Manual"/>
+
+                        <b-input-group-append v-b-popover.top.hover="assignmentTempAvailableAt == null ? '' : 'Revert to manual mode.'"
+                                              v-if="canSetAvailableAt">
+                            <cg-submit-button
+                                :submit="() => submitAvailableAt(null)"
+                                @after-success="afterSubmitAvailableAt"
+                                :disabled="!canSetAvailableAt || assignmentTempAvailableAt == null"
+                                variant="warning">
+                                <fa-icon name="reply"/>
+                            </cg-submit-button>
+                        </b-input-group-append>
+
+                        <b-input-group-append>
+                            <cg-submit-button :submit="() => submitAvailableAt(assignmentTempAvailableAt)"
+                                              :disabled="!canSetAvailableAt"
+                                              @after-success="afterSubmitAvailableAt" />
+                        </b-input-group-append>
+                    </b-input-group>
+                </b-form-fieldset>
+
                 <b-form-fieldset v-if="canEditDeadline">
                     <b-input-group>
                         <b-input-group-prepend is-text slot="prepend"
@@ -344,6 +379,7 @@
 
 <script>
 import { mapActions, mapGetters } from 'vuex';
+import 'vue-awesome/icons/reply';
 
 import {
     AssignmentState,
@@ -380,6 +416,7 @@ export default {
             gradersLoading: true,
             gradersLoadedOnce: false,
             assignmentTempName: '',
+            assignmentTempAvailableAt: '',
             assignmentTempDeadline: '',
             assignmentTempSubmissionLimits: null,
             permissions: null,
@@ -432,14 +469,14 @@ export default {
         canEditDeadline() {
             return (
                 (!this.ltiProvider || !this.ltiProvider.supportsDeadline) &&
-                this.permissions.can_edit_assignment_info
+                    this.permissions.can_edit_assignment_info
             );
         },
 
         canEditMaxGrade() {
             return (
                 (!this.ltiProvider || this.ltiProvider.supportsBonusPoints) &&
-                this.permissions.can_edit_maximum_grade
+                    this.permissions.can_edit_maximum_grade
             );
         },
 
@@ -491,9 +528,9 @@ export default {
         canUseAutoTest() {
             return (
                 (this.permissions.can_run_autotest ||
-                    this.permissions.can_edit_autotest ||
-                    this.permissions.can_delete_autotest_run) &&
-                UserConfig.features.auto_test
+                 this.permissions.can_edit_autotest ||
+                 this.permissions.can_delete_autotest_run) &&
+                    UserConfig.features.auto_test
             );
         },
 
@@ -503,7 +540,7 @@ export default {
                     id: 'general',
                     name: 'General',
                     enabled:
-                        this.canEditInfo ||
+                    this.canEditInfo ||
                         this.canEditIgnoreFile ||
                         this.canEditGroups ||
                         this.canSubmitWork ||
@@ -513,7 +550,7 @@ export default {
                     id: 'graders',
                     name: 'Graders',
                     enabled:
-                        this.canAssignGraders ||
+                    this.canAssignGraders ||
                         this.canUpdateGradersStatus ||
                         this.canUpdateNotifications,
                 },
@@ -549,6 +586,17 @@ export default {
                 hash: '#groups',
             };
         },
+
+        canSetAvailableAt() {
+            return !this.$utils.getProps(this.ltiProvider, false, 'supportsStateManagement');
+        },
+
+        availableAtPopover() {
+            if (this.canSetAvailableAt) {
+                return '';
+            }
+            return `The state is managed by ${this.lmsName}`;
+        },
     },
 
     watch: {
@@ -573,6 +621,7 @@ export default {
             'loadCourses',
             'reloadCourses',
             'updateAssignmentDeadline',
+            'updateAssignmentAvailableAt',
         ]),
         ...mapActions('submissions', ['forceLoadSubmissions']),
 
@@ -583,6 +632,9 @@ export default {
 
                     this.permissions = this.assignment.course.permissions;
                     this.assignmentTempName = this.assignment.name;
+                    this.assignmentTempAvailableAt = this.$utils.formatNullableDate(
+                        this.assignment.availableAt,
+                    );
                     this.assignmentTempDeadline = this.assignment.getDeadlineAsString();
 
                     this.assignmentTempSubmissionLimits = {
@@ -646,6 +698,19 @@ export default {
                 assignmentId: this.assignment.id,
                 deadline: this.assignmentTempDeadline,
             });
+        },
+
+        submitAvailableAt(availableAt) {
+            return this.updateAssignmentAvailableAt({
+                assignmentId: this.assignment.id,
+                availableAt,
+            });
+        },
+
+        afterSubmitAvailableAt() {
+            this.assignmentTempAvailableAt = this.$utils.formatNullableDate(
+                this.assignment.availableAt,
+            );
         },
 
         deleteAssignment() {

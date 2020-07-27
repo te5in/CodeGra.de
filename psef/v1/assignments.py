@@ -21,6 +21,7 @@ import psef
 import psef.files
 from psef import app as current_app
 from psef import current_user
+from cg_helpers import on_not_none
 from cg_dt_utils import DatetimeWithTimezone
 from psef.models import db
 from psef.helpers import (
@@ -301,6 +302,14 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         new_ignore = opt_get('ignore', (dict, list, str))
         new_max_grade = opt_get('max_grade', (float, int, type(None)))
         new_group_set_id = opt_get('group_set_id', (int, type(None)))
+        new_available_at = opt_get(
+            'available_at',
+            (str, type(None)),
+            transform=lambda dt: on_not_none(
+                dt,
+                parsers.parse_datetime,
+            ),
+        )
 
         new_files_upload = opt_get('files_upload_enabled', bool, None)
         new_webhook_upload = opt_get('webhook_upload_enabled', bool, None)
@@ -311,14 +320,20 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
 
     lti_provider = assig.course.lti_provider
     lms_name: t.Optional[str]
+    perm_checker = auth.AssignmentPermissions(assig)
+    perm_checker.ensure_may_see()
 
     if lti_provider is not None:
         lms_name = lti_provider.lms_name
     else:
         lms_name = None
 
+    if new_available_at is not MISSING:
+        perm_checker.ensure_may_edit_info()
+        assig.available_at = new_available_at
+
     if new_state is not MISSING:
-        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        perm_checker.ensure_may_edit_info()
         assig.set_state_with_string(new_state)
 
     if new_name is not MISSING:
@@ -333,7 +348,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 400,
             )
 
-        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        perm_checker.ensure_may_edit_info()
 
         if not new_name:
             raise APIException(
@@ -358,11 +373,11 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 400
             )
 
-        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        perm_checker.ensure_may_edit_info()
         assig.deadline = parsers.parse_datetime(new_deadline)
 
     if new_ignore is not MISSING:
-        auth.ensure_permission(CPerm.can_edit_cgignore, assig.course_id)
+        perm_checker.ensure_may_edit_cgignore()
         ignore_version = helpers.get_key_from_dict(
             content, 'ignore_version', 'IgnoreFilterManager'
         )
@@ -383,19 +398,15 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 APICodes.INVALID_PARAM, 400
             )
 
-        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        perm_checker.ensure_may_edit_info()
         assig.set_max_grade(new_max_grade)
 
     if {'done_type', 'reminder_time', 'done_email'} & content.keys():
-        auth.ensure_permission(
-            CPerm.can_update_course_notifications, assig.course_id
-        )
+        perm_checker.ensure_may_edit_notifications()
         set_reminder(assig, content)
 
     if new_group_set_id is not MISSING:
-        auth.ensure_permission(
-            CPerm.can_edit_group_assignment, assig.course_id
-        )
+        perm_checker.ensure_may_edit_group_status()
         if new_group_set_id is None:
             group_set = None
         elif assig.peer_feedback_settings is not None:
@@ -423,21 +434,21 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.group_set = group_set
 
     if new_files_upload is not None or new_webhook_upload is not None:
-        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        perm_checker.ensure_may_edit_info()
         assig.update_submission_types(
             files=new_files_upload, webhook=new_webhook_upload
         )
 
     if new_max_submissions is not MISSING:
-        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        perm_checker.ensure_may_edit_info()
         assig.max_submissions = new_max_submissions
 
     if new_cool_off_period is not MISSING:
-        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        perm_checker.ensure_may_edit_info()
         assig.cool_off_period = datetime.timedelta(seconds=new_cool_off_period)
 
     if new_amount_cool_off is not MISSING:
-        auth.ensure_permission(CPerm.can_edit_assignment_info, assig.course_id)
+        perm_checker.ensure_may_edit_info()
         assig.amount_in_cool_off_period = new_amount_cool_off
 
     for warning in assig.get_changed_ambiguous_combinations():

@@ -205,7 +205,13 @@ class CGCelery(Celery):
                     return result
                 with outer_self._flask_app.app_context():  # pragma: no cover
                     set_g_vars()
-                    result = super().__call__(*args, **kwargs)
+                    try:
+                        result = super().__call__(*args, **kwargs)
+                    except:
+                        outer_self._call_callbacks(TaskStatus.failure)
+                    else:
+                        outer_self._call_callbacks(TaskStatus.success)
+
                     logger.bind(
                         queries_amount=g.queries_amount,
                         queries_max_duration=g.queries_max_duration,
@@ -253,7 +259,6 @@ class CGCelery(Celery):
 
         @self._signals.task_success.connect(weak=False)
         def __celery_success(**kwargs: object) -> None:
-            self._call_callbacks(TaskStatus.success)
             logger.info(
                 'Task finished',
                 result=kwargs['result'],
@@ -261,7 +266,6 @@ class CGCelery(Celery):
 
         @self._signals.task_retry.connect(weak=False)
         def __celery_retry(**_: object) -> None:  # pragma: no cover
-            self._call_callbacks(TaskStatus.failure)
             logger.error(
                 'Task failed',
                 exc_info=True,
@@ -269,7 +273,6 @@ class CGCelery(Celery):
 
         @self._signals.task_failure.connect(weak=False)
         def __celery_failure(**_: object) -> None:  # pragma: no cover
-            self._call_callbacks(TaskStatus.failure)
             logger.error(
                 'Task failed',
                 exc_info=True,

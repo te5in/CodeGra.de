@@ -109,9 +109,7 @@ class AbstractRole(t.Generic[_T]):
         else:
             assert isinstance(permission, GlobalPermission)
 
-        revert = False
-        if permission in self._permissions:
-            revert = True
+        revert = permission in self._permissions
         if current_app.do_sanity_checks:
             found_perm = Permission.get_permission(permission)
             assert (

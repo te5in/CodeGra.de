@@ -42,10 +42,11 @@ interface AssignmentServerProps {
     analytics_workspace_ids: number[];
     peer_feedback_settings: AssignmentPeerFeedbackSettings;
 
-    deadline: string;
+    deadline: string | null;
     created_at: string;
     reminder_time: string | null;
     cool_off_period: string;
+    available_at: string | null;
 }
 
 export interface AssignmentUpdateableProps {
@@ -74,6 +75,7 @@ export interface AssignmentUpdateableProps {
     graders?: NormalUserServerData[] | null;
     cool_off_period?: number;
     peer_feedback_settings?: AssignmentPeerFeedbackSettings | null;
+    availableAt?: moment.Moment | null;
 }
 
 const ALLOWED_UPDATE_PROPS = new Set(keys<AssignmentUpdateableProps>());
@@ -142,6 +144,8 @@ abstract class AssignmentData {
 
     readonly createdAt!: moment.Moment;
 
+    readonly availableAt!: moment.Moment | null;
+
     readonly reminderTime!: moment.Moment;
 
     readonly graderIds?: number[] | null;
@@ -165,6 +169,7 @@ export class Assignment extends AssignmentData {
                 case 'deadline':
                 case 'created_at':
                 case 'reminder_time':
+                case 'available_at':
                 case 'cool_off_period': {
                     break;
                 }
@@ -182,8 +187,13 @@ export class Assignment extends AssignmentData {
         props.courseId = courseId;
         props.canManage = canManage;
 
-        props.deadline = moment.utc(serverData.deadline, moment.ISO_8601);
+        props.deadline = moment.utc(serverData.deadline ?? 'INVALID', moment.ISO_8601);
         props.createdAt = moment.utc(serverData.created_at, moment.ISO_8601);
+        if (serverData.available_at != null) {
+            props.availableAt = moment.utc(serverData.available_at, moment.ISO_8601);
+        } else {
+            props.availableAt = null;
+        }
 
         props.reminderTime = moment.utc(serverData.reminder_time as string, moment.ISO_8601);
 
@@ -384,6 +394,12 @@ export class Assignment extends AssignmentData {
                     } else if (key === 'cool_off_period') {
                         const value = newProps[key];
                         acc.coolOffPeriod = moment.duration(value, 'seconds');
+                    } else if (key === 'availableAt') {
+                        const value = newProps[key];
+                        if (!(value === null || moment.isMoment(value))) {
+                            throw new Error(`${key} can only be set as moment or null`);
+                        }
+                        acc[key] = value;
                     } else {
                         // @ts-ignore
                         const value: any = newProps[key];

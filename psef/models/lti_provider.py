@@ -175,7 +175,9 @@ class LTIProviderBase(Base, TimestampMixin):
             assignment_models.Assignment.is_visible,
         )
         if lock:
-            query = query.with_for_update(read=True)
+            query = query.with_for_update(
+                read=True, of=assignment_models.Assignment
+            )
 
         assig = query.one_or_none()
 
@@ -895,6 +897,8 @@ class LTI1p3Provider(LTIProviderBase):
                 assignment_models.Assignment.lti_assignment_id == lti_assid_id,
                 assignment_models.Assignment.lti_assignment_id.isnot(None),
                 assignment_models.Assignment.is_lti,
+            ).with_for_update(
+                read=True, of=assignment_models.Assignment
             ).one_or_none()
 
         found_assig = find(resource_id)

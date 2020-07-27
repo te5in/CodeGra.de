@@ -900,6 +900,16 @@ class TransactionOptionalGet(Protocol[T_CONTRA]):
     ) -> t.Union[T, TT, ZZ, Literal[MissingType.token]]:
         ...
 
+    @t.overload
+    def __call__(
+        self,
+        to_get: T_CONTRA,
+        typ: t.Tuple[t.Type[T], t.Type[TT]],
+        *,
+        transform: t.Callable[[t.Union[T, TT]], ZZ],
+    ) -> t.Union[ZZ, Literal[MissingType.token]]:
+        ...
+
 
 # pylint: enable
 
@@ -938,15 +948,21 @@ def get_from_map_transaction(
         all_keys_requested.append(key)
         keys.append((key, typ))
         value: t.Union[TT, MissingType] = mapping.get(key, MISSING)
+        correct_type = False
+
         if (
             isinstance(typ, type) and issubclass(typ, enum.Enum) and
             isinstance(value, str)
         ):
             value = t.cast(TT, typ.__members__.get(value, MISSING))
+            correct_type = value is not MISSING
         elif isinstance(typ, register.Register):
             value = t.cast(TT, (value, typ.get_or(value, MISSING)))
+            correct_type = value is not MISSING
+        else:
+            correct_type = isinstance(value, typ)
 
-        if transform is not None and value is not MISSING:
+        if transform is not None and correct_type:
             return transform(t.cast(TT, value))
 
         return t.cast(TTT, value)
@@ -954,12 +970,14 @@ def get_from_map_transaction(
     def optional_get(
         key: T,
         typ: t.Union[t.Type, t.Tuple[t.Type, ...]],
-        default: t.Any = MISSING
+        default: t.Any = MISSING,
+        *,
+        transform: t.Callable = None,
     ) -> object:
         if key not in mapping:
             all_keys_requested.append(key)
             return default
-        return get(key, typ)
+        return get(key, typ, transform=transform)
 
     try:
         yield get, optional_get  # type: ignore
