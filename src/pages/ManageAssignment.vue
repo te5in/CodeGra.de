@@ -96,11 +96,12 @@
                             Deadline
 
                             <description-popover placement="top" hug-text>
-                                <template v-if="ltiProvider && !ltiProvider.supportsDeadline"
+                                <template v-if="ltiProvider.isJust()"
                                           slot="description">
-                                    {{ lmsName }} did not pass this assignment's deadline on to
-                                    CodeGrade.  Students will not be able to submit their work
-                                    until the deadline is set here.
+                                    {{ lmsName.extract() }} did not pass this
+                                    assignment's deadline on to CodeGrade.
+                                    Students will not be able to submit their
+                                    work until the deadline is set here.
                                 </template>
                                 <template v-else
                                           slot="description">
@@ -447,11 +448,11 @@ export default {
         },
 
         ltiProvider() {
-            return this.$utils.getProps(this.assignment, null, 'course', 'ltiProvider');
+            return this.$utils.getPropMaybe(this.assignment, 'ltiProvider');
         },
 
         lmsName() {
-            return this.$utils.getProps(this.ltiProvider, null, 'lms');
+            return this.ltiProvider.map(prov => prov.lms);
         },
 
         canEditState() {
@@ -468,15 +469,15 @@ export default {
 
         canEditDeadline() {
             return (
-                (!this.ltiProvider || !this.ltiProvider.supportsDeadline) &&
-                    this.permissions.can_edit_assignment_info
+                this.ltiProvider.mapOrDefault(prov => !prov.supportsDeadline, true) &&
+                this.permissions.can_edit_assignment_info
             );
         },
 
         canEditMaxGrade() {
             return (
-                (!this.ltiProvider || this.ltiProvider.supportsBonusPoints) &&
-                    this.permissions.can_edit_maximum_grade
+                this.ltiProvider.mapOrDefault(prov => prov.supportsBonusPoints, true) &&
+                this.permissions.can_edit_maximum_grade
             );
         },
 
@@ -588,14 +589,14 @@ export default {
         },
 
         canSetAvailableAt() {
-            return !this.$utils.getProps(this.ltiProvider, false, 'supportsStateManagement');
+            return this.ltiProvider.mapOrDefault(prov => !prov.supportsStateManagement, true);
         },
 
         availableAtPopover() {
-            if (this.canSetAvailableAt) {
+            if (this.canSetAvailableAt || this.lmsName.isNothing()) {
                 return '';
             }
-            return `The state is managed by ${this.lmsName}`;
+            return `The state is managed by ${this.lmsName.extract()}`;
         },
     },
 

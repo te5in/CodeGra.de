@@ -153,18 +153,18 @@ export default {
         },
 
         ltiProvider() {
-            return this.$utils.getProps(this.assignment, null, 'course', 'ltiProvider');
+            return this.$utils.getPropMaybe(this.assignment, 'ltiProvider');
         },
 
         canManageOpenState() {
             if (this.assignment.availableAt) {
                 return false;
             }
-            return !this.$utils.getProps(this.ltiProvider, false, 'supportsStateManagement');
+            return this.ltiProvider.mapOrDefault(prov => !prov.supportsStateManagement, true);
         },
 
         lmsName() {
-            return this.$utils.getProps(this.ltiProvider, null, 'lms');
+            return this.ltiProvider.mapOrDefault(prov => prov.lms, null);
         },
 
         openOrClosePopover() {

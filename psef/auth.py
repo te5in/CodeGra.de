@@ -1327,7 +1327,6 @@ class CoursePermissions(CoursePermissionChecker):
         """
         self._ensure_course_visible()
 
-
 class AssignmentPermissions(CoursePermissionChecker):
     """The permission checker for :class:`psef.models.Assignment`.
     """
@@ -1336,6 +1335,11 @@ class AssignmentPermissions(CoursePermissionChecker):
     def __init__(self, assignment: 'psef.models.Assignment') -> None:
         super().__init__(assignment.course_id)
         self.assignment: Final = assignment
+
+    @PermissionChecker.as_ensure_function
+    def ensure_may_add(self) -> None:
+        self._ensure_course_visible()
+        self._ensure(CPerm.can_create_assignment)
 
     @PermissionChecker.as_ensure_function
     def ensure_may_see(self) -> None:

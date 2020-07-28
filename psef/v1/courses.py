@@ -454,15 +454,9 @@ def create_new_assignment(course_id: int) -> JSONResponse[models.Assignment]:
     :<json str name: The name of the new assignment.
 
     :returns: The newly created assignment.
-
-    :raises PermissionException: If the current user does not have the
-        ``can_create_assignment`` permission (INCORRECT_PERMISSION).
     """
-    auth.ensure_permission(CPerm.can_create_assignment, course_id)
-
-    content = get_json_dict_from_request()
-    ensure_keys_in_dict(content, [('name', str)])
-    name = t.cast(str, content['name'])
+    with get_from_map_transaction(get_json_dict_from_request()) as [get, _]:
+        name = get('name', str)
 
     course = helpers.get_or_404(
         models.Course,
@@ -470,19 +464,12 @@ def create_new_assignment(course_id: int) -> JSONResponse[models.Assignment]:
         also_error=lambda c: c.virtual,
     )
 
-    if course.lti_provider is not None:
-        lms = course.lti_provider.lms_name
-        raise APIException(
-            f'You cannot add assignments to a {lms} course',
-            f'The course "{course_id}" is a LTI course',
-            APICodes.INVALID_STATE, 400
-        )
-
     assig = models.Assignment(
         name=name,
         course=course,
         is_lti=False,
     )
+    auth.AssignmentPermissions(assig).ensure_may_add()
     db.session.add(assig)
     db.session.commit()
 

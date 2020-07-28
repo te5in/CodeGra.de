@@ -521,14 +521,6 @@ export default {
             return this.$route.params.courseId;
         },
 
-        ltiProvider() {
-            return this.$utils.getProps(this.assignment, null, 'course', 'ltiProvider');
-        },
-
-        lmsName() {
-            return this.$utils.getProps(this.ltiProvider, null, 'lms');
-        },
-
         webhookUploadEnabled() {
             return this.$utils.getProps(this.assignment, false, 'webhook_upload_enabled');
         },

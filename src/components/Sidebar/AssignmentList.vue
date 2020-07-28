@@ -44,7 +44,7 @@
         <b-btn class="add-assignment-button sidebar-footer-button"
                :id="addButtonId"
                v-if="showAddButton"
-               v-b-popover.hover.top="'Add new assignment'">
+               v-b-popover.hover.top="addAssignmentPopover">
             <icon name="plus" style="margin-right: 0;"/>
             <b-popover :target="addButtonId"
                        :id="popoverId"
@@ -52,6 +52,7 @@
                        placement="top"
                        custom-class="no-max-width">
                 <submit-input style="width: 18rem;"
+                              :confirm="addAssignmentConfirm"
                               placeholder="New assignment name"
                               @create="createNewAssignment"
                               @cancel="closePopover"/>
@@ -116,7 +117,7 @@ export default {
 
         showAddButton() {
             const course = this.currentCourse;
-            return !!(course && !course.is_lti && course.canCreateAssignments);
+            return !!(course && course.canCreateAssignments);
         },
 
         showManageButton() {
@@ -176,6 +177,22 @@ export default {
                         assig.course.name.toLocaleLowerCase().indexOf(part) > -1,
                 ),
             );
+        },
+
+        addAssignmentPopover() {
+            const course = this.currentCourse;
+            if (!course || !course.is_lti) {
+                return 'Add a new assignment';
+            }
+            return 'Add a new assignment that is not connected to your LMS.';
+        },
+
+        addAssignmentConfirm() {
+            if (!this.$utils.getProps(this.currentCourse, false, 'is_lti')) {
+                return '';
+            }
+            const lms = this.currentCourse.lti_provider.name;
+            return `You are about to create an assignment that is not connected to ${lms}. This means that students will not be able to navigate to this assignment inside ${lms} and grades will not be synced. Are you sure?`;
         },
     },
 

@@ -4,7 +4,7 @@ import type { ICompiledMode } from 'highlightjs';
 import { getLanguage, highlight } from 'highlightjs';
 import Vue from 'vue';
 
-import { Maybe } from 'purify-ts/Maybe';
+import { Maybe, Nothing } from 'purify-ts/Maybe';
 
 import * as Sentry from '@sentry/browser';
 import { User } from '@/models';
@@ -869,4 +869,30 @@ export function withSentry(cb: (sentry: typeof Sentry) => void): void {
 
 export function formatTimePart(num: number): string {
     return `${num < 10 ? '0' : ''}${num}`;
+}
+
+function isMaybe<T>(obj: T | Maybe<T>): obj is Maybe<T> {
+    // @ts-ignore
+    return obj?.constructor === Maybe;
+}
+
+export function getPropMaybe(
+    obj: null | undefined,
+    prop: string,
+): typeof Nothing;
+
+export function getPropMaybe<TObj extends object, Keys extends keyof TObj, Prop extends KeyLike>(
+    obj: TObj,
+    prop: Prop,
+): (Prop extends Keys ?
+    (TObj[Prop] extends Maybe<any> ? TObj[Prop] : Maybe<NonNull<TObj[Prop]>>) :
+    typeof Nothing);
+
+export function getPropMaybe(obj: any, prop: any): any {
+    const res = obj?.[prop];
+    if (res != null && isMaybe(res)) {
+        return res;
+    } else {
+        return Maybe.fromNullable(res);
+    }
 }

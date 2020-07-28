@@ -1293,6 +1293,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     ) -> None:
         super().__init__(
             course=course,
+            course_id=course.id,
             name=name,
             visibility_state=visibility_state,
             state=state,
@@ -1885,7 +1886,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             'analytics_workspace_ids': [],
         }
 
-        if self.course.lti_provider is not None:
+        if self.is_lti:
             res['lms_name'] = self.course.lti_provider.lms_name
 
         if psef.current_user.has_permission(

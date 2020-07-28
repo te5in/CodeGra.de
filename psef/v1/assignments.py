@@ -318,15 +318,11 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         new_cool_off_period = opt_get('cool_off_period', (int, float))
         new_amount_cool_off = opt_get('amount_in_cool_off_period', int)
 
-    lti_provider = assig.course.lti_provider
-    lms_name: t.Optional[str]
     perm_checker = auth.AssignmentPermissions(assig)
     perm_checker.ensure_may_see()
 
-    if lti_provider is not None:
-        lms_name = lti_provider.lms_name
-    else:
-        lms_name = None
+    lti_provider = assig.course.lti_provider
+    lms_name = on_not_none(lti_provider, lambda prov: prov.lms_name)
 
     if new_available_at is not MISSING:
         perm_checker.ensure_may_edit_info()
@@ -362,8 +358,10 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
 
     if new_deadline is not MISSING:
         if (
-            lti_provider is not None and
-            not lti_provider.supports_setting_deadline()
+            assig.is_lti and (
+                lti_provider is None or
+                not lti_provider.supports_setting_deadline()
+            )
         ):
             raise APIException(
                 (
@@ -384,7 +382,9 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
         assig.update_cgignore(ignore_version, new_ignore)
 
     if new_max_grade is not MISSING:
-        if lti_provider is not None and not lti_provider.supports_max_points():
+        if assig.is_lti and (
+            lti_provider is None or not lti_provider.supports_max_points()
+        ):
             raise APIException(
                 f'{lms_name} does not support setting the maximum grade',
                 f'{lms_name} does not support setting the maximum grade',

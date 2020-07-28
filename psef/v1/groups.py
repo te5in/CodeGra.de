@@ -134,7 +134,8 @@ def add_member_to_group(group_id: int) -> ExtendedJSONResponse[models.Group]:
             APIWarnings.WEBHOOKS_DISABLED,
         )
 
-    if group.group_set.course.lti_provider is not None:
+    lti_provider = group.group_set.course.lti_provider
+    if lti_provider is not None and lti_provider.member_sourcedid_required:
         existing_hooks = models.WebhookBase.query.filter_by(
             user=group.virtual_user,
         )
@@ -148,10 +149,10 @@ def add_member_to_group(group_id: int) -> ExtendedJSONResponse[models.Group]:
             raise APIException(
                 (
                     'You first have to open the assignments: {assigs} from'
-                    ' {LMS} before you can join this group'
+                    ' {lms_name} before you can join this group'
                 ).format(
                     assigs=readable_join([a.name for a in missing_sourcedids]),
-                    LMS=group.group_set.course.lti_provider.lms_name,
+                    lms_name=lti_provider.lms_name,
                 ), (
                     "This group has webhooks for these assignments, but you"
                     " didn't open them yet"

@@ -9,8 +9,10 @@ import { Rubric } from '@/models';
 
 // @ts-ignore
 import { store } from '@/store';
+
 import { NONEXISTENT } from '@/constants';
 import * as utils from '@/utils/typed';
+import { LTIProvider } from '@/lti_providers';
 
 import * as assignmentState from '@/store/assignment-states';
 import { NormalUserServerData, AnyUser, User } from './user';
@@ -204,6 +206,14 @@ export class Assignment extends AssignmentData {
 
     get course(): Record<string, any> {
         return store.getters['courses/courses'][this.courseId];
+    }
+
+    get ltiProvider(): utils.Maybe<LTIProvider> {
+        const course = this.course;
+        if (course == null || !this.is_lti) {
+            return utils.Nothing;
+        }
+        return utils.Maybe.fromNullable(this.course.ltiProvider);
     }
 
     getReminderTimeOrDefault(): moment.Moment {
