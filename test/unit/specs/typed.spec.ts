@@ -29,7 +29,8 @@ describe('getPropMaybe', () => {
     });
 
     it('should return Nothing if the key is not in the object', () => {
-        const res3: typeof Nothing = getPropMaybe(obj, 'not_present');
+        // @ts-expect-error
+        const res3 = getPropMaybe(obj, 'not_present');
         expect(res3).toBe(Nothing);
     });
 

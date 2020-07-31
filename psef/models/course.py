@@ -325,10 +325,7 @@ class Course(NotEqualMixin, Base):
         ).join(
             CourseRole,
             CourseRole.id == user_course.c.course_id,
-        ).filter(
-            CourseRole.course_id == self.id,
-            t.cast(DbColumn[bool], User.virtual).isnot(True)
-        )
+        ).filter(CourseRole.course_id == self.id, User.virtual.isnot(True))
 
         if not include_test_students:
             res = res.filter(~User.is_test_student)

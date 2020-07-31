@@ -8,11 +8,11 @@ import typing as t
 from flask import request
 
 from . import api
-from .. import auth, models, features, current_user
+from .. import auth, models, db_locks, features, current_user
 from ..helpers import (
     EmptyResponse, ExtendedJSONResponse, get_or_404, add_warning,
     readable_join, ensure_json_dict, extended_jsonify, ensure_keys_in_dict,
-    make_empty_response, filter_single_or_404
+    make_empty_response, filter_single_or_404, get_from_request_transaction
 )
 from ..exceptions import (
     APICodes, APIWarnings, APIException, ValidationException
@@ -32,7 +32,7 @@ def get_group(group_id: int) -> ExtendedJSONResponse[models.Group]:
     :returns: The requested group.
     """
     group = get_or_404(models.Group, group_id)
-    auth.ensure_can_view_group(group)
+    auth.GroupPermissions(group).ensure_may_see()
     return extended_jsonify(group, use_extended=models.Group)
 
 
@@ -53,13 +53,7 @@ def delete_group(group_id: int) -> EmptyResponse:
     """
     group = get_or_404(models.Group, group_id)
 
-    perms = [CPerm.can_edit_others_groups]
-    if current_user in group.members or not group.members:
-        perms.append(CPerm.can_edit_own_groups)
-    auth.ensure_any_of_permissions(
-        perms,
-        group.group_set.course_id,
-    )
+    auth.GroupPermissions(group).ensure_may_delete()
 
     if group.has_a_submission:
         raise APIException(
@@ -88,9 +82,11 @@ def add_member_to_group(group_id: int) -> ExtendedJSONResponse[models.Group]:
     :returns: The group with the newly added user.
     """
     group = get_or_404(models.Group, group_id)
-    content = ensure_json_dict(request.get_json())
-    ensure_keys_in_dict(content, [('username', str)])
-    username = t.cast(str, content['username'])
+    auth.GroupPermissions(group).ensure_may_see()
+
+    with get_from_request_transaction() as [get, _]:
+        username = get('username', str)
+    db_locks.acquire_lock(db_locks.LockNamespaces.group_members, username)
     new_user = filter_single_or_404(
         models.User, models.User.username == username
     )
@@ -108,7 +104,7 @@ def add_member_to_group(group_id: int) -> ExtendedJSONResponse[models.Group]:
     if models.db.session.query(
         models.Group.contains_users(
             [new_user]
-        ).filter_by(group_set=group.group_set).exists()
+        ).filter(models.Group.group_set == group.group_set).exists()
     ).scalar():
         raise APIException(
             'Member already in a group',
@@ -118,7 +114,7 @@ def add_member_to_group(group_id: int) -> ExtendedJSONResponse[models.Group]:
 
     old_hooks = models.WebhookBase.query.filter(
         models.WebhookBase.user_id == new_user.id,
-        t.cast(models.DbColumn[int], models.WebhookBase.assignment_id).in_(
+        models.WebhookBase.assignment_id.in_(
             [a.id for a in group.group_set.assignments]
         ),
     ).all()
@@ -180,7 +176,12 @@ def remove_member_from_group(group_id: int, user_id: int
     :raises APIException: If the group has submissions associated with it and
         the given user was the last member. (INVALID_STATE)
     """
-    group = get_or_404(models.Group, group_id)
+    group = get_or_404(
+        models.Group,
+        group_id,
+        with_for_update=True,
+        with_for_update_of=models.Group
+    )
     user = get_or_404(models.User, user_id)
     auth.ensure_can_edit_members_of_group(group, [user])
 
@@ -219,16 +220,7 @@ def update_name_of_group(group_id: int) -> ExtendedJSONResponse[models.Group]:
         characters. (iNVALID_PARAM)
     """
     group = get_or_404(models.Group, group_id)
-
-    perms = []
-    if group.has_as_member(current_user):
-        perms.append(CPerm.can_edit_own_groups)
-    perms.append(CPerm.can_edit_others_groups)
-
-    auth.ensure_any_of_permissions(
-        perms,
-        group.group_set.course_id,
-    )
+    auth.GroupPermissions(group).ensure_may_edit()
 
     content = ensure_json_dict(request.get_json())
     ensure_keys_in_dict(content, [('name', str)])

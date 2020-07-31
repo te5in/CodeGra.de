@@ -139,7 +139,7 @@ export default {
             return {
                 tag: 'forCourse',
                 title: 'Limited login enabled',
-                message: `You are currently only logged in for the course "${courseName}". This means you can only see data from this course, you can disable this limiting by logging out and logging back in again.`,
+                message: `You are currently only logged in for the course "${courseName}". This means you can only see data from this course.`,
                 variant: 'warning',
             };
         },

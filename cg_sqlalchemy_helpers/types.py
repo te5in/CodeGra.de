@@ -124,6 +124,9 @@ class MySession:  # pragma: no cover
     def expunge(self, arg: 'Base') -> None:
         ...
 
+    def expire(self, obj: 'Base') -> None:
+        ...
+
     def expire_all(self) -> None:
         ...
 

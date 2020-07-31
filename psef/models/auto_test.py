@@ -516,13 +516,11 @@ class AutoTestResult(Base, TimestampMixin, IdMixin, NotEqualMixin):
             ).count()
 
         step_results = self.step_results
-        try:
-            auth.ensure_can_see_grade(self.work)
-        except PermissionException:
+        if auth.WorkPermissions(self.work).ensure_may_see_grade.as_bool():
+            final_result = self.final_result
+        else:
             step_results = [s for s in step_results if not s.step.hidden]
             final_result = False
-        else:
-            final_result = self.final_result
 
         suite_files = {}
         assig = self.run.auto_test.assignment
@@ -1542,14 +1540,10 @@ class AutoTest(Base, TimestampMixin, IdMixin):
     def __to_json__(self) -> t.Mapping[str, object]:
         """Covert this AutoTest to json.
         """
-        fixtures = []
-        for fixture in self.fixtures:
-            try:
-                auth.ensure_can_view_fixture(fixture)
-            except auth.PermissionException:
-                pass
-            else:
-                fixtures.append(fixture)
+        fixtures = [
+            f for f in self.fixtures
+            if auth.AutoTestFixturePermissions(f).ensure_may_see.as_bool()
+        ]
 
         return {
             'id': self.id,

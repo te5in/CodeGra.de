@@ -118,7 +118,7 @@ class AbstractRole(t.Generic[_T]):
 
         res = permission.value.default_value
         if revert:
-            res = not res
+            return not res
         return res
 
     def get_all_permissions(self) -> t.Mapping['_T', bool]:

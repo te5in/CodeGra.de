@@ -52,7 +52,7 @@
     "markdown-it-mathjax": "^2.0.0",
     "markdown-it-sanitizer": "^0.4.3",
     "mathjax": "^2.7.5",
-    "moment": "^2.24.0",
+    "moment": "^2.27.0",
     "purify-ts": "^0.15.1",
     "reflect-metadata": "^0.1.13",
     "request": "^2.81.0",

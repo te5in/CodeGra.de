@@ -8,6 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 import typing as t
 
 from flask import request
+from typing_extensions import TypedDict
 
 from psef.exceptions import WeakPasswordException
 
@@ -17,15 +18,19 @@ from ..errors import APICodes, APIWarnings, APIException
 from ..models import db
 from ..helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify, validate,
-    add_warning, ensure_json_dict, extended_jsonify, request_arg_true,
-    ensure_keys_in_dict, make_empty_response
+    add_warning, jsonify_options, ensure_json_dict, extended_jsonify,
+    request_arg_true, ensure_keys_in_dict, make_empty_response
 )
 from ..permissions import GlobalPermission as GPerm
 
 
+class LoginResponse(TypedDict):
+    user: models.User
+    access_token: str
+
+
 @api.route("/login", methods=["POST"])
-def login() -> ExtendedJSONResponse[
-    t.Mapping[str, t.Union[t.MutableMapping[str, t.Any], str]]]:
+def login() -> ExtendedJSONResponse[LoginResponse]:
     """Login a :class:`.models.User` if the request is valid.
 
     .. :quickref: User; Login a given user.
@@ -143,14 +148,13 @@ def login() -> ExtendedJSONResponse[
             )
 
     auth.set_current_user(user)
-    json_user = user.__extended_to_json__()
 
     if request_arg_true('with_permissions'):
-        json_user['permissions'] = GPerm.create_map(user.get_all_permissions())
+        jsonify_options.get_options().add_permissions_to_user = user
 
     return extended_jsonify(
         {
-            'user': json_user,
+            'user': user,
             'access_token': user.make_access_token(),
         }
     )

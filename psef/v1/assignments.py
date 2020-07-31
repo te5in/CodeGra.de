@@ -801,6 +801,8 @@ def upload_work(assignment_id: int) -> ExtendedJSONResponse[models.Work]:
         with_for_update=helpers.LockType.read,
         also_error=lambda a: not a.is_visible,
     )
+    auth.AssignmentPermissions(assig).ensure_may_see()
+
     if not current_user.has_permission(
         CPerm.can_submit_others_work, course_id=assig.course_id
     ) and not assig.files_upload_enabled:
@@ -946,8 +948,7 @@ def divide_assignments(assignment_id: int) -> EmptyResponse:
         options=[joinedload(models.Assignment.division_children)],
         also_error=lambda a: not a.is_visible,
     )
-
-    auth.ensure_permission(CPerm.can_assign_graders, assignment.course_id)
+    auth.AssignmentPermissions(assignment).ensure_may_assign_graders()
 
     content = ensure_json_dict(request.get_json())
 
@@ -1045,7 +1046,7 @@ def get_all_graders(
         assignment_id,
         also_error=lambda a: not a.is_visible
     )
-    auth.ensure_permission(CPerm.can_see_assignee, assignment.course_id)
+    auth.AssignmentPermissions(assignment).ensure_may_see_graders()
 
     result = assignment.get_all_graders(sort=True)
 
@@ -1100,6 +1101,7 @@ def set_grader_to_not_done(
         assignment_id,
         also_error=lambda a: not a.is_visible
     )
+    auth.AssignmentPermissions(assig).ensure_may_see()
 
     if current_user.id == grader_id:
         auth.ensure_permission(CPerm.can_grade_work, assig.course_id)
@@ -1151,6 +1153,7 @@ def set_grader_to_done(assignment_id: int, grader_id: int) -> EmptyResponse:
         options=[joinedload(models.Assignment.finished_graders)],
         also_error=lambda a: not a.is_visible,
     )
+    auth.AssignmentPermissions(assig).ensure_may_see()
 
     if current_user.id == grader_id:
         auth.ensure_permission(CPerm.can_grade_work, assig.course_id)
@@ -1225,11 +1228,7 @@ def get_all_works_by_user_for_assignment(
         assignment_id,
         also_error=lambda a: not a.is_visible
     )
-    auth.ensure_permission(CPerm.can_see_assignments, assignment.course_id)
-    if assignment.is_hidden:
-        auth.ensure_permission(
-            CPerm.can_see_hidden_assignments, assignment.course_id
-        )
+    auth.AssignmentPermissions(assignment).ensure_may_see()
 
     user = helpers.get_or_404(models.User, user_id)
     auth.WorksByUserPermissions(assignment, user).ensure_may_see()
@@ -1274,7 +1273,7 @@ def get_all_works_for_assignment(
         also_error=lambda a: not a.is_visible
     )
 
-    auth.ensure_permission(CPerm.can_see_assignments, assignment.course_id)
+    auth.AssignmentPermissions(assignment).ensure_may_see()
 
     if assignment.is_hidden:
         auth.ensure_permission(
@@ -1346,6 +1345,7 @@ def post_submissions(assignment_id: int) -> EmptyResponse:
         with_for_update=helpers.LockType.read,
         also_error=lambda a: not a.is_visible,
     )
+    auth.AssignmentPermissions(assignment).ensure_may_see()
     auth.ensure_permission(CPerm.can_upload_bb_zip, assignment.course_id)
     files = helpers.get_files_from_request(
         max_size=current_app.max_large_file_size, keys=['file']
@@ -1486,6 +1486,7 @@ def get_linters(assignment_id: int
         also_error=lambda a: not a.is_visible
     )
 
+    auth.AssignmentPermissions(assignment).ensure_may_see()
     auth.ensure_permission(CPerm.can_use_linter, assignment.course_id)
 
     res = []
@@ -1552,6 +1553,7 @@ def start_linting(assignment_id: int) -> JSONResponse[models.AssignmentLinter]:
         assignment_id,
         also_error=lambda a: not a.is_visible
     )
+    auth.AssignmentPermissions(assig).ensure_may_see()
     auth.ensure_permission(CPerm.can_use_linter, assig.course_id)
 
     with get_from_map_transaction(content) as [get, _]:
@@ -1627,10 +1629,7 @@ def get_plagiarism_runs(
         assignment_id,
         also_error=lambda a: not a.is_visible
     )
-    try:
-        auth.ensure_permission(CPerm.can_view_plagiarism, assig.course_id)
-    except auth.PermissionException:
-        auth.ensure_permission(CPerm.can_manage_plagiarism, assig.course_id)
+    auth.AssignmentPermissions(assig).ensure_may_see_plagiarism()
 
     return jsonify(
         models.PlagiarismRun.query.filter_by(assignment=assig).order_by(
@@ -1681,7 +1680,7 @@ def start_plagiarism_check(
         assignment_id,
         also_error=lambda a: not a.is_visible
     )
-    auth.ensure_permission(CPerm.can_manage_plagiarism, assig.course_id)
+    auth.AssignmentPermissions(assig).ensure_may_edit_plagiarism()
 
     content = ensure_json_dict(
         ('json' in request.files and json.loads(request.files['json'].read()))
@@ -1854,7 +1853,7 @@ def get_group_member_states(assignment_id: int, group_id: int
         models.Group, models.Group.id == group_id,
         models.Group.group_set_id == assig.group_set_id
     )
-    auth.ensure_can_view_group(group)
+    auth.GroupPermissions(group).ensure_may_see()
 
     return jsonify(group.get_member_lti_states(assig))
 
@@ -2075,6 +2074,7 @@ def get_comments_by_user(assignment_id: int, user_id: int
         models.Assignment.id == assignment_id,
         also_error=lambda a: not a.is_visible,
     )
+    auth.AssignmentPermissions(assignment).ensure_may_see()
     user = helpers.get_or_404(models.User, user_id)
 
     comments = models.CommentBase.get_base_comments_query().filter(
@@ -2121,6 +2121,8 @@ def get_peer_feedback_subjects(
         models.Assignment.id == assignment_id,
         also_error=lambda a: not a.is_visible,
     )
+    auth.AssignmentPermissions(assignment).ensure_may_see()
+
     user = helpers.get_or_404(models.User, user_id)
     if not user.contains_user(current_user):
         auth.ensure_permission(CPerm.can_see_others_work, assignment.course_id)

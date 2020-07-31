@@ -9,7 +9,9 @@ import typing as t
 import structlog
 from typing_extensions import TypedDict
 
+import cg_enum
 from cg_json import JSONResponse
+from cg_helpers import on_not_none
 from cg_sqlalchemy_helpers import JSONB
 from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 
@@ -20,7 +22,7 @@ logger = structlog.get_logger()
 
 
 @enum.unique
-class TaskResultState(enum.Enum):
+class TaskResultState(cg_enum.CGEnum):
     """The state of a task result.
 
     :ivar not_started: The task has not been started yet.
@@ -34,9 +36,6 @@ class TaskResultState(enum.Enum):
     finished = 2
     failed = 3
     crashed = 4
-
-    def __to_json__(self) -> str:
-        return self.name
 
 
 class TaskResultJSON(TypedDict):
@@ -66,14 +65,14 @@ class TaskResult(Base, UUIDMixin, TimestampMixin):
         'author_id',
         db.Integer,
         db.ForeignKey('User.id', ondelete='CASCADE'),
-        nullable=False,
+        nullable=True,
     )
-    user = db.relationship(User, foreign_keys=user_id, innerjoin=True)
+    user = db.relationship(User, foreign_keys=user_id)
 
-    def __init__(self, user: User) -> None:
-        super().__init__(user=User.resolve(user))
+    def __init__(self, user: t.Optional[User]) -> None:
+        super().__init__(user=on_not_none(user, User.resolve))
 
-    def as_task(self, fun: t.Callable[[], None]) -> None:
+    def as_task(self, fun: t.Callable[[], None]) -> bool:
         """Run the given ``fun`` as the task.
 
         .. warning::
@@ -83,11 +82,13 @@ class TaskResult(Base, UUIDMixin, TimestampMixin):
 
         :param fun: The function to run as the task, catching the exceptions it
             produces and storing them in this task result.
-        :returns: Nothing.
+        :returns: ``True`` if the task ran, otherwise ``False``.
         """
-        assert self.state == TaskResultState.not_started, (
-            'Cannot start task that has already started, state was in {}'
-        ).format(self.state)
+        if not self.state.is_not_started:
+            raise AssertionError(
+                f'Cannot start task that has already started, state was in'
+                f' {self.state}'
+            )
 
         self.state = TaskResultState.started
         db.session.commit()
@@ -109,6 +110,8 @@ class TaskResult(Base, UUIDMixin, TimestampMixin):
             )
         else:
             self.state = TaskResultState.finished
+
+        return True
 
     def __to_json__(self) -> TaskResultJSON:
         """Convert this task result to json.

@@ -558,21 +558,12 @@ class Work(Base):
             'grade_overridden': False,
             'assignee': None,
         }
+        perm_checker = auth.WorkPermissions(self)
 
-        try:
-            auth.ensure_permission(
-                CoursePermission.can_see_assignee, self.assignment.course_id
-            )
-        except PermissionException:
-            pass
-        else:
+        if perm_checker.ensure_may_see_assignee.as_bool():
             item['assignee'] = self.assignee
 
-        try:
-            auth.ensure_can_see_grade(self)
-        except PermissionException:
-            pass
-        else:
+        if auth.WorkPermissions(self).ensure_may_see_grade.as_bool():
             item['grade'] = self.grade
             item['grade_overridden'] = (
                 self._grade is not None and
@@ -669,11 +660,7 @@ class Work(Base):
                 'selected': None,
             },
         }
-        try:
-            psef.auth.ensure_can_see_grade(self)
-        except PermissionException:
-            pass
-        else:
+        if auth.WorkPermissions(self).ensure_may_see_grade.as_bool():
             res['selected'] = self.selected_items
             res['points'] = {
                 'max': self.assignment.max_rubric_points,

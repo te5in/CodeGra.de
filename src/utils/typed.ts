@@ -409,10 +409,23 @@ export function toMoment(date: moment.Moment | string): moment.Moment {
     }
 }
 
+export function formatMoment(date: moment.Moment | string, format: string): string {
+    return toMoment(date).local().format(format);
+}
+
 export function readableFormatDate(date: moment.Moment | string): string {
-    return toMoment(date)
-        .local()
-        .format('YYYY-MM-DD HH:mm');
+    return formatMoment(date, 'YYYY-MM-DD HH:mm');
+}
+
+export function formatDate(date: string | moment.Moment): string {
+    return formatMoment(date, 'YYYY-MM-DDTHH:mm');
+}
+
+export function formatNullableDate(date: string | moment.Moment | null): string | null {
+    if (date == null) {
+        return null;
+    }
+    return formatDate(date);
 }
 
 export function filterMap<T, TT>(
@@ -476,21 +489,6 @@ export function parseOrKeepFloat(num: string | number | null | undefined): numbe
         return NaN;
     }
     return parseFloat(num);
-}
-
-export function formatNullableDate(date: string | moment.Moment | null): string | null {
-    if (date == null) {
-        return null;
-    }
-    return toMoment(date)
-        .local()
-        .format('YYYY-MM-DDTHH:mm');
-}
-
-export function formatDate(date: string | moment.Moment): string {
-    return toMoment(date)
-        .local()
-        .format('YYYY-MM-DDTHH:mm');
 }
 
 export function mapToObject<T extends Object, Y, KK extends keyof T = keyof T>(
@@ -873,7 +871,7 @@ export function formatTimePart(num: number): string {
 
 function isMaybe<T>(obj: T | Maybe<T>): obj is Maybe<T> {
     // @ts-ignore
-    return obj?.constructor === Maybe;
+    return obj != null && obj?.constructor === Maybe;
 }
 
 export function getPropMaybe(
@@ -881,16 +879,14 @@ export function getPropMaybe(
     prop: string,
 ): typeof Nothing;
 
-export function getPropMaybe<TObj extends object, Keys extends keyof TObj, Prop extends KeyLike>(
+export function getPropMaybe<TObj extends object, Prop extends keyof TObj>(
     obj: TObj,
     prop: Prop,
-): (Prop extends Keys ?
-    (TObj[Prop] extends Maybe<any> ? TObj[Prop] : Maybe<NonNull<TObj[Prop]>>) :
-    typeof Nothing);
+): TObj[Prop] extends Maybe<any> ? TObj[Prop] : Maybe<NonNull<TObj[Prop]>>;
 
 export function getPropMaybe(obj: any, prop: any): any {
     const res = obj?.[prop];
-    if (res != null && isMaybe(res)) {
+    if (isMaybe(res)) {
         return res;
     } else {
         return Maybe.fromNullable(res);

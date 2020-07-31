@@ -15,9 +15,11 @@ from collections import Counter, defaultdict
 
 import structlog
 import sqlalchemy
+from furl import furl
 from sqlalchemy.orm import validates
 from mypy_extensions import DefaultArg
 from sqlalchemy.types import JSON
+from sqlalchemy_utils import PasswordType
 from typing_extensions import TypedDict
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
@@ -28,12 +30,13 @@ import cg_sqlalchemy_helpers
 from cg_helpers import handle_none, on_not_none, zip_times_with_offset
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
+from cg_sqlalchemy_helpers import UUIDType
 from cg_sqlalchemy_helpers import expression as sql_expression
 from cg_sqlalchemy_helpers.types import (
     _T_BASE, MyQuery, DbColumn, ColumnProxy, MyNonOrderableQuery,
     hybrid_property
 )
-from cg_sqlalchemy_helpers.mixins import IdMixin, TimestampMixin
+from cg_sqlalchemy_helpers.mixins import IdMixin, UUIDMixin, TimestampMixin
 
 from . import UUID_LENGTH, Base, db
 from . import user as user_models
@@ -990,6 +993,49 @@ signals.WORK_CREATED.connect_immediate(
 )
 
 
+class AssignmentLoginLink(Base, UUIDMixin, TimestampMixin):
+    user_id = db.Column(
+        'user_id',
+        db.Integer,
+        db.ForeignKey('User.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    user = db.relationship(
+        lambda: user_models.User,
+        foreign_keys=user_id,
+        innerjoin=True,
+        lazy='joined',
+    )
+
+    assignment_id = db.Column(
+        'assignment_id',
+        db.Integer,
+        db.ForeignKey('Assignment.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    assignment = db.relationship(
+        lambda: Assignment,
+        foreign_keys=assignment_id,
+    )
+
+    password = db.Column(
+        'password',
+        PasswordType(schemes=[
+            'pbkdf2_sha512',
+        ], deprecated=[]),
+        nullable=True,
+    )
+
+    def get_url(self) -> str:
+        return 'https://A URL.com'
+
+    def __to_json__(self) -> t.Any:
+        return {
+            'assignment': self.assignment,
+            'user': self.user,
+        }
+
+
 class AssignmentResult(Base):
     """The class creates the link between an :class:`.user_models.User` and an
     :class:`.Assignment` in the database and the external users LIS sourcedid.
@@ -1262,6 +1308,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         default=None,
     )
 
+    send_login_links_token = db.Column(
+        'send_login_links_token',
+        UUIDType,
+        nullable=True,
+        default=None,
+    )
+
     __table_args__ = (
         db.CheckConstraint(
             "files_upload_enabled or webhook_upload_enabled",
@@ -1520,6 +1573,23 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
     state = hybrid_property(_state_getter, _state_setter)
 
+    def _schedule_send_login_links(self) -> None:
+        self.send_login_links_token = uuid.uuid4()
+
+    @property
+    def send_login_links(self) -> bool:
+        return self.send_login_links_token is not None
+
+    @send_login_links.setter
+    def send_login_links(self, new_value: bool) -> None:
+        if new_value == self.send_login_links:
+            return
+
+        if new_value:
+            self._schedule_send_login_links()
+        else:
+            self.send_login_links_token = None
+
     @property
     def available_at(self) -> t.Optional[DatetimeWithTimezone]:
         return self._available_at
@@ -1548,6 +1618,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
                     eta=new_value,
                 )
             )
+            if self.send_login_links:
+                self._schedule_send_login_links()
 
     # We don't use property.setter because in that case `new_val` could only be
     # a `float` because of https://github.com/python/mypy/issues/3004
@@ -1886,7 +1958,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             'analytics_workspace_ids': [],
         }
 
-        if self.is_lti:
+        if self.course.lti_provider is not None:
             res['lms_name'] = self.course.lti_provider.lms_name
 
         if psef.current_user.has_permission(

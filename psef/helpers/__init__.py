@@ -673,6 +673,9 @@ def get_or_404(
     object_id: t.Any,
     options: t.Optional[t.List[t.Any]] = None,
     also_error: t.Optional[t.Callable[[Y], bool]] = None,
+    *,
+    with_for_update: t.Union[bool, LockType] = False,
+    with_for_update_of: t.Optional[t.Type['Base']] = None,
 ) -> Y:
     """Get the specified object by primary key or raise an exception.
 
@@ -695,6 +698,14 @@ def get_or_404(
     query = psef.models.db.session.query(model)
     if options is not None:
         query = query.options(*options)
+
+    if with_for_update:
+        query = query.with_for_update(
+            read=with_for_update == LockType.read, of=with_for_update_of
+        )
+    else:
+        assert with_for_update_of is None
+
     obj: t.Optional[Y] = query.get(object_id)
 
     if obj is None or (also_error is not None and also_error(obj)):

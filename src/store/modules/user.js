@@ -34,7 +34,10 @@ const getters = {
     dangerousJwtToken: state => state.jwtToken,
     jwtClaims: (state, otherGetters) => {
         const jwt = otherGetters.dangerousJwtToken;
-        return jwt && utils.getProps(jwtDecode(jwt), {}, 'user_claims');
+        if (!jwt) {
+            return {};
+        }
+        return utils.getProps(jwtDecode(jwt), {}, 'user_claims') || {};
     },
 };
 

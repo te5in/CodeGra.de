@@ -76,7 +76,7 @@
 <icon :name="icons[assignment.state]"
       class="assignment-state state-icon"
       :class="`assignment-state-${labels[assignment.state]}`"
-      v-b-popover.window.top.hover="labels[assignment.state]"
+      v-b-popover.window.top.hover="currentStatePopover"
       v-else/>
 </template>
 
@@ -170,8 +170,21 @@ export default {
         openOrClosePopover() {
             const availableAt = this.$utils.getProps(this.assignment, null, 'availableAt');
             if (availableAt != null) {
-                const readable = this.$utils.readableFormatDate(availableAt);
-                const base = `Hidden until ${readable}`;
+                let base = '';
+                const readable = availableAt.clone().local().calendar(this.$root.$now);
+
+                switch (this.assignment.state) {
+                case states.SUBMITTING:
+                case states.OPEN:
+                    base = `Openend ${readable}`;
+                    break;
+                case states.HIDDEN:
+                    base = `Hidden until ${readable}`;
+                    break;
+                default:
+                    break;
+                }
+
                 let managedBy = '';
                 if (this.lmsName != null) {
                     managedBy = `, managed by ${this.lmsName}`;
@@ -192,6 +205,14 @@ export default {
                 break;
             }
             return `Hidden or open, managed by ${this.lmsName}${curState}.`;
+        },
+
+        currentStatePopover() {
+            if (this.assignment.state === states.HIDDEN && this.assignment.availableAt) {
+                const time = this.assignment.availableAt.clone().local().calendar(this.$root.$now);
+                return `Hidden until ${time}`;
+            }
+            return this.labels[this.assignment.state];
         },
     },
 

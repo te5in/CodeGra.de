@@ -170,7 +170,8 @@ if True:  # pylint: disable=using-constant-test
         Assignment, AssignmentLinter, AssignmentResult, AssignmentDoneType,
         AssignmentGraderDone, AssignmentAssignedGrader, AssignmentStateEnum,
         AssignmentAmbiguousSettingTag, AssignmentVisibilityState,
-        AssignmentPeerFeedbackSettings, AssignmentPeerFeedbackConnection
+        AssignmentPeerFeedbackSettings, AssignmentPeerFeedbackConnection,
+        AssignmentLoginLink
     )
     from .permission import Permission
     from .user import User

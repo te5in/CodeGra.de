@@ -815,6 +815,75 @@ def _maybe_open_assignment_at_1(assignment_id: int) -> None:
     p.models.db.session.commit()
 
 
+@celery.task
+def _send_login_links_to_users_1(
+    assignment_id: int, task_id_hex: str, scheduled_time: str,
+    reset_token_hex: str
+) -> None:
+    task_id = uuid.UUID(hex=task_id_hex)
+    reset_token = uuid.UUID(hex=reset_token_hex)
+
+    _task_result = p.models.TaskResult.query.filter(
+        p.models.TaskResult.id == task_id,
+        p.models.TaskResult.state == p.models.TaskResultState.not_started
+    ).with_for_update(of=p.models.TaskResult).one_or_none()
+
+    _assignment = p.models.Assignment.query.filter(
+        p.models.Assignment.id == assignment_id,
+    ).with_for_update(of=p.models.Assignment).one_or_none()
+
+    if _assignment is None or _task_result is None:
+        logger.error(
+            'Could not find assignment or task',
+            assignment=_assignment,
+            task_result=_task_result
+        )
+        return
+
+    assignment = _assignment
+    task_result = _task_result
+
+    if reset_token != assignment.send_login_links_token:
+        logger.error('Tokens did not match')
+        return
+    elif current_task.maybe_delay_task(
+        DatetimeWithTimezone.fromisoformat(scheduled_time)
+    ):
+        return
+
+    login_link_map = {
+        l.user_id: l for l in p.models.AssignmentLoginLink.query.filter(
+            p.models.AssignmentLoginLink.assignment == assignment
+        ).all()
+    }
+    users = [
+        user for user, _ in assignment.course.get_all_users_in_course(
+            include_test_students=False
+        )
+    ]
+    for user in users:
+        if user.id in login_link_map:
+            continue
+        link = p.models.AssignmentLoginLink(
+            user_id=user.id,
+            assignment_id=assignment.id
+        )
+        p.models.db.session.add(link)
+        login_link_map[user.id] = link
+
+    def inner() -> None:
+        with p.mail.mail.connect() as mailer:
+            for user in users:
+                link = login_link_map[user.id]
+                p.mail.send_login_link_mail(mailer, link)
+
+
+    task_result.as_task(inner)
+    p.models.db.session.commit()
+    if not task_result.state.is_finished:
+        logger.error('Sending tokens went wrong', error=task_result.result)
+
+
 lint_instances = _lint_instances_1.delay  # pylint: disable=invalid-name
 add = _add_1.delay  # pylint: disable=invalid-name
 send_done_mail = _send_done_mail_1.delay  # pylint: disable=invalid-name

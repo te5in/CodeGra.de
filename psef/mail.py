@@ -339,5 +339,30 @@ def send_student_mail(
     mailer.send(message)
 
 
+def send_login_link_mail(
+    mailer: Mail, link: models.AssignmentLoginLink
+) -> None:
+    receiver = link.user
+    subject = current_app.jinja_mail_env.from_string(
+        current_app.config['EXAM_LOGIN_SUBJECT']
+    ).render(
+        site_url=current_app.config["EXTERNAL_URL"], link=link
+    )
+
+    html_body = current_app.jinja_mail_env.get_template(
+        'exam_login.j2'
+    ).render(
+        site_url=current_app.config["EXTERNAL_URL"],
+        subject=subject,
+        link=link,
+    )
+    _send_mail(
+        html_body,
+        subject,
+        [(receiver.name, receiver.email)],
+        mailer=mailer,
+    )
+
+
 def init_app(app: t.Any) -> None:
     mail.init_app(app)
