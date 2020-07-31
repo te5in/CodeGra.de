@@ -1,0 +1,41 @@
+{% extends "base.j2" %}
+{% import "utils.j2" as utils %}
+{% set assignment = link.assignment %}
+{% set course = assignment.course %}
+
+{% block title %}{{ subject }}{% endblock %}
+
+{% block preview %}{{ subject }}{% endblock %}
+
+{% block body %}
+    {% call utils.body_row() %}
+        Hi {{ link.user.get_readable_name() }},
+    {% endcall %}
+    {% call utils.body_row() %}
+        On {{ assignment.available_at.strftime("%Y-%m-%d") }} the {{
+        assignment.name }} in the {{ course.name }} course will become
+        available. This email contains a special link which you can use during
+        the time this assignment will be available.
+    {% endcall %}
+
+    {% call utils.body_row() %}
+        Your login link: <a href="{{ link.get_url() }}">{{ link.get_url() }}</a>
+    {% endcall %}
+
+    {% call utils.body_row() %}
+         This link will only allow you to login when the assignment starts,
+         however you can already test this link now, which we advise you to
+         do. Furthermore, this link allows you to set a password so that you do
+         not have to use the special link during the assignment.
+    {% endcall %}
+
+    {% call utils.body_row() %}
+        This link is unique and private, sharing this link with others will
+        allow them to impersonate you.
+    {% endcall %}
+{% endblock %}
+
+{% block footer %}
+    You received this email because you are enrolled for the course "{{
+    course.name }}". This is an automated email, replies will not be read.
+{% endblock %}
