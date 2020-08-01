@@ -121,6 +121,9 @@ class AssignmentJSON(TypedDict, total=True):
     #: to 'hidden' or 'open'.
     available_at: t.Optional[DatetimeWithTimezone]
 
+    #: Should we send login links to all users before the available_at time.
+    send_login_links: bool
+
     #: The fixed value for the maximum that can be achieved in a rubric. This
     #: can be higher and lower than the actual max. Will be `null` if unset.
     fixed_max_rubric_points: t.Optional[float]
@@ -191,6 +194,8 @@ class AssignmentAmbiguousSettingTag(enum.Enum):
     cgignore = enum.auto()
     max_submissions = enum.auto()
     cool_off = enum.auto()
+    deadline = enum.auto()
+    send_login_links = enum.auto()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1324,11 +1329,22 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             'amount_in_cool_off_period >= 1',
             name='amount_in_cool_off_period_check'
         ),
+        db.CheckConstraint(
+            (
+                'available_at IS NULL OR deadline IS NULL OR available_at <'
+                ' deadline'
+            ),
+            name='available_at_before_deadline',
+        ),
+        db.CheckConstraint(
+            'send_login_links_token IS NULL OR available_at IS NOT NULL',
+            name='send_login_links_only_valid_with_available_at',
+        ),
         db.UniqueConstraint(
             lti_assignment_id,
             course_id,
             name='ltiassignmentid_courseid_unique',
-        )
+        ),
     )
 
     def __init__(
@@ -1389,6 +1405,11 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     ) -> None:
         if self._deadline != new_deadline:
             self._deadline = new_deadline
+            self._changed_ambiguous_settings.add(
+                AssignmentAmbiguousSettingTag.deadline
+            )
+            self._check_available_at_and_login_links()
+            self._check_available_at_and_deadline()
             signals.ASSIGNMENT_DEADLINE_CHANGED.send(self)
 
     deadline = hybrid_property(_get_deadline, _set_deadline)
@@ -1585,10 +1606,36 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         if new_value == self.send_login_links:
             return
 
+        self._changed_ambiguous_settings.add(
+            AssignmentAmbiguousSettingTag.send_login_links
+        )
         if new_value:
             self._schedule_send_login_links()
+            self._check_available_at_and_login_links()
         else:
             self.send_login_links_token = None
+
+    def _check_available_at_and_login_links(self) -> None:
+        if not self.send_login_links:
+            return
+
+        if self.available_at is None:
+            raise APIException
+        max_time = psef.current_app.aconfig['EXAM_LOGIN_MAX_LENGTH']
+        if self.deadline is None:
+            return
+        if (self.available_at - self.deadline) > max_time:
+            raise APIException
+
+    def _check_available_at_and_deadline(self) -> None:
+        if self.available_at is None or self.deadline is None:
+            return
+        if self.available_at >= self.deadline:
+            raise APIException(
+                'The assignment should become available before the deadline.',
+                'The available_at is at or after the deadline',
+                APICodes.INVALID_STATE, 409
+            )
 
     @property
     def available_at(self) -> t.Optional[DatetimeWithTimezone]:
@@ -1602,6 +1649,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             return
 
         self._available_at = new_value
+        self._check_available_at_and_login_links()
+        self._check_available_at_and_deadline()
+
         if new_value is None:
             return
 
@@ -1947,6 +1997,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             'amount_in_cool_off_period': self.amount_in_cool_off_period,
             'peer_feedback_settings': self.peer_feedback_settings,
             'available_at': self.available_at,
+            'send_login_links': self.send_login_links,
 
             # These are all filled in based on permissions and data
             # availability.
@@ -2761,6 +2812,20 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
                         ' might not check if a push results in a new'
                         ' submission.'
                     )
+                )
+            )
+
+        if self.deadline is None and self.send_login_links:
+            res.append(
+                _AssignmentAmbiguousSetting(
+                    tags={
+                        AssignmentAmbiguousSettingTag.deadline,
+                        AssignmentAmbiguousSettingTag.send_login_links,
+                    },
+                    message=(
+                        'The deadline for this assignment is not yet set, this'
+                        ' means the login links will not work.'
+                    ),
                 )
             )
 

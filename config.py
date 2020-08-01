@@ -131,6 +131,7 @@ FlaskConfig = TypedDict(
         'DIGEST_NOTIFICATION_TEMPLATE_FILE': t.Optional[str],
         'EXAM_LOGIN_TEMPLATE_FILE': t.Optional[str],
         'EXAM_LOGIN_SUBJECT': str,
+        'EXAM_LOGIN_MAX_LENGTH': datetime.timedelta,
         'MIN_PASSWORD_SCORE': int,
         'CHECKSTYLE_PROGRAM': t.List[str],
         'PMD_PROGRAM': t.List[str],
@@ -498,10 +499,12 @@ CONFIG['DIRECT_NOTIFICATION_TEMPLATE_FILE'] = backend_ops.get(
     'DIRECT_NOTIFICATION_TEMPLATE_FILE'
 )
 
-set_str(CONFIG, backend_ops, 'EXAM_LOGIN_SUBJECT', """
+set_str(
+    CONFIG, backend_ops, 'EXAM_LOGIN_SUBJECT', """
 {% set assignment = link.assignment -%}
 Your CodeGrade login link for the {{ assignment.name }} in the {{ assignment.course.name }} course
-""".strip())
+""".strip()
+)
 
 set_str(CONFIG, backend_ops, 'EXAM_LOGIN_TEMPLATE_FILE', None)
 
@@ -591,6 +594,12 @@ if login_before_str:
 else:
     login_before = [datetime.timedelta(days=2), datetime.timedelta(minutes=30)]
 CONFIG['LOGIN_TOKEN_BEFORE_TIME'] = login_before
+
+max_login_length = backend_ops.getfloat(
+    'EXAM_LOGIN_MAX_LENGTH',
+    fallback=datetime.timedelta(hours=12).total_seconds()
+)
+CONFIG['EXAM_LOGIN_MAX_LENGTH'] = datetime.timedelta(seconds=max_login_length)
 
 ############
 # FEATURES #

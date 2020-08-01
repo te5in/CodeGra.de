@@ -310,6 +310,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
                 parsers.parse_datetime,
             ),
         )
+        new_send_login_links = opt_get('send_login_links', bool)
 
         new_files_upload = opt_get('files_upload_enabled', bool, None)
         new_webhook_upload = opt_get('webhook_upload_enabled', bool, None)
@@ -327,6 +328,10 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     if new_available_at is not MISSING:
         perm_checker.ensure_may_edit_info()
         assig.available_at = new_available_at
+
+    if new_send_login_links is not MISSING:
+        perm_checker.ensure_may_edit_info()
+        assig.send_login_links = new_send_login_links
 
     if new_state is not MISSING:
         perm_checker.ensure_may_edit_info()
