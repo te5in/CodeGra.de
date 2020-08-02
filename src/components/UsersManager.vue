@@ -492,17 +492,8 @@ export default {
         getRegistrationLinkUrl(link) {
             const { host, protocol } = window.location;
             return this.$utils.buildUrl(
-                ['register'],
-                {
-                    addTrailingSlash: true,
-                    protocol,
-                    host,
-                    query: {
-                        course_register_link_id: link.id,
-                        course_id: this.course.id,
-                        register_for: this.course.name,
-                    },
-                },
+                ['courses', this.courseId, 'register_links', link.id],
+                { protocol, host },
             );
         },
 

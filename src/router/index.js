@@ -18,6 +18,7 @@ import {
     LoginAndRedirect,
     UnsubscribePage,
     LTIProviderSetup,
+    CourseEnroll,
 } from '@/pages';
 
 import { PlagiarismOverview, PlagiarismDetail } from '@/components';
@@ -121,6 +122,11 @@ const router = new Router({
             path: '/lti_providers/:ltiProviderId/setup',
             name: 'lti_provider_setup',
             component: LTIProviderSetup,
+        },
+        {
+            path: '/courses/:courseId/register_links/:linkId',
+            name: 'course_enroll',
+            component: CourseEnroll,
         },
     ],
 });

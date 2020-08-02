@@ -1040,6 +1040,72 @@ def create_or_edit_registration_link(
     return jsonify(link)
 
 
+def _get_non_expired_link(
+    course_id: int, link_id: uuid.UUID
+) -> models.CourseRegistrationLink:
+    link = helpers.get_or_404(
+        models.CourseRegistrationLink,
+        link_id,
+        also_error=lambda l: l.course_id != course_id
+    )
+
+    if link.expiration_date < helpers.get_request_start_time():
+        raise APIException(
+            'This registration link has expired.',
+            f'The registration link {link.id} has expired',
+            APICodes.OBJECT_EXPIRED, 409
+        )
+
+    return link
+
+
+@api.route(
+    '/courses/<int:course_id>/registration_links/<uuid:link_id>/join',
+    methods=['POST']
+)
+@features.feature_required(features.Feature.COURSE_REGISTER)
+@auth.login_required
+def register_current_user_in_course(
+    course_id: int, link_id: uuid.UUID
+) -> EmptyResponse:
+
+    link = _get_non_expired_link(course_id, link_id)
+    if current_user.is_enrolled(link.course):
+        raise APIException(
+            'This user is already enrolled in this course', (
+                f'The user {current_user.id} is already enrolled in'
+                f' {link.course_id}'
+            ), APICodes.INVALID_STATE, 409
+        )
+    current_user.courses[link.course_id] = link.course_role
+    db.session.commit()
+    return EmptyResponse.make()
+
+
+@api.route(
+    '/courses/<int:course_id>/registration_links/<uuid:link_id>',
+    methods=['GET']
+)
+@features.feature_required(features.Feature.COURSE_REGISTER)
+def get_register_link(course_id: int, link_id: uuid.UUID
+                      ) -> ExtendedJSONResponse[models.CourseRegistrationLink]:
+    """Register as a new user, and directly enroll in a course.
+
+    .. :quickref: Course; Register as a new user, and enroll in a course.
+
+    :param course_id: The id of the course to which the registration link is
+        connected.
+    :param link_id: The id of the registration link.
+    :>json access_token: The access token that the created user can use to
+        login.
+    """
+    link = _get_non_expired_link(course_id, link_id)
+
+    return ExtendedJSONResponse.make(
+        link, use_extended=models.CourseRegistrationLink
+    )
+
+
 @api.route(
     '/courses/<int:course_id>/registration_links/<uuid:link_id>/user',
     methods=['POST']
@@ -1058,17 +1124,7 @@ def register_user_in_course(course_id: int, link_id: uuid.UUID
     :>json access_token: The access token that the created user can use to
         login.
     """
-    link = helpers.get_or_404(
-        models.CourseRegistrationLink,
-        link_id,
-        also_error=lambda l: l.course_id != course_id
-    )
-    if link.expiration_date < helpers.get_request_start_time():
-        raise APIException(
-            'This registration link has expired.',
-            f'The registration link {link.id} has expired',
-            APICodes.OBJECT_EXPIRED, 409
-        )
+    link = _get_non_expired_link(course_id, link_id)
 
     with get_from_map_transaction(get_json_dict_from_request()) as [get, _]:
         username = get('username', str)

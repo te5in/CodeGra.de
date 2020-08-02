@@ -66,6 +66,12 @@ class CourseRegistrationLink(Base, mixins.UUIDMixin, mixins.TimestampMixin):
             'role': self.course_role,
         }
 
+    def __extended_to_json__(self) -> t.Mapping[str, object]:
+        return {
+            **self.__to_json__(),
+            'course': self.course,
+        }
+
 
 class CourseSnippet(Base):
     """Describes a mapping from a keyword to a replacement text that is shared
