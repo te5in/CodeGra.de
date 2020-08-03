@@ -22,9 +22,10 @@ from . import user as user_models
 from .. import current_app
 
 
-class _MetadataParser(OneLogin_Saml2_IdPMetadataParser):
+# We are not allowed to subclass `Any`, but we do need a subclass here.
+class _MetadataParser(OneLogin_Saml2_IdPMetadataParser):  # type: ignore[misc]
     @classmethod
-    def parse_remote(cls, url, validate_cert=True, entity_id=None, **kwargs):
+    def parse_remote(cls, url: str, validate_cert: bool=True, entity_id: bool=None, **kwargs: t.Any) -> dict:
         idp_metadata = super().get_metadata(url, validate_cert)
         result = cls.parse(idp_metadata, entity_id=entity_id, **kwargs)
         dom = OneLogin_Saml2_XML.to_etree(idp_metadata)
@@ -107,9 +108,12 @@ class Saml2Provider(Base, UUIDMixin, TimestampMixin):
         ).serial_number(
             x509.random_serial_number(),
         ).not_valid_before(
-            now,
+            DatetimeWithTimezone.as_datetime(now),
         ).not_valid_after(
-            now + timedelta(days=365 * 5),
+            # TODO: We need to find a way to rotate these certificates. This
+            # will however only become a problem in a few years. Should be
+            # fixed **before** 2025.
+            DatetimeWithTimezone.as_datetime(now + timedelta(days=365 * 5)),
         ).add_extension(
             x509.SubjectAlternativeName(
                 [

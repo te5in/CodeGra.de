@@ -13,6 +13,7 @@ from datetime import timedelta
 import flask
 import redis as redis_module
 import structlog
+from typing_extensions import Literal
 
 logger = structlog.get_logger()
 
@@ -103,6 +104,7 @@ class Backend(abc.ABC, t.Generic[T]):
 
         :returns: The found or produced value.
         """
+        found: t.Union[T, Literal[NotSetType.token]]
         if force:
             found = NotSetType.token
         else:

@@ -6,23 +6,26 @@ from datetime import timedelta
 
 import furl
 import flask
+import structlog
 import flask_jwt_extended as flask_jwt
 from flask import request, session
-from typing_extensions import Final
+from typing_extensions import Final, Literal, TypedDict
+from werkzeug.wrappers import Response
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from defusedxml.ElementTree import fromstring as defused_xml_fromstring
 from onelogin.saml2.settings import OneLogin_Saml2_Settings
 from onelogin.saml2.constants import OneLogin_Saml2_Constants
-from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 
 import cg_json
+from cg_helpers import on_not_none
 
 from .. import PsefFlask, models, helpers, current_app
 from ..models import db
 from ..helpers import readable_join
 
+logger = structlog.get_logger()
+
 MDUI_NAMESPACE: Final = 'urn:oasis:names:tc:SAML:metadata:ui'
-_URLS = ['https://samltest.id/saml/idp']
 
 _SAML_SESSION_PREFIX = 'SAML_'
 
@@ -44,12 +47,33 @@ def _make_saml_url() -> furl.furl:
     )
 
 
-def _make_error(title: str, message: str) -> t.Tuple[str, int]:
+def _make_error(
+    title: str,
+    message: str,
+    auth: t.Optional[OneLogin_Saml2_Auth] = None,
+) -> t.Tuple[str, int]:
+    logger.error(
+        'SAML request went wrong',
+        error_message=message,
+        error_title=title,
+        error_reason=auth and auth.get_last_error_reason(),
+        report_to_sentry=True,
+    )
     return (
         flask.render_template(
             'error_page.j2', error_title=title, error_message=message
-        ), 400
+        ),
+        400,
     )
+
+
+class SamlRequest(TypedDict, total=True):
+    https: Literal['on', 'off']
+    http_host: str
+    server_port: int
+    script_name: str
+    get_data: t.Mapping[str, t.Any]
+    post_data: t.Mapping[str, t.Any]
 
 
 class AttributeNames:
@@ -59,9 +83,9 @@ class AttributeNames:
     UID: Final = 'urn:oid:0.9.2342.19200300.100.1.1'
 
 
-def init_saml_auth(req, provider: models.Saml2Provider):
-    idp = OneLogin_Saml2_IdPMetadataParser.parse_remote(_URLS[0])['idp']
-
+def init_saml_auth(
+    req: SamlRequest, provider: models.Saml2Provider
+) -> OneLogin_Saml2_Auth:
     bindings = 'urn:oasis:names:tc:SAML:2.0:bindings'
     entityId = _make_saml_url().add(path=['metadata', provider.id]).tostr()
     acs_url = _make_saml_url().add(path=['acs', provider.id]).tostr()
@@ -101,15 +125,14 @@ def init_saml_auth(req, provider: models.Saml2Provider):
         }
     )
     # yapf: enable
-    auth = OneLogin_Saml2_Auth(req, old_settings=settings)
-    return auth
+    return OneLogin_Saml2_Auth(req, old_settings=settings)
 
 
-def prepare_flask_request():
+def prepare_flask_request() -> SamlRequest:
     # If server is behind proxys or balancers use the HTTP_X_FORWARDED fields
     url_data = furl.furl(request.url)
 
-    https = (
+    https: Literal['on', 'off'] = (
         'on' if not current_app.config['DEBUG'] or request.scheme == 'https'
         else 'off'
     )
@@ -126,7 +149,7 @@ def prepare_flask_request():
 
 
 @saml.route('/login/<uuid:provider_id>', methods=['GET'])
-def do_saml_login(provider_id: uuid.UUID):
+def do_saml_login(provider_id: uuid.UUID) -> Response:
     provider = helpers.get_or_404(models.Saml2Provider, provider_id)
     req = prepare_flask_request()
     auth = init_saml_auth(req, provider)
@@ -144,7 +167,7 @@ def do_saml_login(provider_id: uuid.UUID):
 
 
 @saml.route('/acs/<uuid:provider_id>', methods=['POST'])
-def get_acs(provider_id: uuid.UUID):
+def get_acs(provider_id: uuid.UUID) -> t.Union[t.Tuple[str, int], Response]:
     req = prepare_flask_request()
     provider = helpers.get_or_404(models.Saml2Provider, provider_id)
     auth = init_saml_auth(req, provider)
@@ -171,6 +194,7 @@ def get_acs(provider_id: uuid.UUID):
         return _make_error(
             error_title,
             flask.escape(error_message),
+            auth=auth,
         )
 
     if auth.get_nameid_format() != OneLogin_Saml2_Constants.NAMEID_PERSISTENT:
@@ -182,6 +206,7 @@ def get_acs(provider_id: uuid.UUID):
             ).format(
                 auth.get_nameid_format(),
             ),
+            auth=auth,
         )
 
     attributes = auth.get_attributes()
@@ -236,7 +261,7 @@ def get_jwt_from_success_full_login(
     if _session_key('BLOB_ID') in session:
         session_blob_id = uuid.UUID(session[_session_key('BLOB_ID')])
     else:
-        session_blob_id = None
+        session_blob_id = uuid.uuid4()
 
     blob = helpers.filter_single_or_404(
         models.BlobStorage,
@@ -247,7 +272,9 @@ def get_jwt_from_success_full_login(
     )
     del session[_session_key('BLOB_ID')]
 
-    user = helpers.get_or_404(models.User, blob.as_json()['user_id'])
+    blob_json = blob.as_json()
+    assert isinstance(blob_json, dict)
+    user = helpers.get_or_404(models.User, blob_json['user_id'])
     db.session.delete(blob)
     db.session.commit()
 
@@ -264,7 +291,8 @@ def get_jwt_from_success_full_login(
 
 
 @saml.route('/metadata/<uuid:provider_id>', methods=['GET'])
-def get_metadata(provider_id: uuid.UUID):
+def get_metadata(provider_id: uuid.UUID
+                 ) -> t.Union[t.Tuple[str, int], Response]:
     req = prepare_flask_request()
     auth = init_saml_auth(
         req, helpers.get_or_404(models.Saml2Provider, provider_id)
