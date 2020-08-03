@@ -18,8 +18,8 @@
 
     <div class="justify-content-center row" v-else-if="link">
         <div class="d-flex justify-content-around col-12 row">
-            <div class="col-lg-6 mb-3">
-                <b-card v-if="loggedIn">
+            <div class="mb-3 col-lg-6">
+                <b-card v-show="loggedIn">
                     <template #header>
                         <div>
                             <span>Join as logged in user ({{ loggedInName }})</span>
@@ -40,7 +40,7 @@
                     </div>
                 </b-card>
 
-                <b-card header="Login and join" v-else>
+                <b-card header="Login and join" v-show="!loggedIn">
                     <login hide-forget
                            @login="clickOnJoin"
                            @saml-login="doSamlLogin"
@@ -48,7 +48,7 @@
                 </b-card>
             </div>
 
-            <div class="col-lg-6">
+            <div class="col-lg-6" v-if="allowRegister">
                 <b-card header="Join as a new user">
                     <register :registration-url="registrationUrl"
                               :new-route="newRoute"/>
@@ -141,6 +141,10 @@ export default class CourseEnroll extends Vue {
         return this.$utils.parseBool(this.$route.query.directEnroll);
     }
 
+    get allowRegister() {
+        // eslint-disable-next-line camelcase
+        return this.$userConfig.features.course_register && (this.link?.allow_register ?? true);
+    }
 
     @Watch('directEnroll', { immediate: true })
     onDirectEnrollChange() {

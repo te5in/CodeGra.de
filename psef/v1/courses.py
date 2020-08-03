@@ -18,7 +18,6 @@ import psef.auth as auth
 import psef.models as models
 import psef.helpers as helpers
 from psef import limiter, current_user
-from psef.errors import APICodes, APIWarnings, APIException
 from psef.models import db
 from psef.helpers import (
     JSONResponse, EmptyResponse, ExtendedJSONResponse, jsonify,
@@ -29,6 +28,9 @@ from psef.helpers import (
 from . import api
 from .. import limiter, parsers, features
 from ..lti.v1_1 import LTICourseRole
+from ..exceptions import (
+    APICodes, APIWarnings, APIException, PermissionException
+)
 from ..permissions import CoursePermMap
 from ..permissions import CoursePermission as CPerm
 from ..permissions import GlobalPermission as GPerm
@@ -977,7 +979,6 @@ def delete_registration_link(
 
 
 @api.route('/courses/<int:course_id>/registration_links/', methods=['PUT'])
-@features.feature_required(features.Feature.COURSE_REGISTER)
 def create_or_edit_registration_link(
     course_id: int
 ) -> JSONResponse[models.CourseRegistrationLink]:
@@ -998,6 +999,12 @@ def create_or_edit_registration_link(
     course = helpers.get_or_404(
         models.Course, course_id, also_error=lambda c: c.virtual
     )
+    if course.is_lti:
+        raise APIException(
+            'You cannot create course enroll links in LTI courses',
+            f'The course {course.id} is an LTI course', APICodes.INVALID_PARAM,
+            400
+        )
     auth.ensure_permission(CPerm.can_edit_course_users, course_id)
 
     with get_from_map_transaction(get_json_dict_from_request()) as [
@@ -1006,6 +1013,7 @@ def create_or_edit_registration_link(
         expiration_date = get('expiration_date', str)
         role_id = get('role_id', int)
         link_id = opt_get('id', str, default=None)
+        allow_register = opt_get('allow_register', bool, default=None)
 
     if link_id is None:
         link = models.CourseRegistrationLink(course=course)
@@ -1022,6 +1030,8 @@ def create_or_edit_registration_link(
         role_id,
         also_error=lambda r: r.course_id != course.id
     )
+    if allow_register is not None:
+        link.allow_register = allow_register
     link.expiration_date = parsers.parse_datetime(expiration_date)
     if link.expiration_date < helpers.get_request_start_time():
         helpers.add_warning(
@@ -1046,7 +1056,7 @@ def _get_non_expired_link(
     link = helpers.get_or_404(
         models.CourseRegistrationLink,
         link_id,
-        also_error=lambda l: l.course_id != course_id
+        also_error=lambda l: l.course_id != course_id or l.course.is_lti,
     )
 
     if link.expiration_date < helpers.get_request_start_time():
@@ -1063,7 +1073,6 @@ def _get_non_expired_link(
     '/courses/<int:course_id>/registration_links/<uuid:link_id>/join',
     methods=['POST']
 )
-@features.feature_required(features.Feature.COURSE_REGISTER)
 @auth.login_required
 def register_current_user_in_course(
     course_id: int, link_id: uuid.UUID
@@ -1076,7 +1085,10 @@ def register_current_user_in_course(
             return EmptyResponse.make()
 
         raise APIException(
-            'This user is already enrolled in this course', (
+            (
+                'This user is already enrolled in this course with a different'
+                ' role'
+            ), (
                 f'The user {current_user.id} is already enrolled in'
                 f' {link.course_id}'
             ), APICodes.INVALID_STATE, 409
@@ -1090,7 +1102,6 @@ def register_current_user_in_course(
     '/courses/<int:course_id>/registration_links/<uuid:link_id>',
     methods=['GET']
 )
-@features.feature_required(features.Feature.COURSE_REGISTER)
 def get_register_link(course_id: int, link_id: uuid.UUID
                       ) -> ExtendedJSONResponse[models.CourseRegistrationLink]:
     """Register as a new user, and directly enroll in a course.
@@ -1129,6 +1140,13 @@ def register_user_in_course(course_id: int, link_id: uuid.UUID
         login.
     """
     link = _get_non_expired_link(course_id, link_id)
+
+    if not link.allow_register:
+        raise PermissionException(
+            'You are not allowed to register using this link',
+            'This link does not support registration',
+            APICodes.INCORRECT_PERMISSION, 403
+        )
 
     with get_from_map_transaction(get_json_dict_from_request()) as [get, _]:
         username = get('username', str)
