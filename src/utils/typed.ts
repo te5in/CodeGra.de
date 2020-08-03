@@ -179,7 +179,7 @@ export class AssertionError extends Error {
 export function buildUrl(
     parts: ReadonlyArray<string | number> | string,
     args: {
-        query?: Record<string, string>;
+        query?: Record<string, string | boolean>;
         hash?: string;
         addTrailingSlash?: boolean;
     } & OneOrOther<AllOrNone<{
@@ -221,7 +221,7 @@ export function buildUrl(
         if (queryEntries.length > 0) {
             const params = queryEntries
                 .reduce((acc, [key, value]) => {
-                    acc.append(key, value);
+                    acc.append(key, coerceToString(value));
                     return acc;
                 }, new URLSearchParams())
                 .toString();

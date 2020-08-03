@@ -42,6 +42,8 @@ class _PsefInterProcessCache:
     lti_access_tokens: cg_cache.inter_request.Backend[str]
     lti_public_keys: cg_cache.inter_request.Backend['_KeySet']
 
+    saml2_ipds: cg_cache.inter_request.Backend[t.Any]
+
 
 class PsefFlask(Flask):
     """Our subclass of flask.
@@ -53,8 +55,8 @@ class PsefFlask(Flask):
     def __init__(self, name: str, config: dict) -> None:
         super().__init__(name)
         self.config.update(t.cast(t.Any, config))
-        dict_to_load = {}
 
+        dict_to_load = {}
         for key, t_name in [
             ('DIRECT_NOTIFICATION_TEMPLATE_FILE', 'notification.j2'),
             ('DIGEST_NOTIFICATION_TEMPLATE_FILE', 'digest.j2')
@@ -88,8 +90,11 @@ class PsefFlask(Flask):
                 redis_conn,
             ),
             lti_public_keys=cg_cache.inter_request.RedisBackend(
-                'lti_public_keys', timedelta(seconds=3600), redis_conn
+                'lti_public_keys', timedelta(hours=1), redis_conn
             ),
+            saml2_ipds=cg_cache.inter_request.RedisBackend(
+                'saml2_ipds', timedelta(hours=24), redis_conn
+            )
         )
 
     @property
@@ -281,6 +286,9 @@ def create_app(  # pylint: disable=too-many-statements
 
     from . import signals
     signals.init_app(resulting_app)
+
+    from . import saml2
+    saml2.init_app(resulting_app)
 
     # Make sure celery is working
     if not skip_celery:  # pragma: no cover

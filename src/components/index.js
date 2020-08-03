@@ -78,3 +78,4 @@ export { default as WizardWrapper } from './WizardWrapper';
 export { default as PeerFeedbackSettings } from './PeerFeedbackSettings';
 export { default as PeerFeedbackOverview } from './PeerFeedbackOverview';
 export { default as PeerFeedbackByUser } from './PeerFeedbackByUser';
+export { default as SsoProviders } from './SsoProviders';

@@ -492,7 +492,7 @@ export default {
         getRegistrationLinkUrl(link) {
             const { host, protocol } = window.location;
             return this.$utils.buildUrl(
-                ['courses', this.courseId, 'register_links', link.id],
+                ['courses', this.courseId, 'enroll', link.id],
                 { protocol, host },
             );
         },

@@ -1071,6 +1071,10 @@ def register_current_user_in_course(
 
     link = _get_non_expired_link(course_id, link_id)
     if current_user.is_enrolled(link.course):
+        current_role = current_user.courses[link.course_id]
+        if current_role.id == link.course_role_id:
+            return EmptyResponse.make()
+
         raise APIException(
             'This user is already enrolled in this course', (
                 f'The user {current_user.id} is already enrolled in'

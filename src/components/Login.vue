@@ -1,25 +1,26 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="login">
-    <b-form-fieldset>
+<div class="login"
+    v-show="loaded">
+    <b-form-group label="Username:">
         <input type="text"
                class="form-control"
-               placeholder="Username"
+               placeholder="Enter your username"
                v-model="username"
                ref="username"
                name="username"
                @keyup.enter="$refs.submit.onClick"/>
-    </b-form-fieldset>
+    </b-form-group>
 
-    <b-form-fieldset>
+    <b-form-group label="Password:">
         <password-input v-model="password"
-                        placeholder="Password"
+                        placeholder="Enter your password"
                         name="password"
                         @keyup.native.enter="$refs.submit.onClick"/>
-    </b-form-fieldset>
+    </b-form-group>
 
-    <div class="text-center">
-        <submit-button label="Login"
+    <div class="text-right">
+        <submit-button :label="loginLabel"
                        ref="submit"
                        :submit="submit"
                        @success="success"
@@ -30,12 +31,19 @@
             </template>
         </submit-button>
 
-        <div class="login-links">
+        <div class="login-links" v-if="!hideForget">
             <router-link :to="{ name: 'forgot' }">
                 Forgot password
             </router-link>
         </div>
     </div>
+
+    <sso-providers hide-loader
+                   @saml-login="$emit('saml-login', $event)"
+                   allow-login>
+        <hr  />
+        <h5>Or login using</h5>
+    </sso-providers>
 </div>
 </template>
 
@@ -44,27 +52,47 @@ import { mapActions } from 'vuex';
 
 import PasswordInput from './PasswordInput';
 import SubmitButton from './SubmitButton';
+import SsoProviders from './SsoProviders';
 
 export default {
     name: 'login',
+
+    props: {
+        hideForget: {
+            type: Boolean,
+            default: false,
+        },
+
+        loginLabel: {
+            type: String,
+            default: 'Login',
+        },
+    },
 
     data() {
         return {
             username: '',
             password: '',
+            loaded: false,
         };
     },
 
     components: {
         PasswordInput,
         SubmitButton,
+        SsoProviders,
     },
 
-    async mounted() {
-        const userInput = await this.$waitForRef('username');
-        if (userInput != null) {
-            this.$refs.username.focus();
-        }
+    mounted() {
+        this.$afterRerender().then(() => {
+            this.loaded = true;
+        });
+
+        this.$waitForRef('username').then(userInput => {
+            if (userInput != null) {
+                this.$refs.username.focus();
+            }
+        });
     },
 
     methods: {
@@ -83,7 +111,6 @@ export default {
 
         success(response) {
             this.login(response).then(() => {
-                this.$router.replace({ name: 'home' });
                 this.$emit('login');
             });
         },

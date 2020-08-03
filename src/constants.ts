@@ -57,6 +57,7 @@ export const NO_LOGIN_REQUIRED_ROUTES = new Set(<const>[
     'unsubscribe',
     'lti_provider_setup',
     'course_enroll',
+    'sso_login',
 ]);
 
 export const NO_SIDEBAR_ROUTES = new Set(<const>[
@@ -64,6 +65,7 @@ export const NO_SIDEBAR_ROUTES = new Set(<const>[
     'unsubscribe',
     'lti_provider_setup',
     'course_enroll',
+    'sso_login',
 ]);
 
 export const NO_FOOTER_ROUTES = new Set(<const>[

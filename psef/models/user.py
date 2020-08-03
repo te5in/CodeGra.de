@@ -21,7 +21,7 @@ from cg_sqlalchemy_helpers import CIText, hybrid_property
 
 from . import UUID_LENGTH, Base, DbColumn, db
 from . import course as course_models
-from .. import signals
+from .. import signals, db_locks
 from .role import Role, CourseRole
 from ..helpers import NotEqualMixin, validate, handle_none, maybe_unwrap_proxy
 from .permission import Permission
@@ -109,6 +109,24 @@ class User(NotEqualMixin, Base):
             virtual=virtual,
             courses=handle_none(courses, {}),
         )
+
+    @classmethod
+    def find_possible_username(cls, wanted_username: str) -> str:
+        i = 0
+
+        def _get_username() -> str:
+            return f'{wanted_username} ({i})' if i > 0 else wanted_username
+
+        # Make sure we cannot have collisions, so simply lock this username for
+        # the users while searching.
+        db_locks.acquire_lock(db_locks.LockNamespaces.user, wanted_username)
+
+        while db.session.query(
+            cls.query.filter_by(username=_get_username()).exists()
+        ).scalar():  # pragma: no cover
+            i += 1
+
+        return _get_username()
 
     def _get_id(self) -> int:
         """The id of the user

@@ -2,7 +2,7 @@
 <template>
 <div class="userinfo">
     <loader class="col-md-12 text-center" v-if="loading" :scale="1"/>
-    <div @keyup.enter="$refs.submitButton.onClick" v-else>
+    <b-form @keyup.enter="$refs.submitButton.onClick" v-else>
         <b-form-fieldset>
             <b-input-group prepend="Username">
                 <div v-b-popover.top.hover="'You cannot change your username'"
@@ -97,7 +97,7 @@
                 </template>
             </submit-button>
         </b-button-toolbar>
-    </div>
+    </b-form>
 </div>
 </template>
 
@@ -208,3 +208,9 @@ export default {
     },
 };
 </script>
+
+<style lang="less" scoped>
+.userinfo form fieldset:last-child {
+    margin-bottom: 0;
+}
+</style>

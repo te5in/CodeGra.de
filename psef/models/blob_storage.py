@@ -6,8 +6,8 @@ data.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-
 import json as _json
+import uuid
 import typing as t
 import datetime
 
@@ -26,20 +26,28 @@ class BlobStorage(Base, UUIDMixin, TimestampMixin):
     data = db.Column('data', db.LargeBinary, nullable=False)
 
     @t.overload
-    def __init__(self, *, data: bytes) -> None:
+    def __init__(self, *, data: bytes, blob_id: uuid.UUID = None) -> None:
         ...
 
     @t.overload
-    def __init__(self, *, json: 'psef.helpers.JSONType') -> None:
+    def __init__(
+        self, *, json: 'psef.helpers.JSONType', blob_id: uuid.UUID = None
+    ) -> None:
         ...
 
     def __init__(
-        self, *, data: bytes = None, json: 'psef.helpers.JSONType' = None
+        self,
+        *,
+        data: bytes = None,
+        json: 'psef.helpers.JSONType' = None,
+        blob_id: uuid.UUID = None
     ) -> None:
         if data is None:
             assert json is not None
             data = _json.dumps(json).encode('utf8')
         super().__init__(data=data)
+        if blob_id is not None:
+            self.id = blob_id
 
     @property
     def age(self) -> datetime.timedelta:
