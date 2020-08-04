@@ -1,9 +1,16 @@
+"""This module defines all models needed for SAML2 SSO.
+
+SPDX-License-Identifier: AGPL-3.0-only
+"""
+import uuid
 import typing as t
 from datetime import timedelta
 
 from cryptography import x509
 from werkzeug.utils import cached_property
+from typing_extensions import TypedDict
 from cryptography.x509.oid import NameOID
+from onelogin.saml2.constants import OneLogin_Saml2_Constants
 from onelogin.saml2.xml_utils import OneLogin_Saml2_XML
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
@@ -22,28 +29,68 @@ from . import user as user_models
 from .. import current_app
 
 
+class _SamlUiLogoInfo(TypedDict, total=True):
+    #: The URL where you can download the logo.
+    url: str
+    #: The width of the logo.
+    width: int
+    #: The height of the logo.
+    height: int
+
+
+class SamlUiInfo(TypedDict, total=True):
+    """A dictionary representing UI info about a Identity Provider (IdP).
+    """
+    #: The name of the SAML IdP
+    name: str
+    #: The description of the provider.
+    description: t.Optional[str]
+    #: Optionally a logo of the provider.
+    logo: t.Optional[_SamlUiLogoInfo]
+
+
+class Saml2ProviderJSON(TypedDict, total=True):
+    """The serialization of a :class:`Saml2Provider`.
+
+    See the comments in the source code for the meaning of each field.
+    """
+    #: The ``id`` of the provider.
+    id: uuid.UUID
+    #: The url of the metadata of the IdP connected to this provider.
+    metadata_url: str
+    #: Information about the IdP and how to display it to the user.
+    ui_info: SamlUiInfo
+
+
 # We are not allowed to subclass `Any`, but we do need a subclass here.
 class _MetadataParser(OneLogin_Saml2_IdPMetadataParser):  # type: ignore[misc]
     @classmethod
-    def parse_remote(cls, url: str, validate_cert: bool=True, entity_id: bool=None, **kwargs: t.Any) -> dict:
+    def parse_remote(
+        cls,
+        url: str,
+        validate_cert: bool = True,
+        entity_id: bool = None,
+        **kwargs: t.Any
+    ) -> dict:
         idp_metadata = super().get_metadata(url, validate_cert)
         result = cls.parse(idp_metadata, entity_id=entity_id, **kwargs)
         dom = OneLogin_Saml2_XML.to_etree(idp_metadata)
-        ns = {
+        ns_map = {
+            **OneLogin_Saml2_Constants.NSMAP,
             'mdui': psef.saml2.MDUI_NAMESPACE,
         }
-        ui_info = dom.find('.//mdui:UIInfo', namespaces=ns)
+        ui_info = dom.find('.//mdui:UIInfo', namespaces=ns_map)
 
         if ui_info is not None:
 
             def _get_if(node: t.Optional[t.Any]) -> t.Optional[str]:
                 return on_not_none(node, OneLogin_Saml2_XML.element_text)
 
-            name = ui_info.find("./mdui:DisplayName", namespaces=ns)
+            name = ui_info.find("./mdui:DisplayName", namespaces=ns_map)
 
-            description = ui_info.find('./mdui:Description', namespaces=ns)
+            description = ui_info.find('./mdui:Description', namespaces=ns_map)
 
-            logo_node = ui_info.find('./mdui:Logo', namespaces=ns)
+            logo_node = ui_info.find('./mdui:Logo', namespaces=ns_map)
 
             logo = None
             if logo_node is not None:
@@ -69,6 +116,8 @@ class _MetadataParser(OneLogin_Saml2_IdPMetadataParser):  # type: ignore[misc]
 
 
 class Saml2Provider(Base, UUIDMixin, TimestampMixin):
+    """This class represents a connection between CodeGrade and a SAML2 IdP.
+    """
     metadata_url = db.Column('metadata_url', db.Unicode, nullable=False)
 
     name = db.Column('name', db.Unicode, nullable=False)
@@ -134,6 +183,9 @@ class Saml2Provider(Base, UUIDMixin, TimestampMixin):
 
     @property
     def public_x509_cert(self) -> str:
+        """The public x509 certificate used by the CodeGrade Service Provider
+        (SP).
+        """
         cert = x509.load_pem_x509_certificate(
             self._cert_data, default_backend()
         )
@@ -141,6 +193,8 @@ class Saml2Provider(Base, UUIDMixin, TimestampMixin):
 
     @property
     def private_key(self) -> str:
+        """The private key used for signing by the SP.
+        """
         assert self._key_data is not None
         key = serialization.load_pem_private_key(
             self._key_data, None, default_backend()
@@ -152,9 +206,16 @@ class Saml2Provider(Base, UUIDMixin, TimestampMixin):
         ).decode('utf8')
 
     def check_metadata_url(self) -> None:
+        """Check that the metadata url connected to this provider can be
+        reached and contains valid data.
+
+        This method will raise an exception if this is not the case.
+        """
         self._get_provider_metadata(force=True)
 
-    def _get_provider_metadata(self, force: bool) -> dict:
+    def _get_provider_metadata(
+        self, force: bool
+    ) -> t.Mapping[str, t.Union[SamlUiInfo, object]]:
         return current_app.inter_request_cache.saml2_ipds.get_or_set(
             str(self.id),
             lambda: _MetadataParser.parse_remote(
@@ -164,18 +225,23 @@ class Saml2Provider(Base, UUIDMixin, TimestampMixin):
         )
 
     @cached_property
-    def provider_metadata(self) -> dict:
+    def provider_metadata(self) -> t.Mapping[str, t.Union[SamlUiInfo, object]]:
+        """The metadata of the IdP connected to this provider.
+        """
+        # We also cache this property to make sure we are not doing too many
+        # requests to redis.
         return self._get_provider_metadata(force=False)
 
-    def __to_json__(self) -> t.Any:
+    def __to_json__(self) -> Saml2ProviderJSON:
+        ui_info = self.provider_metadata['ui_info']
+        assert isinstance(ui_info, dict)
+
+        ui_info.setdefault('name', self.name)
+
         return {
             'id': self.id,
             'metadata_url': self.metadata_url,
-            'ui_info':
-                {
-                    'name': self.name,
-                    **self.provider_metadata['ui_info'],
-                }
+            'ui_info': t.cast(SamlUiInfo, ui_info),
         }
 
 
@@ -237,6 +303,19 @@ class UserSamlProvider(Base, TimestampMixin):
         cls, name_id: str, saml2_provider: Saml2Provider, username: str,
         full_name: str, email: str
     ) -> 'user_models.User':
+        """Get or create a user connected to the given ``saml2_provder`` with
+        the given ``name_id``.
+
+        :param name_id: The persistent (!) ``NameIdentifier`` received from the
+            IdP.
+        :param saml2_provider: The provider in which the user is known.
+        :param username: The wanted username as provided by the IdP.
+        :param full_name: The wanted name as provided by the IdP.
+        :param email: The wanted email as provided by the IdP.
+
+        :returns: A found or just created (added to the session but not
+                  committed) user.
+        """
         conn = cls.query.filter(
             cls.name_id == name_id, cls.saml2_provider == saml2_provider
         ).one_or_none()

@@ -19,7 +19,7 @@ from onelogin.saml2.constants import OneLogin_Saml2_Constants
 import cg_json
 from cg_helpers import on_not_none
 
-from .. import PsefFlask, models, helpers, current_app
+from .. import PsefFlask, models, helpers, exceptions, current_app
 from ..models import db
 from ..helpers import readable_join
 
@@ -92,34 +92,38 @@ def init_saml_auth(
     # yapf: disable
     settings = OneLogin_Saml2_Settings(
         settings={
-            "strict": not current_app.config['DEBUG'],
-            "debug": current_app.config['DEBUG'],
+            'strict': not current_app.config['DEBUG'],
+            'debug': current_app.config['DEBUG'],
             'security': {
                 'authnRequestsSigned': True,
                 'WantAssertionsSigned': True,
+                'signMetadata': True,
+                'metadataCacheDuration': timedelta(days=1).total_seconds(),
+                'signatureAlgorithm': OneLogin_Saml2_Constants.RSA_SHA512,
+                'digestAlgorithm': OneLogin_Saml2_Constants.SHA512,
             },
-            "sp": {
-                "entityId": entityId,
-                "assertionConsumerService": {
-                    "url": acs_url,
-                    "binding": f"{bindings}:HTTP-POST"
+            'sp': {
+                'entityId': entityId,
+                'assertionConsumerService': {
+                    'url': acs_url,
+                    'binding': f'{bindings}:HTTP-POST'
                 },
-                "NameIDFormat": OneLogin_Saml2_Constants.NAMEID_PERSISTENT,
-                "x509cert": provider.public_x509_cert,
-                "privateKey": provider.private_key,
+                'NameIDFormat': OneLogin_Saml2_Constants.NAMEID_PERSISTENT,
+                'x509cert': provider.public_x509_cert,
+                'privateKey': provider.private_key,
             },
-            "idp": provider.provider_metadata,
-            "contactPerson": {
-                "support": {
-                    "givenName": "Support",
-                    "emailAddress": "support@codegrade.com",
+            'idp': provider.provider_metadata,
+            'contactPerson': {
+                'support': {
+                    'givenName': 'Support',
+                    'emailAddress': 'support@codegrade.com',
                 },
             },
-            "organization": {
-                "en-US": {
-                    "name": "CodeGrade",
-                    "displayname": "CodeGrade",
-                    "url": current_app.config['EXTERNAL_URL'],
+            'organization': {
+                'en-US': {
+                    'name': 'CodeGrade',
+                    'displayname': 'CodeGrade',
+                    'url': current_app.config['EXTERNAL_URL'],
                 },
             },
         }
@@ -154,10 +158,10 @@ def do_saml_login(provider_id: uuid.UUID) -> Response:
     req = prepare_flask_request()
     auth = init_saml_auth(req, provider)
 
-    blob_id = str(uuid.uuid4())
-    session[_session_key('BLOB_ID')] = blob_id
+    token_id = str(uuid.uuid4())
+    session[_session_key('TOKEN_ID')] = token_id
     return_to = furl.furl(current_app.config['EXTERNAL_URL']).add(
-        path=['sso_login', blob_id],
+        path=['sso_login', token_id],
         args=request.args,
     ).tostr()
 
@@ -172,29 +176,37 @@ def get_acs(provider_id: uuid.UUID) -> t.Union[t.Tuple[str, int], Response]:
     provider = helpers.get_or_404(models.Saml2Provider, provider_id)
     auth = init_saml_auth(req, provider)
 
-    try:
-        request_id = session[_session_key('AuthNRequestID')]
-        del session[_session_key('AuthNRequestID')]
-    except KeyError:
-        request_id = str(uuid.uuid4())
-
+    request_id = session.get(_session_key('AuthNRequestID'), str(uuid.uuid4()))
+    session.pop(_session_key('AuthNRequestID'), None)
     auth.process_response(request_id=request_id)
     errors = auth.get_errors()
 
     if errors or not auth.is_authenticated():
-        if auth.is_authenticated():
-            error_title = 'Something went wrong during login.'
-        else:
-            error_title = 'Logging in was unsuccessful.'
+        error_title = (
+            'Something went wrong during login.'
+            if auth.is_authenticated() else 'Logging in was unsuccessful.'
+        )
 
         error_message = error_title
-        if auth.get_settings().is_debug_active():
+        if auth.get_settings().is_debug_active():  # pragma: no cover
             error_message = auth.get_last_error_reason() or error_title
 
         return _make_error(
             error_title,
             flask.escape(error_message),
             auth=auth,
+        )
+
+    redirect_target = auth.redirect_to(request.form['RelayState'])
+    if not redirect_target.startswith(current_app.config['EXTERNAL_URL']):
+        return _make_error(
+            'Wrong redirection target found', (
+                'Only redirection within this domain ({}), found redirection'
+                ' to {}.'
+            ).format(
+                flask.escape(current_app.config['EXTERNAL_URL']),
+                flask.escape(redirect_target),
+            )
         )
 
     if auth.get_nameid_format() != OneLogin_Saml2_Constants.NAMEID_PERSISTENT:
@@ -232,7 +244,6 @@ def get_acs(provider_id: uuid.UUID) -> t.Union[t.Tuple[str, int], Response]:
             ),
         )
 
-    blob_id = uuid.UUID(session[_session_key('BLOB_ID')])
     user = models.UserSamlProvider.get_or_create_user(
         name_id=name_id,
         saml2_provider=provider,
@@ -245,46 +256,44 @@ def get_acs(provider_id: uuid.UUID) -> t.Union[t.Tuple[str, int], Response]:
         json={
             'provider_id': str(provider_id),
             'user_id': user.id,
+            'token_id': session[_session_key('TOKEN_ID')],
         },
-        blob_id=blob_id,
     )
     db.session.add(blob)
+
     db.session.commit()
+    session[_session_key('DB_BLOB_ID')] = str(blob.id)
 
-    target = auth.redirect_to(request.form['RelayState'])
-    if not target.startswith(current_app.config['EXTERNAL_URL']):
-        return _make_error(
-            'Wrong redirection target found', (
-                'Only redirection within this domain ({}), found redirection'
-                ' to {}.'
-            ).format(
-                flask.escape(current_app.config['EXTERNAL_URL']),
-                flask.escape(target),
-            )
-        )
-    return flask.redirect(target)
+    return flask.redirect(redirect_target)
 
 
-@saml.route('/jwts/<uuid:blob_id>', methods=['POST'])
+@saml.route('/jwts/<uuid:token_id>', methods=['POST'])
 def get_jwt_from_success_full_login(
-    blob_id: uuid.UUID
+    token_id: uuid.UUID
 ) -> cg_json.JSONResponse[t.Dict[str, str]]:
-    if _session_key('BLOB_ID') in session:
-        session_blob_id = uuid.UUID(session[_session_key('BLOB_ID')])
-    else:
-        session_blob_id = uuid.uuid4()
+    blob_id = uuid.UUID(session[_session_key('DB_BLOB_ID')])
 
     blob = helpers.filter_single_or_404(
         models.BlobStorage,
         models.BlobStorage.id == blob_id,
-        models.BlobStorage.id == session_blob_id,
         with_for_update=True,
         also_error=lambda blob: blob.age > _MAX_BLOB_AGE,
     )
-    del session[_session_key('BLOB_ID')]
-
     blob_json = blob.as_json()
     assert isinstance(blob_json, dict)
+    found_token_id = blob_json.get('token_id')
+    session_token_id = session.get(_session_key('TOKEN_ID'))
+
+    if str(token_id) != found_token_id or session_token_id != found_token_id:
+        raise exceptions.APIException(
+            'Invalid token provided',
+            'The given token does not match your session and/or the found jwt',
+            exceptions.APICodes.INVALID_URL, 400
+        )
+
+    del session[_session_key('DB_BLOB_ID')]
+    del session[_session_key('TOKEN_ID')]
+
     user = helpers.get_or_404(models.User, blob_json['user_id'])
     db.session.delete(blob)
     db.session.commit()

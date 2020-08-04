@@ -42,7 +42,9 @@ class _PsefInterProcessCache:
     lti_access_tokens: cg_cache.inter_request.Backend[str]
     lti_public_keys: cg_cache.inter_request.Backend['_KeySet']
 
-    saml2_ipds: cg_cache.inter_request.Backend[t.Any]
+    saml2_ipds: cg_cache.inter_request.Backend[
+        t.Mapping[str, t.Union['psef.models.saml_provider.SamlUiInfo', object]]
+    ]
 
 
 class PsefFlask(Flask):
@@ -93,7 +95,7 @@ class PsefFlask(Flask):
                 'lti_public_keys', timedelta(hours=1), redis_conn
             ),
             saml2_ipds=cg_cache.inter_request.RedisBackend(
-                'saml2_ipds', timedelta(hours=24), redis_conn
+                'saml2_ipds', timedelta(days=1), redis_conn
             )
         )
 
