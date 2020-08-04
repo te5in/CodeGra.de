@@ -433,29 +433,35 @@ export default {
         },
 
         changed(user, role) {
-            for (let i = 0, len = this.users.length; i < len; i += 1) {
-                if (this.users[i].User.id === user.User.id) {
-                    this.$set(user, 'CourseRole', role);
-                    this.$set(this.users, i, user);
-                    break;
-                }
-            }
             this.$set(this.updating, user.User.id, true);
             const req = this.$http.put(`/api/v1/courses/${this.courseId}/users/`, {
                 user_id: user.User.id,
                 role_id: role.id,
             });
 
-            waitAtLeast(250, req)
-                .then(() => {
-                    this.$set(this.updating, user.User.id, false);
-                    delete this.updating[user.User.id];
-                })
-                .catch(err => {
-                    // TODO: visual feedback
-                    // eslint-disable-next-line
-                    console.dir(err);
-                });
+            waitAtLeast(250, req).then(
+                () => {
+                    for (let i = 0, len = this.users.length; i < len; i += 1) {
+                        if (this.users[i].User.id === user.User.id) {
+                            this.$set(user, 'CourseRole', role);
+                            this.$set(this.users, i, user);
+                            break;
+                        }
+                    }
+                },
+                err => {
+                    this.$bvToast.toast(err.response.data.message, {
+                        title: 'Error',
+                        toaster: 'b-toaster-top-right',
+                        variant: 'danger',
+                        noAutoHide: true,
+                        solid: true,
+                    });
+                },
+            ).then(() => {
+                this.$set(this.updating, user.User.id, false);
+                delete this.updating[user.User.id];
+            });
         },
 
         addUser() {
