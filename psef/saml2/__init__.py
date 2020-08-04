@@ -251,7 +251,18 @@ def get_acs(provider_id: uuid.UUID) -> t.Union[t.Tuple[str, int], Response]:
     db.session.add(blob)
     db.session.commit()
 
-    return flask.redirect(auth.redirect_to(request.form['RelayState']))
+    target = auth.redirect_to(request.form['RelayState'])
+    if not target.startswith(current_app.config['EXTERNAL_URL']):
+        return _make_error(
+            'Wrong redirection target found', (
+                'Only redirection within this domain ({}), found redirection'
+                ' to {}.'
+            ).format(
+                flask.escape(current_app.config['EXTERNAL_URL']),
+                flask.escape(target),
+            )
+        )
+    return flask.redirect(target)
 
 
 @saml.route('/jwts/<uuid:blob_id>', methods=['POST'])

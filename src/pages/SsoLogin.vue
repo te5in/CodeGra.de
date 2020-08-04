@@ -33,8 +33,15 @@ export default class SsoLogin extends Vue {
         return this.$route.params.blobId;
     }
 
-    get next() {
-        return this.$route.query.next;
+    get next(): string | null {
+        const next = this.$route.query.next;
+        if (!next || next.startsWith('/')) {
+            return next;
+        }
+        if (next.startsWith(this.$userConfig.externalUrl)) {
+            return next;
+        }
+        return null;
     }
 
     @Watch('blobId', { immediate: true })
