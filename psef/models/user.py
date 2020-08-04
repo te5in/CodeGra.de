@@ -736,8 +736,10 @@ class User(NotEqualMixin, Base):
         )
         validate.ensure_valid_email(email)
 
-        if db.session.query(cls.query.filter_by(username=username).exists()
-                            ).scalar():
+        db_locks.acquire_lock(db_locks.LockNamespaces.user, username)
+        if db.session.query(
+            cls.query.filter(cls.username == username).exists()
+        ).scalar():
             raise APIException(
                 'The given username is already in use',
                 f'The username "{username}" is taken',

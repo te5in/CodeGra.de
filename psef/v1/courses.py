@@ -1077,6 +1077,15 @@ def _get_non_expired_link(
 def register_current_user_in_course(
     course_id: int, link_id: uuid.UUID
 ) -> EmptyResponse:
+    """Join a course as the currently logged in user using a registration link.
+
+    .. :quickref: Course; Enroll in this course.
+
+    :param course_id: The id of the course in which you want to enroll.
+    :param link_id: The id of the link you want to use to enroll.
+
+    :returns: Nothing.
+    """
 
     link = _get_non_expired_link(course_id, link_id)
     if current_user.is_enrolled(link.course):
@@ -1104,15 +1113,21 @@ def register_current_user_in_course(
 )
 def get_register_link(course_id: int, link_id: uuid.UUID
                       ) -> ExtendedJSONResponse[models.CourseRegistrationLink]:
-    """Register as a new user, and directly enroll in a course.
+    """Get a registration link
 
-    .. :quickref: Course; Register as a new user, and enroll in a course.
+    .. :quickref: Course; Get the data in a registration link.
 
     :param course_id: The id of the course to which the registration link is
         connected.
     :param link_id: The id of the registration link.
-    :>json access_token: The access token that the created user can use to
-        login.
+
+    :returns: The specified registration link.
+
+    .. note::
+
+        This route can be used without logging in, i.e. you don't have to be
+        enrolled in the course to use this route. This route will not work for
+        expired registration links.
     """
     link = _get_non_expired_link(course_id, link_id)
 
