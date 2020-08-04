@@ -112,6 +112,16 @@ class User(NotEqualMixin, Base):
 
     @classmethod
     def find_possible_username(cls, wanted_username: str) -> str:
+        """Find a possible username for a new user starting with
+        ``wanted_username``.
+
+        :param wanted_username: The username the new user should have in the
+            ideal case. If not available we will try to find a username looking
+            like ``$wanted_username ($number)``.
+
+        :returns: A username that looks like ``wanted_username`` that is still
+                  available.
+        """
         i = 0
 
         def _get_username() -> str:

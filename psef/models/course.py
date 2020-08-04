@@ -59,7 +59,13 @@ class CourseRegistrationLink(Base, mixins.UUIDMixin, mixins.TimestampMixin):
         lambda: CourseRole, foreign_keys=course_role_id, innerjoin=True
     )
 
-    allow_register = db.Column('allow_register', db.Boolean, nullable=False, default=True, server_default='true')
+    allow_register = db.Column(
+        'allow_register',
+        db.Boolean,
+        nullable=False,
+        default=True,
+        server_default='true'
+    )
 
     def __to_json__(self) -> t.Mapping[str, object]:
         return {

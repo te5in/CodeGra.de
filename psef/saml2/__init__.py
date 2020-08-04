@@ -1,4 +1,14 @@
-import xml
+"""This module implements the Service Provider (SP) side of SAML2 for
+CodeGrade.
+
+The routes here are not suitable to be used outside of browser environments,
+and can only be used in the correct order and while cookies are enabled. The
+correct order is first doing a ``GET`` ``/login/<provider_id>`` route,
+following all redirects, logging in using the IdP, following all redirects and
+then use the ``/jwts/<token>`` route to retrieve your jwt token.
+
+SPDX-License-Identifier: AGPL-3.0-only
+"""
 import uuid
 import typing as t
 import xml.etree.ElementTree as ET
@@ -17,7 +27,6 @@ from onelogin.saml2.settings import OneLogin_Saml2_Settings
 from onelogin.saml2.constants import OneLogin_Saml2_Constants
 
 import cg_json
-from cg_helpers import on_not_none
 
 from .. import PsefFlask, models, helpers, exceptions, current_app
 from ..models import db
@@ -26,15 +35,13 @@ from ..helpers import readable_join
 logger = structlog.get_logger()
 
 MDUI_NAMESPACE: Final = 'urn:oasis:names:tc:SAML:metadata:ui'
-
 _SAML_SESSION_PREFIX = 'SAML_'
+_MAX_BLOB_AGE = timedelta(minutes=5)
 
 saml = flask.Blueprint(
     name='saml',
     import_name=__name__,
 )  # pylint: disable=invalid-name
-
-_MAX_BLOB_AGE = timedelta(minutes=5)
 
 
 def _session_key(key: str) -> str:
@@ -52,6 +59,10 @@ def _make_error(
     message: str,
     auth: t.Optional[OneLogin_Saml2_Auth] = None,
 ) -> t.Tuple[str, int]:
+    """Render the error template with the given data.
+
+    This also logs the error to sentry.
+    """
     logger.error(
         'SAML request went wrong',
         error_message=message,
@@ -68,6 +79,8 @@ def _make_error(
 
 
 class SamlRequest(TypedDict, total=True):
+    """The data shape the OneLogin library expects for a request.
+    """
     https: Literal['on', 'off']
     http_host: str
     server_port: int
@@ -76,19 +89,26 @@ class SamlRequest(TypedDict, total=True):
     post_data: t.Mapping[str, t.Any]
 
 
-class AttributeNames:
+class _AttributeNames:
     EMAIL: Final = 'urn:oid:0.9.2342.19200300.100.1.3'
     FULL_NAME: Final = 'urn:oid:2.5.4.3'
     DISPLAY_NAME: Final = 'urn:oid:2.16.840.1.113730.3.1.241'
     UID: Final = 'urn:oid:0.9.2342.19200300.100.1.1'
 
 
-def init_saml_auth(
+def _init_saml_auth(
     req: SamlRequest, provider: models.Saml2Provider
 ) -> OneLogin_Saml2_Auth:
+    """Create a OneLogin Saml2 Auth object for the current request in the given
+    provider.
+
+    :param req: The request for which you want to create an auth object.
+    :param provider: The provider in which this request was done.
+    """
     bindings = 'urn:oasis:names:tc:SAML:2.0:bindings'
     entityId = _make_saml_url().add(path=['metadata', provider.id]).tostr()
     acs_url = _make_saml_url().add(path=['acs', provider.id]).tostr()
+
     # yapf: disable
     settings = OneLogin_Saml2_Settings(
         settings={
@@ -106,7 +126,7 @@ def init_saml_auth(
                 'entityId': entityId,
                 'assertionConsumerService': {
                     'url': acs_url,
-                    'binding': f'{bindings}:HTTP-POST'
+                    'binding': f'{bindings}:HTTP-POST',
                 },
                 'NameIDFormat': OneLogin_Saml2_Constants.NAMEID_PERSISTENT,
                 'x509cert': provider.public_x509_cert,
@@ -126,14 +146,16 @@ def init_saml_auth(
                     'url': current_app.config['EXTERNAL_URL'],
                 },
             },
-        }
+        },
     )
     # yapf: enable
     return OneLogin_Saml2_Auth(req, old_settings=settings)
 
 
-def prepare_flask_request() -> SamlRequest:
-    # If server is behind proxys or balancers use the HTTP_X_FORWARDED fields
+def _prepare_flask_request() -> SamlRequest:
+    """Convert the current (flask) request to a request object as expected by
+    the OneLogin classes.
+    """
     url_data = furl.furl(request.url)
 
     https: Literal['on', 'off'] = (
@@ -154,14 +176,19 @@ def prepare_flask_request() -> SamlRequest:
 
 @saml.route('/login/<uuid:provider_id>', methods=['GET'])
 def do_saml_login(provider_id: uuid.UUID) -> Response:
-    provider = helpers.get_or_404(models.Saml2Provider, provider_id)
-    req = prepare_flask_request()
-    auth = init_saml_auth(req, provider)
+    """Begin the SAML2 login procedure.
 
-    token_id = str(uuid.uuid4())
-    session[_session_key('TOKEN_ID')] = token_id
+    :param provider_id: The id of the provider that should do the login.
+    :returns: A redirection to your IdP.
+    """
+    provider = helpers.get_or_404(models.Saml2Provider, provider_id)
+    req = _prepare_flask_request()
+    auth = _init_saml_auth(req, provider)
+
+    token = str(uuid.uuid4())
+    session[_session_key('TOKEN')] = token
     return_to = furl.furl(current_app.config['EXTERNAL_URL']).add(
-        path=['sso_login', token_id],
+        path=['sso_login', token],
         args=request.args,
     ).tostr()
 
@@ -172,9 +199,19 @@ def do_saml_login(provider_id: uuid.UUID) -> Response:
 
 @saml.route('/acs/<uuid:provider_id>', methods=['POST'])
 def get_acs(provider_id: uuid.UUID) -> t.Union[t.Tuple[str, int], Response]:
-    req = prepare_flask_request()
+    """This route is the Assertion Consumer Service (ACS) route of CodeGrade.
+
+    The form posted to this route should contain a valid SAML ACS request for
+    the given provider.
+
+    :param provider_id: The provider that is providing the assertions.
+
+    :returns: A redirection to the ``RelayState`` or an html page containing an
+              error message.
+    """
+    req = _prepare_flask_request()
     provider = helpers.get_or_404(models.Saml2Provider, provider_id)
-    auth = init_saml_auth(req, provider)
+    auth = _init_saml_auth(req, provider)
 
     request_id = session.get(_session_key('AuthNRequestID'), str(uuid.uuid4()))
     session.pop(_session_key('AuthNRequestID'), None)
@@ -223,10 +260,11 @@ def get_acs(provider_id: uuid.UUID) -> t.Union[t.Tuple[str, int], Response]:
 
     attributes = auth.get_attributes()
     name_id = auth.get_nameid()
-    username = attributes.get(AttributeNames.UID)
-    email = attributes.get(AttributeNames.EMAIL)
+    username = attributes.get(_AttributeNames.UID)
+    email = attributes.get(_AttributeNames.EMAIL)
     full_name = attributes.get(
-        AttributeNames.FULL_NAME, attributes.get(AttributeNames.DISPLAY_NAME)
+        _AttributeNames.FULL_NAME,
+        attributes.get(_AttributeNames.DISPLAY_NAME)
     )
 
     if not (username and email and full_name):
@@ -256,7 +294,7 @@ def get_acs(provider_id: uuid.UUID) -> t.Union[t.Tuple[str, int], Response]:
         json={
             'provider_id': str(provider_id),
             'user_id': user.id,
-            'token_id': session[_session_key('TOKEN_ID')],
+            'token': session[_session_key('TOKEN')],
         },
     )
     db.session.add(blob)
@@ -267,10 +305,24 @@ def get_acs(provider_id: uuid.UUID) -> t.Union[t.Tuple[str, int], Response]:
     return flask.redirect(redirect_target)
 
 
-@saml.route('/jwts/<uuid:token_id>', methods=['POST'])
+@saml.route('/jwts/<uuid:token>', methods=['POST'])
 def get_jwt_from_success_full_login(
-    token_id: uuid.UUID
+    token: uuid.UUID
 ) -> cg_json.JSONResponse[t.Dict[str, str]]:
+    """Get a JWT token for a user after doing a successful launch.
+
+    :param token: The token that we will use to verify that you are the correct
+        owner of the SAML launch. This data will be cross referenced to stored
+        data and your session.
+
+    This method will use various pieces of information from the session from
+    the requested user.
+
+    This method can only be used once to retrieve the JWT, as the data will be
+    removed after the first request.
+
+    :returns: A mapping containing one key (``access_token``).
+    """
     blob_id = uuid.UUID(session[_session_key('DB_BLOB_ID')])
 
     blob = helpers.filter_single_or_404(
@@ -281,10 +333,10 @@ def get_jwt_from_success_full_login(
     )
     blob_json = blob.as_json()
     assert isinstance(blob_json, dict)
-    found_token_id = blob_json.get('token_id')
-    session_token_id = session.get(_session_key('TOKEN_ID'))
+    found_token = blob_json.get('token')
+    session_token = session.get(_session_key('TOKEN'))
 
-    if str(token_id) != found_token_id or session_token_id != found_token_id:
+    if str(token) != found_token or session_token != found_token:
         raise exceptions.APIException(
             'Invalid token provided',
             'The given token does not match your session and/or the found jwt',
@@ -292,7 +344,7 @@ def get_jwt_from_success_full_login(
         )
 
     del session[_session_key('DB_BLOB_ID')]
-    del session[_session_key('TOKEN_ID')]
+    del session[_session_key('TOKEN')]
 
     user = helpers.get_or_404(models.User, blob_json['user_id'])
     db.session.delete(blob)
@@ -313,8 +365,18 @@ def get_jwt_from_success_full_login(
 @saml.route('/metadata/<uuid:provider_id>', methods=['GET'])
 def get_metadata(provider_id: uuid.UUID
                  ) -> t.Union[t.Tuple[str, int], Response]:
-    req = prepare_flask_request()
-    auth = init_saml_auth(
+    """Get the metadata xml for SP connected to the given provider.
+
+    While this URL should always return a valid XML it might be IP restricted,
+    and is not part of the public API.
+
+    :param provider_id: The id of the provider for which you want to generate
+        the XML.
+
+    :returns: The generated XML or an error page.
+    """
+    req = _prepare_flask_request()
+    auth = _init_saml_auth(
         req, helpers.get_or_404(models.Saml2Provider, provider_id)
     )
     settings = auth.get_settings()
