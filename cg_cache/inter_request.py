@@ -92,7 +92,9 @@ class Backend(abc.ABC, t.Generic[T]):
         """
         raise NotImplementedError
 
-    def get_or_set(self, key: str, get_value: t.Callable[[], T], *, force: bool = False) -> T:
+    def get_or_set(
+        self, key: str, get_value: t.Callable[[], T], *, force: bool = False
+    ) -> T:
         """Set the ``key`` to the value procured by ``get_value`` if it is not
         present.
 
