@@ -30,9 +30,7 @@
 
                             <p v-if="adminMode">
                                 <b>SP metadata URL:</b>
-                                <a :href="provider.metadatUrl" v-if="adminMode">
-                                    {{ provider.metadataUrl }}
-                                </a>
+                                <a :href="provider.metadataUrl" v-if="adminMode">{{ provider.metadataUrl }}</a>
                             </p>
                         </div>
                     </div>
