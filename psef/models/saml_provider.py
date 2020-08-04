@@ -10,6 +10,7 @@ from cryptography import x509
 from werkzeug.utils import cached_property
 from typing_extensions import TypedDict
 from cryptography.x509.oid import NameOID
+from werkzeug.datastructures import FileStorage
 from onelogin.saml2.constants import OneLogin_Saml2_Constants
 from onelogin.saml2.xml_utils import OneLogin_Saml2_XML
 from cryptography.hazmat.backends import default_backend
@@ -20,7 +21,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 import psef
 from cg_helpers import on_not_none
 from cg_dt_utils import DatetimeWithTimezone
-from cg_sqlalchemy_helpers import UUIDType
+from cg_sqlalchemy_helpers import UUIDType, deferred
 from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 
 from . import Base, db
@@ -44,7 +45,7 @@ class SamlUiInfo(TypedDict, total=True):
     #: The name of the SAML IdP
     name: str
     #: The description of the provider.
-    description: t.Optional[str]
+    description: str
     #: Optionally a logo of the provider.
     logo: t.Optional[_SamlUiLogoInfo]
 
@@ -122,12 +123,24 @@ class Saml2Provider(Base, UUIDMixin, TimestampMixin):
 
     name = db.Column('name', db.Unicode, nullable=False)
 
+    description = db.Column('description', db.Unicode, nullable=False)
+
+    logo = deferred(db.Column('logo', db.LargeBinary, nullable=False))
+
     _cert_data = db.Column('cert_data', db.LargeBinary, nullable=False)
 
     _key_data = db.Column('key_data', db.LargeBinary, nullable=False)
 
-    def __init__(self, metadata_url: str, name: str) -> None:
-        super().__init__(metadata_url=metadata_url, name=name)
+    def __init__(
+        self, *, metadata_url: str, name: str, logo: FileStorage,
+        description: str
+    ) -> None:
+        super().__init__(
+            metadata_url=metadata_url,
+            name=name,
+            description=description,
+            logo=logo.read(),
+        )
         self._generate_keys()
 
     def _generate_keys(self) -> None:
@@ -236,7 +249,10 @@ class Saml2Provider(Base, UUIDMixin, TimestampMixin):
         ui_info = self.provider_metadata['ui_info']
         assert isinstance(ui_info, dict)
 
-        ui_info.setdefault('name', self.name)
+        if ui_info.get('name') is None:
+            ui_info['name'] = self.name
+        if ui_info.get('description') is None:
+            ui_info['description'] = self.description
 
         return {
             'id': self.id,

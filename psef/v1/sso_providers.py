@@ -4,12 +4,17 @@ The APIs are used to create/get SSO Providers.
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import json
+import uuid
 import typing as t
+
+import flask
+from sqlalchemy.orm import undefer
 
 from cg_json import JSONResponse
 
 from . import api
-from .. import auth, models, helpers
+from .. import auth, models, helpers, exceptions, current_app
 from ..models import db
 from ..permissions import GlobalPermission as GPerm
 
@@ -27,6 +32,23 @@ def get_all_sso_providers() -> JSONResponse[t.Sequence[models.Saml2Provider]]:
     )
 
 
+@api.route('/sso_providers/<uuid:provider_id>/default_logo', methods=['GET'])
+def get_default_logo(provider_id: uuid.UUID) -> flask.Response:
+    """Get the default logo of the given provider.
+
+    .. :quickref: SSO Provider; Get the default logo of a provider.
+
+    :param provider_id: The id of the provider from which you want to get the
+        logo.
+    """
+    provider = helpers.get_or_404(
+        models.Saml2Provider, provider_id, options=[undefer('logo')]
+    )
+    return flask.Response(
+        provider.logo, headers={'Content-Type': 'application/octet-stream'}
+    )
+
+
 @api.route('/sso_providers/', methods=['POST'])
 @auth.permission_required(GPerm.can_manage_sso_providers)
 def create_sso_providers() -> JSONResponse[models.Saml2Provider]:
@@ -36,18 +58,36 @@ def create_sso_providers() -> JSONResponse[models.Saml2Provider]:
 
     Users will be able to login using the registered provider.
 
+    The request should contain two files. One named ``json`` containing the
+    json data explained below and one named ``logo`` containing the backup
+    logo.
+
     :>json metadata_url: The url where we can download the metadata for the IdP
         connected to this provider.
     :>json name: If no name can be found in the metadata this name will be
         displayed to users when choosing login methods.
+    :>json description: If no description can be found in the metadata this
+        description will be displayed to users when choosing login methods.
 
     :returns: The just created provider.
     """
-    with helpers.get_from_request_transaction() as [get, _]:
+    data = helpers.ensure_json_dict(json.load(flask.request.files['json']))
+
+    with helpers.get_from_map_transaction(data) as [get, _]:
         metadata_url = get('metadata_url', str)
         name = get('name', str)
+        description = get('description', str)
 
-    prov = models.Saml2Provider(metadata_url=metadata_url, name=name)
+    logo = helpers.get_files_from_request(
+        max_size=current_app.max_single_file_size, keys=['logo']
+    )[0]
+
+    prov = models.Saml2Provider(
+        metadata_url=metadata_url,
+        name=name,
+        description=description,
+        logo=logo,
+    )
     db.session.add(prov)
     prov.check_metadata_url()
     db.session.commit()

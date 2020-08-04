@@ -12,7 +12,7 @@ export interface Saml2ProviderServerData {
     metadata_url: string;
     ui_info: {
         name: string;
-        description: string | null;
+        description: string;
         logo: null | LogoData;
     };
 }
@@ -49,6 +49,13 @@ class Saml2Provider {
         return buildUrl(['api', 'sso', 'saml2', 'metadata', this.id], {
             baseUrl: UserConfig.externalUrl,
         });
+    }
+
+    get logoUrl(): string {
+        if (this.logo) {
+            return this.logo.url;
+        }
+        return buildUrl(['api', 'v1', 'sso_providers', this.id, 'default_logo']);
     }
 }
 

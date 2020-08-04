@@ -15,18 +15,16 @@
                 <a :href="adminMode ? undefined : provider.loginUrl"
                    @click.prevent="() => !adminMode && $emit('saml-login', provider)">
                     <div class="d-flex flex-row">
-                        <img :src="provider.logo.url"
-                             v-if="provider.logo"
+                        <img :src="provider.logoUrl"
                              class="d-block pr-3"
                              :style="`max-width: ${minWidth / 2}px;`"
+                             :alt="`Logo for ${provider.name}`"
                              height="auto"
                              width="auto" />
                         <div>
                             <h4>{{ provider.name }}</h4>
 
-                            <p v-if="provider.description">
-                                {{ provider.description }}
-                            </p>
+                            <p>{{ provider.description }}</p>
 
                             <p v-if="adminMode">
                                 <b>SP metadata URL:</b>
@@ -50,13 +48,32 @@
                 </b-form-group>
 
                 <b-form-group label="Backup name:"
-                              description="If no name can be found in the metadata of SSO IDP this will be displayed to the user.">
+                              description="If no name can be found in the metadata of the IdP this will be displayed to the user.">
                     <input type="text"
                            class="form-control"
                            placeholder="Enter name"
                            v-model="newProviderMetadataName"
                            @keyup.enter="() => $refs.create.onClick()"/>
                 </b-form-group>
+
+                <b-form-group label="Backup description:"
+                              description="If no description can be found in the metadata of the IdP this will be displayed to the user.">
+                    <input type="text"
+                           class="form-control"
+                           placeholder="Enter description"
+                           v-model="newProviderMetadataDescription"
+                           @keyup.enter="() => $refs.create.onClick()"/>
+                </b-form-group>
+
+                <b-form-group
+                    label="Logo URL:"
+                    description="If no logo can be found in the metadata of the IdP this will be displayed instead. This should be a publicly accessible URL.">
+                    <multiple-files-uploader
+                        disable-multiple-files
+                        v-model="newProviderLogo"
+                        class="rounded" />
+                </b-form-group>
+
 
                 <div class="text-right">
                     <cg-submit-button
@@ -76,10 +93,13 @@
 import { Vue, Component, Prop } from 'vue-property-decorator';
 import { AxiosResponse } from 'axios';
 
+// @ts-ignore
+import MultipleFilesUploader from '@/components/MultipleFilesUploader';
+
 import * as api from '@/api/v1';
 import * as models from '@/models';
 
-@Component
+@Component({ components: { MultipleFilesUploader } })
 export default class SSOProviders extends Vue {
     providers: null | models.SSOProvider[] = null;
 
@@ -91,6 +111,10 @@ export default class SSOProviders extends Vue {
     private newProviderMetadataUrl: string = '';
 
     private newProviderMetadataName: string = '';
+
+    private newProviderMetadataDescription: string = '';
+
+    private newProviderLogo: readonly any[] = [];
 
     mounted() {
         this.loadData();
@@ -108,10 +132,24 @@ export default class SSOProviders extends Vue {
     }
 
     createNew() {
-        return this.$http.post('/api/v1/sso_providers/', {
+        if (this.newProviderLogo.length !== 1) {
+            return Promise.reject(new Error('You should upload exactly one logo'));
+        }
+        const json = {
             metadata_url: this.newProviderMetadataUrl,
             name: this.newProviderMetadataName,
-        });
+            descriptions: this.newProviderMetadataDescription,
+        };
+        const data = new FormData();
+        data.append('logo', this.newProviderLogo[0]);
+        data.append(
+            'json',
+            new Blob(
+                [JSON.stringify(json)],
+                { type: 'application/json' },
+            ),
+        );
+        return this.$http.post('/api/v1/sso_providers/', data);
     }
 
     afterCreate(response: AxiosResponse<models.Saml2ProviderServerData>) {
@@ -126,24 +164,37 @@ export default class SSOProviders extends Vue {
             return 0;
         }
 
-        let min = Infinity;
+        let min = 200;
         this.providers.forEach(prov => {
             if (prov.logo == null) {
                 return;
             }
             min = Math.min(min, prov.logo.width);
         });
-        return min === Infinity ? 0 : min;
+        return min;
     }
 }
 </script>
 
-<style lang="less">
+<style lang="less" scoped>
 @import '~mixins.less';
 
 .sso-providers .sso-provider-list-item {
+    // We style the dark mode to be light too, as the logo's we're provided
+    // probably don't work with a dark background.
+    @{dark-mode} {
+        background-color: white;
+        a {
+            color: @text-color !important;
+        }
+
+        &.clickable:hover {
+            background-color: darken(white, 7.5) !important;
+        }
+    }
+
     &.clickable:hover {
-        background-color: rgba(0, 0, 0, 0.075);
+        background-color: rgba(0, 0, 0, 0.075) !important;
         cursor: pointer;
     }
     img {
