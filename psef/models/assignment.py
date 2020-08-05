@@ -1621,7 +1621,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         if self.available_at is None:
             raise APIException
-        max_time = psef.current_app.aconfig['EXAM_LOGIN_MAX_LENGTH']
+        max_time = psef.current_app.config['EXAM_LOGIN_MAX_LENGTH']
         if self.deadline is None:
             return
         if (self.available_at - self.deadline) > max_time:
