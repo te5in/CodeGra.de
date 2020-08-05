@@ -73,6 +73,7 @@ class _MetadataParser(OneLogin_Saml2_IdPMetadataParser):  # type: ignore[misc]
         entity_id: bool = None,
         **kwargs: t.Any
     ) -> dict:
+        assert validate_cert, 'Certificate validation is required'
         idp_metadata = cls.get_metadata(url, validate_cert)
         result = cls.parse(idp_metadata, entity_id=entity_id, **kwargs)
         dom = OneLogin_Saml2_XML.to_etree(idp_metadata)
