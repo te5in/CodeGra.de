@@ -6,6 +6,12 @@ Version *Next*
 
 **Released**: TBD
 
+**Features**
+
+- Add Sakai support `(#1408)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1408>`__. Full LTI integration
+  with Sakai.
+
 **Updates**
 
 - Use the same icons from the "Capture Points" AutoTest step for the "Unit
