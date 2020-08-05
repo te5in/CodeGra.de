@@ -18,6 +18,10 @@ from psef.permissions import CoursePermission as CPerm
 from psef.permissions import GlobalPermission as GPerm
 
 
+def test_data(*path):
+    return os.path.join(os.path.dirname(__file__), '..', 'test_data', *path)
+
+
 def get_id(obj):
     if isinstance(obj, dict):
         return obj['id']
@@ -301,10 +305,7 @@ def create_submission(
     assignment_id=None,
     err=None,
     submission_data=(
-        (
-            f'{os.path.dirname(__file__)}/../test_data/test_submissions/'
-            'multiple_dir_archive.zip'
-        ),
+        test_data('test_submissions', 'multiple_dir_archive.zip'),
         'f.zip',
     ),
     is_test_submission=False,
@@ -461,6 +462,62 @@ def get_newest_submissions(test_client, assignment):
             )
         )
     }
+
+
+def create_sso_provider(
+    test_client,
+    stub_function,
+    name,
+    *,
+    err=False,
+    ui_info=None,
+        description='A test SSO',
+):
+    with stub_function.temp_stub(
+        psef.models.saml_provider._MetadataParser,
+        'parse',
+        lambda: {
+            'idp': {
+                'ui_info':
+                    ui_info or {
+                        'name': name,
+                        'description': name + ' ' + name,
+                        'logo': None,
+                    }
+            }
+        },
+    ) as stub_parse, stub_function.temp_stub(
+        psef.models.saml_provider._MetadataParser, 'get_metadata', lambda: ''
+    ) as stub_download:
+        prov = test_client.req(
+            'post',
+            '/api/v1/sso_providers/',
+            err or 200,
+            real_data={
+                'json': (
+                    io.BytesIO(
+                        json.dumps({
+                            'metadata_url': 'test.com',
+                            'name': name,
+                            'description': description,
+                        }).encode()
+                    ), 'json'
+                ),
+                'logo': (test_data('test_images', 'codegrade.svg'), 'logo'),
+            },
+            result=create_error_template() if err else {
+                'id': str,
+                'metadata_url': 'test.com',
+                'ui_info': dict,
+            }
+        )
+
+        assert stub_parse.called == (not err)
+        assert stub_download.called == (not err)
+        for kwarg in stub_download.kwargs:
+            assert kwarg['validate_cert'] is True
+
+        return prov
 
 
 def get_simple_rubric():

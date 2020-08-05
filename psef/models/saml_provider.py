@@ -70,12 +70,30 @@ class _MetadataParser(OneLogin_Saml2_IdPMetadataParser):  # type: ignore[misc]
         cls,
         url: str,
         validate_cert: bool = True,
-        entity_id: bool = None,
+        entity_id: t.Optional[str] = None,
         **kwargs: t.Any
     ) -> dict:
         assert validate_cert, 'Certificate validation is required'
-        idp_metadata = cls.get_metadata(url, validate_cert)
-        result = cls.parse(idp_metadata, entity_id=entity_id, **kwargs)
+        idp_metadata = cls.get_metadata(url, validate_cert=validate_cert)
+        return cls.parse(idp_metadata, entity_id=entity_id, **kwargs)
+
+    @staticmethod
+    def parse(
+        idp_metadata: t.Union[str, bytes],
+        required_sso_binding: str = (
+            OneLogin_Saml2_Constants.BINDING_HTTP_REDIRECT
+        ),
+        required_slo_binding: str = (
+            OneLogin_Saml2_Constants.BINDING_HTTP_REDIRECT
+        ),
+        entity_id: t.Optional[str] = None,
+    ) -> dict:
+        result = super().parse(
+            idp_metadata,
+            required_sso_binding=required_sso_binding,
+            required_slo_binding=required_slo_binding,
+            entity_id=entity_id,
+        )
         dom = OneLogin_Saml2_XML.to_etree(idp_metadata)
         ns_map = {
             **OneLogin_Saml2_Constants.NSMAP,

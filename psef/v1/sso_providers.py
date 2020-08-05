@@ -71,7 +71,10 @@ def create_sso_providers() -> JSONResponse[models.Saml2Provider]:
 
     :returns: The just created provider.
     """
-    data = helpers.ensure_json_dict(json.load(flask.request.files['json']))
+    json_files = helpers.get_files_from_request(
+        max_size=current_app.max_single_file_size, keys=['json']
+    )
+    data = helpers.ensure_json_dict(json.load(json_files[0]))
 
     with helpers.get_from_map_transaction(data) as [get, _]:
         metadata_url = get('metadata_url', str)

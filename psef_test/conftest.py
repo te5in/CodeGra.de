@@ -695,12 +695,21 @@ def filename(request):
 
 @pytest.fixture
 def stub_function(stub_function_class, session, monkeypatch):
-    def inner_stub_function(module, name, *args, **kwargs):
-        stub = stub_function_class(*args, **kwargs)
-        monkeypatch.setattr(module, name, stub)
-        return stub
+    class inner_stub_function:
+        def __init__(self, mk):
+            self.mk = mk
 
-    yield inner_stub_function
+        def __call__(self, module, name, *args, **kwargs):
+            stub = stub_function_class(*args, **kwargs)
+            self.mk.setattr(module, name, stub)
+            return stub
+
+        @contextlib.contextmanager
+        def temp_stub(self, module, name, *args, **kwargs):
+            with self.mk.context() as ctx:
+                yield inner_stub_function(ctx)(module, name, *args, **kwargs)
+
+    yield inner_stub_function(monkeypatch)
 
 
 @pytest.fixture
