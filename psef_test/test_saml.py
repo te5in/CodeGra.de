@@ -42,6 +42,19 @@ def test_create_provider(
         assert provider2['ui_info']['description'] == 'TEST SSO'
         assert provider2['ui_info']['logo'] is None
 
+    with describe('Cannot add with invalid metadata url'
+                  ), logged_in(admin_user):
+        err = helpers.create_sso_provider(
+            test_client,
+            stub_function,
+            'SSO Prov 2',
+            description='TEST SSO',
+            ui_info='NOT VALID',
+            err=400,
+            no_call=False,
+        )
+        assert 'Could not parse the metadata' in err['message']
+
     with describe('Cannot create a provider as a normal user'
                   ), logged_in(user):
         helpers.create_sso_provider(test_client, stub_function, 'ERR', err=403)

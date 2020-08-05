@@ -9,6 +9,7 @@ import uuid
 import typing as t
 
 import flask
+import structlog
 from sqlalchemy.orm import undefer
 
 from cg_json import JSONResponse
@@ -17,6 +18,8 @@ from . import api
 from .. import auth, models, helpers, exceptions, current_app
 from ..models import db
 from ..permissions import GlobalPermission as GPerm
+
+logger = structlog.get_logger()
 
 
 @api.route('/sso_providers/', methods=['GET'])
@@ -92,7 +95,20 @@ def create_sso_providers() -> JSONResponse[models.Saml2Provider]:
         logo=logo,
     )
     db.session.add(prov)
-    prov.check_metadata_url()
+    db.session.flush()
+    try:
+        prov.check_metadata_url()
+    except:
+        logger.error(
+            'Error parsing given metadata url',
+            exc_info=True,
+            report_to_sentry=True,
+        )
+        raise exceptions.APIException(
+            'Could not parse the metadata in the given metadata url',
+            'The metadata could not be parsed',
+            exceptions.APICodes.INVALID_PARAM, 400
+        )
     db.session.commit()
 
     return JSONResponse.make(prov)

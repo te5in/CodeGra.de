@@ -243,7 +243,8 @@ class Saml2Provider(Base, UUIDMixin, TimestampMixin):
 
         This method will raise an exception if this is not the case.
         """
-        self._get_provider_metadata(force=True)
+        metadata = self._get_provider_metadata(force=True)
+        assert isinstance(metadata['ui_info'], dict)
 
     def _get_provider_metadata(
         self, force: bool

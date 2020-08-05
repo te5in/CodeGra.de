@@ -470,9 +470,12 @@ def create_sso_provider(
     name,
     *,
     err=False,
+    no_call=None,
     ui_info=None,
-        description='A test SSO',
+    description='A test SSO',
 ):
+    no_call = psef.helpers.handle_none(no_call, err)
+
     with stub_function.temp_stub(
         psef.models.saml_provider._MetadataParser,
         'parse',
@@ -512,8 +515,8 @@ def create_sso_provider(
             }
         )
 
-        assert stub_parse.called == (not err)
-        assert stub_download.called == (not err)
+        assert stub_parse.called_amount == 0 if no_call else 1
+        assert stub_download.called == 0 if no_call else 1
         for kwarg in stub_download.kwargs:
             assert kwarg['validate_cert'] is True
 
