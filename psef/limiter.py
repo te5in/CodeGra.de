@@ -35,6 +35,9 @@ _LIMITER = Limiter(
 
 
 def init_app(app: 'PsefFlask') -> None:
+    """Initialize rate limiting for the given app.
+    """
+
     def _handle_rate_limit_exceeded(_: RateLimitExceeded
                                     ) -> JSONResponse[errors.APIException]:
         return JSONResponse.make(
@@ -51,7 +54,7 @@ def init_app(app: 'PsefFlask') -> None:
     _LIMITER.init_app(app)
 
 
-T_CAL = t.TypeVar('T_CAL', bound=t.Callable)
+T_CAL = t.TypeVar('T_CAL', bound=t.Callable)  # pylint: disable=invalid-name
 
 
 def limit(
@@ -60,6 +63,16 @@ def limit(
     key_func: t.Callable[[], object],
     deduct_on_err_only: bool = False,
 ) -> t.Callable[[T_CAL], T_CAL]:
+    """Rate-limiting function decorator.
+
+    :param amount: The rate limiting specification for the decorated function.
+    :param key_func: The limit to be deduced (if necessary).
+    :param deduct_on_err_only: Whether to deduct from the limit only when an
+        error occurs or always.
+
+    :returns: A function that can be called a limited amount of times according
+        to the rate limiting specification.
+    """
     return _LIMITER.limit(
         amount,
         key_func=key_func,
