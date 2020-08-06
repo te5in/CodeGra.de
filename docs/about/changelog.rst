@@ -12,6 +12,10 @@ Version *Next*
   Test" step `(#1403) <https://github.com/CodeGra-de/CodeGra.de/pull/1403>`__.
   The "Unit Test" step would always use the green checkmark if the step did not
   crash, but now the icon depends on the score achieved.
+- Add rate limiting to login route `(#1410)
+  <https://github.com/CodeGra-de/CodeGra.de>`__. Make it impossible to
+  bruteforce someone's password by sending infinite requests to the login
+  route.
 
 Version Mosaic
 ---------------
