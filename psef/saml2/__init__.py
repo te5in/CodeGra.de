@@ -144,7 +144,7 @@ def _init_saml_auth(
             'idp': provider.provider_metadata,
             'contactPerson': {
                 'support': {
-                    'givenName': 'Support',
+                    'givenName': 'CodeGrade Support',
                     'emailAddress': 'support@codegrade.com',
                 },
             },
@@ -198,7 +198,7 @@ def do_saml_login(provider_id: uuid.UUID) -> Response:
     session[_session_key('TOKEN')] = token
     return_to = furl.furl(current_app.config['EXTERNAL_URL']).add(
         path=['sso_login', token],
-        args=request.args,
+        args=req['get_data'],
     ).tostr()
 
     sso_built_url = auth.login(return_to)

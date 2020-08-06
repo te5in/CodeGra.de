@@ -317,6 +317,9 @@ def test_valid_saml_flows(
 
         host = valid_response['http_host']
         http = 'https' if valid_response['https'] == 'on' else 'http'
+        external_url = furl.furl()
+        external_url.scheme = http
+        external_url.host = host
 
         session.commit()
         stub_function(
@@ -330,17 +333,18 @@ def test_valid_saml_flows(
                 sess['[SAML]_AuthNRequestID'] = auth_n_request
                 sess['[SAML]_TOKEN'] = token
 
-            res = client.post(
-                f'/api/sso/saml2/acs/{helpers.get_id(prov)}', data='Not used'
-            )
+            with monkeypatch.context() as ctx:
+                ctx.setitem(app.config, 'EXTERNAL_URL', external_url.tostr())
+
+                res = client.post(
+                    f'/api/sso/saml2/acs/{helpers.get_id(prov)}',
+                    data='Not used'
+                )
 
             assert 300 <= res.status_code < 400
             loc = res.headers['Location']
 
-            base = furl.furl()
-            base.scheme = http
-            base.host = host
-            base = base.add(path='/sso_login/')
+            base = furl.furl(external_url.tostr()).add(path='/sso_login/')
 
             assert loc.startswith(base.tostr())
             assert token == loc.split('/')[-1]
