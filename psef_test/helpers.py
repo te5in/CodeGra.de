@@ -5,6 +5,7 @@ import re
 import json
 import uuid
 import datetime
+import contextlib
 from copy import deepcopy
 
 import pytest
@@ -473,25 +474,37 @@ def create_sso_provider(
     no_call=None,
     ui_info=None,
     description='A test SSO',
+    no_stub=False,
 ):
     no_call = psef.helpers.handle_none(no_call, err)
 
-    with stub_function.temp_stub(
-        psef.models.saml_provider._MetadataParser,
-        'parse',
-        lambda: {
-            'idp': {
-                'ui_info':
-                    ui_info or {
-                        'name': name,
-                        'description': name + ' ' + name,
-                        'logo': None,
-                    }
-            }
-        },
-    ) as stub_parse, stub_function.temp_stub(
-        psef.models.saml_provider._MetadataParser, 'get_metadata', lambda: ''
-    ) as stub_download:
+    @contextlib.contextmanager
+    def stubbed():
+        if no_stub:
+            yield None, None
+        else:
+            with stub_function.temp_stubs() as stubber:
+                stub_parse = stubber.stub(
+                    psef.models.saml_provider._MetadataParser,
+                    'parse',
+                    lambda: {
+                        'idp': {
+                            'ui_info':
+                                ui_info or {
+                                    'name': name,
+                                    'description': name + ' ' + name,
+                                    'logo': None,
+                                }
+                        }
+                    },
+                )
+                stub_download = stubber.stub(
+                    psef.models.saml_provider._MetadataParser,
+                    'get_metadata', lambda: ''
+                )
+                yield stub_parse, stub_download
+
+    with stubbed() as (stub_parse, stub_download):
         prov = test_client.req(
             'post',
             '/api/v1/sso_providers/',
@@ -515,10 +528,11 @@ def create_sso_provider(
             }
         )
 
-        assert stub_parse.called_amount == 0 if no_call else 1
-        assert stub_download.called == 0 if no_call else 1
-        for kwarg in stub_download.kwargs:
-            assert kwarg['validate_cert'] is True
+        if not no_stub:
+            assert stub_parse.called_amount == 0 if no_call else 1
+            assert stub_download.called == 0 if no_call else 1
+            for kwarg in stub_download.kwargs:
+                assert kwarg['validate_cert'] is True
 
         return prov
 

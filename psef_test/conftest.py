@@ -13,6 +13,7 @@ import logging
 import secrets
 import datetime
 import functools
+import itertools
 import contextlib
 import subprocess
 import collections
@@ -624,27 +625,29 @@ def course(session, course_name):
     yield LocalProxy(session.query(m.Course).filter_by(name=course_name).first)
 
 
-DESCRIBE_HOOKS = []
-
-
 @pytest.fixture
 def describe():
-    @contextlib.contextmanager
-    def inner(name):
-        print()
-        sep = '+={}=+'.format('=' * len(name))
-        print(sep)
-        print('|', name, '|')
-        print(sep)
-        print()
-        sys.stdout.flush()
-        yield
-        for i, h in enumerate(DESCRIBE_HOOKS):
-            h()
+    class Describe:
+        def __init__(self):
+            self._hooks = []
 
-    yield inner
+        def add_hook(self, hook):
+            self._hooks.append(hook)
 
-    DESCRIBE_HOOKS.clear()
+        @contextlib.contextmanager
+        def __call__(self, name):
+            print()
+            sep = '+={}=+'.format('=' * len(name))
+            print(sep)
+            print('|', name, '|')
+            print(sep)
+            print()
+            sys.stdout.flush()
+            yield
+            for hook in self._hooks:
+                hook()
+
+    yield Describe()
 
 
 @pytest.fixture(params=[False])
@@ -699,15 +702,18 @@ def stub_function(stub_function_class, session, monkeypatch):
         def __init__(self, mk):
             self.mk = mk
 
-        def __call__(self, module, name, *args, **kwargs):
+        def __call__(self, *args, **kwargs):
+            return self.stub(*args, **kwargs)
+
+        def stub(self, module, name, *args, **kwargs):
             stub = stub_function_class(*args, **kwargs)
             self.mk.setattr(module, name, stub)
             return stub
 
         @contextlib.contextmanager
-        def temp_stub(self, module, name, *args, **kwargs):
+        def temp_stubs(self):
             with self.mk.context() as ctx:
-                yield inner_stub_function(ctx)(module, name, *args, **kwargs)
+                yield type(self)(ctx)
 
     yield inner_stub_function(monkeypatch)
 
@@ -781,7 +787,7 @@ def make_function_spy(monkeypatch, stub_function_class):
 
 
 @pytest.fixture
-def stub_function_class():
+def stub_function_class(describe):
     class StubFunction:
         def __init__(
             self, ret_func=lambda: None, with_args=False, pass_self=False
@@ -793,7 +799,7 @@ def stub_function_class():
             self.with_args = with_args
             self.call_dates = []
             self.pass_self = pass_self
-            DESCRIBE_HOOKS.append(self.reset)
+            describe.add_hook(self.reset)
 
         def __call__(self, *args, **kwargs):
             return self.make_callable(self.ret_func)(*args, **kwargs)
@@ -947,7 +953,7 @@ def live_server(app, live_server_url, db):
 
 
 @pytest.fixture
-def stubmailer(monkeypatch):
+def stubmailer(monkeypatch, describe):
     class StubMailer():
         def __init__(self):
             self.msg = None
@@ -956,7 +962,7 @@ def stubmailer(monkeypatch):
             self.args = []
             self.kwargs = []
             self.times_connect_called = 0
-            DESCRIBE_HOOKS.append(self.reset)
+            describe.add_hook(self.reset)
 
         def send(self, msg):
             self.called += 1

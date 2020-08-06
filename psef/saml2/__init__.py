@@ -27,6 +27,7 @@ from onelogin.saml2.settings import OneLogin_Saml2_Settings
 from onelogin.saml2.constants import OneLogin_Saml2_Constants
 
 import cg_json
+from cg_helpers import maybe_wrap_in_list
 
 from .. import PsefFlask, models, helpers, exceptions, current_app
 from ..models import db
@@ -35,7 +36,7 @@ from ..helpers import readable_join
 logger = structlog.get_logger()
 
 MDUI_NAMESPACE: Final = 'urn:oasis:names:tc:SAML:metadata:ui'
-_SAML_SESSION_PREFIX = 'SAML_'
+_SAML_SESSION_PREFIX = '[SAML]'
 _MAX_BLOB_AGE = timedelta(minutes=5)
 
 saml = flask.Blueprint(
@@ -54,6 +55,12 @@ def _make_saml_url() -> furl.furl:
     )
 
 
+def _clear_session():
+    for key in list(session.keys()):
+        if key.startswith(_SAML_SESSION_PREFIX):
+            del session[key]
+
+
 def _make_error(
     title: str,
     message: str,
@@ -70,6 +77,7 @@ def _make_error(
         error_reason=auth and auth.get_last_error_reason(),
         report_to_sentry=True,
     )
+    _clear_session()
     return (
         flask.render_template(
             'error_page.j2', error_title=title, error_message=message
@@ -108,11 +116,12 @@ def _init_saml_auth(
     bindings = 'urn:oasis:names:tc:SAML:2.0:bindings'
     entityId = _make_saml_url().add(path=['metadata', provider.id]).tostr()
     acs_url = _make_saml_url().add(path=['acs', provider.id]).tostr()
+    strict = not current_app.config['DEBUG'] or current_app.config['TESTING']
 
     # yapf: disable
     settings = OneLogin_Saml2_Settings(
         settings={
-            'strict': not current_app.config['DEBUG'],
+            'strict': strict,
             'debug': current_app.config['DEBUG'],
             'security': {
                 'authnRequestsSigned': True,
@@ -213,8 +222,7 @@ def get_acs(provider_id: uuid.UUID) -> t.Union[t.Tuple[str, int], Response]:
     provider = helpers.get_or_404(models.Saml2Provider, provider_id)
     auth = _init_saml_auth(req, provider)
 
-    request_id = session.get(_session_key('AuthNRequestID'), str(uuid.uuid4()))
-    session.pop(_session_key('AuthNRequestID'), None)
+    request_id = session.pop(_session_key('AuthNRequestID'), str(uuid.uuid4()))
     auth.process_response(request_id=request_id)
     errors = auth.get_errors()
 
@@ -225,16 +233,29 @@ def get_acs(provider_id: uuid.UUID) -> t.Union[t.Tuple[str, int], Response]:
         )
 
         error_message = error_title
-        if auth.get_settings().is_debug_active():  # pragma: no cover
-            error_message = auth.get_last_error_reason() or error_title
+        if current_app.config['DEBUG']:
+            error_message = readable_join(
+                [str(err) for err in errors]
+            ) or error_title
 
         return _make_error(
-            error_title,
+            flask.escape(error_title),
             flask.escape(error_message),
             auth=auth,
         )
 
-    redirect_target = auth.redirect_to(request.form['RelayState'])
+    relay_state = req['post_data'].get('RelayState')
+    if relay_state is None:
+        return _make_error(
+            'No redirection target found',
+            (
+                'The login request did not contain a redirection target.'
+                ' Please note that CodeGrade does not support unsolicited'
+                ' login request'
+            ),
+        )
+
+    redirect_target = auth.redirect_to(relay_state)
     if not redirect_target.startswith(current_app.config['EXTERNAL_URL']):
         return _make_error(
             'Wrong redirection target found', (
@@ -249,11 +270,11 @@ def get_acs(provider_id: uuid.UUID) -> t.Union[t.Tuple[str, int], Response]:
     if auth.get_nameid_format() != OneLogin_Saml2_Constants.NAMEID_PERSISTENT:
         return _make_error(
             'Incorrect nameId type',
-            (
-                'Got a wrong type of name id, so we cannot log you in. (Got:'
-                ' {})'
-            ).format(
-                auth.get_nameid_format(),
+            flask.escape(
+                (
+                    'Got a wrong type of name id, so we cannot log you in.'
+                    ' (Got: {})'
+                ).format(auth.get_nameid_format()),
             ),
             auth=auth,
         )
@@ -285,16 +306,16 @@ def get_acs(provider_id: uuid.UUID) -> t.Union[t.Tuple[str, int], Response]:
     user = models.UserSamlProvider.get_or_create_user(
         name_id=name_id,
         saml2_provider=provider,
-        username=username[0],
-        email=email[0],
-        full_name=full_name[0],
+        username=maybe_wrap_in_list(username)[0],
+        email=maybe_wrap_in_list(email)[0],
+        full_name=maybe_wrap_in_list(full_name)[0],
     )
 
     blob = models.BlobStorage(
         json={
             'provider_id': str(provider_id),
             'user_id': user.id,
-            'token': session[_session_key('TOKEN')],
+            'token': session.get(_session_key('TOKEN'), str(uuid.uuid4())),
         },
     )
     db.session.add(blob)
@@ -323,7 +344,18 @@ def get_jwt_from_success_full_login(
 
     :returns: A mapping containing one key (``access_token``).
     """
+    if not all(_session_key(k) in session for k in ['DB_BLOB_ID', 'TOKEN']):
+        _clear_session()
+        raise exceptions.APIException(
+            'Could not find all required data in the session', (
+                'This route will only work if data set in earlier phases of'
+                ' the SAML login is present in the session, this was not the'
+                ' case.'
+            ), exceptions.APICodes.INVALID_STATE, 409
+        )
     blob_id = uuid.UUID(session[_session_key('DB_BLOB_ID')])
+    session_token = session[_session_key('TOKEN')]
+    _clear_session()
 
     blob = helpers.filter_single_or_404(
         models.BlobStorage,
@@ -334,7 +366,6 @@ def get_jwt_from_success_full_login(
     blob_json = blob.as_json()
     assert isinstance(blob_json, dict)
     found_token = blob_json.get('token')
-    session_token = session.get(_session_key('TOKEN'))
 
     if str(token) != found_token or session_token != found_token:
         raise exceptions.APIException(
@@ -342,9 +373,6 @@ def get_jwt_from_success_full_login(
             'The given token does not match your session and/or the found jwt',
             exceptions.APICodes.INVALID_URL, 400
         )
-
-    del session[_session_key('DB_BLOB_ID')]
-    del session[_session_key('TOKEN')]
 
     user = helpers.get_or_404(models.User, blob_json['user_id'])
     db.session.delete(blob)
@@ -434,10 +462,10 @@ def get_metadata(provider_id: uuid.UUID
     metadata = ET.tostring(tree)
     errors = settings.validate_metadata(metadata)
 
-    if errors:
+    if errors:  # pragma: no cover
         return _make_error(
             'Error generating metadata',
-            flask.escape(readable_join(list(errors))),
+            flask.escape(readable_join([str(err) for err in errors])),
         )
     else:
         resp = flask.make_response(metadata, 200)
