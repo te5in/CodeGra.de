@@ -12,6 +12,10 @@ Version *Next*
   Test" step `(#1403) <https://github.com/CodeGra-de/CodeGra.de/pull/1403>`__.
   The "Unit Test" step would always use the green checkmark if the step did not
   crash, but now the icon depends on the score achieved.
+- Make the peer feedback counters for students more clear `(#1406)
+  <https://github.com/CodeGra-de/CodeGra.de/pull 1406>`__. This changes the
+  counters with the number of comments students have given to their peirs to be
+  clearer and give more detailed information.
 - Remove bin size "year" for the "Students submitted on" graph in the analytics
   dashboard `(#1407) <https://github.com/CodeGra-de/CodeGra.de/pull/1407>`__.
   The years option did not work very nicely because it didn't use the correct
