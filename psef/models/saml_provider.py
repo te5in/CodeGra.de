@@ -77,8 +77,9 @@ class _MetadataParser(OneLogin_Saml2_IdPMetadataParser):  # type: ignore[misc]
         idp_metadata = cls.get_metadata(url, validate_cert=validate_cert)
         return cls.parse(idp_metadata, entity_id=entity_id, **kwargs)
 
-    @staticmethod
+    @classmethod
     def parse(
+        cls,
         idp_metadata: t.Union[str, bytes],
         required_sso_binding: str = (
             OneLogin_Saml2_Constants.BINDING_HTTP_REDIRECT
