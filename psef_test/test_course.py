@@ -1986,3 +1986,32 @@ def test_successful_email_course_members(
             }
         )
         assert stubmailer.times_called == 4
+
+
+def test_cannot_add_registration_link_to_lti_course(
+    describe, logged_in, admin_user, session, app, tomorrow, test_client
+):
+    with describe('setup'):
+        c = helpers.create_lti_course(session, app, user=admin_user)
+        role = m.CourseRole(
+            name=str(uuid.uuid4()),
+            course=helpers.to_db_object(c, m.Course),
+            hidden=False,
+        )
+        session.add(role)
+        session.commit()
+
+    with describe('Cannot add registration link'), logged_in(admin_user):
+        err = test_client.req(
+            'put',
+            f'/api/v1/courses/{helpers.get_id(c)}/registration_links/',
+            400,
+            data={
+                'role_id': helpers.get_id(role),
+                'expiration_date': tomorrow.isoformat(),
+                'allow_register': False,
+            },
+        )
+
+        assert ('cannot create course enroll links in LTI courses'
+                ) in err['message']
