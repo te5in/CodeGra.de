@@ -38,7 +38,7 @@
             </li>
         </ul>
         <div v-if="adminMode">
-            <hr />
+            <hr v-if="providers && providers.length > 0" />
             <h6>Create a new SSO Identity Provider</h6>
             <b-form>
                 <b-form-group label="Metadata URL">
@@ -69,7 +69,7 @@
 
                 <b-form-group
                     label="Logo URL"
-                    description="If no logo can be found in the metadata of the IdP this will be displayed instead. This should be a publicly accessible URL.">
+                    description="If no logo can be found in the metadata of the IdP this will be displayed instead.">
                     <multiple-files-uploader
                         disable-multiple-files
                         v-model="newProviderLogo"
