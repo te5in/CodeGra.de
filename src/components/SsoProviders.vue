@@ -139,7 +139,7 @@ export default class SSOProviders extends Vue {
         const json = {
             metadata_url: this.newProviderMetadataUrl,
             name: this.newProviderMetadataName,
-            descriptions: this.newProviderMetadataDescription,
+            description: this.newProviderMetadataDescription,
         };
         const data = new FormData();
         data.append('logo', this.newProviderLogo[0]);
