@@ -5,6 +5,7 @@ export function trace<X>(x: X, transform: (x: X) => any = y => y): X {
     // and returns the value unchanged. Optionally pass a transformation
     // function which is applied only to the logged value.
 
+    // eslint-disable-next-line no-console
     console.log(transform(x), new Error().stack);
     return x;
 }
