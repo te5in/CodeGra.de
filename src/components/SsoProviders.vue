@@ -2,7 +2,6 @@
 <template>
 <div class="sso-providers">
     <b-alert variant="danger" class="m-0" show v-if="error">
-        {{ error }}
         {{ $utils.getErrorMessage(error) }}
     </b-alert>
     <div v-else-if="providers != null">
@@ -85,7 +84,6 @@
         </div>
     </div>
     <cg-loader v-else-if="adminMode" />
-    <div
 </div>
 </template>
 

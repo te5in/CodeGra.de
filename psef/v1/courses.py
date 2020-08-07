@@ -1094,10 +1094,7 @@ def register_current_user_in_course(
             return EmptyResponse.make()
 
         raise APIException(
-            (
-                'This user is already enrolled in this course with a different'
-                ' role'
-            ), (
+            'You are already enrolled in this course with a different role', (
                 f'The user {current_user.id} is already enrolled in'
                 f' {link.course_id}'
             ), APICodes.INVALID_STATE, 409
@@ -1113,7 +1110,7 @@ def register_current_user_in_course(
 )
 def get_register_link(course_id: int, link_id: uuid.UUID
                       ) -> ExtendedJSONResponse[models.CourseRegistrationLink]:
-    """Get a registration link
+    """Get a registration link.
 
     .. :quickref: Course; Get the data in a registration link.
 

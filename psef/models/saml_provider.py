@@ -52,8 +52,6 @@ class SamlUiInfo(TypedDict, total=True):
 
 class Saml2ProviderJSON(TypedDict, total=True):
     """The serialization of a :class:`Saml2Provider`.
-
-    See the comments in the source code for the meaning of each field.
     """
     #: The ``id`` of the provider.
     id: uuid.UUID
@@ -63,7 +61,10 @@ class Saml2ProviderJSON(TypedDict, total=True):
     ui_info: SamlUiInfo
 
 
-# We are not allowed to subclass `Any`, but we do need a subclass here.
+# We are not (by mypy) allowed to subclass an ``Any`` type. However we need to
+# subclass ``OneLogin_Saml2_IdPMetadataParser`` as we need to implement parsing
+# the name, description and logo from the metadata. As this class is seen as
+# ``Any`` by mypy (it has no type defs) we simply ignore the error here.
 class _MetadataParser(OneLogin_Saml2_IdPMetadataParser):  # type: ignore[misc]
     @classmethod
     def parse_remote(
@@ -303,10 +304,10 @@ class UserSamlProvider(Base, TimestampMixin):
     name_id = db.Column('name_id', db.Unicode, nullable=False, index=True)
 
     __table_args__ = (
-        # A user can only be connected once to an LTI Provider
+        # A user can only be connected once to an IdP Provider
         db.PrimaryKeyConstraint(user_id, saml2_provider_id),
-        # LTI user ids should be unique for a single LTI provider, however they
-        # are NOT (!) globally unique between LMSes.
+        # NameIds should be unique for a single IdP provider, however they
+        # are NOT (!) globally unique between IdPs.
         db.UniqueConstraint(saml2_provider_id, name_id),
     )
 

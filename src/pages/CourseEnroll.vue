@@ -143,7 +143,7 @@ export default class CourseEnroll extends Vue {
 
     get allowRegister() {
         // eslint-disable-next-line camelcase
-        return this.$userConfig.features.course_register && (this.link?.allow_register ?? true);
+        return this.$userConfig.features.course_register && (this.link?.allow_register ?? false);
     }
 
     @Watch('directEnroll', { immediate: true })

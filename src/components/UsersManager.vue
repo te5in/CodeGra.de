@@ -6,7 +6,7 @@
     <b-card class="registration-link-wrapper mb-3" v-if="course.permissions.can_edit_course_users && !course.is_lti">
         <template #header>
             Course enroll links
-            <cg-description-popover hug-text>
+            <cg-description-popover>
                 With these links users can join this course as the role you specify.
                 <template v-if="courseRegister">
                     If users do not already have an account they can also register with this link.
@@ -225,9 +225,9 @@
                                    :submit="addUser"
                                    @success="afterAddUser"
                                :disabled="course.is_lti"/>
-            </template>
-        </b-input-group>
-    </b-form-fieldset>
+                </template>
+            </b-input-group>
+        </b-form-fieldset>
     </b-card>
 </div>
 </template>

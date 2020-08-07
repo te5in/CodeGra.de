@@ -1,7 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<div class="login"
-    v-show="loaded">
+<div class="login">
     <b-form-group label="Username:">
         <input type="text"
                class="form-control"
@@ -38,10 +37,9 @@
         </div>
     </div>
 
-    <sso-providers hide-loader
-                   @saml-login="$emit('saml-login', $event)"
+    <sso-providers @saml-login="$emit('saml-login', $event)"
                    allow-login>
-        <hr  />
+        <hr />
         <h5>Or login using</h5>
     </sso-providers>
 </div>
@@ -73,7 +71,6 @@ export default {
         return {
             username: '',
             password: '',
-            loaded: false,
         };
     },
 
@@ -84,10 +81,6 @@ export default {
     },
 
     mounted() {
-        this.$afterRerender().then(() => {
-            this.loaded = true;
-        });
-
         this.$waitForRef('username').then(userInput => {
             if (userInput != null) {
                 this.$refs.username.focus();
