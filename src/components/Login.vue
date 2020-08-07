@@ -21,8 +21,13 @@
                    @keyup.enter="$refs.submit.onClick" />
         </b-form-group>
 
-        <div class="d-flex justify-content-between align-items-center">
-            <router-link :to="{ name: 'forgot' }"  v-show="!hideForget"
+        <div class="d-flex align-items-center"
+             :class="{
+                 'justify-content-between': !hideForget,
+                 'justify-content-end': hideForget,
+             }">
+            <router-link :to="{ name: 'forgot' }"
+                         v-show="!hideForget"
                          class="forget-link">
                 Forgot password
             </router-link>

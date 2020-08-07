@@ -45,7 +45,7 @@
     <b-form-group label="Repeat password">
         <input class="form-control"
                placeholder="Repeat your password"
-               v-model="firstPw"
+               v-model="secondPw"
                tabindex="6"
                type="password" />
     </b-form-group>
@@ -119,7 +119,7 @@ export default {
 
             fieldLabels: {
                 username: 'Username',
-                name: 'Full name',
+                name: 'Name',
                 firstEmail: 'Email',
                 secondEmail: 'Repeat email',
                 firstPw: 'Password',
