@@ -22,7 +22,7 @@
                        type="password"
                        v-model="confirmPw"
                        placeholder="Repeat your new password"
-                       name="password"
+                       name="repeat-password"
                        @keyup.enter="$refs.btn.onClick" />
             </b-form-group>
 
