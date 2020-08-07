@@ -226,6 +226,17 @@ def test_invalid_saml_flows(
             assert b'Something went wrong during login' in res.get_data()
             assert_empty_session()
 
+    with describe('RelayState is required'), test_client as client:
+        with auth_stubbed():
+            res = client.post(
+                f'/api/sso/saml2/acs/{helpers.get_id(prov)}',
+                data={}
+            )
+            assert res.status_code == 400
+            assert b'No redirection target found' in res.get_data()
+            assert_empty_session()
+
+
     with describe('cannot redirect outside of url'), test_client as client:
         redirect_url = 'https://google.com!'
         with auth_stubbed():
