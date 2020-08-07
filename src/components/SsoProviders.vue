@@ -5,7 +5,9 @@
         {{ $utils.getErrorMessage(error) }}
     </b-alert>
     <div v-else-if="providers != null">
-        <slot  />
+        <template v-if="providers.length > 0">
+            <slot  />
+        </template>
 
         <ul class="mb-0 list-group">
             <li v-for="provider in providers" :key="provider.id"
