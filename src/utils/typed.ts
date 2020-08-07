@@ -179,7 +179,7 @@ export class AssertionError extends Error {
 export function buildUrl(
     parts: ReadonlyArray<string | number> | string,
     args: {
-        query?: Record<string, string | boolean>;
+        query?: Record<string, string | boolean | number>;
         hash?: string;
         addTrailingSlash?: boolean;
     } & OneOrOther<AllOrNone<{
