@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
+import re
 import copy
 import datetime
 
@@ -508,7 +509,6 @@ def test_reset_password(
     msg = str(stubmailer.msg)
     start_id = msg.find('user=') + len('user=')
     end_id = msg[start_id:].find('&token=') + start_id
-    print(msg, start_id, end_id)
     user_id = int(msg[start_id:end_id])
 
     start_token = end_id + len('&token=')
@@ -729,4 +729,24 @@ def test_timeout_jwt_token(test_client, session, describe, logged_in, app):
             '/api/v1/login',
             401,
             headers={'Authorization': f'Bearer jdalksfjakldfjlkadjsdlkf'}
+        )
+
+
+def test_reset_password_without_perm(
+    test_client, session, error_template, describe
+):
+    with describe('setup'):
+        user = create_user_with_perms(session, [], [], gperms=[])
+
+    with describe('Cannot get reset password link'):
+        test_client.req(
+            'patch',
+            '/api/v1/login?type=reset_email',
+            403,
+            data={'username': user.username},
+            result={
+                **error_template,
+                'message':
+                    re.compile('^This user.*necessary.*reset.*own password'),
+            }
         )
