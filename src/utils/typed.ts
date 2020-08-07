@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
 import moment from 'moment';
 // eslint-disable-next-line
 import type { ICompiledMode } from 'highlightjs';
@@ -16,6 +17,7 @@ export * from 'purify-ts/EitherAsync';
 export * from 'purify-ts/Maybe';
 
 export * from './error';
+export * from './debug';
 
 export type ValueOf<T> = T[keyof T];
 
