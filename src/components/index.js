@@ -25,7 +25,6 @@ export { default as Login } from './Login';
 export { default as ForgotPassword } from './ForgotPassword';
 export { default as Register } from './Register';
 export { default as Notifications } from './Notifications';
-export { default as PasswordInput } from './PasswordInput';
 export { default as PasswordSuggestions } from './PasswordSuggestions';
 export { default as PdfViewer } from './PdfViewer';
 export { default as PermissionsManager } from './PermissionsManager';

@@ -1,41 +1,45 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="login">
-    <b-form-group label="Username:">
-        <input type="text"
-               class="form-control"
-               placeholder="Enter your username"
-               v-model="username"
-               ref="username"
-               name="username"
-               @keyup.enter="$refs.submit.onClick"/>
-    </b-form-group>
+    <b-form @submit="() => $refs.submit.onClick()">
+        <b-form-group label="Username:">
+            <input type="text"
+                   class="form-control"
+                   placeholder="Enter your username"
+                   v-model="username"
+                   ref="username"
+                   name="username"
+                   @keyup.enter="$refs.submit.onClick"/>
+        </b-form-group>
 
-    <b-form-group label="Password:">
-        <password-input v-model="password"
-                        placeholder="Enter your password"
-                        name="password"
-                        @keyup.native.enter="$refs.submit.onClick"/>
-    </b-form-group>
+        <b-form-group label="Password:">
+            <input class="form-control"
+                   type="password"
+                   v-model="password"
+                   placeholder="Enter your password"
+                   name="password"
+                   @keyup.enter="$refs.submit.onClick" />
+        </b-form-group>
 
-    <div class="text-right">
-        <submit-button :label="loginLabel"
-                       ref="submit"
-                       :submit="submit"
-                       @success="success"
-                       :wait-at-least="0">
-            <template slot="warning" slot-scope="scope">
-                {{ scope.warning.messages.map(x => x.text).join(' ') }}<br>
+        <div class="d-flex justify-content-between align-items-center">
+            <router-link :to="{ name: 'forgot' }"  v-show="!hideForget"
+                         class="forget-link">
+                Forgot password
+            </router-link>
+
+            <submit-button :label="loginLabel"
+                           ref="submit"
+                           :submit="submit"
+                           @success="success"
+                           :wait-at-least="0">
+                <template slot="warning" slot-scope="scope">
+                    {{ scope.warning.messages.map(x => x.text).join(' ') }}<br>
                 Close this message to continue.
             </template>
         </submit-button>
 
-        <div class="login-links" v-if="!hideForget">
-            <router-link :to="{ name: 'forgot' }">
-                Forgot password
-            </router-link>
-        </div>
     </div>
+    </b-form>
 
     <sso-providers @saml-login="$emit('saml-login', $event)"
                    allow-login>
@@ -48,7 +52,6 @@
 <script>
 import { mapActions } from 'vuex';
 
-import PasswordInput from './PasswordInput';
 import SubmitButton from './SubmitButton';
 import SsoProviders from './SsoProviders';
 
@@ -75,7 +78,6 @@ export default {
     },
 
     components: {
-        PasswordInput,
         SubmitButton,
         SsoProviders,
     },
@@ -112,12 +114,7 @@ export default {
 </script>
 
 <style lang="less" scoped>
-@link-margin: 2em;
-.login-links {
-    margin-top: 1rem;
-
-    a {
-        text-decoration: underline !important;
-    }
+a.forget-link {
+    text-decoration: underline !important;
 }
 </style>
