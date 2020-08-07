@@ -114,7 +114,7 @@ module.exports = {
             'endOfLine': 'auto',
         }],
         "no-restricted-syntax": [
-            "warning",
+            "warn",
             {
                 "selector": "CallExpression[callee.name='trace']",
                 "message": "Trace calls should be removed."
