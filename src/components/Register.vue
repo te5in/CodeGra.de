@@ -97,7 +97,7 @@ export default {
             required: true,
         },
 
-        newRoute: {
+        redirectRoute: {
             type: Object,
             default: () => ({
                 name: 'home',
@@ -168,7 +168,7 @@ export default {
             const token = response.data.access_token;
             if (token) {
                 this.updateAccessToken(token).then(() => {
-                    this.$router.push(this.newRoute);
+                    this.$router.push(this.redirectRoute);
                 });
             }
         },

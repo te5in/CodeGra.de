@@ -51,7 +51,7 @@
             <div class="col-lg-6" v-if="allowRegister">
                 <b-card header="Join as a new user">
                     <register :registration-url="registrationUrl"
-                              :new-route="newRoute"/>
+                              :redirect-route="redirectRoute"/>
                 </b-card>
             </div>
         </div>
@@ -127,7 +127,7 @@ export default class CourseEnroll extends Vue {
         return this.$route.params.linkId;
     }
 
-    get newRoute() {
+    get redirectRoute() {
         return {
             name: 'home',
             query: {
@@ -161,7 +161,7 @@ export default class CourseEnroll extends Vue {
     }
 
     afterJoin() {
-        this.$router.push(this.newRoute);
+        this.$router.push(this.redirectRoute);
     }
 
     joinWithCurrentAccount() {

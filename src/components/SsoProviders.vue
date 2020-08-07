@@ -10,8 +10,9 @@
         <ul class="mb-0 list-group">
             <li v-for="provider in providers" :key="provider.id"
                 :class="{ 'clickable': !adminMode }"
-                class="list-group-item sso-provider-list-item">
+                class="list-group-item sso-provider-list-item p-0">
                 <a :href="adminMode ? undefined : provider.loginUrl"
+                   class="sso-link d-block"
                    @click.prevent="() => !adminMode && $emit('saml-login', provider)">
                     <div class="d-flex flex-row">
                         <img :src="provider.logoUrl"
@@ -182,7 +183,7 @@ export default class SSOProviders extends Vue {
     // probably don't work with a dark background.
     @{dark-mode} {
         background-color: white;
-        a {
+        .sso-link {
             color: @text-color !important;
         }
 
@@ -198,6 +199,10 @@ export default class SSOProviders extends Vue {
     img {
         margin: auto 1rem;
         object-fit: scale-down;
+    }
+
+    .sso-link {
+        padding: 0.75rem 1.25rem;
     }
 }
 </style>
