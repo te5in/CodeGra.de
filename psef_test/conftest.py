@@ -119,7 +119,6 @@ def make_app_settings(request):
                 "{config}",
                 "{files}",
             ],
-            'SERVER_NAME': None,
             'PMD_PROGRAM': [
                 os.path.join(
                     os.path.dirname(__file__), '..', './pmd/bin/run.sh'

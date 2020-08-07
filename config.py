@@ -350,8 +350,6 @@ set_str(CONFIG, backend_ops, 'PROXY_BASE_DOMAIN', '')
 CONFIG['EXTERNAL_DOMAIN'] = urllib.parse.urlparse(
     CONFIG['EXTERNAL_URL']
 ).hostname
-if CONFIG['EXTERNAL_DOMAIN'] and not CONFIG['DEBUG']:
-    CONFIG['SERVER_NAME'] = CONFIG['EXTERNAL_DOMAIN']
 CONFIG['PREFERRED_URL_SCHEME'] = 'https'
 
 set_str(CONFIG, backend_ops, 'JAVA_PATH', 'java')
