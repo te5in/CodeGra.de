@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="forgot-password">
-    <b-form-group label="Username:">
+    <b-form-group label="Username">
         <input type="text"
                class="form-control"
                name="username"

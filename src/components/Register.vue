@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="register">
-    <b-form-group label="Username:"
+    <b-form-group label="Username"
                   description="You cannot change your username after the registration.">
         <input type="text"
                placeholder="Enter your wanted username"
@@ -10,7 +10,7 @@
                tabindex="1"/>
     </b-form-group>
 
-    <b-form-group label="Name:">
+    <b-form-group label="Name">
         <input type="text"
                placeholder="Enter your full name"
                class="form-control"
@@ -18,7 +18,7 @@
                tabindex="2" />
     </b-form-group>
 
-    <b-form-group label="Email address:">
+    <b-form-group label="Email address">
         <input type="email"
                placeholder="Enter your email"
                class="form-control"
@@ -26,7 +26,7 @@
                tabindex="3" />
     </b-form-group>
 
-    <b-form-group label="Repeat email address:">
+    <b-form-group label="Repeat email address">
         <input type="email"
                class="form-control"
                placeholder="Repeat your email"
@@ -34,7 +34,7 @@
                tabindex="4" />
     </b-form-group>
 
-    <b-form-group label="Password:">
+    <b-form-group label="Password">
         <input class="form-control"
                placeholder="Enter a unique and secure password"
                v-model="firstPw"
@@ -42,7 +42,7 @@
                type="password" />
     </b-form-group>
 
-    <b-form-group label="Repeat password:">
+    <b-form-group label="Repeat password">
         <input class="form-control"
                placeholder="Repeat your password"
                v-model="firstPw"

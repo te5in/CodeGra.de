@@ -8,7 +8,7 @@
         <h4>Reset your password</h4>
 
         <b-form @submit="() => $refs.btn.onClick()">
-            <b-form-group label="New password:">
+            <b-form-group label="New password">
                 <input class="form-control"
                        type="password"
                        v-model="newPw"
@@ -17,7 +17,7 @@
                        @keyup.enter="$refs.btn.onClick" />
             </b-form-group>
 
-            <b-form-group label="Repeat password:">
+            <b-form-group label="Repeat password">
                 <input class="form-control"
                        type="password"
                        v-model="confirmPw"

@@ -2,7 +2,7 @@
 <template>
 <div class="login">
     <b-form @submit="() => $refs.submit.onClick()">
-        <b-form-group label="Username:">
+        <b-form-group label="Username">
             <input type="text"
                    class="form-control"
                    placeholder="Enter your username"
@@ -12,7 +12,7 @@
                    @keyup.enter="$refs.submit.onClick"/>
         </b-form-group>
 
-        <b-form-group label="Password:">
+        <b-form-group label="Password">
             <input class="form-control"
                    type="password"
                    v-model="password"

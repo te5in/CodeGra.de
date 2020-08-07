@@ -41,7 +41,7 @@
             <hr />
             <h6>Create a new SSO Identity Provider</h6>
             <b-form>
-                <b-form-group label="Metadata URL:">
+                <b-form-group label="Metadata URL">
                     <input type="text"
                            class="form-control"
                            placeholder="Enter metadata url"
@@ -49,7 +49,7 @@
                            @keyup.enter="() => $refs.create.onClick()"/>
                 </b-form-group>
 
-                <b-form-group label="Backup name:"
+                <b-form-group label="Backup name"
                               description="If no name can be found in the metadata of the IdP this will be displayed to the user.">
                     <input type="text"
                            class="form-control"
@@ -58,7 +58,7 @@
                            @keyup.enter="() => $refs.create.onClick()"/>
                 </b-form-group>
 
-                <b-form-group label="Backup description:"
+                <b-form-group label="Backup description"
                               description="If no description can be found in the metadata of the IdP this will be displayed to the user.">
                     <input type="text"
                            class="form-control"
@@ -68,7 +68,7 @@
                 </b-form-group>
 
                 <b-form-group
-                    label="Logo URL:"
+                    label="Logo URL"
                     description="If no logo can be found in the metadata of the IdP this will be displayed instead. This should be a publicly accessible URL.">
                     <multiple-files-uploader
                         disable-multiple-files
