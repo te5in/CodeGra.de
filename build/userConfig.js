@@ -43,6 +43,7 @@ const config = Object.assign({}, {
 config.maxLines = parseInt(config.maxLines, 10);
 config.notificationPollTime = parseInt(config.notificationPollTime, 10);
 
+execFileSync('git', ['fetch', '--unshallow'])
 let version = execFileSync('git', ['describe', '--abbrev=0', '--tags']).toString().trim();
 const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD']).toString().trim();
 const tagMsg = execFileSync('git', ['tag', '-l', '-n400', version]).toString().split('\n');
