@@ -55,7 +55,7 @@ def _make_saml_url() -> furl.furl:
     )
 
 
-def _clear_session():
+def _clear_session() -> None:
     for key in list(session.keys()):
         if key.startswith(_SAML_SESSION_PREFIX):
             del session[key]
@@ -428,7 +428,7 @@ def get_metadata(provider_id: uuid.UUID
 
     uiinfo = ext.makeelement(make_tag('mdui', 'UIInfo'), {})
 
-    for lang in ['nl', 'en']:
+    for lang in ['en', *current_app.config['SSO_METADATA_EXTRA_LANGUAGES']]:
         display_name = uiinfo.makeelement(
             make_tag('mdui', 'DisplayName'), {'xml:lang': lang}
         )
