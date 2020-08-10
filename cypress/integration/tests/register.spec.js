@@ -265,7 +265,7 @@ context('Register', () => {
 
             cy.get('.course-enroll')
                 .contains('.submit-button', 'Join')
-                .should('be.disabled');
+                .should('not.be.disabled');
         });
     });
 });
