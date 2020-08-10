@@ -11,7 +11,7 @@ from cg_json import JSONResponse
 
 from . import errors
 
-if t.TYPE_CHECKING:
+if t.TYPE_CHECKING:  # pragma: no cover
     from . import PsefFlask  # pylint: disable=unused-import
 
 
