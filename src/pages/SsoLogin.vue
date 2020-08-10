@@ -47,10 +47,12 @@ export default class SsoLogin extends Vue {
     @Watch('blobId', { immediate: true })
     async loadData() {
         this.error = null;
+        const next = this.next;
+
         try {
             const response = await this.$http.post(`/api/sso/saml2/jwts/${this.blobId}`);
             await this.updateAccessToken(response.data.access_token);
-            this.$router.replace(this.next ?? '/');
+            this.$router.replace(next ?? '/');
         } catch (error) {
             this.error = error;
         }

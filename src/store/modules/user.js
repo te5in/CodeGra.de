@@ -92,7 +92,6 @@ const actions = {
         return Promise.all([
             commit(`submissions/${types.CLEAR_SUBMISSIONS}`, null, { root: true }),
             commit(`code/${types.CLEAR_CODE_CACHE}`, null, { root: true }),
-            commit(`courses/${types.CLEAR_COURSES}`, null, { root: true }),
             commit(`plagiarism/${types.CLEAR_PLAGIARISM_RUNS}`, null, {
                 root: true,
             }),

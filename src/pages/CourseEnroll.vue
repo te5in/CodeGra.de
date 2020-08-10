@@ -30,11 +30,10 @@
                         </div>
                     </template>
                     <div class="text-center">
-                        <div v-b-popover.top.hover="alreadyInCourse ? 'The current user is already enrolled in this course.' : ''">
+                        <div v-b-popover.top.hover="alreadyInCourse ? 'You are already enrolled in this course.' : ''">
                             <cg-submit-button :submit="joinWithCurrentAccount"
                                               ref="joinWithCurrent"
                                               @after-success="afterJoin"
-                                              :disabled="alreadyInCourse"
                                               label="Join" />
                         </div>
                     </div>
@@ -138,7 +137,7 @@ export default class CourseEnroll extends Vue {
     }
 
     get directEnroll() {
-        return this.$utils.parseBool(this.$route.query.directEnroll);
+        return this.$utils.parseBool(this.$route.query.directEnroll, false);
     }
 
     get allowRegister() {
@@ -148,7 +147,7 @@ export default class CourseEnroll extends Vue {
 
     @Watch('directEnroll', { immediate: true })
     onDirectEnrollChange() {
-        if (this.directEnroll) {
+        if (this.directEnroll && this.loggedIn) {
             this.clickOnJoin();
         }
     }
@@ -199,7 +198,7 @@ export default class CourseEnroll extends Vue {
     onLinkChange() {
         if (this.link) {
             setPageTitle(`Enroll in ${this.link.course.name}`);
-            if (this.directEnroll) {
+            if (this.directEnroll && this.loggedIn) {
                 this.clickOnJoin();
             }
         } else {
