@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
 <div class="sso-providers">
-    <b-alert variant="danger" class="m-0" show v-if="error">
+    <b-alert variant="danger" class="mt-3 mb-0" show v-if="error">
         {{ $utils.getErrorMessage(error) }}
     </b-alert>
     <div v-else-if="providers != null">
