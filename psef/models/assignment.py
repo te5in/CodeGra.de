@@ -166,7 +166,7 @@ class AssignmentJSON(TypedDict, total=True):
     lms_name: t.Optional[str]
 
     #: The peer feedback settings for this assignment. If ``null`` this
-    #assignment is not a peer feedback assignment.
+    #: assignment is not a peer feedback assignment.
     peer_feedback_settings: t.Optional['AssignmentPeerFeedbackSettings']
 
     #: The kind of reminder that will be sent.  If you don't have the
@@ -1366,7 +1366,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             name=name,
             visibility_state=visibility_state,
             state=state,
-            deadline=deadline,
+            _deadline=deadline,
             lti_assignment_id=lti_assignment_id,
             description=description,
             is_lti=is_lti,
