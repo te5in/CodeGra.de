@@ -241,7 +241,7 @@
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">work</span> <span class="k">as</span> <span class="n">work_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">course</span> <span class="k">as</span> <span class="n">course_models</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">assignment</span> <span class="k">as</span> <span class="n">assignment_models</span>
-<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span><span class="p">,</span> <span class="n">signals</span><span class="p">,</span> <span class="n">db_locks</span><span class="p">,</span> <span class="n">current_app</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">auth</span><span class="p">,</span> <span class="n">signals</span><span class="p">,</span> <span class="n">current_app</span>
 <span class="kn">from</span> <span class="nn">..lti</span> <span class="kn">import</span> <span class="n">v1_3</span> <span class="k">as</span> <span class="n">lti_v1_3</span>
 <span class="kn">from</span> <span class="nn">..lti.v1_3</span> <span class="kn">import</span> <span class="n">claims</span> <span class="k">as</span> <span class="n">ltiv1_3_claims</span>
 <span class="kn">from</span> <span class="nn">..registry</span> <span class="kn">import</span> <span class="n">lti_provider_handlers</span><span class="p">,</span> <span class="n">lti_1_3_lms_capabilities</span>
@@ -1760,29 +1760,15 @@
         <span class="c1"># New LTI user id is found and no user is logged in or the current</span>
         <span class="c1"># user has a different LTI user id. A new user is created and</span>
         <span class="c1"># logged in.</span>
-        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
 
-        <span class="c1"># Work around for https://github.com/python/mypy/issues/2608</span>
-        <span class="n">_wanted_username</span> <span class="o">=</span> <span class="n">wanted_username</span>
-
-        <span class="k">def</span> <span class="nf">_get_username</span><span class="p">(</span><span class="n">wanted</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">_wanted_username</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-            <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">wanted</span><span class="si">}</span><span class="s1"> (</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">)&#39;</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">wanted</span>
-
-        <span class="c1"># Make sure we cannot have collisions, so simply lock this username for</span>
-        <span class="c1"># the users while searching.</span>
-        <span class="n">db_locks</span><span class="o">.</span><span class="n">acquire_lock</span><span class="p">(</span><span class="n">db_locks</span><span class="o">.</span><span class="n">LockNamespaces</span><span class="o">.</span><span class="n">user</span><span class="p">,</span> <span class="n">wanted_username</span><span class="p">)</span>
-
-        <span class="k">while</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
-            <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">_get_username</span><span class="p">())</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">():</span>  <span class="c1"># pragma: no cover</span>
-            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">username</span> <span class="o">=</span> <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="o">.</span><span class="n">find_possible_username</span><span class="p">(</span><span class="n">wanted_username</span><span class="p">)</span>
 
         <span class="n">user</span> <span class="o">=</span> <span class="n">user_models</span><span class="o">.</span><span class="n">User</span><span class="p">(</span>
             <span class="n">name</span><span class="o">=</span><span class="n">full_name</span><span class="p">,</span>
             <span class="n">email</span><span class="o">=</span><span class="n">email</span><span class="p">,</span>
             <span class="n">active</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">username</span><span class="o">=</span><span class="n">_get_username</span><span class="p">(),</span>
+            <span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
         <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>

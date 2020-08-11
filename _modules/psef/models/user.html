@@ -224,7 +224,7 @@
 
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">UUID_LENGTH</span><span class="p">,</span> <span class="n">Base</span><span class="p">,</span> <span class="n">DbColumn</span><span class="p">,</span> <span class="n">db</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">course</span> <span class="k">as</span> <span class="n">course_models</span>
-<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">signals</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">signals</span><span class="p">,</span> <span class="n">db_locks</span>
 <span class="kn">from</span> <span class="nn">.role</span> <span class="kn">import</span> <span class="n">Role</span><span class="p">,</span> <span class="n">CourseRole</span>
 <span class="kn">from</span> <span class="nn">..helpers</span> <span class="kn">import</span> <span class="n">NotEqualMixin</span><span class="p">,</span> <span class="n">validate</span><span class="p">,</span> <span class="n">handle_none</span><span class="p">,</span> <span class="n">maybe_unwrap_proxy</span>
 <span class="kn">from</span> <span class="nn">.permission</span> <span class="kn">import</span> <span class="n">Permission</span>
@@ -312,6 +312,34 @@
             <span class="n">virtual</span><span class="o">=</span><span class="n">virtual</span><span class="p">,</span>
             <span class="n">courses</span><span class="o">=</span><span class="n">handle_none</span><span class="p">(</span><span class="n">courses</span><span class="p">,</span> <span class="p">{}),</span>
         <span class="p">)</span>
+
+<div class="viewcode-block" id="User.find_possible_username"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.models.user.User.find_possible_username">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">find_possible_username</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">wanted_username</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Find a possible username for a new user starting with</span>
+<span class="sd">        ``wanted_username``.</span>
+
+<span class="sd">        :param wanted_username: The username the new user should have in the</span>
+<span class="sd">            ideal case. If not available we will try to find a username looking</span>
+<span class="sd">            like ``$wanted_username ($number)``.</span>
+
+<span class="sd">        :returns: A username that looks like ``wanted_username`` that is still</span>
+<span class="sd">                  available.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">def</span> <span class="nf">_get_username</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">wanted_username</span><span class="si">}</span><span class="s1"> (</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">)&#39;</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">wanted_username</span>
+
+        <span class="c1"># Make sure we cannot have collisions, so simply lock this username for</span>
+        <span class="c1"># the users while searching.</span>
+        <span class="n">db_locks</span><span class="o">.</span><span class="n">acquire_lock</span><span class="p">(</span><span class="n">db_locks</span><span class="o">.</span><span class="n">LockNamespaces</span><span class="o">.</span><span class="n">user</span><span class="p">,</span> <span class="n">wanted_username</span><span class="p">)</span>
+
+        <span class="k">while</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">_get_username</span><span class="p">())</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">():</span>  <span class="c1"># pragma: no cover</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">return</span> <span class="n">_get_username</span><span class="p">()</span></div>
 
     <span class="k">def</span> <span class="nf">_get_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;The id of the user</span>
@@ -921,8 +949,10 @@
         <span class="p">)</span>
         <span class="n">validate</span><span class="o">.</span><span class="n">ensure_valid_email</span><span class="p">(</span><span class="n">email</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-                            <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">():</span>
+        <span class="n">db_locks</span><span class="o">.</span><span class="n">acquire_lock</span><span class="p">(</span><span class="n">db_locks</span><span class="o">.</span><span class="n">LockNamespaces</span><span class="o">.</span><span class="n">user</span><span class="p">,</span> <span class="n">username</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">username</span> <span class="o">==</span> <span class="n">username</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">():</span>
             <span class="k">raise</span> <span class="n">APIException</span><span class="p">(</span>
                 <span class="s1">&#39;The given username is already in use&#39;</span><span class="p">,</span>
                 <span class="sa">f</span><span class="s1">&#39;The username &quot;</span><span class="si">{</span><span class="n">username</span><span class="si">}</span><span class="s1">&quot; is taken&#39;</span><span class="p">,</span>

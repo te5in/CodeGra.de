@@ -400,6 +400,22 @@ working.</p>
 <td></td>
 </tr>
 <tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#get--api-sso-saml2-metadata-(uuid-provider_id)">GET /api/sso/saml2/metadata/(uuid:provider_id)</a></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#get--api-sso-saml2-login-(uuid-provider_id)">GET /api/sso/saml2/login/(uuid:provider_id)</a></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#post--api-sso-saml2-jwts-(uuid-token)">POST /api/sso/saml2/jwts/(uuid:token)</a></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#post--api-sso-saml2-acs-(uuid-provider_id)">POST /api/sso/saml2/acs/(uuid:provider_id)</a></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#post--api-v1-lti1.3-deep_link-(uuid-deep_link_blob_id)">POST /api/v1/lti1.3/deep_link/(uuid:deep_link_blob_id)</a></p></td>
 <td></td>
 </tr>
@@ -548,11 +564,11 @@ working.</p>
 <td><p>Get all AutoTest results for a given.</p></td>
 </tr>
 <tr class="row-even"><td></td>
-<td><p><a class="reference external" href="#post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">POST /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)/hide</a></p></td>
+<td><p><a class="reference external" href="#delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">DELETE /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)/hide</a></p></td>
 <td><p>Change the hidden state of a fixture.</p></td>
 </tr>
 <tr class="row-odd"><td></td>
-<td><p><a class="reference external" href="#delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">DELETE /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)/hide</a></p></td>
+<td><p><a class="reference external" href="#post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">POST /api/v1/auto_tests/(int:at_id)/fixtures/(int:fixture_id)/hide</a></p></td>
 <td></td>
 </tr>
 <tr class="row-even"><td></td>
@@ -640,11 +656,11 @@ working.</p>
 <td><p>Create a new comment base.</p></td>
 </tr>
 <tr class="row-odd"><td></td>
-<td><p><a class="reference external" href="#post--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)-approval">POST /api/v1/comments/(int:comment_base_id)/replies/(int:reply_id)/approval</a></p></td>
+<td><p><a class="reference external" href="#delete--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)-approval">DELETE /api/v1/comments/(int:comment_base_id)/replies/(int:reply_id)/approval</a></p></td>
 <td><p>Update the content of an inline feedback reply.</p></td>
 </tr>
 <tr class="row-even"><td></td>
-<td><p><a class="reference external" href="#delete--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)-approval">DELETE /api/v1/comments/(int:comment_base_id)/replies/(int:reply_id)/approval</a></p></td>
+<td><p><a class="reference external" href="#post--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)-approval">POST /api/v1/comments/(int:comment_base_id)/replies/(int:reply_id)/approval</a></p></td>
 <td></td>
 </tr>
 <tr class="row-odd"><td></td>
@@ -672,16 +688,24 @@ working.</p>
 <td><p>Get all courses the current user is enrolled in.</p></td>
 </tr>
 <tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#post--api-v1-courses-(int-course_id)-registration_links-(uuid-link_id)-join">POST /api/v1/courses/(int:course_id)/registration_links/(uuid:link_id)/join</a></p></td>
+<td><p>Enroll in this course.</p></td>
+</tr>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#post--api-v1-courses-(int-course_id)-registration_links-(uuid-link_id)-user">POST /api/v1/courses/(int:course_id)/registration_links/(uuid:link_id)/user</a></p></td>
 <td><p>Register as a new user, and enroll in a course.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-courses-(int-course_id)-users-(int-user_id)-submissions-">GET /api/v1/courses/(int:course_id)/users/(int:user_id)/submissions/</a></p></td>
 <td><p>Get submissions by user in a course.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#delete--api-v1-courses-(int-course_id)-registration_links-(uuid-link_id)">DELETE /api/v1/courses/(int:course_id)/registration_links/(uuid:link_id)</a></p></td>
 <td><p>The delete a registration link of the given course.</p></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#get--api-v1-courses-(int-course_id)-registration_links-(uuid-link_id)">GET /api/v1/courses/(int:course_id)/registration_links/(uuid:link_id)</a></p></td>
+<td><p>Get the data in a registration link.</p></td>
 </tr>
 <tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-courses-(int-course_id)-registration_links-">GET /api/v1/courses/(int:course_id)/registration_links/</a></p></td>
@@ -911,120 +935,230 @@ working.</p>
 <td><p><a class="reference external" href="#patch--api-v1-roles-(int-role_id)">PATCH /api/v1/roles/(int:role_id)</a></p></td>
 <td><p>Update a permission for a certain role.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Snippet</p></td>
+<tr class="row-odd"><td><p>SSO Provider</p></td>
+<td><p><a class="reference external" href="#get--api-v1-sso_providers-">GET /api/v1/sso_providers/</a></p></td>
+<td><p>Get all SSO Providers for this instance.</p></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p><a class="reference external" href="#post--api-v1-sso_providers-">POST /api/v1/sso_providers/</a></p></td>
+<td><p>Create a new SSO Providers in this instance.</p></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p><a class="reference external" href="#get--api-v1-sso_providers-(uuid-provider_id)-default_logo">GET /api/v1/sso_providers/(uuid:provider_id)/default_logo</a></p></td>
+<td><p>Get the default logo of a provider.</p></td>
+</tr>
+<tr class="row-even"><td><p>Snippet</p></td>
 <td><p><a class="reference external" href="#get--api-v1-snippets-">GET /api/v1/snippets/</a></p></td>
 <td><p>Get all snippets for the currently logged in user.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#put--api-v1-snippet">PUT /api/v1/snippet</a></p></td>
 <td><p>Add or modify a snippet.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#patch--api-v1-snippets-(int-snippet_id)">PATCH /api/v1/snippets/(int:snippet_id)</a></p></td>
 <td><p>Change a snippets key and value.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#delete--api-v1-snippets-(int-snippet_id)">DELETE /api/v1/snippets/(int:snippet_id)</a></p></td>
 <td><p>Delete a snippet.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Submission</p></td>
+<tr class="row-even"><td><p>Submission</p></td>
 <td><p><a class="reference external" href="#get--api-v1-submissions-(int-submission_id)-root_file_trees-">GET /api/v1/submissions/(int:submission_id)/root_file_trees/</a></p></td>
 <td><p>Get all the file trees of a submission.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-submissions-(int-submission_id)-grade_history-">GET /api/v1/submissions/(int:submission_id)/grade_history/</a></p></td>
 <td><p>Get the grade history for the given submission.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#delete--api-v1-submissions-(int-submission_id)-rubricitems-(int-rubric_item_id)">DELETE /api/v1/submissions/(int:submission_id)/rubricitems/(int:rubric_item_id)</a></p></td>
 <td><p>Unselect the given rubric item.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#patch--api-v1-submissions-(int-submission_id)-rubricitems-(int-rubricitem_id)">PATCH /api/v1/submissions/(int:submission_id)/rubricitems/(int:rubricitem_id)</a></p></td>
 <td><p>Select a rubric item.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#patch--api-v1-submissions-(int-submission_id)-rubricitems-">PATCH /api/v1/submissions/(int:submission_id)/rubricitems/</a></p></td>
 <td><p>Select multiple rubric items.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-submissions-(int-submission_id)-feedbacks-">GET /api/v1/submissions/(int:submission_id)/feedbacks/</a></p></td>
 <td><p>Get all (linter, user and general) feedback.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-submissions-(int-submission_id)-rubrics-">GET /api/v1/submissions/(int:submission_id)/rubrics/</a></p></td>
 <td><p>Get a rubric and its selected items.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#patch--api-v1-submissions-(int-submission_id)-grader">PATCH /api/v1/submissions/(int:submission_id)/grader</a></p></td>
 <td><p>Update grader for the submission.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#delete--api-v1-submissions-(int-submission_id)-grader">DELETE /api/v1/submissions/(int:submission_id)/grader</a></p></td>
 <td><p>Delete grader for the submission.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#post--api-v1-submissions-(int-submission_id)-files-">POST /api/v1/submissions/(int:submission_id)/files/</a></p></td>
 <td><p>Create a new file or directory for a submission.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-submissions-(int-submission_id)-files-">GET /api/v1/submissions/(int:submission_id)/files/</a></p></td>
 <td><p>Get the directory contents for a submission.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#post--api-v1-submissions-(int-submission_id)-proxy">POST /api/v1/submissions/(int:submission_id)/proxy</a></p></td>
 <td><p>Create a proxy to view the files of a submission</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-submissions-(int-submission_id)">GET /api/v1/submissions/(int:submission_id)</a></p></td>
 <td><p>Get a single submission.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#delete--api-v1-submissions-(int-submission_id)">DELETE /api/v1/submissions/(int:submission_id)</a></p></td>
 <td><p>Delete a submission and all its files.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#patch--api-v1-submissions-(int-submission_id)">PATCH /api/v1/submissions/(int:submission_id)</a></p></td>
 <td><p>Update a submissions grade and feedback.</p></td>
 </tr>
-<tr class="row-even"><td><p>Task result</p></td>
+<tr class="row-odd"><td><p>Task result</p></td>
 <td><p><a class="reference external" href="#get--api-v1-task_results-(uuid-task_result_id)">GET /api/v1/task_results/(uuid:task_result_id)</a></p></td>
 <td><p>Get a single task result.</p></td>
 </tr>
-<tr class="row-odd"><td><p>User</p></td>
+<tr class="row-even"><td><p>User</p></td>
 <td><p><a class="reference external" href="#post--api-v1-login">POST /api/v1/login</a></p></td>
 <td><p>Login a given user.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-login">GET /api/v1/login</a></p></td>
 <td><p>Get information about the currently logged in user.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#patch--api-v1-login">PATCH /api/v1/login</a></p></td>
 <td><p>Update the currently logged users information or reset a password.</p></td>
 </tr>
-<tr class="row-even"><td></td>
+<tr class="row-odd"><td></td>
 <td><p><a class="reference external" href="#get--api-v1-users-">GET /api/v1/users/</a></p></td>
 <td><p>Fuzzy search for a user by name and username.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#post--api-v1-user">POST /api/v1/user</a></p></td>
 <td><p>Create a new user by registering it.</p></td>
 </tr>
-<tr class="row-even"><td><p>User Setting</p></td>
+<tr class="row-odd"><td><p>User Setting</p></td>
 <td><p><a class="reference external" href="#get--api-v1-settings-notification_settings-">GET /api/v1/settings/notification_settings/</a></p></td>
 <td><p>Get the preferences for notifications.</p></td>
 </tr>
-<tr class="row-odd"><td></td>
+<tr class="row-even"><td></td>
 <td><p><a class="reference external" href="#patch--api-v1-settings-notification_settings-">PATCH /api/v1/settings/notification_settings/</a></p></td>
 <td><p>Update preferences for notifications.</p></td>
 </tr>
-<tr class="row-even"><td><p>Webhook</p></td>
+<tr class="row-odd"><td><p>Webhook</p></td>
 <td><p><a class="reference external" href="#post--api-v1-webhooks-(uuid-webhook_id)">POST /api/v1/webhooks/(uuid:webhook_id)</a></p></td>
 <td><p>Process a webhook request.</p></td>
 </tr>
 </tbody>
 </table>
+<dl class="http post">
+<dt id="post--api-sso-saml2-acs-(uuid-provider_id)">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/sso/saml2/acs/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">provider_id</em><span class="sig-paren">)</span><a class="headerlink" href="#post--api-sso-saml2-acs-(uuid-provider_id)" title="Permalink to this definition">¶</a></dt>
+<dd><p>This route is the Assertion Consumer Service (ACS) route of CodeGrade.</p>
+<p>The form posted to this route should contain a valid SAML ACS request for
+the given provider.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>provider_id</strong> – The provider that is providing the assertions.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Response JSON Object</dt>
+<dd class="field-even"><p>A redirection to the <code class="docutils literal notranslate"><span class="pre">RelayState</span></code> or an html page containing an
+error message.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>], <code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code>]</p>
+</dd>
+</dl>
+<dl class="http post">
+<dt id="post--api-sso-saml2-jwts-(uuid-token)">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/sso/saml2/jwts/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">token</em><span class="sig-paren">)</span><a class="headerlink" href="#post--api-sso-saml2-jwts-(uuid-token)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a JWT token for a user after doing a successful launch.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>token</strong> – The token that we will use to verify that you are the correct
+owner of the SAML launch. This data will be cross referenced to stored
+data and your session.</p></li>
+</ul>
+</dd>
+</dl>
+<p>This method will use various pieces of information from the session from
+the requested user.</p>
+<p>This method can only be used once to retrieve the JWT, as the data will be
+removed after the first request.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Response JSON Object</dt>
+<dd class="field-odd"><p>A mapping containing one key (<code class="docutils literal notranslate"><span class="pre">access_token</span></code>).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>]]</p>
+</dd>
+</dl>
+<dl class="http get">
+<dt id="get--api-sso-saml2-login-(uuid-provider_id)">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/sso/saml2/login/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">provider_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-sso-saml2-login-(uuid-provider_id)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Begin the SAML2 login procedure.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>provider_id</strong> – The id of the provider that should do the login.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Response JSON Object</dt>
+<dd class="field-even"><p>A redirection to your IdP.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></p>
+</dd>
+</dl>
+<dl class="http get">
+<dt id="get--api-sso-saml2-metadata-(uuid-provider_id)">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/sso/saml2/metadata/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">provider_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-sso-saml2-metadata-(uuid-provider_id)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the metadata xml for SP connected to the given provider.</p>
+<p>While this URL should always return a valid XML it might be IP restricted,
+and is not part of the public API.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>provider_id</strong> – The id of the provider for which you want to generate
+the XML.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Response JSON Object</dt>
+<dd class="field-even"><p>The generated XML or an error page.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.8)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></a>], <code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code>]</p>
+</dd>
+</dl>
 <dl class="http get">
 <dt id="get--api-v1-about">
 <code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/about</code><a class="headerlink" href="#get--api-v1-about" title="Permalink to this definition">¶</a></dt>
@@ -2092,9 +2226,9 @@ add the webhook to your provider.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></p>
 </dd>
 </dl>
-<dl class="http post">
-<dt id="post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">
-<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">at_id</em><span class="sig-paren">)</span><code class="sig-name descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">fixture_id</em><span class="sig-paren">)</span><code class="sig-name descname">/hide</code><a class="headerlink" href="#post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
+<dl class="http delete">
+<dt id="delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">
+<code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">at_id</em><span class="sig-paren">)</span><code class="sig-name descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">fixture_id</em><span class="sig-paren">)</span><code class="sig-name descname">/hide</code><a class="headerlink" href="#delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
 <dd><p>Change the visibility of the given fixture.</p>
 <p>Doing a <code class="docutils literal notranslate"><span class="pre">POST</span></code> request to this route will hide the fixture, doing a
 <code class="docutils literal notranslate"><span class="pre">DELETE</span></code> request to this route will set <code class="docutils literal notranslate"><span class="pre">hidden</span></code> to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
@@ -2113,9 +2247,9 @@ add the webhook to your provider.</p>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
 </dd>
 </dl>
-<dl class="http delete">
-<dt id="delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">
-<code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">at_id</em><span class="sig-paren">)</span><code class="sig-name descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">fixture_id</em><span class="sig-paren">)</span><code class="sig-name descname">/hide</code><a class="headerlink" href="#delete--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
+<dl class="http post">
+<dt id="post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/auto_tests/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">at_id</em><span class="sig-paren">)</span><code class="sig-name descname">/fixtures/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">fixture_id</em><span class="sig-paren">)</span><code class="sig-name descname">/hide</code><a class="headerlink" href="#post--api-v1-auto_tests-(int-at_id)-fixtures-(int-fixture_id)-hide" title="Permalink to this definition">¶</a></dt>
 <dd><p>Change the visibility of the given fixture.</p>
 <p>Doing a <code class="docutils literal notranslate"><span class="pre">POST</span></code> request to this route will hide the fixture, doing a
 <code class="docutils literal notranslate"><span class="pre">DELETE</span></code> request to this route will set <code class="docutils literal notranslate"><span class="pre">hidden</span></code> to <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
@@ -2888,9 +3022,9 @@ reply.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.comment.CommentReply" title="psef.models.comment.CommentReply"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReply</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="http post">
-<dt id="post--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)-approval">
-<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/comments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">comment_base_id</em><span class="sig-paren">)</span><code class="sig-name descname">/replies/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">reply_id</em><span class="sig-paren">)</span><code class="sig-name descname">/approval</code><a class="headerlink" href="#post--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)-approval" title="Permalink to this definition">¶</a></dt>
+<dl class="http delete">
+<dt id="delete--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)-approval">
+<code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/comments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">comment_base_id</em><span class="sig-paren">)</span><code class="sig-name descname">/replies/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">reply_id</em><span class="sig-paren">)</span><code class="sig-name descname">/approval</code><a class="headerlink" href="#delete--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)-approval" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the content of reply.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Response JSON Object</dt>
@@ -2915,9 +3049,9 @@ reply.</p></li>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.comment.CommentReply" title="psef.models.comment.CommentReply"><code class="xref py py-class docutils literal notranslate"><span class="pre">CommentReply</span></code></a>]</p>
 </dd>
 </dl>
-<dl class="http delete">
-<dt id="delete--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)-approval">
-<code class="sig-name descname">DELETE </code><code class="sig-name descname">/api/v1/comments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">comment_base_id</em><span class="sig-paren">)</span><code class="sig-name descname">/replies/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">reply_id</em><span class="sig-paren">)</span><code class="sig-name descname">/approval</code><a class="headerlink" href="#delete--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)-approval" title="Permalink to this definition">¶</a></dt>
+<dl class="http post">
+<dt id="post--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)-approval">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/comments/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">comment_base_id</em><span class="sig-paren">)</span><code class="sig-name descname">/replies/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">reply_id</em><span class="sig-paren">)</span><code class="sig-name descname">/approval</code><a class="headerlink" href="#post--api-v1-comments-(int-comment_base_id)-replies-(int-reply_id)-approval" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the content of reply.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Response JSON Object</dt>
@@ -3294,6 +3428,57 @@ will be interpret as a UTC date.</p></li>
 <li><p><strong>course_id</strong> – The id of the course to which the registration link is
 connected.</p></li>
 <li><p><strong>link_id</strong> – The id of the registration link.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Response JSON Object</dt>
+<dd class="field-even"><p>Nothing.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
+</dd>
+</dl>
+<dl class="http get">
+<dt id="get--api-v1-courses-(int-course_id)-registration_links-(uuid-link_id)">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/registration_links/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">link_id</em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-v1-courses-(int-course_id)-registration_links-(uuid-link_id)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a registration link.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>course_id</strong> – The id of the course to which the registration link is
+connected.</p></li>
+<li><p><strong>link_id</strong> – The id of the registration link.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Response JSON Object</dt>
+<dd class="field-even"><p>The specified registration link.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This route can be used without logging in, i.e. you don’t have to be
+enrolled in the course to use this route. This route will not work for
+expired registration links.</p>
+</div>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtendedJSONResponse</span></code>[<a class="reference internal" href="psef_api/psef.html#psef.models.course.CourseRegistrationLink" title="psef.models.course.CourseRegistrationLink"><code class="xref py py-class docutils literal notranslate"><span class="pre">CourseRegistrationLink</span></code></a>]</p>
+</dd>
+</dl>
+<dl class="http post">
+<dt id="post--api-v1-courses-(int-course_id)-registration_links-(uuid-link_id)-join">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/courses/</code><span class="sig-paren">(</span><em class="property">int: </em><em class="sig-param">course_id</em><span class="sig-paren">)</span><code class="sig-name descname">/registration_links/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">link_id</em><span class="sig-paren">)</span><code class="sig-name descname">/join</code><a class="headerlink" href="#post--api-v1-courses-(int-course_id)-registration_links-(uuid-link_id)-join" title="Permalink to this definition">¶</a></dt>
+<dd><p>Join a course as the currently logged in user using a registration link.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>course_id</strong> – The id of the course in which you want to enroll.</p></li>
+<li><p><strong>link_id</strong> – The id of the link you want to use to enroll.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Response JSON Object</dt>
@@ -5135,6 +5320,66 @@ the request. (MISSING_REQUIRED_PARAM)</p></li>
 <dl class="field-list simple">
 <dt class="field-odd">rtype</dt>
 <dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">EmptyResponse</span></code></p>
+</dd>
+</dl>
+<dl class="http post">
+<dt id="post--api-v1-sso_providers-">
+<code class="sig-name descname">POST </code><code class="sig-name descname">/api/v1/sso_providers/</code><a class="headerlink" href="#post--api-v1-sso_providers-" title="Permalink to this definition">¶</a></dt>
+<dd><p>Register a new SSO Provider in this instance.</p>
+<p>Users will be able to login using the registered provider.</p>
+<p>The request should contain two files. One named <code class="docutils literal notranslate"><span class="pre">json</span></code> containing the
+json data explained below and one named <code class="docutils literal notranslate"><span class="pre">logo</span></code> containing the backup
+logo.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Response JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>metadata_url</strong> – The url where we can download the metadata for the IdP
+connected to this provider.</p></li>
+<li><p><strong>name</strong> – If no name can be found in the metadata this name will be
+displayed to users when choosing login methods.</p></li>
+<li><p><strong>description</strong> – If no description can be found in the metadata this
+description will be displayed to users when choosing login methods.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Response JSON Object</dt>
+<dd class="field-even"><p>The just created provider.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Saml2Provider</span></code>]</p>
+</dd>
+</dl>
+<dl class="http get">
+<dt id="get--api-v1-sso_providers-">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/sso_providers/</code><a class="headerlink" href="#get--api-v1-sso_providers-" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get all SSO Providers.</p>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">JSONResponse</span></code>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.8)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code></a>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Saml2Provider</span></code>]]</p>
+</dd>
+</dl>
+<dl class="http get">
+<dt id="get--api-v1-sso_providers-(uuid-provider_id)-default_logo">
+<code class="sig-name descname">GET </code><code class="sig-name descname">/api/v1/sso_providers/</code><span class="sig-paren">(</span><em class="property">uuid: </em><em class="sig-param">provider_id</em><span class="sig-paren">)</span><code class="sig-name descname">/default_logo</code><a class="headerlink" href="#get--api-v1-sso_providers-(uuid-provider_id)-default_logo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the default logo of the given provider.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>provider_id</strong> – The id of the provider from which you want to get the
+logo.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">rtype</dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Response</span></code></p>
 </dd>
 </dl>
 <dl class="http delete">

@@ -243,6 +243,10 @@
     <span class="n">lti_access_tokens</span><span class="p">:</span> <span class="n">cg_cache</span><span class="o">.</span><span class="n">inter_request</span><span class="o">.</span><span class="n">Backend</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
     <span class="n">lti_public_keys</span><span class="p">:</span> <span class="n">cg_cache</span><span class="o">.</span><span class="n">inter_request</span><span class="o">.</span><span class="n">Backend</span><span class="p">[</span><span class="s1">&#39;_KeySet&#39;</span><span class="p">]</span>
 
+    <span class="n">saml2_ipds</span><span class="p">:</span> <span class="n">cg_cache</span><span class="o">.</span><span class="n">inter_request</span><span class="o">.</span><span class="n">Backend</span><span class="p">[</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">t</span><span class="o">.</span><span class="n">Union</span><span class="p">[</span><span class="s1">&#39;psef.models.saml_provider.SamlUiInfo&#39;</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span>
+    <span class="p">]</span>
+
 
 <div class="viewcode-block" id="PsefFlask"><a class="viewcode-back" href="../psef_api/psef.html#psef.PsefFlask">[docs]</a><span class="k">class</span> <span class="nc">PsefFlask</span><span class="p">(</span><span class="n">Flask</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Our subclass of flask.</span>
@@ -254,8 +258,8 @@
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="n">config</span><span class="p">))</span>
-        <span class="n">dict_to_load</span> <span class="o">=</span> <span class="p">{}</span>
 
+        <span class="n">dict_to_load</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">t_name</span> <span class="ow">in</span> <span class="p">[</span>
             <span class="p">(</span><span class="s1">&#39;DIRECT_NOTIFICATION_TEMPLATE_FILE&#39;</span><span class="p">,</span> <span class="s1">&#39;notification.j2&#39;</span><span class="p">),</span>
             <span class="p">(</span><span class="s1">&#39;DIGEST_NOTIFICATION_TEMPLATE_FILE&#39;</span><span class="p">,</span> <span class="s1">&#39;digest.j2&#39;</span><span class="p">)</span>
@@ -289,8 +293,11 @@
                 <span class="n">redis_conn</span><span class="p">,</span>
             <span class="p">),</span>
             <span class="n">lti_public_keys</span><span class="o">=</span><span class="n">cg_cache</span><span class="o">.</span><span class="n">inter_request</span><span class="o">.</span><span class="n">RedisBackend</span><span class="p">(</span>
-                <span class="s1">&#39;lti_public_keys&#39;</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mi">3600</span><span class="p">),</span> <span class="n">redis_conn</span>
+                <span class="s1">&#39;lti_public_keys&#39;</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">hours</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">redis_conn</span>
             <span class="p">),</span>
+            <span class="n">saml2_ipds</span><span class="o">=</span><span class="n">cg_cache</span><span class="o">.</span><span class="n">inter_request</span><span class="o">.</span><span class="n">RedisBackend</span><span class="p">(</span>
+                <span class="s1">&#39;saml2_ipds&#39;</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">redis_conn</span>
+            <span class="p">)</span>
         <span class="p">)</span>
 
     <span class="nd">@property</span>
@@ -482,6 +489,9 @@
 
     <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">signals</span>
     <span class="n">signals</span><span class="o">.</span><span class="n">init_app</span><span class="p">(</span><span class="n">resulting_app</span><span class="p">)</span>
+
+    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">saml2</span>
+    <span class="n">saml2</span><span class="o">.</span><span class="n">init_app</span><span class="p">(</span><span class="n">resulting_app</span><span class="p">)</span>
 
     <span class="c1"># Make sure celery is working</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">skip_celery</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
