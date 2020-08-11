@@ -31016,6 +31016,11 @@
         }
       }
     },
+    "tether": {
+      "version": "1.4.7",
+      "resolved": "https://registry.npmjs.org/tether/-/tether-1.4.7.tgz",
+      "integrity": "sha512-Z0J1aExjoFU8pybVkQAo/vD2wfSO63r+XOPfWQMC5qtf1bI7IWqNk4MiyBcgvvnY8kqnY06dVdvwTK2S3PU/Fw=="
+    },
     "text-encoding": {
       "version": "0.6.4",
       "resolved": "https://registry.npmjs.org/text-encoding/-/text-encoding-0.6.4.tgz",
@@ -34250,7 +34255,7 @@
     },
     "vue-resize-split-pane": {
       "version": "github:CodeGra-de/vue-resize-split-pane#d036445ec0942c2a183704e562b92fb5c5d32b6a",
-      "from": "vue-resize-split-pane@github:CodeGra-de/vue-resize-split-pane#d036445ec0942c2a183704e562b92fb5c5d32b6a",
+      "from": "github:CodeGra-de/vue-resize-split-pane",
       "requires": {
         "vue": "^2.3.3"
       }
