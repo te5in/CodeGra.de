@@ -284,7 +284,7 @@ export default {
         },
 
         permissions() {
-            return new models.AssignmentPermissions(this.assignment);
+            return new models.AssignmentCapabilities(this.assignment);
         },
 
         canEditState() {

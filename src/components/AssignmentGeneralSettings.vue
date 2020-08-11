@@ -3,12 +3,14 @@
 <b-card v-if="permissions.canEditSomeGeneralSettings"
         header="General"
         class="assignment-general-settings">
+    <!-- TODO: Improve description text -->
     <b-form-group
-        v-if="permissions.canEditName"
-        label="Assignment name">
+        label="Assignment name"
+        :description="permissions.canEditName ? '' : 'You cannot change the name of an LTI assignment.'">
         <input type="text"
                class="form-control"
                v-model="name"
+               :disabled="!permissions.canEditName"
                @keydown.ctrl.enter="$refs.submitGeneralSettings.onClick"/>
     </b-form-group>
 
@@ -23,6 +25,7 @@
                 able to see the assignment at this moment.
             </cg-description-popover>
         </template>
+
         <b-input-group v-b-popover.top.hover="availableAtPopover">
             <datetime-picker v-model="availableAt"
                              :disabled="!permissions.canEditAvailableAt"
@@ -42,9 +45,10 @@
         </b-input-group>
     </b-form-group>
 
+    <!-- TODO: Improve description text -->
     <b-form-group
-        v-if="permissions.canEditDeadline"
         :state="assignment.hasDeadline"
+        :description="permissions.canEditDeadline ? '' : 'You cannot change the deadline!'"
         invalid-feedback="The deadline has not been set yet!">
         <template #label>
             Deadline
@@ -68,7 +72,8 @@
         <datetime-picker
             v-model="deadline"
             class="assignment-deadline"
-            placeholder="None set"/>
+            placeholder="None set"
+            :disabled="!permissions.canEditDeadline"/>
     </b-form-group>
 
     <b-form-group v-if="permissions.canEditMaxGrade">
@@ -170,7 +175,7 @@ export default class AssignmentGeneralSettings extends Vue {
     }
 
     get permissions() {
-        return new models.AssignmentPermissions(this.assignment);
+        return new models.AssignmentCapabilities(this.assignment);
     }
 
     get nothingChanged() {

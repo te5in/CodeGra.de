@@ -434,7 +434,7 @@ export class Assignment extends AssignmentData {
     }
 }
 
-export class AssignmentPermissions {
+export class AssignmentCapabilities {
     constructor(private assignment: Assignment) {}
 
     get canEditState() {

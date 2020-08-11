@@ -89,7 +89,7 @@ export default class AssignmentGeneralSettings extends Vue {
     }
 
     get permissions() {
-        return new models.AssignmentPermissions(this.assignment);
+        return new models.AssignmentCapabilities(this.assignment);
     }
 
     get nothingChanged() {
