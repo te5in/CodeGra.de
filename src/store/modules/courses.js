@@ -6,6 +6,7 @@ import moment from 'moment';
 
 import { Assignment } from '@/models';
 import { makeProvider } from '@/lti_providers';
+import * as utils from '@/utils';
 
 import * as types from '../mutation-types';
 import { MANAGE_ASSIGNMENT_PERMISSIONS, MANAGE_GENERAL_COURSE_PERMISSIONS } from '../../constants';
@@ -158,6 +159,67 @@ export const actions = {
                 });
             return response;
         });
+    },
+
+    async updateAssignmentGeneralSettings(
+        context,
+        { assignmentId, name, availableAt, deadline, maximumGrade },
+    ) {
+        await context.dispatch('loadCourses');
+
+        return axios
+            .patch(`/api/v1/assignments/${assignmentId}`, {
+                name,
+                available_at: utils.formatDate(availableAt, true),
+                deadline: utils.formatDate(deadline, true),
+                max_grade: maximumGrade,
+            })
+            .then(res => {
+                context.commit(types.UPDATE_ASSIGNMENT, {
+                    assignmentId,
+                    assignmentProps: {
+                        name: res.data.name,
+                        availableAt: utils.toMomentNullable(res.data.availableAt),
+                        deadline: utils.toMoment(res.data.deadline),
+                        max_grade: res.data.max_grade,
+                    },
+                });
+                return res;
+            });
+    },
+
+    async updateAssignmentSubmissionSettings(
+        context,
+        {
+            assignmentId,
+            filesUploadEnabled,
+            webhookUploadEnabled,
+            maxSubmissions,
+            coolOffPeriod,
+            coolOffAmount,
+        },
+    ) {
+        await context.dispatch('loadCourses');
+
+        return axios
+            .patch(`/api/v1/assignments/${assignmentId}`, {
+                files_upload_enabled: filesUploadEnabled,
+                webhook_upload_enabled: webhookUploadEnabled,
+                max_submissions: maxSubmissions,
+                cool_off_period: coolOffPeriod * 60,
+                amount_in_cool_off_period: coolOffAmount,
+            })
+            .then(res => {
+                context.commit(types.UPDATE_ASSIGNMENT, {
+                    assignmentId,
+                    assignmentProps: {
+                        max_submissions: res.data.max_submissions,
+                        cool_off_period: res.data.cool_off_period,
+                        amount_in_cool_off_period: res.data.amount_in_cool_off_period,
+                    },
+                });
+                return res;
+            });
     },
 
     async updateAssignmentDeadline({ commit, state, dispatch }, { assignmentId, deadline }) {

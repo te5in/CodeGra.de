@@ -433,3 +433,61 @@ export class Assignment extends AssignmentData {
         );
     }
 }
+
+export class AssignmentPermissions {
+    constructor(private assignment: Assignment) {}
+
+    get canEditState() {
+        return this.canEditInfo;
+    }
+
+    get canEditInfo() {
+        return this.assignment.hasPermission(CPerm.canEditAssignmentInfo);
+    }
+
+    get canEditName() {
+        return this.canEditInfo && !this.assignment.is_lti;
+    }
+
+    get canEditDeadline() {
+        return (
+            this.canEditInfo &&
+            this.assignment.ltiProvider.mapOrDefault(prov => !prov.supportsDeadline, true)
+        );
+    }
+
+    get canEditAvailableAt() {
+        return (
+            this.canEditInfo &&
+            this.assignment.ltiProvider.mapOrDefault(prov => !prov.supportsStateManagement, true)
+        );
+    }
+
+    get canEditMaxGrade() {
+        return (
+            this.assignment.hasPermission(CPerm.canEditMaximumGrade) &&
+            this.assignment.ltiProvider.mapOrDefault(prov => prov.supportsBonusPoints, true)
+        );
+    }
+
+    get canEditSomeGeneralSettings() {
+        return (
+            this.canEditName ||
+            this.canEditDeadline ||
+            this.canEditAvailableAt ||
+            this.canEditMaxGrade
+        );
+    }
+
+    get canEditSubmissionSettings() {
+        return this.canEditInfo;
+    }
+
+    get canUpdateGraderStatus() {
+        return this.assignment.hasPermission(CPerm.canGradeWork) || this.canUpdateOtherGraderStatus;
+    }
+
+    get canUpdateOtherGraderStatus() {
+        return this.assignment.hasPermission(CPerm.canUpdateGraderStatus);
+    }
+}

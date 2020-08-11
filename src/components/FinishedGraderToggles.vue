@@ -40,7 +40,7 @@
                 <td class="shrink">
                     <toggle label-on="Done"
                             label-off="Grading"
-                            :disabled="!others && $store.getters['user/id'] != grader.id"
+                            :disabled="!canUpdateOthers && $store.getters['user/id'] != grader.id"
                             v-model="grader.done"
                             disabled-text="You cannot change the grader status of other graders"
                             @input="toggleGrader(grader)"/>
@@ -59,6 +59,8 @@ import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/exclamation-triangle';
 import { WarningHeader, waitAtLeast } from '@/utils';
 
+import * as models from '@/models';
+
 import Toggle from './Toggle';
 import User from './User';
 
@@ -66,17 +68,12 @@ export default {
     props: {
         assignment: {
             type: Object,
-            default: null,
+            required: true,
         },
 
         graders: {
             type: Array,
-            default: null,
-        },
-
-        others: {
-            type: Boolean,
-            default: false,
+            required: true,
         },
     },
 
@@ -87,6 +84,16 @@ export default {
             errorGraders: {},
             warningGraders: {},
         };
+    },
+
+    computed: {
+        permissions() {
+            return new models.AssignmentPermissions(this.assignment);
+        },
+
+        canUpdateOthers() {
+            return this.permissions.canUpdateOtherGraderStatus;
+        },
     },
 
     mounted() {

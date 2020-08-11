@@ -409,6 +409,14 @@ export function toMoment(date: moment.Moment | string): moment.Moment {
     }
 }
 
+export function toMomentNullable(date: moment.Moment | string | null): moment.Moment | null {
+    if (date == null) {
+        return null;
+    } else {
+        return toMoment(date);
+    }
+}
+
 export function formatMoment(date: moment.Moment | string, format: string): string {
     return toMoment(date).local().format(format);
 }
@@ -417,15 +425,22 @@ export function readableFormatDate(date: moment.Moment | string): string {
     return formatMoment(date, 'YYYY-MM-DD HH:mm');
 }
 
-export function formatDate(date: string | moment.Moment): string {
-    return formatMoment(date, 'YYYY-MM-DDTHH:mm');
+export function formatDate(date: string | moment.Moment, iso: boolean = false): string {
+    if (iso) {
+        return toMoment(date).utc().toISOString();
+    } else {
+        return formatMoment(date, 'YYYY-MM-DDTHH:mm');
+    }
 }
 
-export function formatNullableDate(date: string | moment.Moment | null): string | null {
+export function formatNullableDate(
+    date: string | moment.Moment | null,
+    iso: boolean = false,
+): string | null {
     if (date == null) {
         return null;
     }
-    return formatDate(date);
+    return formatDate(date, iso);
 }
 
 export function filterMap<T, TT>(

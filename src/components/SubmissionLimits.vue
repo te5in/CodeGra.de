@@ -1,51 +1,49 @@
 <template>
 <div class="submission-limits" v-if="value != null">
     <b-form-fieldset>
-        <b-input-group class="max-submissions">
-            <b-input-group-prepend is-text slot="prepend">
-                Maximum amount of submissions
-                <cg-description-popover hug-text>
-                    The maximum amount of submissions, inclusive, students will
-                    be able to make. If you leave this value empty,
-                    or set it to 0, students will be able to make an
-                    infinite amount of submissions.
-                </cg-description-popover>
-            </b-input-group-prepend>
+        <template #label>
+            Maximum total amount of submissions
 
-            <input class="form-control"
-                type="number"
-                min="0"
-                @keyup.ctrl.enter="$emit('update-max-submissions')"
-                :value="value.maxSubmissions"
-                @input="emitUpdate({ maxSubmissions: $event.target.value })"
-                placeholder="Infinite"/>
+            <cg-description-popover hug-text>
+                The maximum amount of submissions, inclusive, students will
+                be able to make. If you leave this value empty,
+                or set it to 0, students will be able to make an
+                infinite amount of submissions.
+            </cg-description-popover>
+        </template>
 
-            <slot name="max-submissions" />
-        </b-input-group>
+        <cg-number-input
+            :min="0"
+            @keyup.ctrl.enter="$emit('update-max-submissions')"
+            :value="maxSubmissions"
+            @input="maxSubmissions = $event"
+            placeholder="Infinite"/>
     </b-form-fieldset>
 
-    <b-form-fieldset>
-        <b-input-group class="cool-off-period-wrapper">
-            <b-input-group-prepend is-text slot="prepend">
-                Cool off period
-                <cg-description-popover hug-text>
-                    The minimum amount of time there should be
-                    between submissions. The first input determines
-                    the amount of submissions, and the second the
-                    time in minutes. You can set the time to zero to
-                    disable this limit.
-                </cg-description-popover>
-            </b-input-group-prepend>
+    <b-form-fieldset
+        :state="!coolOffFeedback"
+        :invalid-feedback="coolOffFeedback">
+        <template #label>
+            Cool off period
 
-            <input class="form-control amount-in-cool-off-period"
-                type="number"
-                min="0"
+            <cg-description-popover hug-text>
+                The minimum amount of time there should be
+                between submissions. The first input determines
+                the amount of submissions, and the second the
+                time in minutes. You can set the time to zero to
+                disable this limit.
+            </cg-description-popover>
+        </template>
+
+        <b-input-group class="cool-off-period-wrapper">
+            <cg-number-input class="amount-in-cool-off-period"
+                :min="1"
                 @keyup.ctrl.enter="$emit('update-cool-off')"
-                :value="value.coolOff.amount"
-                @input="emitUpdate({ coolOff: { amount: $event.target.value } })" />
+                :value="coolOffAmount"
+                @input="coolOffAmount = $event"/>
 
             <b-input-group-prepend is-text>
-                <template v-if="parseFloat(value.coolOff.amount) === 1">
+                <template v-if="parseFloat(coolOffAmount) === 1">
                     submission
                 </template>
                 <template v-else>
@@ -54,17 +52,17 @@
                 every
             </b-input-group-prepend>
 
-            <input class="form-control cool-off-period"
-                type="number"
-                min="0"
-                step="1"
+            <cg-number-input
+                class="cool-off-period"
+                :min="0"
+                :step="1"
                 @keyup.ctrl.enter="$emit('update-cool-off')"
-                @input="emitUpdate({ coolOff: { period: $event.target.value } })"
-                :value="value.coolOff.period"
+                :value="coolOffPeriod"
+                @input="coolOffPeriod = $event"
                 placeholder="0"/>
 
             <b-input-group-append is-text>
-                <template v-if="parseFloat(value.coolOff.period) === 1">
+                <template v-if="parseFloat(coolOffPeriod) === 1">
                     minute
                 </template>
                 <template v-else>
@@ -79,32 +77,70 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Prop } from 'vue-property-decorator';
+import { Vue, Component, Prop, Watch } from 'vue-property-decorator';
 
-type MaxSubmissions = string | number;
+type MaxSubmissions = number | null;
 type CoolOff = {
-    period: string | number,
-    amount: string | number;
+    period: number,
+    amount: number;
 };
 
-type Value = { maxSubmissions?: MaxSubmissions, coolOff?: CoolOff };
+export type SubmissionLimitValue = {
+    maxSubmissions: MaxSubmissions,
+    coolOff: CoolOff,
+};
 
 @Component
 export default class SubmissionLimits extends Vue {
-    @Prop({ required: true }) value!: Value;
+    @Prop({ required: true })
+    value!: SubmissionLimitValue;
 
-    public parseFloat = parseFloat;
+    maxSubmissions: number | null = null;
 
-    emitUpdate(data: Value) {
-        const updated = this.$utils.deepCopy(this.value);
-        if (this.$utils.hasAttr(data, 'maxSubmissions')) {
-            updated.maxSubmissions = data.maxSubmissions;
+    coolOffPeriod: number | null = 0;
+
+    coolOffAmount: number | null = 1;
+
+    get coolOffValid() {
+        return this.coolOffPeriod != null && this.coolOffAmount != null;
+    }
+
+    get coolOffFeedback() {
+        let fb = '';
+
+        if (this.coolOffAmount == null) {
+            fb += 'The amount of submissions must be a positive number. ';
         }
-        if (this.$utils.hasAttr(data, 'coolOff')) {
-            Object.assign(updated.coolOff, data.coolOff);
+
+        if (this.coolOffPeriod == null) {
+            fb += 'The period must be a number greater than or equal to 0.';
         }
 
-        this.$emit('input', updated);
+        return fb;
+    }
+
+    @Watch('value', { immediate: true })
+    onValueChanged() {
+        if (this.value != null) {
+            this.maxSubmissions = this.value.maxSubmissions;
+            this.coolOffPeriod = this.value.coolOff.period;
+            this.coolOffAmount = this.value.coolOff.amount;
+        } else {
+            this.emitValue();
+        }
+    }
+
+    @Watch('maxSubmissions')
+    @Watch('coolOffPeriod')
+    @Watch('coolOffAmount')
+    emitValue() {
+        this.$emit('input', {
+            maxSubmissions: this.maxSubmissions,
+            coolOff: {
+                period: this.coolOffPeriod,
+                amount: this.coolOffAmount,
+            },
+        });
     }
 }
 </script>
