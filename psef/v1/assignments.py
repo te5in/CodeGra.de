@@ -311,6 +311,7 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
             ),
         )
         new_send_login_links = opt_get('send_login_links', bool)
+        new_kind = opt_get('kind', models.AssignmentKind, None)
 
         new_files_upload = opt_get('files_upload_enabled', bool, None)
         new_webhook_upload = opt_get('webhook_upload_enabled', bool, None)
@@ -336,6 +337,9 @@ def update_assignment(assignment_id: int) -> JSONResponse[models.Assignment]:
     if new_state is not MISSING:
         perm_checker.ensure_may_edit_info()
         assig.set_state_with_string(new_state)
+
+    if new_kind is not None:
+        assig.kind = new_kind
 
     if new_name is not MISSING:
         if assig.is_lti:

@@ -19,6 +19,12 @@ import { NormalUserServerData, AnyUser, User } from './user';
 
 const noop = (_: object): void => undefined as void;
 
+enum AssignmentKind {
+    normal = 'normal',
+
+    exam = 'exam',
+}
+
 /* eslint-disable camelcase */
 interface AssignmentServerProps {
     id: number;
@@ -43,6 +49,7 @@ interface AssignmentServerProps {
     lms_name: string | null;
     analytics_workspace_ids: number[];
     peer_feedback_settings: AssignmentPeerFeedbackSettings;
+    kind: AssignmentKind;
 
     deadline: string | null;
     created_at: string;
@@ -70,6 +77,7 @@ export interface AssignmentUpdateableProps {
     webhook_upload_enabled?: boolean;
     max_submissions?: number | null;
     amount_in_cool_off_period?: number;
+    kind?: AssignmentKind;
 
     // Special properties that also may be set.
     reminderTime?: moment.Moment;
@@ -155,6 +163,8 @@ abstract class AssignmentData {
     readonly analytics_workspace_ids!: number[];
 
     readonly peer_feedback_settings!: AssignmentPeerFeedbackSettings;
+
+    readonly kind!: AssignmentKind;
 }
 /* eslint-enable camelcase */
 

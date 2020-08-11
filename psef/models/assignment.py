@@ -186,6 +186,9 @@ class AssignmentJSON(TypedDict, total=True):
     #: WARNING: This API is still in beta, and might change in the future.
     analytics_workspace_ids: t.List[int]
 
+    #: What kind of assignment is this.
+    kind: 'AssignmentKind'
+
 
 class AssignmentAmbiguousSettingTag(enum.Enum):
     """All items that can contribute to a ambiguous assignment setting.
@@ -214,6 +217,14 @@ class AssignmentStateEnum(cg_enum.CGEnum):
     hidden = 0
     open = 1
     done = 2
+
+
+@enum.unique
+class AssignmentKind(cg_enum.CGEnum):
+    """Describes in what state an :class:`.Assignment` is.
+    """
+    normal = 0
+    exam = 1
 
 
 @enum.unique
@@ -1104,6 +1115,15 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         default=AssignmentStateEnum.hidden,
         nullable=False,
     )
+
+    kind = db.Column(
+        'kind',
+        db.Enum(AssignmentKind),
+        default=AssignmentKind.normal,
+        nullable=False,
+        server_default='normal'
+    )
+
     description = db.Column('description', db.Unicode, default='')
     course_id = db.Column(
         'Course_id', db.Integer, db.ForeignKey('Course.id'), nullable=False
@@ -1998,6 +2018,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             'peer_feedback_settings': self.peer_feedback_settings,
             'available_at': self.available_at,
             'send_login_links': self.send_login_links,
+            'kind': self.kind,
 
             # These are all filled in based on permissions and data
             # availability.
