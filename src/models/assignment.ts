@@ -19,7 +19,7 @@ import { NormalUserServerData, AnyUser, User } from './user';
 
 const noop = (_: object): void => undefined as void;
 
-enum AssignmentKind {
+export enum AssignmentKind {
     normal = 'normal',
 
     exam = 'exam',

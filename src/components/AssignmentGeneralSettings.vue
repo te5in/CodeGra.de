@@ -3,6 +3,25 @@
 <b-card v-if="permissions.canEditSomeGeneralSettings"
         header="General"
         class="assignment-general-settings">
+    <b-form-group label-cols="6" label-class="py-0">
+        <template #label>
+            Assignment type
+
+            <!-- TODO: Improve popover text -->
+            <cg-description-popover hug-text>
+                Bla die bla
+            </cg-description-popover>
+        </template>
+
+        <cg-toggle
+            class="float-right"
+            v-model="kind"
+            label-off="Normal"
+            label-on="Exam"
+            :value-off="normalKind"
+            :value-on="examKind" />
+    </b-form-group>
+
     <!-- TODO: Improve description text -->
     <b-form-group
         label="Assignment name"
@@ -14,7 +33,26 @@
                @keydown.ctrl.enter="$refs.submitGeneralSettings.onClick"/>
     </b-form-group>
 
-    <b-form-group>
+    <b-form-group v-if="kind === examKind">
+        <template #label>
+            Available from
+
+            <cg-description-popover hug-text>
+                Bla die bla
+            </cg-description-popover>
+        </template>
+
+        <b-input-group v-b-popover.top.hover="availableAtPopover"
+                       append="hours before the deadline">
+            <cg-number-input
+                :min="0"
+                :step="1"
+                :value="hoursToDeadline"
+                @input="updateAvailableAt" />
+        </b-input-group>
+    </b-form-group>
+
+    <b-form-group v-else>
         <template #label>
             Available at
 
@@ -53,7 +91,7 @@
         <template #label>
             Deadline
 
-            <cg-description-popover placement="top" hug-text>
+            <cg-description-popover hug-text>
                 <template v-if="assignment.ltiProvider.isJust()"
                           slot="description">
                     {{ lmsName.extract() }} did not pass this
@@ -80,7 +118,7 @@
         <template #label>
             Max points
 
-            <cg-description-popover hug-text placement="top">
+            <cg-description-popover hug-text>
                 The maximum grade it is possible to achieve for
                 this assignment.  Setting this value enables
                 you to give 'bonus' points for an assignment,
@@ -145,13 +183,29 @@ export default class AssignmentGeneralSettings extends Vue {
     @Prop({ required: true })
     assignment!: models.Assignment
 
+    normalKind: models.AssignmentKind = models.AssignmentKind.normal;
+
+    examKind: models.AssignmentKind = models.AssignmentKind.exam;
+
     name: string | null = null;
+
+    kind: models.AssignmentKind = models.AssignmentKind.normal;
 
     availableAt: string | null = null;
 
     deadline: string | null = null;
 
     maxGrade: number | null = null;
+
+    get hoursToDeadline() {
+        const { deadline, availableAt } = this;
+
+        if (deadline == null || availableAt == null) {
+            return null;
+        } else {
+            return this.$utils.toMoment(deadline).diff(availableAt) / 1000 / 60 / 60;
+        }
+    }
 
     updateAssignmentGeneralSettings!:
         (args: any) => Promise<AxiosResponse<void>>;
@@ -163,6 +217,7 @@ export default class AssignmentGeneralSettings extends Vue {
     @Watch('assignmentId', { immediate: true })
     onAssignmentChanged() {
         this.name = this.assignment.name;
+        this.kind = this.assignment.kind;
         this.availableAt = this.$utils.formatNullableDate(
             this.assignment.availableAt,
             true,
@@ -179,6 +234,10 @@ export default class AssignmentGeneralSettings extends Vue {
     }
 
     get nothingChanged() {
+        if (this.kind !== this.assignment.kind) {
+            return false;
+        }
+
         if (this.name !== this.assignment.name) {
             return false;
         }
@@ -224,10 +283,20 @@ export default class AssignmentGeneralSettings extends Vue {
         }
     }
 
+    updateAvailableAt(hoursToDeadline: number | null) {
+        if (this.deadline != null && hoursToDeadline != null) {
+            this.availableAt = this.$utils.formatDate(
+                this.$utils.toMoment(this.deadline).subtract(hoursToDeadline, 'hour'),
+                true,
+            );
+        }
+    }
+
     submitGeneralSettings() {
         return this.updateAssignmentGeneralSettings({
             assignmentId: this.assignment.id,
-            name: this.name,
+            rame: this.name,
+            kind: this.kind,
             availableAt: this.availableAt,
             deadline: this.deadline,
             maximumGrade: this.maxGrade == null ? null : Number(this.maxGrade),

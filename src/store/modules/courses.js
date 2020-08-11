@@ -4,7 +4,7 @@ import axios from 'axios';
 
 import moment from 'moment';
 
-import { Assignment } from '@/models';
+import { Assignment, AssignmentKind } from '@/models';
 import { makeProvider } from '@/lti_providers';
 import * as utils from '@/utils';
 
@@ -163,13 +163,14 @@ export const actions = {
 
     async updateAssignmentGeneralSettings(
         context,
-        { assignmentId, name, availableAt, deadline, maximumGrade },
+        { assignmentId, name, kind, availableAt, deadline, maximumGrade },
     ) {
         await context.dispatch('loadCourses');
 
         return axios
             .patch(`/api/v1/assignments/${assignmentId}`, {
                 name,
+                kind,
                 available_at: utils.formatDate(availableAt, true),
                 deadline: utils.formatDate(deadline, true),
                 max_grade: maximumGrade,
@@ -179,6 +180,7 @@ export const actions = {
                     assignmentId,
                     assignmentProps: {
                         name: res.data.name,
+                        kind: AssignmentKind[res.data.kind],
                         availableAt: utils.toMomentNullable(res.data.availableAt),
                         deadline: utils.toMoment(res.data.deadline),
                         max_grade: res.data.max_grade,
