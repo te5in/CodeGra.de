@@ -1,50 +1,48 @@
 <template>
 <div class="peer-feedback-settings">
     <div v-if="!enabled"
-         class="d-flex flex-row justify-content-between">
-        <b class="align-self-center">
-            Enable peer feedback
-        </b>
-
-        <div v-b-popover.hover.top="submitDisabledMessage">
-            <cg-submit-button
-                :disabled="!!submitDisabledMessage"
-                :submit="enable"
-                @after-success="afterSubmit"
-                label="Enable"
-                class="my-n1"/>
-        </div>
+         class="d-flex flex-row justify-content-center">
+        <b-button style="height: 12rem; width: 12rem;"
+                  @click="enable">
+            <fa-icon name="comments-o" :scale="6" />
+            <p>Enable peer feedback</p>
+        </b-button>
     </div>
 
     <template v-else>
-        <b-form-fieldset label="Amount of students">
+        <b-form-group :id="`peer-feedback-amount-${uniqueId}`"
+                      :label-for="`peer-feedback-amount-${uniqueId}-input`">
             <template #label>
                 Amount of students
-
-                <cg-description-popover hug-text>
-                    The amount of students that each student must review.
-                </cg-description-popover>
             </template>
+
+            <template #description>
+                The amount of students that each student must review.
+            </template>
+
             <b-input-group>
-                <cg-number-input v-model="amount"
+                <cg-number-input :id="`peer-feedback-amount-${uniqueId}-input`"
+                                 v-model="amount"
                                  :min="1"
                                  @keyup.ctrl.enter.native="doSubmit"/>
             </b-input-group>
-        </b-form-fieldset>
+        </b-form-group>
 
-        <b-form-fieldset>
+        <b-form-group :id="`peer-feedback-time-${uniqueId}`"
+                      :label-for="`peer-feedback-time-${uniqueId}-days-input`">
             <template #label>
                 Time to give peer feedback
+            </template>
 
-                <cg-description-popover hug-text>
-                    The amount of time students have to give feedback on the
-                    submissions they were assigned, after the deadline of
-                    this assignment has passed.
-                </cg-description-popover>
+            <template #description>
+                The amount of time students have to give feedback on the
+                submissions they were assigned, after the deadline of
+                this assignment has passed.
             </template>
 
             <b-input-group>
-                <cg-number-input v-model="days"
+                <cg-number-input :id="`peer-feedback-time-${uniqueId}-days-input`"
+                                 v-model="days"
                                  name="days"
                                  :min="0"
                                  @keyup.ctrl.enter.native="doSubmit"/>
@@ -53,7 +51,8 @@
                     Days
                 </b-input-group-prepend>
 
-                <cg-number-input v-model="hours"
+                <cg-number-input :id="`peer-feedback-time-${uniqueId}-hours-input`"
+                                 v-model="hours"
                                  name="hours"
                                  :min="0"
                                  :max="24"
@@ -63,23 +62,30 @@
                     Hours
                 </b-input-group-prepend>
             </b-input-group>
-        </b-form-fieldset>
+        </b-form-group>
 
-        <b-form-fieldset class="mt-4">
-            <label>
+        <b-form-group :id="`peer-feedback-auto-approve-${uniqueId}`"
+                      :label-for="`peer-feedback-auto-approve-${uniqueId}-input`">
+            <template #label>
                 Automatically approve comments
+            </template>
+
+            <template #description>
+                Should new peer feedback comments be automatically approved.
 
                 <cg-description-popover hug-text>
-                    Should new peer feedback comments be automatically
-                    approved. Changing this value does not change the
-                    approval status of existing comments.
+                    Changing this value does not change the approval status of
+                    existing comments.
                 </cg-description-popover>
-            </label>
+            </template>
 
-            <cg-toggle v-model="autoApproved"
+            <cg-toggle :id="`peer-feedback-auto-approve-${uniqueId}-input`"
+                       v-model="autoApproved"
+                       class="float-right"
+                       style="margin-top: -2rem;"
                        label-on="Yes"
                        label-off="No" />
-        </b-form-fieldset>
+        </b-form-group>
 
         <b-button-toolbar class="justify-content-end">
             <cg-submit-button :submit="disable"
@@ -98,8 +104,10 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Prop } from 'vue-property-decorator';
+import { Vue, Component, Prop, Watch } from 'vue-property-decorator';
 import { mapActions } from 'vuex';
+
+import 'vue-awesome/icons/comments-o';
 
 import * as utils from '@/utils';
 import * as models from '@/models';
@@ -138,9 +146,7 @@ export default class PeerFeedbackSettings extends Vue {
         return this.assignment.peer_feedback_settings;
     }
 
-    get enabled(): boolean {
-        return this.peerFeedbackSettings != null;
-    }
+    enabled: boolean = false;
 
     amount: number | null = this.peerFeedbackSettings?.amount ?? 0;
 
@@ -148,14 +154,21 @@ export default class PeerFeedbackSettings extends Vue {
 
     hours: number | null = secondsToHours(this.peerFeedbackSettings?.time);
 
+    readonly uniqueId: number = this.$utils.getUniqueId();
+
+    // eslint-disable-next-line camelcase
+    autoApproved: boolean = this.peerFeedbackSettings?.auto_approved ?? false;
+
+    @Watch('assignment', { immediate: true })
+    onAssignmentChanged() {
+        this.enabled = this.peerFeedbackSettings != null;
+    }
+
     get totalTime() {
         const days = this.$utils.getProps(this, 0, 'days');
         const hours = this.$utils.getProps(this, 0, 'hours');
         return daysToSeconds(days) + hoursToSeconds(hours);
     }
-
-    // eslint-disable-next-line camelcase
-    autoApproved: boolean = this.peerFeedbackSettings?.auto_approved ?? false;
 
     updateAssignment!: (data: {
         assignmentId: number,
@@ -174,11 +187,11 @@ export default class PeerFeedbackSettings extends Vue {
     }
 
     enable() {
+        this.enabled = true;
         this.days = 7;
         this.hours = 0;
         this.amount = 1;
         this.autoApproved = false;
-        return this.submit();
     }
 
     submit() {
