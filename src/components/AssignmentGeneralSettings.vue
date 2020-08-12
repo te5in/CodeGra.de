@@ -3,7 +3,9 @@
 <b-card v-if="permissions.canEditSomeGeneralSettings"
         header="General"
         class="assignment-general-settings">
-    <b-form-group label-cols="6" label-class="py-0">
+    <b-form-group label-cols="6" label-class="py-0"
+                  :id="`assignment-type-${uniqueId}`"
+                  :label-for="`assignment-type-${uniqueId}-toggle`">
         <template #label>
             Assignment type
 
@@ -15,6 +17,7 @@
 
         <cg-toggle
             class="float-right"
+            :id="`assignment-type-${uniqueId}-toggle`"
             v-model="kind"
             label-off="Normal"
             label-on="Exam"
@@ -33,7 +36,9 @@
                @keydown.ctrl.enter="$refs.submitGeneralSettings.onClick"/>
     </b-form-group>
 
-    <b-form-group v-if="kind === examKind">
+    <b-form-group v-if="kind === examKind"
+                  :id="`assignment-available-at-${uniqueId}`"
+                  :label-for="`assignment-available-at-${uniqueId}-input`">
         <template #label>
             Available from
 
@@ -45,6 +50,7 @@
         <b-input-group v-b-popover.top.hover="availableAtPopover"
                        append="hours before the deadline">
             <cg-number-input
+                :id="`assignment-available-at-${uniqueId}-input`"
                 :min="0"
                 :step="1"
                 :value="hoursToDeadline"
@@ -52,7 +58,9 @@
         </b-input-group>
     </b-form-group>
 
-    <b-form-group v-else>
+    <b-form-group v-else
+                  :id="`assignment-available-at-${uniqueId}`"
+                  :label-for="`assignment-available-at-${uniqueId}-input`">
         <template #label>
             Available at
 
@@ -67,6 +75,7 @@
         <b-input-group v-b-popover.top.hover="availableAtPopover">
             <datetime-picker v-model="availableAt"
                              :disabled="!permissions.canEditAvailableAt"
+                             :id="`assignment-available-at-${uniqueId}-input`"
                              placeholder="Manual"/>
 
             <b-input-group-append
@@ -87,6 +96,8 @@
     <b-form-group
         :state="assignment.hasDeadline"
         :description="permissions.canEditDeadline ? '' : 'You cannot change the deadline!'"
+        :id="`assignment-deadline-${uniqueId}`"
+        :label-for="`assignment-deadline-${uniqueId}-input`"
         invalid-feedback="The deadline has not been set yet!">
         <template #label>
             Deadline
@@ -109,12 +120,15 @@
 
         <datetime-picker
             v-model="deadline"
+            :id="`assignment-deadline-${uniqueId}-input`"
             class="assignment-deadline"
             placeholder="None set"
             :disabled="!permissions.canEditDeadline"/>
     </b-form-group>
 
-    <b-form-group v-if="permissions.canEditMaxGrade">
+    <b-form-group v-if="permissions.canEditMaxGrade"
+                  :id="`assignment-max-points-${uniqueId}`"
+                  :label-for="`assignment-max-points-${uniqueId}-input`">
         <template #label>
             Max points
 
@@ -134,6 +148,7 @@
             <cg-number-input
                 :min="0"
                 :step="1"
+                :id="`assignment-max-points-${uniqueId}-input`"
                 placeholder="10"
                 v-model="maxGrade" />
 
@@ -196,6 +211,8 @@ export default class AssignmentGeneralSettings extends Vue {
     deadline: string | null = null;
 
     maxGrade: number | null = null;
+
+    readonly uniqueId: number = this.$utils.getUniqueId();
 
     get hoursToDeadline() {
         const { deadline, availableAt } = this;
