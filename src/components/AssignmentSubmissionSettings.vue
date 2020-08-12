@@ -3,17 +3,19 @@
 <b-card v-if="permissions.canEditSubmissionSettings"
         header="Submission settings"
         class="assignment-submission-settings">
-    <b-form-group
-        :state="submitTypesValid"
-        invalid-feedback="Enable at least one way of uploading.">
+    <b-form-group :id="`assignment-submit-types-${uniqueId}`"
+                  :label-for="`assignment-submit-types-${uniqueId}-input`"
+                  :state="submitTypesValid">
         <template #label>
             Allowed upload types
+        </template>
 
-            <cg-description-popover hug-text>
-                Select how you want your student to hand in
-                their submissions. You can either select a file
-                uploader, via a GitHub/GitLab webhook, or both.
-            </cg-description-popover>
+        <template #description>
+            Select how you want your student to hand in their submissions.
+        </template>
+
+        <template #invalid-feedback>
+            Enable at least one way of uploading.
         </template>
 
         <assignment-submit-types
@@ -23,6 +25,7 @@
 
     <submission-limits
         v-model="submissionLimits"
+        :input-id="`assignment-submit-types-${uniqueId}-input`"
         @keydown.ctrl.enter.native="$refs.submitSubmissionSettings.onClick()" />
 
     <div class="float-right"

@@ -1,18 +1,22 @@
 <template>
 <div class="submission-limits" v-if="value != null">
-    <b-form-fieldset>
+    <b-form-fieldset :id="`assignment-max-submissions-${uniqueId}`"
+                     :label-for="`assignment-max-submissions-${uniqueId}-input`">
         <template #label>
             Maximum total amount of submissions
+        </template>
+
+        <template #description>
+            The maximum amount of submissions students will be able to make.
 
             <cg-description-popover hug-text>
-                The maximum amount of submissions, inclusive, students will
-                be able to make. If you leave this value empty,
-                or set it to 0, students will be able to make an
-                infinite amount of submissions.
+                If you leave this value empty, or set it to 0, students will be
+                able to make an infinite amount of submissions.
             </cg-description-popover>
         </template>
 
         <cg-number-input
+            :id="`assignment-max-submissions-${uniqueId}-input`"
             :min="0"
             @keyup.ctrl.enter="$emit('update-max-submissions')"
             :value="maxSubmissions"
@@ -20,23 +24,36 @@
             placeholder="Infinite"/>
     </b-form-fieldset>
 
-    <b-form-fieldset
-        :state="!coolOffFeedback"
-        :invalid-feedback="coolOffFeedback">
+    <b-form-fieldset :id="`assignment-cool-off-${uniqueId}`"
+                     :label-for="`assignment-cool-off-${uniqueId}-input`"
+                     :state="coolOffAmount != null && coolOffPeriod != null">
         <template #label>
             Cool off period
+        </template>
+
+        <template #description>
+            The minimum amount of time there should be between submissions.
 
             <cg-description-popover hug-text>
-                The minimum amount of time there should be
-                between submissions. The first input determines
-                the amount of submissions, and the second the
-                time in minutes. You can set the time to zero to
+                The first input determines the amount of submissions, and the
+                second the time in minutes. You can set the time to zero to
                 disable this limit.
             </cg-description-popover>
         </template>
 
+        <template #invalid-feedback>
+            <div v-if="coolOffAmount == null">
+                The amount of submissions must be a positive number.
+            </div>
+            <div v-if="coolOffPeriod == null">
+                The period must be a number greater than or equal to 0.
+            </div>
+        </template>
+
         <b-input-group class="cool-off-period-wrapper">
-            <cg-number-input class="amount-in-cool-off-period"
+            <cg-number-input
+                :id="`assignment-cool-off-${uniqueId}-input`"
+                class="amount-in-cool-off-period"
                 :min="1"
                 @keyup.ctrl.enter="$emit('update-cool-off')"
                 :value="coolOffAmount"
@@ -101,22 +118,10 @@ export default class SubmissionLimits extends Vue {
 
     coolOffAmount: number | null = 1;
 
+    readonly uniqueId: number = this.$utils.getUniqueId();
+
     get coolOffValid() {
         return this.coolOffPeriod != null && this.coolOffAmount != null;
-    }
-
-    get coolOffFeedback() {
-        let fb = '';
-
-        if (this.coolOffAmount == null) {
-            fb += 'The amount of submissions must be a positive number. ';
-        }
-
-        if (this.coolOffPeriod == null) {
-            fb += 'The period must be a number greater than or equal to 0.';
-        }
-
-        return fb;
     }
 
     @Watch('value', { immediate: true })

@@ -3,21 +3,21 @@
 <b-card v-if="permissions.canEditSomeGeneralSettings"
         header="General"
         class="assignment-general-settings">
-    <b-form-group label-cols="6" label-class="py-0"
-                  :id="`assignment-type-${uniqueId}`"
+    <b-form-group :id="`assignment-type-${uniqueId}`"
                   :label-for="`assignment-type-${uniqueId}-toggle`">
         <template #label>
             Assignment type
+        </template>
 
-            <!-- TODO: Improve popover text -->
-            <cg-description-popover hug-text>
-                Bla die bla
-            </cg-description-popover>
+        <template #description>
+            In exam mode students receive an e-mail with a link to register for
+            and access the exam.
         </template>
 
         <cg-toggle
-            class="float-right"
             :id="`assignment-type-${uniqueId}-toggle`"
+            class="float-right"
+            style="margin-top: -2rem;"
             v-model="kind"
             label-off="Normal"
             label-on="Exam"
@@ -25,51 +25,49 @@
             :value-on="examKind" />
     </b-form-group>
 
-    <!-- TODO: Improve description text -->
-    <b-form-group
-        label="Assignment name"
-        :description="permissions.canEditName ? '' : 'You cannot change the name of an LTI assignment.'">
-        <input type="text"
+    <b-form-group :id="`assignment-name-${uniqueId}`"
+                  :label-for="`assignment-name-${uniqueId}-input`"
+                  :state="!!name">
+        <template #label>
+            Assignment name
+        </template>
+
+        <template #description
+                  v-if="!permissions.canEditName">
+            You cannot change the name of an LTI assignment.
+        </template>
+
+        <template #invalid-feedback>
+            The assignment name may not be empty.
+        </template>
+
+        <input :id="`assignment-name-${uniqueId}-input`"
+               type="text"
                class="form-control"
                v-model="name"
                :disabled="!permissions.canEditName"
                @keydown.ctrl.enter="$refs.submitGeneralSettings.onClick"/>
     </b-form-group>
 
-    <b-form-group v-if="kind === examKind"
-                  :id="`assignment-available-at-${uniqueId}`"
-                  :label-for="`assignment-available-at-${uniqueId}-input`">
+    <b-form-group :id="`assignment-available-at-${uniqueId}`"
+                  :label-for="`assignment-available-at-${uniqueId}-input`"
+                  :state="kind !== examKind || availableAt != null">
         <template #label>
-            Available from
+            Available at
+        </template>
+
+        <template #description>
+            The time the assignment should switch from the hidden state to the
+            open state.
 
             <cg-description-popover hug-text>
-                Bla die bla
+                With the default permissions this means that students will be
+                able to see the assignment at this moment.
             </cg-description-popover>
         </template>
 
-        <b-input-group v-b-popover.top.hover="availableAtPopover"
-                       append="hours before the deadline">
-            <cg-number-input
-                :id="`assignment-available-at-${uniqueId}-input`"
-                :min="0"
-                :step="1"
-                :value="hoursToDeadline"
-                @input="updateAvailableAt" />
-        </b-input-group>
-    </b-form-group>
-
-    <b-form-group v-else
-                  :id="`assignment-available-at-${uniqueId}`"
-                  :label-for="`assignment-available-at-${uniqueId}-input`">
-        <template #label>
-            Available at
-
-            <cg-description-popover hug-text>
-                The time the assignment should switch from the
-                hidden state to the open state. With the default
-                permissions this means that students will be
-                able to see the assignment at this moment.
-            </cg-description-popover>
+        <template #invalid-feedback>
+            This field must be set in exam mode.
         </template>
 
         <b-input-group v-b-popover.top.hover="availableAtPopover">
@@ -79,7 +77,7 @@
                              placeholder="Manual"/>
 
             <b-input-group-append
-                v-if="permissions.canEditAvailableAt"
+                v-if="permissions.canEditAvailableAt && kind !== examKind"
                 v-b-popover.top.hover="availableAt == null ? '' : 'Revert to manual mode.'">
 
                 <b-button
@@ -92,34 +90,70 @@
         </b-input-group>
     </b-form-group>
 
-    <!-- TODO: Improve description text -->
     <b-form-group
-        :state="assignment.hasDeadline"
-        :description="permissions.canEditDeadline ? '' : 'You cannot change the deadline!'"
+        v-if="kind === examKind"
+        :state="examDuration != null"
         :id="`assignment-deadline-${uniqueId}`"
-        :label-for="`assignment-deadline-${uniqueId}-input`"
-        invalid-feedback="The deadline has not been set yet!">
+        :label-for="`assignment-deadline-${uniqueId}-input`">
+        <template #label>
+            Duration
+        </template>
+
+        <template #description>
+            Students can submit this long after the exam has become available.
+        </template>
+
+        <template #invalid-feedback>
+            This field must be set in exam mode.
+        </template>
+
+        <b-input-group append="hours">
+            <cg-number-input
+                :id="`assignment-deadline-${uniqueId}-input`"
+                :min="0"
+                :step="1"
+                v-model="examDuration"
+                @input="deadline = examDeadline" />
+        </b-input-group>
+    </b-form-group>
+
+    <b-form-group
+        v-else
+        :state="assignment.hasDeadline"
+        :id="`assignment-deadline-${uniqueId}`"
+        :label-for="`assignment-deadline-${uniqueId}-input`">
         <template #label>
             Deadline
+        </template>
 
-            <cg-description-popover hug-text>
-                <template v-if="assignment.ltiProvider.isJust()"
-                          slot="description">
-                    {{ lmsName.extract() }} did not pass this
-                    assignment's deadline on to CodeGrade.
-                    Students will not be able to submit their
-                    work until the deadline is set here.
+        <template #description>
+            <template v-if="!permissions.canEditDeadline">
+                <template v-if="assignment.ltiProvider.isJust()">
+                    The deadline can be configured in {{ lmsName.extract() }}.
                 </template>
-                <template v-else
-                          slot="description">
-                    Students will not be able to submit work
-                    unless a deadline has been set.
+                <template v-else>
+                    <!-- TODO: Improve description text -->
+                    You cannot change the deadline.
                 </template>
-            </cg-description-popover>
+            </template>
+            <template v-else>
+                Students will not be able to submit work unless a deadline has
+                been set.
+
+                <cg-description-popover hug-text v-if="assignment.ltiProvider.isJust()">
+                    {{ lmsName.extract() }} did not pass this assignment's
+                    deadline on to CodeGrade.
+                </cg-description-popover>
+            </template>
+        </template>
+
+        <template #invalid-feedback>
+            The deadline has not been set yet!
         </template>
 
         <datetime-picker
             v-model="deadline"
+            @input="examDuration = calcExamDuration()"
             :id="`assignment-deadline-${uniqueId}-input`"
             class="assignment-deadline"
             placeholder="None set"
@@ -131,15 +165,16 @@
                   :label-for="`assignment-max-points-${uniqueId}-input`">
         <template #label>
             Max points
+        </template>
+
+        <template #description>
+            The maximum grade it is possible to achieve for this assignment.
 
             <cg-description-popover hug-text>
-                The maximum grade it is possible to achieve for
-                this assignment.  Setting this value enables
-                you to give 'bonus' points for an assignment,
-                as a 10 will still be seen as a perfect score.
-                So if this value is 12 a user can score
-                2 additional bonus points. The default value is
-                10. Existing grades will not be changed by
+                Setting this value enables you to give 'bonus' points for an
+                assignment, as a 10 will still be seen as a perfect score.  So
+                if this value is 12 a user can score 2 additional bonus points.
+                The default value is 10. Existing grades will not be changed by
                 changing this value!
             </cg-description-popover>
         </template>
@@ -168,7 +203,7 @@
          v-b-popover.top.hover="submitGeneralSettingsPopover">
         <cg-submit-button
             ref="submitGeneralSettings"
-            :disabled="nothingChanged"
+            :disabled="!!submitGeneralSettingsPopover"
             :submit="submitGeneralSettings" />
     </div>
 </b-card>
@@ -178,6 +213,7 @@
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator';
 import { mapActions } from 'vuex';
 import { AxiosResponse } from 'axios';
+import moment from 'moment';
 
 import * as models from '@/models';
 
@@ -210,19 +246,11 @@ export default class AssignmentGeneralSettings extends Vue {
 
     deadline: string | null = null;
 
+    examDuration: number | null = null;
+
     maxGrade: number | null = null;
 
     readonly uniqueId: number = this.$utils.getUniqueId();
-
-    get hoursToDeadline() {
-        const { deadline, availableAt } = this;
-
-        if (deadline == null || availableAt == null) {
-            return null;
-        } else {
-            return this.$utils.toMoment(deadline).diff(availableAt) / 1000 / 60 / 60;
-        }
-    }
 
     updateAssignmentGeneralSettings!:
         (args: any) => Promise<AxiosResponse<void>>;
@@ -243,7 +271,10 @@ export default class AssignmentGeneralSettings extends Vue {
             this.assignment.deadline,
             true,
         );
+        this.examDuration = this.calcExamDuration();
         this.maxGrade = this.assignment.max_grade;
+
+        console.log(this.kind, this.availableAt);
     }
 
     get permissions() {
@@ -275,7 +306,31 @@ export default class AssignmentGeneralSettings extends Vue {
             return false;
         }
 
+        if (this.examDuration !== this.calcExamDuration()) {
+            return false;
+        }
+
         if (this.maxGrade !== this.assignment.max_grade) {
+            return false;
+        }
+
+        return true;
+    }
+
+    get allDataValid() {
+        if (this.name == null || this.name === '') {
+            return false;
+        }
+
+        if (this.kind === models.AssignmentKind.exam) {
+            if (this.availableAt == null) {
+                return false;
+            }
+
+            if (this.examDuration == null) {
+                return false;
+            }
+        } else if (this.deadline == null) {
             return false;
         }
 
@@ -285,38 +340,63 @@ export default class AssignmentGeneralSettings extends Vue {
     get submitGeneralSettingsPopover() {
         if (this.nothingChanged) {
             return 'Nothing has changed.';
+        } else if (!this.allDataValid) {
+            return 'Cannot submit while some data is invalid.';
         } else {
             return '';
         }
+    }
+
+    get lmsName() {
+        return this.assignment.ltiProvider.map(prov => prov.lms);
     }
 
     get availableAtPopover() {
-        const lmsName = this.assignment.ltiProvider.map(prov => prov.lms);
-
-        if (this.permissions.canEditAvailableAt || lmsName.isNothing()) {
+        if (this.permissions.canEditAvailableAt || this.lmsName.isNothing()) {
             return '';
         } else {
-            return `The state is managed by ${lmsName.extract()}`;
+            return `The state is managed by ${this.lmsName.extract()}`;
         }
     }
 
-    updateAvailableAt(hoursToDeadline: number | null) {
-        if (this.deadline != null && hoursToDeadline != null) {
-            this.availableAt = this.$utils.formatDate(
-                this.$utils.toMoment(this.deadline).subtract(hoursToDeadline, 'hour'),
+    get examDeadline() {
+        const { availableAt, examDuration } = this;
+
+        if (availableAt == null || examDuration == null) {
+            return null;
+        } else {
+            return this.$utils.formatDate(
+                this.$utils.toMoment(availableAt).add(examDuration, 'hour'),
                 true,
             );
         }
     }
 
+    calcExamDuration() {
+        const { deadline, availableAt } = this;
+
+        if (deadline == null || availableAt == null) {
+            return null;
+        } else {
+            const d = this.$utils.toMoment(deadline).diff(availableAt);
+            return moment.duration(d).asHours();
+        }
+    }
+
     submitGeneralSettings() {
+        let deadline = this.deadline;
+
+        if (this.kind === models.AssignmentKind.exam) {
+            deadline = this.examDeadline;
+        }
+
         return this.updateAssignmentGeneralSettings({
             assignmentId: this.assignment.id,
             rame: this.name,
             kind: this.kind,
             availableAt: this.availableAt,
-            deadline: this.deadline,
-            maximumGrade: this.maxGrade == null ? null : Number(this.maxGrade),
+            deadline,
+            maximumGrade: this.maxGrade,
         });
     }
 }
