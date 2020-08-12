@@ -40,7 +40,9 @@
         <div :class="{hidden: selectedCat !== 'general'}"
              class="row cat-wrapper">
             <div class="col-xl-6">
-                <assignment-general-settings :assignment="assignment" />
+                <assignment-general-settings
+                    v-if="permissions.canEditSomeGeneralSettings"
+                    :assignment="assignment" />
 
                 <b-card v-if="canEditPeerFeedbackSettings">
                     <template #header>

@@ -3,9 +3,7 @@
 <b-card v-if="permissions.canEditSubmissionSettings"
         header="Submission settings"
         class="assignment-submission-settings">
-    <b-form-group :id="`assignment-submit-types-${uniqueId}`"
-                  :label-for="`assignment-submit-types-${uniqueId}-input`"
-                  :state="submitTypesValid">
+    <b-form-group :state="submitTypesValid">
         <template #label>
             Allowed upload types
         </template>
@@ -25,7 +23,6 @@
 
     <submission-limits
         v-model="submissionLimits"
-        :input-id="`assignment-submit-types-${uniqueId}-input`"
         @keydown.ctrl.enter.native="$refs.submitSubmissionSettings.onClick()" />
 
     <div class="float-right"
@@ -61,13 +58,15 @@ import SubmissionLimits, { SubmissionLimitValue } from './SubmissionLimits';
         ]),
     },
 })
-export default class AssignmentGeneralSettings extends Vue {
+export default class AssignmentSubmissionSettings extends Vue {
     @Prop({ required: true })
     assignment!: models.Assignment
 
     submitTypes: AssignmentSubmitTypesValue | null = null;
 
     submissionLimits: SubmissionLimitValue | null = null;
+
+    readonly uniqueId: number = this.$utils.getUniqueId();
 
     updateAssignmentSubmissionSettings!:
         (args: any) => Promise<AxiosResponse<void>>;

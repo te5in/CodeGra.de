@@ -1,7 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<b-card v-if="permissions.canEditSomeGeneralSettings"
-        header="General"
+<b-card header="General"
         class="assignment-general-settings">
     <b-form-group :id="`assignment-type-${uniqueId}`"
                   :label-for="`assignment-type-${uniqueId}-toggle`">
@@ -273,8 +272,6 @@ export default class AssignmentGeneralSettings extends Vue {
         );
         this.examDuration = this.calcExamDuration();
         this.maxGrade = this.assignment.max_grade;
-
-        console.log(this.kind, this.availableAt);
     }
 
     get permissions() {

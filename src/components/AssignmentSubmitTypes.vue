@@ -2,8 +2,7 @@
 <template>
 <b-list-group class="assignment-submit-types">
     <b-list-group-item>
-        <b-form-checkbox v-model="files"
-                         :id="inputId">
+        <b-form-checkbox v-model="files">
             File uploader
 
             <cg-description-popover hug-text>

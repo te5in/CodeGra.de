@@ -25,7 +25,7 @@
     </b-form-fieldset>
 
     <b-form-fieldset :id="`assignment-cool-off-${uniqueId}`"
-                     :label-for="`assignment-cool-off-${uniqueId}-input`"
+                     :label-for="`assignment-cool-off-${uniqueId}-amount-input`"
                      :state="coolOffAmount != null && coolOffPeriod != null">
         <template #label>
             Cool off period
@@ -52,7 +52,7 @@
 
         <b-input-group class="cool-off-period-wrapper">
             <cg-number-input
-                :id="`assignment-cool-off-${uniqueId}-input`"
+                :id="`assignment-cool-off-${uniqueId}-amount-input`"
                 class="amount-in-cool-off-period"
                 :min="1"
                 @keyup.ctrl.enter="$emit('update-cool-off')"
@@ -70,6 +70,7 @@
             </b-input-group-prepend>
 
             <cg-number-input
+                :id="`assignment-cool-off-${uniqueId}-period-input`"
                 class="cool-off-period"
                 :min="0"
                 :step="1"
@@ -86,8 +87,6 @@
                     minutes
                 </template>
             </b-input-group-append>
-
-            <slot name="cool-off-period" />
         </b-input-group>
     </b-form-fieldset>
 </div>
