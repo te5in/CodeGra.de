@@ -43,7 +43,34 @@
                 <assignment-general-settings
                     v-if="permissions.canEditSomeGeneralSettings"
                     :assignment="assignment" />
+            </div>
 
+            <div class="col-xl-6">
+                <assignment-submission-settings
+                    v-if="permissions.canEditSubmissionSettings"
+                    :assignment="assignment" />
+
+                <b-card v-if="canSubmitWork"
+                        no-body>
+                    <template #header>
+                        Upload submission
+
+                        <description-popover>
+                            Upload work for this assignment. With the author
+                            field you can select who should be the author. This
+                            function can be used to submit work for a student.
+                        </description-popover>
+                    </template>
+
+                    <submission-uploader :assignment="assignment"
+                                         for-others
+                                         no-border
+                                         maybe-show-git-instructions
+                                         :can-list-users="canListCourseUsers" />
+                </b-card>
+            </div>
+
+            <div class="col-xl-6">
                 <b-card v-if="canEditPeerFeedbackSettings">
                     <template #header>
                         Peer feedback
@@ -63,27 +90,6 @@
             </div>
 
             <div class="col-xl-6">
-                <b-card v-if="canSubmitWork"
-                        no-body>
-                    <template #header>
-                        Upload submission
-
-                        <description-popover>
-                            Upload work for this assignment. With the author
-                            field you can select who should be the author. This
-                            function can be used to submit work for a student.
-                        </description-popover>
-                    </template>
-
-                    <submission-uploader :assignment="assignment"
-                                         for-others
-                                         no-border
-                                         maybe-show-git-instructions
-                                         :can-list-users="canListCourseUsers" />
-                </b-card>
-
-                <assignment-submission-settings :assignment="assignment" />
-
                 <b-card v-if="canEditGroups" no-body>
                     <span slot="header">
                         Group assignment

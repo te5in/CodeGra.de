@@ -1,7 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 <template>
-<b-card v-if="permissions.canEditSubmissionSettings"
-        header="Submission settings"
+<b-card header="Submission settings"
         class="assignment-submission-settings">
     <b-form-group :state="submitTypesValid">
         <template #label>
