@@ -46,6 +46,7 @@ from . import linter as linter_models
 from . import rubric as rubric_models
 from . import analytics as analytics_models
 from . import auto_test as auto_test_models
+from . import validator
 from .. import auth, ignore, helpers, signals, db_locks
 from .role import CourseRole
 from .permission import Permission, PermissionComp
@@ -1367,6 +1368,38 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         ),
     )
 
+    @validator.validates(
+        lambda: (
+            Assignment._available_at,
+            Assignment._deadline,
+            Assignment.send_login_links_token,
+        )
+    )
+    def _check_available_at_and_login_links(self) -> None:
+        if not self.send_login_links:
+            return
+
+        if self.available_at is None:
+            raise APIException
+        max_time = psef.current_app.config['EXAM_LOGIN_MAX_LENGTH']
+        if self.deadline is None:
+            return
+        if (self.available_at - self.deadline) > max_time:
+            raise APIException
+
+    @validator.validates(
+        lambda: (Assignment._available_at, Assignment._deadline)
+    )
+    def _check_available_at_and_deadline(self) -> None:
+        if self.available_at is None or self.deadline is None:
+            return
+        if self.available_at >= self.deadline:
+            raise APIException(
+                'The assignment should become available before the deadline.',
+                'The available_at is at or after the deadline',
+                APICodes.INVALID_STATE, 409
+            )
+
     def __init__(
         self,
         course: 'course_models.Course',
@@ -1417,6 +1450,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             return self.id == other.id
         return NotImplemented
 
+    def __hash__(self) -> int:
+        return hash((self.id, ))
+
     def _get_deadline(self) -> t.Optional[DatetimeWithTimezone]:
         return self._deadline
 
@@ -1428,8 +1464,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             self._changed_ambiguous_settings.add(
                 AssignmentAmbiguousSettingTag.deadline
             )
-            self._check_available_at_and_login_links()
-            self._check_available_at_and_deadline()
             signals.ASSIGNMENT_DEADLINE_CHANGED.send(self)
 
     deadline = hybrid_property(_get_deadline, _set_deadline)
@@ -1631,31 +1665,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         )
         if new_value:
             self._schedule_send_login_links()
-            self._check_available_at_and_login_links()
         else:
             self.send_login_links_token = None
-
-    def _check_available_at_and_login_links(self) -> None:
-        if not self.send_login_links:
-            return
-
-        if self.available_at is None:
-            raise APIException
-        max_time = psef.current_app.config['EXAM_LOGIN_MAX_LENGTH']
-        if self.deadline is None:
-            return
-        if (self.available_at - self.deadline) > max_time:
-            raise APIException
-
-    def _check_available_at_and_deadline(self) -> None:
-        if self.available_at is None or self.deadline is None:
-            return
-        if self.available_at >= self.deadline:
-            raise APIException(
-                'The assignment should become available before the deadline.',
-                'The available_at is at or after the deadline',
-                APICodes.INVALID_STATE, 409
-            )
 
     @property
     def available_at(self) -> t.Optional[DatetimeWithTimezone]:
@@ -1669,8 +1680,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             return
 
         self._available_at = new_value
-        self._check_available_at_and_login_links()
-        self._check_available_at_and_deadline()
 
         if new_value is None:
             return
