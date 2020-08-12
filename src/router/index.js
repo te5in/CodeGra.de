@@ -19,6 +19,8 @@ import {
     UnsubscribePage,
     LTIProviderSetup,
     AssignmentLogin,
+    CourseEnroll,
+    SsoLogin,
 } from '@/pages';
 
 import { PlagiarismOverview, PlagiarismDetail } from '@/components';
@@ -127,6 +129,16 @@ const router = new Router({
             path: '/assignments/:assignmentId/login/:loginUuid',
             name: 'assignment_login',
             component: AssignmentLogin,
+        },
+        {
+            path: '/courses/:courseId/enroll/:linkId',
+            name: 'course_enroll',
+            component: CourseEnroll,
+        },
+        {
+            path: '/sso_login/:blobId',
+            name: 'sso_login',
+            component: SsoLogin,
         },
     ],
 });

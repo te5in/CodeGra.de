@@ -220,3 +220,4 @@ if True:  # pylint: disable=using-constant-test
         NotificationSettingJSON
     )
     from .task_result import TaskResult, TaskResultState
+    from .saml_provider import Saml2Provider, UserSamlProvider
