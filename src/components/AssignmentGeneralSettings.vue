@@ -8,20 +8,19 @@
             Assignment type
         </template>
 
-        <template #description>
+        <template #description v-if="assignment.is_lti">
+            Some settings of this assignment are managed through {{ lmsName.extract() }}.
+        </template>
+        <template #description v-else>
             In exam mode students receive an e-mail with a link to register for
             and access the exam.
         </template>
 
-        <cg-toggle
+        <b-form-select
             :id="`assignment-type-${uniqueId}-toggle`"
-            class="float-right"
-            style="margin-top: -2rem;"
             v-model="kind"
-            label-off="Normal"
-            label-on="Exam"
-            :value-off="normalKind"
-            :value-on="examKind" />
+            :options="kindOptions"
+            :disabled="assignment.is_lti"/>
     </b-form-group>
 
     <b-form-group :id="`assignment-name-${uniqueId}`"
@@ -239,7 +238,7 @@ export default class AssignmentGeneralSettings extends Vue {
 
     name: string | null = null;
 
-    kind: models.AssignmentKind = models.AssignmentKind.normal;
+    kind: models.AssignmentKind | null = null;
 
     availableAt: string | null = null;
 
@@ -253,6 +252,17 @@ export default class AssignmentGeneralSettings extends Vue {
 
     updateAssignmentGeneralSettings!:
         (args: any) => Promise<AxiosResponse<void>>;
+
+    get kindOptions() {
+        if (this.assignment.is_lti) {
+            return [{ text: 'LTI', value: this.kind }];
+        }
+
+        return [
+            { text: 'Normal', value: models.AssignmentKind.normal },
+            { text: 'Exam', value: models.AssignmentKind.exam },
+        ];
+    }
 
     get assignmentId() {
         return this.assignment.id;
