@@ -852,21 +852,26 @@ def _send_login_links_to_users_1(
         return
 
     login_link_map = {
-        l.user_id: l for l in p.models.AssignmentLoginLink.query.filter(
+        link.user_id: link
+        for link in p.models.AssignmentLoginLink.query.filter(
             p.models.AssignmentLoginLink.assignment == assignment
         ).all()
     }
     users = [
         user for user, _ in assignment.course.get_all_users_in_course(
             include_test_students=False
+        ).filter(
+            p.models.CourseRole.get_has_permission_filter(
+                p.permissions.CoursePermission.can_receive_login_links
+            )
         )
     ]
+
     for user in users:
         if user.id in login_link_map:
             continue
         link = p.models.AssignmentLoginLink(
-            user_id=user.id,
-            assignment_id=assignment.id
+            user_id=user.id, assignment_id=assignment.id
         )
         p.models.db.session.add(link)
         login_link_map[user.id] = link
@@ -876,7 +881,6 @@ def _send_login_links_to_users_1(
             for user in users:
                 link = login_link_map[user.id]
                 p.mail.send_login_link_mail(mailer, link)
-
 
     task_result.as_task(inner)
     p.models.db.session.commit()
