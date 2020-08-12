@@ -2,6 +2,7 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
+import enum
 import uuid
 import typing as t
 
@@ -11,7 +12,7 @@ from sqlalchemy import event
 from cg_dt_utils import DatetimeWithTimezone
 
 from . import types
-from .types import DbColumn as Col
+from .types import DbColumn
 
 logger = structlog.get_logger()
 
@@ -24,20 +25,6 @@ def _hashable(item: object) -> bool:
     else:
         return True
 
-
-# yapf: disable
-_PossibleColumns = t.Union[
-    Col[int],
-    Col[str],
-    Col[uuid.UUID],
-    Col[DatetimeWithTimezone],
-
-    Col[t.Optional[int]],
-    Col[t.Optional[str]],
-    Col[t.Optional[uuid.UUID]],
-    Col[t.Optional[DatetimeWithTimezone]],
-]
-# yapf: enable
 
 _T_BASE = t.TypeVar('_T_BASE', bound=types.Base)  # pylint: disable=invalid-name
 
@@ -53,7 +40,7 @@ class Validator:
         self.__session = session
         self.__to_setup: t.List[t.Tuple[t.Callable[[types.Base], None],
                                         t.Callable[[],
-                                                   t.Sequence[_PossibleColumns,
+                                                   t.Sequence[DbColumn,
                                                               ],
                                                    ],
                                         ],
@@ -72,7 +59,7 @@ class Validator:
 
     def __add_columns(
         self, fun: t.Callable[[types.Base], None],
-        columns: t.Sequence[_PossibleColumns]
+        columns: t.Sequence[DbColumn]
     ) -> None:
         def __was_updated(
             target: types.Base,
@@ -107,10 +94,9 @@ class Validator:
         self.__to_setup.clear()
         self.__finalized = True
 
-    def validates(
-        self, get_columns: t.Callable[[], t.Sequence[_PossibleColumns]]
-    ) -> t.Callable[[t.Callable[[_T_BASE], None]], t.
-                    Callable[[_T_BASE], None]]:
+    def validates(self, get_columns: t.Callable[[], t.Sequence[DbColumn]]
+                  ) -> t.Callable[[t.Callable[[_T_BASE], None]], t.
+                                  Callable[[_T_BASE], None]]:
         """Register a validator for some columns.
 
         In the case that multiple columns are mutated it may happen that your

@@ -1045,9 +1045,10 @@ class AssignmentLoginLink(Base, UUIDMixin, TimestampMixin):
     )
 
     def get_url(self) -> str:
-        return furl(psef.current_app.config['EXTERNAL_URL']).add(
-            path=['assignments', self.assignment_id, 'login', self.id]
-        ).tostr()
+        return furl(
+            psef.current_app.config['EXTERNAL_URL']
+        ).add(path=['assignments', self.assignment_id, 'login', self.id]
+              ).tostr()
 
     def __to_json__(self) -> t.Any:
         return {
@@ -1337,7 +1338,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         default=None,
     )
 
-    send_login_links_token = db.Column(
+    _send_login_links_token = db.Column(
         'send_login_links_token',
         UUIDType,
         nullable=True,
@@ -1375,20 +1376,37 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         lambda: (
             Assignment._available_at,
             Assignment._deadline,
-            Assignment.send_login_links_token,
+            Assignment._send_login_links_token,
         )
     )
     def _check_available_at_and_login_links(self) -> None:
         if not self.send_login_links:
             return
 
-        if self.available_at is None:
-            raise APIException
+        if self.available_at is None or self.deadline is None:
+            raise APIException(
+                (
+                    'Login links can only be enabled when an available at and'
+                    ' deadline is set'
+                ), f'Some required data was missing for assignment {self.id}',
+                APICodes.INVALID_STATE, 409
+            )
+
         max_time = psef.current_app.config['EXAM_LOGIN_MAX_LENGTH']
-        if self.deadline is None:
-            return
         if (self.available_at - self.deadline) > max_time:
-            raise APIException
+            raise APIException(
+                # TODO: Format in a human readable fashion here
+                (
+                    'Login links can only be enabled if the deadline is at'
+                    ' most {} seconds after the available at date'
+                ).format(max_time.total_seconds()),
+                (
+                    f'The assignment {self.id} has too long between deadline'
+                    f' and available at'
+                ),
+                APICodes.INVALID_STATE,
+                409,
+            )
 
     @validator.validates(
         lambda: (Assignment._available_at, Assignment._deadline)
@@ -1400,6 +1418,45 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             raise APIException(
                 'The assignment should become available before the deadline.',
                 'The available_at is at or after the deadline',
+                APICodes.INVALID_STATE, 409
+            )
+
+    @validator.validates(
+        lambda: (Assignment.kind, Assignment._send_login_links_token)
+    )
+    def _check_normal_assignment_login_links(self) -> None:
+        if self.kind.is_normal and self.send_login_links:
+            raise APIException(
+                'Login links are only available for exam mode assignments',
+                f'The assignment {self.id} is not an exam assignment',
+                APICodes.INVALID_STATE, 409
+            )
+
+    @validator.validates(
+        lambda: (
+            Assignment.kind,
+            Assignment._available_at,
+            Assignment._deadline,
+        )
+    )
+    def _check_kind_and_required_data(self) -> None:
+        if self.kind.is_exam and (
+            self.available_at is None or self.deadline is None
+        ):
+            raise APIException(
+                (
+                    'Exam mode assignments are required to set an available at'
+                    ' and deadline'
+                ), f'Some required data was missing for assignment {self.id}',
+                APICodes.INVALID_STATE, 409
+            )
+
+    @validator.validates(lambda: (Assignment.is_lti, Assignment.kind))
+    def _exam_mode_not_for_lti(self) -> None:
+        if self.is_lti and self.kind.is_exam:
+            raise APIException(
+                'Exam mode is not available for LTI assignments',
+                'You cannot combine LTI assignments and exam mode',
                 APICodes.INVALID_STATE, 409
             )
 
@@ -1470,6 +1527,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             signals.ASSIGNMENT_DEADLINE_CHANGED.send(self)
 
     deadline = hybrid_property(_get_deadline, _set_deadline)
+
+    @property
+    def send_login_links_token(self) -> t.Optional[uuid.UUID]:
+        return self._send_login_links_token
 
     @validates('group_set')
     def validate_group_set(
@@ -1652,14 +1713,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     state = hybrid_property(_state_getter, _state_setter)
 
     def _schedule_send_login_links(self) -> None:
-        print()
-        print()
-        print()
-        print()
-        print()
-        print('SCHEDULING')
         token = uuid.uuid4()
-        self.send_login_links_token = token
+        self._send_login_links_token = token
         assig_id = self.id
 
         tasks = []
@@ -1701,7 +1756,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         if new_value:
             self._schedule_send_login_links()
         else:
-            self.send_login_links_token = None
+            self._send_login_links_token = None
 
     @property
     def available_at(self) -> t.Optional[DatetimeWithTimezone]:
