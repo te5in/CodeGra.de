@@ -818,7 +818,7 @@ def _maybe_open_assignment_at_1(assignment_id: int) -> None:
 @celery.task
 def _send_login_links_to_users_1(
     assignment_id: int, task_id_hex: str, scheduled_time: str,
-    reset_token_hex: str
+        reset_token_hex: str, mail_idx: int
 ) -> None:
     task_id = uuid.UUID(hex=task_id_hex)
     reset_token = uuid.UUID(hex=reset_token_hex)
@@ -843,8 +843,13 @@ def _send_login_links_to_users_1(
     assignment = _assignment
     task_result = _task_result
 
-    if reset_token != assignment.send_login_links_token:
-        logger.error('Tokens did not match')
+    if assignment.deadline_expired:
+        logger.info('Deadline of assignment already expired')
+        return
+    elif reset_token != assignment.send_login_links_token:
+        task_result.state = p.models.TaskResultState.skipped
+        p.models.db.session.commit()
+        logger.info('Tokens did not match')
         return
     elif current_task.maybe_delay_task(
         DatetimeWithTimezone.fromisoformat(scheduled_time)
@@ -880,7 +885,15 @@ def _send_login_links_to_users_1(
         with p.mail.mail.connect() as mailer:
             for user in users:
                 link = login_link_map[user.id]
-                p.mail.send_login_link_mail(mailer, link)
+                try:
+                    p.mail.send_login_link_mail(mailer, link, mail_idx)
+                except:
+                    logger.warning(
+                        'Could not send email',
+                        receiving_user_id=user.id,
+                        exc_info=True,
+                        report_to_sentry=True,
+                    )
 
     task_result.as_task(inner)
     p.models.db.session.commit()
@@ -903,6 +916,11 @@ clone_commit_as_submission = _clone_commit_as_submission_1.delay  # pylint: disa
 delete_file_at_time = _delete_file_at_time_1.delay  # pylint: disable=invalid-name
 send_direct_notification_emails = _send_direct_notification_emails_1.delay  # pylint: disable=invalid-name
 send_email_as_user = _send_email_as_user_1.delay  # pylint: disable=invalid-name
+
+send_login_links_to_users: t.Callable[[
+    t.Tuple[int, str, str, str, int],
+    NamedArg(DatetimeWithTimezone, 'eta')
+], object] = _send_login_links_to_users_1.apply_async  # pylint: disable=invalid-name
 
 send_reminder_mails: t.Callable[
     [t.Tuple[int],

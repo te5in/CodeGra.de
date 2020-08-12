@@ -47,6 +47,7 @@ from . import rubric as rubric_models
 from . import analytics as analytics_models
 from . import auto_test as auto_test_models
 from . import validator
+from . import task_result as task_result_models
 from .. import auth, ignore, helpers, signals, db_locks
 from .role import CourseRole
 from .permission import Permission, PermissionComp
@@ -1044,7 +1045,9 @@ class AssignmentLoginLink(Base, UUIDMixin, TimestampMixin):
     )
 
     def get_url(self) -> str:
-        return 'https://A URL.com'
+        return furl(psef.current_app.config['EXTERNAL_URL']).add(
+            path=['assignments', self.assignment_id, 'login', self.id]
+        ).tostr()
 
     def __to_json__(self) -> t.Any:
         return {
@@ -1649,7 +1652,36 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     state = hybrid_property(_state_getter, _state_setter)
 
     def _schedule_send_login_links(self) -> None:
-        self.send_login_links_token = uuid.uuid4()
+        print()
+        print()
+        print()
+        print()
+        print()
+        print('SCHEDULING')
+        token = uuid.uuid4()
+        self.send_login_links_token = token
+        assig_id = self.id
+
+        tasks = []
+        for offset in psef.current_app.config['LOGIN_TOKEN_BEFORE_TIME']:
+            task = task_result_models.TaskResult(user=None)
+            db.session.add(task)
+            tasks.append((offset, task))
+
+        def _after_req() -> None:
+            assert self.available_at is not None
+            now = helpers.get_request_start_time()
+            for idx, (offset, task) in enumerate(tasks):
+                eta = self.available_at - offset
+                if eta < now and idx != len(tasks) - 1:
+                    continue
+
+                psef.tasks.send_login_links_to_users(
+                    (assig_id, task.id.hex, eta.isoformat(), token.hex, idx),
+                    eta=eta,
+                )
+
+        callback_after_this_request(_after_req)
 
     @property
     def send_login_links(self) -> bool:
@@ -1663,6 +1695,9 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         self._changed_ambiguous_settings.add(
             AssignmentAmbiguousSettingTag.send_login_links
         )
+        if self.deadline_expired:
+            # TODO: Finish warning about not sending
+            helpers.add_warning
         if new_value:
             self._schedule_send_login_links()
         else:
@@ -1686,7 +1721,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
 
         # The state setter sets this to the correct value based on the expired
         # state.
-        self.state = AssignmentStateEnum.open
+        if not self.state.is_done:
+            self.state = AssignmentStateEnum.open
 
         now = helpers.get_request_start_time()
         expired = now >= new_value

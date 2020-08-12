@@ -339,8 +339,9 @@ class CourseRole(AbstractRole[CoursePermission], Base):
         return res
 
     @classmethod
-    def get_has_permission_filter(cls, permission: CoursePermission
-                                  ) -> FilterColumn:
+    def get_has_permission_filter(
+        cls, permission: CoursePermission
+    ) -> FilterColumn:
         """Get a DB filter that does a :py:func:`CourseRole.has_permission`
         check in the database.
 
@@ -359,11 +360,12 @@ class CourseRole(AbstractRole[CoursePermission], Base):
                 found_perm.default_value == permission.value.default_value
             ), "Wrong permission in database"
 
+        perm_id = Permission.query_permission(permission).with_entities(
+            Permission.id
+        )
         has_link = db.session.query(course_permissions).filter(
-            course_permissions.c.permission_id == Permission.query.filter(
-                Permission.value == permission, Permission.course_permission
-            ).with_entities(Permission.id),
-            course_permissions.c.course_role_id == cls.id
+            course_permissions.c.permission_id == perm_id,
+            course_permissions.c.course_role_id == cls.id,
         ).exists()
 
         # XOR is not available in postgres (or SQLAlchemy), so we solve it with

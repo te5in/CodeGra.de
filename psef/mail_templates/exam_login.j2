@@ -12,10 +12,15 @@
         Hi {{ link.user.get_readable_name() }},
     {% endcall %}
     {% call utils.body_row() %}
-        On {{ assignment.available_at.strftime("%Y-%m-%d") }} the {{
-        assignment.name }} in the {{ course.name }} course will become
-        available. This email contains a special link which you can use during
-        the time this assignment will be available.
+        {% if mail_idx == 0 -%}
+            On
+        {%- else -%}
+            This is just a reminder that on
+        {%- endif %}
+        {{ assignment.available_at.strftime("%Y-%m-%d") }} the {{
+        assignment.name }} assignment in the {{ course.name }} course will
+        become available. This email contains a special link which you can use
+        during the time this assignment will be available.
     {% endcall %}
 
     {% call utils.body_row() %}

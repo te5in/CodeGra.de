@@ -209,6 +209,7 @@ class CGCelery(Celery):
                         result = super().__call__(*args, **kwargs)
                     except:
                         outer_self._call_callbacks(TaskStatus.failure)
+                        result = None
                     else:
                         outer_self._call_callbacks(TaskStatus.success)
 

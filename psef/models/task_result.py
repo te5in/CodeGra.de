@@ -15,7 +15,8 @@ from cg_helpers import on_not_none
 from cg_sqlalchemy_helpers import JSONB
 from cg_sqlalchemy_helpers.mixins import UUIDMixin, TimestampMixin
 
-from . import Base, User, db
+from . import Base, db
+from . import user as user_models
 from ..exceptions import APICodes, APIException
 
 logger = structlog.get_logger()
@@ -36,6 +37,7 @@ class TaskResultState(cg_enum.CGEnum):
     finished = 2
     failed = 3
     crashed = 4
+    skipped = 5
 
 
 class TaskResultJSON(TypedDict):
@@ -67,10 +69,10 @@ class TaskResult(Base, UUIDMixin, TimestampMixin):
         db.ForeignKey('User.id', ondelete='CASCADE'),
         nullable=True,
     )
-    user = db.relationship(User, foreign_keys=user_id)
+    user = db.relationship(lambda: user_models.User, foreign_keys=user_id)
 
-    def __init__(self, user: t.Optional[User]) -> None:
-        super().__init__(user=on_not_none(user, User.resolve))
+    def __init__(self, user: t.Optional['user_models.User']) -> None:
+        super().__init__(user=on_not_none(user, user_models.User.resolve))
 
     def as_task(self, fun: t.Callable[[], None]) -> bool:
         """Run the given ``fun`` as the task.

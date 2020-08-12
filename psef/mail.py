@@ -340,7 +340,7 @@ def send_student_mail(
 
 
 def send_login_link_mail(
-    mailer: Mail, link: models.AssignmentLoginLink
+        mailer: Mail, link: models.AssignmentLoginLink, mail_idx: int
 ) -> None:
     receiver = link.user
     subject = current_app.jinja_mail_env.from_string(
@@ -355,6 +355,7 @@ def send_login_link_mail(
         site_url=current_app.config["EXTERNAL_URL"],
         subject=subject,
         link=link,
+        mail_idx=mail_idx,
     )
     _send_mail(
         html_body,
