@@ -350,15 +350,15 @@ export default class AssignmentGeneralSettings extends Vue {
             return false;
         }
 
-        if (this.assignment.deadline == null) {
+        if (this.isExam) {
+            if (this.examDuration !== this.calcExamDuration()) {
+                return false;
+            }
+        } else if (this.assignment.deadline == null) {
             if (this.deadline != null) {
                 return false;
             }
         } else if (!this.assignment.deadline.isSame(this.deadline)) {
-            return false;
-        }
-
-        if (this.examDuration !== this.calcExamDuration()) {
             return false;
         }
 
@@ -378,10 +378,8 @@ export default class AssignmentGeneralSettings extends Vue {
             return false;
         }
 
-        if (this.kind === models.AssignmentKind.exam) {
-            if (!this.examDurationValid) {
-                return false;
-            }
+        if (this.isExam && !this.examDurationValid) {
+            return false;
         }
 
         return true;
@@ -455,12 +453,12 @@ export default class AssignmentGeneralSettings extends Vue {
     }
 
     calcExamDuration() {
-        const { deadline, availableAt } = this;
+        const { assignment, availableAt } = this;
 
-        if (deadline == null || availableAt == null) {
+        if (assignment.deadline == null || availableAt == null) {
             return null;
         } else {
-            const d = this.$utils.toMoment(deadline).diff(availableAt);
+            const d = assignment.deadline.diff(availableAt);
             return moment.duration(d).asHours();
         }
     }
@@ -497,7 +495,7 @@ export default class AssignmentGeneralSettings extends Vue {
 
     submitGeneralSettings() {
         let deadline = this.deadline;
-        if (this.kind === models.AssignmentKind.exam) {
+        if (this.isExam) {
             deadline = this.examDeadline;
         }
 
