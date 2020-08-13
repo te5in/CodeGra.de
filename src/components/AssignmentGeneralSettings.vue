@@ -66,9 +66,9 @@
 
     <b-form-group :id="`assignment-available-at-${uniqueId}`"
                   :label-for="`assignment-available-at-${uniqueId}-input`"
-                  :state="!isExam || availableAt != null">
+                  :state="availableAtValid">
         <template #label>
-            Available at
+            {{ isExam ? 'Starts' : 'Available' }} at
         </template>
 
         <template #description>
@@ -82,7 +82,7 @@
         </template>
 
         <template #invalid-feedback>
-            This field must be set in exam mode.
+            The "Available at" date must be set in exam mode.
         </template>
 
         <b-input-group v-b-popover.top.hover="availableAtPopover">
@@ -107,9 +107,9 @@
 
     <b-form-group
         v-if="isExam"
-        :state="examDuration != null"
         :id="`assignment-deadline-${uniqueId}`"
-        :label-for="`assignment-deadline-${uniqueId}-input`">
+        :label-for="`assignment-deadline-${uniqueId}-input`"
+        :state="examDurationValid">
         <template #label>
             Duration
         </template>
@@ -119,13 +119,28 @@
         </template>
 
         <template #invalid-feedback>
-            This field must be set in exam mode.
+            <div v-if="examDuration == null">
+                The exam duration must be set in exam mode.
+            </div>
+
+            <div v-else-if="sendLoginLinks && examDuration > maxExamDuration">
+                With "Send login mails" enabled, exams can take at most {{
+                maxExamDuration }} hours.
+
+                <cg-description-popover hug-text>
+                    This is because the login links allow anyone with the link
+                    to log in and act on behalf of the connected user. So if
+                    a student accidentally leaks their login mail, it can be
+                    misused only for a short while.
+                </cg-description-popover>
+            </div>
         </template>
 
         <b-input-group append="hours">
             <cg-number-input
                 :id="`assignment-deadline-${uniqueId}-input`"
                 :min="0"
+                :max="sendLoginLinks ? maxExamDuration : undefined"
                 :step="1"
                 v-model="examDuration"
                 @input="deadline = examDeadline" />
@@ -360,17 +375,49 @@ export default class AssignmentGeneralSettings extends Vue {
             return false;
         }
 
-        if (this.kind === models.AssignmentKind.exam) {
-            if (this.availableAt == null) {
-                return false;
-            }
+        if (!this.availableAtValid) {
+            return false;
+        }
 
-            if (this.examDuration == null) {
+        if (this.kind === models.AssignmentKind.exam) {
+            if (!this.examDurationValid) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    get availableAtValid() {
+        if (!this.isExam) {
+            return true;
+        }
+
+        if (this.availableAt == null) {
+            return false;
+        }
+
+        return true;
+    }
+
+    get examDurationValid() {
+        if (this.examDuration == null) {
+            return false;
+        }
+
+        if (!this.sendLoginLinks) {
+            return true;
+        }
+
+        if (this.examDuration > this.maxExamDuration) {
+            return false;
+        }
+
+        return true;
+    }
+
+    get maxExamDuration() {
+        return this.$userConfig.examLoginMaxLength / 60 / 60;
     }
 
     get isLTI() {
@@ -446,7 +493,6 @@ export default class AssignmentGeneralSettings extends Vue {
 
     submitGeneralSettings() {
         let deadline = this.deadline;
-
         if (this.kind === models.AssignmentKind.exam) {
             deadline = this.examDeadline;
         }
@@ -456,9 +502,9 @@ export default class AssignmentGeneralSettings extends Vue {
             name: this.name,
             kind: this.kind,
             availableAt: this.availableAt,
-            deadline,
+            deadline: deadline || undefined,
             maximumGrade: this.maxGrade,
-            sendLoginLinks: this.sendLoginLinks,
+            sendLoginLinks: this.isExam && this.sendLoginLinks,
         });
     }
 }
