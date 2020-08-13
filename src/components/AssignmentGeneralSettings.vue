@@ -140,7 +140,6 @@
             <cg-number-input
                 :id="`assignment-deadline-${uniqueId}-input`"
                 :min="0"
-                :max="sendLoginLinks ? maxExamDuration : undefined"
                 :step="1"
                 v-model="examDuration"
                 @input="deadline = examDeadline" />
