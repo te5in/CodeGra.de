@@ -176,7 +176,6 @@ export const actions = {
                 max_grade: maximumGrade,
             })
             .then(res => {
-                console.log(res, utils.toMomentNullable(res.data.available_at));
                 context.commit(types.UPDATE_ASSIGNMENT, {
                     assignmentId,
                     assignmentProps: {

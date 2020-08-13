@@ -232,9 +232,9 @@ export default class AssignmentGeneralSettings extends Vue {
     @Prop({ required: true })
     assignment!: models.Assignment
 
-    normalKind: models.AssignmentKind = models.AssignmentKind.normal;
+    readonly normalKind: models.AssignmentKind = models.AssignmentKind.normal;
 
-    examKind: models.AssignmentKind = models.AssignmentKind.exam;
+    readonly examKind: models.AssignmentKind = models.AssignmentKind.exam;
 
     name: string | null = null;
 

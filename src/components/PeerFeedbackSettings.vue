@@ -159,8 +159,8 @@ export default class PeerFeedbackSettings extends Vue {
     // eslint-disable-next-line camelcase
     autoApproved: boolean = this.peerFeedbackSettings?.auto_approved ?? false;
 
-    @Watch('assignment', { immediate: true })
-    onAssignmentChanged() {
+    @Watch('assignmentId', { immediate: true })
+    onAssignmentIdChanged() {
         this.enabled = this.peerFeedbackSettings != null;
     }
 

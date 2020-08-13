@@ -101,12 +101,12 @@ export default class AssignmentGraderSettings extends Vue {
 
     graders: ReadonlyArray<models.User> = [];
 
-    get assignmentId() {
+    get assignmentId(): number {
         return this.assignment.id;
     }
 
     @Watch('assignmentId', { immediate: true })
-    onAssignmentChanged(newVal: models.Assignment | null, oldVal: models.Assignment | null) {
+    onAssignmentIdChanged(newVal: number, oldVal: number) {
         if (newVal == null) {
             this.gradersLoading = true;
             this.gradersLoadedOnce = false;
