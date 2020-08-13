@@ -599,6 +599,7 @@ if login_before_str:
         for x in login_before_str.split(',')
     ]
 else:
+    # This default is also hard coded in `build/userConfig.js`
     login_before = [datetime.timedelta(days=2), datetime.timedelta(minutes=30)]
 CONFIG['LOGIN_TOKEN_BEFORE_TIME'] = login_before
 

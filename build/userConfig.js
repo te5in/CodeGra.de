@@ -113,6 +113,13 @@ const backendOpts = userConfig['Back-end'];
 config.proxyBaseDomain = backendOpts ? backendOpts.proxy_base_domain : '';
 config.isProduction = process.env.NODE_ENV === 'production';
 config.externalUrl = backendOpts ? backendOpts.external_url : '';
+const beforeTime = backendOpts ? backendOpts.login_token_before_time : null;
+if (beforeTime == null) {
+    // 2 days and 30 minutes, same as in ``config.py``
+    config.loginTokenBeforeTime = [2 * 24 * 60 * 60, 30 * 60]
+} else {
+    config.loginTokenBeforeTime = beforeTime.split(',').map(item => parseFloat(item.trim()))
+}
 
 if (!config.proxyBaseDomain && config.isProduction) {
     throw new Error('Production can only be used with a proxy url.');
