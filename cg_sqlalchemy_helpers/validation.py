@@ -2,14 +2,10 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 """
-import enum
-import uuid
 import typing as t
 
 import structlog
 from sqlalchemy import event
-
-from cg_dt_utils import DatetimeWithTimezone
 
 from . import types
 from .types import DbColumn

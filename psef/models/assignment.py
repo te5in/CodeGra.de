@@ -1050,6 +1050,14 @@ class AssignmentLoginLink(Base, UUIDMixin, TimestampMixin):
         ).add(path=['assignments', self.assignment_id, 'login', self.id]
               ).tostr()
 
+    def get_message_id(self, idx: int) -> str:
+        return '<{self_id}-{token_id}-{idx}@{domain}>'.format(
+            self_id=self.id,
+            token_id=self.assignment.send_login_links_token,
+            idx=idx,
+            domain=psef.current_app.config['EXTERNAL_DOMAIN'],
+        )
+
     def __to_json__(self) -> t.Any:
         return {
             'assignment': self.assignment,
@@ -1788,8 +1796,8 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
                     eta=new_value,
                 )
             )
-            if self.send_login_links:
-                self._schedule_send_login_links()
+        if self.send_login_links:
+            self._schedule_send_login_links()
 
     # We don't use property.setter because in that case `new_val` could only be
     # a `float` because of https://github.com/python/mypy/issues/3004

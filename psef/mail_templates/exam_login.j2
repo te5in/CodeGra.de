@@ -24,7 +24,7 @@
     {% endcall %}
 
     {% call utils.body_row() %}
-        Your login link: <a href="{{ link.get_url() }}">{{ link.get_url() }}</a>
+        Your login link: {{ utils.normal_link(link.get_url(), link.get_url()) }}</a>
     {% endcall %}
 
     {% call utils.body_row() %}

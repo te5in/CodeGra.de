@@ -818,7 +818,7 @@ def _maybe_open_assignment_at_1(assignment_id: int) -> None:
 @celery.task
 def _send_login_links_to_users_1(
     assignment_id: int, task_id_hex: str, scheduled_time: str,
-        reset_token_hex: str, mail_idx: int
+    reset_token_hex: str, mail_idx: int
 ) -> None:
     task_id = uuid.UUID(hex=task_id_hex)
     reset_token = uuid.UUID(hex=reset_token_hex)
@@ -886,7 +886,9 @@ def _send_login_links_to_users_1(
             for user in users:
                 link = login_link_map[user.id]
                 try:
-                    p.mail.send_login_link_mail(mailer, link, mail_idx)
+                    p.mail.send_login_link_mail(
+                        mailer, link, mail_idx=mail_idx
+                    )
                 except:
                     logger.warning(
                         'Could not send email',

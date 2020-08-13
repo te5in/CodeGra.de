@@ -4,6 +4,7 @@ This module is used for all mailing related tasks.
 SPDX-License-Identifier: AGPL-3.0-only
 """
 import html
+import uuid
 import typing as t
 
 import html2text
@@ -36,6 +37,18 @@ def _send_mail(
     text_maker = html2text.HTML2Text(bodywidth=78)
     text_maker.inline_links = False
     text_maker.wrap_links = False
+    text_maker.ignore_tables = True
+    text_maker.wrap_links = False
+
+    def _handle_tag(
+        converter: html2text.HTML2Text, tag: str, _attrs: dict, start: bool
+    ) -> bool:
+        if start and tag in ('tr', 'th'):
+            converter.out('\n')
+        return False
+
+    text_maker.tag_callback = _handle_tag  # type: ignore[assignment]
+
     text_body = text_maker.handle(html_body)
 
     logger.info(
@@ -340,7 +353,7 @@ def send_student_mail(
 
 
 def send_login_link_mail(
-        mailer: Mail, link: models.AssignmentLoginLink, mail_idx: int
+    mailer: Mail, link: models.AssignmentLoginLink, mail_idx: int
 ) -> None:
     receiver = link.user
     subject = current_app.jinja_mail_env.from_string(
@@ -357,11 +370,17 @@ def send_login_link_mail(
         link=link,
         mail_idx=mail_idx,
     )
+    refereneces = [link.get_message_id(i) for i in range(mail_idx)]
+    in_reply_to = refereneces[-1] if refereneces else None
+
     _send_mail(
         html_body,
         subject,
         [(receiver.name, receiver.email)],
         mailer=mailer,
+        message_id=link.get_message_id(mail_idx),
+        in_reply_to=in_reply_to,
+        references=refereneces,
     )
 
 
