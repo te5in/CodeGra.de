@@ -522,10 +522,6 @@ export default {
         overflow-y: hidden;
     }
 }
-
-.manage-assignment .header {
-    z-index: 9;
-}
 </style>
 
 <style lang="less">
