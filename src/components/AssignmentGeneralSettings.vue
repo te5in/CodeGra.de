@@ -47,15 +47,10 @@
     <b-form-group v-if="isExam"
                   :id="`assignment-login-mail-${uniqueId}`"
                   :label-for="`assignment-login-mail-${uniqueId}-input`"
+                  :description="loginLinksDescription"
                   :state="!!name">
         <template #label>
             Send login mails
-        </template>
-
-        <template #description>
-            Send a mail to access the exam at the following times:
-            <template v-for="time, i in loginLinksBeforeTime"
-                >{{ time }} before the exam{{ i < loginLinksBeforeTime.length - 1 ? ',' : '' }}</template>.
         </template>
 
         <cg-toggle :id="`assignment-login-mail-${uniqueId}-input`"
@@ -73,9 +68,7 @@
 
         <template #description>
             The time the assignment should switch from the hidden state to the
-            open state.
-
-            <cg-description-popover hug-text>
+            open state.<cg-description-popover hug-text>
                 With the default permissions this means that students will be
                 able to see the assignment at this moment.
             </cg-description-popover>
@@ -160,7 +153,7 @@
             been set.
 
             <cg-description-popover hug-text v-if="assignment.ltiProvider.isJust()">
-                {{ lmsName.extract() }} did not pass this assignment's
+                {{ lmsName.extract() }} did not pass this assignment&apos;s
                 deadline on to CodeGrade.
             </cg-description-popover>
         </template>
@@ -450,6 +443,13 @@ export default class AssignmentGeneralSettings extends Vue {
                 true,
             );
         }
+    }
+
+
+    get loginLinksDescription() {
+        const prefix = 'Send a mail to access the exam at the following times: ';
+        const extra = this.loginLinksBeforeTime.map(time => `${time} before the exam`);
+        return `${prefix}${this.$utils.readableJoin(extra)}`;
     }
 
     calcExamDuration() {

@@ -23,7 +23,7 @@
         </div>
     </b-popover>
     <component :is="hugText ? 'sup' : 'span'"
-               class="desc-pop-span px-2"
+               class="desc-pop-span px-1"
                :id="compId">
         <span :title="spanTitle">
             <icon :name="icon" :scale="scale"/>
