@@ -47,9 +47,29 @@
                @keydown.ctrl.enter="$refs.submitGeneralSettings.onClick"/>
     </b-form-group>
 
+    <b-form-group v-if="isExam"
+                  :id="`assignment-login-mail-${uniqueId}`"
+                  :label-for="`assignment-login-mail-${uniqueId}-input`"
+                  :state="!!name">
+        <template #label>
+            Send login mails
+        </template>
+
+        <template #description>
+            Send a mail to access the exam at the following times:
+            <template v-for="time, i in loginLinksBeforeTime"
+                >{{ time }} before the exam{{ i < loginLinksBeforeTime.length - 1 ? ',' : '' }}</template>.
+        </template>
+
+        <cg-toggle :id="`assignment-login-mail-${uniqueId}-input`"
+                   v-model="sendLoginLinks"
+                   class="float-right"
+                   style="margin-top: -2rem" />
+    </b-form-group>
+
     <b-form-group :id="`assignment-available-at-${uniqueId}`"
                   :label-for="`assignment-available-at-${uniqueId}-input`"
-                  :state="kind !== examKind || availableAt != null">
+                  :state="!isExam || availableAt != null">
         <template #label>
             Available at
         </template>
@@ -75,7 +95,7 @@
                              placeholder="Manual"/>
 
             <b-input-group-append
-                v-if="permissions.canEditAvailableAt && kind !== examKind"
+                v-if="permissions.canEditAvailableAt && !isExam"
                 v-b-popover.top.hover="availableAt == null ? '' : 'Revert to manual mode.'">
 
                 <b-button
@@ -89,7 +109,7 @@
     </b-form-group>
 
     <b-form-group
-        v-if="kind === examKind"
+        v-if="isExam"
         :state="examDuration != null"
         :id="`assignment-deadline-${uniqueId}`"
         :label-for="`assignment-deadline-${uniqueId}-input`">
@@ -202,6 +222,7 @@
         <cg-submit-button
             ref="submitGeneralSettings"
             :disabled="!!submitGeneralSettingsPopover"
+            :confirm="submitGeneralSettingsConfirm"
             :submit="submitGeneralSettings" />
     </div>
 </b-card>
@@ -232,10 +253,6 @@ export default class AssignmentGeneralSettings extends Vue {
     @Prop({ required: true })
     assignment!: models.Assignment
 
-    readonly normalKind: models.AssignmentKind = models.AssignmentKind.normal;
-
-    readonly examKind: models.AssignmentKind = models.AssignmentKind.exam;
-
     name: string | null = null;
 
     kind: models.AssignmentKind | null = null;
@@ -248,10 +265,20 @@ export default class AssignmentGeneralSettings extends Vue {
 
     maxGrade: number | null = null;
 
+    sendLoginLinks: boolean = true;
+
     readonly uniqueId: number = this.$utils.getUniqueId();
 
     updateAssignmentGeneralSettings!:
         (args: any) => Promise<AxiosResponse<void>>;
+
+    get isNormal() {
+        return this.kind === models.AssignmentKind.normal;
+    }
+
+    get isExam() {
+        return this.kind === models.AssignmentKind.exam;
+    }
 
     get kindOptions() {
         if (this.assignment.is_lti) {
@@ -262,6 +289,13 @@ export default class AssignmentGeneralSettings extends Vue {
             { text: 'Normal', value: models.AssignmentKind.normal },
             { text: 'Exam', value: models.AssignmentKind.exam },
         ];
+    }
+
+    get loginLinksBeforeTime() {
+        return this.$userConfig.loginTokenBeforeTime.map(time => {
+            const asMsecs = 1000 * time;
+            return moment.duration(asMsecs).humanize();
+        });
     }
 
     get assignmentId() {
@@ -282,6 +316,7 @@ export default class AssignmentGeneralSettings extends Vue {
         );
         this.examDuration = this.calcExamDuration();
         this.maxGrade = this.assignment.max_grade;
+        this.sendLoginLinks = true;
     }
 
     get permissions() {
@@ -354,6 +389,22 @@ export default class AssignmentGeneralSettings extends Vue {
         }
     }
 
+    get submitGeneralSettingsConfirm() {
+        const { availableAt, isExam, sendLoginLinks } = this;
+
+        if (!isExam || !sendLoginLinks || availableAt == null) {
+            return '';
+        }
+
+        if (this.$utils.toMoment(availableAt).isBefore(this.$root.$now)) {
+            return `You have set the assignment to become available in the past.
+                While this is fine, students will only be notified of the exam via
+                email once, right now.`;
+        } else {
+            return '';
+        }
+    }
+
     get lmsName() {
         return this.assignment.ltiProvider.map(prov => prov.lms);
     }
@@ -404,6 +455,7 @@ export default class AssignmentGeneralSettings extends Vue {
             availableAt: this.availableAt,
             deadline,
             maximumGrade: this.maxGrade,
+            sendLoginLinks: this.sendLoginLinks,
         });
     }
 }

@@ -163,7 +163,7 @@ export const actions = {
 
     async updateAssignmentGeneralSettings(
         context,
-        { assignmentId, name, kind, availableAt, deadline, maximumGrade },
+        { assignmentId, name, kind, availableAt, deadline, maximumGrade, sendLoginLinks },
     ) {
         await context.dispatch('loadCourses');
 
@@ -174,6 +174,7 @@ export const actions = {
                 available_at: utils.formatDate(availableAt, true),
                 deadline: utils.formatDate(deadline, true),
                 max_grade: maximumGrade,
+                send_login_links: sendLoginLinks,
             })
             .then(res => {
                 context.commit(types.UPDATE_ASSIGNMENT, {
@@ -184,6 +185,7 @@ export const actions = {
                         availableAt: utils.toMomentNullable(res.data.available_at),
                         deadline: utils.toMoment(res.data.deadline),
                         max_grade: res.data.max_grade,
+                        send_login_links: res.data.send_login_links,
                     },
                 });
                 return res;

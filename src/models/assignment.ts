@@ -50,6 +50,7 @@ interface AssignmentServerProps {
     analytics_workspace_ids: number[];
     peer_feedback_settings: AssignmentPeerFeedbackSettings;
     kind: AssignmentKind;
+    send_login_links: boolean;
 
     deadline: string | null;
     created_at: string;
@@ -78,6 +79,7 @@ export interface AssignmentUpdateableProps {
     max_submissions?: number | null;
     amount_in_cool_off_period?: number;
     kind?: AssignmentKind;
+    send_login_links?: boolean;
 
     // Special properties that also may be set.
     reminderTime?: moment.Moment;
@@ -165,6 +167,8 @@ abstract class AssignmentData {
     readonly peer_feedback_settings!: AssignmentPeerFeedbackSettings;
 
     readonly kind!: AssignmentKind;
+
+    readonly send_login_links!: boolean;
 }
 /* eslint-enable camelcase */
 
