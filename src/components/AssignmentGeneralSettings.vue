@@ -332,6 +332,10 @@ export default class AssignmentGeneralSettings extends Vue {
             return false;
         }
 
+        if (this.sendLoginLinks !== this.assignment.send_login_links) {
+            return false;
+        }
+
         if (this.assignment.availableAt == null) {
             if (this.availableAt != null) {
                 return false;
