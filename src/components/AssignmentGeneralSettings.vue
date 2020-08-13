@@ -8,7 +8,7 @@
             Assignment type
         </template>
 
-        <template #description v-if="assignment.is_lti">
+        <template #description v-if="isLTI">
             Some settings of this assignment are managed through {{ lmsName.extract() }}.
         </template>
         <template #description v-else>
@@ -20,7 +20,7 @@
             :id="`assignment-type-${uniqueId}-toggle`"
             v-model="kind"
             :options="kindOptions"
-            :disabled="assignment.is_lti"/>
+            :disabled="isLTI"/>
     </b-form-group>
 
     <b-form-group :id="`assignment-name-${uniqueId}`"
@@ -30,21 +30,18 @@
             Assignment name
         </template>
 
-        <template #description
-                  v-if="!permissions.canEditName">
-            You cannot change the name of an LTI assignment.
-        </template>
-
         <template #invalid-feedback>
             The assignment name may not be empty.
         </template>
 
-        <input :id="`assignment-name-${uniqueId}-input`"
-               type="text"
-               class="form-control"
-               v-model="name"
-               :disabled="!permissions.canEditName"
-               @keydown.ctrl.enter="$refs.submitGeneralSettings.onClick"/>
+        <div v-b-popover.top.hover="permissions.canEditName ? '' : 'You cannot change the name of an LTI assignment'">
+            <input :id="`assignment-name-${uniqueId}-input`"
+                   type="text"
+                   class="form-control"
+                   v-model="name"
+                   :disabled="!permissions.canEditName"
+                   @keydown.ctrl.enter="$refs.submitGeneralSettings.onClick"/>
+        </div>
     </b-form-group>
 
     <b-form-group v-if="isExam"
@@ -145,37 +142,28 @@
         </template>
 
         <template #description>
-            <template v-if="!permissions.canEditDeadline">
-                <template v-if="assignment.ltiProvider.isJust()">
-                    The deadline can be configured in {{ lmsName.extract() }}.
-                </template>
-                <template v-else>
-                    <!-- TODO: Improve description text -->
-                    You cannot change the deadline.
-                </template>
-            </template>
-            <template v-else>
-                Students will not be able to submit work unless a deadline has
-                been set.
+            Students will not be able to submit work unless a deadline has
+            been set.
 
-                <cg-description-popover hug-text v-if="assignment.ltiProvider.isJust()">
-                    {{ lmsName.extract() }} did not pass this assignment's
-                    deadline on to CodeGrade.
-                </cg-description-popover>
-            </template>
+            <cg-description-popover hug-text v-if="assignment.ltiProvider.isJust()">
+                {{ lmsName.extract() }} did not pass this assignment's
+                deadline on to CodeGrade.
+            </cg-description-popover>
         </template>
 
         <template #invalid-feedback>
             The deadline has not been set yet!
         </template>
 
-        <datetime-picker
-            v-model="deadline"
-            @input="examDuration = calcExamDuration()"
-            :id="`assignment-deadline-${uniqueId}-input`"
-            class="assignment-deadline"
-            placeholder="None set"
-            :disabled="!permissions.canEditDeadline"/>
+        <b-input-group v-b-popover.top.hover="deadlinePopover">
+            <datetime-picker
+                v-model="deadline"
+                @input="examDuration = calcExamDuration()"
+                :id="`assignment-deadline-${uniqueId}-input`"
+                class="assignment-deadline"
+                placeholder="None set"
+                :disabled="!permissions.canEditDeadline"/>
+        </b-input-group>
     </b-form-group>
 
     <b-form-group v-if="permissions.canEditMaxGrade"
@@ -239,6 +227,10 @@ import * as models from '@/models';
 // @ts-ignore
 import DatetimePicker from './DatetimePicker';
 
+function optionalText(cond: boolean, text: string) {
+    return cond ? text : '';
+}
+
 @Component({
     components: {
         DatetimePicker,
@@ -281,7 +273,7 @@ export default class AssignmentGeneralSettings extends Vue {
     }
 
     get kindOptions() {
-        if (this.assignment.is_lti) {
+        if (this.isLTI) {
             return [{ text: 'LTI', value: this.kind }];
         }
 
@@ -316,7 +308,7 @@ export default class AssignmentGeneralSettings extends Vue {
         );
         this.examDuration = this.calcExamDuration();
         this.maxGrade = this.assignment.max_grade;
-        this.sendLoginLinks = true;
+        this.sendLoginLinks = this.assignment.send_login_links;
     }
 
     get permissions() {
@@ -376,37 +368,13 @@ export default class AssignmentGeneralSettings extends Vue {
             if (this.examDuration == null) {
                 return false;
             }
-        } else if (this.deadline == null) {
-            return false;
         }
 
         return true;
     }
 
-    get submitGeneralSettingsPopover() {
-        if (this.nothingChanged) {
-            return 'Nothing has changed.';
-        } else if (!this.allDataValid) {
-            return 'Cannot submit while some data is invalid.';
-        } else {
-            return '';
-        }
-    }
-
-    get submitGeneralSettingsConfirm() {
-        const { availableAt, isExam, sendLoginLinks } = this;
-
-        if (!isExam || !sendLoginLinks || availableAt == null) {
-            return '';
-        }
-
-        if (this.$utils.toMoment(availableAt).isBefore(this.$root.$now)) {
-            return `You have set the assignment to become available in the past.
-                While this is fine, students will only be notified of the exam via
-                email once, right now.`;
-        } else {
-            return '';
-        }
+    get isLTI() {
+        return this.assignment.is_lti;
     }
 
     get lmsName() {
@@ -414,11 +382,17 @@ export default class AssignmentGeneralSettings extends Vue {
     }
 
     get availableAtPopover() {
-        if (this.permissions.canEditAvailableAt || this.lmsName.isNothing()) {
-            return '';
-        } else {
-            return `The state is managed by ${this.lmsName.extract()}`;
-        }
+        return optionalText(
+            !(this.permissions.canEditAvailableAt || this.lmsName.isNothing()),
+            `The "available at" date is managed by ${this.lmsName.extract()}`,
+        );
+    }
+
+    deadlinePopover() {
+        return optionalText(
+            !(this.permissions.canEditDeadline || this.lmsName.isNothing()),
+            `The deadline is managed by ${this.lmsName.extract()}`,
+        );
     }
 
     get examDeadline() {
@@ -445,6 +419,31 @@ export default class AssignmentGeneralSettings extends Vue {
         }
     }
 
+    get submitGeneralSettingsPopover() {
+        if (this.nothingChanged) {
+            return 'Nothing has changed.';
+        } else if (!this.allDataValid) {
+            return 'Cannot submit while some data is invalid.';
+        } else {
+            return '';
+        }
+    }
+
+    get submitGeneralSettingsConfirm() {
+        const { availableAt, isExam, sendLoginLinks } = this;
+
+        if (!isExam || !sendLoginLinks || availableAt == null) {
+            return '';
+        }
+
+        return optionalText(
+            this.$utils.toMoment(availableAt).isBefore(this.$root.$now),
+            `You have set the assignment to become available in the past.
+            While this is fine, students will only be notified of the exam via
+            email once, right now.`,
+        );
+    }
+
     submitGeneralSettings() {
         let deadline = this.deadline;
 
@@ -454,7 +453,7 @@ export default class AssignmentGeneralSettings extends Vue {
 
         return this.updateAssignmentGeneralSettings({
             assignmentId: this.assignment.id,
-            rame: this.name,
+            name: this.name,
             kind: this.kind,
             availableAt: this.availableAt,
             deadline,
