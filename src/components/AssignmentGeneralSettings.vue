@@ -478,7 +478,12 @@ export default class AssignmentGeneralSettings extends Vue {
     get submitGeneralSettingsConfirm() {
         const { availableAt, isExam, sendLoginLinks } = this;
 
-        if (!isExam || !sendLoginLinks || availableAt == null) {
+        if (
+            !isExam ||
+            !sendLoginLinks ||
+            availableAt == null ||
+            this.$utils.toMoment(availableAt).isSame(this.assignment.availableAt)
+        ) {
             return '';
         }
 
