@@ -1495,6 +1495,7 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             analytics_workspaces=[
                 analytics_models.AnalyticsWorkspace(assignment=self)
             ],
+            kind=AssignmentKind.normal,
         )
         self._changed_ambiguous_settings: t.Set[AssignmentAmbiguousSettingTag]
         self._on_orm_load()
