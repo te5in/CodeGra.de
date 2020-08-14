@@ -32,16 +32,6 @@ from sqlalchemy import create_engine
 from werkzeug.local import LocalProxy
 from sqlalchemy_utils.functions import drop_database, create_database
 
-import psef
-import manage
-import helpers
-import psef.auth as a
-import psef.models as m
-from helpers import create_error_template, create_user_with_perms
-from lxc_stubs import lxc_stub
-from cg_dt_utils import DatetimeWithTimezone
-from psef.permissions import CoursePermission as CPerm
-
 TESTDB = 'test_project.db'
 TESTDB_PATH = "/tmp/psef/psef-{}-{}".format(TESTDB, random.random())
 TEST_DATABASE_URI = 'sqlite:///' + TESTDB_PATH
@@ -53,6 +43,19 @@ FreshDatabase = collections.namedtuple(
     'FreshDatabase', ['engine', 'name', 'db_name', 'run_psql']
 )
 
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+if True:
+    import helpers
+    from helpers import create_error_template, create_user_with_perms
+    from lxc_stubs import lxc_stub
+
+    import psef
+    import psef.auth as a
+    import psef.models as m
+    from psef.permissions import CoursePermission as CPerm
+    import manage
+    from cg_dt_utils import DatetimeWithTimezone
 
 def get_database_name(request):
     global _DATABASE
@@ -71,7 +74,7 @@ def pytest_addoption(parser):
         parser.addoption(
             "--postgresql",
             action="store",
-            default=False,
+            default='GENERATE',
             help="Run the test using postresql"
         )
     except ValueError:

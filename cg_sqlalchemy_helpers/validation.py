@@ -6,6 +6,9 @@ import typing as t
 
 import structlog
 from sqlalchemy import event
+from typing_extensions import Final
+
+from cg_flask_helpers import callback_after_this_request
 
 from . import types
 from .types import DbColumn
@@ -24,6 +27,8 @@ def _hashable(item: object) -> bool:
 
 _T_BASE = t.TypeVar('_T_BASE', bound=types.Base)  # pylint: disable=invalid-name
 
+_CG_VALIDATOR_SET: Final = '_CG_VALIDATOR_SET'
+_CG_VALIDATOR: Final = '_CG_VALIDATOR'
 
 class Validator:
     """This class can do validation for database objects.
@@ -50,8 +55,12 @@ class Validator:
                     'Got commit before finalize was called',
                     report_to_sentry=True
                 )
-            for validator, target in session.info.get('_CG_VALIDATOR', []):
+            for validator, target in session.info.get(_CG_VALIDATOR, []):
                 validator(target)
+
+    def _clear_info_data(self) -> None:
+        self.__session.info.pop(_CG_VALIDATOR, None)
+        self.__session.info.pop(_CG_VALIDATOR_SET, None)
 
     def __add_columns(
         self, fun: t.Callable[[types.Base], None],
@@ -67,12 +76,16 @@ class Validator:
             is_hash = _hashable(item)
             info = self.__session.info
 
-            if is_hash and item in info.get('_CG_VALIDATOR_SET', set()):
+            validation_set = info.get(_CG_VALIDATOR_SET, None)
+            if validation_set is None:
+                validation_set = info[_CG_VALIDATOR_SET] = set()
+                callback_after_this_request(self._clear_info_data)
+            if is_hash and item in validation_set:
                 return
 
-            info.setdefault('_CG_VALIDATOR', []).append(item)
+            info.setdefault(_CG_VALIDATOR, []).append(item)
             if is_hash:
-                info.setdefault('_CG_VALIDATOR_SET', set()).add(item)
+                validation_set.add(item)
 
         for col in columns:
             event.listen(col, 'set', __was_updated)
