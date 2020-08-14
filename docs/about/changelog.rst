@@ -8,6 +8,9 @@ Version *Next*
 
 **Features**
 
+- Add Sakai support `(#1408)
+  <https://github.com/CodeGra-de/CodeGra.de/pull/1408>`__. Full LTI integration
+  with Sakai.
 - Add support for SSO `(#1414)
   <https://github.com/CodeGra-de/CodeGra.de/pull/1414>`__. CodeGrade now supports
   SSO leveraging the SAML2.0 protocol, allowing even better integration.

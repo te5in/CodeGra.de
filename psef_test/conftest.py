@@ -101,6 +101,7 @@ def make_app_settings(request):
                 'unknown_lms': ('unknown', ['12345678']),
                 'blackboard_lti': ('Blackboard', ['12345678']),
                 'moodle_lti': ('Moodle', ['12345678']),
+                'sakai_lti': ('Sakai', ['12345678']),
                 'brightspace_lti': ('BrightSpace', ['12345678']),
             },
             'LTI_SECRET_KEY': 'hunter123',
