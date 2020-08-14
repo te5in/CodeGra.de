@@ -8,9 +8,9 @@ from cg_json import JSONResponse, ExtendedJSONResponse
 from . import api
 from .. import auth, models, helpers
 from .login import LoginResponse
-from ..errors import APICodes, APIException
 from ..models import db
 from ..helpers import jsonify_options, get_request_start_time
+from ..exceptions import APICodes, APIException
 
 logger = structlog.get_logger()
 
@@ -39,8 +39,15 @@ def login_with_link(login_link_id: uuid.UUID
         (not l.assignment.is_visible or not l.assignment.send_login_links)
     )
     assignment = login_link.assignment
-    if assignment.deadline is None or assignment.deadline_expired:
-        raise APIException
+    deadline = assignment.deadline
+    if deadline is None or assignment.deadline_expired:
+        raise APIException(
+            (
+                'The deadline for this assignment has already expired, so you'
+                ' can no longer use this link.'
+            ), f'The deadline for the assignment {assignment.id} has expired',
+            APICodes.OBJECT_EXPIRED, 400
+        )
     elif assignment.state.is_hidden:
         assignment_id = assignment.id
         db.session.expire(assignment)
@@ -72,7 +79,7 @@ def login_with_link(login_link_id: uuid.UUID
 
     auth.set_current_user(login_link.user)
 
-    auth.AssignmentPermissions(login_link.assignment).ensure_may_see()
+    auth.AssignmentPermissions(assignment).ensure_may_see()
     jsonify_options.get_options().add_permissions_to_user = login_link.user
 
     return ExtendedJSONResponse.make(
@@ -80,10 +87,8 @@ def login_with_link(login_link_id: uuid.UUID
             'user': login_link.user,
             'access_token':
                 login_link.user.make_access_token(
-                    expires_at=(
-                        login_link.assignment.deadline + timedelta(minutes=30)
-                    ),
-                    for_course=login_link.assignment.course,
+                    expires_at=deadline + timedelta(minutes=30),
+                    for_course=assignment.course,
                 ),
         },
         use_extended=models.User,

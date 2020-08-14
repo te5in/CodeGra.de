@@ -44,6 +44,7 @@ from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import (
     EmptyResponse, make_empty_response, callback_after_this_request
 )
+from cg_helpers.humanize import size as human_readable_size
 from cg_sqlalchemy_helpers.types import Base, MyQuery, DbColumn
 
 from . import register, validate, jsonify_options
@@ -1151,33 +1152,6 @@ def ensure_json_dict(
         psef.errors.APICodes.INVALID_PARAM,
         400,
     )
-
-
-def human_readable_size(size: 'psef.archive.FileSize') -> str:
-    """Get a human readable size.
-
-    >>> human_readable_size(512)
-    '512B'
-    >>> human_readable_size(1024)
-    '1KB'
-    >>> human_readable_size(2.4 * 2 ** 20)
-    '2.40MB'
-    >>> human_readable_size(2.4444444 * 2 ** 20)
-    '2.44MB'
-
-    :param size: The size in bytes.
-    :returns: A string that is the amount of bytes which is human readable.
-    """
-    size_f: float = size
-
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if size_f < 1024.0:
-            break
-        size_f /= 1024.0
-
-    if int(size_f) == size_f:
-        return f"{int(size_f)}{unit}"
-    return f"{size_f:.2f}{unit}"
 
 
 def raise_file_too_big_exception(

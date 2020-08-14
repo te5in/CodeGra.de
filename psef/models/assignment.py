@@ -27,7 +27,9 @@ import psef
 import cg_enum
 import cg_cache
 import cg_sqlalchemy_helpers
-from cg_helpers import handle_none, on_not_none, zip_times_with_offset
+from cg_helpers import (
+    humanize, handle_none, on_not_none, zip_times_with_offset
+)
 from cg_dt_utils import DatetimeWithTimezone
 from cg_flask_helpers import callback_after_this_request
 from cg_sqlalchemy_helpers import UUIDType
@@ -1403,11 +1405,10 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         max_time = psef.current_app.config['EXAM_LOGIN_MAX_LENGTH']
         if (self.available_at - self.deadline) > max_time:
             raise APIException(
-                # TODO: Format in a human readable fashion here
                 (
                     'Login links can only be enabled if the deadline is at'
-                    ' most {} seconds after the available at date'
-                ).format(max_time.total_seconds()),
+                    ' most {} after the available at date'
+                ).format(humanize.timedelta(max_time, no_prefix=True)),
                 (
                     f'The assignment {self.id} has too long between deadline'
                     f' and available at'
@@ -1759,8 +1760,12 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
             AssignmentAmbiguousSettingTag.send_login_links
         )
         if self.deadline_expired:
-            # TODO: Finish warning about not sending
-            helpers.add_warning
+            helpers.add_warning(
+                (
+                    'The deadline for this assignment already expired, so we'
+                    ' will not send any login links.'
+                ), APIWarnings.ALREADY_EXPIRED
+            )
         if new_value:
             self._schedule_send_login_links()
         else:
