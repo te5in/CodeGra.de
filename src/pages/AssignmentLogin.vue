@@ -9,7 +9,7 @@
     </local-header>
 
     <div class="row justify-content-center">
-        <div class="col-9">
+        <div class="col" style="max-width: 25rem;">
             <b-alert v-if="error" show variant="danger">
                 {{ $utils.getErrorMessage(error) }}
             </b-alert>
@@ -18,26 +18,76 @@
                     Hi {{ user.readableName }},
                 </p>
 
-                <p>
-                    <span v-if="canLogin">
-                        Click below to login the deadline of this assignment ({{ readableDeadline }})
-                    </span>
-                    <span v-else>
-                        You can login {{ canLoginIn }}.
+                <template v-if="canLogin">
+                    <p>
+                        <template v-if="isExam">
+                            You can start the exam by clicking the button
+                            below.
+                        </template>
+                        <template v-else>
+                            You can access the assignment by clicking the
+                            button below.
+                        </template>
+                    </p>
 
-                        <br />
-                        Automatically login.
-                        <cg-toggle v-model="autoLogin"
-                                   v-if="canLoginInSeconds < 60 * 60"
-                                   label-on="Yes"
-                                   label-off="No"/>
-                    </span>
-                </p>
+                    <p v-if="isExam">
+                        The exam started {{ canLoginIn }} and ends {{ deadlineIn }}.
+                    </p>
+                    <p v-else>
+                        The assignment became available {{ canLoginIn }} and the
+                        deadline of this assignment is {{ deadlineIn }}.
+                    </p>
+                </template>
+                <template v-else>
+                    <p>
+                        <template v-if="isExam">
+                            You can log in to start the exam from this page once it
+                            has started.
+                        </template>
+                        <template v-else>
+                            You can access the assignment from this page once it has
+                            become available.
+                        </template>
 
-                <cg-submit-button :submit="login"
-                                  ref="loginBtn"
-                                  v-if="canLogin"
-                                  @after-success="success" />
+                        Please do not delete the e-mail you received with the
+                        link to this page as you will need it when the exam
+                        starts.
+                    </p>
+
+                    <p>
+                        The {{ assignmentType }} will become available
+                        {{ canLoginIn }} and ends {{ deadlineIn }}. You can
+                        click the button below to log in once the
+                        {{ assignmentType }} is available.
+                    </p>
+                </template>
+
+                <div class="my-3 text-center">
+                    <div v-b-popover.top.hover="canLogin ? '' : 'You can not log in yet.'">
+                        <cg-submit-button style="height: 10rem; width: 10rem;"
+                                        variant="secondary"
+                                        class="align-self-center"
+                                        :icon-scale="4"
+                                        :submit="login"
+                                        ref="loginBtn"
+                                        :disabled="!canLogin"
+                                        @after-success="success">
+                            <fa-icon name="sign-in" :scale="6" />
+                            <div>Start</div>
+                        </cg-submit-button>
+                    </div>
+                </div>
+
+                <template v-if="!canLogin && canLoginInSeconds < 60 * 60">
+                    <p>
+                        Set the toggle below to "Yes" to log in automatically
+                        when the {{ assignmentType }} starts.
+                    </p>
+
+                    <cg-toggle v-model="autoLogin"
+                                label-on="Yes"
+                                label-off="No"/>
+                </template>
             </div>
             <cg-loader page-loader v-else />
         </div>
@@ -47,6 +97,8 @@
 
 <script lang="ts">
 import { Vue, Component, Watch } from 'vue-property-decorator';
+
+import 'vue-awesome/icons/sign-in';
 
 // @ts-ignore
 import LocalHeader from '@/components/LocalHeader';
@@ -87,6 +139,18 @@ export default class AssignmentLogin extends Vue {
         return this.$route.params.loginUuid;
     }
 
+    get isExam(): boolean {
+        if (this.assignment == null) {
+            return false;
+        } else {
+            return this.assignment.kind === 'exam';
+        }
+    }
+
+    get assignmentType(): string {
+        return this.isExam ? 'exam' : 'assignment';
+    }
+
     get canLogin(): boolean {
         return this.loginTime?.isBefore(this.$root.$epoch) ?? false;
     }
@@ -105,19 +169,32 @@ export default class AssignmentLogin extends Vue {
             return null;
         }
         const now = this.$root.$epoch;
-        if (seconds < 45) {
-            return `${seconds.toFixed(0)} seconds`;
-        } else if (seconds <= 15 * 60) {
-            return this.loginTime.from(now);
+        if (seconds > 0) {
+            if (seconds < 45) {
+                return `${seconds.toFixed(0)} seconds`;
+            } else if (seconds <= 15 * 60) {
+                return this.loginTime.from(now);
+            }
         }
-        return this.loginTime?.clone().local().calendar(this.$root.$epoch);
+        return this.loginTime?.clone().local().calendar(now);
     }
 
-    get readableDeadline(): string | null {
-        if (this.assignment != null) {
-            return this.$utils.readableFormatDate(this.assignment.deadline);
+    get deadlineIn(): string | null {
+        const deadline = this.assignment?.deadline?.clone();
+        if (deadline == null) {
+            return null;
         }
-        return null;
+
+        const now = this.$root.$epoch;
+        // moment.diff returns a value in milliseconds.
+        const diff = deadline.diff(now) / 1000;
+        if (diff < 45) {
+            return `in ${diff.toFixed(0)} seconds`;
+        } else if (diff <= 15 * 60) {
+            return deadline.from(now);
+        } else {
+            return deadline.local().calendar(now);
+        }
     }
 
     @Watch('canLogin')
@@ -140,7 +217,6 @@ export default class AssignmentLogin extends Vue {
     onLoginUuidChange() {
         this.loadData();
     }
-
 
     loadData() {
         this.assignment = null;
