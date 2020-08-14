@@ -15,7 +15,11 @@ export class Grader {
         return new Grader(userId, weight, done);
     }
 
-    constructor(public userId: number, public weight: number, public done: boolean) {
+    constructor(
+        public readonly userId: number,
+        public readonly weight: number,
+        public readonly done: boolean,
+    ) {
         Object.freeze(this);
     }
 
