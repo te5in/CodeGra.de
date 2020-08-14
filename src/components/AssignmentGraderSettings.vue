@@ -76,6 +76,7 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator';
 
 import * as models from '@/models';
 import { CoursePermission as CPerm } from '@/permissions';
+import { GradersStore } from '@/store/modules/graders';
 
 // @ts-ignore
 import FinishedGraderToggles from './FinishedGraderToggles';
@@ -95,11 +96,17 @@ export default class AssignmentGraderSettings extends Vue {
     @Prop({ required: true })
     assignment!: models.Assignment;
 
+    getGraders!: (assignmentId: number) => models.Graders | null;
+
+    storeLoadGraders!: (assignmentId: number) => Promise<void>;
+
     gradersLoading: boolean = true;
 
     gradersLoadedOnce: boolean = false;
 
-    graders: ReadonlyArray<models.User> = [];
+    get graders(): models.Graders | null {
+        return GradersStore.getGraders()(this.assignmentId);
+    }
 
     get assignmentId(): number {
         return this.assignment.id;
@@ -130,10 +137,10 @@ export default class AssignmentGraderSettings extends Vue {
     async loadGraders() {
         this.gradersLoading = true;
 
-        const { data } = await this.$http.get(
-            `/api/v1/assignments/${this.assignmentId}/graders/`,
-        );
-        this.graders = data;
+        await GradersStore.loadGraders({
+            assignmentId: this.assignmentId,
+        });
+
         this.gradersLoading = false;
         this.gradersLoadedOnce = true;
     }

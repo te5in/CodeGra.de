@@ -360,6 +360,7 @@ import 'vue-awesome/icons/envelope';
 import 'vue-awesome/icons/comments-o';
 
 import { NONEXISTENT } from '@/constants';
+import { GradersStore } from '@/store/modules/graders';
 import GroupsManagement from '@/components/GroupsManagement';
 import {
     CgLogo,
@@ -510,7 +511,7 @@ export default {
         },
 
         graders() {
-            return this.$utils.getProps(this.assignment, null, 'graders');
+            return GradersStore.getGraders()(this.assignmentId);
         },
 
         assignmentId() {

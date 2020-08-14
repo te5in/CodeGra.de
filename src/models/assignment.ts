@@ -15,7 +15,7 @@ import * as utils from '@/utils/typed';
 import { LTIProvider } from '@/lti_providers';
 
 import * as assignmentState from '@/store/assignment-states';
-import { NormalUserServerData, AnyUser, User } from './user';
+import { AnyUser, User } from './user';
 
 const noop = (_: object): void => undefined as void;
 
@@ -84,7 +84,6 @@ export interface AssignmentUpdateableProps {
     // Special properties that also may be set.
     reminderTime?: moment.Moment;
     deadline?: moment.Moment;
-    graders?: NormalUserServerData[] | null;
     cool_off_period?: number;
     peer_feedback_settings?: AssignmentPeerFeedbackSettings | null;
     availableAt?: moment.Moment | null;
@@ -393,23 +392,7 @@ export class Assignment extends AssignmentData {
                         throw TypeError(`Cannot set assignment property: ${key} to ${value}`);
                     }
 
-                    if (key === 'graders') {
-                        const value = newProps[key];
-                        if (value == null) {
-                            acc.graderIds = null;
-                        } else {
-                            value.forEach(grader =>
-                                store.dispatch(
-                                    'users/addOrUpdateUser',
-                                    {
-                                        user: grader,
-                                    },
-                                    { root: true },
-                                ),
-                            );
-                            acc.graderIds = value.map(g => g.id);
-                        }
-                    } else if (key === 'deadline' || key === 'reminderTime') {
+                    if (key === 'deadline' || key === 'reminderTime') {
                         const value = newProps[key];
                         if (!moment.isMoment(value)) {
                             throw new Error(`${key} can only be set as moment`);

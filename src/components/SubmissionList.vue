@@ -181,6 +181,7 @@ export default {
             userId: 'id',
             userName: 'name',
         }),
+        ...mapGetters('users', ['getUser']),
 
         ...mapGetters('submissions', ['getLatestSubmissions', 'getGroupSubmissionOfUser']),
 
@@ -329,11 +330,14 @@ export default {
         }),
 
         updateGraders(graders) {
-            const assignees = graders.map(ass => ({
-                value: ass.id,
-                text: nameOfUser(ass),
-                data: ass,
-            }));
+            const assignees = graders.map(g => {
+                const user = this.getUser(g.userId);
+                return {
+                    value: user.id,
+                    text: nameOfUser(user),
+                    data: user,
+                };
+            });
             assignees.unshift({ value: null, text: '-', data: null });
             this.assignees = assignees;
         },

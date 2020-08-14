@@ -66,18 +66,6 @@ export const actions = {
         }
     },
 
-    async forceLoadGraders({ commit, dispatch }, assignmentId) {
-        await dispatch('loadCourses');
-        const graders = await axios.get(`/api/v1/assignments/${assignmentId}/graders/`).then(
-            ({ data }) => data,
-            () => null,
-        );
-        commit(types.UPDATE_ASSIGNMENT, {
-            assignmentId,
-            assignmentProps: { graders },
-        });
-    },
-
     reloadCourses({ commit, state }) {
         commit(`submissions/${types.CLEAR_SUBMISSIONS}`, null, { root: true });
         commit(types.CLEAR_COURSES);
