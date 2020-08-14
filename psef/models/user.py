@@ -74,16 +74,35 @@ class User(NotEqualMixin, Base):
         next LTI launch.
     """
 
+    @t.overload
+    def make_access_token(
+        self,
+        *,
+        expires_in: t.Optional[timedelta] = None,
+    ) -> str:
+        ...
+
+    @t.overload
+    def make_access_token(
+        self,
+        *,
+        expires_at: DatetimeWithTimezone,
+        for_course: 'course_models.Course',
+    ) -> str:
+        ...
+
     def make_access_token(
         self,
         *,
         expires_at: t.Optional[DatetimeWithTimezone] = None,
+        expires_in: t.Optional[timedelta] = None,
         for_course: t.Optional['course_models.Course'] = None
     ) -> str:
         assert self.id is not None
-        if expires_at is None:
-            expires_in = None
-        else:
+        if expires_at is not None:
+            assert expires_in is None, (
+                'Cannot provide expires_in and expires_at'
+            )
             now = get_request_start_time()
             expires_in = expires_at - now
 

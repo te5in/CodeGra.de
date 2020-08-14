@@ -1162,6 +1162,7 @@ def register_user_in_course(course_id: int, link_id: uuid.UUID
 
 @api.route('/courses/<int:course_id>/email', methods=['POST'])
 @limiter.limit('10 per 10 minutes', key_func=lambda: current_user.id)
+@auth.login_required
 @features.feature_required(features.Feature.EMAIL_STUDENTS)
 def send_students_an_email(course_id: int) -> JSONResponse[models.TaskResult]:
     """Sent the authors in this course an email.

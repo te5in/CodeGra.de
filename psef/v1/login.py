@@ -9,13 +9,14 @@ import typing as t
 
 from flask import request
 from typing_extensions import TypedDict
+from flask_limiter.util import get_remote_address
 
 from psef.exceptions import (
     APICodes, PermissionException, WeakPasswordException
 )
 
 from . import api
-from .. import auth, mail, models, helpers, current_user
+from .. import auth, mail, models, helpers, limiter, current_user
 from ..errors import APICodes, APIWarnings, APIException
 from ..models import db
 from ..helpers import (
@@ -31,7 +32,19 @@ class LoginResponse(TypedDict):
     access_token: str
 
 
+def _login_rate_limit() -> t.Tuple[str, str]:
+    try:
+        username = request.get_json()['username'].lower()
+    except:  # pylint: disable=bare-except
+        username = '?UNKNOWN?'
+
+    return (username, get_remote_address())
+
+
 @api.route("/login", methods=["POST"])
+@limiter.limit(
+    '5 per minute', key_func=_login_rate_limit, deduct_on_err_only=True
+)
 def login() -> ExtendedJSONResponse[LoginResponse]:
     """Login a :class:`.models.User` if the request is valid.
 

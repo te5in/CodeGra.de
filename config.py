@@ -151,6 +151,7 @@ FlaskConfig = TypedDict(
         'MIN_FREE_DISK_SPACE': int,
         'REDIS_CACHE_URL': str,
         'LOGIN_TOKEN_BEFORE_TIME': t.Sequence[datetime.timedelta],
+        'RATELIMIT_STORAGE_URL': t.Optional[str],
     },
     total=True
 )
@@ -608,6 +609,8 @@ max_login_length = backend_ops.getfloat(
     fallback=datetime.timedelta(hours=12).total_seconds()
 )
 CONFIG['EXAM_LOGIN_MAX_LENGTH'] = datetime.timedelta(seconds=max_login_length)
+
+set_str(CONFIG, backend_ops, 'RATELIMIT_STORAGE_URL', 'memory://')
 
 ############
 # FEATURES #
