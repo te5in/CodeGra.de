@@ -1402,8 +1402,38 @@
 <span class="sd">    &quot;&quot;&quot;</span></div>
 
 
+<span class="k">class</span> <span class="nc">_BareRolesLTIProvider</span><span class="p">(</span><span class="n">BareBonesLTIProvider</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This mixin is for LMSes that give the &quot;Instructor&quot; and &quot;Learner&quot; without</span>
+<span class="sd">    any namespace, but they should be considered course roles.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_unsorted_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">role_type</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]</span>
+                            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]:</span>
+        <span class="n">roles</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">role</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">launch_params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">role</span> <span class="ow">in</span> <span class="p">{</span>
+                <span class="s1">&#39;Instructor&#39;</span><span class="p">,</span> <span class="s1">&#39;Learner&#39;</span>
+            <span class="p">}</span> <span class="ow">and</span> <span class="n">role_type</span> <span class="o">==</span> <span class="n">LTICourseRole</span><span class="p">:</span>
+                <span class="n">roles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">T_LTI_ROLE</span><span class="p">,</span> <span class="n">LTICourseRole</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">role</span><span class="p">,</span> <span class="n">subnames</span><span class="o">=</span><span class="p">[]))</span>
+                <span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">roles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">role_type</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">role</span><span class="p">))</span>
+            <span class="k">except</span> <span class="n">LTIRoleException</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+        <span class="k">return</span> <span class="n">roles</span>
+
+
+<div class="viewcode-block" id="SakaiLTI"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.lti.v1_1.SakaiLTI">[docs]</a><span class="nd">@lti_classes</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s1">&#39;Sakai&#39;</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">SakaiLTI</span><span class="p">(</span><span class="n">_BareRolesLTIProvider</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The LTI class used for the Sakai LMS.</span>
+<span class="sd">    &quot;&quot;&quot;</span></div>
+
+
 <div class="viewcode-block" id="MoodleLTI"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.lti.v1_1.MoodleLTI">[docs]</a><span class="nd">@lti_classes</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s1">&#39;Moodle&#39;</span><span class="p">)</span>
-<span class="k">class</span> <span class="nc">MoodleLTI</span><span class="p">(</span><span class="n">BareBonesLTIProvider</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">MoodleLTI</span><span class="p">(</span><span class="n">_BareRolesLTIProvider</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;The LTI class used for the Moodle LMS.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -1417,25 +1447,6 @@
     <span class="k">def</span> <span class="nf">supports_lti_common_cartridge</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Moodle supports common cartridges&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="kc">True</span></div>
-
-    <span class="k">def</span> <span class="nf">_get_unsorted_roles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">role_type</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Type</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]</span>
-                            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]:</span>
-        <span class="n">roles</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="n">T_LTI_ROLE</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-
-        <span class="k">for</span> <span class="n">role</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">launch_params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">):</span>
-            <span class="c1"># Moodle is strange, it gives these two roles as course roles</span>
-            <span class="k">if</span> <span class="n">role</span> <span class="ow">in</span> <span class="p">{</span>
-                <span class="s1">&#39;Instructor&#39;</span><span class="p">,</span> <span class="s1">&#39;Learner&#39;</span>
-            <span class="p">}</span> <span class="ow">and</span> <span class="n">role_type</span> <span class="o">==</span> <span class="n">LTICourseRole</span><span class="p">:</span>
-                <span class="n">roles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                    <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">T_LTI_ROLE</span><span class="p">,</span> <span class="n">LTICourseRole</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">role</span><span class="p">,</span> <span class="n">subnames</span><span class="o">=</span><span class="p">[]))</span>
-                <span class="p">)</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">roles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">role_type</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">role</span><span class="p">))</span>
-            <span class="k">except</span> <span class="n">LTIRoleException</span><span class="p">:</span>
-                <span class="k">pass</span>
-
-        <span class="k">return</span> <span class="n">roles</span>
 
 <div class="viewcode-block" id="MoodleLTI.passback_grade"><a class="viewcode-back" href="../../../psef_api/psef.html#psef.lti.v1_1.MoodleLTI.passback_grade">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">passback_grade</span><span class="p">(</span>

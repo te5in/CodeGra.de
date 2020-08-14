@@ -6991,7 +6991,7 @@ this name.</p>
 <dl class="py class">
 <dt id="psef.lti.v1_1.MoodleLTI">
 <em class="property">class </em><code class="sig-prename descclassname">psef.lti.v1_1.</code><code class="sig-name descname">MoodleLTI</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em>, <em class="sig-param"><span class="n">params</span><span class="p">:</span> <span class="n">Mapping<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)">str</a><span class="p">, </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)">str</a><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">lti_provider</span><span class="p">:</span> <span class="n"><a class="reference internal" href="#psef.models.lti_provider.LTI1p1Provider" title="psef.models.lti_provider.LTI1p1Provider">psef.models.lti_provider.LTI1p1Provider</a></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.8)">None</a><a class="reference internal" href="../_modules/psef/lti/v1_1.html#MoodleLTI"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.v1_1.MoodleLTI" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#psef.lti.v1_1.BareBonesLTIProvider" title="psef.lti.v1_1.BareBonesLTIProvider"><code class="xref py py-class docutils literal notranslate"><span class="pre">psef.lti.v1_1.BareBonesLTIProvider</span></code></a></p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">psef.lti.v1_1._BareRolesLTIProvider</span></code></p>
 <p>The LTI class used for the Moodle LMS.</p>
 <dl class="py method">
 <dt id="psef.lti.v1_1.MoodleLTI.passback_grade">
@@ -7167,6 +7167,13 @@ launch.</p></li>
 </dl>
 </dd></dl>
 
+</dd></dl>
+
+<dl class="py class">
+<dt id="psef.lti.v1_1.SakaiLTI">
+<em class="property">class </em><code class="sig-prename descclassname">psef.lti.v1_1.</code><code class="sig-name descname">SakaiLTI</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">self</span></em>, <em class="sig-param"><span class="n">params</span><span class="p">:</span> <span class="n">Mapping<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)">str</a><span class="p">, </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)">str</a><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">lti_provider</span><span class="p">:</span> <span class="n"><a class="reference internal" href="#psef.models.lti_provider.LTI1p1Provider" title="psef.models.lti_provider.LTI1p1Provider">psef.models.lti_provider.LTI1p1Provider</a></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; <a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.8)">None</a><a class="reference internal" href="../_modules/psef/lti/v1_1.html#SakaiLTI"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#psef.lti.v1_1.SakaiLTI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">psef.lti.v1_1._BareRolesLTIProvider</span></code></p>
+<p>The LTI class used for the Sakai LMS.</p>
 </dd></dl>
 
 <dl class="py class">

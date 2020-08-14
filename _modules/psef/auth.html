@@ -1861,6 +1861,11 @@
             <span class="p">)</span>
 
         <span class="k">except</span> <span class="p">(</span><span class="n">oauth2</span><span class="o">.</span><span class="n">Error</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s1">&#39;Got invalid oauth request&#39;</span><span class="p">,</span>
+                <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">report_to_sentry</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
             <span class="k">return</span> <span class="n">__handle</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
         <span class="c1"># Signature was valid</span>
         <span class="k">return</span> <span class="kc">True</span></div>
