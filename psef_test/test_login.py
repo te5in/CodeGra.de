@@ -795,7 +795,7 @@ def test_login_rate_limit(test_client, session, describe, app):
                 },
             )
 
-            
+
 def test_reset_password_without_perm(
     test_client, session, error_template, describe
 ):
