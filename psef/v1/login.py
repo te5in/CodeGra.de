@@ -10,7 +10,9 @@ import typing as t
 import flask_jwt_extended as flask_jwt
 from flask import request
 
-from psef.exceptions import WeakPasswordException
+from psef.exceptions import (
+    APICodes, PermissionException, WeakPasswordException
+)
 
 from . import api
 from .. import auth, mail, models, helpers, current_user
@@ -268,13 +270,22 @@ def user_patch_handle_send_reset_email() -> EmptyResponse:
     with helpers.get_from_map_transaction(data) as [get, _]:
         username = get('username', str)
 
-    mail.send_reset_password_email(
-        helpers.filter_single_or_404(
-            models.User,
-            ~models.User.is_test_student,
-            models.User.username == username,
-        )
+    user = helpers.filter_single_or_404(
+        models.User,
+        ~models.User.is_test_student,
+        models.User.username == username,
     )
+
+    if not user.has_permission(GPerm.can_edit_own_password):
+        raise PermissionException(
+            (
+                'This user does not have the necessary permissions to reset'
+                ' its own password'
+            ), f'The user {user.id} has insufficient permissions',
+            APICodes.INCORRECT_PERMISSION, 403
+        )
+
+    mail.send_reset_password_email(user)
     db.session.commit()
 
     return make_empty_response()
