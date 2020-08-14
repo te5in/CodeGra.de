@@ -244,7 +244,7 @@ function optionalText(cond: boolean, text: string) {
     },
     methods: {
         ...mapActions('courses', [
-            'updateAssignmentGeneralSettings',
+            'patchAssignment',
         ]),
     },
 })
@@ -268,7 +268,7 @@ export default class AssignmentGeneralSettings extends Vue {
 
     readonly uniqueId: number = this.$utils.getUniqueId();
 
-    updateAssignmentGeneralSettings!:
+    patchAssignment!:
         (args: any) => Promise<AxiosResponse<void>>;
 
     get isNormal() {
@@ -291,7 +291,7 @@ export default class AssignmentGeneralSettings extends Vue {
     }
 
     get loginLinksBeforeTime() {
-        return this.$userConfig.loginTokenBeforeTime.map(time => {
+        return this.$userConfig.loginTokenBeforeTime.map((time: number) => {
             const asMsecs = 1000 * time;
             return moment.duration(asMsecs).humanize();
         });
@@ -448,7 +448,7 @@ export default class AssignmentGeneralSettings extends Vue {
 
     get loginLinksDescription() {
         const prefix = 'Send a mail to access the exam at the following times: ';
-        const extra = this.loginLinksBeforeTime.map(time => `${time} before the exam`);
+        const extra = this.loginLinksBeforeTime.map((time: string) => `${time} before the exam`);
         return `${prefix}${this.$utils.readableJoin(extra)}`;
     }
 
@@ -499,14 +499,16 @@ export default class AssignmentGeneralSettings extends Vue {
             deadline = this.examDeadline;
         }
 
-        return this.updateAssignmentGeneralSettings({
+        return this.patchAssignment({
             assignmentId: this.assignment.id,
-            name: this.name,
-            kind: this.kind,
-            availableAt: this.availableAt,
-            deadline: deadline || undefined,
-            maximumGrade: this.maxGrade,
-            sendLoginLinks: this.isExam && this.sendLoginLinks,
+            assignmentProps: {
+                name: this.name,
+                kind: this.kind,
+                available_at: this.$utils.formatNullableDate(this.availableAt, true),
+                deadline: this.$utils.formatNullableDate(deadline, true) || undefined,
+                maximumGrade: this.maxGrade,
+                sendLoginLinks: this.isExam && this.sendLoginLinks,
+            },
         });
     }
 }

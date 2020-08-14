@@ -445,8 +445,6 @@ export default {
             'updateRemoteAssignment',
             'loadCourses',
             'reloadCourses',
-            'updateAssignmentDeadline',
-            'updateAssignmentAvailableAt',
         ]),
         ...mapActions('submissions', ['forceLoadSubmissions']),
 

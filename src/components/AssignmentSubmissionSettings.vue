@@ -53,7 +53,7 @@ import SubmissionLimits, { SubmissionLimitValue } from './SubmissionLimits';
     },
     methods: {
         ...mapActions('courses', [
-            'updateAssignmentSubmissionSettings',
+            'patchAssignment',
         ]),
     },
 })
@@ -67,7 +67,7 @@ export default class AssignmentSubmissionSettings extends Vue {
 
     readonly uniqueId: number = this.$utils.getUniqueId();
 
-    updateAssignmentSubmissionSettings!:
+    patchAssignment!:
         (args: any) => Promise<AxiosResponse<void>>;
 
     get assignmentId() {
@@ -149,13 +149,15 @@ export default class AssignmentSubmissionSettings extends Vue {
             return Promise.reject();
         }
 
-        return this.updateAssignmentSubmissionSettings({
+        return this.patchAssignment({
             assignmentId: this.assignment.id,
-            filesUploadEnabled: this.submitTypes.files,
-            webhookUploadEnabled: this.submitTypes.webhook,
-            maxSubmissions: this.submissionLimits.maxSubmissions,
-            coolOffPeriod: this.submissionLimits.coolOff.period,
-            coolOffAmount: this.submissionLimits.coolOff.amount,
+            assignmentProps: {
+                filesUploadEnabled: this.submitTypes.files,
+                webhookUploadEnabled: this.submitTypes.webhook,
+                maxSubmissions: this.submissionLimits.maxSubmissions,
+                coolOffPeriod: 60 * this.submissionLimits.coolOff.period,
+                coolOffAmount: this.submissionLimits.coolOff.amount,
+            },
         });
     }
 }

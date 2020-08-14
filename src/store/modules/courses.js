@@ -2,11 +2,8 @@
 import Vue from 'vue';
 import axios from 'axios';
 
-import moment from 'moment';
-
-import { Assignment, AssignmentKind } from '@/models';
+import { Assignment } from '@/models';
 import { makeProvider } from '@/lti_providers';
-import * as utils from '@/utils';
 
 import * as types from '../mutation-types';
 import { MANAGE_ASSIGNMENT_PERMISSIONS, MANAGE_GENERAL_COURSE_PERMISSIONS } from '../../constants';
@@ -133,143 +130,12 @@ export const actions = {
         return context.getters.assignments[data.assignmentId];
     },
 
-    async updateAssignmentReminder(
-        { commit, state, dispatch },
-        { assignmentId, reminderTime, doneType, doneEmail },
-    ) {
-        await dispatch('loadCourses');
-
-        const assig = getAssignment(state, assignmentId);
-        const newReminderTime = moment(reminderTime, moment.ISO_8601).utc();
-        const props = {
-            done_type: doneType,
-            done_email: doneEmail,
-            reminder_time: newReminderTime.isValid()
-                ? newReminderTime.format('YYYY-MM-DDTHH:mm')
-                : null,
-        };
-
-        return axios.patch(`/api/v1/assignments/${assig.id}`, props).then(response => {
-            delete props.reminder_time;
-            props.reminderTime = newReminderTime;
-            response.onAfterSuccess = () =>
-                commit(types.UPDATE_ASSIGNMENT, {
-                    assignmentId,
-                    assignmentProps: props,
-                });
-            return response;
+    async patchAssignment(context, { assignmentId, assignmentProps }) {
+        await context.dispatch('loadCourses');
+        return axios.patch(`/api/v1/assignments/${assignmentId}`, assignmentProps).then(res => {
+            context.commit(types.SET_ASSIGNMENT, res.data);
+            return res;
         });
-    },
-
-    async updateAssignmentGeneralSettings(
-        context,
-        { assignmentId, name, kind, availableAt, deadline, maximumGrade, sendLoginLinks },
-    ) {
-        await context.dispatch('loadCourses');
-
-        return axios
-            .patch(`/api/v1/assignments/${assignmentId}`, {
-                name,
-                kind,
-                available_at: utils.formatDate(availableAt, true),
-                deadline: utils.formatDate(deadline, true),
-                max_grade: maximumGrade,
-                send_login_links: sendLoginLinks,
-            })
-            .then(res => {
-                context.commit(types.UPDATE_ASSIGNMENT, {
-                    assignmentId,
-                    assignmentProps: {
-                        name: res.data.name,
-                        kind: AssignmentKind[res.data.kind],
-                        availableAt: utils.toMomentNullable(res.data.available_at),
-                        deadline: utils.toMoment(res.data.deadline),
-                        max_grade: res.data.max_grade,
-                        send_login_links: res.data.send_login_links,
-                    },
-                });
-                return res;
-            });
-    },
-
-    async updateAssignmentSubmissionSettings(
-        context,
-        {
-            assignmentId,
-            filesUploadEnabled,
-            webhookUploadEnabled,
-            maxSubmissions,
-            coolOffPeriod,
-            coolOffAmount,
-        },
-    ) {
-        await context.dispatch('loadCourses');
-
-        return axios
-            .patch(`/api/v1/assignments/${assignmentId}`, {
-                files_upload_enabled: filesUploadEnabled,
-                webhook_upload_enabled: webhookUploadEnabled,
-                max_submissions: maxSubmissions,
-                cool_off_period: coolOffPeriod * 60,
-                amount_in_cool_off_period: coolOffAmount,
-            })
-            .then(res => {
-                context.commit(types.UPDATE_ASSIGNMENT, {
-                    assignmentId,
-                    assignmentProps: {
-                        max_submissions: res.data.max_submissions,
-                        cool_off_period: res.data.cool_off_period,
-                        amount_in_cool_off_period: res.data.amount_in_cool_off_period,
-                    },
-                });
-                return res;
-            });
-    },
-
-    async updateAssignmentDeadline({ commit, state, dispatch }, { assignmentId, deadline }) {
-        await dispatch('loadCourses');
-
-        const assig = getAssignment(state, assignmentId);
-        const newDeadline = moment(deadline, moment.ISO_8601).utc();
-        return axios
-            .patch(`/api/v1/assignments/${assig.id}`, {
-                deadline: newDeadline.toISOString(),
-            })
-            .then(response => {
-                response.onAfterSuccess = () =>
-                    commit(types.UPDATE_ASSIGNMENT, {
-                        assignmentId,
-                        assignmentProps: {
-                            deadline: newDeadline,
-                        },
-                    });
-                return response;
-            });
-    },
-
-    async updateAssignmentAvailableAt({ commit, state, dispatch }, { assignmentId, availableAt }) {
-        await dispatch('loadCourses');
-
-        const assig = getAssignment(state, assignmentId);
-        const newAvailableAt =
-            availableAt == null ? null : moment(availableAt, moment.ISO_8601).utc();
-        return axios
-            .patch(`/api/v1/assignments/${assig.id}`, {
-                available_at: newAvailableAt,
-            })
-            .then(response => {
-                response.onAfterSuccess = () => {
-                    const resAvail = moment(response.data.available_at, moment.ISO_8601);
-                    return commit(types.UPDATE_ASSIGNMENT, {
-                        assignmentId,
-                        assignmentProps: {
-                            availableAt: resAvail.isValid() ? resAvail : null,
-                            state: response.data.state,
-                        },
-                    });
-                };
-                return response;
-            });
     },
 };
 
@@ -341,8 +207,20 @@ const mutations = {
     [types.UPDATE_ASSIGNMENT](state, { assignmentId, assignmentProps }) {
         const assignment = getAssignment(state, assignmentId).update(assignmentProps);
         const assigs = state.courses[assignment.courseId].assignments;
-        const assigindex = assigs.findIndex(x => x.id === assignment.id);
-        Vue.set(assigs, assigindex, assignment);
+        const assigIndex = assigs.findIndex(x => x.id === assignment.id);
+        Vue.set(assigs, assigIndex, assignment);
+    },
+
+    [types.SET_ASSIGNMENT](state, assignmentData) {
+        const oldAssig = getAssignment(state, assignmentData.id);
+        const assigs = state.courses[oldAssig.courseId].assignments;
+        const assigIndex = assigs.findIndex(x => x.id === assignmentData.id);
+        const newAssig = Assignment.fromServerData(
+            assignmentData,
+            oldAssig.courseId,
+            oldAssig.canManage,
+        );
+        Vue.set(assigs, assigIndex, newAssig);
     },
 };
 
