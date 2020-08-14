@@ -507,7 +507,7 @@ export default class AssignmentGeneralSettings extends Vue {
                 available_at: this.$utils.formatNullableDate(this.availableAt, true),
                 deadline: this.$utils.formatNullableDate(deadline, true) || undefined,
                 maximumGrade: this.maxGrade,
-                sendLoginLinks: this.isExam && this.sendLoginLinks,
+                send_login_links: this.isExam && this.sendLoginLinks,
             },
         });
     }

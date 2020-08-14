@@ -152,11 +152,11 @@ export default class AssignmentSubmissionSettings extends Vue {
         return this.patchAssignment({
             assignmentId: this.assignment.id,
             assignmentProps: {
-                filesUploadEnabled: this.submitTypes.files,
-                webhookUploadEnabled: this.submitTypes.webhook,
-                maxSubmissions: this.submissionLimits.maxSubmissions,
-                coolOffPeriod: 60 * this.submissionLimits.coolOff.period,
-                coolOffAmount: this.submissionLimits.coolOff.amount,
+                files_upload_enabled: this.submitTypes.files,
+                webhook_upload_enabled: this.submitTypes.webhook,
+                max_submissions: this.submissionLimits.maxSubmissions,
+                cool_off_period: 60 * this.submissionLimits.coolOff.period,
+                amount_in_cool_off_period: this.submissionLimits.coolOff.amount,
             },
         });
     }
