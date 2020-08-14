@@ -1723,6 +1723,13 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
     state = hybrid_property(_state_getter, _state_setter)
 
     def _schedule_send_login_links(self) -> None:
+        if self.deadline_expired:
+            helpers.add_warning(
+                (
+                    'The deadline for this assignment already expired, so we'
+                    ' will not send any login links.'
+                ), APIWarnings.ALREADY_EXPIRED
+            )
         token = uuid.uuid4()
         self._send_login_links_token = token
         assig_id = self.id
@@ -1760,13 +1767,6 @@ class Assignment(helpers.NotEqualMixin, Base):  # pylint: disable=too-many-publi
         self._changed_ambiguous_settings.add(
             AssignmentAmbiguousSettingTag.send_login_links
         )
-        if self.deadline_expired:
-            helpers.add_warning(
-                (
-                    'The deadline for this assignment already expired, so we'
-                    ' will not send any login links.'
-                ), APIWarnings.ALREADY_EXPIRED
-            )
         if new_value:
             self._schedule_send_login_links()
         else:
