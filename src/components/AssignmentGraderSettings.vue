@@ -96,10 +96,6 @@ export default class AssignmentGraderSettings extends Vue {
     @Prop({ required: true })
     assignment!: models.Assignment;
 
-    getGraders!: (assignmentId: number) => models.Graders | null;
-
-    storeLoadGraders!: (assignmentId: number) => Promise<void>;
-
     gradersLoading: boolean = true;
 
     gradersLoadedOnce: boolean = false;

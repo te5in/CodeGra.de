@@ -2,7 +2,7 @@
 <template>
 <div class="finished-grader-toggles">
     <table class="table table-striped"
-            v-if="internalGraders">
+            v-if="graders">
         <thead>
             <tr>
                 <th>Grader</th>
@@ -11,10 +11,10 @@
             </tr>
         </thead>
         <tbody>
-            <tr v-for="grader, i in internalGraders"
+            <tr v-for="grader, i in graders"
                 :key="grader.userId"
                 class="grader">
-                <td><user :user="getUser(grader.userId)"/></td>
+                <td><user :user="grader.user"/></td>
                 <td class="shrink">
                     <b-popover placement="top"
                                :show="!!(warningGraders[grader.userId] || errorGraders[grader.userId])"
@@ -41,7 +41,7 @@
                     <toggle label-on="Done"
                             label-off="Grading"
                             :disabled="!canUpdateOthers && $store.getters['user/id'] != grader.userId"
-                            v-model="grader.done"
+                            v-model="gradersDone[grader.userId]"
                             disabled-text="You cannot change the grader status of other graders"
                             @input="toggleGrader(grader)"/>
                 </td>
@@ -57,8 +57,8 @@ import Icon from 'vue-awesome/components/Icon';
 import 'vue-awesome/icons/times';
 import 'vue-awesome/icons/circle-o-notch';
 import 'vue-awesome/icons/exclamation-triangle';
-import { mapGetters } from 'vuex';
 import { WarningHeader, waitAtLeast } from '@/utils';
+import { GradersStore } from '@/store/modules/graders';
 
 import * as models from '@/models';
 
@@ -80,16 +80,14 @@ export default {
 
     data() {
         return {
-            internalGraders: [],
             loadingGraders: {},
             errorGraders: {},
             warningGraders: {},
+            gradersDone: {},
         };
     },
 
     computed: {
-        ...mapGetters('users', ['getUser']),
-
         permissions() {
             return new models.AssignmentCapabilities(this.assignment);
         },
@@ -99,8 +97,13 @@ export default {
         },
     },
 
-    mounted() {
-        this.internalGraders = this.graders.map(g => Object.assign({}, g));
+    watch: {
+        graders: {
+            immediate: true,
+            handler() {
+                this.gradersDone = this.resetGradersDone();
+            },
+        },
     },
 
     methods: {
@@ -112,6 +115,7 @@ export default {
             }
             return '';
         },
+
         iconStyle(graderId) {
             if (this.errorGraders[graderId]) {
                 return 'times';
@@ -120,6 +124,7 @@ export default {
             }
             return 'circle-o-notch';
         },
+
         toggleGrader(grader) {
             const { userId } = grader;
             this.$set(this.warningGraders, userId, undefined);
@@ -128,7 +133,7 @@ export default {
 
             let req;
 
-            if (grader.done) {
+            if (this.gradersDone[grader.userId]) {
                 req = this.$http.post(
                     `/api/v1/assignments/${this.assignment.id}/graders/${userId}/done`,
                 );
@@ -155,13 +160,18 @@ export default {
                                 }, 2000),
                             );
                         }
+
+                        GradersStore.updateGraderState({
+                            assignmentId: this.assignment.id,
+                            status: this.gradersDone,
+                        });
                     },
                     err => {
                         this.$set(this.errorGraders, userId, err.response.data.message);
 
                         this.$nextTick(() =>
                             setTimeout(() => {
-                                grader.done = !grader.done;
+                                this.gradersDone[grader.userId] = !this.gradersDone[grader.userId];
 
                                 this.$set(this.errorGraders, userId, undefined);
                                 delete this.errorGraders[userId];
@@ -173,6 +183,10 @@ export default {
                     this.$set(this.loadingGraders, userId, undefined);
                     delete this.loadingGraders[userId];
                 });
+        },
+
+        resetGradersDone() {
+            return this.$utils.mapToObject(this.graders, g => [g.userId, g.done]);
         },
     },
 

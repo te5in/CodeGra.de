@@ -46,6 +46,19 @@ export namespace GradersStore {
         'commitGraders',
     );
 
+    export const updateGraderState = moduleBuilder.commit(
+        (state, payload: { assignmentId: number; status: { [userId: number]: boolean } }) => {
+            const { assignmentId, status } = payload;
+            const graders = state.graders[assignmentId];
+            if (graders != null) {
+                state.graders[assignmentId] = graders.map(grader =>
+                    grader.setStatus(status[grader.userId]),
+                );
+            }
+        },
+        'updateGraderState',
+    );
+
     export const loadGraders = moduleBuilder.dispatch(
         (context, payload: { assignmentId: number; force?: boolean }) => {
             const { assignmentId, force } = payload;
@@ -69,11 +82,11 @@ export namespace GradersStore {
                                     { user: grader },
                                     { root: true },
                                 );
-                                return {
+                                return models.Grader.fromServerData({
                                     userId: grader.id,
                                     weight: grader.weight,
                                     done: grader.done,
-                                };
+                                });
                             });
                         }
 

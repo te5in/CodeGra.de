@@ -254,7 +254,7 @@ export default class AssignmentGeneralSettings extends Vue {
 
     name: string | null = null;
 
-    kind: models.AssignmentKind | null = null;
+    kind: models.AssignmentKind = this.assignment.kind;
 
     availableAt: string | null = null;
 

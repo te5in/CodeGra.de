@@ -19,7 +19,7 @@
                     <b-form-checkbox @change="graderChanged(grader.userId)"
                                      :disabled="tableDisabled"
                                      :checked="graderWeights[grader.userId] != 0">
-                        <user :user="getUser(grader.userId)"/>
+                        <user :user="grader.user"/>
                     </b-form-checkbox>
                 </td>
                 <td class="weight p-0 align-bottom">
@@ -149,7 +149,6 @@ export default {
 
     computed: {
         ...mapGetters('courses', ['courses', 'assignments']),
-        ...mapGetters('users', ['getUser']),
 
         currentDivisionParent() {
             return this.assignments[this.assignment.division_parent_id];
@@ -222,7 +221,9 @@ export default {
             const field = this.$refs.inputField.find(f =>
                 f.getAttribute('data-user-id') === `${userId}`,
             );
-            field.focus();
+            if (field != null) {
+                field.focus();
+            }
         },
 
         resetGraderWeights() {
