@@ -13,8 +13,7 @@ import redis
 import jinja2
 import structlog
 import flask_jwt_extended as flask_jwt
-from flask import Flask, Response
-from flask_limiter import Limiter, RateLimitExceeded
+from flask import Flask
 from werkzeug.local import LocalProxy
 
 import cg_logger
@@ -161,18 +160,6 @@ else:
     current_user = flask_jwt.current_user  # pylint: disable=invalid-name
 
 
-def limiter_key_func() -> None:  # pragma: no cover
-    """This is the default key function for the limiter.
-
-    The key function should be set locally at every place the limiter is used
-    so this function always raises a :py:exc:`ValueError`.
-    """
-    raise ValueError('Key function should be overridden')
-
-
-limiter = Limiter(key_func=limiter_key_func)  # pylint: disable=invalid-name
-
-
 def create_app(  # pylint: disable=too-many-statements
     config: t.Mapping = None,
     skip_celery: bool = False,
@@ -217,22 +204,7 @@ def create_app(  # pylint: disable=too-many-statements
     ):  # pragma: no cover
         raise ValueError('The option to generate keys has been removed')
 
-    @resulting_app.errorhandler(RateLimitExceeded)
-    def __handle_error(_: RateLimitExceeded) -> Response:  # pylint: disable=unused-variable
-        res = t.cast(
-            Response,
-            jsonify(
-                errors.APIException(
-                    'Rate limit exceeded, slow down!',
-                    'Rate limit is exceeded',
-                    errors.APICodes.RATE_LIMIT_EXCEEDED,
-                    429,
-                )
-            )
-        )
-        res.status_code = 429
-        return res
-
+    from . import limiter
     limiter.init_app(resulting_app)
 
     cg_logger.init_app(resulting_app)

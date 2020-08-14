@@ -265,7 +265,7 @@ def test_client(app, session, assert_similar):
         return res
 
     client.req = req
-    psef.limiter.reset()
+    psef.limiter._LIMITER.reset()
     yield client
 
 

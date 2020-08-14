@@ -31,6 +31,10 @@ Version *Next*
   labels, and it is unclear what the start of a bin should be, so it has been
   removed as it isn't really useful in a context where an assignment takes less
   than a year.
+- Add rate limiting to login route `(#1410)
+  <https://github.com/CodeGra-de/CodeGra.de>`__. Make it impossible to
+  bruteforce someone's password by sending infinite requests to the login
+  route.
 
 Version Mosaic
 ---------------

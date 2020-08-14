@@ -145,6 +145,7 @@ FlaskConfig = TypedDict(
         'SENTRY_DSN': t.Optional[str],
         'MIN_FREE_DISK_SPACE': int,
         'REDIS_CACHE_URL': str,
+        'RATELIMIT_STORAGE_URL': t.Optional[str],
     },
     total=True
 )
@@ -576,6 +577,8 @@ set_str(CONFIG, backend_ops, '_TRANSIP_USERNAME', '')
 set_str(CONFIG, backend_ops, 'ADMIN_USER', default=None)
 
 set_str(CONFIG, backend_ops, 'REDIS_CACHE_URL', None)
+
+set_str(CONFIG, backend_ops, 'RATELIMIT_STORAGE_URL', 'memory://')
 
 ############
 # FEATURES #
