@@ -154,6 +154,9 @@ def test_get_assignment(
                 'max_submissions': None,
                 'analytics_workspace_ids': [int] if analytics else [],
                 'peer_feedback_settings': None,
+                'kind': 'normal',
+                'send_login_links': False,
+                'available_at': None,
             }
         else:
             res = error_template
@@ -197,17 +200,8 @@ def test_get_non_existing_assignment(
     ]
 )
 def test_update_assignment(
-    changes,
-    err_code,
-    keep_name,
-    keep_deadline,
-    keep_state,
-    teacher_user,
-    test_client,
-    logged_in,
-    assignment,
-    update_data,
-    error_template,
+    changes, err_code, keep_name, keep_deadline, keep_state, teacher_user,
+    test_client, logged_in, assignment, update_data, error_template
 ):
     with logged_in(teacher_user):
         data = copy.deepcopy(update_data)
@@ -243,7 +237,9 @@ def test_update_assignment(
             if keep_name:
                 assert new_assig.name == data['name']
             if keep_deadline:
-                assert new_assig.deadline.isoformat() == data['deadline']
+                assert new_assig.deadline == datetime.datetime.fromisoformat(
+                    data['deadline']
+                )
         else:
             new_assig = psef.helpers.get_or_404(m.Assignment, assig_id)
             assert new_assig.state.name == old_state
@@ -1131,30 +1127,33 @@ def test_archive_with_symlinks(
 @pytest.mark.parametrize('assignment', ['new', 'old'], indirect=True)
 @pytest.mark.parametrize('after_deadline', [True, False])
 @pytest.mark.parametrize(
+    'author', [
+        'student1',
+        http_err(error=404)('DOES_NOT_EXIST'),
+        http_err(error=403)('admin')
+    ]
+)
+@pytest.mark.parametrize(
     'named_user',
     [
         http_err(error=403)('Student1'),
         'Devin Hillenius',
-        http_err(error=403)('admin'),
+        http_err(error=403, stop=True)('admin'),
     ],
     indirect=True,
-)
-@pytest.mark.parametrize(
-    'author',
-    ['student1',
-     http_err(error=404)(-1),
-     http_err(error=403)('admin')]
 )
 def test_upload_for_other(
     named_user, test_client, logged_in, assignment, name, error_template,
     teacher_user, after_deadline, author, session, request
 ):
-    if isinstance(author, int):
-        author = 'DOES_NOT_EXIST'
-
-    marker = request.node.get_closest_marker('http_err')
-    code = 201 if marker is None else marker.kwargs['error']
-    res = None if marker is None else error_template
+    code = 201
+    res = None
+    marker = None
+    for marker in request.node.iter_markers('http_err'):
+        res = error_template
+        code = marker.kwargs['error']
+        if marker.kwargs.get('stop', False):
+            break
 
     if (
         named_user.username == author and named_user.name == 'Student1' and
@@ -4076,21 +4075,28 @@ def test_get_all_assignments_with_rubric(
 
 
 def test_prevent_submitting_to_assignment_without_deadline(
-    test_client, session, assignment, logged_in, admin_user, student_user,
-    error_template
+    test_client, session, assignment, logged_in, admin_user, error_template
 ):
     test_sub_msg = 'You can still upload a test submission.'
 
     with logged_in(admin_user):
         course = create_course(test_client)
         assig = create_assignment(test_client, get_id(course), state='open')
+        student = create_user_with_perms(
+            session,
+            [CPerm.can_submit_own_work, CPerm.can_see_assignments],
+            courses=[course],
+        )
         teacher = create_user_with_perms(
             session,
-            [CPerm.can_submit_others_work, CPerm.can_upload_after_deadline],
+            [
+                CPerm.can_submit_others_work, CPerm.can_upload_after_deadline,
+                CPerm.can_see_assignments
+            ],
             courses=[course],
         )
 
-    with logged_in(student_user):
+    with logged_in(student):
         res = test_client.req(
             'post',
             f'/api/v1/assignments/{assig["id"]}/submission',
@@ -4926,7 +4932,8 @@ def test_limiting_submissions(
         stud = helpers.create_user_with_role(session, 'Student', [course])
         teacher = helpers.create_user_with_role(session, 'Teacher', [course])
         limited_ta = helpers.create_user_with_perms(
-            session, [CPerm.can_submit_others_work], [course]
+            session, [CPerm.can_submit_others_work, CPerm.can_see_assignments],
+            [course]
         )
 
     with describe('Only teachers can set max submissions'):
