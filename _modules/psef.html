@@ -214,8 +214,7 @@
 <span class="kn">import</span> <span class="nn">jinja2</span>
 <span class="kn">import</span> <span class="nn">structlog</span>
 <span class="kn">import</span> <span class="nn">flask_jwt_extended</span> <span class="k">as</span> <span class="nn">flask_jwt</span>
-<span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span><span class="p">,</span> <span class="n">Response</span>
-<span class="kn">from</span> <span class="nn">flask_limiter</span> <span class="kn">import</span> <span class="n">Limiter</span><span class="p">,</span> <span class="n">RateLimitExceeded</span>
+<span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span>
 <span class="kn">from</span> <span class="nn">werkzeug.local</span> <span class="kn">import</span> <span class="n">LocalProxy</span>
 
 <span class="kn">import</span> <span class="nn">cg_logger</span>
@@ -362,18 +361,6 @@
     <span class="n">current_user</span> <span class="o">=</span> <span class="n">flask_jwt</span><span class="o">.</span><span class="n">current_user</span>  <span class="c1"># pylint: disable=invalid-name</span>
 
 
-<div class="viewcode-block" id="limiter_key_func"><a class="viewcode-back" href="../psef_api/psef.html#psef.limiter_key_func">[docs]</a><span class="k">def</span> <span class="nf">limiter_key_func</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-    <span class="sd">&quot;&quot;&quot;This is the default key function for the limiter.</span>
-
-<span class="sd">    The key function should be set locally at every place the limiter is used</span>
-<span class="sd">    so this function always raises a :py:exc:`ValueError`.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Key function should be overridden&#39;</span><span class="p">)</span></div>
-
-
-<span class="n">limiter</span> <span class="o">=</span> <span class="n">Limiter</span><span class="p">(</span><span class="n">key_func</span><span class="o">=</span><span class="n">limiter_key_func</span><span class="p">)</span>  <span class="c1"># pylint: disable=invalid-name</span>
-
-
 <div class="viewcode-block" id="create_app"><a class="viewcode-back" href="../psef_api/psef.html#psef.create_app">[docs]</a><span class="k">def</span> <span class="nf">create_app</span><span class="p">(</span>  <span class="c1"># pylint: disable=too-many-statements</span>
     <span class="n">config</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Mapping</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">skip_celery</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -418,22 +405,7 @@
     <span class="p">):</span>  <span class="c1"># pragma: no cover</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The option to generate keys has been removed&#39;</span><span class="p">)</span>
 
-    <span class="nd">@resulting_app</span><span class="o">.</span><span class="n">errorhandler</span><span class="p">(</span><span class="n">RateLimitExceeded</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">__handle_error</span><span class="p">(</span><span class="n">_</span><span class="p">:</span> <span class="n">RateLimitExceeded</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>  <span class="c1"># pylint: disable=unused-variable</span>
-        <span class="n">res</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span>
-            <span class="n">Response</span><span class="p">,</span>
-            <span class="n">jsonify</span><span class="p">(</span>
-                <span class="n">errors</span><span class="o">.</span><span class="n">APIException</span><span class="p">(</span>
-                    <span class="s1">&#39;Rate limit exceeded, slow down!&#39;</span><span class="p">,</span>
-                    <span class="s1">&#39;Rate limit is exceeded&#39;</span><span class="p">,</span>
-                    <span class="n">errors</span><span class="o">.</span><span class="n">APICodes</span><span class="o">.</span><span class="n">RATE_LIMIT_EXCEEDED</span><span class="p">,</span>
-                    <span class="mi">429</span><span class="p">,</span>
-                <span class="p">)</span>
-            <span class="p">)</span>
-        <span class="p">)</span>
-        <span class="n">res</span><span class="o">.</span><span class="n">status_code</span> <span class="o">=</span> <span class="mi">429</span>
-        <span class="k">return</span> <span class="n">res</span>
-
+    <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">limiter</span>
     <span class="n">limiter</span><span class="o">.</span><span class="n">init_app</span><span class="p">(</span><span class="n">resulting_app</span><span class="p">)</span>
 
     <span class="n">cg_logger</span><span class="o">.</span><span class="n">init_app</span><span class="p">(</span><span class="n">resulting_app</span><span class="p">)</span>
