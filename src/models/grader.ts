@@ -1,4 +1,4 @@
-import { store } from '@/store';
+import * as models from '@/models';
 
 export interface GraderServerData {
     id: number;
@@ -20,7 +20,7 @@ export class Grader {
     }
 
     get user() {
-        return store.getters['users/getUser'](this.userId);
+        return models.User.findUserById(this.userId);
     }
 
     setStatus(value: boolean) {
